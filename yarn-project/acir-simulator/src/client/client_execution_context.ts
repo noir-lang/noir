@@ -10,6 +10,7 @@ import {
   toAcvmL1ToL2MessageLoadOracleInputs,
 } from '../acvm/index.js';
 import { NoteLoadOracleInputs, DBOracle } from './db_oracle.js';
+import { PackedArgsCache } from '../packed_args_cache.js';
 
 /**
  * A type that wraps data with it's read request index
@@ -32,6 +33,8 @@ export class ClientTxExecutionContext {
     public txContext: TxContext,
     /** The old roots. */
     public historicRoots: PrivateHistoricTreeRoots,
+    /** The cache of packed arguments */
+    public packedArgsCache: PackedArgsCache,
   ) {}
 
   /**

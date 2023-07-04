@@ -20,6 +20,10 @@ export const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES - 1)}
  * The callback interface for the ACIR.
  */
 export interface ACIRCallback {
+  /**
+   * Oracle call used to pack a set of arguments for the execution
+   */
+  packArguments(params: ACVMField[]): Promise<ACVMField[]>;
   getSecretKey(params: ACVMField[]): Promise<[ACVMField]>;
   getNotes2(params: ACVMField[]): Promise<ACVMField[]>;
   getRandomField(): Promise<[ACVMField]>;

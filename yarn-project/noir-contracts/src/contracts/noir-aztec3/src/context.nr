@@ -6,8 +6,8 @@ use crate::messaging::process_l1_to_l2_message;
 
 // When finished, one can call .finish() to convert back to the abi
 struct PrivateFunctionContext {
-    // inputs: abi::PrivateContextInputs,
-    args : BoundedVec<Field, abi::MAX_ARGS>,
+    inputs: abi::PrivateContextInputs,
+    args_hash : Field,
     return_values : BoundedVec<Field, abi::MAX_RETURN_VALUES>,
 
     read_requests: BoundedVec<Field, abi::MAX_READ_REQUESTS>,
@@ -27,11 +27,10 @@ struct PrivateFunctionContext {
 }
 
 impl PrivateFunctionContext {
-    // fn new(inputs: abi::PrivateContextInputs) -> PrivateFunctionContext {
-    fn new() -> PrivateFunctionContext {
+    fn new(inputs: abi::PrivateContextInputs, args_hash: Field) -> PrivateFunctionContext {
         PrivateFunctionContext {
-            // inputs: inputs,
-            args: BoundedVec::new(0),
+            inputs: inputs,
+            args_hash: args_hash,
             return_values: BoundedVec::new(0),
 
             read_requests: BoundedVec::new(0),
@@ -51,13 +50,10 @@ impl PrivateFunctionContext {
         }
     }
 
-    fn finish(self, inputs: abi::PrivateContextInputs) -> abi::PrivateCircuitPublicInputs {
-        // TODO hash_index
-        let args_hash = dep::std::hash::pedersen(self.args.storage)[0];
-
+    fn finish(self) -> abi::PrivateCircuitPublicInputs {
         let priv_circuit_pub_inputs = abi::PrivateCircuitPublicInputs {
-            call_context: inputs.call_context,
-            args_hash: args_hash,
+            call_context: self.inputs.call_context,
+            args_hash: self.args_hash,
             return_values: self.return_values.storage,
             read_requests: self.read_requests.storage,
             new_commitments: self.new_commitments.storage,
@@ -70,10 +66,10 @@ impl PrivateFunctionContext {
             // unencrypted_logs_hash: self.unencrypted_logs_hash.storage,
             // encrypted_log_preimages_length: self.encrypted_log_preimages_length,
             // unencrypted_log_preimages_length: self.unencrypted_log_preimages_length,
-            commitment_trees_roots: inputs.roots,
-            contract_deployment_data: inputs.contract_deployment_data,
-            chain_id: inputs.private_global_variables.chain_id,
-            version: inputs.private_global_variables.version,
+            commitment_trees_roots: self.inputs.roots,
+            contract_deployment_data: self.inputs.contract_deployment_data,
+            chain_id: self.inputs.private_global_variables.chain_id,
+            version: self.inputs.private_global_variables.version,
         };
         priv_circuit_pub_inputs
     }

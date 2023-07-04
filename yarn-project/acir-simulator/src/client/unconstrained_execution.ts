@@ -75,6 +75,7 @@ export class UnconstrainedFunctionExecution {
         this.context
           .getCommitment(this.contractAddress, fromACVMField(commitment))
           .then(commitmentData => commitmentData.acvmData),
+      packArguments: notAvailable,
       enqueuePublicFunctionCall: notAvailable,
       notifyCreatedNote: notAvailable,
       notifyNullifiedNote: notAvailable,

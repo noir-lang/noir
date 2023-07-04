@@ -1,5 +1,5 @@
-fn arr_copy_slice<T, N, M>(
-    src: [T; N],
+fn arr_copy_slice<T, M>(
+    src: [T],
     mut dst: [T; M],
     offset: comptime Field,
 ) -> [T; M] {

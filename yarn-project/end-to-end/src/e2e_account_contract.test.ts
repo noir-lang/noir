@@ -17,11 +17,12 @@ describe('e2e_account_contract', () => {
   let ecdsaAccountContract: Contract;
   let child: Contract;
 
-  const sendContractDeployment = (abi: ContractAbi) => {
+  const deployContract = async (abi: ContractAbi) => {
     logger(`Deploying L2 contract ${abi.name}...`);
     const deployer = new ContractDeployer(abi, aztecRpcServer);
     const deployMethod = deployer.deploy();
     const tx = deployMethod.send();
+    await tx.isMined(0, 0.1);
 
     return { tx, partialContractAddress: deployMethod.partialContractAddress! };
   };
@@ -33,10 +34,8 @@ describe('e2e_account_contract', () => {
     ecdsaSigner = SignerType.ECDSA,
   ) => {
     logger('Deploying Schnorr based Account contract');
-    const schnorrDeploymentTx = sendContractDeployment(SchnorrAccountContractAbi);
-    const ecdsaDeploymentTx = sendContractDeployment(EcdsaAccountContractAbi);
-    await schnorrDeploymentTx.tx.isMined(0, 0.1);
-    await ecdsaDeploymentTx.tx.isMined(0, 0.1);
+    const schnorrDeploymentTx = await deployContract(SchnorrAccountContractAbi);
+    const ecdsaDeploymentTx = await deployContract(EcdsaAccountContractAbi);
 
     const schnorrReceipt = await schnorrDeploymentTx.tx.getReceipt();
     const ecdsaReceipt = await ecdsaDeploymentTx.tx.getReceipt();
@@ -64,8 +63,7 @@ describe('e2e_account_contract', () => {
       EcdsaAccountContractAbi,
     );
 
-    const childDeployTx = sendContractDeployment(ChildAbi);
-    await childDeployTx.tx.isMined(0, 0.1);
+    const childDeployTx = await deployContract(ChildAbi);
     const childReceipt = await childDeployTx.tx.getReceipt();
     child = new Contract(childReceipt.contractAddress!, ChildAbi, aztecRpcServer);
   };

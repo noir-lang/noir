@@ -19,6 +19,7 @@ import {
   ContractPublicData,
   ExecutionRequest,
   L2BlockL2Logs,
+  PackedArguments,
   PartialContractAddress,
   Tx,
   TxExecutionRequest,
@@ -303,7 +304,8 @@ export class AztecRPCServer implements AztecRPC {
     const contract = contractTree.contract;
     await this.db.addContract(contract);
 
-    const txRequest = new TxExecutionRequest(contract.address, functionData, flatArgs, txContext);
+    const packedArgs = await PackedArguments.fromArgs(flatArgs, wasm);
+    const txRequest = new TxExecutionRequest(contract.address, functionData, packedArgs.hash, txContext, [packedArgs]);
     return { txRequest, contract, partialContractAddress };
   }
 
@@ -320,7 +322,7 @@ export class AztecRPCServer implements AztecRPC {
   public async createTx(functionName: string, args: any[], to: AztecAddress, optionalFromAddress?: AztecAddress) {
     const account = this.#ensureAccountOrDefault(optionalFromAddress);
     const accountContract = await this.db.getContract(account.getAddress());
-    const entrypoint: AccountImplementation = this.#getAccountImplementation(account, accountContract);
+    const entrypoint: AccountImplementation = await this.#getAccountImplementation(account, accountContract);
 
     const executionRequest = await this.#getExecutionRequest(account, functionName, args, to);
 
@@ -337,7 +339,7 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   // TODO: Store the kind of account in account state
-  #getAccountImplementation(accountState: AccountState, contract: ContractDao | undefined) {
+  async #getAccountImplementation(accountState: AccountState, contract: ContractDao | undefined) {
     const address = accountState.getAddress();
     const pubKey = accountState.getPublicKey();
     const partialContractAddress = accountState.getPartialContractAddress();
@@ -347,7 +349,14 @@ export class AztecRPCServer implements AztecRPC {
       throw new Error(`Account contract not found at ${address}`);
     } else if (contract.name.includes('Account')) {
       this.log(`Using account contract implementation for ${address}`);
-      return new AccountContract(address, pubKey, this.keyStore, partialContractAddress, accountContractAbi);
+      return new AccountContract(
+        address,
+        pubKey,
+        this.keyStore,
+        partialContractAddress,
+        accountContractAbi,
+        await CircuitsWasm.get(),
+      );
     } else {
       throw new Error(`Unknown account implementation for ${address}`);
     }

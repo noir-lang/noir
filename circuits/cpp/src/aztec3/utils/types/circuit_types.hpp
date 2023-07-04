@@ -55,10 +55,21 @@ template <typename Builder> struct CircuitTypes {
         return plonk::stdlib::pedersen_commitment<Builder>::compress(inputs, hash_index);
     }
 
+    static fr hash(std::vector<fr> const& inputs, const size_t hash_index = 0)
+    {
+        return plonk::stdlib::pedersen_plookup_commitment<Builder>::compress(inputs, hash_index);
+    }
+
     template <size_t SIZE> static fr compress(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
     {
         std::vector<fr> const inputs_vec(std::begin(inputs), std::end(inputs));
         return plonk::stdlib::pedersen_commitment<Builder>::compress(inputs_vec, hash_index);
+    }
+
+    template <size_t SIZE> static fr hash(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
+    {
+        std::vector<fr> const inputs_vec(std::begin(inputs), std::end(inputs));
+        return plonk::stdlib::pedersen_plookup_commitment<Builder>::compress(inputs_vec, hash_index);
     }
 
     static fr compress(std::vector<fr> const& inputs,

@@ -329,7 +329,7 @@ TEST(abi_tests, hash_var_args)
     NT::fr const got_hash = NT::fr::serialize_from_buffer(output.data());
 
     // Calculate the expected hash in-test
-    NT::fr const expected_hash = NT::compress(args, aztec3::GeneratorIndex::FUNCTION_ARGS);
+    NT::fr const expected_hash = NT::hash(args, aztec3::GeneratorIndex::FUNCTION_ARGS);
 
     // Confirm cbind output == expected hash
     EXPECT_EQ(got_hash, expected_hash);

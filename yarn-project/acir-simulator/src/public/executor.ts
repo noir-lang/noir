@@ -28,6 +28,7 @@ import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution, PublicExecutionResult } from './execution.js';
 import { ContractStorageActionsCollector } from './state_actions.js';
 import { fieldsToFormattedStr } from '../client/debug.js';
+import { PackedArgsCache } from '../packed_args_cache.js';
 
 // Copied from crate::abi at noir-contracts/src/contracts/noir-aztec3/src/abi.nr
 const NOIR_MAX_RETURN_VALUES = 4;
@@ -69,10 +70,16 @@ export class PublicExecutor {
     const newNullifiers: Fr[] = [];
     const nestedExecutions: PublicExecutionResult[] = [];
     const unencryptedLogs = new FunctionL2Logs([]);
+    // Functions can request to pack arguments before calling other functions.
+    // We use this cache to hold the packed arguments.
+    const packedArgs = await PackedArgsCache.create([]);
 
     const notAvailable = () => Promise.reject(`Built-in not available for public execution simulation`);
 
     const { partialWitness } = await acvm(acir, initialWitness, {
+      packArguments: async (args: ACVMField[]) => {
+        return [toACVMField(await packedArgs.pack(args.map(fromACVMField)))];
+      },
       getSecretKey: notAvailable,
       getNotes2: notAvailable,
       getRandomField: notAvailable,
@@ -127,12 +134,13 @@ export class PublicExecutor {
         newNullifiers.push(fromACVMField(nullifier));
         return await Promise.resolve([ZERO_ACVM_FIELD]);
       },
-      callPublicFunction: async ([address, functionSelector, ...args]) => {
+      callPublicFunction: async ([address, functionSelector, argsHash]) => {
+        const args = packedArgs.unpack(fromACVMField(argsHash));
         this.log(`Public function call: addr=${address} selector=${functionSelector} args=${args.join(',')}`);
         const childExecutionResult = await this.callPublicFunction(
           frToAztecAddress(fromACVMField(address)),
           frToSelector(fromACVMField(functionSelector)),
-          args.map(f => fromACVMField(f)),
+          args,
           execution.callContext,
           globalVariables,
         );

@@ -45,8 +45,7 @@ contract NonNativeToken {
         initial_supply: Field, 
         owner: Point,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateFunctionContext::new();
-        context.args = context.args.push_array([initial_supply, owner.x, owner.y]);
+        let mut context = PrivateFunctionContext::new(inputs, abi::hash_args([initial_supply, owner.x, owner.y]));
 
         let owner_balance = balances.at(owner.x);
         let note = Note::new(initial_supply, owner);
@@ -56,7 +55,7 @@ contract NonNativeToken {
         assert(emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        context.finish(inputs)
+        context.finish()
     }
 
     // Mint Private Function
@@ -75,8 +74,9 @@ contract NonNativeToken {
         secret: Field,
         canceller: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateFunctionContext::new();
-        context.args = context.args.push_array([amount, owner.x, owner.y, owner_address, msg_key, secret]);
+        let mut context = PrivateFunctionContext::new(inputs, abi::hash_args([
+            amount, owner.x, owner.y, owner_address, msg_key, secret, canceller
+        ]));
 
         let content_hash = _get_mint_content_hash(amount, owner_address, canceller);
 
@@ -92,7 +92,7 @@ contract NonNativeToken {
         assert(emit_encrypted_log(inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, note) == 0);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        context.finish(inputs)
+        context.finish()
     }
 
 
@@ -110,8 +110,9 @@ contract NonNativeToken {
         recipient: Field, // ethereum address in the field
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut initialContext = PrivateFunctionContext::new();
-        initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient]);
+        let mut initialContext = PrivateFunctionContext::new(inputs, abi::hash_args([
+            amount, sender.x, sender.y, recipient, callerOnL1
+        ]));
 
         // Gets the set of sender's notes and picks 2 of those.
         let sender_balance = balances.at(sender.x);
@@ -144,7 +145,7 @@ contract NonNativeToken {
         context = context.message_portal(content);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        context.finish(inputs)
+        context.finish()
     }
 
     // Mint Public Function
@@ -161,7 +162,6 @@ contract NonNativeToken {
         msg_key: Field,
         secret: Field,
         canceller: Field,
-        _padding: [Field; abi::MAX_ARGS - 5]
     ) -> Field {
         let content_hash = _get_mint_content_hash(amount, owner_address, canceller);
 
@@ -183,7 +183,6 @@ contract NonNativeToken {
         amount: Field,
         recipient: Field,
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
-        _padding: [Field; abi::MAX_ARGS - 2]
     ) {
 
         let sender = inputs.call_context.msg_sender;
@@ -215,8 +214,9 @@ contract NonNativeToken {
         sender: Point, 
         recipient: Point,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut initialContext = PrivateFunctionContext::new();
-        initialContext.args = initialContext.args.push_array([amount, sender.x, sender.y, recipient.x, recipient.y]);
+        let mut initialContext = PrivateFunctionContext::new(inputs, abi::hash_args([
+            amount, sender.x, sender.y, recipient.x, recipient.y
+        ]));
 
         // Gets the set of sender's notes and picks 2 of those.
         let sender_balance = balances.at(sender.x);
@@ -252,13 +252,12 @@ contract NonNativeToken {
         assert(emit_encrypted_log(inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note) == 0);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        context.finish(inputs)
+        context.finish()
     }
 
     /// ABI getBalance type "unconstrained"
     fn getBalance(
         owner: Point,
-        _padding: [Field; abi::MAX_ARGS - 2]
     ) -> pub Field {
         let owner_balance = balances.at(owner.x);
         

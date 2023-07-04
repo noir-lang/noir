@@ -274,11 +274,10 @@ export class AccountState {
     const contractDataOracle = new ContractDataOracle(this.db, this.node);
     const kernelOracle = new KernelOracle(contractDataOracle, this.node);
     const executionResult = await this.simulate(txExecutionRequest, contractDataOracle);
-    const argsHash = executionResult.callStackItem.publicInputs.argsHash;
 
     const kernelProver = new KernelProver(kernelOracle);
     this.log('Executing Prover...');
-    const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(argsHash), executionResult);
+    const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);
     this.log('Proof completed!');
 
     const newContractPublicFunctions = newContractAddress

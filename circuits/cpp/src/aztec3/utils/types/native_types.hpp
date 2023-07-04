@@ -47,10 +47,21 @@ struct NativeTypes {
         return crypto::pedersen_commitment::compress_native(inputs, hash_index);
     }
 
+    static fr hash(const std::vector<fr>& inputs, const size_t hash_index = 0)
+    {
+        return crypto::pedersen_commitment::lookup::compress_native(inputs, hash_index);
+    }
+
     template <size_t SIZE> static fr compress(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
     {
         std::vector<fr> const inputs_vec(std::begin(inputs), std::end(inputs));
         return crypto::pedersen_commitment::compress_native(inputs_vec, hash_index);
+    }
+
+    template <size_t SIZE> static fr hash(std::array<fr, SIZE> const& inputs, const size_t hash_index = 0)
+    {
+        std::vector<fr> const inputs_vec(std::begin(inputs), std::end(inputs));
+        return crypto::pedersen_commitment::lookup::compress_native(inputs_vec, hash_index);
     }
 
     static fr compress(const std::vector<std::pair<fr, crypto::generators::generator_index_t>>& input_pairs)

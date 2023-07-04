@@ -13,7 +13,7 @@ contract Child {
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        PrivateFunctionContext::new().finish(inputs)
+        PrivateFunctionContext::new(inputs, 0).finish()
     }
 
     // Returns a sum of the input and the chain id and version of the contract in private circuit public input's return_values.
@@ -21,26 +21,21 @@ contract Child {
         inputs: PrivateContextInputs,
         input: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = PrivateFunctionContext::new();
-        context.args = context.args.push(input);
+        let mut context = PrivateFunctionContext::new(inputs, abi::hash_args([input]));
 
         context.return_values = context.return_values.push(input + inputs.private_global_variables.chain_id + inputs.private_global_variables.version);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        context.finish(inputs)
+        context.finish()
     }
 
     // Returns base_value + 42.
-    // @param _padding: Nested public functions always get called with MAX_ARGS, since we don't have the ABI available
-    // during execution time to know how many args are expected, hence the _padding argument. We should
-    // be able to remove it when we migrate to brillig.
-    open fn pubValue(inputs: PublicContextInputs, base_value: Field, _padding: [Field; abi::MAX_ARGS - 1]) -> pub Field {
+    open fn pubValue(inputs: PublicContextInputs, base_value: Field) -> pub Field {
         base_value + inputs.public_global_variables.chain_id + inputs.public_global_variables.version + inputs.public_global_variables.block_number + inputs.public_global_variables.timestamp
     }
 
     // Increments `current_value` by `new_value` and returns `new_value` + 1.
-    // @param _padding: Same as above, we need the padding argument for open functions.
-    open fn pubStoreValue(_inputs: PublicContextInputs, new_value: Field, _padding: [Field; abi::MAX_ARGS - 1]) -> pub Field {
+    open fn pubStoreValue(_inputs: PublicContextInputs, new_value: Field) -> pub Field {
         // Compiler complains if we don't assign the result to anything
         let old_value = current_value.read();
         let _void1 = current_value.write(old_value + new_value);

@@ -1,4 +1,5 @@
 use crate::abi::CallContext;
+use crate::abi::hash_args;
 use crate::abi::ContractDeploymentData;
 use crate::context::PrivateFunctionContext;
 use crate::abi::PublicCircuitPublicInputs;
@@ -8,6 +9,8 @@ use crate::utils::arr_copy_slice;
 
 // oracles
 use crate::oracle::enqueue_public_function_call::enqueue_public_function_call_internal;
+use crate::oracle::public_call::call_public_function_internal;
+use crate::oracle::arguments;
 
 struct PublicCallStackItem {
     contract_address: Field,
@@ -17,11 +20,21 @@ struct PublicCallStackItem {
 }
 
 impl PublicCallStackItem {
-    fn call(contract_address: Field, function_selector: Field, args: [Field; crate::abi::MAX_ARGS], mut context: PrivateFunctionContext) -> (Self, PrivateFunctionContext) {
+    fn call<ARGS_COUNT>(
+        contract_address: Field, 
+        function_selector: Field, 
+        args: [Field; ARGS_COUNT], 
+        mut context: PrivateFunctionContext) -> (Self, PrivateFunctionContext) {
+        let args_hash = hash_args(args);
+        assert(args_hash == arguments::pack_arguments(args));
+        PublicCallStackItem::call_with_packed_args(contract_address, function_selector, args_hash, context)
+    }
+
+    fn call_with_packed_args(contract_address: Field, function_selector: Field, args_hash: Field, mut context: PrivateFunctionContext) -> (Self, PrivateFunctionContext) {
         let fields = enqueue_public_function_call_internal(
             contract_address, 
             function_selector, 
-            args
+            args_hash
         );
         let item = PublicCallStackItem {
             contract_address: fields[0],
@@ -58,9 +71,7 @@ impl PublicCallStackItem {
         assert(contract_address == item.contract_address);
         assert(function_selector == item.function_data.function_selector);
         
-        // TODO hash_index
-        // let args_hash = dep::std::hash::pedersen(args)[0];
-        // assert(args_hash == item.public_inputs.args_hash);
+        assert(args_hash == item.public_inputs.args_hash);
 
         assert(item.public_inputs.call_context.is_delegate_call == false);
         assert(item.public_inputs.call_context.is_static_call == false);
@@ -80,4 +91,30 @@ impl PublicCallStackItem {
             self.public_inputs.hash(),
         ])[0]
     }
+}
+
+
+fn call_public_function<N>(
+    contract_address: Field, 
+    function_selector: Field,
+    args: [Field; N],
+) -> [Field; crate::abi::MAX_RETURN_VALUES] {
+    let args_hash = hash_args(args);
+    assert(args_hash == arguments::pack_arguments(args));
+    call_public_function_internal(
+        contract_address, 
+        function_selector, 
+        args_hash,
+    )
+}
+
+fn call_public_function_no_args(
+    contract_address: Field, 
+    function_selector: Field,
+) -> [Field; crate::abi::MAX_RETURN_VALUES] {
+    call_public_function_internal(
+        contract_address, 
+        function_selector, 
+        0,
+    )
 }

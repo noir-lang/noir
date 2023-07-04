@@ -1,3 +1,4 @@
+mod arguments;
 mod call_private_function;
 mod create_commitment;
 mod create_l2_to_l1_message;

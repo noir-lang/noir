@@ -1,15 +1,15 @@
-import { BufferReader, Tuple } from '@aztec/foundation/serialize';
+import { BufferReader } from '@aztec/foundation/serialize';
 import { computeVarArgsHash } from '../abis/abis.js';
 import { CircuitsWasm, FieldsOf } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import {
-  ARGS_LENGTH,
   AztecAddress,
   CallContext,
   Fr,
   FunctionData,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
+  Vector,
 } from './index.js';
 
 /**
@@ -33,7 +33,7 @@ export class PublicCallRequest {
     /**
      * Function arguments.
      */
-    public args: Tuple<Fr, typeof ARGS_LENGTH>,
+    public args: Fr[],
   ) {}
 
   /**
@@ -41,7 +41,7 @@ export class PublicCallRequest {
    * @returns The buffer.
    */
   toBuffer() {
-    return serializeToBuffer(this.contractAddress, this.functionData, this.callContext, this.args);
+    return serializeToBuffer(this.contractAddress, this.functionData, this.callContext, new Vector(this.args));
   }
 
   /**
@@ -55,7 +55,7 @@ export class PublicCallRequest {
       new AztecAddress(reader.readBytes(32)),
       FunctionData.fromBuffer(reader),
       CallContext.fromBuffer(reader),
-      reader.readArray<Fr, typeof ARGS_LENGTH>(ARGS_LENGTH, Fr),
+      reader.readVector(Fr),
     );
   }
 

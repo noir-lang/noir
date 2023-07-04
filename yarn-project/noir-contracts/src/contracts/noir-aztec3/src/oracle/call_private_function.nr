@@ -6,17 +6,17 @@ global CALL_PRIVATE_FUNCTION_RETURN_SIZE: comptime Field = 48;
 fn call_private_function_oracle(
     _contract_address: Field,
     _function_selector: Field,
-    _args: [Field; crate::abi::MAX_ARGS]
+    _args_hash: Field
 ) -> [Field; CALL_PRIVATE_FUNCTION_RETURN_SIZE] {}
 
 unconstrained fn call_private_function_internal(
     contract_address: Field,
     function_selector: Field,
-    args: [Field; crate::abi::MAX_ARGS]
+    args_hash: Field
 ) -> [Field; CALL_PRIVATE_FUNCTION_RETURN_SIZE] {
     call_private_function_oracle(
         contract_address,
         function_selector,
-        args,
+        args_hash,
     )
 }

@@ -4,35 +4,28 @@ use crate::types::vec::BoundedVec;
 global ACCOUNT_MAX_PRIVATE_CALLS: comptime Field = 1;
 global ACCOUNT_MAX_PUBLIC_CALLS: comptime Field = 1;
 global ACCOUNT_MAX_CALLS: comptime Field = 2;
-// MAX_ARGS + 1 (FUNCTION_SELECTOR) + 1 (TARGET_ADDRESS)
-global FUNCTION_CALL_SIZE: comptime Field = 18;
+// 1 (ARGS_HASH) + 1 (FUNCTION_SELECTOR) + 1 (TARGET_ADDRESS)
+global FUNCTION_CALL_SIZE: comptime Field = 3;
 
 struct FunctionCall {
-  args: [Field; abi::MAX_ARGS],
+  args_hash: Field,
   function_selector: Field,
   target_address: Field,
 }
 
 impl FunctionCall {
   fn serialize(self) -> [Field; FUNCTION_CALL_SIZE] {
-    let mut fields: BoundedVec<Field, FUNCTION_CALL_SIZE> = BoundedVec::new(0); 
-    fields = fields.push_array(self.args);
-    fields = fields.push(self.function_selector);
-    fields = fields.push(self.target_address);
-    fields.storage
+    [self.args_hash, self.function_selector, self.target_address]
   }
 }
 
 // FUNCTION_CALL_SIZE * (ACCOUNT_MAX_PUBLIC_CALLS + ACCOUNT_MAX_PRIVATE_CALLS) + 1
-global ENTRYPOINT_PAYLOAD_SIZE: comptime Field = 37;
-global ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: comptime Field = 1184;
-
-// MAX_ARGS * (ACCOUNT_MAX_PUBLIC_CALLS + ACCOUNT_MAX_PRIVATE_CALLS)
-global ACCOUNT_FLATTENED_ARGS_SIZE: comptime Field = 32;
+global ENTRYPOINT_PAYLOAD_SIZE: comptime Field = 7;
+global ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: comptime Field = 224;
 
 struct EntrypointPayload {
   // Noir doesnt support nested arrays or structs yet so we flatten everything
-  flattened_args: [Field; ACCOUNT_FLATTENED_ARGS_SIZE],
+  flattened_args_hashes: [Field; ACCOUNT_MAX_CALLS],
   flattened_selectors: [Field; ACCOUNT_MAX_CALLS],
   flattened_targets: [Field; ACCOUNT_MAX_CALLS],
   nonce: Field,
@@ -47,7 +40,7 @@ impl EntrypointPayload {
   // Serializes the entrypoint struct
   fn serialize(self) -> [Field; ENTRYPOINT_PAYLOAD_SIZE] {
     let mut fields: BoundedVec<Field, ENTRYPOINT_PAYLOAD_SIZE> = BoundedVec::new(0); 
-    fields = fields.push_array(self.flattened_args);
+    fields = fields.push_array(self.flattened_args_hashes);
     fields = fields.push_array(self.flattened_selectors);
     fields = fields.push_array(self.flattened_targets);
     fields = fields.push(self.nonce);
@@ -58,12 +51,12 @@ impl EntrypointPayload {
   fn to_be_bytes(self) -> [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] {
     let mut bytes: [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = [0; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES];
 
-    let args_len = self.flattened_args.len();
+    let args_len = self.flattened_args_hashes.len();
     let selectors_len = self.flattened_selectors.len();
     let targets_len = self.flattened_targets.len();
 
     for i in 0..args_len {
-      let item_bytes = self.flattened_args[i].to_be_bytes(32);
+      let item_bytes = self.flattened_args_hashes[i].to_be_bytes(32);
       for j in 0..32 { 
         bytes[i * 32 + j] = item_bytes[j];
       }
@@ -97,7 +90,7 @@ impl EntrypointPayload {
 
     // Noir crashes if we try to push_bytes the whole item_bytes into the vec
     // See https://github.com/noir-lang/noir/issues/1023
-    for item in self.flattened_args {
+    for item in self.flattened_args_hashes {
       let item_bytes = item.to_be_bytes(32);
       for i in 0..32 { 
         bytes.push(item_bytes[i]); 

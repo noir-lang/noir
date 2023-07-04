@@ -26,7 +26,7 @@ template <typename NCT> typename NCT::fr compute_var_args_hash(std::vector<typen
     if (args.size() > MAX_ARGS) {
         throw_or_abort("Too many arguments in call to compute_var_args_hash");
     }
-    return NCT::compress(args, FUNCTION_ARGS);
+    return NCT::hash(args, FUNCTION_ARGS);
 }
 
 template <typename NCT> typename NCT::fr compute_constructor_hash(FunctionData<NCT> function_data,
