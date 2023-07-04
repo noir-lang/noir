@@ -6,7 +6,7 @@ use std::{
 use acvm::{acir::circuit::Opcode, Language};
 use nargo::manifest::{Dependency, PackageManifest};
 use noirc_driver::Driver;
-use noirc_frontend::graph::{CrateId, CrateName, CrateType};
+use noirc_frontend::graph::{CrateId, CrateType};
 use thiserror::Error;
 
 use crate::{git::clone_git_repo, InvalidPackageError};
@@ -85,7 +85,6 @@ impl<'a> Resolver<'a> {
         let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
         resolver.resolve_manifest(crate_id, manifest, pkg_root)?;
 
-        add_std_lib(&mut driver);
         Ok(driver)
     }
 
@@ -166,12 +165,4 @@ impl<'a> Resolver<'a> {
             }
         }
     }
-}
-
-// This needs to be public to support the tests in `cli/mod.rs`.
-pub(crate) fn add_std_lib(driver: &mut Driver) {
-    let std_crate_name = "std";
-    let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
-    let std_crate = driver.create_non_local_crate(path_to_std_lib_file, CrateType::Library);
-    driver.propagate_dep(std_crate, &CrateName::new(std_crate_name).unwrap());
 }

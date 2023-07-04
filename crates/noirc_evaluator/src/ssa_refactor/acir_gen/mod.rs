@@ -14,7 +14,7 @@ use self::acir_ir::{
 use super::{
     ir::{
         dfg::DataFlowGraph,
-        function::RuntimeType,
+        function::{Function, RuntimeType},
         instruction::{
             Binary, BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
         },
@@ -24,7 +24,10 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use acvm::{acir::native_types::Expression, FieldElement};
+use acvm::{
+    acir::{brillig_vm::Opcode, native_types::Expression},
+    FieldElement,
+};
 use iter_extended::vecmap;
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
@@ -108,18 +111,59 @@ impl Ssa {
 
 impl Context {
     /// Converts SSA into ACIR
-    fn convert_ssa(mut self, ssa: Ssa, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
+    fn convert_ssa(self, ssa: Ssa, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
         let main_func = ssa.main();
+        match main_func.runtime() {
+            RuntimeType::Acir => self.convert_acir_main(main_func, &ssa, brillig, allow_log_ops),
+            RuntimeType::Brillig => self.convert_brillig_main(main_func, brillig),
+        }
+    }
+
+    fn convert_acir_main(
+        mut self,
+        main_func: &Function,
+        ssa: &Ssa,
+        brillig: Brillig,
+        allow_log_ops: bool,
+    ) -> GeneratedAcir {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
 
         self.convert_ssa_block_params(entry_block.parameters(), dfg);
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, &ssa, &brillig, allow_log_ops);
+            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, allow_log_ops);
         }
 
         self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
+
+        self.acir_context.finish()
+    }
+
+    fn convert_brillig_main(mut self, main_func: &Function, brillig: Brillig) -> GeneratedAcir {
+        let dfg = &main_func.dfg;
+
+        let inputs = vecmap(dfg[main_func.entry_block()].parameters(), |param_id| {
+            let typ = dfg.type_of_value(*param_id);
+            self.create_value_from_type(&typ, &mut |this, _| this.acir_context.add_variable())
+        });
+
+        let outputs: Vec<AcirType> = vecmap(self.get_return_values(main_func), |result_id| {
+            dfg.type_of_value(result_id).into()
+        });
+
+        let code = self.gen_brillig_for(main_func, &brillig);
+
+        let output_values = self.acir_context.brillig(None, code, inputs, outputs);
+        let output_vars: Vec<_> = output_values
+            .iter()
+            .flat_map(|value| value.clone().flatten())
+            .map(|value| value.0)
+            .collect();
+
+        for acir_var in output_vars {
+            self.acir_context.return_var(acir_var);
+        }
 
         self.acir_context.finish()
     }
@@ -219,23 +263,11 @@ impl Context {
                             RuntimeType::Brillig => {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                                // Create the entry point artifact
-                                let mut entry_point = BrilligArtifact::new_entry_point_artifact(
-                                    BrilligFunctionContext::parameters(func),
-                                    BrilligFunctionContext::return_values(func),
-                                    BrilligFunctionContext::function_id_to_function_label(*id),
-                                );
-                                // Link the entry point with all dependencies
-                                while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-                                    let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone()).expect("Cannot find linked fn {unresolved_fn_label}");
-                                    entry_point.link_with(unresolved_fn_label, artifact);
-                                }
-                                // Generate the final bytecode
-                                let code = entry_point.finish();
+                                let code = self.gen_brillig_for(func, brillig);
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
-                                let output_values = self.acir_context.brillig(code, inputs, outputs);
+                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var,code, inputs, outputs);
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
 
@@ -307,6 +339,24 @@ impl Context {
         }
     }
 
+    fn gen_brillig_for(&self, func: &Function, brillig: &Brillig) -> Vec<Opcode> {
+        // Create the entry point artifact
+        let mut entry_point = BrilligArtifact::new_entry_point_artifact(
+            BrilligFunctionContext::parameters(func),
+            BrilligFunctionContext::return_values(func),
+            BrilligFunctionContext::function_id_to_function_label(*id),
+        );
+        // Link the entry point with all dependencies
+        while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
+            let artifact = &brillig
+                .find_by_function_label(unresolved_fn_label.clone())
+                .expect("Cannot find linked fn {unresolved_fn_label}");
+            entry_point.link_with(unresolved_fn_label, artifact);
+        }
+        // Generate the final bytecode
+        entry_point.finish()
+    }
+
     /// Handles an ArrayGet or ArraySet instruction.
     /// To set an index of the array (and create a new array in doing so), pass Some(value) for
     /// store_value. To just retrieve an index of the array, pass None for store_value.
@@ -371,6 +421,22 @@ impl Context {
         let result_ids = dfg.instruction_results(instruction);
         let typ = dfg.type_of_value(result_ids[0]).into();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
+    }
+
+    /// Finds the return values of a given function
+    fn get_return_values(&self, func: &Function) -> Vec<ValueId> {
+        let blocks = func.reachable_blocks();
+        let mut function_return_values = None;
+        for block in blocks {
+            let terminator = func.dfg[block].terminator();
+            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
+                function_return_values = Some(return_values);
+                break;
+            }
+        }
+        function_return_values
+            .expect("Expected a return instruction, as block is finished construction")
+            .clone()
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations

@@ -106,11 +106,12 @@ impl Format {
 
     pub fn serialize(
         &self,
-        w_map: &BTreeMap<String, InputValue>,
+        input_map: &BTreeMap<String, InputValue>,
+        abi: &Abi,
     ) -> Result<String, InputParserError> {
         match self {
-            Format::Json => json::serialize_to_json(w_map),
-            Format::Toml => toml::serialize_to_toml(w_map),
+            Format::Json => json::serialize_to_json(input_map, abi),
+            Format::Toml => toml::serialize_to_toml(input_map, abi),
         }
     }
 }
@@ -170,7 +171,7 @@ mod serialization_tests {
         ]);
 
         for format in Format::iter() {
-            let serialized_inputs = format.serialize(&input_map).unwrap();
+            let serialized_inputs = format.serialize(&input_map, &abi).unwrap();
 
             let reconstructed_input_map = format.parse(&serialized_inputs, &abi).unwrap();
 
