@@ -307,40 +307,62 @@ impl GeneratedAcir {
         Ok(limb_witnesses)
     }
 
+    // Returns the 2-complement of lhs, using the provided sign bit in 'leading'
+    // if leading is zero, it returns lhs
+    // if leading is one, it returns 2^bit_size-lhs
+    fn two_complement(
+        &mut self,
+        lhs: &Expression,
+        leading: Witness,
+        max_bit_size: u32,
+    ) -> Expression {
+        let max_power_of_two =
+            FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
+        let inter = &(&Expression::from_field(max_power_of_two) - lhs) * &leading.into();
+        lhs.add_mul(FieldElement::from(2_i128), &inter)
+    }
+
+    /// Signed division lhs /  rhs
+    /// We derive the signed division from the unsigned euclidian division.
+    /// note that this is not euclidian division!
+    // if x is a signed integer, then sign(x)x >= 0
+    // so if a and b are signed integers, we can do the unsigned division:
+    // sign(a)a = q1*sign(b)b + r1
+    // => a = sign(a)sign(b)q1*b + sign(a)r1
+    // => a = qb+r, with |r|<|b| and a and r have the same sign.
     pub(crate) fn signed_division(
         &mut self,
         lhs: &Expression,
         rhs: &Expression,
         max_bit_size: u32,
     ) -> Result<(Expression, Expression), AcirGenError> {
-        // maximum power of two for the bit size
+        // 2^{max_bit size-1}
         let max_power_of_two =
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
 
-        //rhs / max_power_of_two
-        let (rhs_leading, rhs_mantissa) = self.euclidean_division(
+        // Get the sign bit of rhs by computing rhs / max_power_of_two
+        let (rhs_leading, _) = self.euclidean_division(
             rhs,
             &max_power_of_two.into(),
             max_bit_size,
             &Expression::one(),
         )?;
 
-        //lhs / max_power_of_two
-        let (lhs_leading, lhs_mantissa) = self.euclidean_division(
+        // Get the sign bit of lhs by computing lhs / max_power_of_two
+        let (lhs_leading, _) = self.euclidean_division(
             lhs,
             &max_power_of_two.into(),
             max_bit_size,
             &Expression::one(),
         )?;
 
-        // signed to unsigned
-        let l_inter = &Expression::from(lhs_leading) * &Expression::from(lhs_mantissa);
-        let r_inter = &Expression::from(rhs_leading) * &Expression::from(rhs_mantissa);
-        let unsigned_l = lhs.add_mul(FieldElement::from(2_i128), &l_inter);
-        let unsigned_r = rhs.add_mul(FieldElement::from(2_i128), &r_inter);
-        let unsigned_l_witness = self.get_or_create_witness(&unsigned_l);
-        let unsigned_r_witness = self.get_or_create_witness(&unsigned_r);
+        // Signed to unsigned:
+        let unsigned_lhs = self.two_complement(lhs, lhs_leading, max_bit_size);
+        let unsigned_rhs = self.two_complement(rhs, rhs_leading, max_bit_size);
+        let unsigned_l_witness = self.get_or_create_witness(&unsigned_lhs);
+        let unsigned_r_witness = self.get_or_create_witness(&unsigned_rhs);
 
+        // Performs the division using the unsigned values of lhs and rhs
         let (q1, r1) = self.euclidean_division(
             &unsigned_l_witness.into(),
             &unsigned_r_witness.into(),
@@ -348,15 +370,18 @@ impl GeneratedAcir {
             &Expression::one(),
         )?;
 
-        // unsigned to signed
-        let q1_inter = &(&Expression::from_field(max_power_of_two) - &Expression::from(q1))
-            * &rhs_leading.into();
-        let quotient = Expression::from(q1).add_mul(FieldElement::from(2_i128), &q1_inter);
-        let r1_inter = &(&Expression::from_field(max_power_of_two) - &Expression::from(r1))
-            * &lhs_leading.into();
-        let remainder = Expression::from(r1).add_mul(FieldElement::from(2_i128), &r1_inter);
+        // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
+        // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
+        let q_sign = (&Expression::from(lhs_leading) + &Expression::from(rhs_leading)).add_mul(
+            -FieldElement::from(2_i128),
+            &(&Expression::from(lhs_leading) * &Expression::from(rhs_leading)),
+        );
+        let q_sign_witness = self.get_or_create_witness(&q_sign);
+        let quotient = self.two_complement(&q1.into(), q_sign_witness, max_bit_size);
+        let remainder = self.two_complement(&r1.into(), lhs_leading, max_bit_size);
         Ok((quotient, remainder))
     }
+
     /// Computes lhs/rhs by using euclidean division.
     ///
     /// Returns `q` for quotient and `r` for remainder such
