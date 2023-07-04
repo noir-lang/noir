@@ -153,34 +153,13 @@ pub(crate) fn evaluate(
                     hashed_message: resolve_array(&args[3], acir_gen, ctx, evaluator),
                     output: outputs[0],
                 },
-                BlackBoxFunc::EcdsaSecp256r1 => {
-                    println!("\n\n");
-
-                    println!("\n\n");
-                    println!("\n\n");
-
-                    println!("\n\n");
-                    println!("pubkey x: {:?}", args[0]);
-                    println!("pubkey y: {:?}", args[1]);
-                    println!("sig: {:?} ", args[2]);
-                    println!("hashed message: {:?}", args[3]);
-
-                    println!("pubkey x: {:?}", ctx.try_get_node(args[0]));
-                    println!("pubkey y: {:?}", ctx.try_get_node(args[1]));
-                    println!("sig: {:?} ", ctx.try_get_node(args[2]));
-                    println!("hashed message: {:?}", ctx.try_get_node(args[3]));
-
-                    let x = BlackBoxFuncCall::EcdsaSecp256r1 {
-                        public_key_x: resolve_array(&args[0], acir_gen, ctx, evaluator),
-                        public_key_y: resolve_array(&args[1], acir_gen, ctx, evaluator),
-                        signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
-                        hashed_message: resolve_array(&args[3], acir_gen, ctx, evaluator),
-                        output: outputs[0],
-                    };
-                    println!("{:#?}", x);
-                    println!("\n\n");
-                    x
-                }
+                BlackBoxFunc::EcdsaSecp256r1 => BlackBoxFuncCall::EcdsaSecp256r1 {
+                    public_key_x: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    public_key_y: resolve_array(&args[1], acir_gen, ctx, evaluator),
+                    signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                    hashed_message: resolve_array(&args[3], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
                 BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
                     inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
                     output: outputs[0],
