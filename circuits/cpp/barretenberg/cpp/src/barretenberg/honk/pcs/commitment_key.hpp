@@ -8,17 +8,17 @@
  */
 
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
-#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
+#include "barretenberg/ecc/curves/bn254/pairing.hpp"
+#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/numeric/bitop/pow.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
-#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
-#include "barretenberg/ecc/curves/bn254/pairing.hpp"
-#include "barretenberg/numeric/bitop/pow.hpp"
 
 #include <cstddef>
-#include <string_view>
 #include <memory>
+#include <string_view>
 
 namespace proof_system::honk::pcs {
 

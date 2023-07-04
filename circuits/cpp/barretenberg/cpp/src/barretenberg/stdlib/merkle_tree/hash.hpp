@@ -1,9 +1,9 @@
 #pragma once
 #include "barretenberg/common/net.hpp"
 #include "barretenberg/crypto/blake2s/blake2s.hpp"
+#include "barretenberg/crypto/pedersen_commitment/convert_buffer_to_field.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/crypto/pedersen_hash/pedersen_lookup.hpp"
-#include "barretenberg/crypto/pedersen_commitment/convert_buffer_to_field.hpp"
 #include "barretenberg/stdlib/hash/blake2s/blake2s.hpp"
 #include "barretenberg/stdlib/hash/pedersen/pedersen.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"

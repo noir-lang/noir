@@ -14,10 +14,10 @@
 */
 #pragma once
 
-#include <cstdint>
-#include <cstddef>
-#include <vector>
 #include <array>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
 
 namespace blake2 {
 

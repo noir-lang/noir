@@ -1,6 +1,6 @@
 #include "./global_crs.hpp"
-#include "./factories/mem_crs_factory.hpp"
 #include "./factories/file_crs_factory.hpp"
+#include "./factories/mem_crs_factory.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 
 namespace {

@@ -1,15 +1,15 @@
 #pragma once
 #include "barretenberg/common/log.hpp"
-#include <array>
-#include <algorithm>
-#include <tuple>
 #include "barretenberg/common/thread.hpp"
-#include "polynomials/barycentric_data.hpp"
-#include "polynomials/univariate.hpp"
-#include "polynomials/pow.hpp"
-#include "relations/relation_parameters.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
+#include "polynomials/barycentric_data.hpp"
+#include "polynomials/pow.hpp"
+#include "polynomials/univariate.hpp"
+#include "relations/relation_parameters.hpp"
+#include <algorithm>
+#include <array>
 #include <functional>
+#include <tuple>
 
 namespace proof_system::honk::sumcheck {
 

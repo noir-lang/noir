@@ -1,6 +1,6 @@
 #include "barretenberg/common/thread.hpp"
-#include "moody/blockingconcurrentqueue.h"
 #include "log.hpp"
+#include "moody/blockingconcurrentqueue.h"
 #include "timer.hpp"
 #include <atomic>
 #include <condition_variable>

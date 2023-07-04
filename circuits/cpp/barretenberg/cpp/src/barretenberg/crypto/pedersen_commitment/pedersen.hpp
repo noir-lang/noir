@@ -1,8 +1,8 @@
 #pragma once
-#include <array>
-#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "../generators/generator_data.hpp"
 #include "../generators/fixed_base_scalar_mul.hpp"
+#include "../generators/generator_data.hpp"
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include <array>
 
 namespace crypto {
 namespace pedersen_commitment {

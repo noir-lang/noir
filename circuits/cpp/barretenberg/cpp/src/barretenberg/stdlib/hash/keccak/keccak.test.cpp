@@ -1,8 +1,8 @@
-#include "keccak.hpp"
-#include "barretenberg/crypto/keccak/keccak.hpp"
-#include <gtest/gtest.h>
-#include "barretenberg/numeric/random/engine.hpp"
 #include "../../primitives/plookup/plookup.hpp"
+#include "barretenberg/crypto/keccak/keccak.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
+#include "keccak.hpp"
+#include <gtest/gtest.h>
 
 using namespace barretenberg;
 using namespace proof_system::plonk;

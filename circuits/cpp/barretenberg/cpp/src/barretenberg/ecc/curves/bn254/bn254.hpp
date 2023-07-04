@@ -1,7 +1,7 @@
 #pragma once
-#include "../bn254/fr.hpp"
 #include "../bn254/fq.hpp"
 #include "../bn254/fq2.hpp"
+#include "../bn254/fr.hpp"
 #include "../bn254/g1.hpp"
 #include "../bn254/g2.hpp"
 

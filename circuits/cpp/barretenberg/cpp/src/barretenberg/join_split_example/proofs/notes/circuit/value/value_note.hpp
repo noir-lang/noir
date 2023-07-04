@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/join_split_example/types.hpp"
-#include "witness_data.hpp"
 #include "commit.hpp"
+#include "witness_data.hpp"
 
 namespace join_split_example {
 namespace proofs {

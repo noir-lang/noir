@@ -1,13 +1,12 @@
 #include "acir_composer.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
-#include "barretenberg/dsl/acir_format/recursion_constraint.hpp"
-#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
+#include "barretenberg/dsl/acir_format/recursion_constraint.hpp"
 #include "barretenberg/dsl/types.hpp"
-#include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
-#include "barretenberg/srs/factories/crs_factory.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/sol_gen.hpp"
+#include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 
 namespace acir_proofs {

@@ -1,7 +1,7 @@
-#include <gtest/gtest.h>
-#include "barretenberg/common/streams.hpp"
 #include "./fixed_base_scalar_mul.hpp"
 #include "./generator_data.hpp"
+#include "barretenberg/common/streams.hpp"
+#include <gtest/gtest.h>
 
 using namespace crypto::generators;
 

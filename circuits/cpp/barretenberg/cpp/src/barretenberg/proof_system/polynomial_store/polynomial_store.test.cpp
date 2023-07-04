@@ -1,8 +1,8 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 
-#include "polynomial_store.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "polynomial_store.hpp"
 
 namespace proof_system {
 

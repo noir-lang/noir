@@ -91,9 +91,9 @@ e.g. unpacking
     msgpack::unpack((const char*)encoded_data, encoded_data_size).get().convert(*value);
 ```
 */
-#include <type_traits>
-#include "msgpack_impl/name_value_pair_macro.hpp"
 #include "msgpack_impl/concepts.hpp"
+#include "msgpack_impl/name_value_pair_macro.hpp"
+#include <type_traits>
 
 // Helper for above documented syntax
 // Define a macro that takes any amount of parameters and expands to a msgpack method definition

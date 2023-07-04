@@ -4,12 +4,12 @@
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/sol_gen.hpp"
 
-#include "circuits/blake_circuit.hpp"
 #include "circuits/add_2_circuit.hpp"
+#include "circuits/blake_circuit.hpp"
 #include "circuits/recursive_circuit.hpp"
 
-#include "utils/utils.hpp"
 #include "utils/instance_sol_gen.hpp"
+#include "utils/utils.hpp"
 
 template <typename Composer, template <typename> typename Circuit>
 void generate_keys(std::string output_path, std::string flavour_prefix, std::string circuit_name)

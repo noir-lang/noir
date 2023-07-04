@@ -1,6 +1,6 @@
 #pragma once
-#include <cstdint>
 #include <concepts>
+#include <cstdint>
 
 namespace proof_system {
 enum class CircuitType : uint32_t { STANDARD, TURBO, ULTRA, UNDEFINED };

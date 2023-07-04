@@ -1,11 +1,11 @@
 #include "prover.hpp"
 #include "../public_inputs/public_inputs.hpp"
-#include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
-#include <chrono>
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
+#include <chrono>
 
 using namespace barretenberg;
 

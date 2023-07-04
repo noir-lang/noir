@@ -1,7 +1,7 @@
 #pragma once
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include <array>
 #include <tuple>
-#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
 namespace crypto {
 namespace generators {

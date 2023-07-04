@@ -1,10 +1,9 @@
-#include <vector>
 #include <gtest/gtest.h>
+#include <vector>
 
 #include "acir_format.hpp"
-#include "ecdsa_secp256k1.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/common/streams.hpp"
+#include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/serialize/test_helper.hpp"
 #include "ecdsa_secp256k1.hpp"
 

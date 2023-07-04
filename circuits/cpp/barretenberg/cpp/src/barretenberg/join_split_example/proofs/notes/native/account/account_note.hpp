@@ -1,7 +1,7 @@
 #pragma once
-#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "../../constants.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
 namespace join_split_example {
 namespace proofs {

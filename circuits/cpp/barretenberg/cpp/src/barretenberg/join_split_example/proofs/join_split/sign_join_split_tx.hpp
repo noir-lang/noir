@@ -1,6 +1,6 @@
 #pragma once
-#include "barretenberg/crypto/schnorr/schnorr.hpp"
 #include "../notes/native/value/value_note.hpp"
+#include "barretenberg/crypto/schnorr/schnorr.hpp"
 #include "join_split_tx.hpp"
 
 namespace join_split_example {

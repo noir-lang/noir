@@ -1,8 +1,8 @@
-#include <functional>
 #include "field.hpp"
 #include "../bool/bool.hpp"
 #include "../circuit_builders/circuit_builders.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include <functional>
 
 using namespace proof_system;
 

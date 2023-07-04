@@ -1,9 +1,9 @@
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib/primitives/bool/bool.hpp"
-#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
+#include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/stdlib/primitives/bool/bool.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wc99-designator"
 

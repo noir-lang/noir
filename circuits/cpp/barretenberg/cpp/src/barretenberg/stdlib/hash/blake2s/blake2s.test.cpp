@@ -1,8 +1,8 @@
+#include "barretenberg/crypto/blake2s/blake2s.hpp"
+#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "blake2s.hpp"
 #include "blake2s_plookup.hpp"
 #include <gtest/gtest.h>
-#include "barretenberg/crypto/blake2s/blake2s.hpp"
-#include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::plonk::stdlib;

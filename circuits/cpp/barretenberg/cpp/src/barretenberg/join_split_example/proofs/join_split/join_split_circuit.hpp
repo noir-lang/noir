@@ -1,9 +1,9 @@
 #pragma once
-#include "join_split_tx.hpp"
-#include "../notes/circuit/value/witness_data.hpp"
 #include "../notes/circuit/claim/witness_data.hpp"
+#include "../notes/circuit/value/witness_data.hpp"
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
 #include "barretenberg/join_split_example/types.hpp"
+#include "join_split_tx.hpp"
 
 namespace join_split_example {
 namespace proofs {

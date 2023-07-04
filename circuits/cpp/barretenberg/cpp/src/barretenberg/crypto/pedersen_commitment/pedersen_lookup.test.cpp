@@ -1,9 +1,9 @@
-#include <gtest/gtest.h>
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
+#include <gtest/gtest.h>
 
-#include "./pedersen_lookup.hpp"
 #include "../pedersen_hash/pedersen_lookup.hpp"
+#include "./pedersen_lookup.hpp"
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

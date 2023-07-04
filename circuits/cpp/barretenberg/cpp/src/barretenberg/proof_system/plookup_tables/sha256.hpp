@@ -1,12 +1,12 @@
 #pragma once
 
 #include "barretenberg/crypto/aes128/aes128.hpp"
+#include "barretenberg/numeric/bitop/pow.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
-#include "barretenberg/numeric/bitop/pow.hpp"
 
-#include "types.hpp"
 #include "sparse.hpp"
+#include "types.hpp"
 
 namespace plookup {
 namespace sha256_tables {

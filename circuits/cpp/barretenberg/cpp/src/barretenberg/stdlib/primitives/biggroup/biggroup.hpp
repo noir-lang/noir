@@ -8,9 +8,9 @@
 #include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../memory/rom_table.hpp"
 #include "../memory/twin_rom_table.hpp"
+#include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
 #include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
-#include "barretenberg/ecc/curves/bn254/g1.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {
@@ -890,9 +890,9 @@ inline std::ostream& operator<<(std::ostream& os, element<C, Fq, Fr, G> const& v
 } // namespace stdlib
 } // namespace proof_system::plonk
 
-#include "biggroup_nafs.hpp"
-#include "biggroup_tables.hpp"
-#include "biggroup_impl.hpp"
 #include "biggroup_batch_mul.hpp"
-#include "biggroup_secp256k1.hpp"
 #include "biggroup_bn254.hpp"
+#include "biggroup_impl.hpp"
+#include "biggroup_nafs.hpp"
+#include "biggroup_secp256k1.hpp"
+#include "biggroup_tables.hpp"

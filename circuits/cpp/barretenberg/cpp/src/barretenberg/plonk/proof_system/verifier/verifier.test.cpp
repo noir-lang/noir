@@ -1,16 +1,16 @@
+#include "../../../transcript/transcript.hpp"
 #include "../prover/prover.hpp"
-#include "barretenberg/ecc/curves/bn254/bn254.hpp"
-#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "../utils/permutation.hpp"
 #include "../widgets/transition_widgets/arithmetic_widget.hpp"
-#include "../../../transcript/transcript.hpp"
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "verifier.hpp"
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
-#include <gtest/gtest.h>
-#include "barretenberg/srs/factories/file_crs_factory.hpp"
-#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
+#include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
+#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
+#include "verifier.hpp"
+#include <gtest/gtest.h>
 
 namespace verifier_helpers {
 

@@ -1,8 +1,8 @@
 #pragma once
 
+#include "../../constants.hpp"
 #include "barretenberg/join_split_example/types.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
-#include "../../constants.hpp"
 namespace join_split_example {
 namespace proofs {
 namespace notes {

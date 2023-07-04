@@ -1,7 +1,7 @@
 #pragma once
+#include "../../constants.hpp"
 #include "account_note.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
-#include "../../constants.hpp"
 
 namespace join_split_example {
 namespace proofs {

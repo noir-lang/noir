@@ -1,10 +1,10 @@
 #pragma once
 #include "manifest.hpp"
 #include <array>
+#include <exception>
 #include <map>
 #include <string>
 #include <vector>
-#include <exception>
 
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 

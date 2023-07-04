@@ -1,19 +1,19 @@
 #pragma once
 
 #include "barretenberg/common/serialize.hpp"
-#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 
+#include <algorithm>
 #include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <span>
 #include <string>
 #include <utility>
 #include <vector>
-#include <map>
-#include <algorithm>
 
 namespace proof_system::honk {
 

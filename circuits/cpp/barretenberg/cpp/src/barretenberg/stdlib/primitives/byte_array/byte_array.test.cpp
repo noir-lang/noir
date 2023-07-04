@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "byte_array.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
+#include "byte_array.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 

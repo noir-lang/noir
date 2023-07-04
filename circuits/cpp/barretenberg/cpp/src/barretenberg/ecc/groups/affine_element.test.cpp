@@ -1,11 +1,11 @@
+#include "barretenberg/common/serialize.hpp"
+#include "barretenberg/common/test.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
 #include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
-#include "barretenberg/common/test.hpp"
-#include <fstream>
-#include "barretenberg/common/serialize.hpp"
 #include "barretenberg/serialize/test_helper.hpp"
+#include <fstream>
 
 namespace test_affine_element {
 template <typename G1> class test_affine_element : public testing::Test {

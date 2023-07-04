@@ -1,9 +1,9 @@
 #pragma once
+#include "barretenberg/common/throw_or_abort.hpp"
+#include <iostream>
 #include <stddef.h>
 #include <stdint.h>
 #include <vector>
-#include "barretenberg/common/throw_or_abort.hpp"
-#include <iostream>
 
 #include "../uint256/uint256.hpp"
 

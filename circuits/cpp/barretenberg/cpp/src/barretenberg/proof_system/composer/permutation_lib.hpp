@@ -8,15 +8,14 @@
 #pragma once
 
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <initializer_list>
-#include <cstdint>
-#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>

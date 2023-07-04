@@ -1,12 +1,12 @@
 #include "../../constants.hpp"
 #include "../inner_proof_data/inner_proof_data.hpp"
-#include "index.hpp"
 #include "../notes/native/index.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
+#include "barretenberg/crypto/sha256/sha256.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/stdlib/merkle_tree/index.hpp"
-#include "barretenberg/crypto/sha256/sha256.hpp"
+#include "index.hpp"
 
 namespace join_split_example {
 namespace proofs {

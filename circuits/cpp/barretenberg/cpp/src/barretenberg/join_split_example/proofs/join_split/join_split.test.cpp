@@ -2,14 +2,14 @@
 
 #include "../../constants.hpp"
 #include "../inner_proof_data/inner_proof_data.hpp"
-#include "index.hpp"
 #include "../notes/native/index.hpp"
-#include "join_split_circuit.hpp"
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/common/test.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/stdlib/merkle_tree/index.hpp"
-#include "barretenberg/join_split_example/types.hpp"
+#include "index.hpp"
+#include "join_split_circuit.hpp"
 
 namespace join_split_example::proofs::join_split {
 

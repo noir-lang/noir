@@ -1,8 +1,8 @@
 #pragma once
 
-#include "barretenberg/numeric/bitop/pow.hpp"
-#include "barretenberg/common/constexpr_utils.hpp"
 #include "../types.hpp"
+#include "barretenberg/common/constexpr_utils.hpp"
+#include "barretenberg/numeric/bitop/pow.hpp"
 
 namespace plookup {
 namespace keccak_tables {

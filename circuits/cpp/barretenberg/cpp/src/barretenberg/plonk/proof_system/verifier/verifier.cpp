@@ -1,11 +1,11 @@
-#include "barretenberg/common/throw_or_abort.hpp"
-#include "barretenberg/plonk/proof_system/constants.hpp"
 #include "./verifier.hpp"
 #include "../public_inputs/public_inputs.hpp"
 #include "../utils/kate_verification.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
 using namespace barretenberg;

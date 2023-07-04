@@ -1,14 +1,14 @@
 #include "c_bind.hpp"
 #include "acir_composer.hpp"
-#include <cstdint>
-#include <memory>
-#include "barretenberg/common/net.hpp"
 #include "barretenberg/common/mem.hpp"
+#include "barretenberg/common/net.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/dsl/acir_format/acir_format.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
 #include "barretenberg/srs/global_crs.hpp"
+#include <cstdint>
+#include <memory>
 
 WASM_EXPORT void acir_get_circuit_sizes(uint8_t const* constraint_system_buf,
                                         uint32_t* exact,

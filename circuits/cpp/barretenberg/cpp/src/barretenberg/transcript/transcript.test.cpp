@@ -1,9 +1,9 @@
+#include "../honk/sumcheck/polynomials/univariate.hpp"
 #include "transcript_wrappers.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <vector>
-#include "../honk/sumcheck/polynomials/univariate.hpp"
 
 namespace {
 transcript::Manifest create_manifest(const size_t num_public_inputs)

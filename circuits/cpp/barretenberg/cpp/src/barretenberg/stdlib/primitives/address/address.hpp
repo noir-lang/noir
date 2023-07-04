@@ -1,8 +1,8 @@
 #pragma once
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
-#include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/group/group.hpp"
 #include "barretenberg/stdlib/primitives/point/point.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"

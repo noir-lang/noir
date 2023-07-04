@@ -1,7 +1,7 @@
 #pragma once
-#include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/common/thread.hpp"
+#include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include <memory>
 
 namespace barretenberg {

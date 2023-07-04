@@ -1,10 +1,10 @@
-#include <chrono>
 #include "barretenberg/common/assert.hpp"
-#include <cstdlib>
-#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
+#include <chrono>
+#include <cstdlib>
 
 // #include <valgrind/callgrind.h>
 //  CALLGRIND_START_INSTRUMENTATION;

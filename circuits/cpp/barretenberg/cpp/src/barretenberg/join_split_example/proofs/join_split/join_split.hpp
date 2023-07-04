@@ -1,7 +1,7 @@
 #pragma once
-#include "join_split_tx.hpp"
-#include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/join_split_example/types.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
+#include "join_split_tx.hpp"
 
 namespace join_split_example {
 namespace proofs {

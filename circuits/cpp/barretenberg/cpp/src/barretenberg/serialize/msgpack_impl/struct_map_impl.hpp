@@ -1,13 +1,13 @@
 #pragma once
 // Note: heavy header due to serialization logic, don't include if msgpack.hpp will do
-#include <string>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
 #include <cassert>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
 #define MSGPACK_NO_BOOST
-#include <msgpack.hpp>
 #include "concepts.hpp"
+#include <msgpack.hpp>
 
 namespace msgpack {
 template <typename Tuple, std::size_t... Is> auto drop_keys_impl(Tuple&& tuple, std::index_sequence<Is...>)

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "../../primitives/byte_array/byte_array.hpp"
-#include "../../primitives/uint/uint.hpp"
 #include "../../primitives/circuit_builders/circuit_builders_fwd.hpp"
+#include "../../primitives/uint/uint.hpp"
+#include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 namespace proof_system::plonk {
 namespace stdlib {
 namespace ecdsa {

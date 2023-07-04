@@ -1,10 +1,10 @@
 #pragma once
-#include <unordered_map>
-#include <map>
-#include <list>
-#include <memory>
-#include "./log.hpp"
 #include "./assert.hpp"
+#include "./log.hpp"
+#include <list>
+#include <map>
+#include <memory>
+#include <unordered_map>
 #ifndef NO_MULTITHREADING
 #include <mutex>
 #endif

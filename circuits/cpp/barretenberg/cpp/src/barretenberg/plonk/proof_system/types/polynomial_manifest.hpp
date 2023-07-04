@@ -1,9 +1,9 @@
 #pragma once
 
-#include <array>
-#include <vector>
-#include <string>
 #include "barretenberg/proof_system/types/circuit_type.hpp"
+#include <array>
+#include <string>
+#include <vector>
 
 namespace proof_system::plonk {
 

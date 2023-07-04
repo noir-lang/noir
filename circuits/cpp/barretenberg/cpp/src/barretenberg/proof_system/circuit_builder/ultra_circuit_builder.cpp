@@ -9,8 +9,8 @@
  */
 #include "ultra_circuit_builder.hpp"
 #include <barretenberg/plonk/proof_system/constants.hpp>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 
 using namespace barretenberg;
 

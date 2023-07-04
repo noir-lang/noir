@@ -2,16 +2,16 @@
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include "prover.hpp"
 #include "prover_library.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include <array>
-#include <string>
-#include <vector>
 #include <cstddef>
 #include <gtest/gtest.h>
+#include <string>
+#include <vector>
 
 using namespace proof_system::honk;
 namespace prover_library_tests {

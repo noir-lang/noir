@@ -1,9 +1,9 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/types/program_settings.hpp"
+#include "barretenberg/plonk/proof_system/types/proof.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 
 namespace proof_system::honk::prover_library {
 

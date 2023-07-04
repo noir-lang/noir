@@ -1,9 +1,9 @@
 #pragma once
-#include <array>
-#include "circuit_builder_base.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
 #include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
+#include "circuit_builder_base.hpp"
+#include <array>
 
 namespace proof_system {
 inline std::vector<std::string> standard_selector_names()

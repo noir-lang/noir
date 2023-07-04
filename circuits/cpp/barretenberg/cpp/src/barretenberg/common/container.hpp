@@ -1,8 +1,8 @@
 #pragma once
-#include <stddef.h>
-#include <vector>
-#include <string>
 #include <algorithm>
+#include <stddef.h>
+#include <string>
+#include <vector>
 
 template <typename C> C slice(C const& container, size_t start)
 {

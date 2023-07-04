@@ -1,12 +1,12 @@
 #pragma once
-#include <array>
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/stdlib/primitives/uint/uint.hpp"
+#include <array>
 
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
 
-#include "../../primitives/field/field.hpp"
 #include "../../primitives/circuit_builders/circuit_builders_fwd.hpp"
+#include "../../primitives/field/field.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 
 namespace proof_system::plonk {

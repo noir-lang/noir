@@ -4,13 +4,13 @@
 #include <cstdlib>
 #include <memory>
 
-#include "./scalar_multiplication.hpp"
 #include "./process_buckets.hpp"
 #include "./runtime_states.hpp"
+#include "./scalar_multiplication.hpp"
 
-#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/common/thread.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/ecc/groups/wnaf.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 

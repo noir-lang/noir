@@ -1,9 +1,9 @@
 #pragma once
 #include "../hashers/hashers.hpp"
-#include <array>
-#include <string>
 #include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
+#include <array>
+#include <string>
 
 namespace crypto {
 namespace ecdsa {

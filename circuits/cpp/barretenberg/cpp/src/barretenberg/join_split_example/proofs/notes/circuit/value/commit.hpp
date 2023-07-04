@@ -1,7 +1,7 @@
 #pragma once
-#include "witness_data.hpp"
-#include "create_partial_commitment.hpp"
 #include "complete_partial_commitment.hpp"
+#include "create_partial_commitment.hpp"
+#include "witness_data.hpp"
 
 namespace join_split_example {
 namespace proofs {

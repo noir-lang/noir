@@ -1,7 +1,7 @@
 #pragma once
-#include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
-#include "barretenberg/join_split_example/types.hpp"
 #include "../../constants.hpp"
+#include "barretenberg/join_split_example/types.hpp"
+#include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
 
 namespace join_split_example {
 namespace proofs {

@@ -1,17 +1,17 @@
 #include <cstddef>
 #include <cstdint>
-#include <vector>
 #include <gtest/gtest.h>
+#include <vector>
 
-#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/honk/composer/standard_composer.hpp"
 #include "barretenberg/honk/proof_system/prover.hpp"
-#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_round.hpp"
 #include "barretenberg/honk/utils/grand_product_delta.hpp"
+#include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 
 using namespace proof_system::honk;
 

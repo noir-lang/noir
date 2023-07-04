@@ -2,8 +2,8 @@
 #include "../notes/native/claim/claim_note_tx_data.hpp"
 #include "../notes/native/value/value_note.hpp"
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
-#include "barretenberg/stdlib/merkle_tree/hash_path.hpp"
 #include "barretenberg/join_split_example/types.hpp"
+#include "barretenberg/stdlib/merkle_tree/hash_path.hpp"
 
 namespace join_split_example {
 namespace proofs {

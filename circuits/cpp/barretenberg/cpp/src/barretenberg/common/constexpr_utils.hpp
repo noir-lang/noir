@@ -1,8 +1,8 @@
 #pragma once
 
 #include <stddef.h>
-#include <utility>
 #include <tuple>
+#include <utility>
 
 /**
  * @brief constexpr_utils defines some helper methods that perform some stl-equivalent operations

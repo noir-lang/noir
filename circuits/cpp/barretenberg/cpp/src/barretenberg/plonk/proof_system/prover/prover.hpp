@@ -1,11 +1,11 @@
 #pragma once
-#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
-#include "../types/proof.hpp"
-#include "../types/program_settings.hpp"
-#include "../widgets/random_widgets/random_widget.hpp"
 #include "../../../proof_system/work_queue/work_queue.hpp"
-#include "../widgets/transition_widgets/transition_widget.hpp"
 #include "../commitment_scheme/commitment_scheme.hpp"
+#include "../types/program_settings.hpp"
+#include "../types/proof.hpp"
+#include "../widgets/random_widgets/random_widget.hpp"
+#include "../widgets/transition_widgets/transition_widget.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 
 namespace proof_system::plonk {
 

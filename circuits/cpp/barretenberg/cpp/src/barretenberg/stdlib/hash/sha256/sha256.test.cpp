@@ -1,13 +1,13 @@
-#include "sha256.hpp"
 #include "barretenberg/common/test.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
-#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
+#include "sha256.hpp"
 
-#include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
 
 namespace {
 auto& engine = numeric::random::get_debug_engine();

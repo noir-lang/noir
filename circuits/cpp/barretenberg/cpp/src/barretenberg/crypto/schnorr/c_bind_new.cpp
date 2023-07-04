@@ -1,6 +1,6 @@
 #include "c_bind.hpp"
-#include "schnorr.hpp"
 #include "multisig.hpp"
+#include "schnorr.hpp"
 
 extern "C" {
 

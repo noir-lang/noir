@@ -1,7 +1,7 @@
 #include "standard_composer.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
 
 #include <cstddef>

@@ -1,10 +1,10 @@
 #pragma once
+#include "barretenberg/common/assert.hpp"
+#include "barretenberg/common/serialize.hpp"
 #include <array>
 #include <cstdint>
-#include <span>
 #include <ostream>
-#include "barretenberg/common/serialize.hpp"
-#include "barretenberg/common/assert.hpp"
+#include <span>
 
 namespace proof_system::honk::sumcheck {
 

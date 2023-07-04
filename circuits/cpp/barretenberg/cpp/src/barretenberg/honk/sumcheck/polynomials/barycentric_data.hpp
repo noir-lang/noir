@@ -1,7 +1,7 @@
 #pragma once
-#include <array>
-#include <algorithm>
 #include "univariate.hpp"
+#include <algorithm>
+#include <array>
 
 /* IMPROVEMENT(Cody): This could or should be improved in various ways. In no particular order:
    1) Edge cases are not considered. One non-use case situation (I forget which) leads to a segfault.

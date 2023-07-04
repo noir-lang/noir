@@ -1,12 +1,12 @@
 #include "join_split_circuit.hpp"
 #include "../../constants.hpp"
-#include "../notes/circuit/value/compute_nullifier.hpp"
-#include "../notes/circuit/value/value_note.hpp"
 #include "../notes/circuit/account/account_note.hpp"
 #include "../notes/circuit/claim/claim_note.hpp"
-#include "verify_signature.hpp"
-#include "barretenberg/stdlib/merkle_tree/membership.hpp"
+#include "../notes/circuit/value/compute_nullifier.hpp"
+#include "../notes/circuit/value/value_note.hpp"
 #include "barretenberg/join_split_example/types.hpp"
+#include "barretenberg/stdlib/merkle_tree/membership.hpp"
+#include "verify_signature.hpp"
 
 namespace join_split_example {
 namespace proofs {

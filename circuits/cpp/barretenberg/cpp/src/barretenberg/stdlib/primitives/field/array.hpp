@@ -1,7 +1,7 @@
 #pragma once
-#include "field.hpp"
-#include "../safe_uint/safe_uint.hpp"
 #include "../bool/bool.hpp"
+#include "../safe_uint/safe_uint.hpp"
+#include "field.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

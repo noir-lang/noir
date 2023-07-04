@@ -1,7 +1,7 @@
 #pragma once
 
-#include <map>
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
+#include <map>
 
 namespace proof_system::plonk {
 

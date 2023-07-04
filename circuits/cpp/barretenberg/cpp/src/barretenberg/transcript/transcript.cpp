@@ -1,13 +1,13 @@
 #include "transcript.hpp"
-#include "manifest.hpp"
-#include <array>
-#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/common/assert.hpp"
 #include "barretenberg/common/net.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/crypto/blake3s/blake3s.hpp"
 #include "barretenberg/crypto/keccak/keccak.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen_lookup.hpp"
+#include "manifest.hpp"
+#include <array>
 #include <cstddef>
 #include <iomanip>
 #include <iostream>

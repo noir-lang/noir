@@ -1,10 +1,10 @@
 #pragma once
-#include <vector>
-#include <thread>
 #include <atomic>
-#include <functional>
-#include <barretenberg/numeric/bitop/get_msb.hpp>
 #include <barretenberg/env/hardware_concurrency.hpp>
+#include <barretenberg/numeric/bitop/get_msb.hpp>
+#include <functional>
+#include <thread>
+#include <vector>
 
 inline size_t get_num_cpus()
 {

@@ -1,6 +1,6 @@
 #pragma once
-#include "relation_parameters.hpp"
 #include "../polynomials/univariate.hpp"
+#include "relation_parameters.hpp"
 #include "relation_types.hpp"
 
 #pragma GCC diagnostic ignored "-Wunused-variable"

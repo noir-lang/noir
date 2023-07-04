@@ -1,11 +1,11 @@
-#include "barretenberg/common/test.hpp"
 #include "barretenberg/common/streams.hpp"
-#include "proving_key.hpp"
-#include "serialize.hpp"
+#include "barretenberg/common/test.hpp"
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "proving_key.hpp"
+#include "serialize.hpp"
 
 #ifndef __wasm__
 #include <filesystem>

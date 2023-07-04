@@ -1,17 +1,17 @@
 #include <cstdint>
 #include <sstream>
 
-#include "c_bind.h"
-#include "join_split.hpp"
-#include "compute_signing_data.hpp"
 #include "../mock/mock_circuit.hpp"
-#include "barretenberg/common/streams.hpp"
-#include "barretenberg/common/mem.hpp"
 #include "barretenberg/common/container.hpp"
+#include "barretenberg/common/mem.hpp"
+#include "barretenberg/common/streams.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/srs/global_crs.hpp"
-#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
 #include "barretenberg/join_split_example/types.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/srs/global_crs.hpp"
+#include "c_bind.h"
+#include "compute_signing_data.hpp"
+#include "join_split.hpp"
 
 using namespace barretenberg;
 using namespace join_split_example::proofs::join_split;

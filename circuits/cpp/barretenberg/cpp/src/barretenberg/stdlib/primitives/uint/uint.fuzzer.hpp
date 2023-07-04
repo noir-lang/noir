@@ -1,8 +1,8 @@
 #include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/stdlib/primitives/uint/uint.hpp"
-#include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
+#include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wc99-designator"
 

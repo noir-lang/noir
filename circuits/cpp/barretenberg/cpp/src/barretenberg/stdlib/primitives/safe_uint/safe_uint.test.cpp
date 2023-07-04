@@ -1,11 +1,11 @@
 
-#include <cstddef>
-#include <gtest/gtest.h>
+#include "../byte_array/byte_array.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 #include "safe_uint.hpp"
-#include "barretenberg/numeric/random/engine.hpp"
-#include "../byte_array/byte_array.hpp"
+#include <cstddef>
+#include <gtest/gtest.h>
 
 #pragma GCC diagnostic ignored "-Wunused-local-typedefs"
 

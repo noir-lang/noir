@@ -1,9 +1,9 @@
 #include "schnorr.hpp"
-#include <array>
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/stdlib/hash/blake2s/blake2s.hpp"
 #include "barretenberg/stdlib/commitment/pedersen/pedersen.hpp"
+#include "barretenberg/stdlib/hash/blake2s/blake2s.hpp"
+#include <array>
 
 namespace proof_system::plonk {
 namespace stdlib {

@@ -3,18 +3,18 @@
 #include <cstdint>
 
 #include "../../../transcript/transcript.hpp"
-#include "../widgets/transition_widgets/arithmetic_widget.hpp"
-#include "../widgets/transition_widgets/turbo_arithmetic_widget.hpp"
-#include "../widgets/transition_widgets/plookup_arithmetic_widget.hpp"
-#include "../widgets/transition_widgets/fixed_base_widget.hpp"
-#include "../widgets/transition_widgets/turbo_logic_widget.hpp"
-#include "../widgets/transition_widgets/turbo_range_widget.hpp"
-#include "../widgets/transition_widgets/elliptic_widget.hpp"
-#include "../widgets/transition_widgets/plookup_auxiliary_widget.hpp"
-#include "../widgets/transition_widgets/genperm_sort_widget.hpp"
-#include "../widgets/random_widgets/random_widget.hpp"
 #include "../widgets/random_widgets/permutation_widget.hpp"
 #include "../widgets/random_widgets/plookup_widget.hpp"
+#include "../widgets/random_widgets/random_widget.hpp"
+#include "../widgets/transition_widgets/arithmetic_widget.hpp"
+#include "../widgets/transition_widgets/elliptic_widget.hpp"
+#include "../widgets/transition_widgets/fixed_base_widget.hpp"
+#include "../widgets/transition_widgets/genperm_sort_widget.hpp"
+#include "../widgets/transition_widgets/plookup_arithmetic_widget.hpp"
+#include "../widgets/transition_widgets/plookup_auxiliary_widget.hpp"
+#include "../widgets/transition_widgets/turbo_arithmetic_widget.hpp"
+#include "../widgets/transition_widgets/turbo_logic_widget.hpp"
+#include "../widgets/transition_widgets/turbo_range_widget.hpp"
 #include "./prover_settings.hpp"
 
 namespace proof_system::plonk {

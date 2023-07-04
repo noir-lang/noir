@@ -1,13 +1,13 @@
 #pragma once
-#include "evaluation_domain.hpp"
-#include <cstddef>
-#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
-#include <fstream>
-#include <concepts>
-#include <span>
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "evaluation_domain.hpp"
 #include "polynomial_arithmetic.hpp"
+#include <concepts>
+#include <cstddef>
+#include <fstream>
+#include <span>
 
 namespace barretenberg {
 

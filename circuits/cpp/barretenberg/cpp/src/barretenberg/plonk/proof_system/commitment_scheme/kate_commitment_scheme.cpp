@@ -1,6 +1,6 @@
-#include "barretenberg/common/throw_or_abort.hpp"
 #include "kate_commitment_scheme.hpp"
 #include "../../../polynomials/polynomial_arithmetic.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
 
 namespace proof_system::plonk {
 

@@ -1,8 +1,8 @@
 #pragma once
-#include <functional>
 #include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../witness/witness.hpp"
 #include "barretenberg/common/assert.hpp"
+#include <functional>
 
 namespace proof_system::plonk {
 namespace stdlib {

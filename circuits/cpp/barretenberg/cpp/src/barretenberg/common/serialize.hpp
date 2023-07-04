@@ -28,15 +28,15 @@
  *  - to_buffer
  */
 #pragma once
-#include <cassert>
-#include <array>
+#include "barretenberg/common/log.hpp"
 #include "barretenberg/common/net.hpp"
+#include <array>
+#include <cassert>
+#include <iostream>
+#include <map>
+#include <optional>
 #include <type_traits>
 #include <vector>
-#include <map>
-#include <iostream>
-#include "barretenberg/common/log.hpp"
-#include <optional>
 
 #ifndef __i386__
 __extension__ using uint128_t = unsigned __int128;

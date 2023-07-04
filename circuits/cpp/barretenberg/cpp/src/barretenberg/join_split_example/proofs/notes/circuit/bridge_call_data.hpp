@@ -1,8 +1,8 @@
 #pragma once
-#include "barretenberg/join_split_example/types.hpp"
+#include "../constants.hpp"
 #include "../native/bridge_call_data.hpp"
 #include "./asset_id.hpp"
-#include "../constants.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 
 namespace join_split_example {
 namespace proofs {

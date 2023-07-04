@@ -1,8 +1,8 @@
 #pragma once
 #include "../../primitives/circuit_builders/circuit_builders_fwd.hpp"
 #include "../../primitives/field/field.hpp"
-#include "../../primitives/point/point.hpp"
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
+#include "../../primitives/point/point.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

@@ -1,12 +1,12 @@
 #pragma once
 
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/numeric/uintx/uintx.hpp"
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "barretenberg/numeric/uintx/uintx.hpp"
 
 namespace crypto {
 /**

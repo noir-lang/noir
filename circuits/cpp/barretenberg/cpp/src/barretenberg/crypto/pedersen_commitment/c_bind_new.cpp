@@ -1,7 +1,7 @@
+#include "barretenberg/common/serialize.hpp"
 #include "c_bind.hpp"
 #include "pedersen.hpp"
 #include "pedersen_lookup.hpp"
-#include "barretenberg/common/serialize.hpp"
 
 extern "C" {
 

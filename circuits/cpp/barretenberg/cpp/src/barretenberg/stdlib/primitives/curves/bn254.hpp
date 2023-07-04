@@ -1,8 +1,8 @@
 #pragma once
-#include "barretenberg/ecc/curves/types.hpp"
 #include "../bigfield/bigfield.hpp"
 #include "../biggroup/biggroup.hpp"
 #include "../field/field.hpp"
+#include "barretenberg/ecc/curves/types.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

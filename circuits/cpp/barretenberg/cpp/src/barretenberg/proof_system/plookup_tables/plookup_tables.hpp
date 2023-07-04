@@ -1,20 +1,20 @@
 #pragma once
 #include "barretenberg/common/throw_or_abort.hpp"
 
-#include "types.hpp"
-#include "sha256.hpp"
 #include "aes128.hpp"
-#include "sparse.hpp"
-#include "pedersen.hpp"
-#include "uint.hpp"
-#include "non_native_group_generator.hpp"
 #include "blake2s.hpp"
+#include "dummy.hpp"
 #include "keccak/keccak_chi.hpp"
 #include "keccak/keccak_input.hpp"
 #include "keccak/keccak_output.hpp"
 #include "keccak/keccak_rho.hpp"
 #include "keccak/keccak_theta.hpp"
-#include "dummy.hpp"
+#include "non_native_group_generator.hpp"
+#include "pedersen.hpp"
+#include "sha256.hpp"
+#include "sparse.hpp"
+#include "types.hpp"
+#include "uint.hpp"
 
 namespace plookup {
 

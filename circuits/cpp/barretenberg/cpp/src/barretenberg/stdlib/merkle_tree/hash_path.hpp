@@ -1,7 +1,7 @@
 #pragma once
+#include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "hash.hpp"
 #include <algorithm>
-#include "barretenberg/stdlib/primitives/field/field.hpp"
 #include <vector>
 
 namespace proof_system::plonk {

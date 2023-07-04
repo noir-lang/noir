@@ -1,9 +1,9 @@
 #include "aes128.hpp"
 
+#include "memory.h"
+#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <array>
-#include "memory.h"
 
 #include <iostream>
 namespace crypto {

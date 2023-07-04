@@ -5,16 +5,16 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/transcript/transcript.hpp"
 
-#include "../../primitives/curves/bn254.hpp"
-#include "../verification_key/verification_key.hpp"
-#include "../../hash/blake3s/blake3s.hpp"
 #include "../../commitment/pedersen/pedersen.hpp"
 #include "../../commitment/pedersen/pedersen_plookup.hpp"
+#include "../../hash/blake3s/blake3s.hpp"
 #include "../../primitives/bigfield/bigfield.hpp"
 #include "../../primitives/biggroup/biggroup.hpp"
+#include "../../primitives/bool/bool.hpp"
+#include "../../primitives/curves/bn254.hpp"
 #include "../../primitives/field/field.hpp"
 #include "../../primitives/witness/witness.hpp"
-#include "../../primitives/bool/bool.hpp"
+#include "../verification_key/verification_key.hpp"
 
 namespace proof_system::plonk::stdlib::recursion {
 template <typename Composer> class Transcript {

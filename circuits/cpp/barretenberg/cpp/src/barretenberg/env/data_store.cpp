@@ -1,10 +1,10 @@
-#include <ios>
 #include "data_store.hpp"
-#include <string>
-#include <map>
-#include <vector>
 #include <cstring>
 #include <fstream>
+#include <ios>
+#include <map>
+#include <string>
+#include <vector>
 // #include <barretenberg/common/log.hpp>
 
 namespace {

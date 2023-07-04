@@ -7,8 +7,8 @@
 #include <benchmark/benchmark.h>
 
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
-#include "barretenberg/stdlib/hash/sha256/sha256.hpp"
 #include "barretenberg/stdlib/hash/blake3s/blake3s.hpp"
+#include "barretenberg/stdlib/hash/sha256/sha256.hpp"
 
 using namespace benchmark;
 

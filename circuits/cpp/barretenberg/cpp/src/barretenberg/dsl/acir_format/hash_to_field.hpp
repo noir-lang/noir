@@ -1,7 +1,7 @@
 #pragma once
+#include "barretenberg/dsl/types.hpp"
 #include <cstdint>
 #include <vector>
-#include "barretenberg/dsl/types.hpp"
 
 namespace acir_format {
 

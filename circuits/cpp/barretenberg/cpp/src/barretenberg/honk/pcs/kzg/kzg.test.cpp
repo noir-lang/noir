@@ -1,7 +1,7 @@
 
-#include "kzg.hpp"
-#include "../shplonk/shplonk_single.hpp"
 #include "../gemini/gemini.hpp"
+#include "../shplonk/shplonk_single.hpp"
+#include "kzg.hpp"
 
 #include "../commitment_key.test.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"

@@ -1,6 +1,6 @@
 #pragma once
-#include "../../../../transcript/transcript.hpp"
 #include "../../../../proof_system/work_queue/work_queue.hpp"
+#include "../../../../transcript/transcript.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 
 #include <map>

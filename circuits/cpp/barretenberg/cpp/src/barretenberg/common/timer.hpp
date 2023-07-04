@@ -1,9 +1,9 @@
 #pragma once
 #include <cstdio>
+#include <ctime>
 #include <string>
 #include <sys/resource.h>
 #include <sys/time.h>
-#include <ctime>
 
 /**
  * @brief Get the execution between a block of code.

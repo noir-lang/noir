@@ -1,11 +1,11 @@
 #pragma once
 
+#include "barretenberg/common/map.hpp"
+#include "barretenberg/common/mem.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
-#include "barretenberg/transcript/transcript.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
-#include "barretenberg/common/mem.hpp"
-#include "barretenberg/common/map.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 #include <cstddef>
 
 namespace proof_system::plonk {

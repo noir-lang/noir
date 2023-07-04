@@ -1,10 +1,10 @@
-#include "barretenberg/transcript/transcript.hpp"
-#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
-#include "barretenberg/stdlib/primitives/curves/bn254.hpp"
-#include "barretenberg/stdlib/recursion/verifier/verifier.hpp"
-#include "barretenberg/stdlib/recursion/verifier/program_settings.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
+#include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
+#include "barretenberg/stdlib/primitives/curves/bn254.hpp"
+#include "barretenberg/stdlib/recursion/verifier/program_settings.hpp"
+#include "barretenberg/stdlib/recursion/verifier/verifier.hpp"
+#include "barretenberg/transcript/transcript.hpp"
 
 using namespace proof_system::plonk;
 

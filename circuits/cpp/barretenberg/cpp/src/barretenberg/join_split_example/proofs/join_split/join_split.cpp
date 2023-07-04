@@ -1,8 +1,8 @@
 #include "join_split.hpp"
-#include "join_split_circuit.hpp"
-#include "compute_circuit_data.hpp"
-#include "barretenberg/plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp"
 #include "barretenberg/join_split_example/types.hpp"
+#include "barretenberg/plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp"
+#include "compute_circuit_data.hpp"
+#include "join_split_circuit.hpp"
 
 namespace join_split_example {
 namespace proofs {

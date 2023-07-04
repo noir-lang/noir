@@ -1,13 +1,13 @@
 #include "nullifier_tree.hpp"
-#include "../merkle_tree.hpp"
 #include "../hash.hpp"
 #include "../memory_store.hpp"
-#include <iostream>
-#include <sstream>
+#include "../merkle_tree.hpp"
 #include "barretenberg/common/net.hpp"
 #include "barretenberg/numeric/bitop/count_leading_zeros.hpp"
 #include "barretenberg/numeric/bitop/keep_n_lsb.hpp"
 #include "barretenberg/numeric/uint128/uint128.hpp"
+#include <iostream>
+#include <sstream>
 
 namespace proof_system::plonk {
 namespace stdlib {

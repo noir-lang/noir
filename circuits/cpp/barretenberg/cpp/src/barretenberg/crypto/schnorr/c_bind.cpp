@@ -1,5 +1,5 @@
-#include "schnorr.hpp"
 #include "multisig.hpp"
+#include "schnorr.hpp"
 
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 

@@ -1,5 +1,5 @@
-#include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/serialize/cbind.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 
 #include <gtest/gtest.h>
 

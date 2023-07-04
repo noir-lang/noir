@@ -21,10 +21,10 @@
 #include "ecc/curves/grumpkin/grumpkin.hpp"
 #include "numeric/random/engine.hpp"
 #include "numeric/uint256/uint256.hpp"
-#include "proof_system/circuit_builder/turbo_circuit_builder.hpp"
-#include "proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "plonk/proof_system/types/proof.hpp"
 #include "plonk/proof_system/verification_key/verification_key.hpp"
+#include "proof_system/circuit_builder/turbo_circuit_builder.hpp"
+#include "proof_system/circuit_builder/ultra_circuit_builder.hpp"
 #include "proof_system/types/circuit_type.hpp"
 // TODO(https://github.com/AztecProtocol/barretenberg/issues/491):
 //     consider helper header(s) for serialization and other non-stdlib includes

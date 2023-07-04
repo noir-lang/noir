@@ -1,10 +1,10 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
-#include "crs_factory.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/ecc/curves/bn254/g2.hpp"
-#include <utility>
+#include "crs_factory.hpp"
 #include <cstddef>
+#include <utility>
 
 namespace barretenberg::srs::factories {
 

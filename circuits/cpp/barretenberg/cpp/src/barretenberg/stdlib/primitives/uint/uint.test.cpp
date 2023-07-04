@@ -1,7 +1,7 @@
+#include "barretenberg/numeric/random/engine.hpp"
 #include "uint.hpp"
 #include <functional>
 #include <gtest/gtest.h>
-#include "barretenberg/numeric/random/engine.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::plonk;

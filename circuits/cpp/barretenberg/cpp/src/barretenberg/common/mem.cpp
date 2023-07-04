@@ -1,6 +1,6 @@
 #include "./mem.hpp"
-#include "./wasm_export.hpp"
 #include "./slab_allocator.hpp"
+#include "./wasm_export.hpp"
 
 extern "C" {
 

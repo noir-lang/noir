@@ -1,7 +1,7 @@
 #include "pedersen.hpp"
-#include "pedersen_plookup.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "pedersen_gates.hpp"
+#include "pedersen_plookup.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

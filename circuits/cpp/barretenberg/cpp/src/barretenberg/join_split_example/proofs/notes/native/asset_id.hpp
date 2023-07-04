@@ -1,6 +1,6 @@
 #pragma once
-#include <utility>
 #include <stdint.h>
+#include <utility>
 
 namespace join_split_example::proofs::notes::native {
 

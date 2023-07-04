@@ -1,10 +1,10 @@
 #include "c_bind.hpp"
+#include "./io.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "global_crs.hpp"
-#include "./io.hpp"
+#include <barretenberg/common/streams.hpp>
 #include <barretenberg/ecc/curves/bn254/g1.hpp>
 #include <barretenberg/ecc/curves/bn254/g2.hpp>
-#include <barretenberg/common/streams.hpp>
 
 using namespace barretenberg;
 

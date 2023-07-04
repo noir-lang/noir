@@ -1,6 +1,6 @@
 #pragma once
-#include <cstdint>
 #include "barretenberg/dsl/types.hpp"
+#include <cstdint>
 
 namespace acir_format {
 

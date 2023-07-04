@@ -7,13 +7,13 @@
 
 #include "msgpack_impl/check_memory_span.hpp"
 #include "msgpack_impl/concepts.hpp"
+#include "msgpack_impl/func_traits.hpp"
 #include "msgpack_impl/msgpack_impl.hpp"
 #include "msgpack_impl/name_value_pair_macro.hpp"
 #include "msgpack_impl/schema_impl.hpp"
 #include "msgpack_impl/schema_name.hpp"
 #include "msgpack_impl/struct_map_impl.hpp"
 #include "msgpack_impl/variant_impl.hpp"
-#include "msgpack_impl/func_traits.hpp"
 
 #include <cstring>
 #include <type_traits>

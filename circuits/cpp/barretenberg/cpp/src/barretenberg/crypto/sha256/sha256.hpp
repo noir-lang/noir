@@ -1,11 +1,11 @@
 #pragma once
 
+#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "stdint.h"
-#include <vector>
 #include <array>
 #include <iomanip>
 #include <ostream>
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include <vector>
 
 namespace sha256 {
 

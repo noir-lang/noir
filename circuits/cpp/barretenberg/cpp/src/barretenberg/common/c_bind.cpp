@@ -1,8 +1,8 @@
 #include "./c_bind.hpp"
 #include "./mem.hpp"
-#include "./timer.hpp"
 #include "./serialize.hpp"
 #include "./slab_allocator.hpp"
+#include "./timer.hpp"
 #include <algorithm>
 
 #ifndef NO_MULTITHREADING

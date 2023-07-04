@@ -3,10 +3,10 @@
 
 #include "../hashers/hashers.hpp"
 
-#include <stdint.h>
-#include <cstddef>
-#include <vector>
 #include <array>
+#include <cstddef>
+#include <stdint.h>
+#include <vector>
 
 std::array<uint8_t, 32> hex_to_bytes(const std::string& hex)
 {

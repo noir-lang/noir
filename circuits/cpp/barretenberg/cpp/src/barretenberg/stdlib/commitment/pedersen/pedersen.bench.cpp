@@ -1,11 +1,11 @@
-#include "pedersen.hpp"
-#include <benchmark/benchmark.h>
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/plonk/composer/turbo_composer.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "pedersen.hpp"
+#include <benchmark/benchmark.h>
 
 #define BARRETENBERG_SRS_PATH "../srs_db/ignition"
 

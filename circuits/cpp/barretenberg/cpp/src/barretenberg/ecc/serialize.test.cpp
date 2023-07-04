@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include "barretenberg/serialize/test_helper.hpp"
 #include "barretenberg/ecc/fields/field.hpp"
+#include "barretenberg/serialize/test_helper.hpp"
+#include <gtest/gtest.h>
 
 TEST(msgpack_tests, msgpack_field)
 {

@@ -1,10 +1,10 @@
-#include <gtest/gtest.h>
 #include "../../../../fixtures/user_context.hpp"
-#include "./compute_nullifier.hpp"
-#include "./value_note.hpp"
 #include "../../native/value/compute_nullifier.hpp"
 #include "../../native/value/value_note.hpp"
+#include "./compute_nullifier.hpp"
+#include "./value_note.hpp"
 #include "barretenberg/join_split_example/types.hpp"
+#include <gtest/gtest.h>
 
 namespace join_split_example {
 using namespace join_split_example::proofs::notes;

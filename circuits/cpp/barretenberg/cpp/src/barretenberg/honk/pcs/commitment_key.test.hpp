@@ -3,14 +3,14 @@
 #include <cstddef>
 #include <gtest/gtest.h>
 
-#include <concepts>
 #include <algorithm>
+#include <concepts>
 #include <memory>
 #include <string_view>
 
+#include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
-#include "barretenberg/ecc/curves/bn254/g1.hpp"
 
 #include "../../transcript/transcript_wrappers.hpp"
 

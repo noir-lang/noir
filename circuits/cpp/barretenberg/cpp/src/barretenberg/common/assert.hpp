@@ -1,8 +1,8 @@
 #pragma once
 #include "assert.h"
-#include <string>
-#include <stdexcept>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 
 // Compiler should optimize this out in release builds, without triggering an unused variable warning.
 #define DONT_EVALUATE(expression)                                                                                      \

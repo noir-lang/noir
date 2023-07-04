@@ -1,8 +1,8 @@
-#include "value_note.hpp"
 #include "../../../../fixtures/user_context.hpp"
-#include "../../native/value/value_note.hpp"
 #include "../../constants.hpp"
+#include "../../native/value/value_note.hpp"
 #include "barretenberg/join_split_example/types.hpp"
+#include "value_note.hpp"
 #include <gtest/gtest.h>
 
 namespace join_split_example {

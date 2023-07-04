@@ -1,8 +1,8 @@
 #pragma once
 #include "../ecc/curves/bn254/bn254.hpp"
 #include "../ecc/curves/grumpkin/grumpkin.hpp"
-#include <cstdint>
 #include <concepts>
+#include <cstdint>
 #include <fstream>
 #include <string>
 #include <sys/stat.h>

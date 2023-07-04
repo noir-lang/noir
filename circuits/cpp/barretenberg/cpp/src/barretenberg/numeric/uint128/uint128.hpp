@@ -3,8 +3,8 @@
 #include <ostream>
 
 #ifdef __i386__
-#include <cstdint>
 #include "barretenberg/common/serialize.hpp"
+#include <cstdint>
 
 namespace numeric {
 

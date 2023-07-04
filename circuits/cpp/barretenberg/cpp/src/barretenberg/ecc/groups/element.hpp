@@ -1,12 +1,12 @@
 #pragma once
 
 #include "affine_element.hpp"
-#include "wnaf.hpp"
-#include <array>
 #include "barretenberg/common/inline.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
+#include "wnaf.hpp"
+#include <array>
 #include <random>
 #include <vector>
 

@@ -1,6 +1,6 @@
 #pragma once
-#include <string>
 #include "cbind.hpp"
+#include <string>
 
 /***
  * Do a roundtrip test encode/decode of an object.

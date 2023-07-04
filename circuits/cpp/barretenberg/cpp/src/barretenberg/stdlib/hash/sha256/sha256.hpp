@@ -1,10 +1,10 @@
 #pragma once
-#include <array>
-#include "barretenberg/stdlib/primitives/uint/uint.hpp"
-#include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
+#include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
+#include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "sha256_plookup.hpp"
+#include <array>
 // namespace proof_system::plonk
 
 namespace proof_system::plonk {

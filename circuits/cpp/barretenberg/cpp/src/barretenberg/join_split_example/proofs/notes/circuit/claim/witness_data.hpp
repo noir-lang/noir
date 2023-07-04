@@ -1,10 +1,10 @@
 #pragma once
 
-#include "barretenberg/join_split_example/types.hpp"
+#include "../../constants.hpp"
 #include "../../native/claim/claim_note.hpp"
 #include "../../native/claim/claim_note_tx_data.hpp"
-#include "../../constants.hpp"
 #include "../bridge_call_data.hpp"
+#include "barretenberg/join_split_example/types.hpp"
 
 namespace join_split_example {
 namespace proofs {

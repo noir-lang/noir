@@ -1,9 +1,9 @@
 #pragma once
 
-#include "barretenberg/proof_system/composer/composer_lib.hpp"
-#include "barretenberg/srs/factories/file_crs_factory.hpp"
 #include "barretenberg/honk/proof_system/ultra_prover.hpp"
 #include "barretenberg/honk/proof_system/ultra_verifier.hpp"
+#include "barretenberg/proof_system/composer/composer_lib.hpp"
+#include "barretenberg/srs/factories/file_crs_factory.hpp"
 
 #include <cstddef>
 #include <memory>

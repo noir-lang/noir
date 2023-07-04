@@ -1,9 +1,9 @@
-#include <cstdint>
-#include <cstddef>
-#include <memory>
+#include <barretenberg/dsl/acir_format/acir_format.hpp>
 #include <barretenberg/plonk/proof_system/proving_key/proving_key.hpp>
 #include <barretenberg/plonk/proof_system/verification_key/verification_key.hpp>
-#include <barretenberg/dsl/acir_format/acir_format.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 
 namespace acir_proofs {
 

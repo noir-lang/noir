@@ -1,6 +1,6 @@
 #include "schnorr_verify.hpp"
-#include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
+#include "barretenberg/stdlib/encryption/schnorr/schnorr.hpp"
 
 namespace acir_format {
 

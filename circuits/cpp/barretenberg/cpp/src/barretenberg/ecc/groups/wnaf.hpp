@@ -1,6 +1,6 @@
 #pragma once
-#include <cstdint>
 #include "barretenberg/numeric/bitop/get_msb.hpp"
+#include <cstdint>
 #include <iostream>
 
 namespace barretenberg {

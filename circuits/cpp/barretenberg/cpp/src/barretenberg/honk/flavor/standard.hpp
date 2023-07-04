@@ -1,23 +1,23 @@
 #pragma once
-#include <array>
-#include <concepts>
-#include <span>
-#include <string>
-#include <type_traits>
-#include <vector>
-#include "barretenberg/honk/pcs/commitment_key.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
-#include "barretenberg/honk/pcs/kzg/kzg.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
+#include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/honk/pcs/kzg/kzg.hpp"
+#include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
+#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 #include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
-#include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
+#include <array>
+#include <concepts>
+#include <span>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 namespace proof_system::honk::flavor {
 

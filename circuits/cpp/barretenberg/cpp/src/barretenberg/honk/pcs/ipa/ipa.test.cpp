@@ -1,12 +1,12 @@
-#include "ipa.hpp"
 #include "barretenberg/common/mem.hpp"
-#include <gtest/gtest.h>
-#include "barretenberg/ecc/curves/types.hpp"
-#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
+#include "barretenberg/ecc/curves/types.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/commitment_key.test.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
+#include "ipa.hpp"
+#include <gtest/gtest.h>
 using namespace barretenberg;
 namespace proof_system::honk::pcs::ipa {
 

@@ -3,9 +3,9 @@
 #include "./types.hpp"
 
 #include "barretenberg/crypto/pedersen_hash/pedersen_lookup.hpp"
+#include "barretenberg/numeric/bitop/pow.hpp"
 #include "barretenberg/numeric/bitop/rotate.hpp"
 #include "barretenberg/numeric/bitop/sparse_form.hpp"
-#include "barretenberg/numeric/bitop/pow.hpp"
 
 namespace plookup {
 namespace pedersen_tables {

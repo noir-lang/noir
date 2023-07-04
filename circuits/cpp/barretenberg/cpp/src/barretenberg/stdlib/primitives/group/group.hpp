@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../field/field.hpp"
-#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
 #include "../../hash/pedersen/pedersen.hpp"
 #include "../../hash/pedersen/pedersen_gates.hpp"

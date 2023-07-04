@@ -1,8 +1,8 @@
 #include "./ultra_verifier.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
-#include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
+#include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
+#include "barretenberg/numeric/bitop/get_msb.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::honk::sumcheck;

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <array>
+#include <vector>
 
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 

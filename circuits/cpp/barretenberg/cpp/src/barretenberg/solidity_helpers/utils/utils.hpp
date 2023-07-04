@@ -1,5 +1,5 @@
-#include <iostream>
 #include <bitset>
+#include <iostream>
 
 std::string bytes_to_hex_string(const std::vector<uint8_t>& input)
 {

@@ -1,13 +1,13 @@
 #pragma once
-#include "barretenberg/honk/proof_system/work_queue.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
-#include "barretenberg/honk/pcs/gemini/gemini.hpp"
-#include "barretenberg/honk/pcs/shplonk/shplonk_single.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/flavor/ultra_grumpkin.hpp"
+#include "barretenberg/honk/pcs/gemini/gemini.hpp"
+#include "barretenberg/honk/pcs/shplonk/shplonk_single.hpp"
+#include "barretenberg/honk/proof_system/work_queue.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
+#include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/plonk/proof_system/types/proof.hpp"
 
 namespace proof_system::honk {
 

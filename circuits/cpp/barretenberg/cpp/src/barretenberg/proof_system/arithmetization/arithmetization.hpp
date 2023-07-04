@@ -1,8 +1,8 @@
 #pragma once
 #include <array>
+#include <barretenberg/common/slab_allocator.hpp>
 #include <cstddef>
 #include <vector>
-#include <barretenberg/common/slab_allocator.hpp>
 
 namespace arithmetization {
 

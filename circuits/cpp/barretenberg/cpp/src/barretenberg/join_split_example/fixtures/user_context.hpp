@@ -1,7 +1,7 @@
 #pragma once
+#include "barretenberg/crypto/schnorr/schnorr.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "barretenberg/crypto/schnorr/schnorr.hpp"
 
 namespace join_split_example {
 namespace fixtures {

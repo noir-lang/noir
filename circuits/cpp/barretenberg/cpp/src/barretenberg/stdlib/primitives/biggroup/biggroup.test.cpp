@@ -8,11 +8,11 @@
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
 
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
-#include "barretenberg/stdlib/primitives/curves/secp256r1.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
+#include "barretenberg/stdlib/primitives/curves/secp256r1.hpp"
 
-#include <memory>
 #include "barretenberg/numeric/random/engine.hpp"
+#include <memory>
 
 namespace test_stdlib_biggroup {
 namespace {

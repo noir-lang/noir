@@ -29,9 +29,9 @@
 */
 
 #include <assert.h>
+#include <iostream>
 #include <stdbool.h>
 #include <string.h>
-#include <iostream>
 #include <type_traits>
 
 #include "blake3-impl.hpp"

@@ -1,7 +1,7 @@
 #include "simple.hpp"
-#include <barretenberg/plonk/proof_system/types/proof.hpp>
-#include <barretenberg/plonk/proof_system/proving_key/serialize.hpp>
 #include <barretenberg/common/timer.hpp>
+#include <barretenberg/plonk/proof_system/proving_key/serialize.hpp>
+#include <barretenberg/plonk/proof_system/types/proof.hpp>
 #include <memory>
 
 namespace examples::simple {

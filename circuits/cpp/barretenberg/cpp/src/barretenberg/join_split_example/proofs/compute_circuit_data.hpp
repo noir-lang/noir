@@ -2,12 +2,12 @@
 #include <fstream>
 #include <sys/stat.h>
 
-#include "mock/mock_circuit.hpp"
 #include "../constants.hpp"
-#include "join_split/join_split.hpp"
-#include "barretenberg/common/timer.hpp"
 #include "barretenberg/common/log.hpp"
+#include "barretenberg/common/timer.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"
+#include "join_split/join_split.hpp"
+#include "mock/mock_circuit.hpp"
 
 #ifndef __wasm__
 #include <filesystem>

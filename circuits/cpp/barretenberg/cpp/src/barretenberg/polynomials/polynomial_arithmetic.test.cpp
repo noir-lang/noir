@@ -1,12 +1,12 @@
-#include "polynomial_arithmetic.hpp"
-#include <algorithm>
 #include "barretenberg/common/mem.hpp"
-#include <cstddef>
-#include <gtest/gtest.h>
-#include <utility>
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "polynomial.hpp"
+#include "polynomial_arithmetic.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <gtest/gtest.h>
+#include <utility>
 
 using namespace barretenberg;
 

@@ -1,6 +1,6 @@
 #include "block_constraint.hpp"
-#include "barretenberg/stdlib/primitives/memory/rom_table.hpp"
 #include "barretenberg/stdlib/primitives/memory/ram_table.hpp"
+#include "barretenberg/stdlib/primitives/memory/rom_table.hpp"
 
 using namespace proof_system::plonk;
 

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "barretenberg/plonk/proof_system/constants.hpp"
 #include "barretenberg/ecc/curves/bn254/fq.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/numeric/uintx/uintx.hpp"
+#include "barretenberg/plonk/proof_system/constants.hpp"
 
 #include "../byte_array/byte_array.hpp"
 #include "../field/field.hpp"

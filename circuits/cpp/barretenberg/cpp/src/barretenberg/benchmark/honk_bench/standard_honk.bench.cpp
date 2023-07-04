@@ -1,6 +1,6 @@
 #include "barretenberg/benchmark/honk_bench/benchmark_utilities.hpp"
-#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/honk/composer/standard_composer.hpp"
+#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 
 using namespace benchmark;
 

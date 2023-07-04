@@ -1,10 +1,10 @@
 #pragma once
 
-#include <memory>
-#include <concepts>
-#include <string>
-#include <array>
 #include "schema_name.hpp"
+#include <array>
+#include <concepts>
+#include <memory>
+#include <string>
 
 struct MsgpackSchemaPacker;
 

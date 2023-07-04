@@ -2,9 +2,9 @@
 #include "gemini.hpp"
 #include "barretenberg/common/thread.hpp"
 
+#include <bit>
 #include <memory>
 #include <vector>
-#include <bit>
 
 /**
  * @brief Protocol for opening several multi-linear polynomials at the same point.

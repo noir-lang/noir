@@ -1,7 +1,7 @@
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/stdlib/primitives/safe_uint/safe_uint.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
+#include "barretenberg/numeric/uint256/uint256.hpp"
+#include "barretenberg/stdlib/primitives/safe_uint/safe_uint.hpp"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wc99-designator"
 

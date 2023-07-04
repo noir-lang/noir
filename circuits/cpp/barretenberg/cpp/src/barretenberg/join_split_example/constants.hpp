@@ -1,8 +1,8 @@
 #pragma once
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "barretenberg/numeric/uint256/uint256.hpp"
 #include <stddef.h>
 #include <stdint.h>
-#include "barretenberg/numeric/uint256/uint256.hpp"
-#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
 namespace join_split_example {
 

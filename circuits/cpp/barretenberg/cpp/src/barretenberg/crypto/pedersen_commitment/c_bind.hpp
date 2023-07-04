@@ -1,8 +1,8 @@
 #pragma once
-#include "barretenberg/common/serialize.hpp"
-#include "barretenberg/common/timer.hpp"
 #include "barretenberg/common/mem.hpp"
+#include "barretenberg/common/serialize.hpp"
 #include "barretenberg/common/streams.hpp"
+#include "barretenberg/common/timer.hpp"
 #define WASM_EXPORT __attribute__((visibility("default")))
 
 extern "C" {

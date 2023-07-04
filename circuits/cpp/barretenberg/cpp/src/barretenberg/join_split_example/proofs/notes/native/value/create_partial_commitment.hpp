@@ -1,8 +1,8 @@
 #pragma once
+#include "../../constants.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "../../constants.hpp"
 
 namespace join_split_example {
 namespace proofs {

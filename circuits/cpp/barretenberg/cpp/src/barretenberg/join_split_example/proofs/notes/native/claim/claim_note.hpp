@@ -1,10 +1,10 @@
 #pragma once
+#include "../bridge_call_data.hpp"
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
-#include "create_partial_commitment.hpp"
 #include "complete_partial_commitment.hpp"
-#include "../bridge_call_data.hpp"
+#include "create_partial_commitment.hpp"
 
 namespace join_split_example {
 namespace proofs {

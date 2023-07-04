@@ -1,10 +1,10 @@
 #pragma once
+#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/proof_system/plookup_tables/types.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
 #include <array>
 #include <vector>
-#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
-#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
-#include "barretenberg/proof_system/plookup_tables/types.hpp"
-#include "barretenberg/stdlib/primitives/field/field.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

@@ -1,6 +1,6 @@
 #pragma once
-#include "hash_path.hpp"
 #include "barretenberg/common/streams.hpp"
+#include "hash_path.hpp"
 #include <map>
 #include <set>
 

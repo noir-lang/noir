@@ -1,13 +1,13 @@
 #pragma once
+#include "barretenberg/common/slab_allocator.hpp"
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
+#include "field_impl_generic.hpp"
 #include <memory>
 #include <span>
 #include <type_traits>
 #include <vector>
-#include "barretenberg/common/slab_allocator.hpp"
-#include "field_impl_generic.hpp"
 
 #if (BBERG_NO_ASM == 0)
 #include "field_impl_x64.hpp"

@@ -2,13 +2,13 @@
 #include <map>
 #include <unordered_map>
 
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/scalar_multiplication/runtime_states.hpp"
+#include "barretenberg/plonk/proof_system/constants.hpp"
+#include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
-#include "barretenberg/plonk/proof_system/constants.hpp"
-#include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
-#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 
 #ifdef __wasm__
 #include "barretenberg/proof_system/polynomial_store/polynomial_store_cache.hpp"

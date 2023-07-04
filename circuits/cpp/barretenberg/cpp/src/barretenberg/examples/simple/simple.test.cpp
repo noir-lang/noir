@@ -1,6 +1,6 @@
 #include "simple.hpp"
-#include <barretenberg/srs/factories/file_crs_factory.hpp>
 #include <barretenberg/common/test.hpp>
+#include <barretenberg/srs/factories/file_crs_factory.hpp>
 #include <filesystem>
 
 namespace examples::simple {

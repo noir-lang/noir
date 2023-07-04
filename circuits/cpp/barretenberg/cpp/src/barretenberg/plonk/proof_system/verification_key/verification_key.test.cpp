@@ -1,5 +1,5 @@
-#include "barretenberg/common/test.hpp"
 #include "barretenberg/common/streams.hpp"
+#include "barretenberg/common/test.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "verification_key.hpp"
 

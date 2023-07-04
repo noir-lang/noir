@@ -1,8 +1,8 @@
 #pragma once
 #include "barretenberg/honk/flavor/standard.hpp"
-#include "barretenberg/plonk/proof_system/types/proof.hpp"
-#include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/honk/flavor/standard_grumpkin.hpp"
+#include "barretenberg/honk/sumcheck/sumcheck.hpp"
+#include "barretenberg/plonk/proof_system/types/proof.hpp"
 
 namespace proof_system::honk {
 template <typename Flavor> class StandardVerifier_ {

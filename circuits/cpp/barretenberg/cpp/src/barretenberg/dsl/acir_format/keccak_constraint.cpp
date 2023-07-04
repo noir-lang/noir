@@ -1,6 +1,6 @@
 #include "keccak_constraint.hpp"
-#include "round.hpp"
 #include "barretenberg/stdlib/hash/keccak/keccak.hpp"
+#include "round.hpp"
 
 namespace acir_format {
 

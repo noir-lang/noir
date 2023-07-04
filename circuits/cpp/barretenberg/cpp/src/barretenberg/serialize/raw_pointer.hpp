@@ -1,6 +1,6 @@
 #pragma once
-#include <cstdint>
 #include "msgpack_impl/schema_name.hpp"
+#include <cstdint>
 
 // Holds a raw pointer to an object of type T.
 // It provides methods for packing and unpacking the pointer using MessagePack,

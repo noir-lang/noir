@@ -2,8 +2,8 @@
 
 #include "barretenberg/numeric/bitop/rotate.hpp"
 
-#include "types.hpp"
 #include "sparse.hpp"
+#include "types.hpp"
 
 namespace plookup {
 namespace blake2s_tables {

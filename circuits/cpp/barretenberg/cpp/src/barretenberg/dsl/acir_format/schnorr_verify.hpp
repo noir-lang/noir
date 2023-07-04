@@ -1,6 +1,6 @@
 #pragma once
-#include <vector>
 #include "barretenberg/dsl/types.hpp"
+#include <vector>
 
 namespace acir_format {
 

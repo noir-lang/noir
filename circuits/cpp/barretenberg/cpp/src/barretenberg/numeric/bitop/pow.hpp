@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
 #include "./get_msb.hpp"
+#include <cstdint>
 
 namespace numeric {
 constexpr uint64_t pow64(const uint64_t input, const uint64_t exponent)

@@ -1,6 +1,6 @@
 #include "work_queue.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
 namespace proof_system::plonk {

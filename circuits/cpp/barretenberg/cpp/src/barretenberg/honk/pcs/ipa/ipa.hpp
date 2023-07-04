@@ -1,13 +1,13 @@
 #pragma once
-#include <cstddef>
-#include <numeric>
-#include <string>
-#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
-#include <vector>
 #include "barretenberg/common/assert.hpp"
+#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
+#include <cstddef>
+#include <numeric>
+#include <string>
+#include <vector>
 
 /**
  * @brief IPA (inner-product argument) commitment scheme class. Conforms to the specification

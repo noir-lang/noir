@@ -1,5 +1,5 @@
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/common/thread.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include <span>
 
 namespace proof_system::honk::power_polynomial {

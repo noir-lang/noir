@@ -1,7 +1,7 @@
 #include "compute_nullifier.hpp"
 #include "../../constants.hpp"
-#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/crypto/blake2s/blake2s.hpp"
+#include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 
 namespace join_split_example {
 namespace proofs {

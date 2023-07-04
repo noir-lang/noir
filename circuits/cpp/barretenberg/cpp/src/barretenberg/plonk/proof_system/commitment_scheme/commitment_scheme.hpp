@@ -1,7 +1,7 @@
 #pragma once
+#include "../../../polynomials/polynomial.hpp"
 #include "../../../polynomials/polynomial_arithmetic.hpp"
 #include "../../../proof_system/work_queue/work_queue.hpp"
-#include "../../../polynomials/polynomial.hpp"
 #include "../types/commitment_open_proof.hpp"
 #include "../types/program_settings.hpp"
 

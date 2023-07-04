@@ -1,12 +1,12 @@
 #pragma once
-#include "barretenberg/crypto/sha256/sha256.hpp"
-#include "proving_key.hpp"
-#include "barretenberg/polynomials/serialize.hpp"
-#include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/common/throw_or_abort.hpp"
+#include "barretenberg/crypto/sha256/sha256.hpp"
+#include "barretenberg/polynomials/serialize.hpp"
+#include "proving_key.hpp"
+#include <fcntl.h>
 #include <ios>
 #include <sys/stat.h>
-#include <fcntl.h>
 
 namespace proof_system::plonk {
 

@@ -1,10 +1,10 @@
 #include "../bool/bool.hpp"
-#include "field.hpp"
 #include "array.hpp"
+#include "barretenberg/numeric/random/engine.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
+#include "field.hpp"
 #include <gtest/gtest.h>
 #include <utility>
-#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
-#include "barretenberg/numeric/random/engine.hpp"
 
 namespace test_stdlib_array {
 

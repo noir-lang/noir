@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "merkle_tree.hpp"
 #include "membership.hpp"
 #include "memory_store.hpp"
 #include "memory_tree.hpp"
+#include "merkle_tree.hpp"
 
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
 

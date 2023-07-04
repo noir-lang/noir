@@ -1,10 +1,10 @@
 #pragma once
-#include <sstream>
-#include <algorithm>
-#include <vector>
-#include <string>
-#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
 #include "barretenberg/env/logstr.hpp"
+#include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders_fwd.hpp"
+#include <algorithm>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #define BENCHMARK_INFO_PREFIX "##BENCHMARK_INFO_PREFIX##"
 #define BENCHMARK_INFO_SEPARATOR "#"

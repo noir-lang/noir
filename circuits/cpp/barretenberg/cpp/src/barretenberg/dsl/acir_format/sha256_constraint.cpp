@@ -1,7 +1,7 @@
 #include "sha256_constraint.hpp"
-#include "round.hpp"
-#include "barretenberg/stdlib/hash/sha256/sha256.hpp"
 #include "barretenberg/dsl/types.hpp"
+#include "barretenberg/stdlib/hash/sha256/sha256.hpp"
+#include "round.hpp"
 
 namespace acir_format {
 

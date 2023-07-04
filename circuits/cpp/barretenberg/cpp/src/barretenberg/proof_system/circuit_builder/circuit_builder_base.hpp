@@ -1,8 +1,8 @@
 #pragma once
+#include "barretenberg/common/slab_allocator.hpp"
+#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
 #include "barretenberg/proof_system/arithmetization/gate_data.hpp"
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/common/slab_allocator.hpp"
 #include <utility>
 
 namespace proof_system {

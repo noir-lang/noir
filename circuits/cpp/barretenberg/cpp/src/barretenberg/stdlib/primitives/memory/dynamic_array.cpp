@@ -1,7 +1,7 @@
 #include "dynamic_array.hpp"
 
-#include "../circuit_builders/circuit_builders.hpp"
 #include "../bool/bool.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

@@ -2,9 +2,9 @@
 #include "../../primitives/biggroup/biggroup.hpp"
 #include "../../primitives/curves/secp256k1.hpp"
 #include "../../primitives/curves/secp256r1.hpp"
-#include "ecdsa.hpp"
-#include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/common/test.hpp"
+#include "barretenberg/crypto/ecdsa/ecdsa.hpp"
+#include "ecdsa.hpp"
 
 using namespace barretenberg;
 using namespace proof_system::plonk;

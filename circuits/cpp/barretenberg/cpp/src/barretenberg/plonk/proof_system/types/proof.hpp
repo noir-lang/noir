@@ -1,10 +1,10 @@
 #pragma once
-#include <cstdint>
-#include <vector>
-#include <ostream>
-#include <iomanip>
 #include "barretenberg/common/serialize.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
+#include <cstdint>
+#include <iomanip>
+#include <ostream>
+#include <vector>
 
 namespace proof_system::plonk {
 

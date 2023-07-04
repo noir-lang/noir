@@ -1,6 +1,6 @@
-#include "pow.hpp"
-#include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "barretenberg/honk/utils/power_polynomial.hpp"
+#include "pow.hpp"
 #include <gtest/gtest.h>
 
 namespace proof_system::honk::sumcheck::pow_test {

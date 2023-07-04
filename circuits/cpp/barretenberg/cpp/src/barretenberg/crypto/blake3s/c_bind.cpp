@@ -1,5 +1,5 @@
-#include "blake3s.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "blake3s.hpp"
 
 #define WASM_EXPORT __attribute__((visibility("default")))
 

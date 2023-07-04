@@ -8,10 +8,10 @@
  * Based off of tiny-AES by @kokke : https://github.com/kokke/tiny-AES-c
  **/
 
+#include "memory.h"
+#include <array>
 #include <cstddef>
 #include <cstdint>
-#include <array>
-#include "memory.h"
 
 #include <iostream>
 namespace crypto {

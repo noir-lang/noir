@@ -1,6 +1,6 @@
 #pragma once
-#include "join_split_tx.hpp"
 #include "../compute_circuit_data.hpp"
+#include "join_split_tx.hpp"
 
 namespace join_split_example {
 namespace proofs {

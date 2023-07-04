@@ -1,7 +1,7 @@
 #pragma once
-#include <map>
-#include "barretenberg/srs/factories/crs_factory.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
+#include "barretenberg/srs/factories/crs_factory.hpp"
+#include <map>
 
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 
@@ -9,16 +9,16 @@
 
 #include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 
-#include "barretenberg/ecc/curves/bn254/fq12.hpp"
-#include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
 #include "barretenberg/crypto/pedersen_commitment/pedersen_lookup.hpp"
+#include "barretenberg/ecc/curves/bn254/fq12.hpp"
+#include "barretenberg/ecc/curves/bn254/pairing.hpp"
 
-#include "../../primitives/uint/uint.hpp"
-#include "../../primitives/memory/rom_table.hpp"
 #include "../../commitment/pedersen/pedersen.hpp"
 #include "../../commitment/pedersen/pedersen_plookup.hpp"
 #include "../../primitives/curves/bn254.hpp"
+#include "../../primitives/memory/rom_table.hpp"
+#include "../../primitives/uint/uint.hpp"
 
 #include "barretenberg/crypto/pedersen_commitment/convert_buffer_to_field.hpp"
 

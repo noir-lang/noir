@@ -1,7 +1,7 @@
+#include "barretenberg/common/mem.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "io.hpp"
-#include "barretenberg/common/mem.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;

@@ -64,13 +64,13 @@
  */
 
 #pragma once
+#include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
+#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
+#include "barretenberg/polynomials/evaluation_domain.hpp"
+#include "barretenberg/proof_system/types/circuit_type.hpp"
 #include <array>
 #include <concepts>
 #include <vector>
-#include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
-#include "barretenberg/polynomials/evaluation_domain.hpp"
-#include "barretenberg/proof_system/types/circuit_type.hpp"
-#include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 
 namespace proof_system::honk::flavor {
 

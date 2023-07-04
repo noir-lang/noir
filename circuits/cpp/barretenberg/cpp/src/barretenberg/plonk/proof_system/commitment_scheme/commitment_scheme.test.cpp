@@ -2,14 +2,14 @@
 #include "commitment_scheme.hpp"
 #include "kate_commitment_scheme.hpp"
 
-#include "barretenberg/common/mem.hpp"
-#include <gtest/gtest.h>
-#include <memory>
-#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "../../../proof_system/work_queue/work_queue.hpp"
 #include "../types/program_settings.hpp"
+#include "barretenberg/common/mem.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/polynomials/polynomial_arithmetic.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
+#include <gtest/gtest.h>
+#include <memory>
 
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"

@@ -1,8 +1,8 @@
-#include <cstdint>
-#include <cstddef>
-#include <barretenberg/common/wasm_export.hpp>
 #include <barretenberg/common/serialize.hpp>
+#include <barretenberg/common/wasm_export.hpp>
 #include <barretenberg/ecc/curves/bn254/fr.hpp>
+#include <cstddef>
+#include <cstdint>
 
 using namespace barretenberg;
 

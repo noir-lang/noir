@@ -1,7 +1,7 @@
 #include "blake2s.hpp"
+#include "barretenberg/stdlib/primitives/uint/uint.hpp"
 #include "blake2s_plookup.hpp"
 #include "blake_util.hpp"
-#include "barretenberg/stdlib/primitives/uint/uint.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

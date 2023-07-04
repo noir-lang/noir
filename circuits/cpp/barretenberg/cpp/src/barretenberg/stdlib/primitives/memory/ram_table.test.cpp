@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include "ram_table.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/proof_system/circuit_builder/ultra_circuit_builder.hpp"
+#include "ram_table.hpp"
 
 namespace test_stdlib_ram_table {
 

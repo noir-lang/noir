@@ -2,13 +2,13 @@
 // Note: heavy header due to serialization logic, don't include outside of tests
 #include <barretenberg/serialize/msgpack_impl/msgpack_impl.hpp>
 
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <cstdint>
-#include <cstddef>
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "schema_name.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <vector>
 
 namespace msgpack {
 template <typename T> uintptr_t __aligned_for(uintptr_t ptr)

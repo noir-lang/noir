@@ -1,7 +1,7 @@
 #include "pedersen.hpp"
-#include "pedersen_plookup.hpp"
-#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "../../hash/pedersen/pedersen.hpp"
+#include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "pedersen_plookup.hpp"
 
 #include "../../primitives/packed_byte_array/packed_byte_array.hpp"
 

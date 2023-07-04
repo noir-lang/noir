@@ -1,6 +1,6 @@
 #pragma once
-#include "hash_path.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "hash_path.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

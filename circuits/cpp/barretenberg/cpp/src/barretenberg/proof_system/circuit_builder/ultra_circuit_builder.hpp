@@ -1,14 +1,14 @@
 #pragma once
-#include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
-#include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
-#include "circuit_builder_base.hpp"
 #include "barretenberg/plonk/proof_system/constants.hpp"
-#include "barretenberg/proof_system/types/merkle_hash_type.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
-#include "barretenberg/proof_system/plookup_tables/types.hpp"
-#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
+#include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/proof_system/plookup_tables/types.hpp"
+#include "barretenberg/proof_system/types/merkle_hash_type.hpp"
 #include "barretenberg/proof_system/types/pedersen_commitment_type.hpp"
+#include "circuit_builder_base.hpp"
 #include <optional>
 
 namespace proof_system {

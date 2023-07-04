@@ -3,14 +3,14 @@
 #include "barretenberg/honk/composer/standard_composer.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
-#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/relations/arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
-#include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
+#include "barretenberg/honk/sumcheck/relations/ultra_arithmetic_relation.hpp"
 
 using namespace proof_system::honk;
 

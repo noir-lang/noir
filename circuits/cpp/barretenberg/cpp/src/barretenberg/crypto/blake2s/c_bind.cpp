@@ -1,5 +1,5 @@
-#include "blake2s.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
+#include "blake2s.hpp"
 #include <barretenberg/common/wasm_export.hpp>
 
 using namespace barretenberg;

@@ -1,6 +1,6 @@
 #pragma once
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/common/wasm_export.hpp"
+#include "barretenberg/ecc/curves/bn254/fr.hpp"
 
 extern "C" {
 

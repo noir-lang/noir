@@ -1,15 +1,15 @@
 #include "polynomial.hpp"
-#include "polynomial_arithmetic.hpp"
 #include "barretenberg/common/assert.hpp"
 #include "barretenberg/common/slab_allocator.hpp"
+#include "polynomial_arithmetic.hpp"
 #include <cstddef>
-#include <memory>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <sys/stat.h>
 #include <unordered_map>
 #include <utility>
-#include <list>
-#include <mutex>
 
 namespace barretenberg {
 

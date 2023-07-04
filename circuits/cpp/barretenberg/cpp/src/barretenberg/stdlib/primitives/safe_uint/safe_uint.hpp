@@ -1,11 +1,11 @@
 #pragma once
-#include <functional>
-#include "../circuit_builders/circuit_builders_fwd.hpp"
-#include "../circuit_builders/circuit_builders.hpp"
-#include "../witness/witness.hpp"
 #include "../bool/bool.hpp"
-#include "barretenberg/common/assert.hpp"
+#include "../circuit_builders/circuit_builders.hpp"
+#include "../circuit_builders/circuit_builders_fwd.hpp"
 #include "../field/field.hpp"
+#include "../witness/witness.hpp"
+#include "barretenberg/common/assert.hpp"
+#include <functional>
 
 // The purpose of this class is to enable positive integer operations without a risk of overflow.
 // Despite the name, it is *not* a "safe" version of the uint class - as operations are positive integer

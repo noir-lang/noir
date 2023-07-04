@@ -1,8 +1,8 @@
 #pragma once
-#include <memory>
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
+#include <memory>
 
 namespace proof_system {
 

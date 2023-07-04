@@ -1,7 +1,7 @@
 #include "sha256.hpp"
-#include "sha256_plookup.hpp"
 #include "barretenberg/stdlib/primitives/bit_array/bit_array.hpp"
 #include "barretenberg/stdlib/primitives/circuit_builders/circuit_builders.hpp"
+#include "sha256_plookup.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

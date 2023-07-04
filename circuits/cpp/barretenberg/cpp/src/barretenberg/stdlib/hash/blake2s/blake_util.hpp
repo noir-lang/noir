@@ -1,8 +1,8 @@
 #pragma once
-#include "barretenberg/stdlib/primitives/uint/uint.hpp"
-#include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
+#include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/stdlib/primitives/plookup/plookup.hpp"
+#include "barretenberg/stdlib/primitives/uint/uint.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

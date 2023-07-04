@@ -1,7 +1,7 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include <string>
 #include <cxxabi.h>
+#include <string>
 
 /**
  * Converts C++ type information into a human-readable format.

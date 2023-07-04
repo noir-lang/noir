@@ -1,12 +1,12 @@
+#include <bitset>
 #include <iostream>
 #include <sstream>
-#include <bitset>
 
 #include "barretenberg/plonk/composer/standard_composer.hpp"
 #include "barretenberg/plonk/composer/ultra_composer.hpp"
 
-#include "circuits/blake_circuit.hpp"
 #include "circuits/add_2_circuit.hpp"
+#include "circuits/blake_circuit.hpp"
 #include "circuits/recursive_circuit.hpp"
 #include "utils/utils.hpp"
 

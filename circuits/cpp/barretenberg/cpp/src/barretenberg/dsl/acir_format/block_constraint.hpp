@@ -1,8 +1,8 @@
 #pragma once
+#include "barretenberg/dsl/types.hpp"
+#include "barretenberg/stdlib/primitives/field/field.hpp"
 #include <cstdint>
 #include <vector>
-#include "barretenberg/stdlib/primitives/field/field.hpp"
-#include "barretenberg/dsl/types.hpp"
 
 namespace acir_format {
 

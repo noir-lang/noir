@@ -1,6 +1,6 @@
 #pragma once
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "./polynomial_store_wasm.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include <map>
 #include <string>
 

@@ -1,6 +1,6 @@
 #include "sign_join_split_tx.hpp"
-#include "compute_signing_data.hpp"
 #include "barretenberg/crypto/schnorr/schnorr.hpp"
+#include "compute_signing_data.hpp"
 
 namespace join_split_example {
 namespace proofs {

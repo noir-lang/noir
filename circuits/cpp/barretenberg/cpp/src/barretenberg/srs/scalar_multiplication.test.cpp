@@ -14,8 +14,8 @@
 #include "barretenberg/ecc/scalar_multiplication/point_table.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "barretenberg/srs/io.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
+#include "barretenberg/srs/io.hpp"
 
 #include <cstddef>
 #include <vector>

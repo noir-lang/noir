@@ -1,12 +1,12 @@
 #pragma once
-#include <map>
 #include "barretenberg/common/streams.hpp"
-#include "barretenberg/srs/global_crs.hpp"
-#include "barretenberg/ecc/curves/bn254/fr.hpp"
-#include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
+#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
+#include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/serialize/msgpack.hpp"
+#include "barretenberg/srs/global_crs.hpp"
+#include <map>
 
 namespace proof_system::plonk {
 

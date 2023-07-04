@@ -1,14 +1,14 @@
 #pragma once
 
 #include "../../common/assert.hpp"
+#include "./affine_element.hpp"
+#include "./element.hpp"
 #include "./wnaf.hpp"
 #include <array>
 #include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include "./affine_element.hpp"
-#include "./element.hpp"
 
 namespace barretenberg {
 

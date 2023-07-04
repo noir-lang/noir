@@ -1,5 +1,5 @@
-#include "thread.hpp"
 #include "log.hpp"
+#include "thread.hpp"
 #include <atomic>
 #include <condition_variable>
 #include <functional>

@@ -1,10 +1,10 @@
-#include "shplonk_single.hpp"
 #include "../gemini/gemini.hpp"
+#include "shplonk_single.hpp"
 
-#include <gtest/internal/gtest-internal.h>
-#include <random>
-#include <iterator>
 #include <algorithm>
+#include <gtest/internal/gtest-internal.h>
+#include <iterator>
+#include <random>
 #include <vector>
 
 #include "../commitment_key.test.hpp"

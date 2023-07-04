@@ -1,8 +1,8 @@
-#include <benchmark/benchmark.h>
-#include <cstddef>
 #include "barretenberg/honk/composer/standard_composer.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
+#include <benchmark/benchmark.h>
+#include <cstddef>
 
 using namespace benchmark;
 using namespace proof_system::plonk::stdlib;

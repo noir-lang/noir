@@ -1,13 +1,13 @@
 #pragma once
-#include <array>
 #include "barretenberg/common/assert.hpp"
 #include "barretenberg/common/inline.hpp"
 #include "barretenberg/common/serialize.hpp"
-#include <cstdint>
-#include <iostream>
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/uint128/uint128.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"
+#include <array>
+#include <cstdint>
+#include <iostream>
 #include <random>
 #include <span>
 

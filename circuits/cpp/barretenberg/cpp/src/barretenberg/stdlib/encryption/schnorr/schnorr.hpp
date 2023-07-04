@@ -1,11 +1,11 @@
 #pragma once
-#include "barretenberg/crypto/schnorr/schnorr.hpp"
-#include "../../primitives/field/field.hpp"
 #include "../../primitives/bool/bool.hpp"
-#include "../../primitives/witness/witness.hpp"
 #include "../../primitives/byte_array/byte_array.hpp"
-#include "../../primitives/point/point.hpp"
+#include "../../primitives/field/field.hpp"
 #include "../../primitives/group/group.hpp"
+#include "../../primitives/point/point.hpp"
+#include "../../primitives/witness/witness.hpp"
+#include "barretenberg/crypto/schnorr/schnorr.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {

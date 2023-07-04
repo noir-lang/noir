@@ -7,8 +7,8 @@
 #include <utility>
 #include <vector>
 
-#include "schnorr.hpp"
 #include "proof_of_possession.hpp"
+#include "schnorr.hpp"
 
 namespace crypto::schnorr {
 
