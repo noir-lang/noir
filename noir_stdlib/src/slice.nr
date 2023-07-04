@@ -2,7 +2,7 @@
 impl<T> [T] {
     /// Push a new element to the end of the slice, returning a
     /// new slice with a length one greater than the
-    /// original unmodified vector.
+    /// original unmodified slice.
     #[builtin(slice_push_back)]
     fn push_back(_self: Self, _elem: T) -> Self { }
 
@@ -26,21 +26,17 @@ impl<T> [T] {
         a
     }
 
-    // Apply a function to each element of an array, returning a new array
+    // Apply a function to each element of a slice, returning a new slice
     // containing the mapped elements.
     fn map<U>(self, f: fn(T) -> U) -> [U] {
-        let first_elem = f(self[0]);
         let mut ret: [U] = [];
-        ret = ret.push_back(first_elem);
-
-        for i in 1 .. self.len() {
-            ret.push_back(f(self[i]));
+        for elem in self {
+            ret = ret.push_back(f(elem));
         }
-
         ret
     }
 
-    // Apply a function to each element of the array and an accumulator value,
+    // Apply a function to each element of the slice and an accumulator value,
     // returning the final accumulated value. This function is also sometimes
     // called `foldl`, `fold_left`, `reduce`, or `inject`.
     fn fold<U>(self, mut accumulator: U, f: fn(U, T) -> U) -> U {
@@ -50,9 +46,9 @@ impl<T> [T] {
         accumulator
     }
 
-    // Apply a function to each element of the array and an accumulator value,
+    // Apply a function to each element of the slice and an accumulator value,
     // returning the final accumulated value. Unlike fold, reduce uses the first
-    // element of the given array as its starting accumulator value.
+    // element of the given slice as its starting accumulator value.
     fn reduce(self, f: fn(T, T) -> T) -> T {
         let mut accumulator = self[0];
         for i in 1 .. self.len() {
