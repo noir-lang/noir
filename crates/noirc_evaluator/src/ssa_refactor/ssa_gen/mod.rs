@@ -35,8 +35,12 @@ pub(crate) fn generate_ssa(program: Program) -> Ssa {
     // Queue the main function for compilation
     context.get_or_queue_function(main_id);
 
-    let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, RuntimeType::Acir, &context);
+    let mut function_context = FunctionContext::new(
+        main.name.clone(),
+        &main.parameters,
+        if main.unconstrained { RuntimeType::Brillig } else { RuntimeType::Acir },
+        &context,
+    );
     function_context.codegen_function_body(&main.body);
 
     // Main has now been compiled and any other functions referenced within have been added to the

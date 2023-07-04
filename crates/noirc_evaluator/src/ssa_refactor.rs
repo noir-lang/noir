@@ -16,7 +16,7 @@ use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
 
-use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ssa_gen::Ssa};
+use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ir::function::RuntimeType, ssa_gen::Ssa};
 
 mod abi_gen;
 mod acir_gen;
@@ -34,23 +34,26 @@ pub(crate) fn optimize_into_acir(
     print_ssa_passes: bool,
 ) -> GeneratedAcir {
     let abi_distinctness = program.return_distinctness;
-    let ssa = ssa_gen::generate_ssa(program).print(print_ssa_passes, "Initial SSA:");
+    let mut ssa = ssa_gen::generate_ssa(program).print(print_ssa_passes, "Initial SSA:");
     let brillig = ssa.to_brillig();
-    ssa.inline_functions()
-        .print(print_ssa_passes, "After Inlining:")
-        .unroll_loops()
-        .print(print_ssa_passes, "After Unrolling:")
-        .simplify_cfg()
-        .print(print_ssa_passes, "After Simplifying:")
-        .flatten_cfg()
-        .print(print_ssa_passes, "After Flattening:")
-        .mem2reg()
-        .print(print_ssa_passes, "After Mem2Reg:")
-        .fold_constants()
-        .print(print_ssa_passes, "After Constant Folding:")
-        .dead_instruction_elimination()
-        .print(print_ssa_passes, "After Dead Instruction Elimination:")
-        .into_acir(brillig, abi_distinctness, allow_log_ops)
+    if let RuntimeType::Acir = ssa.main().runtime() {
+        ssa = ssa
+            .inline_functions()
+            .print(print_ssa_passes, "After Inlining:")
+            .unroll_loops()
+            .print(print_ssa_passes, "After Unrolling:")
+            .simplify_cfg()
+            .print(print_ssa_passes, "After Simplifying:")
+            .flatten_cfg()
+            .print(print_ssa_passes, "After Flattening:")
+            .mem2reg()
+            .print(print_ssa_passes, "After Mem2Reg:")
+            .fold_constants()
+            .print(print_ssa_passes, "After Constant Folding:")
+            .dead_instruction_elimination()
+            .print(print_ssa_passes, "After Dead Instruction Elimination:");
+    }
+    ssa.into_acir(brillig, abi_distinctness, allow_log_ops)
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates

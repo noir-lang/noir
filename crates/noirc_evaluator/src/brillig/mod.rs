@@ -54,10 +54,7 @@ impl Ssa {
 
         let mut brillig = Brillig::default();
         for brillig_function in brillig_functions {
-            // TODO: document why we are skipping the `main_id` for Brillig functions
-            if brillig_function.id() != self.main_id {
-                brillig.compile(brillig_function);
-            }
+            brillig.compile(brillig_function);
         }
 
         brillig
