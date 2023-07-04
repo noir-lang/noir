@@ -83,7 +83,13 @@ impl CrateGraph {
     pub fn add_crate_root(&mut self, crate_type: CrateType, file_id: FileId) -> CrateId {
         let mut roots_with_file_id =
             self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
-        assert!(roots_with_file_id.next().is_none(), "you cannot add the same file id twice");
+
+        let next_file_id = roots_with_file_id.next();
+        if next_file_id.is_some() {
+            return next_file_id.unwrap().0;
+        }
+
+        assert!(next_file_id.is_none(), "you cannot add the same file id twice");
 
         let data = CrateData { root_file_id: file_id, crate_type, dependencies: Vec::new() };
         let crate_id = CrateId(self.arena.len());

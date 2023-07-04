@@ -10,6 +10,7 @@ pub use file_map::{File, FileId, FileMap};
 
 use std::{
     collections::HashMap,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -20,6 +21,8 @@ pub const FILE_EXTENSION: &str = "nr";
 /// which the compiler starts at, and the others.
 /// This is so that submodules of the root, can live alongside the
 /// root file as files.
+// TODO(Maddiaa): remove derivations
+#[derive(Clone, Copy, Debug)]
 pub enum FileType {
     Root,
     Normal,
@@ -38,12 +41,21 @@ pub struct FileManager {
 impl FileManager {
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
     pub fn add_file(&mut self, path_to_file: &Path, file_type: FileType) -> Option<FileId> {
-        let source = file_reader::read_file_to_string(path_to_file).ok()?;
+        // Handle both relative file paths and std/lib virtual paths.
+        let base = Path::new(".").canonicalize().unwrap(); // Should never fail (TODO: test wasm)
+        let res = path_to_file.canonicalize().unwrap_or(path_to_file.to_path_buf());
+        let resolved_path = res.strip_prefix(base).unwrap_or(&res);
 
-        let file_id = self.file_map.add_file(path_to_file.to_path_buf().into(), source);
-        let path_to_file = virtualize_path(path_to_file, file_type);
+        // Check that the resolved path already exists in the file map, if it is, we return it.
+        let path_to_file = virtualize_path(resolved_path, file_type);
+        if let Some(file_id) = self.path_to_id.get(&path_to_file) {
+            return Some(*file_id);
+        }
+
+        // Otherwise we add the file
+        let source = file_reader::read_file_to_string(&resolved_path).ok()?;
+        let file_id = self.file_map.add_file(resolved_path.to_path_buf().into(), source);
         self.register_path(file_id, path_to_file);
-
         Some(file_id)
     }
 
@@ -176,5 +188,29 @@ mod tests {
 
         // Now check for files in it's subdirectory
         fm.resolve_path(sub_dir_file_id, "foo").unwrap();
+    }
+
+    /// Tests that two identical files that have different paths are treated as the same file
+    /// e.g. if we start in the dir ./src and have a file ../../foo.nr
+    /// that should be treated as the same file as ../ starting in ./
+    /// they should both resolve to ../foo.nr
+    #[test]
+    fn path_resolve_modules_with_different_paths_as_same_file() {
+        let mut fm = FileManager::default();
+
+        // Create a lib.nr file at the root.
+        let dir = tempdir().unwrap();
+        let sub_dir = TempDir::new_in(&dir).unwrap();
+        let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
+        let file_path = dummy_file_path(&dir, "lib.nr");
+
+        // Create another file in a subdirectory with a convoluted path
+        let second_file_path = dummy_file_path(&sub_sub_dir, "./../../lib.nr");
+
+        // Add both files to the file manager
+        let file_id = fm.add_file(&file_path, FileType::Root).unwrap();
+        let second_file_id = fm.add_file(&second_file_path, FileType::Root).unwrap();
+
+        assert_eq!(file_id, second_file_id);
     }
 }
