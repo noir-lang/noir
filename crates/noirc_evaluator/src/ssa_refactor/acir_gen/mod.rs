@@ -344,7 +344,7 @@ impl Context {
         let mut entry_point = BrilligArtifact::new_entry_point_artifact(
             BrilligFunctionContext::parameters(func),
             BrilligFunctionContext::return_values(func),
-            BrilligFunctionContext::function_id_to_function_label(*id),
+            BrilligFunctionContext::function_id_to_function_label(func.id()),
         );
         // Link the entry point with all dependencies
         while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
