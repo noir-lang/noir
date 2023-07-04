@@ -40,7 +40,7 @@ impl FileManager {
     pub fn add_file(&mut self, path_to_file: &Path, file_type: FileType) -> Option<FileId> {
         // Handle both relative file paths and std/lib virtual paths.
         let base = Path::new(".").canonicalize().unwrap(); // Should never fail (TODO: test wasm)
-        let res = path_to_file.canonicalize().unwrap_or(path_to_file.to_path_buf());
+        let res = path_to_file.canonicalize().unwrap_or_else(|_| path_to_file.to_path_buf());
         let resolved_path = res.strip_prefix(base).unwrap_or(&res);
 
         // Check that the resolved path already exists in the file map, if it is, we return it.
@@ -50,7 +50,7 @@ impl FileManager {
         }
 
         // Otherwise we add the file
-        let source = file_reader::read_file_to_string(&resolved_path).ok()?;
+        let source = file_reader::read_file_to_string(resolved_path).ok()?;
         let file_id = self.file_map.add_file(resolved_path.to_path_buf().into(), source);
         self.register_path(file_id, path_to_file);
         Some(file_id)
