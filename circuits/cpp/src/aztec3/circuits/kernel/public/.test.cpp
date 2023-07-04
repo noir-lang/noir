@@ -13,13 +13,11 @@
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/private_historic_tree_roots.hpp"
-#include "aztec3/circuits/abis/private_kernel/globals.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_call_data.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
 #include "aztec3/circuits/abis/tx_context.hpp"
 #include "aztec3/circuits/abis/tx_request.hpp"
 #include "aztec3/circuits/abis/types.hpp"
-#include "aztec3/circuits/apps/function_execution_context.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/array.hpp"
@@ -126,12 +124,10 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
     std::array<NT::fr, RETURN_VALUES_LENGTH> const return_values = array_of_values<RETURN_VALUES_LENGTH>(count);
     std::array<NT::fr, PUBLIC_CALL_STACK_LENGTH> const public_call_stack =
         array_of_values<PUBLIC_CALL_STACK_LENGTH>(count);
-    std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH> const new_commitments =
-        array_of_values<KERNEL_NEW_COMMITMENTS_LENGTH>(count);
-    std::array<NT::fr, KERNEL_NEW_NULLIFIERS_LENGTH> const new_nullifiers =
-        array_of_values<KERNEL_NEW_NULLIFIERS_LENGTH>(count);
-    std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> const new_l2_to_l1_msgs =
-        array_of_values<KERNEL_NEW_L2_TO_L1_MSGS_LENGTH>(count);
+    std::array<NT::fr, NEW_COMMITMENTS_LENGTH> const new_commitments = array_of_values<NEW_COMMITMENTS_LENGTH>(count);
+    std::array<NT::fr, NEW_NULLIFIERS_LENGTH> const new_nullifiers = array_of_values<NEW_NULLIFIERS_LENGTH>(count);
+    std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> const new_l2_to_l1_msgs =
+        array_of_values<NEW_L2_TO_L1_MSGS_LENGTH>(count);
     std::array<ContractStorageRead<NT>, KERNEL_PUBLIC_DATA_READS_LENGTH> const reads =
         generate_contract_storage_reads(count);
     std::array<ContractStorageUpdateRequest<NT>, KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH> const update_requests =
@@ -209,11 +205,11 @@ public_data_update_requests_from_contract_storage_update_requests(
     return values;
 }
 
-std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments_as_siloed_commitments(
-    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> const& new_commitments, NT::fr const& contract_address)
+std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments_as_siloed_commitments(
+    std::array<fr, NEW_COMMITMENTS_LENGTH> const& new_commitments, NT::fr const& contract_address)
 {
-    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> siloed_commitments{};
-    for (size_t i = 0; i < KERNEL_NEW_COMMITMENTS_LENGTH; ++i) {
+    std::array<fr, NEW_COMMITMENTS_LENGTH> siloed_commitments{};
+    for (size_t i = 0; i < NEW_COMMITMENTS_LENGTH; ++i) {
         if (!new_commitments[i].is_zero()) {
             siloed_commitments[i] = silo_commitment<NT>(contract_address, new_commitments[i]);
         }
@@ -221,11 +217,11 @@ std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments_as_siloed_commitme
     return siloed_commitments;
 }
 
-std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers_as_siloed_nullifiers(
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> const& new_nullifiers, NT::fr const& contract_address)
+std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers_as_siloed_nullifiers(
+    std::array<fr, NEW_NULLIFIERS_LENGTH> const& new_nullifiers, NT::fr const& contract_address)
 {
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> siloed_nullifiers{};
-    for (size_t i = 0; i < KERNEL_NEW_NULLIFIERS_LENGTH; ++i) {
+    std::array<fr, NEW_NULLIFIERS_LENGTH> siloed_nullifiers{};
+    for (size_t i = 0; i < NEW_NULLIFIERS_LENGTH; ++i) {
         if (!new_nullifiers[i].is_zero()) {
             siloed_nullifiers[i] = silo_nullifier<NT>(contract_address, new_nullifiers[i]);
         }
@@ -233,15 +229,15 @@ std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers_as_siloed_nullifiers
     return siloed_nullifiers;
 }
 
-std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> new_l2_messages_from_message(
-    std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> const& new_messages,
+std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_messages_from_message(
+    std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> const& new_messages,
     NT::fr const& contract_address,
     fr const& portal_contract_address,
     fr const& chain_id,
     fr const& version)
 {
-    std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> formatted_msgs{};
-    for (size_t i = 0; i < KERNEL_NEW_L2_TO_L1_MSGS_LENGTH; ++i) {
+    std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> formatted_msgs{};
+    for (size_t i = 0; i < NEW_L2_TO_L1_MSGS_LENGTH; ++i) {
         if (!new_messages[i].is_zero()) {
             formatted_msgs[i] = compute_l2_to_l1_hash<NT>(
                 contract_address, version, portal_contract_address, chain_id, new_messages[i]);
@@ -320,12 +316,12 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         generate_contract_storage_update_requests(seed, KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH / 2);
     std::array<ContractStorageRead<NT>, KERNEL_PUBLIC_DATA_READS_LENGTH> const reads =
         generate_contract_storage_reads(seed, KERNEL_PUBLIC_DATA_READS_LENGTH / 2);
-    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> const new_commitments =
-        array_of_values<KERNEL_NEW_COMMITMENTS_LENGTH>(seed, NEW_COMMITMENTS_LENGTH / 2);
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> const new_nullifiers =
-        array_of_values<KERNEL_NEW_NULLIFIERS_LENGTH>(seed, NEW_NULLIFIERS_LENGTH / 2);
-    std::array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> const new_l2_to_l1_msgs =
-        array_of_values<KERNEL_NEW_L2_TO_L1_MSGS_LENGTH>(seed, NEW_L2_TO_L1_MSGS_LENGTH / 2);
+    std::array<fr, NEW_COMMITMENTS_LENGTH> const new_commitments =
+        array_of_values<NEW_COMMITMENTS_LENGTH>(seed, NEW_COMMITMENTS_LENGTH / 2);
+    std::array<fr, NEW_NULLIFIERS_LENGTH> const new_nullifiers =
+        array_of_values<NEW_NULLIFIERS_LENGTH>(seed, NEW_NULLIFIERS_LENGTH / 2);
+    std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> const new_l2_to_l1_msgs =
+        array_of_values<NEW_L2_TO_L1_MSGS_LENGTH>(seed, NEW_L2_TO_L1_MSGS_LENGTH / 2);
     std::array<fr, NUM_FIELDS_PER_SHA256> const unencrypted_logs_hash =
         array_of_values<NUM_FIELDS_PER_SHA256>(seed, NUM_FIELDS_PER_SHA256);
     fr const unencrypted_log_preimages_length = ++seed;
@@ -1100,17 +1096,15 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
                                             expected_new_reads,
                                             public_inputs.end.public_data_reads));
 
-    std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH> const expected_new_commitments =
-        new_commitments_as_siloed_commitments(inputs.public_call.call_stack_item.public_inputs.new_commitments,
-                                              contract_address);
+    std::array<NT::fr, NEW_COMMITMENTS_LENGTH> const expected_new_commitments = new_commitments_as_siloed_commitments(
+        inputs.public_call.call_stack_item.public_inputs.new_commitments, contract_address);
 
     ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_commitments,
                                             expected_new_commitments,
                                             public_inputs.end.new_commitments));
 
-    std::array<NT::fr, KERNEL_NEW_NULLIFIERS_LENGTH> const expected_new_nullifiers =
-        new_nullifiers_as_siloed_nullifiers(inputs.public_call.call_stack_item.public_inputs.new_nullifiers,
-                                            contract_address);
+    std::array<NT::fr, NEW_NULLIFIERS_LENGTH> const expected_new_nullifiers = new_nullifiers_as_siloed_nullifiers(
+        inputs.public_call.call_stack_item.public_inputs.new_nullifiers, contract_address);
 
     ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_nullifiers,
                                             expected_new_nullifiers,
@@ -1120,7 +1114,7 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
     fr const chain_id = inputs.previous_kernel.public_inputs.constants.tx_context.chain_id;
     fr const version = inputs.previous_kernel.public_inputs.constants.tx_context.version;
 
-    std::array<NT::fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> const expected_new_messages =
+    std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> const expected_new_messages =
         new_l2_messages_from_message(inputs.public_call.call_stack_item.public_inputs.new_l2_to_l1_msgs,
                                      contract_address,
                                      portal_contract_address,
@@ -1203,7 +1197,7 @@ TEST(public_kernel_tests, public_kernel_fails_creating_new_nullifiers_on_static_
     inputs.public_call.call_stack_item.public_inputs.contract_storage_update_requests =
         empty_array_of_values<ContractStorageUpdateRequest<NT>, KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH>();
     inputs.public_call.call_stack_item.public_inputs.new_commitments =
-        empty_array_of_values<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH>();
+        empty_array_of_values<NT::fr, NEW_COMMITMENTS_LENGTH>();
 
     // regenerate call data hash
     inputs.previous_kernel.public_inputs.end.public_call_stack[0] =

@@ -355,7 +355,7 @@ export function fromPublicDataRead(o: PublicDataRead): MsgpackPublicDataRead {
 
 interface MsgpackCombinedAccumulatedData {
   aggregation_object: MsgpackNativeAggregationState;
-  new_commitments: Tuple<Buffer, 4>;
+  new_commitments: Tuple<Buffer, 16>;
   new_nullifiers: Tuple<Buffer, 4>;
   private_call_stack: Tuple<Buffer, 8>;
   public_call_stack: Tuple<Buffer, 8>;
@@ -1374,22 +1374,6 @@ export function fromPublicKernelInputs(o: PublicKernelInputs): MsgpackPublicKern
   };
 }
 
-export function abisComputeContractAddress(
-  wasm: IWasmModule,
-  arg0: Tuple<Fr, 2>,
-  arg1: Fr,
-  arg2: Fr,
-  arg3: Fr,
-): Address {
-  return Address.fromBuffer(
-    callCbind(wasm, 'abis__compute_contract_address', [
-      mapTuple(arg0, (v: Fr) => v.toBuffer()),
-      arg1.toBuffer(),
-      arg2.toBuffer(),
-      arg3.toBuffer(),
-    ]),
-  );
-}
 export function abisSiloCommitment(wasm: IWasmModule, arg0: Address, arg1: Fr): Fr {
   return Fr.fromBuffer(callCbind(wasm, 'abis__silo_commitment', [arg0.toBuffer(), arg1.toBuffer()]));
 }

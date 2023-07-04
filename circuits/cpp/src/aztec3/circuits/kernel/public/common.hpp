@@ -287,7 +287,7 @@ void propagate_new_commitments(Builder& builder,
     const auto& new_commitments = public_call_public_inputs.new_commitments;
     const auto& storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH> siloed_new_commitments{};
+    std::array<NT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments{};
     for (size_t i = 0; i < new_commitments.size(); ++i) {
         if (!new_commitments[i].is_zero()) {
             siloed_new_commitments[i] = silo_commitment<NT>(storage_contract_address, new_commitments[i]);

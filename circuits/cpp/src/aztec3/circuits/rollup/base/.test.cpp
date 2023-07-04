@@ -272,7 +272,7 @@ TEST_F(base_rollup_tests, native_new_commitments_tree)
     }
     AppendOnlyTreeSnapshot<NT> const expected_end_commitments_snapshot = {
         .root = private_data_tree.root(),
-        .next_available_leaf_index = 8,
+        .next_available_leaf_index = 2 * KERNEL_NEW_COMMITMENTS_LENGTH,
     };
 
     auto inputs = base_rollup_inputs_from_kernels(kernel_data);

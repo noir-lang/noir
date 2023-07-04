@@ -2,6 +2,11 @@ import {
   AppendOnlyTreeSnapshot,
   CircuitsWasm,
   GlobalVariables,
+  KERNEL_NEW_COMMITMENTS_LENGTH,
+  KERNEL_NEW_CONTRACTS_LENGTH,
+  KERNEL_NEW_NULLIFIERS_LENGTH,
+  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+  NEW_L2_TO_L1_MSGS_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
 } from '@aztec/circuits.js';
 import { INITIAL_LEAF, Pedersen, SiblingPath } from '@aztec/merkle-tree';
@@ -13,6 +18,7 @@ import { WorldStateRunningState } from './world_state_synchroniser.js';
 import { Fr } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
 import { createLogger } from '@aztec/foundation/log';
+import times from 'lodash.times';
 
 /**
  * Generic mock implementation.
@@ -72,13 +78,13 @@ const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) =
     endPublicDataTreeRoot: Fr.random(),
     endL1ToL2MessageTreeSnapshot: getMockTreeSnapshot(),
     endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: getMockTreeSnapshot(),
-    newCommitments: [Fr.random(), Fr.random(), Fr.random(), Fr.random()],
-    newNullifiers: [Fr.random()],
+    newCommitments: times(KERNEL_NEW_COMMITMENTS_LENGTH, Fr.random),
+    newNullifiers: times(KERNEL_NEW_NULLIFIERS_LENGTH, Fr.random),
     newContracts: newContractsCommitments?.map(x => Fr.fromBuffer(x)) ?? [Fr.random()],
-    newContractData: [getMockContractData()],
-    newPublicDataWrites: [PublicDataWrite.random()],
+    newContractData: times(KERNEL_NEW_CONTRACTS_LENGTH, getMockContractData),
+    newPublicDataWrites: times(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH, PublicDataWrite.random),
     newL1ToL2Messages: getMockL1ToL2MessagesData(),
-    newL2ToL1Msgs: [Fr.random()],
+    newL2ToL1Msgs: times(NEW_L2_TO_L1_MSGS_LENGTH, Fr.random),
     newEncryptedLogs,
   });
   return block;

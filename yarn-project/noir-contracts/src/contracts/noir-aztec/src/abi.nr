@@ -1,6 +1,9 @@
 use crate::generators;
 use crate::types::vec::BoundedVec;
 
+// Please change these ONLY if you have changed the PrivateCircuitPublicInputs structure in C++.
+// In other words, if the structure/size of the public inputs of a function call changes then we 
+// should change these constants as well as the offsets in private_call_stack_item.nr
 global MAX_ARGS: comptime Field = 16;
 global MAX_RETURN_VALUES: comptime Field = 4;
 global MAX_READ_REQUESTS: comptime Field = 4;

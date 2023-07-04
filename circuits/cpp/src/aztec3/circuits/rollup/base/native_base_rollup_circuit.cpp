@@ -102,7 +102,7 @@ NT::fr calculate_commitments_subtree(DummyBuilder& builder, BaseRollupInputs con
         auto new_commitments = baseRollupInputs.kernel_data[i].public_inputs.end.new_commitments;
 
         // Our commitments size MUST be 4 to calculate our subtrees correctly
-        builder.do_assert(new_commitments.size() == 4,
+        builder.do_assert(new_commitments.size() == KERNEL_NEW_COMMITMENTS_LENGTH,
                           "New commitments in kernel data must be 4",
                           CircuitErrorCode::BASE__INCORRECT_NUM_OF_NEW_COMMITMENTS);
 

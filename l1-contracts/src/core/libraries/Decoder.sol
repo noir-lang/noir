@@ -282,9 +282,10 @@ library Decoder {
         )
       }
 
-      // Create the leaf to contain commitments (8 * 0x20) + nullifiers (8 * 0x20)
-      // + new public data writes (8 * 0x40) + contract deployments (2 * 0x60) + logs hashes (4 * 0x20)
-      vars.baseLeaf = new bytes(0x5C0);
+      // Create the leaf to contain commitments (2 * COMMITMENTS_PER_KERNEL * 0x20) + nullifiers (2 * NULLIFIERS_PER_KERNEL * 0x20)
+      // + new public data writes (8 * 0x40) + contract deployments (2 * 0x60) + logs hashes (2 * 4 * 0x20)
+      vars.baseLeaf =
+      new bytes(2 * Constants.COMMITMENTS_PER_KERNEL * 0x20 + 2 * Constants.NULLIFIERS_PER_KERNEL * 0x20 + 2 * Constants.PUBLIC_DATA_WRITES_PER_KERNEL * 0x40 + 2 * Constants.CONTRACTS_PER_KERNEL * 0x60 + 2 * 4 * 0x20);
 
       for (uint256 i = 0; i < vars.baseLeaves.length; i++) {
         /*
@@ -327,17 +328,22 @@ library Decoder {
         (vars.unencryptedLogsHashKernel2, offsets.unencryptedLogsOffset) =
           computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
 
+        uint256 commitmentsPerBase = 2 * Constants.COMMITMENTS_PER_KERNEL;
+        uint256 nullifiersPerBase = 2 * Constants.NULLIFIERS_PER_KERNEL;
+
         assembly {
           let baseLeaf := mload(add(vars, 0x40)) // Load the pointer to `vars.baseLeaf`
           let dstPtr := add(baseLeaf, 0x20) // Current position withing `baseLeaf` to write to
 
           // Adding new commitments
-          calldatacopy(dstPtr, add(_l2Block.offset, mload(offsets)), mul(0x08, 0x20))
-          dstPtr := add(dstPtr, mul(0x08, 0x20))
+          calldatacopy(dstPtr, add(_l2Block.offset, mload(offsets)), mul(commitmentsPerBase, 0x20))
+          dstPtr := add(dstPtr, mul(commitmentsPerBase, 0x20))
 
           // Adding new nullifiers
-          calldatacopy(dstPtr, add(_l2Block.offset, mload(add(offsets, 0x20))), mul(0x08, 0x20))
-          dstPtr := add(dstPtr, mul(0x08, 0x20))
+          calldatacopy(
+            dstPtr, add(_l2Block.offset, mload(add(offsets, 0x20))), mul(nullifiersPerBase, 0x20)
+          )
+          dstPtr := add(dstPtr, mul(nullifiersPerBase, 0x20))
 
           // Adding new public data writes
           calldatacopy(dstPtr, add(_l2Block.offset, mload(add(offsets, 0x40))), mul(0x08, 0x40))
@@ -349,7 +355,7 @@ library Decoder {
 
           // Adding Contract Leafs
           calldatacopy(dstPtr, add(_l2Block.offset, mload(add(offsets, 0x80))), mul(0x2, 0x20))
-          dstPtr := add(dstPtr, mul(2, 0x20))
+          dstPtr := add(dstPtr, mul(0x2, 0x20))
 
           // Kernel1.contract.aztecAddress
           let contractDataOffset := mload(add(offsets, 0xa0))
