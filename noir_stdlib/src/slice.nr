@@ -40,7 +40,7 @@ impl<T> [T] {
         ret
     }
 
-    // Apply a function to each element of the array and an accumulator value,
+    // Apply a function to each element of the slice and an accumulator value,
     // returning the final accumulated value. This function is also sometimes
     // called `foldl`, `fold_left`, `reduce`, or `inject`.
     fn fold<U>(self, mut accumulator: U, f: fn(U, T) -> U) -> U {
