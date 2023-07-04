@@ -39,7 +39,7 @@ impl FileManager {
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
     pub fn add_file(&mut self, path_to_file: &Path, file_type: FileType) -> Option<FileId> {
         // Handle both relative file paths and std/lib virtual paths.
-        let base = Path::new(".").canonicalize().unwrap(); // Should never fail (TODO: test wasm)
+        let base = Path::new(".").canonicalize().expect("Base path canonicalize failed"); // Should never fail
         let res = path_to_file.canonicalize().unwrap_or_else(|_| path_to_file.to_path_buf());
         let resolved_path = res.strip_prefix(base).unwrap_or(&res);
 
