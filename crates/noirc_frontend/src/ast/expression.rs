@@ -198,7 +198,7 @@ impl BinaryOpKind {
     /// Comparator operators return a 0 or 1
     /// When seen in the middle of an infix operator,
     /// they transform the infix expression into a predicate expression
-    pub fn is_comparator(&self) -> bool {
+    pub fn is_comparator(self) -> bool {
         matches!(
             self,
             BinaryOpKind::Equal
@@ -208,6 +208,10 @@ impl BinaryOpKind {
                 | BinaryOpKind::Greater
                 | BinaryOpKind::GreaterEqual
         )
+    }
+
+    pub fn is_valid_for_field_type(self) -> bool {
+        matches!(self, BinaryOpKind::Equal | BinaryOpKind::NotEqual)
     }
 
     pub fn as_string(self) -> &'static str {

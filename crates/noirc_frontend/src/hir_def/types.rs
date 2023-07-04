@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{BTreeSet, HashMap},
     rc::Rc,
@@ -592,6 +593,16 @@ impl Type {
                 })
             }
             Type::Vec(element) => element.contains_numeric_typevar(target_id),
+        }
+    }
+
+    pub(crate) fn try_get_comptime(&self) -> Cow<CompTime> {
+        match self {
+            Type::FieldElement(comptime)
+            | Type::Integer(comptime, _, _)
+            | Type::Bool(comptime)
+            | Type::PolymorphicInteger(comptime, _) => Cow::Borrowed(comptime),
+            _ => Cow::Owned(CompTime::No(None)),
         }
     }
 }
