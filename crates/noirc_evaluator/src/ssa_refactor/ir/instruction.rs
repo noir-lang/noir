@@ -393,8 +393,6 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
         _ => vec![],
     };
 
-    dbg!(intrinsic.clone());
-
     match intrinsic {
         Intrinsic::ToBits(endian) => {
             let field = constant_args[0];
