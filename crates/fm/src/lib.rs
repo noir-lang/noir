@@ -10,7 +10,6 @@ pub use file_map::{File, FileId, FileMap};
 
 use std::{
     collections::HashMap,
-    fs,
     path::{Path, PathBuf},
 };
 
@@ -21,8 +20,6 @@ pub const FILE_EXTENSION: &str = "nr";
 /// which the compiler starts at, and the others.
 /// This is so that submodules of the root, can live alongside the
 /// root file as files.
-// TODO(Maddiaa): remove derivations
-#[derive(Clone, Copy, Debug)]
 pub enum FileType {
     Root,
     Normal,

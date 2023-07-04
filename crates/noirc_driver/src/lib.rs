@@ -122,12 +122,8 @@ impl Driver {
         root_file: P,
         crate_type: CrateType,
     ) -> CrateId {
-        // TODO(Maddiaa): recognise the same crate here
-
         let dir_path = root_file.as_ref().to_path_buf();
         let root_file_id = self.context.file_manager.add_file(&dir_path, FileType::Root).unwrap();
-
-        dbg!(root_file_id);
 
         // The first crate is always the local crate
         assert!(self.context.crate_graph.number_of_crates() != 0);
@@ -147,9 +143,6 @@ impl Driver {
             panic!("crates cannot depend on binaries. {crate_name:?} is a binary crate")
         }
 
-        // dbg!("note");
-        dbg!(this_crate, depends_on, crate_name.clone());
-        dbg!("\n");
         self.context
             .crate_graph
             .add_dep(this_crate, crate_name, depends_on)
@@ -165,7 +158,6 @@ impl Driver {
             .filter(|crate_id| *crate_id != dep_to_propagate)
             .collect();
 
-        dbg!("note");
         for crate_id in crate_ids {
             self.context
                 .crate_graph

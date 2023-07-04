@@ -86,7 +86,7 @@ impl CrateGraph {
 
         let next_file_id = roots_with_file_id.next();
         if next_file_id.is_some() {
-            return next_file_id.unwrap().0;
+            return *next_file_id.unwrap().0;
         }
 
         assert!(next_file_id.is_none(), "you cannot add the same file id twice");
