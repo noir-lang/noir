@@ -155,8 +155,6 @@ impl BrilligArtifact {
     /// Brillig artifact (self).
     pub(crate) fn link_with(&mut self, func_label: Label, obj: &BrilligArtifact) {
         // Add the unresolved jumps of the linked function to this artifact.
-        println!("Linking with {}", func_label);
-        println!("Current bytecode: {:?}", self.byte_code);
         self.add_unresolved_jumps_and_calls(obj);
 
         let mut byte_code = obj.byte_code.clone();
