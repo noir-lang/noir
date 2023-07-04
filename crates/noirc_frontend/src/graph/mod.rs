@@ -11,6 +11,7 @@ use smol_str::SmolStr;
 /// The local crate is the crate being compiled.
 /// The caller should ensure that this crate has a CrateId(0).
 pub const LOCAL_CRATE: CrateId = CrateId(0);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CrateId(usize);
 
@@ -49,6 +50,12 @@ impl CrateName {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CrateGraph {
     arena: FxHashMap<CrateId, CrateData>,
+}
+
+impl CrateGraph {
+    pub fn len(&self) -> usize {
+        self.arena.len()
+    }
 }
 
 /// List of characters that are not allowed in a crate name

@@ -26,7 +26,7 @@ pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
 pub struct Driver {
-    context: Context,
+    pub context: Context,
     language: Language,
     is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
 }

@@ -1,4 +1,4 @@
-use crate::graph::CrateId;
+use crate::graph::{CrateId, LOCAL_CRATE};
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
@@ -81,8 +81,14 @@ impl CrateDefMap {
 
         // TODO(#1850): This check should be removed once we fully move over to the new SSA pass
         // Compiling with the old SSA pass will lead to duplicate method definitions between
-        // the `slice` and `array` modules of the stdlib
-        if !context.def_interner.enable_slices && crate_id == CrateId::new(1) {
+        // the `slice` and `array` modules of the stdlib.
+        //
+        // The last crate represents the stdlib crate.
+        // After resolving the manifest of the local crate the stdlib is added to the manifest and propagated to all crates
+        // thus being the last crate.
+        if !context.def_interner.enable_slices
+            && CrateId::new(context.crate_graph.len() - 1) == crate_id
+        {
             ast.module_decls.retain(|ident| ident.0.contents != "slice");
         }
 

@@ -408,12 +408,10 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
         Intrinsic::ArrayLen => {
             let slice = dfg.get_array_constant(arguments[0]);
             if let Some((slice, _)) = slice {
-                let slice_len = dfg.make_constant(
-                    FieldElement::from(slice.len() as u128),
-                    Type::field(),
-                );
+                let slice_len =
+                    dfg.make_constant(FieldElement::from(slice.len() as u128), Type::field());
                 SimplifiedTo(slice_len)
-            } else if let Some((_, slice_len)) = dfg.get_array_parameter(arguments[0]) {
+            } else if let Some((_, slice_len)) = dfg.get_array_parameter_type(arguments[0]) {
                 let slice_len = dfg.make_constant(
                     FieldElement::from(slice_len as u128),
                     Type::Numeric(NumericType::NativeField),
@@ -831,7 +829,6 @@ impl std::fmt::Display for BinaryOp {
 
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
-#[derive(Debug, Clone)]
 pub(crate) enum SimplifyResult {
     /// Replace this function's result with the given value
     SimplifiedTo(ValueId),
