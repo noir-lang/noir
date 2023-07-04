@@ -74,13 +74,17 @@ impl BrilligArtifact {
     }
 
     /// Creates an entry point artifact wrapping the bytecode of the function provided.
-    pub(crate) fn to_entry_point_artifact(artifact: &BrilligArtifact) -> BrilligArtifact {
+    pub(crate) fn new_entry_point_artifact(
+        arguments: Vec<BrilligParameter>,
+        return_parameters: Vec<BrilligParameter>,
+        target_function: Label,
+    ) -> BrilligArtifact {
         let mut entry_point_artifact =
-            BrilligArtifact::new(artifact.arguments.clone(), artifact.return_parameters.clone());
+            BrilligArtifact::new(arguments.clone(), return_parameters.clone());
         entry_point_artifact.entry_point_instruction();
 
-        entry_point_artifact.add_unresolved_jumps_and_calls(artifact);
-        entry_point_artifact.byte_code.extend_from_slice(&artifact.byte_code);
+        entry_point_artifact
+            .add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, target_function);
 
         entry_point_artifact.exit_point_instruction();
         entry_point_artifact
@@ -126,16 +130,6 @@ impl BrilligArtifact {
         // We want all functions to follow the calling convention of returning
         // their results in the first `n` registers. So we modify the bytecode of the
         // function to move the return values to the first `n` registers once completed.
-        //
-        // Swap the stop opcode with a jump to the exit point section
-
-        let stop_position =
-            self.byte_code.iter().position(|opcode| matches!(opcode, BrilligOpcode::Stop));
-
-        let stop_position = stop_position.expect("expected a stop opcode");
-
-        let exit_section = self.index_of_next_opcode();
-        self.byte_code[stop_position] = BrilligOpcode::Jump { location: exit_section };
 
         // TODO: this _seems_ like an abstraction leak, we need to know about the reserved
         // TODO: registers in order to do this.
@@ -161,6 +155,8 @@ impl BrilligArtifact {
     /// Brillig artifact (self).
     pub(crate) fn link_with(&mut self, func_label: Label, obj: &BrilligArtifact) {
         // Add the unresolved jumps of the linked function to this artifact.
+        println!("Linking with {}", func_label);
+        println!("Current bytecode: {:?}", self.byte_code);
         self.add_unresolved_jumps_and_calls(obj);
 
         let mut byte_code = obj.byte_code.clone();

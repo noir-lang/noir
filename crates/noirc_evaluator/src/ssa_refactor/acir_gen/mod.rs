@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::{brillig_ir::artifact::BrilligArtifact, Brillig};
+use crate::brillig::{
+    brillig_gen::brillig_fn::FunctionContext, brillig_ir::artifact::BrilligArtifact, Brillig,
+};
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
@@ -217,7 +219,11 @@ impl Context {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
                                 // Create the entry point artifact
-                                let mut entry_point = BrilligArtifact::to_entry_point_artifact(&brillig[*id]);
+                                let mut entry_point = BrilligArtifact::new_entry_point_artifact(
+                                    FunctionContext::parameters(func),
+                                    FunctionContext::return_values(func),
+                                    FunctionContext::function_id_to_function_label(*id),
+                                );
                                 // Link the entry point with all dependencies
                                 while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
                                     let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone()).expect("Cannot find linked fn {unresolved_fn_label}");
