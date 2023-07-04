@@ -3,7 +3,8 @@
 use std::collections::HashMap;
 
 use crate::brillig::{
-    brillig_gen::brillig_fn::FunctionContext, brillig_ir::artifact::BrilligArtifact, Brillig,
+    brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
+    brillig_ir::artifact::BrilligArtifact, Brillig,
 };
 
 use self::acir_ir::{
@@ -220,9 +221,9 @@ impl Context {
 
                                 // Create the entry point artifact
                                 let mut entry_point = BrilligArtifact::new_entry_point_artifact(
-                                    FunctionContext::parameters(func),
-                                    FunctionContext::return_values(func),
-                                    FunctionContext::function_id_to_function_label(*id),
+                                    BrilligFunctionContext::parameters(func),
+                                    BrilligFunctionContext::return_values(func),
+                                    BrilligFunctionContext::function_id_to_function_label(*id),
                                 );
                                 // Link the entry point with all dependencies
                                 while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {

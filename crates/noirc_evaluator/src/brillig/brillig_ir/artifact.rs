@@ -79,8 +79,7 @@ impl BrilligArtifact {
         return_parameters: Vec<BrilligParameter>,
         target_function: Label,
     ) -> BrilligArtifact {
-        let mut entry_point_artifact =
-            BrilligArtifact::new(arguments.clone(), return_parameters.clone());
+        let mut entry_point_artifact = BrilligArtifact::new(arguments, return_parameters);
         entry_point_artifact.entry_point_instruction();
 
         entry_point_artifact
