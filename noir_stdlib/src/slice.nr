@@ -26,17 +26,13 @@ impl<T> [T] {
         a
     }
 
-    // Apply a function to each element of an array, returning a new array
+    // Apply a function to each element of a slice, returning a new slice
     // containing the mapped elements.
     fn map<U>(self, f: fn(T) -> U) -> [U] {
-        let first_elem = f(self[0]);
         let mut ret: [U] = [];
-        ret = ret.push_back(first_elem);
-
-        for i in 1 .. self.len() {
-            ret.push_back(f(self[i]));
+        for elem in self {
+            ret = ret.push_back(f(elem));
         }
-
         ret
     }
 
