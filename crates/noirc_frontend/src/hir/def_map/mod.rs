@@ -79,7 +79,7 @@ impl CrateDefMap {
         let root_file_id = context.crate_graph[crate_id].root_file_id;
         let mut ast = parse_file(&mut context.file_manager, root_file_id, errors);
 
-        // TODO: This check should be removed once we fully move over to the new SSA pass
+        // TODO(#1850): This check should be removed once we fully move over to the new SSA pass
         // Compiling with the old SSA pass will lead to duplicate method definitions between
         // the `slice` and `array` modules of the stdlib
         if !context.def_interner.enable_slices && crate_id == CrateId::new(1) {
