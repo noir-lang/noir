@@ -88,9 +88,6 @@ pub fn compile(args: JsValue) -> JsValue {
         add_noir_lib(&mut driver, dependency.as_str());
     }
 
-    // We are always adding std lib implicitly. It comes bundled with binary.
-    add_noir_lib(&mut driver, "std");
-
     driver.check_crate(false, false).expect("Crate check failed");
 
     if options.contracts {
