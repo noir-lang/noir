@@ -327,7 +327,7 @@ fn create_driver_at_path(actual_path: PathBuf) -> Driver {
     let mut file_path: PathBuf = actual_path;
     // TODO better naming/unhacking
     if let Some(new_path) = find_nearest_parent_file(&file_path, &["lib.nr", "main.nr"]) {
-        file_path = new_path.clone(); // TODO unhack
+        file_path = new_path; // TODO unhack
     }
     let nargo_toml_path = find_nearest_parent_file(&file_path, &["Nargo.toml"]);
 
