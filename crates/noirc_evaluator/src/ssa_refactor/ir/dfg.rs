@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{borrow::Cow, collections::HashMap, rc::Rc};
 
 use crate::ssa_refactor::ir::instruction::SimplifyResult;
 
@@ -53,6 +53,11 @@ pub(crate) struct DataFlowGraph {
     /// This map is used to ensure that the ValueId for any given intrinsic is always
     /// represented by only 1 ValueId within this function.
     intrinsics: HashMap<Intrinsic, ValueId>,
+
+    /// Contains each foreign function that has been imported into the current function.
+    /// This map is used to ensure that the ValueId for any given foreign functôn is always
+    /// represented by only 1 ValueId within this function.
+    foreign_functions: HashMap<String, ValueId>,
 
     /// Function signatures of external methods
     signatures: DenseMap<Signature>,
@@ -134,7 +139,7 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
-        match instruction.simplify(self) {
+        match instruction.simplify(self, block) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::Remove => InstructionRemoved,
             SimplifyResult::None => {
@@ -201,6 +206,14 @@ impl DataFlowGraph {
             return *existing;
         }
         self.values.insert(Value::Function(function))
+    }
+
+    /// Gets or creates a ValueId for the given FunctionId.
+    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+        if let Some(existing) = self.foreign_functions.get(function) {
+            return *existing;
+        }
+        self.values.insert(Value::ForeignFunction(function.to_owned()))
     }
 
     /// Gets or creates a ValueId for the given Intrinsic.
@@ -358,6 +371,12 @@ impl std::ops::Index<InstructionId> for DataFlowGraph {
     }
 }
 
+impl std::ops::IndexMut<InstructionId> for DataFlowGraph {
+    fn index_mut(&mut self, id: InstructionId) -> &mut Self::Output {
+        &mut self.instructions[id]
+    }
+}
+
 impl std::ops::Index<ValueId> for DataFlowGraph {
     type Output = Value;
     fn index(&self, id: ValueId) -> &Self::Output {
@@ -374,7 +393,7 @@ impl std::ops::Index<BasicBlockId> for DataFlowGraph {
 
 impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
     /// Get a mutable reference to a function's basic block for the given id.
-    fn index_mut(&mut self, id: BasicBlockId) -> &mut BasicBlock {
+    fn index_mut(&mut self, id: BasicBlockId) -> &mut Self::Output {
         &mut self.blocks[id]
     }
 }
@@ -401,14 +420,11 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     }
 
     /// Return all the results contained in the internal results array.
-    /// This is used for instructions returning multiple results that were
-    /// not simplified - like function calls.
-    pub(crate) fn results(&self) -> &'dfg [ValueId] {
+    /// This is used for instructions returning multiple results like function calls.
+    pub(crate) fn results(&self) -> Cow<'dfg, [ValueId]> {
         match self {
-            InsertInstructionResult::Results(results) => results,
-            InsertInstructionResult::SimplifiedTo(_) => {
-                panic!("InsertInstructionResult::results called on a simplified instruction")
-            }
+            InsertInstructionResult::Results(results) => Cow::Borrowed(results),
+            InsertInstructionResult::SimplifiedTo(result) => Cow::Owned(vec![*result]),
             InsertInstructionResult::InstructionRemoved => {
                 panic!("InsertInstructionResult::results called on a removed instruction")
             }

@@ -1,118 +1,89 @@
 //! mem2reg implements a pass for promoting values stored in memory to values in registers where
 //! possible. This is particularly important for converting our memory-based representation of
 //! mutable variables into values that are easier to manipulate.
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
-use acvm::FieldElement;
+use iter_extended::vecmap;
 
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
-        types::Type,
+        instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
 
 impl Ssa {
-    /// Attempts to remove any load instructions that recover values that already available in
+    /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove store that are subsequently redundant, as long as they are
-    /// not stores on memory that will be passed into a function call.
-    ///
-    /// This pass also assumes that constant folding has been run, such that all addresses given
-    /// as input to store/load instructions are represented as one of:
-    /// - a value that directly resolves to an allocate instruction
-    /// - a value that directly resolves to a binary add instruction which has a allocate
-    /// instruction and a numeric constant as its operands
+    /// not stores on memory that will be passed into a function call or returned.
     pub(crate) fn mem2reg(mut self) -> Ssa {
-        let mut first_context = None;
-
         for function in self.functions.values_mut() {
-            for block in function.reachable_blocks() {
+            let mut all_protected_allocations = HashSet::new();
+            let contexts = vecmap(function.reachable_blocks(), |block| {
                 let mut context = PerBlockContext::new(block);
-                context.eliminate_known_loads(&mut function.dfg);
-                first_context = Some(context);
+                let allocations_protected_by_block =
+                    context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg);
+                all_protected_allocations.extend(allocations_protected_by_block.into_iter());
+                context
+            });
+            // Now that we have a comprehensive list of used allocations across all the
+            // function's blocks, it is safe to remove any stores that do not touch such
+            // allocations.
+            for context in contexts {
+                context.remove_unused_stores(&mut function.dfg, &all_protected_allocations);
             }
-        }
-
-        // If there is only one block in total, remove any unused stores as well since we
-        // know there is no other block they can impact.
-        if self.functions.len() == 1 && self.main().dfg.basic_blocks_iter().len() == 1 {
-            first_context.unwrap().remove_unused_stores(&mut self.main_mut().dfg);
         }
 
         self
     }
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord)]
-enum Address {
-    Zeroth(InstructionId),
-    Offset(InstructionId, FieldElement),
-}
-
-impl Address {
-    fn alloc_id(&self) -> InstructionId {
-        match self {
-            Address::Zeroth(alloc_id) => *alloc_id,
-            Address::Offset(alloc_id, _) => *alloc_id,
-        }
-    }
-}
-
 struct PerBlockContext {
     block_id: BasicBlockId,
-    last_stores: BTreeMap<Address, ValueId>,
+    last_stores: BTreeMap<AllocId, ValueId>,
     store_ids: Vec<InstructionId>,
-    failed_substitutes: BTreeSet<Address>,
-    alloc_ids_used_externally: BTreeSet<InstructionId>,
 }
+
+/// An AllocId is the ValueId returned from an allocate instruction. E.g. v0 in v0 = allocate.
+/// This type alias is used to help signal where the only valid ValueIds are those that are from
+/// an allocate instruction.
+type AllocId = ValueId;
 
 impl PerBlockContext {
     fn new(block_id: BasicBlockId) -> Self {
-        PerBlockContext {
-            block_id,
-            last_stores: BTreeMap::new(),
-            store_ids: Vec::new(),
-            failed_substitutes: BTreeSet::new(),
-            alloc_ids_used_externally: BTreeSet::new(),
-        }
+        PerBlockContext { block_id, last_stores: BTreeMap::new(), store_ids: Vec::new() }
     }
 
     // Attempts to remove load instructions for which the result is already known from previous
     // store instructions to the same address in the same block.
-    fn eliminate_known_loads(&mut self, dfg: &mut DataFlowGraph) {
-        let mut loads_to_substitute = Vec::new();
+    fn analyze_allocations_and_eliminate_known_loads(
+        &mut self,
+        dfg: &mut DataFlowGraph,
+    ) -> HashSet<AllocId> {
+        let mut protected_allocations = HashSet::new();
+        let mut loads_to_substitute = HashMap::new();
         let block = &dfg[self.block_id];
 
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { address, value } => {
-                    if let Some(address) = self.try_const_address(*address, dfg) {
-                        // We can only track the address if it is a constant offset from an
-                        // allocation. A previous constant folding pass should make such addresses
-                        // possible to identify.
-                        self.last_stores.insert(address, *value);
-                    }
-                    // TODO: Consider if it's worth falling back to storing addresses by their
-                    // value id such we can shallowly check for dynamic address reuse.
+                    self.last_stores.insert(*address, *value);
                     self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { address } => {
-                    if let Some(address) = self.try_const_address(*address, dfg) {
-                        if let Some(last_value) = self.last_stores.get(&address) {
-                            loads_to_substitute.push((*instruction_id, *last_value));
-                        } else {
-                            self.failed_substitutes.insert(address);
-                        }
+                    if let Some(last_value) = self.last_stores.get(address) {
+                        loads_to_substitute.insert(*instruction_id, *last_value);
+                    } else {
+                        protected_allocations.insert(*address);
                     }
                 }
                 Instruction::Call { arguments, .. } => {
                     for arg in arguments {
-                        if let Some(address) = self.try_const_address(*arg, dfg) {
-                            self.alloc_ids_used_externally.insert(address.alloc_id());
+                        if Self::value_is_from_allocation(*arg, dfg) {
+                            protected_allocations.insert(*arg);
                         }
                     }
                 }
@@ -125,8 +96,8 @@ impl PerBlockContext {
         // Identify any arrays that are returned from this function
         if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
             for value in return_values {
-                if let Some(address) = self.try_const_address(*value, dfg) {
-                    self.alloc_ids_used_externally.insert(address.alloc_id());
+                if Self::value_is_from_allocation(*value, dfg) {
+                    protected_allocations.insert(*value);
                 }
             }
         }
@@ -141,86 +112,50 @@ impl PerBlockContext {
         }
 
         // Delete load instructions
-        // TODO: should we let DCE do this instead?
-        let block = &mut dfg[self.block_id];
-        for (instruction_id, _) in loads_to_substitute {
-            block.remove_instruction(instruction_id);
+        // Even though we could let DIE handle this, doing it here makes the debug output easier
+        // to read.
+        dfg[self.block_id]
+            .instructions_mut()
+            .retain(|instruction| !loads_to_substitute.contains_key(instruction));
+
+        protected_allocations
+    }
+
+    /// Checks whether the given value id refers to an allocation.
+    fn value_is_from_allocation(value: ValueId, dfg: &DataFlowGraph) -> bool {
+        match &dfg[value] {
+            Value::Instruction { instruction, .. } => {
+                matches!(&dfg[*instruction], Instruction::Allocate)
+            }
+            _ => false,
         }
     }
 
-    fn remove_unused_stores(self, dfg: &mut DataFlowGraph) {
+    /// Removes all store instructions identified during analysis that aren't present in the
+    /// provided `protected_allocations` `HashSet`.
+    fn remove_unused_stores(
+        self,
+        dfg: &mut DataFlowGraph,
+        protected_allocations: &HashSet<AllocId>,
+    ) {
         // Scan for unused stores
-        let mut stores_to_remove: Vec<InstructionId> = Vec::new();
+        let mut stores_to_remove = HashSet::new();
+
         for instruction_id in &self.store_ids {
             let address = match &dfg[*instruction_id] {
                 Instruction::Store { address, .. } => *address,
                 _ => unreachable!("store_ids should contain only store instructions"),
             };
 
-            if let Some(address) = self.try_const_address(address, dfg) {
-                if !self.failed_substitutes.contains(&address)
-                    && !self.alloc_ids_used_externally.contains(&address.alloc_id())
-                {
-                    stores_to_remove.push(*instruction_id);
-                }
+            if !protected_allocations.contains(&address) {
+                stores_to_remove.insert(*instruction_id);
             }
         }
 
         // Delete unused stores
-        let block = &mut dfg[self.block_id];
-        for instruction_id in stores_to_remove {
-            block.remove_instruction(instruction_id);
-        }
-    }
-
-    // Attempts to normalize the given value into a const address
-    fn try_const_address(&self, value_id: ValueId, dfg: &DataFlowGraph) -> Option<Address> {
-        if dfg.type_of_value(value_id) != Type::Reference {
-            return None;
-        }
-        let value = &dfg[value_id];
-        let instruction_id = match value {
-            Value::Instruction { instruction, .. } => *instruction,
-            _ => return None,
-        };
-        let instruction = &dfg[instruction_id];
-        match instruction {
-            // Arrays can be returned by allocations and function calls
-            Instruction::Allocate { .. } | Instruction::Call { .. } => {
-                Some(Address::Zeroth(instruction_id))
-            }
-            Instruction::Binary(binary) => {
-                if binary.operator != BinaryOp::Add {
-                    return None;
-                }
-                let lhs = &dfg[binary.lhs];
-                let rhs = &dfg[binary.rhs];
-                self.try_const_address_offset(lhs, rhs, dfg)
-                    .or_else(|| self.try_const_address_offset(rhs, lhs, dfg))
-            }
-            _ => None,
-        }
-    }
-
-    // Tries val1 as an allocation instruction id and val2 as a constant offset
-    fn try_const_address_offset(
-        &self,
-        val1: &Value,
-        val2: &Value,
-        dfg: &DataFlowGraph,
-    ) -> Option<Address> {
-        let alloc_id = match val1 {
-            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
-                Instruction::Allocate { .. } => *instruction,
-                _ => return None,
-            },
-            _ => return None,
-        };
-        if let Value::NumericConstant { constant, .. } = val2 {
-            Some(Address::Offset(alloc_id, *constant))
-        } else {
-            None
-        }
+        dfg[self.block_id]
+            .instructions_mut()
+            .retain(|instruction| !stores_to_remove.contains(instruction));
     }
 }
 

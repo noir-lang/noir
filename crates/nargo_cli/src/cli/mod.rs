@@ -167,6 +167,7 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use noirc_driver::Driver;
+    use noirc_errors::reporter;
     use noirc_frontend::graph::CrateType;
 
     use std::path::{Path, PathBuf};
@@ -183,8 +184,17 @@ mod tests {
             Box::new(acvm::pwg::default_is_opcode_supported(acvm::Language::R1CS)),
         );
         driver.create_local_crate(&root_file, CrateType::Binary);
-        crate::resolver::add_std_lib(&mut driver);
-        driver.file_compiles()
+
+        let result = driver.check_crate(false);
+        let success = result.is_ok();
+
+        let errors = match result {
+            Ok(warnings) => warnings,
+            Err(errors) => errors,
+        };
+
+        reporter::report_all(driver.file_manager(), &errors, false);
+        success
     }
 
     #[test]

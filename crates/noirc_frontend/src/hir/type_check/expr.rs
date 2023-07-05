@@ -113,7 +113,7 @@ impl<'interner> TypeChecker<'interner> {
                 self.bind_function_type(function, args, span)
             }
             HirExpression::MethodCall(method_call) => {
-                let object_type = self.check_expression(&method_call.object);
+                let object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(object_type.clone(), method_name, expr_id) {
                     Some(method_id) => {
@@ -763,7 +763,7 @@ impl<'interner> TypeChecker<'interner> {
                     // This will be an error if these types later resolve to a Field, or stay
                     // polymorphic as the bit size will be unknown. Delay this error until the function
                     // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
-                    self.interner.push_delayed_type_check(Box::new(move || {
+                    self.push_delayed_type_check(Box::new(move || {
                         if other.is_field() {
                             Err(make_error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first".into()))
                         } else if other.is_bindable() {

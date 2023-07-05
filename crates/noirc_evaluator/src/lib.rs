@@ -15,7 +15,7 @@ pub mod brillig;
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::optimizers::simplify::CircuitSimplifier,
+    compiler::CircuitSimplifier,
     Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};

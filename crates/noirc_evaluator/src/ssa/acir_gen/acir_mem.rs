@@ -59,13 +59,15 @@ struct ArrayHeap {
 
 impl ArrayHeap {
     fn commit_staged(&mut self) {
-        for (idx, (value, op)) in &self.staged {
-            let item = MemOp {
-                operation: op.clone(),
-                value: value.clone(),
-                index: Expression::from_field(FieldElement::from(*idx as i128)),
-            };
-            self.trace.push(item);
+        // generates the memory operations to be added to the trace
+        let trace = vecmap(&self.staged, |(idx, (value, op))| MemOp {
+            operation: op.clone(),
+            value: value.clone(),
+            index: Expression::from_field(FieldElement::from(*idx as i128)),
+        });
+        // Add to trace
+        for item in trace {
+            self.push(item);
         }
         self.staged.clear();
     }
@@ -117,6 +119,95 @@ impl ArrayHeap {
         self.staged.insert(index, (value, op));
     }
 
+    /// This helper function transforms an expression into a single witness representing the expression
+    fn normalize_expression(expr: &Expression, evaluator: &mut Evaluator) -> Expression {
+        expr.to_witness()
+            .unwrap_or_else(|| evaluator.create_intermediate_variable(expr.clone()))
+            .into()
+    }
+
+    /// Decide which opcode to use, depending on the backend support
+    fn acir_gen(
+        &self,
+        evaluator: &mut Evaluator,
+        array_id: ArrayId,
+        array_len: u32,
+        is_opcode_supported: OpcodeSupported,
+    ) {
+        //sanity check
+        if array_len == 0 || self.trace.is_empty() {
+            return;
+        }
+        let dummy = MemoryBlock { id: AcirBlockId(0), len: 0, trace: Vec::new() };
+        let trace_len = match self.typ {
+            ArrayType::ReadOnly(Some(len)) | ArrayType::ReadWrite(Some(len)) => len,
+            _ => self.trace.len(),
+        };
+
+        if is_opcode_supported(&AcirOpcode::ROM(dummy.clone())) {
+            // If the backend support ROM and the array is read-only, we generate the ROM opcode
+            if matches!(self.typ, ArrayType::ReadOnly(_)) {
+                self.add_rom_opcode(evaluator, array_id, array_len, trace_len);
+                return;
+            }
+        }
+        if is_opcode_supported(&AcirOpcode::Block(dummy.clone())) {
+            self.add_block_opcode(evaluator, array_id, array_len);
+        } else if is_opcode_supported(&AcirOpcode::RAM(dummy)) {
+            self.add_ram_opcode(evaluator, array_id, array_len, trace_len);
+        } else {
+            self.generate_permutation_constraints(evaluator, array_id, array_len);
+        }
+    }
+
+    fn add_block_opcode(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
+        evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
+            id: AcirBlockId(array_id.as_u32()),
+            len: array_len,
+            trace: self.trace.clone(),
+        }));
+    }
+
+    fn add_rom_opcode(
+        &self,
+        evaluator: &mut Evaluator,
+        array_id: ArrayId,
+        array_len: u32,
+        trace_len: usize,
+    ) {
+        let mut trace = Vec::with_capacity(trace_len);
+        for op in self.trace.iter().take(trace_len) {
+            let index = Self::normalize_expression(&op.index, evaluator);
+            let value = Self::normalize_expression(&op.value, evaluator);
+            trace.push(MemOp { operation: op.operation.clone(), index, value });
+        }
+        evaluator.opcodes.push(AcirOpcode::ROM(MemoryBlock {
+            id: AcirBlockId(array_id.as_u32()),
+            len: array_len,
+            trace,
+        }));
+    }
+
+    fn add_ram_opcode(
+        &self,
+        evaluator: &mut Evaluator,
+        array_id: ArrayId,
+        array_len: u32,
+        trace_len: usize,
+    ) {
+        let mut trace = Vec::with_capacity(trace_len);
+        for op in self.trace.iter().take(trace_len) {
+            let index = Self::normalize_expression(&op.index, evaluator);
+            let value = Self::normalize_expression(&op.value, evaluator);
+            trace.push(MemOp { operation: op.operation.clone(), index, value });
+        }
+        evaluator.opcodes.push(AcirOpcode::RAM(MemoryBlock {
+            id: AcirBlockId(array_id.as_u32()),
+            len: array_len,
+            trace,
+        }));
+    }
+
     fn generate_outputs(
         inputs: Vec<Expression>,
         bits: &mut Vec<Witness>,
@@ -130,22 +221,21 @@ impl ArrayHeap {
         }
         outputs
     }
-
-    pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, array_id: ArrayId, array_len: u32) {
+    fn generate_permutation_constraints(
+        &self,
+        evaluator: &mut Evaluator,
+        array_id: ArrayId,
+        array_len: u32,
+    ) {
         let (len, read_write) = match self.typ {
             ArrayType::Init(_, _) | ArrayType::WriteOnly => (0, true),
             ArrayType::ReadOnly(last) => (last.unwrap_or(self.trace.len()), false),
             ArrayType::ReadWrite(last) => (last.unwrap_or(self.trace.len()), true),
         };
-
         if len == 0 {
             return;
         }
-        evaluator.opcodes.push(AcirOpcode::Block(MemoryBlock {
-            id: AcirBlockId(array_id.as_u32()),
-            len: array_len,
-            trace: self.trace.clone(),
-        }));
+        self.add_block_opcode(evaluator, array_id, array_len);
         let len_bits = AcirMem::bits(len);
         // permutations
         let mut in_counter = Vec::new();
@@ -262,6 +352,17 @@ impl AcirMem {
         }
     }
 
+    //Ensure we do not optimise writes when the array is returned
+    pub(crate) fn return_array(&mut self, array_id: ArrayId) {
+        let heap = self.array_heap_mut(array_id);
+        match heap.typ {
+            ArrayType::ReadOnly(_) | ArrayType::ReadWrite(_) => {
+                heap.typ = ArrayType::ReadWrite(None);
+            }
+            _ => (),
+        }
+    }
+
     // Load array values into InternalVars
     pub(super) fn load_array(
         &mut self,
@@ -327,9 +428,18 @@ impl AcirMem {
         self.array_heap_mut(*array_id).push(item);
     }
     pub(crate) fn acir_gen(&self, evaluator: &mut Evaluator, ctx: &SsaContext) {
+        //Temporary hack - We hardcode Barretenberg support here.
+        //TODO: to remove once opcodesupported usage is clarified
+        let is_opcode_supported: OpcodeSupported = |o| match o {
+            AcirOpcode::Block(_) => false,
+            AcirOpcode::ROM(_) | AcirOpcode::RAM(_) => true,
+            _ => unreachable!(),
+        };
         for mem in &self.virtual_memory {
             let array = &ctx.mem[*mem.0];
-            mem.1.acir_gen(evaluator, array.id, array.len);
+            mem.1.acir_gen(evaluator, array.id, array.len, is_opcode_supported);
         }
     }
 }
+
+type OpcodeSupported = fn(&AcirOpcode) -> bool;
