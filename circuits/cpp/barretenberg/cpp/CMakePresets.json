@@ -25,9 +25,7 @@
       "inherits": "default",
       "environment": {
         "CC": "$env{BREW_PREFIX}/opt/llvm/bin/clang",
-        "CXX": "$env{BREW_PREFIX}/opt/llvm/bin/clang++",
-        "LDFLAGS": "-L$env{BREW_PREFIX}/opt/libomp/lib",
-        "CPPFLAGS": "-I$env{BREW_PREFIX}/opt/libomp/include"
+        "CXX": "$env{BREW_PREFIX}/opt/llvm/bin/clang++"
       }
     },
     {

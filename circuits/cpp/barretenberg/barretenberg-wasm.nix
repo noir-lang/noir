@@ -10,11 +10,12 @@ stdenv.mkDerivation
 
   src = ./cpp;
 
-  nativeBuildInputs = [ cmake ninja binaryen wasi-sdk ];
+  nativeBuildInputs = [ cmake ninja wasi-sdk ];
 
   buildInputs = [ ];
 
   cmakeFlags = [
+    "-GNinja"
     "-DTESTING=OFF"
     "-DBENCHMARKS=OFF"
     "-DCMAKE_TOOLCHAIN_FILE=${toolchain_file}"
@@ -31,5 +32,7 @@ stdenv.mkDerivation
     "-DCMAKE_CXX_COMPILER_WORKS=ON"
   ];
 
-  enableParallelBuilding = true;
+  buildPhase = ''
+    cmake --build . --target barretenberg.wasm --parallel
+  '';
 }

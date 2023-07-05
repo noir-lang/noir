@@ -1,29 +1,18 @@
-# Binary Test
-
-Run:
-
-```
-./bin-test.sh
-```
-
-To run a sequence of commands that ultimately tests the following Noir double recursion circuit verifies.
-
-```rust
 use dep::std;
 
 fn main(
-    verification_key : [Field; 114],
-    proof : [Field; 94],
-    public_inputs : [Field; 1],
-    key_hash : Field,
+    verification_key : [Field; 114], 
+    proof : [Field; 94], 
+    public_inputs : [Field; 1], 
+    key_hash : Field, 
     input_aggregation_object : [Field; 16],
     proof_b : [Field; 94],
 ) -> pub [Field; 16] {
     let output_aggregation_object_a = std::verify_proof(
-        verification_key,
-        proof,
-        public_inputs,
-        key_hash,
+        verification_key, 
+        proof, 
+        public_inputs, 
+        key_hash, 
         input_aggregation_object
     );
 
@@ -41,4 +30,3 @@ fn main(
     }
     output
 }
-```

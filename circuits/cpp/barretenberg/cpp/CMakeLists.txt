@@ -13,7 +13,7 @@ project(
 option(DISABLE_ASM "Disable custom assembly" OFF)
 option(DISABLE_ADX "Disable ADX assembly variant" OFF)
 option(MULTITHREADING "Enable multi-threading" ON)
-option(OMP_MULTITHREADING "Enable OMP multi-threading" ON)
+option(OMP_MULTITHREADING "Enable OMP multi-threading" OFF)
 option(TESTING "Build tests" ON)
 option(BENCHMARKS "Build benchmarks" ON)
 option(FUZZING "Build fuzzing harnesses" OFF)

@@ -9,7 +9,7 @@ namespace acir_proofs {
 
 class AcirComposer {
   public:
-    AcirComposer(size_t size_hint = 0);
+    AcirComposer(size_t size_hint = 0, bool verbose = true);
 
     void create_circuit(acir_format::acir_format& constraint_system);
 
@@ -46,6 +46,14 @@ class AcirComposer {
     size_t circuit_subgroup_size_;
     std::shared_ptr<proof_system::plonk::proving_key> proving_key_;
     std::shared_ptr<proof_system::plonk::verification_key> verification_key_;
+    bool verbose_ = true;
+
+    template <typename... Args> inline void vinfo(Args... args)
+    {
+        if (verbose_) {
+            info(args...);
+        }
+    }
 };
 
 } // namespace acir_proofs

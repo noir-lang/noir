@@ -42,7 +42,7 @@
           shellDefaults = {
             nativeBuildInputs = [
               pkgs.starship
-              pkgs.llvmPackages_12.llvm
+              pkgs.llvmPackages_15.llvm
             ];
 
             shellHook = ''
@@ -52,19 +52,15 @@
         in
         rec {
           packages = {
-            llvm11 = pkgs.barretenberg;
-            llvm12 = pkgs.barretenberg.override {
-              llvmPackages = pkgs.llvmPackages_12;
+            llvm15 = pkgs.barretenberg.override {
+              llvmPackages = pkgs.llvmPackages_15;
             };
-            llvm13 = pkgs.barretenberg.override {
-              llvmPackages = pkgs.llvmPackages_13;
-            };
-            llvm14 = pkgs.barretenberg.override {
-              llvmPackages = pkgs.llvmPackages_14;
+            llvm16 = pkgs.barretenberg.override {
+              llvmPackages = pkgs.llvmPackages_16;
             };
             wasm32 = pkgs.barretenberg-wasm;
 
-            default = packages.llvm11;
+            default = packages.llvm15;
           } // crossTargets;
 
           # Provide legacyPackages with our overlay so we can run
