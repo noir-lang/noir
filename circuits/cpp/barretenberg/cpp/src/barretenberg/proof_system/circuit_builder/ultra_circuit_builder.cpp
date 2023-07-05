@@ -1,10 +1,8 @@
 /**
  * @file ultra_circuit_builder.cpp
  * @author Luke (ledwards2225) and Kesha (Rumata888)
- * @brief This file contains the implementation of UltraCircuitBuilder class that defines the logic of ultra-style
- * circuits and is intended for the use in UltraHonk and UltraPlonk systems
- *
- * @todo 1) Replace barretenberg::fr with templated FF or Field
+ * @brief This file contains the implementation of field-agnostic UltraCircuitBuilder class that defines the logic
+ * of ultra-style circuits and is intended for the use in UltraHonk and UltraPlonk systems
  *
  */
 #include "ultra_circuit_builder.hpp"
@@ -16,7 +14,7 @@ using namespace barretenberg;
 
 namespace proof_system {
 
-void UltraCircuitBuilder::finalize_circuit()
+template <typename FF> void UltraCircuitBuilder_<FF>::finalize_circuit()
 {
     /**
      * First of all, add the gates related to ROM arrays and range lists.
@@ -37,7 +35,8 @@ void UltraCircuitBuilder::finalize_circuit()
      *
      * Its necessary to include the (n_rom + n_range) gates at this point because if we already have a
      * proving key, and we just return it without including these ROM and range list gates, the overall
-     * circuit size would not be correct (resulting in the code crashing while performing FFT operations).
+     * circuit size would not be correct (resulting in the code crashing while performing FFT
+     * operations).
      *
      * Therefore, we introduce a boolean flag `circuit_finalised` here. Once we add the rom and range gates,
      * our circuit is finalised, and we must not to execute these functions again.
@@ -61,14 +60,14 @@ void UltraCircuitBuilder::finalize_circuit()
 // polynomials is zero, which is required for them to be shiftable.
 // TODO(#423)(luke): Add 0 as a PI since PI always start at the 0th index of the wire polynomials?
 // TODO(luke): may need to reevaluate once aux relation is implemented
-void UltraCircuitBuilder::add_gates_to_ensure_all_polys_are_non_zero()
+template <typename FF> void UltraCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero()
 {
     // First add a gate to simultaneously ensure first entries of all wires is zero and to add a non
     // zero value to all selectors aside from q_c and q_lookup
-    w_l.emplace_back(zero_idx);
-    w_r.emplace_back(zero_idx);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(zero_idx);
+    w_l.emplace_back(this->zero_idx);
+    w_r.emplace_back(this->zero_idx);
+    w_o.emplace_back(this->zero_idx);
+    w_4.emplace_back(this->zero_idx);
     q_m.emplace_back(1);
     q_1.emplace_back(1);
     q_2.emplace_back(1);
@@ -81,15 +80,15 @@ void UltraCircuitBuilder::add_gates_to_ensure_all_polys_are_non_zero()
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(1);
     q_aux.emplace_back(1);
-    ++num_gates;
+    ++this->num_gates;
 
     // Some relations depend on wire shifts so we add another gate with
     // wires set to 0 to ensure corresponding constraints are satisfied
-    create_poly_gate({ zero_idx, zero_idx, zero_idx, 0, 0, 0, 0, 0 });
+    create_poly_gate({ this->zero_idx, this->zero_idx, this->zero_idx, 0, 0, 0, 0, 0 });
 
     // Add nonzero values in w_4 and q_c (q_4*w_4 + q_c --> 1*1 - 1 = 0)
-    one_idx = put_constant_variable(barretenberg::fr::one());
-    create_big_add_gate({ zero_idx, zero_idx, zero_idx, one_idx, 0, 0, 0, 1, -1 });
+    this->one_idx = put_constant_variable(FF::one());
+    create_big_add_gate({ this->zero_idx, this->zero_idx, this->zero_idx, this->one_idx, 0, 0, 0, 1, -1 });
 
     // Take care of all polys related to lookups (q_lookup, tables, sorted, etc)
     // by doing a dummy lookup with a special table.
@@ -101,11 +100,11 @@ void UltraCircuitBuilder::add_gates_to_ensure_all_polys_are_non_zero()
     uint32_t left_value = 3;
     uint32_t right_value = 3;
 
-    fr left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
-    fr right_witness_value = fr{ right_value, 0, 0, 0 }.to_montgomery_form();
+    FF left_witness_value = fr{ left_value, 0, 0, 0 }.to_montgomery_form();
+    FF right_witness_value = fr{ right_value, 0, 0, 0 }.to_montgomery_form();
 
-    uint32_t left_witness_index = add_variable(left_witness_value);
-    uint32_t right_witness_index = add_variable(right_witness_value);
+    uint32_t left_witness_index = this->add_variable(left_witness_value);
+    uint32_t right_witness_index = this->add_variable(right_witness_value);
     const auto dummy_accumulators = plookup::get_lookup_accumulators(
         plookup::MultiTableId::HONK_DUMMY_MULTI, left_witness_value, right_witness_value, true);
     create_gates_from_plookup_accumulators(
@@ -120,14 +119,14 @@ void UltraCircuitBuilder::add_gates_to_ensure_all_polys_are_non_zero()
  *
  * @param in A structure with variable indexes and selector values for the gate.
  */
-void UltraCircuitBuilder::create_add_gate(const add_triple& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_add_gate(const add_triple& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c });
+    this->assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
-    w_4.emplace_back(zero_idx);
+    w_4.emplace_back(this->zero_idx);
     q_m.emplace_back(0);
     q_1.emplace_back(in.a_scaling);
     q_2.emplace_back(in.b_scaling);
@@ -139,20 +138,21 @@ void UltraCircuitBuilder::create_add_gate(const add_triple& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++num_gates;
+    ++this->num_gates;
 }
 
 /**
- * @brief Create a big addition gate, where in.a * in.a_scaling + in.b * in.b_scaling + in.c * in.c_scaling + in.d *
- * in.d_scaling + in.const_scaling = 0. If include_next_gate_w_4 is enabled, then thes sum also adds the value of the
- * 4-th witness at the next index.
+ * @brief Create a big addition gate, where in.a * in.a_scaling + in.b * in.b_scaling + in.c *
+ * in.c_scaling + in.d * in.d_scaling + in.const_scaling = 0. If include_next_gate_w_4 is enabled, then thes sum also
+ * adds the value of the 4-th witness at the next index.
  *
  * @param in Structure with variable indexes and wire selector values
  * @param include_next_gate_w_4 Switches on/off the addition of w_4 at the next index
  */
-void UltraCircuitBuilder::create_big_add_gate(const add_quad& in, const bool include_next_gate_w_4)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::create_big_add_gate(const add_quad& in, const bool include_next_gate_w_4)
 {
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
@@ -168,16 +168,16 @@ void UltraCircuitBuilder::create_big_add_gate(const add_quad& in, const bool inc
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++num_gates;
+    ++this->num_gates;
 }
 
 /**
- * @brief A legacy method that was used to extract a bit from c-4d by using gate selectors in the Turboplonk, but is
- * simulated here for ultraplonk
+ * @brief A legacy method that was used to extract a bit from c-4d by using gate selectors in the
+ * Turboplonk, but is simulated here for ultraplonk
  *
  * @param in Structure with variables and witness selector values
  */
-void UltraCircuitBuilder::create_big_add_gate_with_bit_extraction(const add_quad& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_big_add_gate_with_bit_extraction(const add_quad& in)
 {
     // This method is an artifact of a turbo plonk feature that implicitly extracts
     // a high or low bit from a base-4 quad and adds it into the arithmetic gate relationship.
@@ -188,13 +188,13 @@ void UltraCircuitBuilder::create_big_add_gate_with_bit_extraction(const add_quad
     // a + b + c + d + 6 * (extracted bit) = 0
     // (extracted bit) is the high bit pulled from c - 4d
 
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
-    const uint256_t quad = get_variable(in.c) - get_variable(in.d) * 4;
+    const uint256_t quad = this->get_variable(in.c) - this->get_variable(in.d) * 4;
     const auto lo_bit = quad & uint256_t(1);
     const auto hi_bit = (quad & uint256_t(2)) >> 1;
-    const auto lo_idx = add_variable(lo_bit);
-    const auto hi_idx = add_variable(hi_bit);
+    const auto lo_idx = this->add_variable(lo_bit);
+    const auto hi_idx = this->add_variable(hi_bit);
     // lo + hi * 2 - c + 4 * d = 0
     create_big_add_gate({
         lo_idx,
@@ -209,13 +209,13 @@ void UltraCircuitBuilder::create_big_add_gate_with_bit_extraction(const add_quad
     });
 
     // create temporary variable t = in.a * in.a_scaling + 6 * hi_bit
-    const auto t = get_variable(in.a) * in.a_scaling + fr(hi_bit) * 6;
-    const auto t_idx = add_variable(t);
+    const auto t = this->get_variable(in.a) * in.a_scaling + FF(hi_bit) * 6;
+    const auto t_idx = this->add_variable(t);
     create_big_add_gate({
         in.a,
         hi_idx,
         t_idx,
-        zero_idx,
+        this->zero_idx,
         in.a_scaling,
         6,
         -1,
@@ -240,9 +240,9 @@ void UltraCircuitBuilder::create_big_add_gate_with_bit_extraction(const add_quad
  *
  * @param in Structure containing variables and witness selectors
  */
-void UltraCircuitBuilder::create_big_mul_gate(const mul_quad& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_big_mul_gate(const mul_quad& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
@@ -259,14 +259,14 @@ void UltraCircuitBuilder::create_big_mul_gate(const mul_quad& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++num_gates;
+    ++this->num_gates;
 }
 
 // Creates a width-4 addition gate, where the fourth witness must be a boolean.
 // Can be used to normalize a 32-bit addition
-void UltraCircuitBuilder::create_balanced_add_gate(const add_quad& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_balanced_add_gate(const add_quad& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
@@ -283,7 +283,7 @@ void UltraCircuitBuilder::create_balanced_add_gate(const add_quad& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++num_gates;
+    ++this->num_gates;
     // Why 3? TODO: return to this
     // The purpose of this gate is to do enable lazy 32-bit addition.
     // Consider a + b = c mod 2^32
@@ -304,14 +304,14 @@ void UltraCircuitBuilder::create_balanced_add_gate(const add_quad& in)
  *
  * @param in Structure containing variables and witness selectors
  */
-void UltraCircuitBuilder::create_mul_gate(const mul_triple& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_mul_gate(const mul_triple& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c });
+    this->assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
-    w_4.emplace_back(zero_idx);
+    w_4.emplace_back(this->zero_idx);
     q_m.emplace_back(in.mul_scaling);
     q_1.emplace_back(0);
     q_2.emplace_back(0);
@@ -323,21 +323,21 @@ void UltraCircuitBuilder::create_mul_gate(const mul_triple& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++num_gates;
+    ++this->num_gates;
 }
 /**
  * @brief Generate an arithmetic gate equivalent to x^2 - x = 0, which forces x to be 0 or 1
  *
- * @param variable_index Variable which needs to be constrained
+ * @param variable_index the variable which needs to be constrained
  */
-void UltraCircuitBuilder::create_bool_gate(const uint32_t variable_index)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_bool_gate(const uint32_t variable_index)
 {
-    assert_valid_variables({ variable_index });
+    this->assert_valid_variables({ variable_index });
 
     w_l.emplace_back(variable_index);
     w_r.emplace_back(variable_index);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(zero_idx);
+    w_o.emplace_back(this->zero_idx);
+    w_4.emplace_back(this->zero_idx);
     q_m.emplace_back(1);
     q_1.emplace_back(-1);
     q_2.emplace_back(0);
@@ -350,22 +350,23 @@ void UltraCircuitBuilder::create_bool_gate(const uint32_t variable_index)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++num_gates;
+    ++this->num_gates;
 }
 
 /**
- * @brief A plonk gate with disabled (set to zero) fourth wire. q_m * a * b + q_1 * a + q_2 * b + q_3 * c + q_const = 0
+ * @brief A plonk gate with disabled (set to zero) fourth wire. q_m * a * b + q_1 * a + q_2 * b + q_3
+ * * c + q_const = 0
  *
  * @param in Structure containing variables and witness selectors
  */
-void UltraCircuitBuilder::create_poly_gate(const poly_triple& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_poly_gate(const poly_triple& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c });
+    this->assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
-    w_4.emplace_back(zero_idx);
+    w_4.emplace_back(this->zero_idx);
     q_m.emplace_back(in.q_m);
     q_1.emplace_back(in.q_l);
     q_2.emplace_back(in.q_r);
@@ -378,7 +379,7 @@ void UltraCircuitBuilder::create_poly_gate(const poly_triple& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++num_gates;
+    ++this->num_gates;
 }
 
 /**
@@ -391,7 +392,7 @@ void UltraCircuitBuilder::create_poly_gate(const poly_triple& in)
  * added, the resulting point coordinates and the selector values that describe whether the endomorphism is used on the
  * second point and whether it is negated.
  */
-void UltraCircuitBuilder::create_ecc_add_gate(const ecc_add_gate& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_add_gate(const ecc_add_gate& in)
 {
     /**
      * | 1  | 2  | 3  | 4  |
@@ -401,27 +402,27 @@ void UltraCircuitBuilder::create_ecc_add_gate(const ecc_add_gate& in)
      *
      **/
 
-    assert_valid_variables({ in.x1, in.x2, in.x3, in.y1, in.y2, in.y3 });
+    this->assert_valid_variables({ in.x1, in.x2, in.x3, in.y1, in.y2, in.y3 });
 
     bool can_fuse_into_previous_gate = true;
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_r[num_gates - 1] == in.x1);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_o[num_gates - 1] == in.y1);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_3[num_gates - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_4[num_gates - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_1[num_gates - 1] == 0);
-    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_arith[num_gates - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_r[this->num_gates - 1] == in.x1);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (w_o[this->num_gates - 1] == in.y1);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_3[this->num_gates - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_4[this->num_gates - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_1[this->num_gates - 1] == 0);
+    can_fuse_into_previous_gate = can_fuse_into_previous_gate && (q_arith[this->num_gates - 1] == 0);
 
     if (can_fuse_into_previous_gate) {
 
-        q_3[num_gates - 1] = in.endomorphism_coefficient;
-        q_4[num_gates - 1] = in.endomorphism_coefficient.sqr();
-        q_1[num_gates - 1] = in.sign_coefficient;
-        q_elliptic[num_gates - 1] = 1;
+        q_3[this->num_gates - 1] = in.endomorphism_coefficient;
+        q_4[this->num_gates - 1] = in.endomorphism_coefficient.sqr();
+        q_1[this->num_gates - 1] = in.sign_coefficient;
+        q_elliptic[this->num_gates - 1] = 1;
     } else {
-        w_l.emplace_back(zero_idx);
+        w_l.emplace_back(this->zero_idx);
         w_r.emplace_back(in.x1);
         w_o.emplace_back(in.y1);
-        w_4.emplace_back(zero_idx);
+        w_4.emplace_back(this->zero_idx);
         q_3.emplace_back(in.endomorphism_coefficient);
         q_4.emplace_back(in.endomorphism_coefficient.sqr());
         q_1.emplace_back(in.sign_coefficient);
@@ -434,7 +435,7 @@ void UltraCircuitBuilder::create_ecc_add_gate(const ecc_add_gate& in)
         q_lookup_type.emplace_back(0);
         q_elliptic.emplace_back(1);
         q_aux.emplace_back(0);
-        ++num_gates;
+        ++this->num_gates;
     }
 
     w_l.emplace_back(in.x2);
@@ -452,7 +453,7 @@ void UltraCircuitBuilder::create_ecc_add_gate(const ecc_add_gate& in)
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++num_gates;
+    ++this->num_gates;
 }
 
 /**
@@ -461,14 +462,14 @@ void UltraCircuitBuilder::create_ecc_add_gate(const ecc_add_gate& in)
  * @param witness_index The index of the witness we are fixing
  * @param witness_value The value we are fixing it to
  */
-void UltraCircuitBuilder::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
+template <typename FF> void UltraCircuitBuilder_<FF>::fix_witness(const uint32_t witness_index, const FF& witness_value)
 {
-    assert_valid_variables({ witness_index });
+    this->assert_valid_variables({ witness_index });
 
     w_l.emplace_back(witness_index);
-    w_r.emplace_back(zero_idx);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(zero_idx);
+    w_r.emplace_back(this->zero_idx);
+    w_o.emplace_back(this->zero_idx);
+    w_4.emplace_back(this->zero_idx);
     q_m.emplace_back(0);
     q_1.emplace_back(1);
     q_2.emplace_back(0);
@@ -480,22 +481,22 @@ void UltraCircuitBuilder::fix_witness(const uint32_t witness_index, const barret
     q_lookup_type.emplace_back(0);
     q_elliptic.emplace_back(0);
     q_aux.emplace_back(0);
-    ++num_gates;
+    ++this->num_gates;
 }
 
-uint32_t UltraCircuitBuilder::put_constant_variable(const barretenberg::fr& variable)
+template <typename FF> uint32_t UltraCircuitBuilder_<FF>::put_constant_variable(const FF& variable)
 {
     if (constant_variable_indices.contains(variable)) {
         return constant_variable_indices.at(variable);
     } else {
-        uint32_t variable_index = add_variable(variable);
+        uint32_t variable_index = this->add_variable(variable);
         fix_witness(variable_index, variable);
         constant_variable_indices.insert({ variable, variable_index });
         return variable_index;
     }
 }
 
-plookup::BasicTable& UltraCircuitBuilder::get_table(const plookup::BasicTableId id)
+template <typename FF> plookup::BasicTable& UltraCircuitBuilder_<FF>::get_table(const plookup::BasicTableId id)
 {
     for (plookup::BasicTable& table : lookup_tables) {
         if (table.id == id) {
@@ -510,9 +511,11 @@ plookup::BasicTable& UltraCircuitBuilder::get_table(const plookup::BasicTableId 
 /**
  * @brief Perform a series of lookups, one for each 'row' in read_values.
  */
-plookup::ReadData<uint32_t> UltraCircuitBuilder::create_gates_from_plookup_accumulators(
+
+template <typename FF>
+plookup::ReadData<uint32_t> UltraCircuitBuilder_<FF>::create_gates_from_plookup_accumulators(
     const plookup::MultiTableId& id,
-    const plookup::ReadData<barretenberg::fr>& read_values,
+    const plookup::ReadData<FF>& read_values,
     const uint32_t key_a_index,
     std::optional<uint32_t> key_b_index)
 {
@@ -524,23 +527,23 @@ plookup::ReadData<uint32_t> UltraCircuitBuilder::create_gates_from_plookup_accum
 
         table.lookup_gates.emplace_back(read_values.key_entries[i]);
 
-        const auto first_idx = (i == 0) ? key_a_index : add_variable(read_values[plookup::ColumnIdx::C1][i]);
+        const auto first_idx = (i == 0) ? key_a_index : this->add_variable(read_values[plookup::ColumnIdx::C1][i]);
         const auto second_idx = (i == 0 && (key_b_index.has_value()))
                                     ? key_b_index.value()
-                                    : add_variable(read_values[plookup::ColumnIdx::C2][i]);
-        const auto third_idx = add_variable(read_values[plookup::ColumnIdx::C3][i]);
+                                    : this->add_variable(read_values[plookup::ColumnIdx::C2][i]);
+        const auto third_idx = this->add_variable(read_values[plookup::ColumnIdx::C3][i]);
 
         read_data[plookup::ColumnIdx::C1].push_back(first_idx);
         read_data[plookup::ColumnIdx::C2].push_back(second_idx);
         read_data[plookup::ColumnIdx::C3].push_back(third_idx);
-        assert_valid_variables({ first_idx, second_idx, third_idx });
+        this->assert_valid_variables({ first_idx, second_idx, third_idx });
 
-        q_lookup_type.emplace_back(fr(1));
-        q_3.emplace_back(fr(table.table_index));
+        q_lookup_type.emplace_back(FF(1));
+        q_3.emplace_back(FF(table.table_index));
         w_l.emplace_back(first_idx);
         w_r.emplace_back(second_idx);
         w_o.emplace_back(third_idx);
-        w_4.emplace_back(zero_idx);
+        w_4.emplace_back(this->zero_idx);
         q_1.emplace_back(0);
         q_2.emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_1_step_sizes[i + 1]));
         q_m.emplace_back((i == (num_lookups - 1) ? 0 : -multi_table.column_2_step_sizes[i + 1]));
@@ -550,7 +553,7 @@ plookup::ReadData<uint32_t> UltraCircuitBuilder::create_gates_from_plookup_accum
         q_sort.emplace_back(0);
         q_elliptic.emplace_back(0);
         q_aux.emplace_back(0);
-        ++num_gates;
+        ++this->num_gates;
     }
     return read_data;
 }
@@ -558,8 +561,8 @@ plookup::ReadData<uint32_t> UltraCircuitBuilder::create_gates_from_plookup_accum
 /**
  * Generalized Permutation Methods
  **/
-
-UltraCircuitBuilder::RangeList UltraCircuitBuilder::create_range_list(const uint64_t target_range)
+template <typename FF>
+typename UltraCircuitBuilder_<FF>::RangeList UltraCircuitBuilder_<FF>::create_range_list(const uint64_t target_range)
 {
     RangeList result;
     const auto range_tag = get_new_tag(); // current_tag + 1;
@@ -574,12 +577,12 @@ UltraCircuitBuilder::RangeList UltraCircuitBuilder::create_range_list(const uint
 
     result.variable_indices.reserve((uint32_t)num_multiples_of_three);
     for (uint64_t i = 0; i <= num_multiples_of_three; ++i) {
-        const uint32_t index = add_variable(i * DEFAULT_PLOOKUP_RANGE_STEP_SIZE);
+        const uint32_t index = this->add_variable(i * DEFAULT_PLOOKUP_RANGE_STEP_SIZE);
         result.variable_indices.emplace_back(index);
         assign_tag(index, result.range_tag);
     }
     {
-        const uint32_t index = add_variable(target_range);
+        const uint32_t index = this->add_variable(target_range);
         result.variable_indices.emplace_back(index);
         assign_tag(index, result.range_tag);
     }
@@ -590,20 +593,22 @@ UltraCircuitBuilder::RangeList UltraCircuitBuilder::create_range_list(const uint
 }
 
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
-std::vector<uint32_t> UltraCircuitBuilder::decompose_into_default_range(const uint32_t variable_index,
-                                                                        const uint64_t num_bits,
-                                                                        const uint64_t target_range_bitnum,
-                                                                        std::string const& msg)
+
+template <typename FF>
+std::vector<uint32_t> UltraCircuitBuilder_<FF>::decompose_into_default_range(const uint32_t variable_index,
+                                                                             const uint64_t num_bits,
+                                                                             const uint64_t target_range_bitnum,
+                                                                             std::string const& msg)
 {
-    assert_valid_variables({ variable_index });
+    this->assert_valid_variables({ variable_index });
 
     ASSERT(num_bits > 0);
 
-    uint256_t val = (uint256_t)(get_variable(variable_index));
+    uint256_t val = (uint256_t)(this->get_variable(variable_index));
 
     // If the value is out of range, set the composer error to the given msg.
-    if (val.get_msb() >= num_bits && !failed()) {
-        failure(msg);
+    if (val.get_msb() >= num_bits && !this->failed()) {
+        this->failure(msg);
     }
 
     const uint64_t sublimb_mask = (1ULL << target_range_bitnum) - 1;
@@ -635,7 +640,7 @@ std::vector<uint32_t> UltraCircuitBuilder::decompose_into_default_range(const ui
         accumulator = accumulator >> target_range_bitnum;
     }
     for (size_t i = 0; i < sublimbs.size(); ++i) {
-        const auto limb_idx = add_variable(sublimbs[i]);
+        const auto limb_idx = this->add_variable(sublimbs[i]);
         sublimb_indices.emplace_back(limb_idx);
         if ((i == sublimbs.size() - 1) && has_remainder_bits) {
             create_new_range_constraint(limb_idx, last_limb_range);
@@ -663,9 +668,9 @@ std::vector<uint32_t> UltraCircuitBuilder::decompose_into_default_range(const ui
             real_limbs[2] ? sublimbs[3 * i + 2] : 0,
         };
         const uint32_t new_limbs[3]{
-            real_limbs[0] ? sublimb_indices[3 * i] : zero_idx,
-            real_limbs[1] ? sublimb_indices[3 * i + 1] : zero_idx,
-            real_limbs[2] ? sublimb_indices[3 * i + 2] : zero_idx,
+            real_limbs[0] ? sublimb_indices[3 * i] : this->zero_idx,
+            real_limbs[1] ? sublimb_indices[3 * i + 1] : this->zero_idx,
+            real_limbs[2] ? sublimb_indices[3 * i + 2] : this->zero_idx,
         };
         const uint64_t shifts[3]{
             target_range_bitnum * (3 * i),
@@ -689,7 +694,7 @@ std::vector<uint32_t> UltraCircuitBuilder::decompose_into_default_range(const ui
                 0,
             },
             ((i == num_limb_triples - 1) ? false : true));
-        accumulator_idx = add_variable(new_accumulator);
+        accumulator_idx = this->add_variable(new_accumulator);
         accumulator = new_accumulator;
     }
     return sublimb_indices;
@@ -704,21 +709,22 @@ std::vector<uint32_t> UltraCircuitBuilder::decompose_into_default_range(const ui
  * @param variable_index
  * @param target_range
  */
-void UltraCircuitBuilder::create_new_range_constraint(const uint32_t variable_index,
-                                                      const uint64_t target_range,
-                                                      std::string const msg)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::create_new_range_constraint(const uint32_t variable_index,
+                                                           const uint64_t target_range,
+                                                           std::string const msg)
 {
 
-    if (uint256_t(get_variable(variable_index)).data[0] > target_range) {
-        if (!failed()) {
-            failure(msg);
+    if (uint256_t(this->get_variable(variable_index)).data[0] > target_range) {
+        if (!this->failed()) {
+            this->failure(msg);
         }
     }
     if (range_lists.count(target_range) == 0) {
         range_lists.insert({ target_range, create_range_list(target_range) });
     }
 
-    const auto existing_tag = real_variable_tags[real_variable_index[variable_index]];
+    const auto existing_tag = this->real_variable_tags[this->real_variable_index[variable_index]];
     auto& list = range_lists[target_range];
 
     // If the variable's tag matches the target range list's tag, do nothing.
@@ -737,10 +743,10 @@ void UltraCircuitBuilder::create_new_range_constraint(const uint32_t variable_in
                         // The range constraint we are trying to impose is more restrictive than the existing range
                         // constraint. It would be difficult to remove an existing range check. Instead deep-copy the
                         // variable and apply a range check to new variable
-                        const uint32_t copied_witness = add_variable(get_variable(variable_index));
+                        const uint32_t copied_witness = this->add_variable(this->get_variable(variable_index));
                         create_add_gate({ .a = variable_index,
                                           .b = copied_witness,
-                                          .c = zero_idx,
+                                          .c = this->zero_idx,
                                           .a_scaling = 1,
                                           .b_scaling = -1,
                                           .c_scaling = 0,
@@ -758,9 +764,9 @@ void UltraCircuitBuilder::create_new_range_constraint(const uint32_t variable_in
     }
 }
 
-void UltraCircuitBuilder::process_range_list(RangeList& list)
+template <typename FF> void UltraCircuitBuilder_<FF>::process_range_list(RangeList& list)
 {
-    assert_valid_variables(list.variable_indices);
+    this->assert_valid_variables(list.variable_indices);
 
     ASSERT(list.variable_indices.size() > 0);
 
@@ -768,7 +774,7 @@ void UltraCircuitBuilder::process_range_list(RangeList& list)
     // applied on a variable after it was range constrained, this makes sure the indices in list point to the updated
     // index in the range list so the set equivalence does not fail
     for (uint32_t& x : list.variable_indices) {
-        x = real_variable_index[x];
+        x = this->real_variable_index[x];
     }
     // remove duplicate witness indices to prevent the sorted list set size being wrong!
     std::sort(list.variable_indices.begin(), list.variable_indices.end());
@@ -781,7 +787,7 @@ void UltraCircuitBuilder::process_range_list(RangeList& list)
     std::vector<uint32_t> sorted_list;
     sorted_list.reserve(list.variable_indices.size());
     for (const auto variable_index : list.variable_indices) {
-        const auto& field_element = get_variable(variable_index);
+        const auto& field_element = this->get_variable(variable_index);
         const uint32_t shrinked_value = (uint32_t)field_element.from_montgomery_form().data[0];
         sorted_list.emplace_back(shrinked_value);
     }
@@ -802,17 +808,17 @@ void UltraCircuitBuilder::process_range_list(RangeList& list)
         padding += gate_width;
     }
     for (size_t i = 0; i < padding; ++i) {
-        indices.emplace_back(zero_idx);
+        indices.emplace_back(this->zero_idx);
     }
     for (const auto sorted_value : sorted_list) {
-        const uint32_t index = add_variable(sorted_value);
+        const uint32_t index = this->add_variable(sorted_value);
         assign_tag(index, list.tau_tag);
         indices.emplace_back(index);
     }
     create_sort_constraint_with_edges(indices, 0, list.target_range);
 }
 
-void UltraCircuitBuilder::process_range_lists()
+template <typename FF> void UltraCircuitBuilder_<FF>::process_range_lists()
 {
     for (auto& i : range_lists) {
         process_range_list(i.second);
@@ -832,11 +838,12 @@ void UltraCircuitBuilder::process_range_lists()
   * std::map<uint64_t, RangeList> range_lists;
 */
 // Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checkj)
-void UltraCircuitBuilder::create_sort_constraint(const std::vector<uint32_t>& variable_index)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::create_sort_constraint(const std::vector<uint32_t>& variable_index)
 {
     constexpr size_t gate_width = plonk::ultra_settings::program_width;
     ASSERT(variable_index.size() % gate_width == 0);
-    assert_valid_variables(variable_index);
+    this->assert_valid_variables(variable_index);
 
     for (size_t i = 0; i < variable_index.size(); i += gate_width) {
 
@@ -844,7 +851,7 @@ void UltraCircuitBuilder::create_sort_constraint(const std::vector<uint32_t>& va
         w_r.emplace_back(variable_index[i + 1]);
         w_o.emplace_back(variable_index[i + 2]);
         w_4.emplace_back(variable_index[i + 3]);
-        ++num_gates;
+        ++this->num_gates;
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -859,10 +866,10 @@ void UltraCircuitBuilder::create_sort_constraint(const std::vector<uint32_t>& va
     }
     // dummy gate needed because of sort widget's check of next row
     w_l.emplace_back(variable_index[variable_index.size() - 1]);
-    w_r.emplace_back(zero_idx);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(zero_idx);
-    ++num_gates;
+    w_r.emplace_back(this->zero_idx);
+    w_o.emplace_back(this->zero_idx);
+    w_4.emplace_back(this->zero_idx);
+    ++this->num_gates;
     q_m.emplace_back(0);
     q_1.emplace_back(0);
     q_2.emplace_back(0);
@@ -878,23 +885,24 @@ void UltraCircuitBuilder::create_sort_constraint(const std::vector<uint32_t>& va
 
 // useful to put variables in the witness that aren't already used - e.g. the dummy variables of the range constraint in
 // multiples of three
-void UltraCircuitBuilder::create_dummy_constraints(const std::vector<uint32_t>& variable_index)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::create_dummy_constraints(const std::vector<uint32_t>& variable_index)
 {
     std::vector<uint32_t> padded_list = variable_index;
     constexpr size_t gate_width = plonk::ultra_settings::program_width;
     const uint64_t padding = (gate_width - (padded_list.size() % gate_width)) % gate_width;
     for (uint64_t i = 0; i < padding; ++i) {
-        padded_list.emplace_back(zero_idx);
+        padded_list.emplace_back(this->zero_idx);
     }
-    assert_valid_variables(variable_index);
-    assert_valid_variables(padded_list);
+    this->assert_valid_variables(variable_index);
+    this->assert_valid_variables(padded_list);
 
     for (size_t i = 0; i < padded_list.size(); i += gate_width) {
         w_l.emplace_back(padded_list[i]);
         w_r.emplace_back(padded_list[i + 1]);
         w_o.emplace_back(padded_list[i + 2]);
         w_4.emplace_back(padded_list[i + 3]);
-        ++num_gates;
+        ++this->num_gates;
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -910,21 +918,22 @@ void UltraCircuitBuilder::create_dummy_constraints(const std::vector<uint32_t>& 
 }
 
 // Check for a sequence of variables that neighboring differences are at most 3 (used for batched range checks)
-void UltraCircuitBuilder::create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
-                                                            const fr& start,
-                                                            const fr& end)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::create_sort_constraint_with_edges(const std::vector<uint32_t>& variable_index,
+                                                                 const FF& start,
+                                                                 const FF& end)
 {
     // Convenient to assume size is at least 8 (gate_width = 4) for separate gates for start and end conditions
     constexpr size_t gate_width = plonk::ultra_settings::program_width;
     ASSERT(variable_index.size() % gate_width == 0 && variable_index.size() > gate_width);
-    assert_valid_variables(variable_index);
+    this->assert_valid_variables(variable_index);
 
     // enforce range checks of first row and starting at start
     w_l.emplace_back(variable_index[0]);
     w_r.emplace_back(variable_index[1]);
     w_o.emplace_back(variable_index[2]);
     w_4.emplace_back(variable_index[3]);
-    ++num_gates;
+    ++this->num_gates;
     q_m.emplace_back(0);
     q_1.emplace_back(1);
     q_2.emplace_back(0);
@@ -943,7 +952,7 @@ void UltraCircuitBuilder::create_sort_constraint_with_edges(const std::vector<ui
         w_r.emplace_back(variable_index[i + 1]);
         w_o.emplace_back(variable_index[i + 2]);
         w_4.emplace_back(variable_index[i + 3]);
-        ++num_gates;
+        ++this->num_gates;
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -962,7 +971,7 @@ void UltraCircuitBuilder::create_sort_constraint_with_edges(const std::vector<ui
         w_r.emplace_back(variable_index[variable_index.size() - 3]);
         w_o.emplace_back(variable_index[variable_index.size() - 2]);
         w_4.emplace_back(variable_index[variable_index.size() - 1]);
-        ++num_gates;
+        ++this->num_gates;
         q_m.emplace_back(0);
         q_1.emplace_back(0);
         q_2.emplace_back(0);
@@ -979,10 +988,10 @@ void UltraCircuitBuilder::create_sort_constraint_with_edges(const std::vector<ui
     // dummy gate needed because of sort widget's check of next row
     // use this gate to check end condition
     w_l.emplace_back(variable_index[variable_index.size() - 1]);
-    w_r.emplace_back(zero_idx);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(zero_idx);
-    ++num_gates;
+    w_r.emplace_back(this->zero_idx);
+    w_o.emplace_back(this->zero_idx);
+    w_4.emplace_back(this->zero_idx);
+    ++this->num_gates;
     q_m.emplace_back(0);
     q_1.emplace_back(1);
     q_2.emplace_back(0);
@@ -997,7 +1006,9 @@ void UltraCircuitBuilder::create_sort_constraint_with_edges(const std::vector<ui
 }
 
 // range constraint a value by decomposing it into limbs whose size should be the default range constraint size
-std::vector<uint32_t> UltraCircuitBuilder::decompose_into_default_range_better_for_oddlimbnum(
+
+template <typename FF>
+std::vector<uint32_t> UltraCircuitBuilder_<FF>::decompose_into_default_range_better_for_oddlimbnum(
     const uint32_t variable_index, const size_t num_bits, std::string const& msg)
 {
     std::vector<uint32_t> sums;
@@ -1010,45 +1021,44 @@ std::vector<uint32_t> UltraCircuitBuilder::decompose_into_default_range_better_f
         return sums;
     }
 
-    const uint256_t val = (uint256_t)(get_variable(variable_index));
+    const uint256_t val = (uint256_t)(this->get_variable(variable_index));
     // check witness value is indeed in range (commented out cause interferes with negative tests)
-    // ASSERT(val < ((uint256_t)1 << num_bits) - 1); // Q:ask Zac what happens with wrapping when converting fr to
-    // uint256
-    // ASSERT(limb_num % 3 == 0); // TODO: write version of method that doesn't need this
+    // ASSERT(val < ((uint256_t)1 << num_bits) - 1); // Q:ask Zac what happens with wrapping when converting scalar
+    // field to uint256 ASSERT(limb_num % 3 == 0); // TODO: write version of method that doesn't need this
     std::vector<uint32_t> val_limbs;
     std::vector<fr> val_slices;
     for (size_t i = 0; i < limb_num; i++) {
         val_slices.emplace_back(
-            barretenberg::fr(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1) - 1)));
-        val_limbs.emplace_back(add_variable(val_slices[i]));
+            FF(val.slice(DEFAULT_PLOOKUP_RANGE_BITNUM * i, DEFAULT_PLOOKUP_RANGE_BITNUM * (i + 1) - 1)));
+        val_limbs.emplace_back(this->add_variable(val_slices[i]));
         create_new_range_constraint(val_limbs[i], DEFAULT_PLOOKUP_RANGE_SIZE);
     }
 
     uint64_t last_limb_range = ((uint64_t)1 << last_limb_size) - 1;
-    fr last_slice(0);
-    uint32_t last_limb(zero_idx);
+    FF last_slice(0);
+    uint32_t last_limb(this->zero_idx);
     size_t total_limb_num = limb_num;
     if (last_limb_size > 0) {
-        val_slices.emplace_back(fr(val.slice(num_bits - last_limb_size, num_bits)));
-        val_limbs.emplace_back(add_variable(last_slice));
+        val_slices.emplace_back(FF(val.slice(num_bits - last_limb_size, num_bits)));
+        val_limbs.emplace_back(this->add_variable(last_slice));
         create_new_range_constraint(last_limb, last_limb_range);
         total_limb_num++;
     }
     // pad slices and limbs in case they are not 2 mod 3
     if (total_limb_num % 3 == 1) {
-        val_limbs.emplace_back(zero_idx); // TODO: check this is zero
+        val_limbs.emplace_back(this->zero_idx); // TODO: check this is zero
         val_slices.emplace_back(0);
         total_limb_num++;
     }
-    fr shift = fr(1 << DEFAULT_PLOOKUP_RANGE_BITNUM);
-    fr second_shift = shift * shift;
-    sums.emplace_back(add_variable(val_slices[0] + shift * val_slices[1] + second_shift * val_slices[2]));
+    FF shift = FF(1 << DEFAULT_PLOOKUP_RANGE_BITNUM);
+    FF second_shift = shift * shift;
+    sums.emplace_back(this->add_variable(val_slices[0] + shift * val_slices[1] + second_shift * val_slices[2]));
     create_big_add_gate({ val_limbs[0], val_limbs[1], val_limbs[2], sums[0], 1, shift, second_shift, -1, 0 });
-    fr cur_shift = (shift * second_shift);
-    fr cur_second_shift = cur_shift * shift;
+    FF cur_shift = (shift * second_shift);
+    FF cur_second_shift = cur_shift * shift;
     for (size_t i = 3; i < total_limb_num; i = i + 2) {
-        sums.emplace_back(add_variable(get_variable(sums[sums.size() - 1]) + cur_shift * val_slices[i] +
-                                       cur_second_shift * val_slices[i + 1]));
+        sums.emplace_back(this->add_variable(this->get_variable(sums[sums.size() - 1]) + cur_shift * val_slices[i] +
+                                             cur_second_shift * val_slices[i + 1]));
         create_big_add_gate({ sums[sums.size() - 2],
                               val_limbs[i],
                               val_limbs[i + 1],
@@ -1061,7 +1071,7 @@ std::vector<uint32_t> UltraCircuitBuilder::decompose_into_default_range_better_f
         cur_shift *= second_shift;
         cur_second_shift *= second_shift;
     }
-    assert_equal(sums[sums.size() - 1], variable_index, msg);
+    this->assert_equal(sums[sums.size() - 1], variable_index, msg);
     return sums;
 }
 
@@ -1092,7 +1102,7 @@ std::vector<uint32_t> UltraCircuitBuilder::decompose_into_default_range_better_f
  *
  * @param type
  */
-void UltraCircuitBuilder::apply_aux_selectors(const AUX_SELECTORS type)
+template <typename FF> void UltraCircuitBuilder_<FF>::apply_aux_selectors(const AUX_SELECTORS type)
 {
     q_aux.emplace_back(type == AUX_SELECTORS::NONE ? 0 : 1);
     q_sort.emplace_back(0);
@@ -1252,10 +1262,11 @@ void UltraCircuitBuilder::apply_aux_selectors(const AUX_SELECTORS type)
  * Applies range constraints to two 70-bit limbs, splititng each into 5 14-bit sublimbs.
  * We can efficiently chain together two 70-bit limb checks in 3 gates, using auxiliary gates
  **/
-void UltraCircuitBuilder::range_constrain_two_limbs(const uint32_t lo_idx,
-                                                    const uint32_t hi_idx,
-                                                    const size_t lo_limb_bits,
-                                                    const size_t hi_limb_bits)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::range_constrain_two_limbs(const uint32_t lo_idx,
+                                                         const uint32_t hi_idx,
+                                                         const size_t lo_limb_bits,
+                                                         const size_t hi_limb_bits)
 {
     // Validate limbs are <= 70 bits. If limbs are larger we require more witnesses and cannot use our limb accumulation
     // custom gate
@@ -1264,17 +1275,21 @@ void UltraCircuitBuilder::range_constrain_two_limbs(const uint32_t lo_idx,
 
     // Sometimes we try to use limbs that are too large. It's easier to catch this issue here
     const auto get_sublimbs = [&](const uint32_t& limb_idx, const std::array<uint64_t, 5>& sublimb_masks) {
-        const uint256_t limb = get_variable(limb_idx);
+        const uint256_t limb = this->get_variable(limb_idx);
         // we can use constant 2^14 - 1 mask here. If the sublimb value exceeds the expected value then witness will
         // fail the range check below
         // We also use zero_idx to substitute variables that should be zero
         constexpr uint256_t MAX_SUBLIMB_MASK = (uint256_t(1) << 14) - 1;
         std::array<uint32_t, 5> sublimb_indices;
-        sublimb_indices[0] = sublimb_masks[0] != 0 ? add_variable(limb & MAX_SUBLIMB_MASK) : zero_idx;
-        sublimb_indices[1] = sublimb_masks[1] != 0 ? add_variable((limb >> 14) & MAX_SUBLIMB_MASK) : zero_idx;
-        sublimb_indices[2] = sublimb_masks[2] != 0 ? add_variable((limb >> 28) & MAX_SUBLIMB_MASK) : zero_idx;
-        sublimb_indices[3] = sublimb_masks[3] != 0 ? add_variable((limb >> 42) & MAX_SUBLIMB_MASK) : zero_idx;
-        sublimb_indices[4] = sublimb_masks[4] != 0 ? add_variable((limb >> 56) & MAX_SUBLIMB_MASK) : zero_idx;
+        sublimb_indices[0] = sublimb_masks[0] != 0 ? this->add_variable(limb & MAX_SUBLIMB_MASK) : this->zero_idx;
+        sublimb_indices[1] =
+            sublimb_masks[1] != 0 ? this->add_variable((limb >> 14) & MAX_SUBLIMB_MASK) : this->zero_idx;
+        sublimb_indices[2] =
+            sublimb_masks[2] != 0 ? this->add_variable((limb >> 28) & MAX_SUBLIMB_MASK) : this->zero_idx;
+        sublimb_indices[3] =
+            sublimb_masks[3] != 0 ? this->add_variable((limb >> 42) & MAX_SUBLIMB_MASK) : this->zero_idx;
+        sublimb_indices[4] =
+            sublimb_masks[4] != 0 ? this->add_variable((limb >> 56) & MAX_SUBLIMB_MASK) : this->zero_idx;
         return sublimb_indices;
     };
 
@@ -1315,7 +1330,7 @@ void UltraCircuitBuilder::range_constrain_two_limbs(const uint32_t lo_idx,
     apply_aux_selectors(AUX_SELECTORS::LIMB_ACCUMULATE_1);
     apply_aux_selectors(AUX_SELECTORS::LIMB_ACCUMULATE_2);
     apply_aux_selectors(AUX_SELECTORS::NONE);
-    num_gates += 3;
+    this->num_gates += 3;
 
     for (size_t i = 0; i < 5; i++) {
         if (lo_masks[i] != 0) {
@@ -1337,18 +1352,20 @@ void UltraCircuitBuilder::range_constrain_two_limbs(const uint32_t lo_idx,
  * @param num_limb_bits The range we want to constrain the original limb to
  * @return std::array<uint32_t, 2> The indices of new limbs.
  */
-std::array<uint32_t, 2> UltraCircuitBuilder::decompose_non_native_field_double_width_limb(const uint32_t limb_idx,
-                                                                                          const size_t num_limb_bits)
+
+template <typename FF>
+std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::decompose_non_native_field_double_width_limb(
+    const uint32_t limb_idx, const size_t num_limb_bits)
 {
-    ASSERT(uint256_t(get_variable_reference(limb_idx)) < (uint256_t(1) << num_limb_bits));
-    constexpr barretenberg::fr LIMB_MASK = (uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS) - 1;
-    const uint256_t value = get_variable(limb_idx);
+    ASSERT(uint256_t(this->get_variable_reference(limb_idx)) < (uint256_t(1) << num_limb_bits));
+    constexpr FF LIMB_MASK = (uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS) - 1;
+    const uint256_t value = this->get_variable(limb_idx);
     const uint256_t low = value & LIMB_MASK;
     const uint256_t hi = value >> DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
     ASSERT(low + (hi << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS) == value);
 
-    const uint32_t low_idx = add_variable(low);
-    const uint32_t hi_idx = add_variable(hi);
+    const uint32_t low_idx = this->add_variable(low);
+    const uint32_t hi_idx = this->add_variable(hi);
 
     ASSERT(num_limb_bits > DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
     const size_t lo_bits = DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
@@ -1374,61 +1391,61 @@ std::array<uint32_t, 2> UltraCircuitBuilder::decompose_non_native_field_double_w
  *
  * N.B.: This method does NOT evaluate the prime field component of non-native field multiplications.
  **/
-std::array<uint32_t, 2> UltraCircuitBuilder::evaluate_non_native_field_multiplication(
+
+template <typename FF>
+std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::evaluate_non_native_field_multiplication(
     const non_native_field_witnesses& input, const bool range_constrain_quotient_and_remainder)
 {
 
     std::array<fr, 4> a{
-        get_variable(input.a[0]),
-        get_variable(input.a[1]),
-        get_variable(input.a[2]),
-        get_variable(input.a[3]),
+        this->get_variable(input.a[0]),
+        this->get_variable(input.a[1]),
+        this->get_variable(input.a[2]),
+        this->get_variable(input.a[3]),
     };
     std::array<fr, 4> b{
-        get_variable(input.b[0]),
-        get_variable(input.b[1]),
-        get_variable(input.b[2]),
-        get_variable(input.b[3]),
+        this->get_variable(input.b[0]),
+        this->get_variable(input.b[1]),
+        this->get_variable(input.b[2]),
+        this->get_variable(input.b[3]),
     };
     std::array<fr, 4> q{
-        get_variable(input.q[0]),
-        get_variable(input.q[1]),
-        get_variable(input.q[2]),
-        get_variable(input.q[3]),
+        this->get_variable(input.q[0]),
+        this->get_variable(input.q[1]),
+        this->get_variable(input.q[2]),
+        this->get_variable(input.q[3]),
     };
     std::array<fr, 4> r{
-        get_variable(input.r[0]),
-        get_variable(input.r[1]),
-        get_variable(input.r[2]),
-        get_variable(input.r[3]),
+        this->get_variable(input.r[0]),
+        this->get_variable(input.r[1]),
+        this->get_variable(input.r[2]),
+        this->get_variable(input.r[3]),
     };
-    constexpr barretenberg::fr LIMB_SHIFT = uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
-    constexpr barretenberg::fr LIMB_SHIFT_2 = uint256_t(1) << (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
-    constexpr barretenberg::fr LIMB_SHIFT_3 = uint256_t(1) << (3 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
-    constexpr barretenberg::fr LIMB_RSHIFT =
-        barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
-    constexpr barretenberg::fr LIMB_RSHIFT_2 =
-        barretenberg::fr(1) / barretenberg::fr(uint256_t(1) << (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
+    constexpr FF LIMB_SHIFT = uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
+    constexpr FF LIMB_SHIFT_2 = uint256_t(1) << (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    constexpr FF LIMB_SHIFT_3 = uint256_t(1) << (3 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    constexpr FF LIMB_RSHIFT = FF(1) / FF(uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    constexpr FF LIMB_RSHIFT_2 = FF(1) / FF(uint256_t(1) << (2 * DEFAULT_NON_NATIVE_FIELD_LIMB_BITS));
 
-    barretenberg::fr lo_0 = a[0] * b[0] - r[0] + (a[1] * b[0] + a[0] * b[1]) * LIMB_SHIFT;
-    barretenberg::fr lo_1 = (lo_0 + q[0] * input.neg_modulus[0] +
-                             (q[1] * input.neg_modulus[0] + q[0] * input.neg_modulus[1] - r[1]) * LIMB_SHIFT) *
-                            LIMB_RSHIFT_2;
+    FF lo_0 = a[0] * b[0] - r[0] + (a[1] * b[0] + a[0] * b[1]) * LIMB_SHIFT;
+    FF lo_1 = (lo_0 + q[0] * input.neg_modulus[0] +
+               (q[1] * input.neg_modulus[0] + q[0] * input.neg_modulus[1] - r[1]) * LIMB_SHIFT) *
+              LIMB_RSHIFT_2;
 
-    barretenberg::fr hi_0 = a[2] * b[0] + a[0] * b[2] + (a[0] * b[3] + a[3] * b[0] - r[3]) * LIMB_SHIFT;
-    barretenberg::fr hi_1 = hi_0 + a[1] * b[1] - r[2] + (a[1] * b[2] + a[2] * b[1]) * LIMB_SHIFT;
-    barretenberg::fr hi_2 = (hi_1 + lo_1 + q[2] * input.neg_modulus[0] +
-                             (q[3] * input.neg_modulus[0] + q[2] * input.neg_modulus[1]) * LIMB_SHIFT);
-    barretenberg::fr hi_3 = (hi_2 + (q[0] * input.neg_modulus[3] + q[1] * input.neg_modulus[2]) * LIMB_SHIFT +
-                             (q[0] * input.neg_modulus[2] + q[1] * input.neg_modulus[1])) *
-                            LIMB_RSHIFT_2;
+    FF hi_0 = a[2] * b[0] + a[0] * b[2] + (a[0] * b[3] + a[3] * b[0] - r[3]) * LIMB_SHIFT;
+    FF hi_1 = hi_0 + a[1] * b[1] - r[2] + (a[1] * b[2] + a[2] * b[1]) * LIMB_SHIFT;
+    FF hi_2 = (hi_1 + lo_1 + q[2] * input.neg_modulus[0] +
+               (q[3] * input.neg_modulus[0] + q[2] * input.neg_modulus[1]) * LIMB_SHIFT);
+    FF hi_3 = (hi_2 + (q[0] * input.neg_modulus[3] + q[1] * input.neg_modulus[2]) * LIMB_SHIFT +
+               (q[0] * input.neg_modulus[2] + q[1] * input.neg_modulus[1])) *
+              LIMB_RSHIFT_2;
 
-    const uint32_t lo_0_idx = add_variable(lo_0);
-    const uint32_t lo_1_idx = add_variable(lo_1);
-    const uint32_t hi_0_idx = add_variable(hi_0);
-    const uint32_t hi_1_idx = add_variable(hi_1);
-    const uint32_t hi_2_idx = add_variable(hi_2);
-    const uint32_t hi_3_idx = add_variable(hi_3);
+    const uint32_t lo_0_idx = this->add_variable(lo_0);
+    const uint32_t lo_1_idx = this->add_variable(lo_1);
+    const uint32_t hi_0_idx = this->add_variable(hi_0);
+    const uint32_t hi_1_idx = this->add_variable(hi_1);
+    const uint32_t hi_2_idx = this->add_variable(hi_2);
+    const uint32_t hi_3_idx = this->add_variable(hi_3);
 
     // Sometimes we have already applied range constraints on the quotient and remainder
     if (range_constrain_quotient_and_remainder) {
@@ -1473,25 +1490,25 @@ std::array<uint32_t, 2> UltraCircuitBuilder::evaluate_non_native_field_multiplic
     w_o.emplace_back(input.r[0]);
     w_4.emplace_back(lo_0_idx);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_1);
-    ++num_gates;
+    ++this->num_gates;
     w_l.emplace_back(input.a[0]);
     w_r.emplace_back(input.b[0]);
     w_o.emplace_back(input.a[3]);
     w_4.emplace_back(input.b[3]);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_2);
-    ++num_gates;
+    ++this->num_gates;
     w_l.emplace_back(input.a[2]);
     w_r.emplace_back(input.b[2]);
     w_o.emplace_back(input.r[3]);
     w_4.emplace_back(hi_0_idx);
     apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_3);
-    ++num_gates;
+    ++this->num_gates;
     w_l.emplace_back(input.a[1]);
     w_r.emplace_back(input.b[1]);
     w_o.emplace_back(input.r[2]);
     w_4.emplace_back(hi_1_idx);
     apply_aux_selectors(AUX_SELECTORS::NONE);
-    ++num_gates;
+    ++this->num_gates;
 
     /**
      * product gate 6
@@ -1538,13 +1555,13 @@ std::array<uint32_t, 2> UltraCircuitBuilder::evaluate_non_native_field_multiplic
  * Iterates over the cached_non_native_field_multiplication objects,
  * removes duplicates, and instantiates the remainder as constraints`
  */
-void UltraCircuitBuilder::process_non_native_field_multiplications()
+template <typename FF> void UltraCircuitBuilder_<FF>::process_non_native_field_multiplications()
 {
     for (size_t i = 0; i < cached_partial_non_native_field_multiplications.size(); ++i) {
         auto& c = cached_partial_non_native_field_multiplications[i];
         for (size_t j = 0; j < 5; ++j) {
-            c.a[j] = real_variable_index[c.a[j]];
-            c.b[j] = real_variable_index[c.b[j]];
+            c.a[j] = this->real_variable_index[c.a[j]];
+            c.b[j] = this->real_variable_index[c.b[j]];
         }
     }
     std::sort(cached_partial_non_native_field_multiplications.begin(),
@@ -1561,28 +1578,28 @@ void UltraCircuitBuilder::process_non_native_field_multiplications()
 
         w_l.emplace_back(input.a[1]);
         w_r.emplace_back(input.b[1]);
-        w_o.emplace_back(zero_idx);
+        w_o.emplace_back(this->zero_idx);
         w_4.emplace_back(input.lo_0);
         apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_1);
-        ++num_gates;
+        ++this->num_gates;
         w_l.emplace_back(input.a[0]);
         w_r.emplace_back(input.b[0]);
         w_o.emplace_back(input.a[3]);
         w_4.emplace_back(input.b[3]);
         apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_2);
-        ++num_gates;
+        ++this->num_gates;
         w_l.emplace_back(input.a[2]);
         w_r.emplace_back(input.b[2]);
-        w_o.emplace_back(zero_idx);
+        w_o.emplace_back(this->zero_idx);
         w_4.emplace_back(input.hi_0);
         apply_aux_selectors(AUX_SELECTORS::NON_NATIVE_FIELD_3);
-        ++num_gates;
+        ++this->num_gates;
         w_l.emplace_back(input.a[1]);
         w_r.emplace_back(input.b[1]);
-        w_o.emplace_back(zero_idx);
+        w_o.emplace_back(this->zero_idx);
         w_4.emplace_back(input.hi_1);
         apply_aux_selectors(AUX_SELECTORS::NONE);
-        ++num_gates;
+        ++this->num_gates;
         ++it;
     }
 }
@@ -1594,33 +1611,35 @@ void UltraCircuitBuilder::process_non_native_field_multiplications()
  * limbs with size DEFAULT_NON_NATIVE_FIELD_LIMB_BITS
  *
  **/
-std::array<uint32_t, 2> UltraCircuitBuilder::queue_partial_non_native_field_multiplication(
+
+template <typename FF>
+std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::queue_partial_non_native_field_multiplication(
     const non_native_field_witnesses& input)
 {
 
     std::array<fr, 4> a{
-        get_variable(input.a[0]),
-        get_variable(input.a[1]),
-        get_variable(input.a[2]),
-        get_variable(input.a[3]),
+        this->get_variable(input.a[0]),
+        this->get_variable(input.a[1]),
+        this->get_variable(input.a[2]),
+        this->get_variable(input.a[3]),
     };
     std::array<fr, 4> b{
-        get_variable(input.b[0]),
-        get_variable(input.b[1]),
-        get_variable(input.b[2]),
-        get_variable(input.b[3]),
+        this->get_variable(input.b[0]),
+        this->get_variable(input.b[1]),
+        this->get_variable(input.b[2]),
+        this->get_variable(input.b[3]),
     };
 
-    constexpr barretenberg::fr LIMB_SHIFT = uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
+    constexpr FF LIMB_SHIFT = uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS;
 
-    barretenberg::fr lo_0 = a[0] * b[0] + (a[1] * b[0] + a[0] * b[1]) * LIMB_SHIFT;
+    FF lo_0 = a[0] * b[0] + (a[1] * b[0] + a[0] * b[1]) * LIMB_SHIFT;
 
-    barretenberg::fr hi_0 = a[2] * b[0] + a[0] * b[2] + (a[0] * b[3] + a[3] * b[0]) * LIMB_SHIFT;
-    barretenberg::fr hi_1 = hi_0 + a[1] * b[1] + (a[1] * b[2] + a[2] * b[1]) * LIMB_SHIFT;
+    FF hi_0 = a[2] * b[0] + a[0] * b[2] + (a[0] * b[3] + a[3] * b[0]) * LIMB_SHIFT;
+    FF hi_1 = hi_0 + a[1] * b[1] + (a[1] * b[2] + a[2] * b[1]) * LIMB_SHIFT;
 
-    const uint32_t lo_0_idx = add_variable(lo_0);
-    const uint32_t hi_0_idx = add_variable(hi_0);
-    const uint32_t hi_1_idx = add_variable(hi_1);
+    const uint32_t lo_0_idx = this->add_variable(lo_0);
+    const uint32_t hi_0_idx = this->add_variable(hi_0);
+    const uint32_t hi_1_idx = this->add_variable(hi_1);
 
     // Add witnesses into the multiplication cache
     // (when finalising the circuit, we will remove duplicates; several dups produced by biggroup.hpp methods)
@@ -1639,12 +1658,10 @@ std::array<uint32_t, 2> UltraCircuitBuilder::queue_partial_non_native_field_mult
  * Uses a sneaky extra mini-addition gate in `plookup_arithmetic_widget.hpp` to add two non-native
  * field elements in 4 gates (would normally take 5)
  **/
-std::array<uint32_t, 5> UltraCircuitBuilder::evaluate_non_native_field_addition(
-    add_simple limb0,
-    add_simple limb1,
-    add_simple limb2,
-    add_simple limb3,
-    std::tuple<uint32_t, uint32_t, barretenberg::fr> limbp)
+
+template <typename FF>
+std::array<uint32_t, 5> UltraCircuitBuilder_<FF>::evaluate_non_native_field_addition(
+    add_simple limb0, add_simple limb1, add_simple limb2, add_simple limb3, std::tuple<uint32_t, uint32_t, FF> limbp)
 {
     const auto& x_0 = std::get<0>(limb0).first;
     const auto& x_1 = std::get<0>(limb1).first;
@@ -1676,17 +1693,17 @@ std::array<uint32_t, 5> UltraCircuitBuilder::evaluate_non_native_field_addition(
     const auto& addconstp = std::get<2>(limbp);
 
     // get value of result limbs
-    const auto z_0value = get_variable(x_0) * x_mulconst0 + get_variable(y_0) * y_mulconst0 + addconst0;
-    const auto z_1value = get_variable(x_1) * x_mulconst1 + get_variable(y_1) * y_mulconst1 + addconst1;
-    const auto z_2value = get_variable(x_2) * x_mulconst2 + get_variable(y_2) * y_mulconst2 + addconst2;
-    const auto z_3value = get_variable(x_3) * x_mulconst3 + get_variable(y_3) * y_mulconst3 + addconst3;
-    const auto z_pvalue = get_variable(x_p) + get_variable(y_p) + addconstp;
+    const auto z_0value = this->get_variable(x_0) * x_mulconst0 + this->get_variable(y_0) * y_mulconst0 + addconst0;
+    const auto z_1value = this->get_variable(x_1) * x_mulconst1 + this->get_variable(y_1) * y_mulconst1 + addconst1;
+    const auto z_2value = this->get_variable(x_2) * x_mulconst2 + this->get_variable(y_2) * y_mulconst2 + addconst2;
+    const auto z_3value = this->get_variable(x_3) * x_mulconst3 + this->get_variable(y_3) * y_mulconst3 + addconst3;
+    const auto z_pvalue = this->get_variable(x_p) + this->get_variable(y_p) + addconstp;
 
-    const auto z_0 = add_variable(z_0value);
-    const auto z_1 = add_variable(z_1value);
-    const auto z_2 = add_variable(z_2value);
-    const auto z_3 = add_variable(z_3value);
-    const auto z_p = add_variable(z_pvalue);
+    const auto z_0 = this->add_variable(z_0value);
+    const auto z_1 = this->add_variable(z_1value);
+    const auto z_2 = this->add_variable(z_2value);
+    const auto z_3 = this->add_variable(z_3value);
+    const auto z_p = this->add_variable(z_pvalue);
 
     /**
      *   we want the following layout in program memory
@@ -1717,7 +1734,7 @@ std::array<uint32_t, 5> UltraCircuitBuilder::evaluate_non_native_field_addition(
     w_l.emplace_back(x_3);
     w_r.emplace_back(y_3);
     w_o.emplace_back(z_3);
-    w_4.emplace_back(zero_idx);
+    w_4.emplace_back(this->zero_idx);
 
     q_m.emplace_back(addconstp);
     q_1.emplace_back(0);
@@ -1759,18 +1776,15 @@ std::array<uint32_t, 5> UltraCircuitBuilder::evaluate_non_native_field_addition(
         q_aux.emplace_back(0);
     }
 
-    num_gates += 4;
+    this->num_gates += 4;
     return std::array<uint32_t, 5>{
         z_0, z_1, z_2, z_3, z_p,
     };
 }
 
-std::array<uint32_t, 5> UltraCircuitBuilder::evaluate_non_native_field_subtraction(
-    add_simple limb0,
-    add_simple limb1,
-    add_simple limb2,
-    add_simple limb3,
-    std::tuple<uint32_t, uint32_t, barretenberg::fr> limbp)
+template <typename FF>
+std::array<uint32_t, 5> UltraCircuitBuilder_<FF>::evaluate_non_native_field_subtraction(
+    add_simple limb0, add_simple limb1, add_simple limb2, add_simple limb3, std::tuple<uint32_t, uint32_t, FF> limbp)
 {
     const auto& x_0 = std::get<0>(limb0).first;
     const auto& x_1 = std::get<0>(limb1).first;
@@ -1802,17 +1816,17 @@ std::array<uint32_t, 5> UltraCircuitBuilder::evaluate_non_native_field_subtracti
     const auto& addconstp = std::get<2>(limbp);
 
     // get value of result limbs
-    const auto z_0value = get_variable(x_0) * x_mulconst0 - get_variable(y_0) * y_mulconst0 + addconst0;
-    const auto z_1value = get_variable(x_1) * x_mulconst1 - get_variable(y_1) * y_mulconst1 + addconst1;
-    const auto z_2value = get_variable(x_2) * x_mulconst2 - get_variable(y_2) * y_mulconst2 + addconst2;
-    const auto z_3value = get_variable(x_3) * x_mulconst3 - get_variable(y_3) * y_mulconst3 + addconst3;
-    const auto z_pvalue = get_variable(x_p) - get_variable(y_p) + addconstp;
+    const auto z_0value = this->get_variable(x_0) * x_mulconst0 - this->get_variable(y_0) * y_mulconst0 + addconst0;
+    const auto z_1value = this->get_variable(x_1) * x_mulconst1 - this->get_variable(y_1) * y_mulconst1 + addconst1;
+    const auto z_2value = this->get_variable(x_2) * x_mulconst2 - this->get_variable(y_2) * y_mulconst2 + addconst2;
+    const auto z_3value = this->get_variable(x_3) * x_mulconst3 - this->get_variable(y_3) * y_mulconst3 + addconst3;
+    const auto z_pvalue = this->get_variable(x_p) - this->get_variable(y_p) + addconstp;
 
-    const auto z_0 = add_variable(z_0value);
-    const auto z_1 = add_variable(z_1value);
-    const auto z_2 = add_variable(z_2value);
-    const auto z_3 = add_variable(z_3value);
-    const auto z_p = add_variable(z_pvalue);
+    const auto z_0 = this->add_variable(z_0value);
+    const auto z_1 = this->add_variable(z_1value);
+    const auto z_2 = this->add_variable(z_2value);
+    const auto z_3 = this->add_variable(z_3value);
+    const auto z_p = this->add_variable(z_pvalue);
 
     /**
      *   we want the following layout in program memory
@@ -1842,7 +1856,7 @@ std::array<uint32_t, 5> UltraCircuitBuilder::evaluate_non_native_field_subtracti
     w_l.emplace_back(x_3);
     w_r.emplace_back(y_3);
     w_o.emplace_back(z_3);
-    w_4.emplace_back(zero_idx);
+    w_4.emplace_back(this->zero_idx);
 
     q_m.emplace_back(-addconstp);
     q_1.emplace_back(0);
@@ -1883,29 +1897,30 @@ std::array<uint32_t, 5> UltraCircuitBuilder::evaluate_non_native_field_subtracti
         q_aux.emplace_back(0);
     }
 
-    num_gates += 4;
+    this->num_gates += 4;
     return std::array<uint32_t, 5>{
         z_0, z_1, z_2, z_3, z_p,
     };
 }
 
 /**
- * @brief Gate that 'reads' from a ROM table.
+ * @brief
+ * Gate that'reads' from a ROM table.
  * i.e. table index is a witness not precomputed
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-void UltraCircuitBuilder::create_ROM_gate(RomRecord& record)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_ROM_gate(RomRecord& record)
 {
     // Record wire value can't yet be computed
-    record.record_witness = add_variable(0);
+    record.record_witness = this->add_variable(0);
     apply_aux_selectors(AUX_SELECTORS::ROM_READ);
     w_l.emplace_back(record.index_witness);
     w_r.emplace_back(record.value_column1_witness);
     w_o.emplace_back(record.value_column2_witness);
     w_4.emplace_back(record.record_witness);
-    record.gate_index = num_gates;
-    ++num_gates;
+    record.gate_index = this->num_gates;
+    ++this->num_gates;
 }
 
 /**
@@ -1915,16 +1930,16 @@ void UltraCircuitBuilder::create_ROM_gate(RomRecord& record)
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-void UltraCircuitBuilder::create_sorted_ROM_gate(RomRecord& record)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_sorted_ROM_gate(RomRecord& record)
 {
-    record.record_witness = add_variable(0);
+    record.record_witness = this->add_variable(0);
     apply_aux_selectors(AUX_SELECTORS::ROM_CONSISTENCY_CHECK);
     w_l.emplace_back(record.index_witness);
     w_r.emplace_back(record.value_column1_witness);
     w_o.emplace_back(record.value_column2_witness);
     w_4.emplace_back(record.record_witness);
-    record.gate_index = num_gates;
-    ++num_gates;
+    record.gate_index = this->num_gates;
+    ++this->num_gates;
 }
 
 /**
@@ -1937,7 +1952,8 @@ void UltraCircuitBuilder::create_sorted_ROM_gate(RomRecord& record)
  * @param array_size The size of region in elements
  * @return size_t The index of the element
  */
-size_t UltraCircuitBuilder::create_ROM_array(const size_t array_size)
+
+template <typename FF> size_t UltraCircuitBuilder_<FF>::create_ROM_array(const size_t array_size)
 {
     RomTranscript new_transcript;
     for (size_t i = 0; i < array_size; ++i) {
@@ -1954,40 +1970,41 @@ size_t UltraCircuitBuilder::create_ROM_array(const size_t array_size)
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-void UltraCircuitBuilder::create_RAM_gate(RamRecord& record)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_RAM_gate(RamRecord& record)
 {
     // Record wire value can't yet be computed (uses randomnes generated during proof construction).
     // However it needs a distinct witness index,
     // we will be applying copy constraints + set membership constraints.
     // Later on during proof construction we will compute the record wire value + assign it
-    record.record_witness = add_variable(0);
+    record.record_witness = this->add_variable(0);
     apply_aux_selectors(record.access_type == RamRecord::AccessType::READ ? AUX_SELECTORS::RAM_READ
                                                                           : AUX_SELECTORS::RAM_WRITE);
     w_l.emplace_back(record.index_witness);
     w_r.emplace_back(record.timestamp_witness);
     w_o.emplace_back(record.value_witness);
     w_4.emplace_back(record.record_witness);
-    record.gate_index = num_gates;
-    ++num_gates;
+    record.gate_index = this->num_gates;
+    ++this->num_gates;
 }
 
 /**
- * @brief Gate that performs consistency checks to validate that a claimed RAM read/write value is correct
+ * @brief Gate that performs consistency checks to validate that a claimed RAM read/write value is
+ * correct
  *
  * @details sorted RAM gates are generated sequentially, each RAM record is sorted first by index then by timestamp
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-void UltraCircuitBuilder::create_sorted_RAM_gate(RamRecord& record)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_sorted_RAM_gate(RamRecord& record)
 {
-    record.record_witness = add_variable(0);
+    record.record_witness = this->add_variable(0);
     apply_aux_selectors(AUX_SELECTORS::RAM_CONSISTENCY_CHECK);
     w_l.emplace_back(record.index_witness);
     w_r.emplace_back(record.timestamp_witness);
     w_o.emplace_back(record.value_witness);
     w_4.emplace_back(record.record_witness);
-    record.gate_index = num_gates;
-    ++num_gates;
+    record.gate_index = this->num_gates;
+    ++this->num_gates;
 }
 
 /**
@@ -1996,10 +2013,11 @@ void UltraCircuitBuilder::create_sorted_RAM_gate(RamRecord& record)
  *
  * @param record Stores details of this read operation. Mutated by this fn!
  */
-void UltraCircuitBuilder::create_final_sorted_RAM_gate(RamRecord& record, const size_t ram_array_size)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::create_final_sorted_RAM_gate(RamRecord& record, const size_t ram_array_size)
 {
-    record.record_witness = add_variable(0);
-    record.gate_index = num_gates;
+    record.record_witness = this->add_variable(0);
+    record.gate_index = this->num_gates;
 
     create_big_add_gate({
         record.index_witness,
@@ -2010,7 +2028,7 @@ void UltraCircuitBuilder::create_final_sorted_RAM_gate(RamRecord& record, const 
         0,
         0,
         0,
-        -fr((uint64_t)ram_array_size - 1),
+        -FF((uint64_t)ram_array_size - 1),
     });
 }
 
@@ -2024,7 +2042,7 @@ void UltraCircuitBuilder::create_final_sorted_RAM_gate(RamRecord& record, const 
  * @param array_size The size of region in elements
  * @return size_t The index of the element
  */
-size_t UltraCircuitBuilder::create_RAM_array(const size_t array_size)
+template <typename FF> size_t UltraCircuitBuilder_<FF>::create_RAM_array(const size_t array_size)
 {
     RamTranscript new_transcript;
     for (size_t i = 0; i < array_size; ++i) {
@@ -2041,11 +2059,14 @@ size_t UltraCircuitBuilder::create_RAM_array(const size_t array_size)
  * @param index_value The index of the cell within the array (an actual index, not a witness index)
  * @param value_witness The index of the witness with the value that should be in the
  */
-void UltraCircuitBuilder::init_RAM_element(const size_t ram_id, const size_t index_value, const uint32_t value_witness)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::init_RAM_element(const size_t ram_id,
+                                                const size_t index_value,
+                                                const uint32_t value_witness)
 {
     ASSERT(ram_arrays.size() > ram_id);
     RamTranscript& ram_array = ram_arrays[ram_id];
-    const uint32_t index_witness = (index_value == 0) ? zero_idx : put_constant_variable((uint64_t)index_value);
+    const uint32_t index_witness = (index_value == 0) ? this->zero_idx : put_constant_variable((uint64_t)index_value);
     ASSERT(ram_array.state.size() > index_value);
     ASSERT(ram_array.state[index_value] == UNINITIALIZED_MEMORY_RECORD);
     RamRecord new_record{ .index_witness = index_witness,
@@ -2062,15 +2083,16 @@ void UltraCircuitBuilder::init_RAM_element(const size_t ram_id, const size_t ind
     ram_array.records.emplace_back(new_record);
 }
 
-uint32_t UltraCircuitBuilder::read_RAM_array(const size_t ram_id, const uint32_t index_witness)
+template <typename FF>
+uint32_t UltraCircuitBuilder_<FF>::read_RAM_array(const size_t ram_id, const uint32_t index_witness)
 {
     ASSERT(ram_arrays.size() > ram_id);
     RamTranscript& ram_array = ram_arrays[ram_id];
-    const uint32_t index = static_cast<uint32_t>(uint256_t(get_variable(index_witness)));
+    const uint32_t index = static_cast<uint32_t>(uint256_t(this->get_variable(index_witness)));
     ASSERT(ram_array.state.size() > index);
     ASSERT(ram_array.state[index] != UNINITIALIZED_MEMORY_RECORD);
-    const auto value = get_variable(ram_array.state[index]);
-    const uint32_t value_witness = add_variable(value);
+    const auto value = this->get_variable(ram_array.state[index]);
+    const uint32_t value_witness = this->add_variable(value);
 
     RamRecord new_record{ .index_witness = index_witness,
                           .timestamp_witness = put_constant_variable((uint64_t)ram_array.access_count),
@@ -2090,13 +2112,14 @@ uint32_t UltraCircuitBuilder::read_RAM_array(const size_t ram_id, const uint32_t
     return value_witness;
 }
 
-void UltraCircuitBuilder::write_RAM_array(const size_t ram_id,
-                                          const uint32_t index_witness,
-                                          const uint32_t value_witness)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::write_RAM_array(const size_t ram_id,
+                                               const uint32_t index_witness,
+                                               const uint32_t value_witness)
 {
     ASSERT(ram_arrays.size() > ram_id);
     RamTranscript& ram_array = ram_arrays[ram_id];
-    const uint32_t index = static_cast<uint32_t>(uint256_t(get_variable(index_witness)));
+    const uint32_t index = static_cast<uint32_t>(uint256_t(this->get_variable(index_witness)));
     ASSERT(ram_array.state.size() > index);
     ASSERT(ram_array.state[index] != UNINITIALIZED_MEMORY_RECORD);
 
@@ -2132,11 +2155,14 @@ void UltraCircuitBuilder::write_RAM_array(const size_t ram_id,
  * @param index_value The index of the cell within the array (an actual index, not a witness index)
  * @param value_witness The index of the witness with the value that should be in the
  */
-void UltraCircuitBuilder::set_ROM_element(const size_t rom_id, const size_t index_value, const uint32_t value_witness)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::set_ROM_element(const size_t rom_id,
+                                               const size_t index_value,
+                                               const uint32_t value_witness)
 {
     ASSERT(rom_arrays.size() > rom_id);
     RomTranscript& rom_array = rom_arrays[rom_id];
-    const uint32_t index_witness = (index_value == 0) ? zero_idx : put_constant_variable((uint64_t)index_value);
+    const uint32_t index_witness = (index_value == 0) ? this->zero_idx : put_constant_variable((uint64_t)index_value);
     ASSERT(rom_array.state.size() > index_value);
     ASSERT(rom_array.state[index_value][0] == UNINITIALIZED_MEMORY_RECORD);
     /**
@@ -2154,13 +2180,13 @@ void UltraCircuitBuilder::set_ROM_element(const size_t rom_id, const size_t inde
     RomRecord new_record{
         .index_witness = index_witness,
         .value_column1_witness = value_witness,
-        .value_column2_witness = zero_idx,
+        .value_column2_witness = this->zero_idx,
         .index = static_cast<uint32_t>(index_value),
         .record_witness = 0,
         .gate_index = 0,
     };
     rom_array.state[index_value][0] = value_witness;
-    rom_array.state[index_value][1] = zero_idx;
+    rom_array.state[index_value][1] = this->zero_idx;
     create_ROM_gate(new_record);
     rom_array.records.emplace_back(new_record);
 }
@@ -2172,13 +2198,14 @@ void UltraCircuitBuilder::set_ROM_element(const size_t rom_id, const size_t inde
  * @param index_value Index in the array
  * @param value_witnesses The witnesses to put in the slot
  */
-void UltraCircuitBuilder::set_ROM_element_pair(const size_t rom_id,
-                                               const size_t index_value,
-                                               const std::array<uint32_t, 2>& value_witnesses)
+template <typename FF>
+void UltraCircuitBuilder_<FF>::set_ROM_element_pair(const size_t rom_id,
+                                                    const size_t index_value,
+                                                    const std::array<uint32_t, 2>& value_witnesses)
 {
     ASSERT(rom_arrays.size() > rom_id);
     RomTranscript& rom_array = rom_arrays[rom_id];
-    const uint32_t index_witness = (index_value == 0) ? zero_idx : put_constant_variable((uint64_t)index_value);
+    const uint32_t index_witness = (index_value == 0) ? this->zero_idx : put_constant_variable((uint64_t)index_value);
     ASSERT(rom_array.state.size() > index_value);
     ASSERT(rom_array.state[index_value][0] == UNINITIALIZED_MEMORY_RECORD);
     RomRecord new_record{
@@ -2202,19 +2229,20 @@ void UltraCircuitBuilder::set_ROM_element_pair(const size_t rom_id,
  * @param index_witness The witness with the index inside the array
  * @return uint32_t Cell value witness index
  */
-uint32_t UltraCircuitBuilder::read_ROM_array(const size_t rom_id, const uint32_t index_witness)
+template <typename FF>
+uint32_t UltraCircuitBuilder_<FF>::read_ROM_array(const size_t rom_id, const uint32_t index_witness)
 {
     ASSERT(rom_arrays.size() > rom_id);
     RomTranscript& rom_array = rom_arrays[rom_id];
-    const uint32_t index = static_cast<uint32_t>(uint256_t(get_variable(index_witness)));
+    const uint32_t index = static_cast<uint32_t>(uint256_t(this->get_variable(index_witness)));
     ASSERT(rom_array.state.size() > index);
     ASSERT(rom_array.state[index][0] != UNINITIALIZED_MEMORY_RECORD);
-    const auto value = get_variable(rom_array.state[index][0]);
-    const uint32_t value_witness = add_variable(value);
+    const auto value = this->get_variable(rom_array.state[index][0]);
+    const uint32_t value_witness = this->add_variable(value);
     RomRecord new_record{
         .index_witness = index_witness,
         .value_column1_witness = value_witness,
-        .value_column2_witness = zero_idx,
+        .value_column2_witness = this->zero_idx,
         .index = index,
         .record_witness = 0,
         .gate_index = 0,
@@ -2233,20 +2261,22 @@ uint32_t UltraCircuitBuilder::read_ROM_array(const size_t rom_id, const uint32_t
  * @param index_witness The witness containing the index in the array
  * @return std::array<uint32_t, 2> A pair of indexes of witness variables of cell values
  */
-std::array<uint32_t, 2> UltraCircuitBuilder::read_ROM_array_pair(const size_t rom_id, const uint32_t index_witness)
+
+template <typename FF>
+std::array<uint32_t, 2> UltraCircuitBuilder_<FF>::read_ROM_array_pair(const size_t rom_id, const uint32_t index_witness)
 {
     std::array<uint32_t, 2> value_witnesses;
 
-    const uint32_t index = static_cast<uint32_t>(uint256_t(get_variable(index_witness)));
+    const uint32_t index = static_cast<uint32_t>(uint256_t(this->get_variable(index_witness)));
     ASSERT(rom_arrays.size() > rom_id);
     RomTranscript& rom_array = rom_arrays[rom_id];
     ASSERT(rom_array.state.size() > index);
     ASSERT(rom_array.state[index][0] != UNINITIALIZED_MEMORY_RECORD);
     ASSERT(rom_array.state[index][1] != UNINITIALIZED_MEMORY_RECORD);
-    const auto value1 = get_variable(rom_array.state[index][0]);
-    const auto value2 = get_variable(rom_array.state[index][1]);
-    value_witnesses[0] = add_variable(value1);
-    value_witnesses[1] = add_variable(value2);
+    const auto value1 = this->get_variable(rom_array.state[index][0]);
+    const auto value2 = this->get_variable(rom_array.state[index][1]);
+    value_witnesses[0] = this->add_variable(value1);
+    value_witnesses[1] = this->add_variable(value2);
     RomRecord new_record{
         .index_witness = index_witness,
         .value_column1_witness = value_witnesses[0],
@@ -2268,7 +2298,7 @@ std::array<uint32_t, 2> UltraCircuitBuilder::read_ROM_array_pair(const size_t ro
  * @param rom_id The id of the ROM table
  * @param gate_offset_from_public_inputs Required to track the gate position of where we're adding extra gates
  */
-void UltraCircuitBuilder::process_ROM_array(const size_t rom_id)
+template <typename FF> void UltraCircuitBuilder_<FF>::process_ROM_array(const size_t rom_id)
 {
 
     auto& rom_array = rom_arrays[rom_id];
@@ -2280,7 +2310,7 @@ void UltraCircuitBuilder::process_ROM_array(const size_t rom_id)
     // Make sure that every cell has been initialized
     for (size_t i = 0; i < rom_array.state.size(); ++i) {
         if (rom_array.state[i][0] == UNINITIALIZED_MEMORY_RECORD) {
-            set_ROM_element_pair(rom_id, static_cast<uint32_t>(i), { zero_idx, zero_idx });
+            set_ROM_element_pair(rom_id, static_cast<uint32_t>(i), { this->zero_idx, this->zero_idx });
         }
     }
 
@@ -2292,11 +2322,11 @@ void UltraCircuitBuilder::process_ROM_array(const size_t rom_id)
 
     for (const RomRecord& record : rom_array.records) {
         const auto index = record.index;
-        const auto value1 = get_variable(record.value_column1_witness);
-        const auto value2 = get_variable(record.value_column2_witness);
-        const auto index_witness = add_variable(fr((uint64_t)index));
-        const auto value1_witness = add_variable(value1);
-        const auto value2_witness = add_variable(value2);
+        const auto value1 = this->get_variable(record.value_column1_witness);
+        const auto value2 = this->get_variable(record.value_column2_witness);
+        const auto index_witness = this->add_variable(FF((uint64_t)index));
+        const auto value1_witness = this->add_variable(value1);
+        const auto value2_witness = this->add_variable(value2);
         RomRecord sorted_record{
             .index_witness = index_witness,
             .value_column1_witness = value1_witness,
@@ -2329,14 +2359,14 @@ void UltraCircuitBuilder::process_ROM_array(const size_t rom_id)
     // If we add a dummy gate at the end of the sorted list, where we force the first wire to
     // equal `m + 1`, where `m` is the maximum allowed index in the sorted list,
     // we have validated that all ROM reads are correctly constrained
-    fr max_index_value((uint64_t)rom_array.state.size());
-    uint32_t max_index = add_variable(max_index_value);
+    FF max_index_value((uint64_t)rom_array.state.size());
+    uint32_t max_index = this->add_variable(max_index_value);
     create_big_add_gate(
         {
             max_index,
-            zero_idx,
-            zero_idx,
-            zero_idx,
+            this->zero_idx,
+            this->zero_idx,
+            this->zero_idx,
             1,
             0,
             0,
@@ -2354,7 +2384,7 @@ void UltraCircuitBuilder::process_ROM_array(const size_t rom_id)
  * @param ram_id The id of the RAM table
  * @param gate_offset_from_public_inputs Required to track the gate position of where we're adding extra gates
  */
-void UltraCircuitBuilder::process_RAM_array(const size_t ram_id)
+template <typename FF> void UltraCircuitBuilder_<FF>::process_RAM_array(const size_t ram_id)
 {
     RamTranscript& ram_array = ram_arrays[ram_id];
     const auto access_tag = get_new_tag();      // current_tag + 1;
@@ -2368,7 +2398,7 @@ void UltraCircuitBuilder::process_RAM_array(const size_t ram_id)
     // different public iputs will produce different circuit constraints.
     for (size_t i = 0; i < ram_array.state.size(); ++i) {
         if (ram_array.state[i] == UNINITIALIZED_MEMORY_RECORD) {
-            init_RAM_element(ram_id, static_cast<uint32_t>(i), zero_idx);
+            init_RAM_element(ram_id, static_cast<uint32_t>(i), this->zero_idx);
         }
     }
 
@@ -2385,10 +2415,10 @@ void UltraCircuitBuilder::process_RAM_array(const size_t ram_id)
         const RamRecord& record = ram_array.records[i];
 
         const auto index = record.index;
-        const auto value = get_variable(record.value_witness);
-        const auto index_witness = add_variable(fr((uint64_t)index));
-        const auto timestamp_witess = add_variable(record.timestamp);
-        const auto value_witness = add_variable(value);
+        const auto value = this->get_variable(record.value_witness);
+        const auto index_witness = this->add_variable(FF((uint64_t)index));
+        const auto timestamp_witess = this->add_variable(record.timestamp);
+        const auto value_witness = this->add_variable(value);
         RamRecord sorted_record{
             .index_witness = index_witness,
             .timestamp_witness = timestamp_witess,
@@ -2453,20 +2483,20 @@ void UltraCircuitBuilder::process_RAM_array(const size_t ram_id)
 
         const bool share_index = current.index == next.index;
 
-        fr timestamp_delta = 0;
+        FF timestamp_delta = 0;
         if (share_index) {
             ASSERT(next.timestamp > current.timestamp);
-            timestamp_delta = fr(next.timestamp - current.timestamp);
+            timestamp_delta = FF(next.timestamp - current.timestamp);
         }
 
-        uint32_t timestamp_delta_witness = add_variable(timestamp_delta);
+        uint32_t timestamp_delta_witness = this->add_variable(timestamp_delta);
 
         apply_aux_selectors(AUX_SELECTORS::RAM_TIMESTAMP_CHECK);
         w_l.emplace_back(current.index_witness);
         w_r.emplace_back(current.timestamp_witness);
         w_o.emplace_back(timestamp_delta_witness);
-        w_4.emplace_back(zero_idx);
-        ++num_gates;
+        w_4.emplace_back(this->zero_idx);
+        ++this->num_gates;
 
         // store timestamp offsets for later. Need to apply range checks to them, but calling
         // `create_new_range_constraint` can add gates. Would ruin the structure of our sorted timestamp list.
@@ -2479,8 +2509,8 @@ void UltraCircuitBuilder::process_RAM_array(const size_t ram_id)
     create_big_add_gate({
         last.index_witness,
         last.timestamp_witness,
-        zero_idx,
-        zero_idx,
+        this->zero_idx,
+        this->zero_idx,
         0,
         0,
         0,
@@ -2494,13 +2524,13 @@ void UltraCircuitBuilder::process_RAM_array(const size_t ram_id)
     }
 }
 
-void UltraCircuitBuilder::process_ROM_arrays()
+template <typename FF> void UltraCircuitBuilder_<FF>::process_ROM_arrays()
 {
     for (size_t i = 0; i < rom_arrays.size(); ++i) {
         process_ROM_array(i);
     }
 }
-void UltraCircuitBuilder::process_RAM_arrays()
+template <typename FF> void UltraCircuitBuilder_<FF>::process_RAM_arrays()
 {
     for (size_t i = 0; i < ram_arrays.size(); ++i) {
         process_RAM_array(i);
@@ -2574,25 +2604,26 @@ void UltraCircuitBuilder::process_RAM_arrays()
  * @param alpha
  * @return fr
  */
-inline fr UltraCircuitBuilder::compute_arithmetic_identity(fr q_arith_value,
-                                                           fr q_1_value,
-                                                           fr q_2_value,
-                                                           fr q_3_value,
-                                                           fr q_4_value,
-                                                           fr q_m_value,
-                                                           fr q_c_value,
-                                                           fr w_1_value,
-                                                           fr w_2_value,
-                                                           fr w_3_value,
-                                                           fr w_4_value,
-                                                           fr w_1_shifted_value,
-                                                           fr w_4_shifted_value,
-                                                           fr alpha_base,
-                                                           fr alpha) const
+template <typename FF>
+inline FF UltraCircuitBuilder_<FF>::compute_arithmetic_identity(FF q_arith_value,
+                                                                FF q_1_value,
+                                                                FF q_2_value,
+                                                                FF q_3_value,
+                                                                FF q_4_value,
+                                                                FF q_m_value,
+                                                                FF q_c_value,
+                                                                FF w_1_value,
+                                                                FF w_2_value,
+                                                                FF w_3_value,
+                                                                FF w_4_value,
+                                                                FF w_1_shifted_value,
+                                                                FF w_4_shifted_value,
+                                                                FF alpha_base,
+                                                                FF alpha) const
 {
-    constexpr fr neg_half = fr(-2).invert();
+    constexpr FF neg_half = FF(-2).invert();
     // The main arithmetic identity that gets activated for q_arith_value == 1
-    fr arithmetic_identity = w_2_value;
+    FF arithmetic_identity = w_2_value;
     arithmetic_identity *= q_m_value;
     arithmetic_identity *= (q_arith_value - 3);
     arithmetic_identity *= neg_half;
@@ -2604,13 +2635,13 @@ inline fr UltraCircuitBuilder::compute_arithmetic_identity(fr q_arith_value,
     arithmetic_identity += q_c_value;
 
     // The additional small addition identity
-    fr extra_small_addition_identity = w_1_value + w_4_value - w_1_shifted_value + q_m_value;
+    FF extra_small_addition_identity = w_1_value + w_4_value - w_1_shifted_value + q_m_value;
     extra_small_addition_identity *= alpha;
     extra_small_addition_identity *= (q_arith_value - 2);
 
     // The concatenation of small addition identity + shifted w_4 value that can be enabled separately + the main
     // arithemtic identity
-    fr final_identity = extra_small_addition_identity + w_4_shifted_value;
+    FF final_identity = extra_small_addition_identity + w_4_shifted_value;
     final_identity *= (q_arith_value - 1);
     final_identity += arithmetic_identity;
     final_identity *= q_arith_value;
@@ -2638,27 +2669,28 @@ inline fr UltraCircuitBuilder::compute_arithmetic_identity(fr q_arith_value,
  * @param alpha
  * @return fr
  */
-inline fr UltraCircuitBuilder::compute_genperm_sort_identity(fr q_sort_value,
-                                                             fr w_1_value,
-                                                             fr w_2_value,
-                                                             fr w_3_value,
-                                                             fr w_4_value,
-                                                             fr w_1_shifted_value,
-                                                             fr alpha_base,
-                                                             fr alpha) const
+template <typename FF>
+inline FF UltraCircuitBuilder_<FF>::compute_genperm_sort_identity(FF q_sort_value,
+                                                                  FF w_1_value,
+                                                                  FF w_2_value,
+                                                                  FF w_3_value,
+                                                                  FF w_4_value,
+                                                                  FF w_1_shifted_value,
+                                                                  FF alpha_base,
+                                                                  FF alpha) const
 {
     // Power of alpha to separate individual delta relations
     // TODO(kesha): This is a repeated computation which can be efficiently optimized
-    const fr alpha_a = alpha_base;
-    const fr alpha_b = alpha_a * alpha;
-    const fr alpha_c = alpha_b * alpha;
-    const fr alpha_d = alpha_c * alpha;
+    const FF alpha_a = alpha_base;
+    const FF alpha_b = alpha_a * alpha;
+    const FF alpha_c = alpha_b * alpha;
+    const FF alpha_d = alpha_c * alpha;
 
     // (second - first)*(second - first - 1)*(second - first - 2)*(second - first - 3)
-    auto neighbour_difference = [](const fr first, const fr second) {
-        constexpr fr minus_two(-2);
-        constexpr fr minus_three(-3);
-        const fr delta = second - first;
+    auto neighbour_difference = [](const FF first, const FF second) {
+        constexpr FF minus_two(-2);
+        constexpr FF minus_three(-3);
+        const FF delta = second - first;
         return (delta.sqr() - delta) * (delta + minus_two) * (delta + minus_three);
     };
 
@@ -2733,37 +2765,38 @@ inline fr UltraCircuitBuilder::compute_genperm_sort_identity(fr q_sort_value,
  * @param w_4_shifted_value y₃
  * @return fr
  */
-inline fr UltraCircuitBuilder::compute_elliptic_identity(fr q_elliptic_value,
-                                                         fr q_1_value,
-                                                         fr q_3_value,
-                                                         fr q_4_value,
-                                                         fr w_2_value,
-                                                         fr w_3_value,
-                                                         fr w_1_shifted_value,
-                                                         fr w_2_shifted_value,
-                                                         fr w_3_shifted_value,
-                                                         fr w_4_shifted_value,
-                                                         fr alpha_base,
-                                                         fr alpha) const
+template <typename FF>
+inline FF UltraCircuitBuilder_<FF>::compute_elliptic_identity(FF q_elliptic_value,
+                                                              FF q_1_value,
+                                                              FF q_3_value,
+                                                              FF q_4_value,
+                                                              FF w_2_value,
+                                                              FF w_3_value,
+                                                              FF w_1_shifted_value,
+                                                              FF w_2_shifted_value,
+                                                              FF w_3_shifted_value,
+                                                              FF w_4_shifted_value,
+                                                              FF alpha_base,
+                                                              FF alpha) const
 {
     // TODO(kesha): Can this be implemented more efficiently?
     // It seems that Zac wanted to group the elements by selectors to use several linear terms initially,
     // but in the end we are using one, so there is no reason why we can't optimize computation in another way
-    const fr x_1 = w_2_value;
-    const fr y_1 = w_3_value;
-    const fr x_2 = w_1_shifted_value;
-    const fr y_2 = w_4_shifted_value;
-    const fr x_3 = w_2_shifted_value;
-    const fr y_3 = w_3_shifted_value;
-    const fr q_beta = q_3_value;
-    const fr q_beta_sqr = q_4_value;
-    const fr q_sign = q_1_value;
+    const FF x_1 = w_2_value;
+    const FF y_1 = w_3_value;
+    const FF x_2 = w_1_shifted_value;
+    const FF y_2 = w_4_shifted_value;
+    const FF x_3 = w_2_shifted_value;
+    const FF y_3 = w_3_shifted_value;
+    const FF q_beta = q_3_value;
+    const FF q_beta_sqr = q_4_value;
+    const FF q_sign = q_1_value;
 
-    fr beta_term = -x_2 * x_1 * (x_3 + x_3 + x_1); // -x_1 * x_2 * (2 * x_3 + x_1)
-    fr beta_sqr_term = x_2.sqr();                  // x_2^2
-    fr leftovers = beta_sqr_term;                  // x_2^2
+    FF beta_term = -x_2 * x_1 * (x_3 + x_3 + x_1); // -x_1 * x_2 * (2 * x_3 + x_1)
+    FF beta_sqr_term = x_2.sqr();                  // x_2^2
+    FF leftovers = beta_sqr_term;                  // x_2^2
     beta_sqr_term *= (x_3 - x_1);                  // x_2^2 * (x_3 - x_1)
-    fr sign_term = y_2 * y_1;                      // y_1 * y_2
+    FF sign_term = y_2 * y_1;                      // y_1 * y_2
     sign_term += sign_term;                        // 2 * y_1 * y_2
     beta_term *= q_beta;                           // -β * x_1 * x_2 * (2 * x_3 + x_1)
     beta_sqr_term *= q_beta_sqr;                   // β^2 * x_2^2 * (x_3 - x_1)
@@ -2773,7 +2806,7 @@ inline fr UltraCircuitBuilder::compute_elliptic_identity(fr q_elliptic_value,
     leftovers -= (y_2.sqr() + y_1.sqr());          // x_2^3 + x_1 * (x_3 + x_1) - y_2^2 - y_1^2
 
     // Can be found in class description
-    fr x_identity = beta_term + beta_sqr_term + sign_term + leftovers;
+    FF x_identity = beta_term + beta_sqr_term + sign_term + leftovers;
     x_identity *= alpha_base;
 
     beta_term = x_2 * (y_3 + y_1) * q_beta;  // β * x_2 * (y_3 + y_1)
@@ -2781,7 +2814,7 @@ inline fr UltraCircuitBuilder::compute_elliptic_identity(fr q_elliptic_value,
     // TODO: remove extra additions if we decide to stay with this implementation
     leftovers = -x_1 * (y_3 + y_1) + y_1 * (x_1 - x_3); // -x_1 * y_3 - x_1 * y_1 + y_1 * x_1 - y_1 * x_3
 
-    fr y_identity = beta_term + sign_term + leftovers;
+    FF y_identity = beta_term + sign_term + leftovers;
     y_identity *= alpha_base * alpha;
 
     return q_elliptic_value * (x_identity + y_identity);
@@ -2818,29 +2851,30 @@ inline fr UltraCircuitBuilder::compute_elliptic_identity(fr q_elliptic_value,
  *
  */
 
-inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
-                                                         fr q_arith_value,
-                                                         fr q_1_value,
-                                                         fr q_2_value,
-                                                         fr q_3_value,
-                                                         fr q_4_value,
-                                                         fr q_m_value,
-                                                         fr q_c_value,
-                                                         fr w_1_value,
-                                                         fr w_2_value,
-                                                         fr w_3_value,
-                                                         fr w_4_value,
-                                                         fr w_1_shifted_value,
-                                                         fr w_2_shifted_value,
-                                                         fr w_3_shifted_value,
-                                                         fr w_4_shifted_value,
-                                                         fr alpha_base,
-                                                         fr alpha,
-                                                         fr eta) const
+template <typename FF>
+inline FF UltraCircuitBuilder_<FF>::compute_auxilary_identity(FF q_aux_value,
+                                                              FF q_arith_value,
+                                                              FF q_1_value,
+                                                              FF q_2_value,
+                                                              FF q_3_value,
+                                                              FF q_4_value,
+                                                              FF q_m_value,
+                                                              FF q_c_value,
+                                                              FF w_1_value,
+                                                              FF w_2_value,
+                                                              FF w_3_value,
+                                                              FF w_4_value,
+                                                              FF w_1_shifted_value,
+                                                              FF w_2_shifted_value,
+                                                              FF w_3_shifted_value,
+                                                              FF w_4_shifted_value,
+                                                              FF alpha_base,
+                                                              FF alpha,
+                                                              FF eta) const
 {
-    constexpr barretenberg::fr LIMB_SIZE(uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
+    constexpr FF LIMB_SIZE(uint256_t(1) << DEFAULT_NON_NATIVE_FIELD_LIMB_BITS);
     // TODO(kesha): Replace with a constant defined in header
-    constexpr barretenberg::fr SUBLIMB_SHIFT(uint256_t(1) << 14);
+    constexpr FF SUBLIMB_SHIFT(uint256_t(1) << 14);
 
     // Non-native field arithmetic gate relations
     // a{a_0, ..., a_3}⋅b{b_0,...,b_3} + q{q_0,..., q_3}⋅neg_p{neg_p_0,...,neg_p_3} - r{r_0,...,r_3} = 0 mod 2²⁷²
@@ -2849,10 +2883,10 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
     // For native gate_1: limb_subproduct = a_1 ⋅ b_0 + a_0 ⋅ b_1
     // For native gate_2: limb_subproduct = a_0 ⋅ b_2 + a_2 ⋅ b_0
     // For native gate_3: limb_subproduct = a_2 ⋅ b_1 + a_1 ⋅ b_2
-    fr limb_subproduct = w_1_value * w_2_shifted_value + w_1_shifted_value * w_2_value;
+    FF limb_subproduct = w_1_value * w_2_shifted_value + w_1_shifted_value * w_2_value;
 
     // ( a_0 ⋅ b_3 + a_3 ⋅ b_0 - r_3 )
-    fr non_native_field_gate_2 = (w_1_value * w_4_value + w_2_value * w_3_value - w_3_shifted_value);
+    FF non_native_field_gate_2 = (w_1_value * w_4_value + w_2_value * w_3_value - w_3_shifted_value);
     // ( a_0 ⋅ b_3 + a_3 ⋅ b_0 - r_3 ) << 68
     non_native_field_gate_2 *= LIMB_SIZE;
     // ( a_0 ⋅ b_3 + a_3 ⋅ b_0 - r_3 ) << 68 - hi_0
@@ -2865,13 +2899,13 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
 
     // ( a_1 ⋅ b_0 + a_0 ⋅ b_1 ) << 68 + ( a_0 ⋅ b_0 )
     limb_subproduct += (w_1_shifted_value * w_2_shifted_value);
-    fr non_native_field_gate_1 = limb_subproduct;
+    FF non_native_field_gate_1 = limb_subproduct;
     // ( a_1 ⋅ b_0 + a_0 ⋅ b_1 ) << 68 + ( a_0 ⋅ b_0 )
     non_native_field_gate_1 -= (w_3_value + w_4_value);
     non_native_field_gate_1 *= q_3_value;
 
     // ( a_2 ⋅ b_1 + a_1 ⋅ b_2 ) << 68 + ( a_1 ⋅ b_1 )
-    fr non_native_field_gate_3 = limb_subproduct;
+    FF non_native_field_gate_3 = limb_subproduct;
     // ( a_2 ⋅ b_1 + a_1 ⋅ b_2 ) << 68 + ( a_1 ⋅ b_1 ) + hi_0
     non_native_field_gate_3 += w_4_value;
     // ( a_2 ⋅ b_1 + a_1 ⋅ b_2 ) << 68 + ( a_1 ⋅ b_1 ) + hi_0 - r_2 - hi_1
@@ -2879,7 +2913,7 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
     non_native_field_gate_3 *= q_m_value;
 
     // Accumulate the 3 gates and multiply by q_2
-    fr non_native_field_identity = non_native_field_gate_1 + non_native_field_gate_2 + non_native_field_gate_3;
+    FF non_native_field_identity = non_native_field_gate_1 + non_native_field_gate_2 + non_native_field_gate_3;
     non_native_field_identity *= q_2_value;
 
     // Accummulator limbs. These are activated with (q_3)&( q_4 | q_m).
@@ -2888,7 +2922,7 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
     //
     // w_4 == (w_2_shifted << 56) | (w_1_shifted << 42) |  (w_3 << 28) | (w_2 << 14) |
     // w_1
-    fr limb_accumulator_1 = w_2_shifted_value;
+    FF limb_accumulator_1 = w_2_shifted_value;
     limb_accumulator_1 *= SUBLIMB_SHIFT;
     limb_accumulator_1 += w_1_shifted_value;
     limb_accumulator_1 *= SUBLIMB_SHIFT;
@@ -2901,7 +2935,7 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
     limb_accumulator_1 *= q_4_value;
 
     // w_4_shifted == (w_3_shifted << 56) | (w_2_shifted << 42) |  (w_1_shifted << 28) | (w_4 << 14) | w_3
-    fr limb_accumulator_2 = w_3_shifted_value;
+    FF limb_accumulator_2 = w_3_shifted_value;
     limb_accumulator_2 *= SUBLIMB_SHIFT;
     limb_accumulator_2 += w_2_shifted_value;
     limb_accumulator_2 *= SUBLIMB_SHIFT;
@@ -2913,7 +2947,7 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
     limb_accumulator_2 -= w_4_shifted_value;
     limb_accumulator_2 *= q_m_value;
 
-    fr limb_accumulator_identity = limb_accumulator_1 + limb_accumulator_2;
+    FF limb_accumulator_identity = limb_accumulator_1 + limb_accumulator_2;
     limb_accumulator_identity *= q_3_value;
 
     /**
@@ -2959,14 +2993,14 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
      * For ROM gates, qc = 0
      */
 
-    fr memory_record_check = w_3_value;
+    FF memory_record_check = w_3_value;
     memory_record_check *= eta;
     memory_record_check += w_2_value;
     memory_record_check *= eta;
     memory_record_check += w_1_value;
     memory_record_check *= eta;
     memory_record_check += q_c_value;
-    fr partial_record_check = memory_record_check; // used in RAM consistency check
+    FF partial_record_check = memory_record_check; // used in RAM consistency check
     memory_record_check = memory_record_check - w_4_value;
 
     /**
@@ -2983,15 +3017,15 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
      *
      */
 
-    fr index_delta = w_1_shifted_value - w_1_value;
-    fr record_delta = w_4_shifted_value - w_4_value;
+    FF index_delta = w_1_shifted_value - w_1_value;
+    FF record_delta = w_4_shifted_value - w_4_value;
 
     // (index_delta - 1) ⋅ (index_delta)
-    fr index_is_monotonically_increasing = index_delta.sqr() - index_delta;
+    FF index_is_monotonically_increasing = index_delta.sqr() - index_delta;
     // (1 - index_delta) ⋅ (record_delta)
-    fr adjacent_values_match_if_adjacent_indices_match = (fr(1) - index_delta) * record_delta;
+    FF adjacent_values_match_if_adjacent_indices_match = (FF(1) - index_delta) * record_delta;
 
-    fr ROM_consistency_check_identity = adjacent_values_match_if_adjacent_indices_match;
+    FF ROM_consistency_check_identity = adjacent_values_match_if_adjacent_indices_match;
     ROM_consistency_check_identity *= alpha;
     ROM_consistency_check_identity += index_is_monotonically_increasing;
     ROM_consistency_check_identity *= alpha;
@@ -3017,11 +3051,11 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
      * N.B. it is the responsibility of the circuit writer to ensure that every RAM cell is initialized
      * with a WRITE operation.
      */
-    fr access_type = (w_4_value - partial_record_check); // will be 0 or 1 for honest Prover
-    fr access_check = access_type.sqr() - access_type;   // check value is 0 or 1
+    FF access_type = (w_4_value - partial_record_check); // will be 0 or 1 for honest Prover
+    FF access_check = access_type.sqr() - access_type;   // check value is 0 or 1
 
     // TODO: oof nasty compute here. If we sorted in reverse order we could re-use `partial_record_check`
-    fr next_gate_access_type = w_3_shifted_value;
+    FF next_gate_access_type = w_3_shifted_value;
     next_gate_access_type *= eta;
     next_gate_access_type += w_2_shifted_value;
     next_gate_access_type *= eta;
@@ -3029,19 +3063,19 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
     next_gate_access_type *= eta;
     next_gate_access_type = w_4_shifted_value - next_gate_access_type;
 
-    fr value_delta = w_3_shifted_value - w_3_value;
-    fr adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation =
-        (fr(1) - index_delta) * value_delta * (fr(1) - next_gate_access_type);
+    FF value_delta = w_3_shifted_value - w_3_value;
+    FF adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation =
+        (FF(1) - index_delta) * value_delta * (FF(1) - next_gate_access_type);
 
     // We can't apply the RAM consistency check identity on the final entry in the sorted list (the wires in the
     // next gate would make the identity fail).
     // We need to validate that its 'access type' bool is correct. Can't do
     // with an arithmetic gate because of the `eta` factors. We need to check that the *next* gate's access type is
     // correct, to cover this edge case
-    fr next_gate_access_type_is_boolean = next_gate_access_type.sqr() - next_gate_access_type;
+    FF next_gate_access_type_is_boolean = next_gate_access_type.sqr() - next_gate_access_type;
 
     // Putting it all together...
-    fr RAM_consistency_check_identity =
+    FF RAM_consistency_check_identity =
         adjacent_values_match_if_adjacent_indices_match_and_next_access_is_a_read_operation;
     RAM_consistency_check_identity *= alpha;
     RAM_consistency_check_identity += index_is_monotonically_increasing;
@@ -3061,21 +3095,21 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
      * Iff delta_index == 0, timestamp_check = timestamp_{i + 1} - timestamp_i
      * Else timestamp_check = 0
      */
-    fr timestamp_delta = w_2_shifted_value - w_2_value;
-    fr RAM_timestamp_check_identity = (fr(1) - index_delta) * timestamp_delta - w_3_value;
+    FF timestamp_delta = w_2_shifted_value - w_2_value;
+    FF RAM_timestamp_check_identity = (FF(1) - index_delta) * timestamp_delta - w_3_value;
 
     /**
      * The complete RAM/ROM memory identity
      *
      */
 
-    fr memory_identity = ROM_consistency_check_identity * q_2_value;
+    FF memory_identity = ROM_consistency_check_identity * q_2_value;
     memory_identity += RAM_timestamp_check_identity * q_4_value;
     memory_identity += memory_record_check * q_m_value;
     memory_identity *= q_1_value;
     memory_identity += (RAM_consistency_check_identity * q_arith_value);
 
-    fr auxiliary_identity = memory_identity + non_native_field_identity + limb_accumulator_identity;
+    FF auxiliary_identity = memory_identity + non_native_field_identity + limb_accumulator_identity;
     auxiliary_identity *= q_aux_value;
     auxiliary_identity *= alpha_base;
 
@@ -3091,7 +3125,7 @@ inline fr UltraCircuitBuilder::compute_auxilary_identity(fr q_aux_value,
  * @return true
  * @return false
  */
-bool UltraCircuitBuilder::check_circuit()
+template <typename FF> bool UltraCircuitBuilder_<FF>::check_circuit()
 {
     bool result = true;
     CircuitDataBackup circuit_backup = CircuitDataBackup::store_prefinilized_state(this);
@@ -3100,12 +3134,12 @@ bool UltraCircuitBuilder::check_circuit()
     finalize_circuit();
 
     // Sample randomness
-    const fr arithmetic_base = fr::random_element();
-    const fr elliptic_base = fr::random_element();
-    const fr genperm_sort_base = fr::random_element();
-    const fr auxillary_base = fr::random_element();
-    const fr alpha = fr::random_element();
-    const fr eta = fr::random_element();
+    const FF arithmetic_base = FF::random_element();
+    const FF elliptic_base = FF::random_element();
+    const FF genperm_sort_base = FF::random_element();
+    const FF auxillary_base = FF::random_element();
+    const FF alpha = FF::random_element();
+    const FF eta = FF::random_element();
 
     // We need to get all memory
     std::unordered_set<size_t> memory_read_record_gates;
@@ -3119,12 +3153,11 @@ bool UltraCircuitBuilder::check_circuit()
 
     // A hashing implementation for quick simulation lookups
     struct HashFrTuple {
-        const barretenberg::fr mult_const = barretenberg::fr(uint256_t(0x1337, 0x1336, 0x1335, 0x1334));
-        const barretenberg::fr mc_sqr = mult_const.sqr();
-        const barretenberg::fr mc_cube = mult_const * mc_sqr;
+        const FF mult_const = FF(uint256_t(0x1337, 0x1336, 0x1335, 0x1334));
+        const FF mc_sqr = mult_const.sqr();
+        const FF mc_cube = mult_const * mc_sqr;
 
-        size_t operator()(
-            const std::tuple<barretenberg::fr, barretenberg::fr, barretenberg::fr, barretenberg::fr>& entry) const
+        size_t operator()(const std::tuple<FF, FF, FF, FF>& entry) const
         {
             return (size_t)((std::get<0>(entry) + mult_const * std::get<1>(entry) + mc_sqr * std::get<2>(entry) +
                              mc_cube * std::get<3>(entry))
@@ -3136,21 +3169,16 @@ bool UltraCircuitBuilder::check_circuit()
     // Equality checks for lookup tuples
     struct EqualFrTuple {
 
-        bool operator()(
-            const std::tuple<barretenberg::fr, barretenberg::fr, barretenberg::fr, barretenberg::fr>& entry1,
-            const std::tuple<barretenberg::fr, barretenberg::fr, barretenberg::fr, barretenberg::fr>& entry2) const
+        bool operator()(const std::tuple<FF, FF, FF, FF>& entry1, const std::tuple<FF, FF, FF, FF>& entry2) const
         {
             return entry1 == entry2;
         }
     };
     // The set of all lookup tuples that are in the tables
-    std::unordered_set<std::tuple<barretenberg::fr, barretenberg::fr, barretenberg::fr, barretenberg::fr>,
-                       HashFrTuple,
-                       EqualFrTuple>
-        table_hash;
+    std::unordered_set<std::tuple<FF, FF, FF, FF>, HashFrTuple, EqualFrTuple> table_hash;
     // Prepare the lookup set for use in the circuit
     for (auto& table : lookup_tables) {
-        const fr table_index(table.table_index);
+        const FF table_index(table.table_index);
         for (size_t i = 0; i < table.size; ++i) {
             const auto components =
                 std::make_tuple(table.column_1[i], table.column_2[i], table.column_3[i], table_index);
@@ -3160,47 +3188,47 @@ bool UltraCircuitBuilder::check_circuit()
 
     // We use a running tag product mechanism to ensure tag correctness
     // This is the product of (value + γ ⋅ tag)
-    fr left_tag_product = fr::one();
+    FF left_tag_product = FF::one();
     // This is the product of (value + γ ⋅ tau[tag])
-    fr right_tag_product = fr::one();
+    FF right_tag_product = FF::one();
     // Randomness for the tag check
-    const fr tag_gamma = fr::random_element();
+    const FF tag_gamma = FF::random_element();
     // We need to include each variable only once
     std::unordered_set<size_t> encountered_variables;
 
     // Function to quickly update tag products and encountered variable set by index and value
-    auto update_tag_check_information = [&](size_t variable_index, fr value) {
-        size_t real_index = real_variable_index[variable_index];
+    auto update_tag_check_information = [&](size_t variable_index, FF value) {
+        size_t real_index = this->real_variable_index[variable_index];
         // Check to ensure that we are not including a variable twice
         if (encountered_variables.contains(real_index)) {
             return;
         }
-        size_t tag_in = real_variable_tags[real_index];
+        size_t tag_in = this->real_variable_tags[real_index];
         if (tag_in != DUMMY_TAG) {
-            size_t tag_out = tau.at((uint32_t)tag_in);
-            left_tag_product *= value + tag_gamma * fr(tag_in);
-            right_tag_product *= value + tag_gamma * fr(tag_out);
+            size_t tag_out = this->tau.at((uint32_t)tag_in);
+            left_tag_product *= value + tag_gamma * FF(tag_in);
+            right_tag_product *= value + tag_gamma * FF(tag_out);
             encountered_variables.insert(real_index);
         }
     };
     // For each gate
-    for (size_t i = 0; i < num_gates; i++) {
-        fr q_arith_value;
-        fr q_aux_value;
-        fr q_elliptic_value;
-        fr q_sort_value;
-        fr q_lookup_type_value;
-        fr q_1_value;
-        fr q_2_value;
-        fr q_3_value;
-        fr q_4_value;
-        fr q_m_value;
-        fr q_c_value;
-        fr w_1_value;
-        fr w_2_value;
-        fr w_3_value;
-        fr w_4_value;
-        fr w_4_index;
+    for (size_t i = 0; i < this->num_gates; i++) {
+        FF q_arith_value;
+        FF q_aux_value;
+        FF q_elliptic_value;
+        FF q_sort_value;
+        FF q_lookup_type_value;
+        FF q_1_value;
+        FF q_2_value;
+        FF q_3_value;
+        FF q_4_value;
+        FF q_m_value;
+        FF q_c_value;
+        FF w_1_value;
+        FF w_2_value;
+        FF w_3_value;
+        FF w_4_value;
+        FF w_4_index;
         // Get the values of selectors and wires and update tag products along the way
         q_arith_value = q_arith[i];
         q_aux_value = q_aux[i];
@@ -3213,13 +3241,13 @@ bool UltraCircuitBuilder::check_circuit()
         q_4_value = q_4[i];
         q_m_value = q_m[i];
         q_c_value = q_c[i];
-        w_1_value = get_variable(w_l[i]);
+        w_1_value = this->get_variable(w_l[i]);
         update_tag_check_information(w_l[i], w_1_value);
-        w_2_value = get_variable(w_r[i]);
+        w_2_value = this->get_variable(w_r[i]);
         update_tag_check_information(w_r[i], w_2_value);
-        w_3_value = get_variable(w_o[i]);
+        w_3_value = this->get_variable(w_o[i]);
         update_tag_check_information(w_o[i], w_3_value);
-        w_4_value = get_variable(w_4[i]);
+        w_4_value = this->get_variable(w_4[i]);
         // We need to wait before updating tag product for w_4
         w_4_index = w_4[i];
 
@@ -3228,32 +3256,32 @@ bool UltraCircuitBuilder::check_circuit()
             w_4_value = ((w_3_value * eta + w_2_value) * eta + w_1_value) * eta;
         }
         if (memory_write_record_gates.contains(i)) {
-            w_4_value = ((w_3_value * eta + w_2_value) * eta + w_1_value) * eta + fr::one();
+            w_4_value = ((w_3_value * eta + w_2_value) * eta + w_1_value) * eta + FF::one();
         }
         // Now we can update the tag product for w_4
         update_tag_check_information((uint32_t)w_4_index, w_4_value);
-        fr w_1_shifted_value;
-        fr w_2_shifted_value;
-        fr w_3_shifted_value;
-        fr w_4_shifted_value;
-        if (i < (num_gates - 1)) {
+        FF w_1_shifted_value;
+        FF w_2_shifted_value;
+        FF w_3_shifted_value;
+        FF w_4_shifted_value;
+        if (i < (this->num_gates - 1)) {
 
-            w_1_shifted_value = get_variable(w_l[i + 1]);
-            w_2_shifted_value = get_variable(w_r[i + 1]);
-            w_3_shifted_value = get_variable(w_o[i + 1]);
-            w_4_shifted_value = get_variable(w_4[i + 1]);
+            w_1_shifted_value = this->get_variable(w_l[i + 1]);
+            w_2_shifted_value = this->get_variable(w_r[i + 1]);
+            w_3_shifted_value = this->get_variable(w_o[i + 1]);
+            w_4_shifted_value = this->get_variable(w_4[i + 1]);
         } else {
-            w_1_shifted_value = fr::zero();
-            w_2_shifted_value = fr::zero();
-            w_3_shifted_value = fr::zero();
-            w_4_shifted_value = fr::zero();
+            w_1_shifted_value = FF::zero();
+            w_2_shifted_value = FF::zero();
+            w_3_shifted_value = FF::zero();
+            w_4_shifted_value = FF::zero();
         }
         if (memory_read_record_gates.contains(i + 1)) {
             w_4_shifted_value = ((w_3_shifted_value * eta + w_2_shifted_value) * eta + w_1_shifted_value) * eta;
         }
         if (memory_write_record_gates.contains(i + 1)) {
             w_4_shifted_value =
-                ((w_3_shifted_value * eta + w_2_shifted_value) * eta + w_1_shifted_value) * eta + fr::one();
+                ((w_3_shifted_value * eta + w_2_shifted_value) * eta + w_1_shifted_value) * eta + FF::one();
         }
         if (!compute_arithmetic_identity(q_arith_value,
                                          q_1_value,
@@ -3359,5 +3387,5 @@ bool UltraCircuitBuilder::check_circuit()
     circuit_backup.restore_prefinilized_state(this);
     return result;
 }
-
+template class UltraCircuitBuilder_<barretenberg::fr>;
 } // namespace proof_system

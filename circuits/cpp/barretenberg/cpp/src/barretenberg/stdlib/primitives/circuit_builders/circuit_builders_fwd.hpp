@@ -1,5 +1,5 @@
 /**
- * @brief Defines particular composer and circuit constructor types expected to be used for proof or circuit
+ * @brief Defines particular composer and circuit builder types expected to be used for proof or circuit
 construction in stdlib and contains macros for explicit instantiation.
  *
  * @details This file is designed to be included in header files to instruct the compiler that these classes exist and
@@ -16,10 +16,17 @@ class Ultra;
 } // namespace flavor
 } // namespace proof_system::honk
 
+namespace barretenberg {
+class Bn254FrParams;
+template <class Params> struct alignas(32) field;
+} // namespace barretenberg
 namespace proof_system {
-class StandardCircuitBuilder;
-class TurboCircuitBuilder;
-class UltraCircuitBuilder;
+template <class FF> class StandardCircuitBuilder_;
+using StandardCircuitBuilder = StandardCircuitBuilder_<barretenberg::field<barretenberg::Bn254FrParams>>;
+template <class FF> class TurboCircuitBuilder_;
+using TurboCircuitBuilder = TurboCircuitBuilder_<barretenberg::field<barretenberg::Bn254FrParams>>;
+template <class FF> class UltraCircuitBuilder_;
+using UltraCircuitBuilder = UltraCircuitBuilder_<barretenberg::field<barretenberg::Bn254FrParams>>;
 } // namespace proof_system
 
 #define EXTERN_STDLIB_TYPE(stdlib_type)                                                                                \

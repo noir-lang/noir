@@ -10,9 +10,7 @@ static constexpr uint32_t DUMMY_TAG = 0;
 
 template <typename Arithmetization> class CircuitBuilderBase {
   public:
-    // TODO(Cody): This needs to be templated to allow constructing circuits over Grumpkin. For now, adding FF here
-    // since the flavor can extract it.
-    using FF = barretenberg::fr;
+    using FF = typename Arithmetization::FF;
     static constexpr size_t NUM_WIRES = Arithmetization::NUM_WIRES;
     // Keeping NUM_WIRES, at least temporarily, for backward compatibility
     static constexpr size_t program_width = Arithmetization::NUM_WIRES;
@@ -27,7 +25,7 @@ template <typename Arithmetization> class CircuitBuilderBase {
     typename Arithmetization::Selectors selectors;
 
     std::vector<uint32_t> public_inputs;
-    std::vector<barretenberg::fr> variables;
+    std::vector<FF> variables;
     // index of next variable in equivalence class (=REAL_VARIABLE if you're last)
     std::vector<uint32_t> next_var_index;
     // index of  previous variable in equivalence class (=FIRST if you're in a cycle alone)
@@ -81,10 +79,10 @@ template <typename Arithmetization> class CircuitBuilderBase {
     uint32_t zero_idx = 0;
     uint32_t one_idx = 1;
 
-    virtual void create_add_gate(const add_triple& in) = 0;
-    virtual void create_mul_gate(const mul_triple& in) = 0;
+    virtual void create_add_gate(const add_triple_<FF>& in) = 0;
+    virtual void create_mul_gate(const mul_triple_<FF>& in) = 0;
     virtual void create_bool_gate(const uint32_t a) = 0;
-    virtual void create_poly_gate(const poly_triple& in) = 0;
+    virtual void create_poly_gate(const poly_triple_<FF>& in) = 0;
     virtual size_t get_num_constant_gates() const = 0;
 
     /**
@@ -123,7 +121,7 @@ template <typename Arithmetization> class CircuitBuilderBase {
      * @param index The index of the variable.
      * @return The value of the variable.
      * */
-    inline barretenberg::fr get_variable(const uint32_t index) const
+    inline FF get_variable(const uint32_t index) const
     {
         ASSERT(variables.size() > index);
         return variables[real_variable_index[index]];
@@ -137,7 +135,7 @@ template <typename Arithmetization> class CircuitBuilderBase {
      * @param index The index of the variable.
      * @return The value of the variable.
      * */
-    inline const barretenberg::fr& get_variable_reference(const uint32_t index) const
+    inline const FF& get_variable_reference(const uint32_t index) const
     {
         ASSERT(variables.size() > index);
         return variables[real_variable_index[index]];
@@ -156,11 +154,11 @@ template <typename Arithmetization> class CircuitBuilderBase {
         return result;
     }
 
-    barretenberg::fr get_public_input(const uint32_t index) const { return get_variable(public_inputs[index]); }
+    FF get_public_input(const uint32_t index) const { return get_variable(public_inputs[index]); }
 
-    std::vector<barretenberg::fr> get_public_inputs() const
+    std::vector<FF> get_public_inputs() const
     {
-        std::vector<barretenberg::fr> result;
+        std::vector<FF> result;
         for (uint32_t i = 0; i < get_num_public_inputs(); ++i) {
             result.push_back(get_public_input(i));
         }
@@ -173,7 +171,7 @@ template <typename Arithmetization> class CircuitBuilderBase {
      * @param in The value of the variable
      * @return The index of the new variable in the variables vector
      */
-    virtual uint32_t add_variable(const barretenberg::fr& in)
+    virtual uint32_t add_variable(const FF& in)
     {
         variables.emplace_back(in);
 
@@ -195,7 +193,7 @@ template <typename Arithmetization> class CircuitBuilderBase {
      * @param in The value of the variable
      * @return The index of the new variable in the variables vector
      */
-    virtual uint32_t add_public_variable(const barretenberg::fr& in)
+    virtual uint32_t add_public_variable(const FF& in)
     {
         const uint32_t index = add_variable(in);
         public_inputs.emplace_back(index);

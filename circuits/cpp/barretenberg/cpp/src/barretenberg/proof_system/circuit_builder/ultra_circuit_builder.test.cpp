@@ -15,7 +15,7 @@ TEST(ultra_circuit_constructor, create_gates_from_plookup_accumulators)
 {
     UltraCircuitBuilder circuit_constructor = UltraCircuitBuilder();
 
-    barretenberg::fr input_value = fr::random_element();
+    fr input_value = fr::random_element();
     const fr input_hi = uint256_t(input_value).slice(126, 256);
     const fr input_lo = uint256_t(input_value).slice(0, 126);
     const auto input_hi_index = circuit_constructor.add_variable(input_hi);
@@ -29,8 +29,8 @@ TEST(ultra_circuit_constructor, create_gates_from_plookup_accumulators)
     const auto lookup_witnesses_lo = circuit_constructor.create_gates_from_plookup_accumulators(
         MultiTableId::PEDERSEN_LEFT_LO, sequence_data_lo, input_lo_index);
 
-    std::vector<barretenberg::fr> expected_x;
-    std::vector<barretenberg::fr> expected_y;
+    std::vector<fr> expected_x;
+    std::vector<fr> expected_y;
 
     const size_t num_lookups_hi =
         (128 + crypto::pedersen_hash::lookup::BITS_PER_TABLE) / crypto::pedersen_hash::lookup::BITS_PER_TABLE;
@@ -40,7 +40,7 @@ TEST(ultra_circuit_constructor, create_gates_from_plookup_accumulators)
     EXPECT_EQ(num_lookups_hi, lookup_witnesses_hi[ColumnIdx::C1].size());
     EXPECT_EQ(num_lookups_lo, lookup_witnesses_lo[ColumnIdx::C1].size());
 
-    std::vector<barretenberg::fr> expected_scalars;
+    std::vector<fr> expected_scalars;
     expected_x.resize(num_lookups);
     expected_y.resize(num_lookups);
     expected_scalars.resize(num_lookups);

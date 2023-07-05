@@ -1,5 +1,6 @@
 #pragma once
 #include "../bn254/fq.hpp"
+#include "../bn254/fq12.hpp"
 #include "../bn254/fq2.hpp"
 #include "../bn254/fr.hpp"
 #include "../bn254/g1.hpp"
@@ -15,5 +16,6 @@ class BN254 {
     using AffineElement = typename Group::affine_element;
     using G2AffineElement = typename barretenberg::g2::affine_element;
     using G2BaseField = typename barretenberg::fq2;
+    using TargetField = barretenberg::fq12;
 };
 } // namespace curve

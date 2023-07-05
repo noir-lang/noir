@@ -3,63 +3,72 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <cstdint>
 
+// TODO(#557): The field-specific aliases for gates should be removed and the type could be explicit when this
+// structures are used to avoid having foo_gate and foo_gate_grumpkin (i.e. use foo_gate<field> instead). Moreover, we
+// need to ensure the read/write functions handle grumpkin gates as well.
 namespace proof_system {
-struct add_triple {
+template <typename FF> struct add_triple_ {
     uint32_t a;
     uint32_t b;
     uint32_t c;
-    barretenberg::fr a_scaling;
-    barretenberg::fr b_scaling;
-    barretenberg::fr c_scaling;
-    barretenberg::fr const_scaling;
+    FF a_scaling;
+    FF b_scaling;
+    FF c_scaling;
+    FF const_scaling;
 };
+using add_triple = add_triple_<barretenberg::fr>;
 
-struct add_quad {
-    uint32_t a;
-    uint32_t b;
-    uint32_t c;
-    uint32_t d;
-    barretenberg::fr a_scaling;
-    barretenberg::fr b_scaling;
-    barretenberg::fr c_scaling;
-    barretenberg::fr d_scaling;
-    barretenberg::fr const_scaling;
-};
-
-struct mul_quad {
+template <typename FF> struct add_quad_ {
     uint32_t a;
     uint32_t b;
     uint32_t c;
     uint32_t d;
-    barretenberg::fr mul_scaling;
-    barretenberg::fr a_scaling;
-    barretenberg::fr b_scaling;
-    barretenberg::fr c_scaling;
-    barretenberg::fr d_scaling;
-    barretenberg::fr const_scaling;
+    FF a_scaling;
+    FF b_scaling;
+    FF c_scaling;
+    FF d_scaling;
+    FF const_scaling;
 };
+using add_quad = add_quad_<barretenberg::fr>;
 
-struct mul_triple {
+template <typename FF> struct mul_quad_ {
     uint32_t a;
     uint32_t b;
     uint32_t c;
-    barretenberg::fr mul_scaling;
-    barretenberg::fr c_scaling;
-    barretenberg::fr const_scaling;
+    uint32_t d;
+    FF mul_scaling;
+    FF a_scaling;
+    FF b_scaling;
+    FF c_scaling;
+    FF d_scaling;
+    FF const_scaling;
 };
+using mul_quad = mul_quad_<barretenberg::fr>;
 
-struct poly_triple {
+template <typename FF> struct mul_triple_ {
     uint32_t a;
     uint32_t b;
     uint32_t c;
-    barretenberg::fr q_m;
-    barretenberg::fr q_l;
-    barretenberg::fr q_r;
-    barretenberg::fr q_o;
-    barretenberg::fr q_c;
-
-    friend bool operator==(poly_triple const& lhs, poly_triple const& rhs) = default;
+    FF mul_scaling;
+    FF c_scaling;
+    FF const_scaling;
 };
+using mul_triple = mul_triple_<barretenberg::fr>;
+
+template <typename FF> struct poly_triple_ {
+    uint32_t a;
+    uint32_t b;
+    uint32_t c;
+    FF q_m;
+    FF q_l;
+    FF q_r;
+    FF q_o;
+    FF q_c;
+
+    friend bool operator==(poly_triple_<FF> const& lhs, poly_triple_<FF> const& rhs) = default;
+};
+
+using poly_triple = poly_triple_<barretenberg::fr>;
 
 template <typename B> inline void read(B& buf, poly_triple& constraint)
 {
@@ -73,7 +82,6 @@ template <typename B> inline void read(B& buf, poly_triple& constraint)
     read(buf, constraint.q_o);
     read(buf, constraint.q_c);
 }
-
 template <typename B> inline void write(B& buf, poly_triple const& constraint)
 {
     using serialize::write;
@@ -87,38 +95,42 @@ template <typename B> inline void write(B& buf, poly_triple const& constraint)
     write(buf, constraint.q_c);
 }
 
-struct fixed_group_add_quad {
+template <typename FF> struct fixed_group_add_quad_ {
     uint32_t a;
     uint32_t b;
     uint32_t c;
     uint32_t d;
-    barretenberg::fr q_x_1;
-    barretenberg::fr q_x_2;
-    barretenberg::fr q_y_1;
-    barretenberg::fr q_y_2;
+    FF q_x_1;
+    FF q_x_2;
+    FF q_y_1;
+    FF q_y_2;
 };
+using fixed_group_add_quad = fixed_group_add_quad_<barretenberg::fr>;
 
-struct fixed_group_init_quad {
-    barretenberg::fr q_x_1;
-    barretenberg::fr q_x_2;
-    barretenberg::fr q_y_1;
-    barretenberg::fr q_y_2;
+template <typename FF> struct fixed_group_init_quad_ {
+    FF q_x_1;
+    FF q_x_2;
+    FF q_y_1;
+    FF q_y_2;
 };
+using fixed_group_init_quad = fixed_group_init_quad_<barretenberg::fr>;
 
-struct accumulator_triple {
+template <typename FF> struct accumulator_triple_ {
     std::vector<uint32_t> left;
     std::vector<uint32_t> right;
     std::vector<uint32_t> out;
 };
+using accumulator_triple = accumulator_triple_<barretenberg::fr>;
 
-struct ecc_add_gate {
+template <typename FF> struct ecc_add_gate_ {
     uint32_t x1;
     uint32_t y1;
     uint32_t x2;
     uint32_t y2;
     uint32_t x3;
     uint32_t y3;
-    barretenberg::fr endomorphism_coefficient;
-    barretenberg::fr sign_coefficient;
+    FF endomorphism_coefficient;
+    FF sign_coefficient;
 };
+using ecc_add_gate = ecc_add_gate_<barretenberg::fr>;
 } // namespace proof_system

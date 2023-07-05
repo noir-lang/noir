@@ -22,6 +22,16 @@ TEST(standard_circuit_constructor, base_case)
     EXPECT_EQ(result, true);
 }
 
+TEST(standard_circuit_constructor, grumpkin_base_case)
+{
+    StandardGrumpkinCircuitBuilder composer = StandardGrumpkinCircuitBuilder();
+    grumpkin::fr a = grumpkin::fr::one();
+    composer.add_public_variable(a);
+
+    bool result = composer.check_circuit();
+    EXPECT_EQ(result, true);
+}
+
 TEST(standard_circuit_constructor, test_add_gate)
 {
     StandardCircuitBuilder circuit_constructor = StandardCircuitBuilder();

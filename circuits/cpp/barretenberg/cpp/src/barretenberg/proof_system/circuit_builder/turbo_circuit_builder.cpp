@@ -12,15 +12,16 @@ namespace proof_system {
  * @param size_hint Assumed number of gates. Used to allocate space for various member
  * vectors during initialization.
  * */
-TurboCircuitBuilder::TurboCircuitBuilder(const size_t size_hint)
-    : CircuitBuilderBase(turbo_selector_names(), size_hint)
+template <typename FF>
+TurboCircuitBuilder_<FF>::TurboCircuitBuilder_(const size_t size_hint)
+    : CircuitBuilderBase<arithmetization::Turbo<FF>>(turbo_selector_names(), size_hint)
 {
     w_l.reserve(size_hint);
     w_r.reserve(size_hint);
     w_o.reserve(size_hint);
     w_4.reserve(size_hint);
 
-    zero_idx = put_constant_variable(fr::zero());
+    this->zero_idx = put_constant_variable(FF::zero());
 }
 
 /**
@@ -32,26 +33,26 @@ TurboCircuitBuilder::TurboCircuitBuilder(const size_t size_hint)
  * @param in Specifies addition gate parameters:
  * w_l, w_r, w_o, q_1, q_2, q_3, q_c.
  * */
-void TurboCircuitBuilder::create_add_gate(const add_triple& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_add_gate(const add_triple& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c });
+    this->assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
-    w_4.emplace_back(zero_idx);
-    q_m.emplace_back(fr::zero());
+    w_4.emplace_back(this->zero_idx);
+    q_m.emplace_back(FF::zero());
     q_1.emplace_back(in.a_scaling);
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_fixed_base.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    ++num_gates;
+    q_arith.emplace_back(FF::one());
+    q_4.emplace_back(FF::zero());
+    q_5.emplace_back(FF::zero());
+    q_fixed_base.emplace_back(FF::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
+    ++this->num_gates;
 }
 
 /**
@@ -63,26 +64,26 @@ void TurboCircuitBuilder::create_add_gate(const add_triple& in)
  * @param in Specifies addition gate parameters:
  * w_l, w_r, w_o, w_4, q_1, q_2, q_3, q_4, q_c.
  * */
-void TurboCircuitBuilder::create_big_add_gate(const add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_big_add_gate(const add_quad& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
-    q_m.emplace_back(fr::zero());
+    q_m.emplace_back(FF::zero());
     q_1.emplace_back(in.a_scaling);
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
+    q_arith.emplace_back(FF::one());
     q_4.emplace_back(in.d_scaling);
-    q_5.emplace_back(fr::zero());
-    q_fixed_base.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    ++num_gates;
+    q_5.emplace_back(FF::zero());
+    q_fixed_base.emplace_back(FF::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
+    ++this->num_gates;
 }
 
 /**
@@ -101,31 +102,31 @@ void TurboCircuitBuilder::create_big_add_gate(const add_quad& in)
  * ensure this assumption is backed by a constraint (e.g., c and d could be accumulators produced using the TurboPLONK
  * function `decompose_into_base4_accumulators`).
  * */
-void TurboCircuitBuilder::create_big_add_gate_with_bit_extraction(const add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_big_add_gate_with_bit_extraction(const add_quad& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
-    q_m.emplace_back(fr::zero());
+    q_m.emplace_back(FF::zero());
     q_1.emplace_back(in.a_scaling);
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one() + fr::one());
+    q_arith.emplace_back(FF::one() + FF::one());
     q_4.emplace_back(in.d_scaling);
-    q_5.emplace_back(fr::zero());
-    q_fixed_base.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    ++num_gates;
+    q_5.emplace_back(FF::zero());
+    q_fixed_base.emplace_back(FF::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
+    ++this->num_gates;
 }
 
-void TurboCircuitBuilder::create_big_mul_gate(const mul_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_big_mul_gate(const mul_quad& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
@@ -136,13 +137,13 @@ void TurboCircuitBuilder::create_big_mul_gate(const mul_quad& in)
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
+    q_arith.emplace_back(FF::one());
     q_4.emplace_back(in.d_scaling);
-    q_5.emplace_back(fr::zero());
-    q_fixed_base.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    ++num_gates;
+    q_5.emplace_back(FF::zero());
+    q_fixed_base.emplace_back(FF::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
+    ++this->num_gates;
 }
 
 /**
@@ -162,26 +163,26 @@ void TurboCircuitBuilder::create_big_mul_gate(const mul_quad& in)
  * @warning Even with the constraint on w_3, it is typically necessary to range constrain the wire value that will be
  * returned.
  */
-void TurboCircuitBuilder::create_balanced_add_gate(const add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_balanced_add_gate(const add_quad& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
-    q_m.emplace_back(fr::zero());
+    q_m.emplace_back(FF::zero());
     q_1.emplace_back(in.a_scaling);
     q_2.emplace_back(in.b_scaling);
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
+    q_arith.emplace_back(FF::one());
     q_4.emplace_back(in.d_scaling);
-    q_5.emplace_back(fr::one());
-    q_fixed_base.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    ++num_gates;
+    q_5.emplace_back(FF::one());
+    q_fixed_base.emplace_back(FF::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
+    ++this->num_gates;
 }
 
 /**
@@ -193,26 +194,26 @@ void TurboCircuitBuilder::create_balanced_add_gate(const add_quad& in)
  * @param in Contains the values for w_l, w_r, w_o,
  * q_m, q_3, q_c.
  * */
-void TurboCircuitBuilder::create_mul_gate(const mul_triple& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_mul_gate(const mul_triple& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c });
+    this->assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
-    w_4.emplace_back(zero_idx);
+    w_4.emplace_back(this->zero_idx);
     q_m.emplace_back(in.mul_scaling);
-    q_1.emplace_back(fr::zero());
-    q_2.emplace_back(fr::zero());
+    q_1.emplace_back(FF::zero());
+    q_2.emplace_back(FF::zero());
     q_3.emplace_back(in.c_scaling);
     q_c.emplace_back(in.const_scaling);
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_fixed_base.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    ++num_gates;
+    q_arith.emplace_back(FF::one());
+    q_4.emplace_back(FF::zero());
+    q_5.emplace_back(FF::zero());
+    q_fixed_base.emplace_back(FF::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
+    ++this->num_gates;
 }
 
 /**
@@ -222,27 +223,27 @@ void TurboCircuitBuilder::create_mul_gate(const mul_triple& in)
  *
  * @param variable_index The index of the variable.
  * */
-void TurboCircuitBuilder::create_bool_gate(const uint32_t variable_index)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_bool_gate(const uint32_t variable_index)
 {
-    assert_valid_variables({ variable_index });
+    this->assert_valid_variables({ variable_index });
 
     w_l.emplace_back(variable_index);
     w_r.emplace_back(variable_index);
     w_o.emplace_back(variable_index);
-    w_4.emplace_back(zero_idx);
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_fixed_base.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
+    w_4.emplace_back(this->zero_idx);
+    q_arith.emplace_back(FF::one());
+    q_4.emplace_back(FF::zero());
+    q_5.emplace_back(FF::zero());
+    q_fixed_base.emplace_back(FF::zero());
+    q_range.emplace_back(FF::zero());
 
-    q_m.emplace_back(fr::one());
-    q_1.emplace_back(fr::zero());
-    q_2.emplace_back(fr::zero());
-    q_3.emplace_back(fr::neg_one());
-    q_c.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    ++num_gates;
+    q_m.emplace_back(FF::one());
+    q_1.emplace_back(FF::zero());
+    q_2.emplace_back(FF::zero());
+    q_3.emplace_back(FF::neg_one());
+    q_c.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
+    ++this->num_gates;
 }
 
 /**
@@ -254,27 +255,27 @@ void TurboCircuitBuilder::create_bool_gate(const uint32_t variable_index)
  * @param in Contains the values for
  * w_l, w_r, w_o, q_m, q_1, q_2, q_3, q_c.
  * */
-void TurboCircuitBuilder::create_poly_gate(const poly_triple& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_poly_gate(const poly_triple& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c });
+    this->assert_valid_variables({ in.a, in.b, in.c });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
-    w_4.emplace_back(zero_idx);
+    w_4.emplace_back(this->zero_idx);
     q_m.emplace_back(in.q_m);
     q_1.emplace_back(in.q_l);
     q_2.emplace_back(in.q_r);
     q_3.emplace_back(in.q_o);
     q_c.emplace_back(in.q_c);
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
 
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_fixed_base.emplace_back(fr::zero());
-    ++num_gates;
+    q_arith.emplace_back(FF::one());
+    q_4.emplace_back(FF::zero());
+    q_5.emplace_back(FF::zero());
+    q_fixed_base.emplace_back(FF::zero());
+    ++this->num_gates;
 }
 
 /**
@@ -282,28 +283,28 @@ void TurboCircuitBuilder::create_poly_gate(const poly_triple& in)
  *
  * @param in Witnesses and values of two points.
  * */
-void TurboCircuitBuilder::create_fixed_group_add_gate(const fixed_group_add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate(const fixed_group_add_quad& in)
 {
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
 
-    q_arith.emplace_back(fr::zero());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_m.emplace_back(fr::zero());
-    q_c.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
+    q_arith.emplace_back(FF::zero());
+    q_4.emplace_back(FF::zero());
+    q_5.emplace_back(FF::zero());
+    q_m.emplace_back(FF::zero());
+    q_c.emplace_back(FF::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
 
     q_1.emplace_back(in.q_x_1);
     q_2.emplace_back(in.q_x_2);
     q_3.emplace_back(in.q_y_1);
     q_fixed_base.emplace_back(in.q_y_2);
-    ++num_gates;
+    ++this->num_gates;
 }
 
 /**
@@ -312,32 +313,33 @@ void TurboCircuitBuilder::create_fixed_group_add_gate(const fixed_group_add_quad
  * @param in Addition parameters (points and coefficients).
  * @param init Initialization parameters (points).
  * */
-void TurboCircuitBuilder::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
-                                                                const fixed_group_init_quad& init)
+template <typename FF>
+void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
+                                                                     const fixed_group_init_quad& init)
 {
-    assert_valid_variables({ in.a, in.b, in.c, in.d });
+    this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
     w_l.emplace_back(in.a);
     w_r.emplace_back(in.b);
     w_o.emplace_back(in.c);
     w_4.emplace_back(in.d);
 
-    q_arith.emplace_back(fr::zero());
+    q_arith.emplace_back(FF::zero());
     q_4.emplace_back(init.q_x_1);
     q_5.emplace_back(init.q_x_2);
     q_m.emplace_back(init.q_y_1);
     q_c.emplace_back(init.q_y_2);
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
 
     q_1.emplace_back(in.q_x_1);
     q_2.emplace_back(in.q_x_2);
     q_3.emplace_back(in.q_y_1);
     q_fixed_base.emplace_back(in.q_y_2);
-    ++num_gates;
+    ++this->num_gates;
 }
 
-void TurboCircuitBuilder::create_fixed_group_add_gate_final(const add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate_final(const add_quad& in)
 {
     create_big_add_gate(in);
 }
@@ -348,26 +350,26 @@ void TurboCircuitBuilder::create_fixed_group_add_gate_final(const add_quad& in)
  * @param witness_index Witness variable index.
  * @param witness_value Witness variable value.
  * */
-void TurboCircuitBuilder::fix_witness(const uint32_t witness_index, const barretenberg::fr& witness_value)
+template <typename FF> void TurboCircuitBuilder_<FF>::fix_witness(const uint32_t witness_index, const FF& witness_value)
 {
-    assert_valid_variables({ witness_index });
+    this->assert_valid_variables({ witness_index });
 
     w_l.emplace_back(witness_index);
-    w_r.emplace_back(zero_idx);
-    w_o.emplace_back(zero_idx);
-    w_4.emplace_back(zero_idx);
-    q_m.emplace_back(fr::zero());
-    q_1.emplace_back(fr::one());
-    q_2.emplace_back(fr::zero());
-    q_3.emplace_back(fr::zero());
+    w_r.emplace_back(this->zero_idx);
+    w_o.emplace_back(this->zero_idx);
+    w_4.emplace_back(this->zero_idx);
+    q_m.emplace_back(FF::zero());
+    q_1.emplace_back(FF::one());
+    q_2.emplace_back(FF::zero());
+    q_3.emplace_back(FF::zero());
     q_c.emplace_back(-witness_value);
-    q_arith.emplace_back(fr::one());
-    q_4.emplace_back(fr::zero());
-    q_5.emplace_back(fr::zero());
-    q_fixed_base.emplace_back(fr::zero());
-    q_range.emplace_back(fr::zero());
-    q_logic.emplace_back(fr::zero());
-    ++num_gates;
+    q_arith.emplace_back(FF::one());
+    q_4.emplace_back(FF::zero());
+    q_5.emplace_back(FF::zero());
+    q_fixed_base.emplace_back(FF::zero());
+    q_range.emplace_back(FF::zero());
+    q_logic.emplace_back(FF::zero());
+    ++this->num_gates;
 }
 
 /**
@@ -379,11 +381,12 @@ void TurboCircuitBuilder::fix_witness(const uint32_t witness_index, const barret
  * @return Vector of variable indexes for accumulator variables used in
  * the constraint.
  * */
-std::vector<uint32_t> TurboCircuitBuilder::decompose_into_base4_accumulators(const uint32_t witness_index,
-                                                                             const size_t num_bits,
-                                                                             std::string const& msg)
+template <typename FF>
+std::vector<uint32_t> TurboCircuitBuilder_<FF>::decompose_into_base4_accumulators(const uint32_t witness_index,
+                                                                                  const size_t num_bits,
+                                                                                  std::string const& msg)
 {
-    assert_valid_variables({ witness_index });
+    this->assert_valid_variables({ witness_index });
 
     ASSERT(num_bits > 0);
 
@@ -461,10 +464,10 @@ std::vector<uint32_t> TurboCircuitBuilder::decompose_into_base4_accumulators(con
      *
      **/
 
-    const uint256_t witness_value(get_variable(witness_index));
+    const uint256_t witness_value(this->get_variable(witness_index));
 
-    if (witness_value.get_msb() >= num_bits && !failed()) {
-        failure(msg);
+    if (witness_value.get_msb() >= num_bits && !this->failed()) {
+        this->failure(msg);
     }
     /* num_quad_gates is the minimum number of gates needed to record num_bits-many bits in a table, putting two-bits (a
      * quad) at each position. Since our table has width 4, we can fit 8 bits on a row, hence num_quad_gates is
@@ -483,25 +486,25 @@ std::vector<uint32_t> TurboCircuitBuilder::decompose_into_base4_accumulators(con
     const size_t forced_zero_threshold = 1 + (((num_quads << 1) - num_bits) >> 1);
 
     std::vector<uint32_t> accumulators;
-    fr accumulator(0);
+    FF accumulator(0);
     uint32_t most_significant_segment = 0;
     // iterate through entries of all but final row
     for (size_t i = 0; i < num_quads + 1; ++i) {
         uint32_t accumulator_index;
         // prepend padding 0 quads
         if (i < forced_zero_threshold) {
-            accumulator_index = zero_idx;
+            accumulator_index = this->zero_idx;
         } else {
             // accumulate quad
             const size_t bit_index = (num_quads - i) << 1;
             const uint64_t quad = static_cast<uint64_t>(witness_value.get_bit(bit_index)) +
                                   2ULL * static_cast<uint64_t>(witness_value.get_bit(bit_index + 1));
-            const fr quad_element = fr{ quad, 0, 0, 0 }.to_montgomery_form();
+            const FF quad_element = fr{ quad, 0, 0, 0 }.to_montgomery_form();
             accumulator += accumulator;
             accumulator += accumulator;
             accumulator += quad_element;
 
-            accumulator_index = add_variable(accumulator);
+            accumulator_index = this->add_variable(accumulator);
             accumulators.emplace_back(accumulator_index);
 
             if (i == forced_zero_threshold) {
@@ -531,15 +534,15 @@ std::vector<uint32_t> TurboCircuitBuilder::decompose_into_base4_accumulators(con
 
     // switch off range widget for final row; fill wire values not in use with zeros
     q_range[q_range.size() - 1] = 0;
-    w_l.emplace_back(zero_idx);
-    w_r.emplace_back(zero_idx);
-    w_o.emplace_back(zero_idx);
+    w_l.emplace_back(this->zero_idx);
+    w_r.emplace_back(this->zero_idx);
+    w_o.emplace_back(this->zero_idx);
 
-    assert_equal(witness_index, accumulators[accumulators.size() - 1], msg);
+    this->assert_equal(witness_index, accumulators[accumulators.size() - 1], msg);
 
     accumulators[accumulators.size() - 1] = witness_index;
 
-    num_gates += used_gates;
+    this->num_gates += used_gates;
 
     // constrain top bit of top quad to zero in case num_bits is odd
     if ((num_bits & 1ULL) == 1ULL) {
@@ -559,12 +562,13 @@ std::vector<uint32_t> TurboCircuitBuilder::decompose_into_base4_accumulators(con
  * for u = T.left[T.left.size()-2], u will be too small to express a in the form a = 4u + quad.
  * The same holds, mutatis mutandis, for T.right.
  */
-accumulator_triple TurboCircuitBuilder::create_logic_constraint(const uint32_t a,
-                                                                const uint32_t b,
-                                                                const size_t num_bits,
-                                                                const bool is_xor_gate)
+template <typename FF>
+accumulator_triple TurboCircuitBuilder_<FF>::create_logic_constraint(const uint32_t a,
+                                                                     const uint32_t b,
+                                                                     const size_t num_bits,
+                                                                     const bool is_xor_gate)
 {
-    assert_valid_variables({ a, b });
+    this->assert_valid_variables({ a, b });
 
     ASSERT(((num_bits >> 1U) << 1U) == num_bits); // Do not allow constraint for an odd number of bits.
 
@@ -640,18 +644,18 @@ accumulator_triple TurboCircuitBuilder::create_logic_constraint(const uint32_t a
      * addition and logic operations.
      **/
 
-    const uint256_t left_witness_value(get_variable(a));
-    const uint256_t right_witness_value(get_variable(b));
+    const uint256_t left_witness_value(this->get_variable(a));
+    const uint256_t right_witness_value(this->get_variable(b));
 
     accumulator_triple accumulators;
-    fr left_accumulator = fr::zero();
-    fr right_accumulator = fr::zero();
-    fr out_accumulator = fr::zero();
+    FF left_accumulator = FF::zero();
+    FF right_accumulator = FF::zero();
+    FF out_accumulator = FF::zero();
 
     // Step 1: populate 1st row accumulators with zero
-    w_l.emplace_back(zero_idx);
-    w_r.emplace_back(zero_idx);
-    w_4.emplace_back(zero_idx);
+    w_l.emplace_back(this->zero_idx);
+    w_r.emplace_back(this->zero_idx);
+    w_4.emplace_back(this->zero_idx);
 
     // w_l, w_r, w_4 now point to 1 gate ahead of w_o
     for (size_t j = 0; j < num_quads; ++j) {
@@ -667,16 +671,16 @@ accumulator_triple TurboCircuitBuilder::create_logic_constraint(const uint32_t a
         const uint64_t right_quad = static_cast<uint64_t>(right_witness_value.get_bit(bit_index)) +
                                     2ULL * static_cast<uint64_t>(right_witness_value.get_bit(bit_index + 1));
 
-        const fr left_quad_element = fr{ left_quad, 0, 0, 0 }.to_montgomery_form();
-        const fr right_quad_element = fr{ right_quad, 0, 0, 0 }.to_montgomery_form();
-        fr out_quad_element;
+        const FF left_quad_element = fr{ left_quad, 0, 0, 0 }.to_montgomery_form();
+        const FF right_quad_element = fr{ right_quad, 0, 0, 0 }.to_montgomery_form();
+        FF out_quad_element;
         if (is_xor_gate) {
             out_quad_element = fr{ left_quad ^ right_quad, 0, 0, 0 }.to_montgomery_form();
         } else {
             out_quad_element = fr{ left_quad & right_quad, 0, 0, 0 }.to_montgomery_form();
         }
 
-        const fr product_quad_element = fr{ left_quad * right_quad, 0, 0, 0 }.to_montgomery_form();
+        const FF product_quad_element = fr{ left_quad * right_quad, 0, 0, 0 }.to_montgomery_form();
 
         // replace accumulator by 4.accumulator + quad for a, b and c
         left_accumulator += left_accumulator;
@@ -691,75 +695,83 @@ accumulator_triple TurboCircuitBuilder::create_logic_constraint(const uint32_t a
         out_accumulator += out_accumulator;
         out_accumulator += out_quad_element;
 
-        left_accumulator_index = add_variable(left_accumulator);
+        left_accumulator_index = this->add_variable(left_accumulator);
         accumulators.left.emplace_back(left_accumulator_index);
 
-        right_accumulator_index = add_variable(right_accumulator);
+        right_accumulator_index = this->add_variable(right_accumulator);
         accumulators.right.emplace_back(right_accumulator_index);
 
-        out_accumulator_index = add_variable(out_accumulator);
+        out_accumulator_index = this->add_variable(out_accumulator);
         accumulators.out.emplace_back(out_accumulator_index);
 
-        product_index = add_variable(product_quad_element);
+        product_index = this->add_variable(product_quad_element);
 
         w_l.emplace_back(left_accumulator_index);
         w_r.emplace_back(right_accumulator_index);
         w_4.emplace_back(out_accumulator_index);
         w_o.emplace_back(product_index);
     }
-    w_o.emplace_back(zero_idx);
+    w_o.emplace_back(this->zero_idx);
 
     for (size_t i = 0; i < num_quads + 1; ++i) {
-        q_m.emplace_back(fr::zero());
-        q_1.emplace_back(fr::zero());
-        q_2.emplace_back(fr::zero());
-        q_3.emplace_back(fr::zero());
-        q_arith.emplace_back(fr::zero());
-        q_4.emplace_back(fr::zero());
-        q_5.emplace_back(fr::zero());
-        q_fixed_base.emplace_back(fr::zero());
-        q_range.emplace_back(fr::zero());
+        q_m.emplace_back(FF::zero());
+        q_1.emplace_back(FF::zero());
+        q_2.emplace_back(FF::zero());
+        q_3.emplace_back(FF::zero());
+        q_arith.emplace_back(FF::zero());
+        q_4.emplace_back(FF::zero());
+        q_5.emplace_back(FF::zero());
+        q_fixed_base.emplace_back(FF::zero());
+        q_range.emplace_back(FF::zero());
         if (is_xor_gate) {
-            q_c.emplace_back(fr::neg_one());
-            q_logic.emplace_back(fr::neg_one());
+            q_c.emplace_back(FF::neg_one());
+            q_logic.emplace_back(FF::neg_one());
         } else {
-            q_c.emplace_back(fr::one());
-            q_logic.emplace_back(fr::one());
+            q_c.emplace_back(FF::one());
+            q_logic.emplace_back(FF::one());
         }
     }
 
-    q_c[q_c.size() - 1] = fr::zero();         // last gate is a noop
-    q_logic[q_logic.size() - 1] = fr::zero(); // last gate is a noop
+    q_c[q_c.size() - 1] = FF::zero();         // last gate is a noop
+    q_logic[q_logic.size() - 1] = FF::zero(); // last gate is a noop
 
-    assert_equal(a, accumulators.left[accumulators.left.size() - 1], "cannot reproduce `a` value using accumulator.");
+    this->assert_equal(
+        a, accumulators.left[accumulators.left.size() - 1], "cannot reproduce `a` value using accumulator.");
 
     accumulators.left[accumulators.left.size() - 1] = a;
 
-    assert_equal(b, accumulators.right[accumulators.right.size() - 1], "cannot reproduce `b` value using accumulator.");
+    this->assert_equal(
+        b, accumulators.right[accumulators.right.size() - 1], "cannot reproduce `b` value using accumulator.");
 
     accumulators.right[accumulators.right.size() - 1] = b;
 
-    num_gates += (num_quads + 1);
+    this->num_gates += (num_quads + 1);
 
     return accumulators;
 }
 
-accumulator_triple TurboCircuitBuilder::create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits)
+template <typename FF>
+accumulator_triple TurboCircuitBuilder_<FF>::create_and_constraint(const uint32_t a,
+                                                                   const uint32_t b,
+                                                                   const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, false);
 }
 
-accumulator_triple TurboCircuitBuilder::create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits)
+template <typename FF>
+accumulator_triple TurboCircuitBuilder_<FF>::create_xor_constraint(const uint32_t a,
+                                                                   const uint32_t b,
+                                                                   const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, true);
 }
 
-uint32_t TurboCircuitBuilder::put_constant_variable(const barretenberg::fr& variable)
+template <typename FF> uint32_t TurboCircuitBuilder_<FF>::put_constant_variable(const FF& variable)
 {
     if (constant_variable_indices.contains(variable)) {
         return constant_variable_indices.at(variable);
     } else {
-        uint32_t variable_index = add_variable(variable);
+        uint32_t variable_index = this->add_variable(variable);
         fix_witness(variable_index, variable);
         constant_variable_indices.insert({ variable, variable_index });
         return variable_index;
@@ -772,9 +784,9 @@ uint32_t TurboCircuitBuilder::put_constant_variable(const barretenberg::fr& vari
  * @return true Evaluation is zero
  * @return false Evaluation is not zero
  */
-inline bool TurboCircuitBuilder::lazy_arithmetic_gate_check(const size_t gate_index)
+template <typename FF> inline bool TurboCircuitBuilder_<FF>::lazy_arithmetic_gate_check(const size_t gate_index)
 {
-    return arithmetic_gate_evaluation(gate_index, fr::one()).is_zero();
+    return arithmetic_gate_evaluation(gate_index, FF::one()).is_zero();
 }
 
 /**
@@ -784,52 +796,52 @@ inline bool TurboCircuitBuilder::lazy_arithmetic_gate_check(const size_t gate_in
  * @return bool
  * TODO(luke/kesha): Add some comments explaining in what sense each of these checks are "lazy"
  */
-inline bool TurboCircuitBuilder::lazy_fixed_base_gate_check(const size_t gate_index)
+template <typename FF> inline bool TurboCircuitBuilder_<FF>::lazy_fixed_base_gate_check(const size_t gate_index)
 {
-    ASSERT(gate_index < num_gates);
+    ASSERT(gate_index < this->num_gates);
 
-    constexpr barretenberg::fr grumpkin_curve_b(-17);
-    constexpr barretenberg::fr nine(9);
+    constexpr FF grumpkin_curve_b(-17);
+    constexpr FF nine(9);
 
     // Get witness values
-    fr wire_1_shifted;
-    fr wire_2_shifted;
-    fr wire_3_shifted;
-    fr wire_4_shifted;
-    const fr wire_1_value = get_variable(w_l[gate_index]);
-    const fr wire_2_value = get_variable(w_r[gate_index]);
-    const fr wire_3_value = get_variable(w_o[gate_index]);
-    const fr wire_4_value = get_variable(w_4[gate_index]);
-    if ((gate_index + 1) < num_gates) {
-        wire_1_shifted = get_variable(w_l[gate_index + 1]);
-        wire_2_shifted = get_variable(w_r[gate_index + 1]);
-        wire_3_shifted = get_variable(w_o[gate_index + 1]);
-        wire_4_shifted = get_variable(w_4[gate_index + 1]);
+    FF wire_1_shifted;
+    FF wire_2_shifted;
+    FF wire_3_shifted;
+    FF wire_4_shifted;
+    const FF wire_1_value = this->get_variable(w_l[gate_index]);
+    const FF wire_2_value = this->get_variable(w_r[gate_index]);
+    const FF wire_3_value = this->get_variable(w_o[gate_index]);
+    const FF wire_4_value = this->get_variable(w_4[gate_index]);
+    if ((gate_index + 1) < this->num_gates) {
+        wire_1_shifted = this->get_variable(w_l[gate_index + 1]);
+        wire_2_shifted = this->get_variable(w_r[gate_index + 1]);
+        wire_3_shifted = this->get_variable(w_o[gate_index + 1]);
+        wire_4_shifted = this->get_variable(w_4[gate_index + 1]);
     } else {
-        wire_1_shifted = fr::zero();
-        wire_2_shifted = fr::zero();
-        wire_3_shifted = fr::zero();
-        wire_4_shifted = fr::zero();
+        wire_1_shifted = FF::zero();
+        wire_2_shifted = FF::zero();
+        wire_3_shifted = FF::zero();
+        wire_4_shifted = FF::zero();
     }
 
     // Get selector values
-    const fr q_c_value = q_c[gate_index];
-    const fr q_fixed_base_value = q_fixed_base[gate_index];
-    const fr q_m_value = q_m[gate_index];
-    const fr q_1_value = q_1[gate_index];
-    const fr q_2_value = q_2[gate_index];
-    const fr q_3_value = q_3[gate_index];
-    const fr q_4_value = q_4[gate_index];
-    const fr q_5_value = q_5[gate_index];
+    const FF q_c_value = q_c[gate_index];
+    const FF q_fixed_base_value = q_fixed_base[gate_index];
+    const FF q_m_value = q_m[gate_index];
+    const FF q_1_value = q_1[gate_index];
+    const FF q_2_value = q_2[gate_index];
+    const FF q_3_value = q_3[gate_index];
+    const FF q_4_value = q_4[gate_index];
+    const FF q_5_value = q_5[gate_index];
 
     // Compute, optimizing multiplications (different fromt the way we used in widgets, since the linearization
     // trick is no more)
 
-    fr delta = wire_4_shifted - (wire_4_value + wire_4_value + wire_4_value + wire_4_value);
-    fr delta_squared = delta.sqr();
+    FF delta = wire_4_shifted - (wire_4_value + wire_4_value + wire_4_value + wire_4_value);
+    FF delta_squared = delta.sqr();
 
     // accumulator_identity = (δ + 3)(δ + 1)(δ - 1)(δ - 3)
-    if (delta_squared != nine && delta_squared != fr::one()) {
+    if (delta_squared != nine && delta_squared != FF::one()) {
         return false;
     }
 
@@ -838,19 +850,19 @@ inline bool TurboCircuitBuilder::lazy_fixed_base_gate_check(const size_t gate_in
         return false;
     }
 
-    fr T0 = wire_1_shifted + wire_1_value + wire_3_shifted;
-    fr T1 = (wire_3_shifted - wire_1_value).sqr();
+    FF T0 = wire_1_shifted + wire_1_value + wire_3_shifted;
+    FF T1 = (wire_3_shifted - wire_1_value).sqr();
     T0 = T0 * T1;
 
     T1 = wire_3_shifted.sqr() * wire_3_shifted;
-    fr T2 = wire_2_value.sqr();
+    FF T2 = wire_2_value.sqr();
     T1 = T1 + T2;
     T1 = -(T1 + grumpkin_curve_b);
 
     T2 = delta * wire_2_value * q_fixed_base_value;
     T2 = T2 + T2;
-    fr T3_part = delta * wire_3_shifted * q_3_value;
-    fr T3 = T3_part * wire_2_value;
+    FF T3_part = delta * wire_3_shifted * q_3_value;
+    FF T3 = T3_part * wire_2_value;
     T3 = T3 + T3;
 
     // x_accumulator_identity = α^2 *
@@ -871,19 +883,19 @@ inline bool TurboCircuitBuilder::lazy_fixed_base_gate_check(const size_t gate_in
     }
 
     if (!q_c_value.is_zero()) {
-        T0 = wire_4_value - fr::one();
+        T0 = wire_4_value - FF::one();
         T1 = T0 - wire_3_value;
 
         if (!T0.is_zero() && !T1.is_zero()) {
             return false;
         }
-        T0 = wire_3_value * (q_4_value - wire_1_value) + (fr::one() - wire_4_value) * q_5_value;
+        T0 = wire_3_value * (q_4_value - wire_1_value) + (FF::one() - wire_4_value) * q_5_value;
         if (!T0.is_zero()) {
             return false;
         }
-        T0 = q_c_value * (fr::one() - wire_4_value);
+        T0 = q_c_value * (FF::one() - wire_4_value);
         T1 = wire_2_value * wire_3_value;
-        fr y_init_identity = (T0 - T1 + q_m_value * wire_3_value);
+        FF y_init_identity = (T0 - T1 + q_m_value * wire_3_value);
         if (!y_init_identity.is_zero()) {
             return false;
         }
@@ -897,44 +909,44 @@ inline bool TurboCircuitBuilder::lazy_fixed_base_gate_check(const size_t gate_in
  * @param gate_index Gate index
  * @return fr
  */
-inline bool TurboCircuitBuilder::lazy_logic_gate_check(const size_t gate_index)
+template <typename FF> inline bool TurboCircuitBuilder_<FF>::lazy_logic_gate_check(const size_t gate_index)
 {
 
-    ASSERT(gate_index < num_gates);
+    ASSERT(gate_index < this->num_gates);
 
-    fr wire_1_shifted;
-    fr wire_2_shifted;
-    fr wire_4_shifted;
-    const fr wire_1_value = get_variable(w_l[gate_index]);
-    const fr wire_2_value = get_variable(w_r[gate_index]);
-    const fr wire_4_value = get_variable(w_4[gate_index]);
-    if ((gate_index + 1) < num_gates) {
-        wire_1_shifted = get_variable(w_l[gate_index + 1]);
-        wire_2_shifted = get_variable(w_r[gate_index + 1]);
-        wire_4_shifted = get_variable(w_4[gate_index + 1]);
+    FF wire_1_shifted;
+    FF wire_2_shifted;
+    FF wire_4_shifted;
+    const FF wire_1_value = this->get_variable(w_l[gate_index]);
+    const FF wire_2_value = this->get_variable(w_r[gate_index]);
+    const FF wire_4_value = this->get_variable(w_4[gate_index]);
+    if ((gate_index + 1) < this->num_gates) {
+        wire_1_shifted = this->get_variable(w_l[gate_index + 1]);
+        wire_2_shifted = this->get_variable(w_r[gate_index + 1]);
+        wire_4_shifted = this->get_variable(w_4[gate_index + 1]);
     } else {
-        wire_1_shifted = fr::zero();
-        wire_2_shifted = fr::zero();
-        wire_4_shifted = fr::zero();
+        wire_1_shifted = FF::zero();
+        wire_2_shifted = FF::zero();
+        wire_4_shifted = FF::zero();
     }
 
     // Get selector values
-    const fr q_c_value = q_c[gate_index];
-    const fr q_logic_value = q_logic[gate_index];
-    constexpr fr two(2);
-    constexpr fr three(3);
-    constexpr fr minus_one = -fr::one();
+    const FF q_c_value = q_c[gate_index];
+    const FF q_logic_value = q_logic[gate_index];
+    constexpr FF two(2);
+    constexpr FF three(3);
+    constexpr FF minus_one = -FF::one();
 
-    fr T0;
-    fr T1;
-    fr T2;
+    FF T0;
+    FF T1;
+    FF T2;
 
     // T0 = a
     T0 = wire_1_value + wire_1_value;
     T0 += T0;
     T0 = wire_1_shifted - T0;
 
-    if (!T0.is_zero() && T0 != fr::one() && T0 != two && T0 != three) {
+    if (!T0.is_zero() && T0 != FF::one() && T0 != two && T0 != three) {
         return false;
     }
     // T1 = b
@@ -942,7 +954,7 @@ inline bool TurboCircuitBuilder::lazy_logic_gate_check(const size_t gate_index)
     T1 += T1;
     T1 = wire_2_shifted - T1;
 
-    if (!T1.is_zero() && T1 != fr::one() && T1 != two && T1 != three) {
+    if (!T1.is_zero() && T1 != FF::one() && T1 != two && T1 != three) {
         return false;
     }
 
@@ -951,14 +963,14 @@ inline bool TurboCircuitBuilder::lazy_logic_gate_check(const size_t gate_index)
     T2 += T2;
     T2 = wire_4_shifted - T2;
 
-    if (!T2.is_zero() && T2 != fr::one() && T2 != two && T2 != three) {
+    if (!T2.is_zero() && T2 != FF::one() && T2 != two && T2 != three) {
         return false;
     }
     uint64_t a = uint256_t(T0).data[0];
     uint64_t b = uint256_t(T1).data[0];
     uint64_t c = uint256_t(T2).data[0];
 
-    if (q_c_value == fr::one() && q_logic_value == fr::one()) {
+    if (q_c_value == FF::one() && q_logic_value == FF::one()) {
         return (a & b) == c;
     }
 
@@ -973,50 +985,50 @@ inline bool TurboCircuitBuilder::lazy_logic_gate_check(const size_t gate_index)
  * @param gate_index Gate index
  * @return bool
  */
-inline bool TurboCircuitBuilder::lazy_range_gate_check(const size_t gate_index)
+template <typename FF> inline bool TurboCircuitBuilder_<FF>::lazy_range_gate_check(const size_t gate_index)
 {
 
-    ASSERT(gate_index < num_gates);
+    ASSERT(gate_index < this->num_gates);
 
-    fr wire_4_shifted;
-    const fr wire_1_value = get_variable(w_l[gate_index]);
-    const fr wire_2_value = get_variable(w_r[gate_index]);
-    const fr wire_3_value = get_variable(w_o[gate_index]);
-    const fr wire_4_value = get_variable(w_4[gate_index]);
-    if ((gate_index + 1) < num_gates) {
-        wire_4_shifted = get_variable(w_4[gate_index + 1]);
+    FF wire_4_shifted;
+    const FF wire_1_value = this->get_variable(w_l[gate_index]);
+    const FF wire_2_value = this->get_variable(w_r[gate_index]);
+    const FF wire_3_value = this->get_variable(w_o[gate_index]);
+    const FF wire_4_value = this->get_variable(w_4[gate_index]);
+    if ((gate_index + 1) < this->num_gates) {
+        wire_4_shifted = this->get_variable(w_4[gate_index + 1]);
     } else {
-        wire_4_shifted = fr::zero();
+        wire_4_shifted = FF::zero();
     }
-    constexpr barretenberg::fr two(2);
-    constexpr barretenberg::fr three(3);
+    constexpr FF two(2);
+    constexpr FF three(3);
 
-    fr delta_1 = wire_4_value + wire_4_value;
+    FF delta_1 = wire_4_value + wire_4_value;
     delta_1 += delta_1;
     delta_1 = (wire_3_value - delta_1).reduce_once();
-    if (!delta_1.is_zero() && delta_1 != fr::one() && delta_1 != two && delta_1 != three) {
+    if (!delta_1.is_zero() && delta_1 != FF::one() && delta_1 != two && delta_1 != three) {
         return false;
     }
 
-    fr delta_2 = wire_3_value + wire_3_value;
+    FF delta_2 = wire_3_value + wire_3_value;
     delta_2 += delta_2;
     delta_2 = wire_2_value - delta_2;
 
-    if (!delta_2.is_zero() && delta_2 != fr::one() && delta_2 != two && delta_2 != three) {
+    if (!delta_2.is_zero() && delta_2 != FF::one() && delta_2 != two && delta_2 != three) {
         return false;
     }
-    fr delta_3 = wire_2_value + wire_2_value;
+    FF delta_3 = wire_2_value + wire_2_value;
     delta_3 += delta_3;
     delta_3 = wire_1_value - delta_3;
 
-    if (!delta_3.is_zero() && delta_3 != fr::one() && delta_3 != two && delta_3 != three) {
+    if (!delta_3.is_zero() && delta_3 != FF::one() && delta_3 != two && delta_3 != three) {
         return false;
     }
-    fr delta_4 = wire_1_value + wire_1_value;
+    FF delta_4 = wire_1_value + wire_1_value;
     delta_4 += delta_4;
     delta_4 = wire_4_shifted - delta_4;
 
-    if (!delta_4.is_zero() && delta_4 != fr::one() && delta_4 != two && delta_4 != three) {
+    if (!delta_4.is_zero() && delta_4 != FF::one() && delta_4 != two && delta_4 != three) {
         return false;
     }
 
@@ -1029,32 +1041,33 @@ inline bool TurboCircuitBuilder::lazy_range_gate_check(const size_t gate_index)
  * @param alpha_base The base value that the whole evaluation is multiplied by
  * @return fr
  */
-inline fr TurboCircuitBuilder::arithmetic_gate_evaluation(const size_t gate_index, const fr alpha_base)
+template <typename FF>
+inline FF TurboCircuitBuilder_<FF>::arithmetic_gate_evaluation(const size_t gate_index, const FF alpha_base)
 {
-    ASSERT(gate_index < num_gates);
+    ASSERT(gate_index < this->num_gates);
 
-    constexpr barretenberg::fr minus_seven(-7);
+    constexpr FF minus_seven(-7);
 
-    constexpr fr two = fr::one() + fr::one();
-    const fr wire_1_value = get_variable(w_l[gate_index]);
-    const fr wire_2_value = get_variable(w_r[gate_index]);
-    const fr wire_3_value = get_variable(w_o[gate_index]);
-    const fr wire_4_value = get_variable(w_4[gate_index]);
+    constexpr FF two = FF::one() + FF::one();
+    const FF wire_1_value = this->get_variable(w_l[gate_index]);
+    const FF wire_2_value = this->get_variable(w_r[gate_index]);
+    const FF wire_3_value = this->get_variable(w_o[gate_index]);
+    const FF wire_4_value = this->get_variable(w_4[gate_index]);
 
     // T2  = Δ
-    fr T2 = wire_4_value + wire_4_value;
+    FF T2 = wire_4_value + wire_4_value;
     T2 += T2;
     T2 = wire_3_value - T2;
 
     // T3 = 2Δ^2
-    fr T3 = T2.sqr();
+    FF T3 = T2.sqr();
     T3 += T3;
 
     // T4 = 9.Δ
-    fr T4 = T2 + T2;
+    FF T4 = T2 + T2;
     T4 += T2;
     // // T5 = 6.Δ
-    fr T5 = T4 + T4;
+    FF T5 = T4 + T4;
     T4 += T5;
 
     // T4 = 9.Δ - 2.Δ^2 - 7
@@ -1067,7 +1080,7 @@ inline fr TurboCircuitBuilder::arithmetic_gate_evaluation(const size_t gate_inde
     return alpha_base * q_arith[gate_index] *
            (wire_1_value * (q_m[gate_index] * wire_2_value + q_1[gate_index]) + q_2[gate_index] * wire_2_value +
             q_3[gate_index] * wire_3_value +
-            wire_4_value * (q_4[gate_index] + q_5[gate_index] * (wire_4_value - two) * (wire_4_value - fr::one())) +
+            wire_4_value * (q_4[gate_index] + q_5[gate_index] * (wire_4_value - two) * (wire_4_value - FF::one())) +
             q_c[gate_index] + (q_arith[gate_index] - 1) * T2);
 }
 /**
@@ -1078,52 +1091,53 @@ inline fr TurboCircuitBuilder::arithmetic_gate_evaluation(const size_t gate_inde
  * @param alpha An element used as a separator of individual subrelations
  * @return fr
  */
-inline fr TurboCircuitBuilder::range_gate_evaluation(const size_t gate_index, const fr alpha_base, const fr alpha)
+template <typename FF>
+inline FF TurboCircuitBuilder_<FF>::range_gate_evaluation(const size_t gate_index, const FF alpha_base, const FF alpha)
 {
 
-    ASSERT(gate_index < num_gates);
+    ASSERT(gate_index < this->num_gates);
 
-    fr wire_4_shifted;
-    const fr wire_1_value = get_variable(w_l[gate_index]);
-    const fr wire_2_value = get_variable(w_r[gate_index]);
-    const fr wire_3_value = get_variable(w_o[gate_index]);
-    const fr wire_4_value = get_variable(w_4[gate_index]);
-    if ((gate_index + 1) < num_gates) {
-        wire_4_shifted = get_variable(w_4[gate_index + 1]);
+    FF wire_4_shifted;
+    const FF wire_1_value = this->get_variable(w_l[gate_index]);
+    const FF wire_2_value = this->get_variable(w_r[gate_index]);
+    const FF wire_3_value = this->get_variable(w_o[gate_index]);
+    const FF wire_4_value = this->get_variable(w_4[gate_index]);
+    if ((gate_index + 1) < this->num_gates) {
+        wire_4_shifted = this->get_variable(w_4[gate_index + 1]);
     } else {
-        wire_4_shifted = fr::zero();
+        wire_4_shifted = FF::zero();
     }
-    constexpr barretenberg::fr minus_two(-2);
-    constexpr barretenberg::fr minus_three(-3);
-    fr alpha_a = alpha_base;
-    fr alpha_b = alpha_a * alpha;
-    fr alpha_c = alpha_b * alpha;
-    fr alpha_d = alpha_c * alpha;
+    constexpr FF minus_two(-2);
+    constexpr FF minus_three(-3);
+    FF alpha_a = alpha_base;
+    FF alpha_b = alpha_a * alpha;
+    FF alpha_c = alpha_b * alpha;
+    FF alpha_d = alpha_c * alpha;
 
-    fr delta_1 = wire_4_value + wire_4_value;
+    FF delta_1 = wire_4_value + wire_4_value;
     delta_1 += delta_1;
     delta_1 = wire_3_value - delta_1;
 
-    fr delta_2 = wire_3_value + wire_3_value;
+    FF delta_2 = wire_3_value + wire_3_value;
     delta_2 += delta_2;
     delta_2 = wire_2_value - delta_2;
 
-    fr delta_3 = wire_2_value + wire_2_value;
+    FF delta_3 = wire_2_value + wire_2_value;
     delta_3 += delta_3;
     delta_3 = wire_1_value - delta_3;
 
-    fr delta_4 = wire_1_value + wire_1_value;
+    FF delta_4 = wire_1_value + wire_1_value;
     delta_4 += delta_4;
     delta_4 = wire_4_shifted - delta_4;
 
     // D(D - 1)(D - 2)(D - 3).alpha
-    fr T0 = delta_1.sqr();
+    FF T0 = delta_1.sqr();
     T0 -= delta_1;
-    fr T1 = delta_1 + minus_two;
+    FF T1 = delta_1 + minus_two;
     T0 *= T1;
     T1 = delta_1 + minus_three;
     T0 *= T1;
-    fr range_accumulator = T0 * alpha_a;
+    FF range_accumulator = T0 * alpha_a;
 
     T0 = delta_2.sqr();
     T0 -= delta_2;
@@ -1162,42 +1176,43 @@ inline fr TurboCircuitBuilder::range_gate_evaluation(const size_t gate_index, co
  * @param alpha The element used as separator for individual subrelations
  * @return fr
  */
-inline fr TurboCircuitBuilder::logic_gate_evaluation(const size_t gate_index, const fr alpha_base, const fr alpha)
+template <typename FF>
+inline FF TurboCircuitBuilder_<FF>::logic_gate_evaluation(const size_t gate_index, const FF alpha_base, const FF alpha)
 {
 
-    ASSERT(gate_index < num_gates);
+    ASSERT(gate_index < this->num_gates);
 
-    fr wire_1_shifted;
-    fr wire_2_shifted;
-    fr wire_4_shifted;
-    const fr wire_1_value = get_variable(w_l[gate_index]);
-    const fr wire_2_value = get_variable(w_r[gate_index]);
-    const fr wire_3_value = get_variable(w_o[gate_index]);
-    const fr wire_4_value = get_variable(w_4[gate_index]);
-    if ((gate_index + 1) < num_gates) {
-        wire_1_shifted = get_variable(w_l[gate_index + 1]);
-        wire_2_shifted = get_variable(w_r[gate_index + 1]);
-        wire_4_shifted = get_variable(w_4[gate_index + 1]);
+    FF wire_1_shifted;
+    FF wire_2_shifted;
+    FF wire_4_shifted;
+    const FF wire_1_value = this->get_variable(w_l[gate_index]);
+    const FF wire_2_value = this->get_variable(w_r[gate_index]);
+    const FF wire_3_value = this->get_variable(w_o[gate_index]);
+    const FF wire_4_value = this->get_variable(w_4[gate_index]);
+    if ((gate_index + 1) < this->num_gates) {
+        wire_1_shifted = this->get_variable(w_l[gate_index + 1]);
+        wire_2_shifted = this->get_variable(w_r[gate_index + 1]);
+        wire_4_shifted = this->get_variable(w_4[gate_index + 1]);
     } else {
-        wire_1_shifted = fr::zero();
-        wire_2_shifted = fr::zero();
-        wire_4_shifted = fr::zero();
+        wire_1_shifted = FF::zero();
+        wire_2_shifted = FF::zero();
+        wire_4_shifted = FF::zero();
     }
 
     // Get selector values
-    const fr q_c_value = q_c[gate_index];
-    constexpr fr six(6);
-    constexpr fr eighty_one(81);
-    constexpr fr eighty_three(83);
+    const FF q_c_value = q_c[gate_index];
+    constexpr FF six(6);
+    constexpr FF eighty_one(81);
+    constexpr FF eighty_three(83);
 
-    fr delta_sum;
-    fr delta_squared_sum;
-    fr T0;
-    fr T1;
-    fr T2;
-    fr T3;
-    fr T4;
-    fr identity;
+    FF delta_sum;
+    FF delta_squared_sum;
+    FF T0;
+    FF T1;
+    FF T2;
+    FF T3;
+    FF T4;
+    FF identity;
 
     T0 = wire_1_value + wire_1_value;
     T0 += T0;
@@ -1330,66 +1345,68 @@ inline fr TurboCircuitBuilder::logic_gate_evaluation(const size_t gate_index, co
  * @param alpha_powers A vector with alpha_base and alpha_base*α^{i} for enough i
  * @return fr
  */
-inline fr TurboCircuitBuilder::fixed_base_gate_evaluation(const size_t gate_index, const std::vector<fr>& alpha_powers)
+template <typename FF>
+inline FF TurboCircuitBuilder_<FF>::fixed_base_gate_evaluation(const size_t gate_index,
+                                                               const std::vector<FF>& alpha_powers)
 {
-    ASSERT(gate_index < num_gates);
+    ASSERT(gate_index < this->num_gates);
 
-    constexpr barretenberg::fr grumpkin_curve_b(-17);
-    constexpr barretenberg::fr three(3);
+    constexpr FF grumpkin_curve_b(-17);
+    constexpr FF three(3);
 
     // Get witness values
-    fr wire_1_shifted;
-    fr wire_2_shifted;
-    fr wire_3_shifted;
-    fr wire_4_shifted;
-    const fr wire_1_value = get_variable(w_l[gate_index]);
-    const fr wire_2_value = get_variable(w_r[gate_index]);
-    const fr wire_3_value = get_variable(w_o[gate_index]);
-    const fr wire_4_value = get_variable(w_4[gate_index]);
-    if ((gate_index + 1) < num_gates) {
-        wire_1_shifted = get_variable(w_l[gate_index + 1]);
-        wire_2_shifted = get_variable(w_r[gate_index + 1]);
-        wire_3_shifted = get_variable(w_o[gate_index + 1]);
-        wire_4_shifted = get_variable(w_4[gate_index + 1]);
+    FF wire_1_shifted;
+    FF wire_2_shifted;
+    FF wire_3_shifted;
+    FF wire_4_shifted;
+    const FF wire_1_value = this->get_variable(w_l[gate_index]);
+    const FF wire_2_value = this->get_variable(w_r[gate_index]);
+    const FF wire_3_value = this->get_variable(w_o[gate_index]);
+    const FF wire_4_value = this->get_variable(w_4[gate_index]);
+    if ((gate_index + 1) < this->num_gates) {
+        wire_1_shifted = this->get_variable(w_l[gate_index + 1]);
+        wire_2_shifted = this->get_variable(w_r[gate_index + 1]);
+        wire_3_shifted = this->get_variable(w_o[gate_index + 1]);
+        wire_4_shifted = this->get_variable(w_4[gate_index + 1]);
     } else {
-        wire_1_shifted = fr::zero();
-        wire_2_shifted = fr::zero();
-        wire_3_shifted = fr::zero();
-        wire_4_shifted = fr::zero();
+        wire_1_shifted = FF::zero();
+        wire_2_shifted = FF::zero();
+        wire_3_shifted = FF::zero();
+        wire_4_shifted = FF::zero();
     }
 
     // Get selector values
-    const fr q_c_value = q_c[gate_index];
-    const fr q_fixed_base_value = q_fixed_base[gate_index];
-    const fr q_m_value = q_m[gate_index];
-    const fr q_1_value = q_1[gate_index];
-    const fr q_2_value = q_2[gate_index];
-    const fr q_3_value = q_3[gate_index];
-    const fr q_4_value = q_4[gate_index];
-    const fr q_5_value = q_5[gate_index];
+    const FF q_c_value = q_c[gate_index];
+    const FF q_fixed_base_value = q_fixed_base[gate_index];
+    const FF q_m_value = q_m[gate_index];
+    const FF q_1_value = q_1[gate_index];
+    const FF q_2_value = q_2[gate_index];
+    const FF q_3_value = q_3[gate_index];
+    const FF q_4_value = q_4[gate_index];
+    const FF q_5_value = q_5[gate_index];
 
     // Compute, optimizing multiplications (different from the way we used in widgets, since the linearization
     // trick is no more)
 
-    fr delta = wire_4_shifted - (wire_4_value + wire_4_value + wire_4_value + wire_4_value);
-    fr delta_squared = delta.sqr();
+    FF delta = wire_4_shifted - (wire_4_value + wire_4_value + wire_4_value + wire_4_value);
+    FF delta_squared = delta.sqr();
 
     // accumulator_identity = (δ + 3)(δ + 1)(δ - 1)(δ - 3)
-    fr result = (delta - three) * (delta - fr::one()) * (delta + fr::one()) * (delta + three) * alpha_powers[0];
+    FF result = (delta - three) * (delta - FF::one()) * (delta + FF::one()) * (delta + three) * alpha_powers[0];
 
     // Originaly q_1 and q_2 multiplicands with x_alpha_identity
     result += (delta_squared * q_1_value + q_2_value - wire_3_shifted) * alpha_powers[1];
-    fr T1_part = wire_2_value * alpha_powers[2];
+    FF T1_part = wire_2_value * alpha_powers[2];
     // Added q_3 multiplicand
     result +=
         ((T1_part + T1_part) + (wire_1_shifted - wire_1_value) * alpha_powers[3]) * delta * wire_3_shifted * q_3_value;
 
-    fr T0 = wire_1_shifted + wire_1_value + wire_3_shifted;
-    fr T1 = (wire_3_shifted - wire_1_value).sqr();
+    FF T0 = wire_1_shifted + wire_1_value + wire_3_shifted;
+    FF T1 = (wire_3_shifted - wire_1_value).sqr();
     T0 = T0 * T1;
 
     T1 = wire_3_shifted.sqr() * wire_3_shifted;
-    fr T2 = wire_2_value.sqr();
+    FF T2 = wire_2_value.sqr();
     T1 = T1 + T2;
     T1 = -(T1 + grumpkin_curve_b);
 
@@ -1410,23 +1427,23 @@ inline fr TurboCircuitBuilder::fixed_base_gate_evaluation(const size_t gate_inde
 
     result += (T0 + T1) * alpha_powers[3];
 
-    T0 = wire_4_value - fr::one();
+    T0 = wire_4_value - FF::one();
     T1 = T0 - wire_3_value;
-    fr accumulator_init_identity = T0 * T1 * alpha_powers[4];
+    FF accumulator_init_identity = T0 * T1 * alpha_powers[4];
 
     // q_4 and q_5
-    result += (((wire_3_value * q_4_value + (fr::one() - wire_4_value) * q_5_value) * alpha_powers[5]) +
+    result += (((wire_3_value * q_4_value + (FF::one() - wire_4_value) * q_5_value) * alpha_powers[5]) +
                (q_m_value * wire_3_value * alpha_powers[6])) *
               q_c_value;
 
     // x_init_identity = -α^5 * w_1 * w_3
-    fr x_init_identity = -(wire_1_value * wire_3_value) * alpha_powers[5];
+    FF x_init_identity = -(wire_1_value * wire_3_value) * alpha_powers[5];
 
     // y_init_identity = α^6 * (q_c * (1 - w_4) - w_2 * w_3)
-    T0 = fr::one() - wire_4_value;
+    T0 = FF::one() - wire_4_value;
     T0 = T0 * q_c_value;
     T1 = wire_2_value * wire_3_value;
-    fr y_init_identity = (T0 - T1) * alpha_powers[6];
+    FF y_init_identity = (T0 - T1) * alpha_powers[6];
 
     result += (accumulator_init_identity + x_init_identity + y_init_identity) * q_c_value;
     return result * q_fixed_base_value;
@@ -1436,11 +1453,11 @@ inline fr TurboCircuitBuilder::fixed_base_gate_evaluation(const size_t gate_inde
  *
  * @return true if circuit is correct, false if not.
  * */
-bool TurboCircuitBuilder::check_circuit()
+template <typename FF> bool TurboCircuitBuilder_<FF>::check_circuit()
 {
 // #define LAZY_CIRCUIT_CHECKS
 #ifdef LAZY_CIRCUIT_CHECKS
-    for (size_t i = 0; i < num_gates; i++) {
+    for (size_t i = 0; i < this->num_gates; i++) {
         if (!q_arith[i].is_zero() && !lazy_arithmetic_gate_check(i)) {
             return false;
         }
@@ -1457,15 +1474,15 @@ bool TurboCircuitBuilder::check_circuit()
     return true;
 #else
     // Initialize each of the kernels
-    const fr alpha_base = fr::random_element();
-    const fr alpha = fr::random_element();
-    std::vector<fr> alpha_powers;
+    const FF alpha_base = FF::random_element();
+    const FF alpha = FF::random_element();
+    std::vector<FF> alpha_powers;
     alpha_powers.push_back(alpha_base);
     for (size_t i = 1; i < 7; i++) {
         alpha_powers.push_back(alpha_powers[i - 1] * alpha);
     }
 
-    for (size_t i = 0; i < get_num_gates(); i++) {
+    for (size_t i = 0; i < this->get_num_gates(); i++) {
         if (!arithmetic_gate_evaluation(i, alpha_base).is_zero()) {
 #ifndef FUZZING
             info("Arithmetic gate ", i, " failed");
@@ -1498,5 +1515,5 @@ bool TurboCircuitBuilder::check_circuit()
 
 #endif
 }
-
+template class TurboCircuitBuilder_<barretenberg::fr>;
 } // namespace proof_system
