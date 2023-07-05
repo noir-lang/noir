@@ -21,11 +21,10 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
                 unreachable!("Execution should not stop while in `InProgress` state.")
             }
             ACVMStatus::Failure(error) => return Err(error.into()),
-            ACVMStatus::RequiresForeignCall => {
-                while let Some(foreign_call) = acvm.get_pending_foreign_call() {
-                    let foreign_call_result = execute_foreign_call(foreign_call);
-                    acvm.resolve_pending_foreign_call(foreign_call_result);
-                }
+            ACVMStatus::RequiresForeignCall(unresolved_brillig_call) => {
+                let foreign_call_result =
+                    execute_foreign_call(&unresolved_brillig_call.foreign_call_wait_info);
+                acvm.resolve_pending_foreign_call(foreign_call_result);
             }
         }
     }

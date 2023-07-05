@@ -341,7 +341,7 @@ pub fn compile_no_check(
     let abi_len = abi.field_count();
 
     let simplifier = CircuitSimplifier::new(abi_len);
-    let optimized_circuit =
+    let (optimized_circuit, _) =
         acvm::compiler::compile(circuit, np_language, is_opcode_supported, &simplifier).map_err(
             |_| FileDiagnostic {
                 file_id: FileId::dummy(),
