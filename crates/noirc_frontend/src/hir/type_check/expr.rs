@@ -526,35 +526,41 @@ impl<'interner> TypeChecker<'interner> {
         lhs_type: &Type,
         rhs_type: &Type,
         op: &HirBinaryOp,
+        span: Span,
     ) -> Result<Type, String> {
         use crate::BinaryOpKind::{Equal, NotEqual};
         use Type::*;
+        let make_error = move |msg| TypeCheckError::Unstructured { msg, span };
+
         match (lhs_type, rhs_type)  {
             // Avoid reporting errors multiple times
             (Error, _) | (_,Error) => Ok(Bool(CompTime::Yes(None))),
 
             // Matches on PolymorphicInteger and TypeVariable must be first to follow any type
             // bindings.
-            (PolymorphicInteger(comptime, int), other)
-            | (other, PolymorphicInteger(comptime, int)) => {
+            (var @ PolymorphicInteger(_, int), other)
+            | (other, var @ PolymorphicInteger(_, int))
+            | (var @ TypeVariable(int), other)
+            | (other, var @ TypeVariable(int)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
-                    return self.comparator_operand_type_rules(other, binding, op);
-                }
-                if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                    Ok(Bool(comptime.clone()))
-                } else {
-                    Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
-                }
-            }
-            (TypeVariable(var), other)
-            | (other, TypeVariable(var)) => {
-                if let TypeBinding::Bound(binding) = &*var.borrow() {
-                    return self.comparator_operand_type_rules(binding, other, op);
+                    return self.comparator_operand_type_rules(other, binding, op, span);
                 }
 
-                let comptime = CompTime::No(None);
-                if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                    Ok(Bool(comptime))
+                if !op.kind.is_valid_for_field_type() && (other.is_bindable() || other.is_field()) {
+                    let other = other.follow_bindings();
+
+                    self.push_delayed_type_check(Box::new(move || {
+                        if other.is_field() || other.is_bindable() {
+                            Err(make_error("Comparisons are invalid on Field types. Try casting the operands to a sized integer type first".into()))
+                        } else {
+                            Ok(())
+                        }
+                    }));
+                }
+
+                let comptime = var.try_get_comptime();
+                if other.try_bind_to_polymorphic_int(int, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                    Ok(Bool(comptime.into_owned()))
                 } else {
                     Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
                 }
@@ -576,14 +582,11 @@ impl<'interner> TypeChecker<'interner> {
                 Err(format!("Integer cannot be used with type {typ}"))
             }
             (FieldElement(comptime_x), FieldElement(comptime_y)) => {
-                match op.kind {
-                    Equal | NotEqual => {
-                        let comptime = comptime_x.and(comptime_y, op.location.span);
-                        Ok(Bool(comptime))
-                    },
-                    _ => {
-                        Err("Fields cannot be compared, try casting to an integer first".into())
-                    }
+                if op.kind.is_valid_for_field_type() {
+                    let comptime = comptime_x.and(comptime_y, op.location.span);
+                    Ok(Bool(comptime))
+                } else {
+                    Err("Fields cannot be compared, try casting to an integer first".into())
                 }
             }
 
@@ -741,7 +744,9 @@ impl<'interner> TypeChecker<'interner> {
         let make_error = move |msg| TypeCheckError::Unstructured { msg, span };
 
         if op.kind.is_comparator() {
-            return self.comparator_operand_type_rules(lhs_type, rhs_type, op).map_err(make_error);
+            return self
+                .comparator_operand_type_rules(lhs_type, rhs_type, op, span)
+                .map_err(make_error);
         }
 
         use Type::*;
@@ -751,8 +756,10 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on PolymorphicInteger and TypeVariable must be first so that we follow any type
             // bindings.
-            (PolymorphicInteger(comptime, int), other)
-            | (other, PolymorphicInteger(comptime, int)) => {
+            (var @ PolymorphicInteger(_, int), other)
+            | (other, var @ PolymorphicInteger(_, int))
+            | (var @ TypeVariable(int), other)
+            | (other, var @ TypeVariable(int)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
@@ -774,20 +781,8 @@ impl<'interner> TypeChecker<'interner> {
                     }));
                 }
 
-                if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                    Ok(other.clone())
-                } else {
-                    Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
-                }
-            }
-            (TypeVariable(var), other)
-            | (other, TypeVariable(var)) => {
-                if let TypeBinding::Bound(binding) = &*var.borrow() {
-                    return self.infix_operand_type_rules(binding, op, other, span);
-                }
-
-                let comptime = CompTime::No(None);
-                if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                let comptime = var.try_get_comptime();
+                if other.try_bind_to_polymorphic_int(int, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
                     Ok(other.clone())
                 } else {
                     Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
