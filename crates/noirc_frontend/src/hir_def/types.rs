@@ -76,6 +76,9 @@ pub enum Type {
     /// .pop, and similar methods.
     Vec(Box<Type>),
 
+    /// &mut T
+    MutableReference(Box<Type>),
+
     /// A type generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
     /// but it makes handling them both easier. The TypeVariableId should
@@ -524,6 +527,11 @@ impl Type {
         Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)))
     }
 
+    pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
+        let id = interner.next_type_variable_id();
+        Type::PolymorphicInteger(CompTime::new(interner), Shared::new(TypeBinding::Unbound(id)))
+    }
+
     /// A bit of an awkward name for this function - this function returns
     /// true for type variables or polymorphic integers which are unbound.
     /// NamedGenerics will always be false as although they are bindable,
@@ -593,6 +601,7 @@ impl Type {
                 })
             }
             Type::Vec(element) => element.contains_numeric_typevar(target_id),
+            Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
         }
     }
 
@@ -661,6 +670,9 @@ impl std::fmt::Display for Type {
             }
             Type::Vec(element) => {
                 write!(f, "Vec<{element}>")
+            }
+            Type::MutableReference(element) => {
+                write!(f, "&mut {element}")
             }
         }
     }
@@ -994,6 +1006,8 @@ impl Type {
 
             (Vec(elem_a), Vec(elem_b)) => elem_a.try_unify(elem_b, span),
 
+            (MutableReference(elem_a), MutableReference(elem_b)) => elem_a.try_unify(elem_b, span),
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1127,6 +1141,22 @@ impl Type {
 
             (Vec(elem_a), Vec(elem_b)) => elem_a.is_subtype_of(elem_b, span),
 
+            // `T <: U  =>  &mut T <: &mut U` would be unsound(*), so mutable
+            // references are never subtypes of each other.
+            //
+            // (*) Consider:
+            // ```
+            // // Assume Dog <: Animal and Cat <: Animal
+            // let x: &mut Dog = ...;
+            //
+            // fn set_to_cat(y: &mut Animal) {
+            //     *y = Cat;
+            // }
+            //
+            // set_to_cat(x); // uh-oh: x: Dog, yet it now holds a Cat
+            // ```
+            (MutableReference(elem_a), MutableReference(elem_b)) => elem_a.try_unify(elem_b, span),
+
             (other_a, other_b) => {
                 if other_a == other_b {
                     Ok(())
@@ -1197,6 +1227,7 @@ impl Type {
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _) => unreachable!(),
+            Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
             Type::Vec(_) => unreachable!("Vecs cannot be used in the abi"),
         }
     }
@@ -1312,6 +1343,9 @@ impl Type {
                 Type::Function(args, ret)
             }
             Type::Vec(element) => Type::Vec(Box::new(element.substitute(type_bindings))),
+            Type::MutableReference(element) => {
+                Type::MutableReference(Box::new(element.substitute(type_bindings)))
+            }
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -1342,6 +1376,7 @@ impl Type {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
             Type::Vec(element) => element.occurs(target_id),
+            Type::MutableReference(element) => element.occurs(target_id),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -1384,6 +1419,7 @@ impl Type {
                 Function(args, ret)
             }
             Vec(element) => Vec(Box::new(element.follow_bindings())),
+            MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),

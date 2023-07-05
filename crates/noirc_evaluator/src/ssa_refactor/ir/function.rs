@@ -13,6 +13,7 @@ pub(crate) enum RuntimeType {
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
     Brillig,
 }
+
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
 ///

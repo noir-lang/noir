@@ -261,6 +261,8 @@ impl BinaryOpKind {
 pub enum UnaryOp {
     Minus,
     Not,
+    MutableReference,
+    Dereference,
 }
 
 impl UnaryOp {
@@ -479,6 +481,8 @@ impl Display for UnaryOp {
         match self {
             UnaryOp::Minus => write!(f, "-"),
             UnaryOp::Not => write!(f, "!"),
+            UnaryOp::MutableReference => write!(f, "&mut"),
+            UnaryOp::Dereference => write!(f, "*"),
         }
     }
 }
