@@ -2,14 +2,16 @@ use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
+    hir::resolution::resolver::verify_mutable_reference,
     hir_def::{
         expr::{
-            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirPrefixExpression,
+            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
+            HirPrefixExpression,
         },
         types::Type,
     },
     node_interner::{ExprId, FuncId},
-    CompTime, Shared, TypeBinding,
+    CompTime, Shared, TypeBinding, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -108,7 +110,7 @@ impl<'interner> TypeChecker<'interner> {
                 let span = self.interner.expr_span(expr_id);
                 self.bind_function_type(function, args, span)
             }
-            HirExpression::MethodCall(method_call) => {
+            HirExpression::MethodCall(mut method_call) => {
                 let object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(object_type.clone(), method_name, expr_id) {
@@ -125,12 +127,20 @@ impl<'interner> TypeChecker<'interner> {
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
-                        let (function_id, function_call) = method_call.into_function_call(
-                            method_id,
-                            location,
-                            &mut args,
-                            self.interner,
-                        );
+
+                        // Automatically add `&mut` if the method expects a mutable reference and
+                        // the object is not already one.
+                        if method_id != FuncId::dummy_id() {
+                            let func_meta = self.interner.function_meta(&method_id);
+                            self.try_add_mutable_reference_to_object(
+                                &mut method_call,
+                                &func_meta.typ,
+                                &mut args,
+                            );
+                        }
+
+                        let (function_id, function_call) =
+                            method_call.into_function_call(method_id, location, self.interner);
 
                         let span = self.interner.expr_span(expr_id);
                         let ret = self.check_method_call(&function_id, &method_id, args, span);
@@ -249,6 +259,48 @@ impl<'interner> TypeChecker<'interner> {
 
         self.interner.push_expr_type(expr_id, typ.clone());
         typ
+    }
+
+    /// Check if the given method type requires a mutable reference to the object type, and check
+    /// if the given object type is already a mutable reference. If not, add one.
+    /// This is used to automatically transform a method call: `foo.bar()` into a function
+    /// call: `bar(&mut foo)`.
+    fn try_add_mutable_reference_to_object(
+        &mut self,
+        method_call: &mut HirMethodCallExpression,
+        function_type: &Type,
+        argument_types: &mut [(Type, noirc_errors::Span)],
+    ) {
+        let expected_object_type = match function_type {
+            Type::Function(args, _) => args.get(0),
+            Type::Forall(_, typ) => match typ.as_ref() {
+                Type::Function(args, _) => args.get(0),
+                typ => unreachable!("Unexpected type for function: {typ}"),
+            },
+            typ => unreachable!("Unexpected type for function: {typ}"),
+        };
+
+        if let Some(expected_object_type) = expected_object_type {
+            if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
+                let actual_type = argument_types[0].0.follow_bindings();
+
+                if let Err(error) = verify_mutable_reference(self.interner, method_call.object) {
+                    self.errors.push(TypeCheckError::ResolverError(error));
+                }
+
+                if !matches!(actual_type, Type::MutableReference(_)) {
+                    let new_type = Type::MutableReference(Box::new(actual_type));
+
+                    argument_types[0].0 = new_type.clone();
+                    method_call.object =
+                        self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
+                            operator: UnaryOp::MutableReference,
+                            rhs: method_call.object,
+                        }));
+                    self.interner.push_expr_type(&method_call.object, new_type);
+                }
+            }
+        }
     }
 
     fn check_index_expression(&mut self, index_expr: expr::HirIndexExpression) -> Type {

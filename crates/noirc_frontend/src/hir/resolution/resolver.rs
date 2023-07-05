@@ -891,7 +891,9 @@ impl<'a> Resolver<'a> {
                 let rhs = self.resolve_expression(prefix.rhs);
 
                 if operator == UnaryOp::MutableReference {
-                    self.verify_mutable_reference(rhs);
+                    if let Err(error) = verify_mutable_reference(self.interner, rhs) {
+                        self.errors.push(error);
+                    }
                 }
 
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
@@ -1258,31 +1260,30 @@ impl<'a> Resolver<'a> {
         let module_id = self.path_resolver.module_id();
         module_id.module(self.def_maps).is_contract
     }
+}
 
-    /// Gives an error if a user tries to create a mutable reference
-    /// to an immutable variable.
-    fn verify_mutable_reference(&mut self, rhs: ExprId) {
-        match self.interner.expression(&rhs) {
-            HirExpression::MemberAccess(member_access) => {
-                self.verify_mutable_reference(member_access.lhs);
-            }
-            HirExpression::Index(_) => {
-                let span = self.interner.expr_span(&rhs);
-                self.errors.push(ResolverError::MutableReferenceToArrayElement { span });
-            }
-            HirExpression::Ident(ident) => {
-                let definition = self.interner.definition(ident.id);
-                if !definition.mutable {
-                    let span = self.interner.expr_span(&rhs);
-                    let variable = definition.name.clone();
-                    self.errors.push(ResolverError::MutableReferenceToImmutableVariable {
-                        span,
-                        variable,
-                    });
-                }
-            }
-            _ => (),
+/// Gives an error if a user tries to create a mutable reference
+/// to an immutable variable.
+pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<(), ResolverError> {
+    match interner.expression(&rhs) {
+        HirExpression::MemberAccess(member_access) => {
+            verify_mutable_reference(interner, member_access.lhs)
         }
+        HirExpression::Index(_) => {
+            let span = interner.expr_span(&rhs);
+            Err(ResolverError::MutableReferenceToArrayElement { span })
+        }
+        HirExpression::Ident(ident) => {
+            let definition = interner.definition(ident.id);
+            if !definition.mutable {
+                let span = interner.expr_span(&rhs);
+                let variable = definition.name.clone();
+                Err(ResolverError::MutableReferenceToImmutableVariable { span, variable })
+            } else {
+                Ok(())
+            }
+        }
+        _ => Ok(()),
     }
 }
 
