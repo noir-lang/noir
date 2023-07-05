@@ -14,7 +14,6 @@ contract Test {
         create_nullifier::create_nullifier
     };
 
-
     fn constructor(
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {

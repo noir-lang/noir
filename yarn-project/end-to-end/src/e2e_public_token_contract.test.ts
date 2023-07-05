@@ -4,7 +4,7 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
 
 import times from 'lodash.times';
-import { expectStorageSlot, pointToPublicKey, setup } from './utils.js';
+import { expectAztecStorageSlot, pointToPublicKey, setup } from './utils.js';
 import { L2BlockL2Logs } from '@aztec/types';
 
 describe('e2e_public_token_contract', () => {
@@ -69,7 +69,7 @@ describe('e2e_public_token_contract', () => {
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);
-    await expectStorageSlot(logger, aztecNode, contract, balanceSlot, Fr.fromBuffer(PK.x.toBuffer()), mintAmount);
+    await expectAztecStorageSlot(logger, aztecNode, contract, balanceSlot, Fr.fromBuffer(PK.x.toBuffer()), mintAmount);
     await expectLogsFromLastBlockToBe(['Coins minted']);
   }, 45_000);
 
@@ -93,7 +93,14 @@ describe('e2e_public_token_contract', () => {
     expect(receipts.map(r => r.status)).toEqual(times(3, () => TxStatus.MINED));
     expect(receipts.map(r => r.blockNumber)).toEqual(times(3, () => receipts[0].blockNumber));
 
-    await expectStorageSlot(logger, aztecNode, contract, balanceSlot, Fr.fromBuffer(PK.x.toBuffer()), mintAmount * 3n);
+    await expectAztecStorageSlot(
+      logger,
+      aztecNode,
+      contract,
+      balanceSlot,
+      Fr.fromBuffer(PK.x.toBuffer()),
+      mintAmount * 3n,
+    );
     await expectLogsFromLastBlockToBe(['Coins minted', 'Coins minted', 'Coins minted']);
   }, 60_000);
 });

@@ -23,7 +23,6 @@ import {
   ChildAbi,
   NonNativeTokenContractAbi,
   ParentAbi,
-  PublicToPrivateContractAbi,
   TestContractAbi,
   ZkTokenContractAbi,
 } from '@aztec/noir-contracts/examples';
@@ -444,7 +443,7 @@ describe('Private Execution test suite', () => {
 
       const contractAddress = AztecAddress.random();
       const amount = 100n;
-      const abi = PublicToPrivateContractAbi.functions.find(f => f.name === 'mintFromPublicMessage')!;
+      const abi = NonNativeTokenContractAbi.functions.find(f => f.name === 'redeemShield')!;
 
       const wasm = await CircuitsWasm.get();
       const secret = new Fr(1n);

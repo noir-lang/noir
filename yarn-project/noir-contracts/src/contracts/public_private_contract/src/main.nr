@@ -67,34 +67,6 @@ contract PublicPrivate {
         create_commitment(note.get_commitment());
     }
 
-    // Purely exists for testing
-    open fn createL2ToL1MessagePublic(
-        _inputs: PublicContextInputs,
-        amount: Field,
-        secretHash: Field,
-    ) {
-        // Create a commitment to the amount
-        let note = TransparentNote::new(amount, secretHash);
-        
-        // Public oracle call to emit new commitment.
-        create_l2_to_l1_message(note.get_commitment());
-    }
-
-    // Purely exists for testing
-    open fn createNullifierPublic(
-        _inputs: PublicContextInputs,
-        amount: Field,
-        secretHash: Field,
-    ) -> Field {
-    
-        // Create a commitment to the amount
-        let note = TransparentNote::new(amount, secretHash);
-        
-        // Public oracle call to emit new commitment.
-        create_nullifier(note.get_commitment());
-        0
-    }
-    
     // Consumes the transparent note and creates a standard note.
     fn mintFromPublicMessage(
         inputs: PrivateContextInputs,

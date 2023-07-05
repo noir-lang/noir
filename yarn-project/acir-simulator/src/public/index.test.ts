@@ -15,8 +15,8 @@ import {
   ChildAbi,
   NonNativeTokenContractAbi,
   ParentAbi,
-  PublicToPrivateContractAbi,
   PublicTokenContractAbi,
+  TestContractAbi,
 } from '@aztec/noir-contracts/examples';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as memdown, type MemDown } from 'memdown';
@@ -260,8 +260,8 @@ describe('ACIR public execution simulator', () => {
     });
 
     it('Should be able to create a commitment from the public context', async () => {
-      const publicToPrivateAbi = PublicToPrivateContractAbi.functions.find(f => f.name === 'mintFromPublicToPrivate')!;
-      const args = encodeArguments(publicToPrivateAbi, params);
+      const shieldAbi = NonNativeTokenContractAbi.functions.find(f => f.name === 'shield')!;
+      const args = encodeArguments(shieldAbi, params);
 
       const callContext = CallContext.from({
         msgSender: AztecAddress.random(),
@@ -272,7 +272,9 @@ describe('ACIR public execution simulator', () => {
         isStaticCall: false,
       });
 
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(publicToPrivateAbi.bytecode, 'hex'));
+      publicContracts.getBytecode.mockResolvedValue(Buffer.from(shieldAbi.bytecode, 'hex'));
+      // mock initial balance to be greater than the amount being sent
+      publicState.storageRead.mockResolvedValue(amount);
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
       const result = await executor.execute(execution, GlobalVariables.empty());
@@ -288,9 +290,7 @@ describe('ACIR public execution simulator', () => {
     });
 
     it('Should be able to create a L2 to L1 message from the public context', async () => {
-      const createL2ToL1MessagePublicAbi = PublicToPrivateContractAbi.functions.find(
-        f => f.name === 'createL2ToL1MessagePublic',
-      )!;
+      const createL2ToL1MessagePublicAbi = TestContractAbi.functions.find(f => f.name === 'createL2ToL1MessagePublic')!;
       const args = encodeArguments(createL2ToL1MessagePublicAbi, params);
 
       const callContext = CallContext.from({
@@ -375,9 +375,7 @@ describe('ACIR public execution simulator', () => {
     });
 
     it('Should be able to create a nullifier from the public context', async () => {
-      const createNullifierPublicAbi = PublicToPrivateContractAbi.functions.find(
-        f => f.name === 'createNullifierPublic',
-      )!;
+      const createNullifierPublicAbi = TestContractAbi.functions.find(f => f.name === 'createNullifierPublic')!;
 
       const args = encodeArguments(createNullifierPublicAbi, params);
 

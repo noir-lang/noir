@@ -243,7 +243,7 @@ export function delay(ms: number): Promise<void> {
  * @param key - The key within the mapping.
  * @returns The mapping's key.
  */
-export async function calculateStorageSlot(slot: bigint, key: Fr): Promise<Fr> {
+export async function calculateAztecStorageSlot(slot: bigint, key: Fr): Promise<Fr> {
   const wasm = await CircuitsWasm.get();
   const mappingStorageSlot = new Fr(slot); // this value is manually set in the Noir contract
   const mappingStorageSlotSeparator = new Fr(BigInt(MAPPING_SLOT_PEDERSEN_SEPARATOR)); // The pedersen domain separator for storage slot calculations.
@@ -269,7 +269,7 @@ export async function calculateStorageSlot(slot: bigint, key: Fr): Promise<Fr> {
  * @param key - The mapping's key.
  * @param expectedValue - The expected value of the mapping.
  */
-export async function expectStorageSlot(
+export async function expectAztecStorageSlot(
   logger: Logger,
   aztecNode: AztecNodeService,
   contract: Contract,
@@ -277,7 +277,7 @@ export async function expectStorageSlot(
   key: Fr,
   expectedValue: bigint,
 ) {
-  const storageSlot = await calculateStorageSlot(slot, key);
+  const storageSlot = await calculateAztecStorageSlot(slot, key);
   const storageValue = await aztecNode.getStorageAt(contract.address!, storageSlot.value);
   if (storageValue === undefined) {
     throw new Error(`Storage slot ${storageSlot} not found`);
