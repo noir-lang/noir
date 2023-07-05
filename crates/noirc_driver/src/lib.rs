@@ -26,6 +26,7 @@ mod program;
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
+#[derive(Default)]
 pub struct Driver {
     context: Context,
 }
@@ -73,7 +74,7 @@ pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 
 impl Driver {
     pub fn new() -> Self {
-        Driver { context: Context::default() }
+        Self::default()
     }
 
     // TODO(#1599): Move control of the FileManager into nargo
@@ -419,12 +420,5 @@ impl Driver {
 
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
         self.context.def_interner.function_meta(func_id)
-    }
-}
-
-impl Default for Driver {
-    fn default() -> Self {
-        #[allow(deprecated)]
-        Self::new()
     }
 }
