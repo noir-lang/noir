@@ -337,6 +337,7 @@ impl Context {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
         }
+        self.acir_context.set_location(None);
     }
 
     fn gen_brillig_for(&self, func: &Function, brillig: &Brillig) -> Vec<Opcode> {
