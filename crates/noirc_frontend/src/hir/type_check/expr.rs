@@ -42,20 +42,15 @@ impl<'interner> TypeChecker<'interner> {
                     HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
                         let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
 
-                        let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
+                        let first_elem_type = elem_types
+                            .get(0)
+                            .cloned()
+                            .unwrap_or_else(|| self.interner.next_type_variable());
 
-                        let arr_type = if arr.is_empty() {
-                            dbg!("arr.is_empty()");
-                            Type::Array(
-                                Box::new(Type::Constant(0u64)),
-                                Box::new(self.interner.next_type_variable()),
-                            )
-                        } else {
-                            Type::Array(
-                                Box::new(Type::Constant(arr.len() as u64)),
-                                Box::new(first_elem_type.clone()),
-                            )
-                        };
+                        let arr_type = Type::Array(
+                            Box::new(Type::Constant(arr.len() as u64)),
+                            Box::new(first_elem_type.clone()),
+                        );
 
                         // Check if the array is homogeneous
                         for (index, elem_type) in elem_types.iter().enumerate().skip(1) {
