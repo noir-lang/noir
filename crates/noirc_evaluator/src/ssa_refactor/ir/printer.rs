@@ -6,6 +6,8 @@ use std::{
 
 use iter_extended::vecmap;
 
+use crate::ssa_refactor::ir::function::RuntimeType;
+
 use super::{
     basic_block::BasicBlockId,
     function::Function,
@@ -15,7 +17,9 @@ use super::{
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
-    writeln!(f, "fn {} {} {{", function.name(), function.id())?;
+    let runtime: &str =
+        if let RuntimeType::Brillig = function.runtime() { "brillig" } else { "acir" };
+    writeln!(f, "fn {} {} {} {{", runtime, function.name(), function.id())?;
     display_block_with_successors(function, function.entry_block(), &mut HashSet::new(), f)?;
     write!(f, "}}")
 }

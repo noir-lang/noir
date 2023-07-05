@@ -148,9 +148,8 @@ impl Context {
             self.create_value_from_type(&typ, &mut |this, _| this.acir_context.add_variable())
         });
 
-        let outputs: Vec<AcirType> = vecmap(self.get_return_values(main_func), |result_id| {
-            dfg.type_of_value(result_id).into()
-        });
+        let outputs: Vec<AcirType> =
+            vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
         let code = self.gen_brillig_for(main_func, &brillig);
 
@@ -421,22 +420,6 @@ impl Context {
         let result_ids = dfg.instruction_results(instruction);
         let typ = dfg.type_of_value(result_ids[0]).into();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
-    }
-
-    /// Finds the return values of a given function
-    fn get_return_values(&self, func: &Function) -> Vec<ValueId> {
-        let blocks = func.reachable_blocks();
-        let mut function_return_values = None;
-        for block in blocks {
-            let terminator = func.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
-                function_return_values = Some(return_values);
-                break;
-            }
-        }
-        function_return_values
-            .expect("Expected a return instruction, as block is finished construction")
-            .clone()
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations

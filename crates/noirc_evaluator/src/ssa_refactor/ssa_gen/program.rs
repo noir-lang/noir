@@ -34,9 +34,30 @@ impl Ssa {
         &self.functions[&self.main_id]
     }
 
+    /// Returns the function with the given ID
+    pub(crate) fn get_fn(&self, id: FunctionId) -> &Function {
+        &self.functions[&id]
+    }
+
     /// Returns the entry-point function of the program as a mutable reference
     pub(crate) fn main_mut(&mut self) -> &mut Function {
         self.functions.get_mut(&self.main_id).expect("ICE: Ssa should have a main function")
+    }
+
+    /// Returns the function with the given ID as a mutable reference
+    pub(crate) fn get_fn_mut(&mut self, id: FunctionId) -> &mut Function {
+        self.functions.get_mut(&id).expect("ICE: Could not find function")
+    }
+
+    /// Adds a new function to the program
+    pub(crate) fn add_fn(
+        &mut self,
+        build_with_id: impl FnOnce(FunctionId) -> Function,
+    ) -> FunctionId {
+        let new_id = self.next_id.next();
+        let function = build_with_id(new_id);
+        self.functions.insert(new_id, function);
+        new_id
     }
 }
 

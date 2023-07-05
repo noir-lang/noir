@@ -109,6 +109,11 @@ impl DataFlowGraph {
         self.blocks.iter()
     }
 
+    /// Gets a vec of the value ids of the function
+    pub(crate) fn value_ids(&self) -> Vec<ValueId> {
+        self.values.iter().map(|(id, _)| id).collect()
+    }
+
     /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
         self.blocks[block].parameters()
@@ -381,6 +386,12 @@ impl std::ops::Index<ValueId> for DataFlowGraph {
     type Output = Value;
     fn index(&self, id: ValueId) -> &Self::Output {
         &self.values[id]
+    }
+}
+
+impl std::ops::IndexMut<ValueId> for DataFlowGraph {
+    fn index_mut(&mut self, id: ValueId) -> &mut Self::Output {
+        &mut self.values[id]
     }
 }
 

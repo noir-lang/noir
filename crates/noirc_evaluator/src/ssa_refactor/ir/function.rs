@@ -2,11 +2,12 @@ use std::collections::HashSet;
 
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
+use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir,
@@ -82,6 +83,21 @@ impl Function {
     /// The parameters will always match that of this function's entry block.
     pub(crate) fn parameters(&self) -> &[ValueId] {
         self.dfg.block_parameters(self.entry_block)
+    }
+
+    /// Returns the return values of this function.
+    pub(crate) fn returns(&self) -> &[ValueId] {
+        let blocks = self.reachable_blocks();
+        let mut function_return_values = None;
+        for block in blocks {
+            let terminator = self.dfg[block].terminator();
+            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
+                function_return_values = Some(return_values);
+                break;
+            }
+        }
+        function_return_values
+            .expect("Expected a return instruction, as block is finished construction")
     }
 
     /// Collects all the reachable blocks of this function.
