@@ -227,7 +227,6 @@ impl<'interner> Monomorphizer<'interner> {
                 self.define_local(ident.id, new_id);
             }
             HirPattern::Mutable(pattern, _) => self.parameter(*pattern, typ, new_params),
-            HirPattern::MutableReference(pattern, _) => self.parameter(*pattern, typ, new_params),
             HirPattern::Tuple(fields, _) => {
                 let tuple_field_types = unwrap_tuple_type(typ);
 
@@ -546,7 +545,6 @@ impl<'interner> Monomorphizer<'interner> {
                 })
             }
             HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
-            HirPattern::MutableReference(pattern, _) => self.unpack_pattern(*pattern, value, typ),
             HirPattern::Tuple(patterns, _) => {
                 let fields = unwrap_tuple_type(typ);
                 self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields))

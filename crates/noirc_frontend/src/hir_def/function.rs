@@ -44,7 +44,6 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
     match pattern {
         HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
         HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
-        HirPattern::MutableReference(pattern, _) => get_param_name(pattern, interner),
         HirPattern::Tuple(_, _) => None,
         HirPattern::Struct(_, _, _) => None,
     }
@@ -69,7 +68,6 @@ impl Parameters {
         let mut spans = vecmap(&self.0, |param| match &param.0 {
             HirPattern::Identifier(ident) => ident.location.span,
             HirPattern::Mutable(_, span) => *span,
-            HirPattern::MutableReference(_, span) => *span,
             HirPattern::Tuple(_, span) => *span,
             HirPattern::Struct(_, _, span) => *span,
         });

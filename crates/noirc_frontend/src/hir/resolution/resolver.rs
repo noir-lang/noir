@@ -1024,38 +1024,37 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_pattern(&mut self, pattern: Pattern, definition: DefinitionKind) -> HirPattern {
-        self.resolve_pattern_mutable(pattern, false, None, definition)
+        self.resolve_pattern_mutable(pattern, None, definition)
     }
 
     fn resolve_pattern_mutable(
         &mut self,
         pattern: Pattern,
-        mutable: bool,
-        mutable_span: Option<Span>,
+        mutable: Option<Span>,
         definition: DefinitionKind,
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
                 // If this definition is mutable, do not store the rhs because it will
                 // not always refer to the correct value of the variable
-                let definition = match (mutable_span, definition) {
+                let definition = match (mutable, definition) {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let id = self.add_variable_decl(name, mutable, false, definition);
+                let id = self.add_variable_decl(name, mutable.is_some(), false, definition);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
-                if let Some(first_mut) = mutable_span {
+                if let Some(first_mut) = mutable {
                     self.push_err(ResolverError::UnnecessaryMut { first_mut, second_mut: span });
                 }
 
-                let pattern = self.resolve_pattern_mutable(*pattern, true, Some(span), definition);
+                let pattern = self.resolve_pattern_mutable(*pattern, Some(span), definition);
                 HirPattern::Mutable(Box::new(pattern), span)
             }
             Pattern::Tuple(fields, span) => {
                 let fields = vecmap(fields, |field| {
-                    self.resolve_pattern_mutable(field, mutable, mutable_span, definition.clone())
+                    self.resolve_pattern_mutable(field, mutable, definition.clone())
                 });
                 HirPattern::Tuple(fields, span)
             }
@@ -1079,7 +1078,7 @@ impl<'a> Resolver<'a> {
                 };
 
                 let resolve_field = |this: &mut Self, pattern| {
-                    this.resolve_pattern_mutable(pattern, mutable, mutable_span, definition.clone())
+                    this.resolve_pattern_mutable(pattern, mutable, definition.clone())
                 };
 
                 let typ = struct_type.clone();

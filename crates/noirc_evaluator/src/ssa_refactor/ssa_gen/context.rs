@@ -490,7 +490,7 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+    pub(super) fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
             let reference = value.eval(self);
@@ -499,7 +499,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Compile the given identifier as a reference - ie. avoid calling .eval()
-    fn ident_lvalue(&mut self, ident: &ast::Ident) -> Values {
+    fn ident_lvalue(&self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
             other => panic!("Unexpected definition found for mutable value: {other}"),
@@ -560,7 +560,6 @@ impl<'a> FunctionContext<'a> {
                 self.assign_new_value(*array_lvalue, new_array.into());
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
-                let old_object = old_object.map(|value| value.eval(self).into());
                 let new_object = Self::replace_field(old_object, index, new_value);
                 self.assign_new_value(*object_lvalue, new_object);
             }
@@ -582,12 +581,7 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             (Tree::Leaf(lhs), Tree::Leaf(rhs)) => {
-                let (lhs2, rhs2) = (lhs.clone().eval_reference(), rhs.clone().eval(self));
-
-                println!("Created store {lhs2} <- {rhs2} from {lhs:?} <- {rhs:?}");
-
-                let lhs = lhs2;
-                let rhs = rhs2;
+                let (lhs, rhs) = (lhs.eval_reference(), rhs.eval(self));
                 self.builder.insert_store(lhs, rhs);
             }
             (lhs, rhs) => {

@@ -59,7 +59,6 @@ impl<'interner> TypeChecker<'interner> {
         match pattern {
             HirPattern::Identifier(ident) => self.interner.push_definition_type(ident.id, typ),
             HirPattern::Mutable(pattern, _) => self.bind_pattern(pattern, typ),
-            HirPattern::MutableReference(pattern, _) => self.bind_pattern(pattern, typ),
             HirPattern::Tuple(fields, span) => match typ {
                 Type::Tuple(field_types) if field_types.len() == fields.len() => {
                     for (field, field_type) in fields.iter().zip(field_types) {
