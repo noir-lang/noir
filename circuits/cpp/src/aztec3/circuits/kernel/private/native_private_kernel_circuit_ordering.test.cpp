@@ -1,8 +1,10 @@
 #include "testing_harness.hpp"
 
 #include "aztec3/circuits/apps/test_apps/escrow/deposit.hpp"
+#include "aztec3/constants.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 
+#include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 #include <gtest/gtest.h>
@@ -31,8 +33,8 @@ TEST_F(native_private_kernel_ordering_tests, native_one_read_request_choping_com
 {
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
-    auto new_commitments = zero_array<fr, KERNEL_NEW_COMMITMENTS_LENGTH>();
-    auto read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
+    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments{};
+    std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
     std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
         read_request_membership_witnesses{};
 
@@ -59,8 +61,8 @@ TEST_F(native_private_kernel_ordering_tests, native_read_requests_choping_commit
 {
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
-    auto new_commitments = zero_array<fr, KERNEL_NEW_COMMITMENTS_LENGTH>();
-    auto read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
+    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments{};
+    std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
     std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
         read_request_membership_witnesses{};
 
@@ -96,8 +98,8 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
 {
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
-    auto new_commitments = zero_array<fr, KERNEL_NEW_COMMITMENTS_LENGTH>();
-    auto read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
+    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments{};
+    std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
     std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
         read_request_membership_witnesses{};
 

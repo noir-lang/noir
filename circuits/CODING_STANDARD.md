@@ -208,9 +208,11 @@ Here are the types of automation that should help stick to the standard:
     *  explicitly initialize struct members with default values: `NT::fr my_fr = 0;`
     *  initialize arrays using `std::array<T, 8> my_arr{};`
         *  this value-initializes all entries to 0 if T has no default constructor, otherwise calls default constructor for each
-    *  arrays of fields/`fr` are different! Use `zero_array` helper function for initialization
-        *  `std::array<fr, VK_TREE_HEIGHT> vk_path = zero_array<fr, VK_TREE_HEIGHT>();`
-        *  This is necessary because `fr` *does* have a default constructor that intentionally does *not* intialize its members to 0
+    *  For arrays of fields `fr`, it is particularly important to use the direct initialization form with empty initializer list
+     `
+     std::array<fr, VK_TREE_HEIGHT> vk_path{};
+     `
+     because the default constructor of `fr` is NOT initializing the array field values to 0. For large arrays and performance considerations, it may be useful to not initialize the field array elements using `std::array<fr, VK_TREE_HEIGHT> vk_path();`
 1.  **references**
     *  use them whenever possible for function arguments since pass by reference is cheaper
     *  make arg references "const" if they should not be modified inside a function

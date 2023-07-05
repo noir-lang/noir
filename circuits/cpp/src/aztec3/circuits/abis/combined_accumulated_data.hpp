@@ -5,7 +5,6 @@
 #include "public_data_update_request.hpp"
 
 #include "aztec3/constants.hpp"
-#include "aztec3/utils/array.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
@@ -14,7 +13,6 @@
 
 namespace aztec3::circuits::abis {
 
-using aztec3::utils::zero_array;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using std::is_same;
@@ -27,18 +25,15 @@ template <typename NCT> struct CombinedAccumulatedData {
 
     AggregationObject aggregation_object{};
 
-    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments = zero_array<fr, KERNEL_NEW_COMMITMENTS_LENGTH>();
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers = zero_array<fr, KERNEL_NEW_NULLIFIERS_LENGTH>();
+    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments{};
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers{};
 
-    std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack =
-        zero_array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH>();
-    std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack =
-        zero_array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>();
-    std::array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs =
-        zero_array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH>();
+    std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack{};
+    std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack{};
+    std::array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs{};
 
-    std::array<fr, NUM_FIELDS_PER_SHA256> encrypted_logs_hash = zero_array<fr, NUM_FIELDS_PER_SHA256>();
-    std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash = zero_array<fr, NUM_FIELDS_PER_SHA256>();
+    std::array<fr, NUM_FIELDS_PER_SHA256> encrypted_logs_hash{};
+    std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash{};
 
     // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
     // variable-length data.

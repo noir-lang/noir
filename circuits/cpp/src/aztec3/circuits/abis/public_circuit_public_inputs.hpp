@@ -5,7 +5,6 @@
 #include "contract_storage_update_request.hpp"
 #include "../../constants.hpp"
 
-#include "aztec3/utils/array.hpp"
 #include "aztec3/utils/msgpack_derived_output.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/native_types.hpp"
@@ -14,7 +13,6 @@
 
 namespace aztec3::circuits::abis {
 
-using aztec3::utils::zero_array;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 
@@ -26,18 +24,18 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     CallContext<NCT> call_context{};
 
     fr args_hash = 0;
-    std::array<fr, RETURN_VALUES_LENGTH> return_values = zero_array<fr, RETURN_VALUES_LENGTH>();
+    std::array<fr, RETURN_VALUES_LENGTH> return_values{};
 
     std::array<ContractStorageUpdateRequest<NCT>, KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH>
         contract_storage_update_requests{};
     std::array<ContractStorageRead<NCT>, KERNEL_PUBLIC_DATA_READS_LENGTH> contract_storage_reads{};
 
-    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = zero_array<fr, PUBLIC_CALL_STACK_LENGTH>();
-    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments = zero_array<fr, NEW_COMMITMENTS_LENGTH>();
-    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers = zero_array<fr, NEW_NULLIFIERS_LENGTH>();
-    std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs = zero_array<fr, NEW_L2_TO_L1_MSGS_LENGTH>();
+    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack{};
+    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments{};
+    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers{};
+    std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs{};
 
-    std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash = zero_array<fr, NUM_FIELDS_PER_SHA256>();
+    std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash{};
 
     // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
     // variable-length data.

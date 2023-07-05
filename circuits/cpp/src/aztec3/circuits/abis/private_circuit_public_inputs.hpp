@@ -4,7 +4,6 @@
 #include "contract_deployment_data.hpp"
 
 #include "aztec3/constants.hpp"
-#include "aztec3/utils/array.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
@@ -14,7 +13,6 @@
 
 namespace aztec3::circuits::abis {
 
-using aztec3::utils::zero_array;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using plonk::stdlib::witness_t;
@@ -27,19 +25,19 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     CallContext<NCT> call_context{};
 
     fr args_hash = 0;
-    std::array<fr, RETURN_VALUES_LENGTH> return_values = zero_array<fr, RETURN_VALUES_LENGTH>();
+    std::array<fr, RETURN_VALUES_LENGTH> return_values{};
 
-    std::array<fr, READ_REQUESTS_LENGTH> read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
+    std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
 
-    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments = zero_array<fr, NEW_COMMITMENTS_LENGTH>();
-    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers = zero_array<fr, NEW_NULLIFIERS_LENGTH>();
+    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments{};
+    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers{};
 
-    std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack = zero_array<fr, PRIVATE_CALL_STACK_LENGTH>();
-    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack = zero_array<fr, PUBLIC_CALL_STACK_LENGTH>();
-    std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs = zero_array<fr, NEW_L2_TO_L1_MSGS_LENGTH>();
+    std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack{};
+    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack{};
+    std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs{};
 
-    std::array<fr, NUM_FIELDS_PER_SHA256> encrypted_logs_hash = zero_array<fr, NUM_FIELDS_PER_SHA256>();
-    std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash = zero_array<fr, NUM_FIELDS_PER_SHA256>();
+    std::array<fr, NUM_FIELDS_PER_SHA256> encrypted_logs_hash{};
+    std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash{};
 
     // Here so that the gas cost of this request can be measured by circuits, without actually needing to feed in the
     // variable-length data.

@@ -26,7 +26,7 @@ template <typename NCT> struct PreviousKernelData {
     // TODO: this index and path are meant to be those of a leaf within the tree of _kernel circuit_ vks; not the tree
     // of functions within the contract tree.
     uint32 vk_index = 0;
-    std::array<fr, VK_TREE_HEIGHT> vk_path = zero_array<fr, VK_TREE_HEIGHT>();
+    std::array<fr, VK_TREE_HEIGHT> vk_path{};
 
     // for serialization, update with new fields
     MSGPACK_FIELDS(public_inputs, proof, vk, vk_index, vk_path);

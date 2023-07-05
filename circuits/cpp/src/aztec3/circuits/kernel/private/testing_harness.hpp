@@ -14,6 +14,8 @@
 
 #include <barretenberg/barretenberg.hpp>
 
+#include <array>
+
 namespace {
 
 using aztec3::circuits::compute_empty_sibling_path;
@@ -29,8 +31,6 @@ using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
 
 
 using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
-
-using aztec3::utils::zero_array;
 
 // A type representing any private circuit function
 // (for now it works for deposit and constructor)
@@ -126,15 +126,15 @@ PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(
     bool is_constructor,
     private_function const& func,
     std::vector<NT::fr> const& args_vec,
-    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash = zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash = std::array<NT::fr, NUM_FIELDS_PER_SHA256>{},
     std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& unencrypted_logs_hash =
-        zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+        std::array<NT::fr, NUM_FIELDS_PER_SHA256>{},
     NT::fr const& encrypted_log_preimages_length = NT::fr(0),
     NT::fr const& unencrypted_log_preimages_length = NT::fr(0),
     std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& public_inputs_encrypted_logs_hash =
-        zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+        std::array<NT::fr, NUM_FIELDS_PER_SHA256>{},
     std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& public_inputs_unencrypted_logs_hash =
-        zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+        std::array<NT::fr, NUM_FIELDS_PER_SHA256>{},
     NT::fr const& public_inputs_encrypted_log_preimages_length = NT::fr(0),
     NT::fr const& public_inputs_unencrypted_log_preimages_length = NT::fr(0),
     bool is_circuit = false);
@@ -156,9 +156,9 @@ PrivateKernelInputsInit<NT> do_private_call_get_kernel_inputs_init(
     bool is_constructor,
     private_function const& func,
     std::vector<NT::fr> const& args_vec,
-    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash = zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash = std::array<NT::fr, NUM_FIELDS_PER_SHA256>{},
     std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& unencrypted_logs_hash =
-        zero_array<NT::fr, NUM_FIELDS_PER_SHA256>(),
+        std::array<NT::fr, NUM_FIELDS_PER_SHA256>{},
     NT::fr const& encrypted_log_preimages_length = NT::fr(0),
     NT::fr const& unencrypted_log_preimages_length = NT::fr(0),
     bool is_circuit = false);

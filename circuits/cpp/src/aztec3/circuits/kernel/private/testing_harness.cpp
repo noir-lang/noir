@@ -43,7 +43,6 @@ using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 
 using aztec3::utils::array_length;
-using aztec3::utils::zero_array;
 
 /**
  * @brief Get the random read requests and their membership requests
@@ -60,8 +59,9 @@ std::tuple<std::array<NT::fr, READ_REQUESTS_LENGTH>,
            NT::fr>
 get_random_reads(NT::fr const& contract_address, int const num_read_requests)
 {
-    auto read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
-    auto leaves = zero_array<fr, READ_REQUESTS_LENGTH>();
+    std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
+    std::array<fr, READ_REQUESTS_LENGTH> leaves{};
+
     // randomize the number of read requests with a configurable minimum
     const auto final_num_rr = num_read_requests >= 0
                                   ? std::min(static_cast<size_t>(num_read_requests), READ_REQUESTS_LENGTH)

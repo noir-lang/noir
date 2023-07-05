@@ -25,6 +25,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+
 namespace {
 using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
 using aztec3::circuits::abis::public_kernel::PublicKernelInputs;
@@ -45,7 +47,6 @@ using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::public_kernel::PublicCallData;
 using aztec3::utils::source_arrays_are_in_target;
-using aztec3::utils::zero_array;
 }  // namespace
 
 namespace aztec3::circuits::kernel::public_kernel {
@@ -461,7 +462,7 @@ void validate_private_data_propagation(const PublicKernelInputs<NT>& inputs,
                                        const KernelCircuitPublicInputs<NT>& public_inputs)
 {
     ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.private_call_stack,
-                                            zero_array<NT::fr, KERNEL_PRIVATE_CALL_STACK_LENGTH>(),
+                                            std::array<NT::fr, KERNEL_PRIVATE_CALL_STACK_LENGTH>{},
                                             public_inputs.end.private_call_stack));
 
     ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_contracts,
@@ -896,7 +897,7 @@ TEST(public_kernel_tests, private_previous_kernel_empty_public_call_stack_should
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__private_previous_kernel_empty_public_call_stack_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
-    inputs.previous_kernel.public_inputs.end.public_call_stack = zero_array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>();
+    inputs.previous_kernel.public_inputs.end.public_call_stack = std::array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>{};
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
     ASSERT_TRUE(dummyBuilder.failed());
     ASSERT_EQ(dummyBuilder.get_first_failure().code, CircuitErrorCode::PUBLIC_KERNEL__EMPTY_PUBLIC_CALL_STACK);
@@ -959,7 +960,7 @@ TEST(public_kernel_tests, public_previous_kernel_empty_public_call_stack_should_
     DummyBuilder dummyBuilder =
         DummyBuilder("public_kernel_tests__public_previous_kernel_empty_public_call_stack_should_fail");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(false);
-    inputs.previous_kernel.public_inputs.end.public_call_stack = zero_array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>();
+    inputs.previous_kernel.public_inputs.end.public_call_stack = std::array<NT::fr, KERNEL_PUBLIC_CALL_STACK_LENGTH>{};
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dummyBuilder, inputs);
     ASSERT_TRUE(dummyBuilder.failed());
     ASSERT_EQ(dummyBuilder.get_first_failure().code, CircuitErrorCode::PUBLIC_KERNEL__EMPTY_PUBLIC_CALL_STACK);
@@ -1214,8 +1215,7 @@ TEST(public_kernel_tests, logs_are_handled_as_expected)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__logs_are_handled_as_expected");
     PublicKernelInputs<NT> const& inputs = get_kernel_inputs_with_previous_kernel(true);
-
-    auto const& zero_hash = zero_array<NT::fr, NUM_FIELDS_PER_SHA256>();
+    std::array<NT::fr, NUM_FIELDS_PER_SHA256> const& zero_hash{};
 
     // Ensure encrypted logs hash values are non-zero
     ASSERT_NE(inputs.previous_kernel.public_inputs.end.encrypted_logs_hash, zero_hash);

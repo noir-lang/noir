@@ -428,7 +428,7 @@ TEST_F(native_private_kernel_init_tests, native_no_read_requests_works)
     auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
 
     // empty requests
-    std::array<fr, READ_REQUESTS_LENGTH> const read_requests = zero_array<fr, READ_REQUESTS_LENGTH>();
+    std::array<fr, READ_REQUESTS_LENGTH> const read_requests{};
     std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> const
         read_request_membership_witnesses{};
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
@@ -557,7 +557,7 @@ TEST_F(native_private_kernel_init_tests, native_one_transient_read_requests_work
 
     // Make the read request transient
     read_request_membership_witnesses[0].leaf_index = NT::fr(-1);
-    read_request_membership_witnesses[0].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
+    read_request_membership_witnesses[0].sibling_path = std::array<fr, PRIVATE_DATA_TREE_HEIGHT>{};
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_one_transient_read_requests_works");
@@ -588,7 +588,7 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_one_transient_
 
     // Make the read request at position 1 transient
     read_request_membership_witnesses[1].leaf_index = NT::fr(-1);
-    read_request_membership_witnesses[1].sibling_path = zero_array<fr, PRIVATE_DATA_TREE_HEIGHT>();
+    read_request_membership_witnesses[1].sibling_path = std::array<fr, PRIVATE_DATA_TREE_HEIGHT>{};
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyBuilder builder =
