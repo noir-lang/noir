@@ -7,10 +7,7 @@ use noirc_driver::{CompileOptions, Driver};
 use noirc_frontend::node_interner::FuncId;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{
-    cli::{check_cmd::check_crate_and_report_errors, compile_cmd::setup_driver},
-    errors::CliError,
-};
+use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError, resolver::Resolver};
 
 use super::NargoConfig;
 
@@ -40,7 +37,7 @@ fn run_tests<B: Backend>(
     test_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = setup_driver(backend, program_dir)?;
+    let mut driver = Resolver::resolve_root_manifest(program_dir)?;
     check_crate_and_report_errors(
         &mut driver,
         compile_options.deny_warnings,
@@ -90,7 +87,7 @@ fn run_test<B: Backend>(
     config: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let program = driver
-        .compile_no_check(config, main)
+        .compile_no_check(config, main, backend.np_language(), &|op| backend.supports_opcode(op))
         .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,

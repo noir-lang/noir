@@ -1207,6 +1207,7 @@ impl SsaContext {
                 }
             }
             Type::Array(..) => panic!("Cannot convert an array type {t} into an ObjectType since it is unknown which array it refers to"),
+            Type::MutableReference(..) => panic!("Mutable reference types are unimplemented in the old ssa backend"),
             Type::Unit => ObjectType::NotAnObject,
             Type::Function(..) => ObjectType::Function,
             Type::Tuple(_) => todo!("Conversion to ObjectType is unimplemented for tuples"),

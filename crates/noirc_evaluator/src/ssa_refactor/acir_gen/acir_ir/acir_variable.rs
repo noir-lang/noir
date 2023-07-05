@@ -300,8 +300,10 @@ impl AcirContext {
                     self.euclidean_division_var(lhs, rhs, bit_size)?;
                 Ok(quotient_var)
             }
-            NumericType::Signed { .. } => {
-                todo!("Signed division");
+            NumericType::Signed { bit_size } => {
+                let (quotient_var, _remainder_var) =
+                    self.signed_division_var(lhs, rhs, bit_size)?;
+                Ok(quotient_var)
             }
         }
     }
@@ -433,6 +435,37 @@ impl AcirContext {
         Ok((quotient_var, remainder_var))
     }
 
+    /// Returns the quotient and remainder such that lhs = rhs * quotient + remainder
+    /// and |remainder| < |rhs|
+    /// and remainder has the same sign than lhs
+    /// Note that this is not the euclidian division, where we have instead remainder < |rhs|
+    ///
+    ///
+    ///
+    ///
+
+    fn signed_division_var(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+        bit_size: u32,
+    ) -> Result<(AcirVar, AcirVar), AcirGenError> {
+        let lhs_data = &self.vars[&lhs].clone();
+        let rhs_data = &self.vars[&rhs].clone();
+
+        let lhs_expr = lhs_data.to_expression();
+        let rhs_expr = rhs_data.to_expression();
+        let l_witness = self.acir_ir.get_or_create_witness(&lhs_expr);
+        let r_witness = self.acir_ir.get_or_create_witness(&rhs_expr);
+        assert_ne!(bit_size, 0, "signed integer should have at least one bit");
+        let (q, r) =
+            self.acir_ir.signed_division(&l_witness.into(), &r_witness.into(), bit_size)?;
+
+        let q_vd = AcirVarData::Expr(q);
+        let r_vd = AcirVarData::Expr(r);
+        Ok((self.add_data(q_vd), self.add_data(r_vd)))
+    }
+
     /// Returns a variable which is constrained to be `lhs mod rhs`
     pub(crate) fn modulo_var(
         &mut self,
@@ -495,8 +528,7 @@ impl AcirContext {
     ) -> Result<AcirVar, AcirGenError> {
         let data = &self.vars[&variable];
         match numeric_type {
-            NumericType::Signed { .. } => todo!("signed integer constraining is unimplemented"),
-            NumericType::Unsigned { bit_size } => {
+            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let data_expr = data.to_expression();
                 let witness = self.acir_ir.get_or_create_witness(&data_expr);
                 self.acir_ir.range_constraint(witness, *bit_size)?;
@@ -826,7 +858,7 @@ impl AcirContext {
         });
         // Enforce the outputs to be sorted
         for i in 0..(outputs_var.len() - 1) {
-            self.less_than_constrain(outputs_var[i], outputs_var[i + 1], bit_size)?;
+            self.less_than_constrain(outputs_var[i], outputs_var[i + 1], bit_size, None)?;
         }
         // Enforce the outputs to be a permutation of the inputs
         self.acir_ir.permutation(&inputs_expr, &output_expr);
@@ -840,8 +872,9 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: Option<AcirVar>,
     ) -> Result<(), AcirGenError> {
-        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size, None)?;
+        let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size, predicate)?;
         self.assert_eq_one(lhs_less_than_rhs)
     }
 }

@@ -627,6 +627,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _) => Some(Function),
         Type::Vec(_) => Some(Vec),
+        Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_)

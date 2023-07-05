@@ -89,6 +89,7 @@ pub enum Literal {
 pub struct Unary {
     pub operator: crate::UnaryOp,
     pub rhs: Box<Expression>,
+    pub result_type: Type,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -176,6 +177,7 @@ pub enum LValue {
     Ident(Ident),
     Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
     MemberAccess { object: Box<LValue>, field_index: usize },
+    Dereference { reference: Box<LValue>, element_type: Type },
 }
 
 pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
@@ -209,6 +211,7 @@ pub enum Type {
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     Vec(Box<Type>),
+    MutableReference(Box<Type>),
     Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
 }
 
@@ -323,6 +326,7 @@ impl std::fmt::Display for Type {
             }
             Type::Slice(element) => write!(f, "[{element}"),
             Type::Vec(element) => write!(f, "Vec<{element}>"),
+            Type::MutableReference(element) => write!(f, "&mut {element}"),
         }
     }
 }

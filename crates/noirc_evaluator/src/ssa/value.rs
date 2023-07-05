@@ -101,7 +101,8 @@ impl Value {
             | Type::String(..)
             | Type::Integer(..)
             | Type::Bool
-            | Type::Field => Value::Node(*iter.next().unwrap()),
+            | Type::Field
+            | Type::MutableReference(_) => Value::Node(*iter.next().unwrap()),
         }
     }
 
