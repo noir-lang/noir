@@ -358,39 +358,22 @@ impl Driver {
         let program = monomorphize(main_function, &self.context.def_interner);
 
         let (circuit, abi) = if options.experimental_ssa {
-            let (circuit, abi) =
-                experimental_create_circuit(program, options.show_ssa, options.show_output)?;
-
-            let optimized_circuit = {
-                // TODO: Is `abi.field_count` and `circuit.current_witness_index` the same?
-                // If so, the optimization pass can be deduplicated
-                let abi_len = abi.field_count();
-
-                let simplifier = CircuitSimplifier::new(abi_len);
-                acvm::compiler::compile(circuit, np_language, is_opcode_supported, &simplifier)
-                    .map_err(|_| FileDiagnostic {
-                        file_id: FileId::dummy(),
-                        diagnostic: CustomDiagnostic::from_message(
-                            "produced an acvm compile error",
-                        ),
-                    })?
-            };
-            (optimized_circuit, abi)
+            experimental_create_circuit(program, options.show_ssa, options.show_output)?
         } else {
-            let (circuit, abi) = create_circuit(program, options.show_ssa, options.show_output)?;
-            let simplifier = CircuitSimplifier::new(circuit.current_witness_index);
-            let optimized_circuit =
-                acvm::compiler::compile(circuit, np_language, is_opcode_supported, &simplifier)
-                    .map_err(|_| FileDiagnostic {
-                        file_id: FileId::dummy(),
-                        diagnostic: CustomDiagnostic::from_message(
-                            "produced an acvm compile error",
-                        ),
-                    })?;
-            (optimized_circuit, abi)
+            create_circuit(program, options.show_ssa, options.show_output)?
         };
 
-        Ok(CompiledProgram { circuit, abi })
+        let abi_len = abi.field_count();
+
+        let simplifier = CircuitSimplifier::new(abi_len);
+        let optimized_circuit =
+            acvm::compiler::compile(circuit, np_language, is_opcode_supported, &simplifier)
+                .map_err(|_| FileDiagnostic {
+                    file_id: FileId::dummy(),
+                    diagnostic: CustomDiagnostic::from_message("produced an acvm compile error"),
+                })?;
+
+        Ok(CompiledProgram { circuit: optimized_circuit, abi })
     }
 
     /// Returns a list of all functions in the current crate marked with #[test]
