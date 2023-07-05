@@ -1,6 +1,8 @@
 [package]
 authors = [""]
-compiler_version = "0.1"
+compiler_version = "0.7.1"
 
 [dependencies]
-aztec = { path = "../noir-aztec" }
+aztec = { path = "../../libs/noir-aztec" }
+custom_notes = { path = "../../libs/custom-notes" }
+token_utils = { path = "../../libs/token-utils" }

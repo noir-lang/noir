@@ -96,7 +96,7 @@ This package contains the source code and the Aztec ABIs for the example contrac
    compiler_version = "0.7.1"
 
    [dependencies]
-   aztec = { path = "../noir-aztec" }
+   aztec = { path = "../../libs/noir-aztec" }
    ```
 
 4. Replace the content of the generated `example_contract/src/main.nr` file with your contract code.

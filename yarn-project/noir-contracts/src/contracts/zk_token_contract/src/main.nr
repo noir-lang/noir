@@ -1,9 +1,17 @@
-mod balance_utils;
-mod generators;
 mod storage;
-mod value_note;
 
 contract ZkToken {
+    // Libs
+    use dep::token_utils::{
+        balance_utils,
+        value_note::{
+            value_note::ValueNote,
+            filter::get_2_notes,
+        }
+    };
+
+    use crate::storage::Storage;
+
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::context::Context;
@@ -13,10 +21,7 @@ contract ZkToken {
     use dep::aztec::state_vars::set::Set;
     use dep::aztec::log::emit_encrypted_log;
     use dep::aztec::log::emit_unencrypted_log;
-    use crate::storage::Storage;
-    use crate::value_note::value_note::ValueNote;
-    use crate::value_note::filter::get_2_notes;
-    use crate::balance_utils;
+
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
     fn constructor(

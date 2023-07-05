@@ -1,9 +1,11 @@
 use dep::std::hash::pedersen;
 use dep::aztec::context::Context;
 use dep::aztec::messaging::get_commitment_getter_data::make_commitment_getter_data;
-use dep::aztec::oracle::create_commitment::create_commitment;
-use dep::aztec::oracle::create_l2_to_l1_message::create_l2_to_l1_message;
-use dep::aztec::oracle::get_commitment::get_commitment;
+use dep::aztec::oracle::{
+    create_commitment::create_commitment,
+    create_l2_to_l1_message::create_l2_to_l1_message,
+    get_commitment::get_commitment
+};
 
 // Transparent note represents a note that is created in the clear (public execution), 
 // but can only be spent by those that know the preimage of the "secretHash"

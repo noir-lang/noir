@@ -16,5 +16,9 @@ for CONTRACT_NAME in "$@"; do
   cd $ROOT
   echo "Copying output for $CONTRACT_NAME"
   NODE_OPTIONS=--no-warnings yarn ts-node --esm src/scripts/copy_output.ts $CONTRACT_NAME
+  
+  echo "Formatting"
+  yarn run -T prettier -w ./src/examples/$CONTRACT_FOLDER.json
   echo -e "Done\n"
+  
 done

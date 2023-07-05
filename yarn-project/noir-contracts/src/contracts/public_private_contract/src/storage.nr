@@ -1,8 +1,13 @@
-use dep::aztec::state_vars::map::Map;
-use dep::aztec::state_vars::set::Set;
-use crate::notes::value_note::ValueNote;
-use crate::notes::value_note::ValueNoteInterface;
-use crate::notes::value_note::VALUE_NOTE_LEN;
+use dep::aztec::state_vars::{
+    map::Map,
+    set::Set
+};
+
+use dep::token_utils::value_note::value_note::{
+    ValueNote,
+    ValueNoteInterface,
+    VALUE_NOTE_LEN,
+};
 
 struct Storage {
     balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,

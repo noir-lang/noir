@@ -1,12 +1,18 @@
-use dep::aztec::state_vars::map::Map;
-use dep::aztec::state_vars::set::Set;
-use dep::aztec::state_vars::public_state::PublicState;
-use dep::aztec::state_vars::public_state_value::field_value::FIELD_VALUE_LEN;
-use dep::aztec::state_vars::public_state_value::field_value::FieldValueInterface;
+use dep::aztec::state_vars::{
+    map::Map,
+    set::Set,
+    public_state::PublicState,
+    public_state_value::field_value::{
+        FIELD_VALUE_LEN,
+        FieldValueInterface,
+    },
+};
 
-use crate::value_note::value_note::ValueNote;
-use crate::value_note::value_note::ValueNoteInterface;
-use crate::value_note::value_note::VALUE_NOTE_LEN;
+use dep::token_utils::value_note::{
+    value_note::ValueNote,
+    value_note::ValueNoteInterface,
+    value_note::VALUE_NOTE_LEN,
+};
 
 struct Storage {
     balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
