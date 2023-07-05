@@ -103,18 +103,7 @@ void SlabAllocator::init(size_t circuit_size_hint)
     //                                             1;        // Miscellaneous.
     // /*   6 MiB */ prealloc_num[base_size * 12] = 2 +      // next_var_index, prev_var_index
     //                                              2;       // real_variable_index, real_variable_tags
-    /*  16 MiB */ prealloc_num[base_size * 32] = 11 +     // Composer base selector vectors.
-                                                 4 +      // Monomial wires.
-                                                 4 +      // Lagrange wires.
-                                                 15 +     // Monomial constraint selectors.
-                                                 15 +     // Lagrange constraint selectors.
-                                                 8 +      // Monomial perm selectors.
-                                                 8 +      // Lagrange perm selectors.
-                                                 1 +      // Monomial sorted poly.
-                                                 5 +      // Lagrange sorted poly.
-                                                 2 +      // Perm poly.
-                                                 4;       // Quotient poly.
-                                                          //  8;       // Miscellaneous.
+    /*  16 MiB */ prealloc_num[base_size * 32] = 11;      // Composer base selector vectors.
     /*  32 MiB */ prealloc_num[base_size * 32 * 2] = 1;   // Miscellaneous.
     /*  50 MiB */ prealloc_num[base_size * 32 * 3] = 1;   // Variables.
     /*  64 MiB */ prealloc_num[base_size * 32 * 4] = 1 +  // SRS monomial points.

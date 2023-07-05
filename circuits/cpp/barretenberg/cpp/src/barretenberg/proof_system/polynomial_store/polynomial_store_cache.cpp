@@ -3,7 +3,7 @@
 namespace proof_system {
 
 PolynomialStoreCache::PolynomialStoreCache()
-    : max_cache_size_(70)
+    : max_cache_size_(40)
 {}
 
 PolynomialStoreCache::PolynomialStoreCache(size_t max_cache_size)
