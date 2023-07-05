@@ -1,6 +1,7 @@
 import { LeafData, SiblingPath, LowLeafWitnessData } from '@aztec/merkle-tree';
 import { L2Block, MerkleTreeId } from '@aztec/types';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { KERNEL_NEW_NULLIFIERS_LENGTH } from '@aztec/circuits.js';
 
 export * from './merkle_trees.js';
 export { LeafData } from '@aztec/merkle-tree';
@@ -20,7 +21,7 @@ export type PublicTreeId = MerkleTreeId.PUBLIC_DATA_TREE;
  * The tree must be initially padded as the pre-populated 0 index prevents efficient subtree insertion.
  * Padding with some values solves this issue.
  */
-export const INITIAL_NULLIFIER_TREE_SIZE = 8;
+export const INITIAL_NULLIFIER_TREE_SIZE = 2 * KERNEL_NEW_NULLIFIERS_LENGTH;
 
 /**
  *  Defines tree information.

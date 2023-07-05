@@ -228,7 +228,7 @@ library Decoder {
         let nullifierCount := and(shr(224, calldataload(offset)), 0xffffffff)
         offset := add(add(offset, 0x4), mul(nullifierCount, 0x20))
         let dataWritesCount := and(shr(224, calldataload(offset)), 0xffffffff)
-        offset := add(add(offset, 0x4), mul(nullifierCount, 0x40))
+        offset := add(add(offset, 0x4), mul(dataWritesCount, 0x40))
         let l2ToL1MsgsCount := and(shr(224, calldataload(offset)), 0xffffffff)
         offset := add(add(offset, 0x4), mul(l2ToL1MsgsCount, 0x20))
         let contractCount := and(shr(224, calldataload(offset)), 0xffffffff)

@@ -14,6 +14,7 @@
 #include "aztec3/circuits/rollup/components/components.hpp"
 #include "aztec3/circuits/rollup/test_utils/utils.hpp"
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/circuit_errors.hpp"
 
 #include <barretenberg/barretenberg.hpp>
 
@@ -52,6 +53,8 @@ using aztec3::circuits::rollup::test_utils::utils::make_public_data_update_reque
 using aztec3::circuits::rollup::test_utils::utils::make_public_read;
 
 using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
+
+using aztec3::utils::CircuitErrorCode;
 }  // namespace
 
 namespace aztec3::circuits::rollup::base::native_base_rollup_circuit {
@@ -148,7 +151,7 @@ TEST_F(base_rollup_tests, native_no_new_contract_leafs)
     ASSERT_EQ(outputs.start_contract_tree_snapshot, expectedStartContractTreeSnapshot);
     ASSERT_EQ(outputs.end_contract_tree_snapshot, expectedEndContractTreeSnapshot);
     ASSERT_EQ(outputs.start_contract_tree_snapshot, emptyInputs.start_contract_tree_snapshot);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
     run_cbind(emptyInputs, outputs);
 }
 
@@ -190,7 +193,7 @@ TEST_F(base_rollup_tests, native_contract_leaf_inserted)
     ASSERT_EQ(outputs.start_contract_tree_snapshot, expected_start_contracts_snapshot);
     ASSERT_EQ(outputs.start_contract_tree_snapshot, inputs.start_contract_tree_snapshot);
     ASSERT_EQ(outputs.end_contract_tree_snapshot, expected_end_contracts_snapshot);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
     run_cbind(inputs, outputs);
 }
 
@@ -241,7 +244,7 @@ TEST_F(base_rollup_tests, native_contract_leaf_inserted_in_non_empty_snapshot_tr
 
     ASSERT_EQ(outputs.start_contract_tree_snapshot, inputs.start_contract_tree_snapshot);
     ASSERT_EQ(outputs.end_contract_tree_snapshot, expected_end_contracts_snapshot);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
     run_cbind(inputs, outputs);
 }
 
@@ -282,7 +285,7 @@ TEST_F(base_rollup_tests, native_new_commitments_tree)
     ASSERT_EQ(outputs.start_private_data_tree_snapshot, expected_start_commitments_snapshot);
     ASSERT_EQ(outputs.start_private_data_tree_snapshot, inputs.start_private_data_tree_snapshot);
     ASSERT_EQ(outputs.end_private_data_tree_snapshot, expected_end_commitments_snapshot);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
     run_cbind(inputs, outputs);
 }
 
@@ -309,8 +312,14 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_empty)
     // This is because 0 values are not actually inserted into the tree, rather the inserted subtree is left
     // empty to begin with.
 
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH* 2> const new_nullifiers = { 0, 0, 0, 0, 0, 0, 0, 0 };
-    auto nullifier_tree = get_initial_nullifier_tree({ 1, 2, 3, 4, 5, 6, 7 });
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> const new_nullifiers{};
+    std::vector<fr> initial_values(2 * KERNEL_NEW_NULLIFIERS_LENGTH - 1);
+
+    for (size_t i = 0; i < initial_values.size(); i++) {
+        initial_values[i] = i + 1;
+    }
+
+    auto nullifier_tree = get_initial_nullifier_tree(initial_values);
     auto start_nullifier_tree_snapshot = nullifier_tree.get_snapshot();
     for (auto v : new_nullifiers) {
         nullifier_tree.update_element(v);
@@ -337,8 +346,8 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_empty)
     ASSERT_EQ(outputs.end_nullifier_tree_snapshot, end_nullifier_tree_snapshot);
     ASSERT_EQ(outputs.end_nullifier_tree_snapshot.root, outputs.start_nullifier_tree_snapshot.root);
     ASSERT_EQ(outputs.end_nullifier_tree_snapshot.next_available_leaf_index,
-              outputs.start_nullifier_tree_snapshot.next_available_leaf_index + 8);
-    ASSERT_FALSE(builder.failed());
+              outputs.start_nullifier_tree_snapshot.next_available_leaf_index + 2 * KERNEL_NEW_NULLIFIERS_LENGTH);
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
 }
 
 void nullifier_insertion_test(std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> new_nullifiers)
@@ -346,7 +355,12 @@ void nullifier_insertion_test(std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> n
     // @todo We can probably reuse this more than we are already doing.
     // Regression test caught when testing the typescript nullifier tree implementation
 
-    auto nullifier_tree = get_initial_nullifier_tree({ 1, 2, 3, 4, 5, 6, 7 });
+    std::vector<fr> initial_values(2 * KERNEL_NEW_NULLIFIERS_LENGTH - 1);
+    for (size_t i = 0; i < initial_values.size(); i++) {
+        initial_values[i] = i + 1;
+    }
+
+    auto nullifier_tree = get_initial_nullifier_tree(initial_values);
     auto start_nullifier_tree_snapshot = nullifier_tree.get_snapshot();
     for (auto v : new_nullifiers) {
         nullifier_tree.update_element(v);
@@ -373,26 +387,43 @@ void nullifier_insertion_test(std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> n
     ASSERT_EQ(outputs.end_nullifier_tree_snapshot, end_nullifier_tree_snapshot);
     ASSERT_EQ(outputs.end_nullifier_tree_snapshot.next_available_leaf_index,
               outputs.start_nullifier_tree_snapshot.next_available_leaf_index + KERNEL_NEW_NULLIFIERS_LENGTH * 2);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
 }
 
 TEST_F(base_rollup_tests, native_new_nullifier_tree_all_larger)
 {
-    nullifier_insertion_test({ 8, 9, 10, 11, 12, 13, 14, 15 });
+    std::array<fr, 2 * KERNEL_NEW_NULLIFIERS_LENGTH> initial_values;
+
+    for (size_t i = 0; i < initial_values.size(); i++) {
+        initial_values[i] = 2 * KERNEL_NEW_NULLIFIERS_LENGTH + i;
+    }
+
+    nullifier_insertion_test(initial_values);
 }
 
 TEST_F(base_rollup_tests, native_new_nullifier_tree_sparse_insertions)
 {
-    nullifier_insertion_test({ 9, 11, 16, 21, 26, 31, 36, 41 });
+    std::array<fr, 2 * KERNEL_NEW_NULLIFIERS_LENGTH> initial_values;
+
+    for (size_t i = 0; i < initial_values.size(); i++) {
+        initial_values[i] = 2 * KERNEL_NEW_NULLIFIERS_LENGTH + 5 * i + 1;
+    }
+    nullifier_insertion_test(initial_values);
 }
 
 TEST_F(base_rollup_tests, native_new_nullifier_tree_sparse)
 {
-    /**
-     * DESCRIPTION
-     */
-    std::vector<fr> const initial_values = { 5, 10, 15, 20, 25, 30, 35 };
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH* 2> const nullifiers = { 6, 11, 16, 21, 26, 31, 36, 41 };
+    std::array<fr, 2 * KERNEL_NEW_NULLIFIERS_LENGTH> nullifiers;
+
+    for (size_t i = 0; i < nullifiers.size(); i++) {
+        nullifiers[i] = 2 * KERNEL_NEW_NULLIFIERS_LENGTH + 5 * i + 1;
+    }
+
+    std::vector<fr> initial_values(2 * KERNEL_NEW_NULLIFIERS_LENGTH - 1);
+
+    for (size_t i = 0; i < initial_values.size(); i++) {
+        initial_values[i] = 5 * (i + 1);
+    }
 
     auto nullifier_tree = get_initial_nullifier_tree(initial_values);
     auto expected_start_nullifier_tree_snapshot = nullifier_tree.get_snapshot();
@@ -424,7 +455,7 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_sparse)
 
     // End state
     ASSERT_EQ(outputs.end_nullifier_tree_snapshot, expected_end_nullifier_tree_snapshot);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
 }
 
 TEST_F(base_rollup_tests, native_nullifier_tree_regression)
@@ -433,11 +464,12 @@ TEST_F(base_rollup_tests, native_nullifier_tree_regression)
     DummyBuilder builder = DummyBuilder("base_rollup_tests__native_nullifier_tree_regression");
 
     // This test runs after some data has already been inserted into the tree
-    // This test will pre-populate the tree with 24 values (0 item + 23 more) simulating that a rollup inserting two
-    // random values has already succeeded. This rollup then adds two further random values that will end up having
-    // their low nullifiers point at each other
-    std::vector<fr> initial_values(23, 0);
-    for (size_t i = 0; i < 7; i++) {
+    // This test will pre-populate the tree with 6 * KERNEL_NEW_NULLILFIERS_LENGTH values (0 item + 6 *
+    // KERNEL_NEW_NULLILFIERS_LENGTH -1 more) simulating that a rollup inserting two random values has already
+    // succeeded. Note that this corresponds to 3 (1 already initialized and 2 new ones) base rollups. This rollup then
+    // adds two further random values that will end up having their low nullifiers point at each other
+    std::vector<fr> initial_values(6 * KERNEL_NEW_NULLIFIERS_LENGTH - 1, 0);
+    for (size_t i = 0; i < 2 * KERNEL_NEW_NULLIFIERS_LENGTH - 1; i++) {
         initial_values[i] = i + 1;
     }
     // Note these are hex representations
@@ -475,7 +507,7 @@ TEST_F(base_rollup_tests, native_nullifier_tree_regression)
 
     // End state
     ASSERT_EQ(outputs.end_nullifier_tree_snapshot, expected_end_nullifier_tree_snapshot);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
 }
 
 // Another regression test with values from a failing packages test
@@ -511,7 +543,13 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_double_spend)
     DummyBuilder builder = DummyBuilder("base_rollup_tests__native_new_nullifier_tree_double_spend");
     BaseRollupInputs const empty_inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
 
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH* 2> const new_nullifiers = { 11, 0, 11, 0, 0, 0, 0, 0 };
+    fr const nullifier_to_insert =
+        2 * KERNEL_NEW_NULLIFIERS_LENGTH + 4;  // arbitrary value greater than 2 * KERNEL_NEW_NULLIFIERS_LENGTH
+    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> new_nullifiers{};
+
+    new_nullifiers[0] = nullifier_to_insert;
+    new_nullifiers[2] = nullifier_to_insert;
+
     std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>> inputs_and_snapshots =
         test_utils::utils::generate_nullifier_tree_testing_values(empty_inputs, new_nullifiers, 1);
     BaseRollupInputs const testing_inputs = std::get<0>(inputs_and_snapshots);
@@ -520,7 +558,7 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_double_spend)
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, testing_inputs);
 
     ASSERT_TRUE(builder.failed());
-    ASSERT_EQ(builder.get_first_failure().message, "Nullifier is not in the correct range");
+    ASSERT_EQ(builder.get_first_failure().code, CircuitErrorCode::BASE__INVALID_NULLIFIER_RANGE);
 }
 
 TEST_F(base_rollup_tests, native_empty_block_calldata_hash)
@@ -535,7 +573,7 @@ TEST_F(base_rollup_tests, native_empty_block_calldata_hash)
 
     ASSERT_TRUE(compare_field_hash_to_expected(output_calldata_hash, expected_calldata_hash) == true);
 
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
 
     run_cbind(inputs, outputs);
 }
@@ -546,11 +584,11 @@ TEST_F(base_rollup_tests, native_calldata_hash)
     // hash against the expected value.
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
 
-    // Commitments inserted are [1,2,3,4,5,6,7,8]. Nullifiers inserted are [8,9,10,11,12,13,14,15]
+    // Commitments inserted are [1,2,3,4,5,6,7,8 ...]. Nullifiers inserted are [8,9,10,11,12,13,14,15 ...]
     for (size_t i = 0; i < 2; ++i) {
-        for (size_t j = 0; j < 4; j++) {
-            kernel_data[i].public_inputs.end.new_commitments[j] = fr(i * 4 + j + 1);
-            kernel_data[i].public_inputs.end.new_nullifiers[j] = fr(i * 4 + j + 8);
+        for (size_t j = 0; j < KERNEL_NEW_NULLIFIERS_LENGTH; j++) {
+            kernel_data[i].public_inputs.end.new_commitments[j] = fr(i * KERNEL_NEW_NULLIFIERS_LENGTH + j + 1);
+            kernel_data[i].public_inputs.end.new_nullifiers[j] = fr((2 + i) * KERNEL_NEW_NULLIFIERS_LENGTH + j);
         }
     }
 
@@ -580,7 +618,7 @@ TEST_F(base_rollup_tests, native_calldata_hash)
 
     ASSERT_EQ(expected_calldata_hash, output_calldata_hash);
 
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
     run_cbind(inputs, outputs);
 }
 
@@ -684,7 +722,7 @@ TEST_F(base_rollup_tests, native_aggregate)
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
     ASSERT_EQ(inputs.kernel_data[0].public_inputs.end.aggregation_object.public_inputs,
               outputs.end_aggregation_object.public_inputs);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
 }
 
 TEST_F(base_rollup_tests, native_subtree_height_is_0)
@@ -694,7 +732,7 @@ TEST_F(base_rollup_tests, native_subtree_height_is_0)
     BaseOrMergeRollupPublicInputs const outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
     ASSERT_EQ(outputs.rollup_subtree_height, fr(0));
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
 }
 
 TEST_F(base_rollup_tests, native_cbind_0)
@@ -730,7 +768,7 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
     ASSERT_EQ(outputs.start_public_data_tree_root, inputs.start_public_data_tree_root);
     ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
     ASSERT_EQ(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
     run_cbind(inputs, outputs);
 }
 
@@ -761,7 +799,7 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
     ASSERT_EQ(outputs.start_public_data_tree_root, inputs.start_public_data_tree_root);
     ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
     ASSERT_NE(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
     run_cbind(inputs, outputs);
 }
 
@@ -802,7 +840,7 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
     ASSERT_EQ(outputs.start_public_data_tree_root, inputs.start_public_data_tree_root);
     ASSERT_EQ(outputs.end_public_data_tree_root, public_data_tree.root());
     ASSERT_NE(outputs.end_public_data_tree_root, outputs.start_public_data_tree_root);
-    ASSERT_FALSE(builder.failed());
+    ASSERT_FALSE(builder.failed()) << builder.failure_msgs;
     run_cbind(inputs, outputs);
 }
 

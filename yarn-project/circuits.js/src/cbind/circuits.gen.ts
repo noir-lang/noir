@@ -356,7 +356,7 @@ export function fromPublicDataRead(o: PublicDataRead): MsgpackPublicDataRead {
 interface MsgpackCombinedAccumulatedData {
   aggregation_object: MsgpackNativeAggregationState;
   new_commitments: Tuple<Buffer, 16>;
-  new_nullifiers: Tuple<Buffer, 4>;
+  new_nullifiers: Tuple<Buffer, 16>;
   private_call_stack: Tuple<Buffer, 8>;
   public_call_stack: Tuple<Buffer, 8>;
   new_l2_to_l1_msgs: Tuple<Buffer, 2>;

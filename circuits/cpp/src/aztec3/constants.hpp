@@ -41,7 +41,7 @@ constexpr size_t PUBLIC_CALL_STACK_LENGTH = 4;
 constexpr size_t NEW_L2_TO_L1_MSGS_LENGTH = 2;
 
 constexpr size_t KERNEL_NEW_COMMITMENTS_LENGTH = PRIVATE_CALL_STACK_LENGTH * NEW_COMMITMENTS_LENGTH;
-constexpr size_t KERNEL_NEW_NULLIFIERS_LENGTH = 4;
+constexpr size_t KERNEL_NEW_NULLIFIERS_LENGTH = PRIVATE_CALL_STACK_LENGTH * NEW_NULLIFIERS_LENGTH;
 constexpr size_t KERNEL_NEW_CONTRACTS_LENGTH = 1;
 constexpr size_t KERNEL_PRIVATE_CALL_STACK_LENGTH = 8;
 constexpr size_t KERNEL_PUBLIC_CALL_STACK_LENGTH = 8;
@@ -56,7 +56,7 @@ constexpr size_t VK_TREE_HEIGHT = 3;
 constexpr size_t FUNCTION_TREE_HEIGHT = 4;
 constexpr size_t CONTRACT_TREE_HEIGHT = 8;
 constexpr size_t PRIVATE_DATA_TREE_HEIGHT = 16;
-constexpr size_t NULLIFIER_TREE_HEIGHT = 8;
+constexpr size_t NULLIFIER_TREE_HEIGHT = 16;
 constexpr size_t PUBLIC_DATA_TREE_HEIGHT = 254;
 constexpr size_t L1_TO_L2_MSG_TREE_HEIGHT = 8;
 

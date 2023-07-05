@@ -238,7 +238,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
         // For each of our nullifiers
         for (size_t j = 0; j < KERNEL_NEW_NULLIFIERS_LENGTH; j++) {
             // Witness containing index and path
-            auto nullifier_index = 4 * i + j;
+            auto nullifier_index = i * KERNEL_NEW_NULLIFIERS_LENGTH + j;
 
             auto witness = baseRollupInputs.low_nullifier_membership_witness[nullifier_index];
             // Preimage of the lo-index required for a non-membership proof
@@ -290,7 +290,17 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
                     if (!(is_less_than_nullifier && is_next_greater_than)) {
                         if (low_nullifier_preimage.next_index != 0 && low_nullifier_preimage.next_value != 0) {
                             builder.do_assert(false,
-                                              "Nullifier is not in the correct range",
+                                              format("Nullifier is not in the correct range. \n  ",
+                                                     "is_less_than_nullifier ",
+                                                     is_less_than_nullifier,
+                                                     "\n is_next_greater_than ",
+                                                     is_next_greater_than,
+                                                     "\n low_nullifier_preimage.leaf_value ",
+                                                     low_nullifier_preimage.leaf_value,
+                                                     "\n low_nullifier_preimage.next_index ",
+                                                     low_nullifier_preimage.next_index,
+                                                     "\n low_nullifier_preimage.next_value ",
+                                                     low_nullifier_preimage.next_value),
                                               CircuitErrorCode::BASE__INVALID_NULLIFIER_RANGE);
                         }
                     }

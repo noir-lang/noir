@@ -265,10 +265,11 @@ describe('sequencer/solo_block_builder', () => {
 
     // For varying orders of insertions assert the local batch insertion generator creates the correct proofs
     it.each([
-      [[16, 15, 14, 13, 0, 0, 0, 0]],
-      [[13, 14, 15, 16, 0, 0, 0, 0]],
-      [[1234, 98, 0, 0, 99999, 88, 54, 0]],
-      [[97, 98, 10, 0, 99999, 88, 100001, 9000000]],
+      // These are arbitrary but it needs to be higher than the constant `INITIAL_NULLIFIER_TREE_SIZE` and `KERNEL_NEW_NULLIFIERS_LENGTH * 2`
+      [[1003, 1002, 1001, 1000, 0, 0, 0, 0]],
+      [[1003, 1004, 1005, 1006, 0, 0, 0, 0]],
+      [[1234, 1098, 0, 0, 99999, 1096, 1054, 0]],
+      [[1970, 1980, 1040, 0, 99999, 1880, 100001, 9000000]],
     ] as const)('performs nullifier tree batch insertion correctly', async nullifiers => {
       const leaves = nullifiers.map(i => toBufferBE(BigInt(i), 32));
       await expectsDb.appendLeaves(MerkleTreeId.NULLIFIER_TREE, leaves);
@@ -394,7 +395,7 @@ describe('sequencer/solo_block_builder', () => {
       const prover = new EmptyRollupProver();
       builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
       // update the starting tree
-      const updateVals = Array(16).fill(0n);
+      const updateVals = Array(4 * KERNEL_NEW_NULLIFIERS_LENGTH).fill(0n);
       updateVals[0] = 19777494491628650244807463906174285795660759352776418619064841306523677458742n;
       updateVals[1] = 10246291467305176436335175657884940686778521321101740385288169037814567547848n;
 

@@ -133,7 +133,7 @@ export class ConstantBaseRollupData {
 export class BaseRollupInputs {
   /**
    * Height of the private data subtree which is to be inserted into the private data tree.
-   * Note: There are notes from 2 kernels being processed here so kenrnel new commitments length is multiplied by 2.
+   * Note: There are notes from 2 kernels being processed here so kernel new commitments length is multiplied by 2.
    */
   public static PRIVATE_DATA_SUBTREE_HEIGHT = Math.log2(KERNEL_NEW_COMMITMENTS_LENGTH * 2);
   /**

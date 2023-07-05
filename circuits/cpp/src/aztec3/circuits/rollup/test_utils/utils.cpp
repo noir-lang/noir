@@ -11,8 +11,10 @@
 
 #include <barretenberg/barretenberg.hpp>
 
+#include <cstddef>
 #include <set>
 #include <utility>
+#include <vector>
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
 
@@ -126,13 +128,16 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
                                               },
                                               .constants = constantRollupData };
 
-    // Initialise nullifier tree with 0..7
-    std::vector<fr> const initial_values = { 1, 2, 3, 4, 5, 6, 7 };
+    std::vector<fr> initial_values(2 * KERNEL_NEW_NULLIFIERS_LENGTH - 1);
+
+    for (size_t i = 0; i < initial_values.size(); i++) {
+        initial_values[i] = i + 1;
+    }
 
     std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifiers;
     for (size_t i = 0; i < 2; i++) {
         for (size_t j = 0; j < KERNEL_NEW_NULLIFIERS_LENGTH; j++) {
-            nullifiers[i * 4 + j] = kernel_data[i].public_inputs.end.new_nullifiers[j];
+            nullifiers[i * KERNEL_NEW_NULLIFIERS_LENGTH + j] = kernel_data[i].public_inputs.end.new_nullifiers[j];
         }
     }
 
@@ -249,7 +254,11 @@ std::array<PreviousRollupData<NT>, 2> get_previous_rollup_data(DummyBuilder& bui
     // Build the trees based on inputs in base_rollup_input_1.
     MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
     MerkleTree contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
-    std::vector<fr> initial_values = { 1, 2, 3, 4, 5, 6, 7 };
+    std::vector<fr> initial_values(2 * KERNEL_NEW_NULLIFIERS_LENGTH - 1);
+
+    for (size_t i = 0; i < initial_values.size(); i++) {
+        initial_values[i] = i + 1;
+    }
     std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifiers;
 
     for (size_t i = 0; i < 2; i++) {
@@ -392,7 +401,7 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values(BaseRollupI
 
     // Generate initial values lin spaved
     std::vector<fr> initial_values;
-    for (size_t i = 1; i < 8; ++i) {
+    for (size_t i = 1; i < NUMBER_OF_NULLIFIERS; ++i) {
         initial_values.emplace_back(i * spacing);
     }
 
@@ -404,7 +413,7 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values(
 {
     // Generate initial values lin spaced
     std::vector<fr> initial_values;
-    for (size_t i = 1; i < 8; ++i) {
+    for (size_t i = 1; i < 2 * KERNEL_NEW_NULLIFIERS_LENGTH; ++i) {
         initial_values.emplace_back(i * spacing);
     }
 
@@ -487,7 +496,7 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values_explicit(
     std::vector<fr> sibling_path = reference_tree.get_sibling_path(start_tree_size);
     std::array<fr, NULLIFIER_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path_array;
 
-    // Chop the first 3 levels from the sibling_path
+    // Chop the first NULLIFIER-SUBTREE-DEPTH levels from the sibling_path
     sibling_path.erase(sibling_path.begin(), sibling_path.begin() + NULLIFIER_SUBTREE_DEPTH);
     std::copy(sibling_path.begin(), sibling_path.end(), sibling_path_array.begin());
 
