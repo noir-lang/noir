@@ -87,9 +87,6 @@ impl TomlTypes {
             (InputValue::Field(f), AbiType::Boolean) => TomlTypes::Bool(f.is_one()),
 
             (InputValue::Vec(vector), AbiType::Array { typ, .. }) => {
-                // TODO: enforce that all `TomlTypes` in the vector are the same variant.
-                // This is technically valid in rust but doesn't correspond to a valid Noir ABI.
-                // Requires knowledge of the ABI (see #1655)
                 let array =
                     try_vecmap(vector, |value| TomlTypes::try_from_input_value(value, typ))?;
                 TomlTypes::Array(array)
