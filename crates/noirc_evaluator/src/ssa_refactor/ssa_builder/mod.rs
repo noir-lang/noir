@@ -1,6 +1,7 @@
 use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
+use noirc_errors::Location;
 
 use crate::ssa_refactor::ir::{
     basic_block::BasicBlockId,
@@ -143,11 +144,13 @@ impl FunctionBuilder {
         &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
+        location: Option<Location>,
     ) -> InsertInstructionResult {
         self.current_function.dfg.insert_instruction_and_results(
             instruction,
             self.current_block,
             ctrl_typevars,
+            location,
         )
     }
 
@@ -167,7 +170,7 @@ impl FunctionBuilder {
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self) -> ValueId {
-        self.insert_instruction(Instruction::Allocate, None).first()
+        self.insert_instruction(Instruction::Allocate, None, None).first()
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given offset
@@ -178,14 +181,41 @@ impl FunctionBuilder {
     /// an array will have an offset of 3.
     /// Returns the element that was loaded.
     pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
-        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
+        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load]), None)
+            .first()
+    }
+
+    // Same as insert_load(), but additionally provides the source location of the load
+    pub(crate) fn insert_load_with_source_location(
+        &mut self,
+        address: ValueId,
+        type_to_load: Type,
+        location: Location,
+    ) -> ValueId {
+        self.insert_instruction(
+            Instruction::Load { address },
+            Some(vec![type_to_load]),
+            Some(location),
+        )
+        .first()
+    }
+    /// Insert a Store instruction at the end of the current block, storing the given element
+    /// at the given address. Expects that the address points somewhere
+    /// within a previous Allocate instruction.
+    pub(crate) fn insert_store(&mut self, address: ValueId, value: ValueId) {
+        self.insert_instruction(Instruction::Store { address, value }, None, None);
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element
     /// at the given address. Expects that the address points somewhere
     /// within a previous Allocate instruction.
-    pub(crate) fn insert_store(&mut self, address: ValueId, value: ValueId) {
-        self.insert_instruction(Instruction::Store { address, value }, None);
+    pub(crate) fn insert_store_with_source_location(
+        &mut self,
+        address: ValueId,
+        value: ValueId,
+        location: Location,
+    ) {
+        self.insert_instruction(Instruction::Store { address, value }, None, Some(location));
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -197,19 +227,32 @@ impl FunctionBuilder {
         rhs: ValueId,
     ) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        self.insert_instruction(instruction, None).first()
+        self.insert_instruction(instruction, None, None).first()
+    }
+
+    /// Insert a binary instruction at the end of the current block.
+    /// Returns the result of the binary instruction.
+    pub(crate) fn insert_binary_with_source_location(
+        &mut self,
+        lhs: ValueId,
+        operator: BinaryOp,
+        rhs: ValueId,
+        location: Option<Location>,
+    ) -> ValueId {
+        let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
+        self.insert_instruction(instruction, None, location).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
-    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.insert_instruction(Instruction::Not(rhs), None).first()
+    pub(crate) fn insert_not(&mut self, rhs: ValueId, location: Option<Location>) -> ValueId {
+        self.insert_instruction(Instruction::Not(rhs), None, location).first()
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+        self.insert_instruction(Instruction::Cast(value, typ), None, None).first()
     }
 
     /// Insert a truncate instruction at the end of the current block.
@@ -219,14 +262,28 @@ impl FunctionBuilder {
         value: ValueId,
         bit_size: u32,
         max_bit_size: u32,
+        location: Location,
     ) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
-            .first()
+        self.insert_instruction(
+            Instruction::Truncate { value, bit_size, max_bit_size },
+            None,
+            Some(location),
+        )
+        .first()
     }
 
     /// Insert a constrain instruction at the end of the current block.
     pub(crate) fn insert_constrain(&mut self, boolean: ValueId) {
-        self.insert_instruction(Instruction::Constrain(boolean), None);
+        self.insert_instruction(Instruction::Constrain(boolean), None, None);
+    }
+
+    /// Insert a constrain instruction at the end of the current block.
+    pub(crate) fn insert_constrain_with_source_location(
+        &mut self,
+        boolean: ValueId,
+        location: Location,
+    ) {
+        self.insert_instruction(Instruction::Constrain(boolean), None, Some(location));
     }
 
     /// Insert a call instruction at the end of the current block and return
@@ -237,7 +294,25 @@ impl FunctionBuilder {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
-        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types), None)
+            .results()
+    }
+
+    /// Insert a call instruction at the end of the current block and return
+    /// the results of the call.
+    pub(crate) fn insert_call_with_source_location(
+        &mut self,
+        func: ValueId,
+        arguments: Vec<ValueId>,
+        result_types: Vec<Type>,
+        location: Location,
+    ) -> Cow<[ValueId]> {
+        self.insert_instruction(
+            Instruction::Call { func, arguments },
+            Some(result_types),
+            Some(location),
+        )
+        .results()
     }
 
     /// Insert an instruction to extract an element from an array
@@ -248,7 +323,25 @@ impl FunctionBuilder {
         element_type: Type,
     ) -> ValueId {
         let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type, None).first()
+    }
+
+    /// Insert an instruction to extract an element from an array
+    /// Provide the source code location
+    pub(crate) fn insert_array_get_with_source_location(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        element_type: Type,
+        location: Location,
+    ) -> ValueId {
+        let element_type = Some(vec![element_type]);
+        self.insert_instruction(
+            Instruction::ArrayGet { array, index },
+            element_type,
+            Some(location),
+        )
+        .first()
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
@@ -258,7 +351,7 @@ impl FunctionBuilder {
         index: ValueId,
         value: ValueId,
     ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
+        self.insert_instruction(Instruction::ArraySet { array, index, value }, None, None).first()
     }
 
     /// Terminates the current block with the given terminator instruction

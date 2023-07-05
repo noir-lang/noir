@@ -4,6 +4,7 @@ use std::sync::{Mutex, RwLock};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
+use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
@@ -223,18 +224,20 @@ impl<'a> FunctionContext<'a> {
         mut lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         mut rhs: ValueId,
+        location: Location,
     ) -> Values {
         let op = convert_operator(operator);
 
         if op == BinaryOp::Eq && matches!(self.builder.type_of_value(lhs), Type::Array(..)) {
-            return self.insert_array_equality(lhs, operator, rhs);
+            return self.insert_array_equality(lhs, operator, rhs, location);
         }
 
         if operator_requires_swapped_operands(operator) {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
-        let mut result = self.builder.insert_binary(lhs, op, rhs);
+        let mut result =
+            self.builder.insert_binary_with_source_location(lhs, op, rhs, Some(location));
 
         if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
             operator,
@@ -250,11 +253,11 @@ impl<'a> FunctionContext<'a> {
                     unreachable!("ICE: Truncation attempted on non-integer");
                 }
             };
-            result = self.builder.insert_truncate(result, bit_size, max_bit_size);
+            result = self.builder.insert_truncate(result, bit_size, max_bit_size, location);
         }
 
         if operator_requires_not(operator) {
-            result = self.builder.insert_not(result);
+            result = self.builder.insert_not(result, Some(location));
         }
         result.into()
     }
@@ -286,6 +289,7 @@ impl<'a> FunctionContext<'a> {
         lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         rhs: ValueId,
+        location: Location,
     ) -> Values {
         let lhs_type = self.builder.type_of_value(lhs);
         let rhs_type = self.builder.type_of_value(rhs);
@@ -313,7 +317,7 @@ impl<'a> FunctionContext<'a> {
         // pre-loop
         let result_alloc = self.builder.insert_allocate();
         let true_value = self.builder.numeric_constant(1u128, Type::bool());
-        self.builder.insert_store(result_alloc, true_value);
+        self.builder.insert_store_with_source_location(result_alloc, true_value, location);
         let zero = self.builder.field_constant(0u128);
         self.builder.terminate_with_jmp(loop_start, vec![zero]);
 
@@ -321,27 +325,42 @@ impl<'a> FunctionContext<'a> {
         self.builder.switch_to_block(loop_start);
         let i = self.builder.add_block_parameter(loop_start, Type::field());
         let array_length = self.builder.field_constant(array_length as u128);
-        let v0 = self.builder.insert_binary(i, BinaryOp::Lt, array_length);
+        let v0 = self.builder.insert_binary_with_source_location(
+            i,
+            BinaryOp::Lt,
+            array_length,
+            Some(location),
+        );
         self.builder.terminate_with_jmpif(v0, loop_body, loop_end);
 
         // loop body
         self.builder.switch_to_block(loop_body);
-        let v1 = self.builder.insert_array_get(lhs, i, element_type.clone());
-        let v2 = self.builder.insert_array_get(rhs, i, element_type);
-        let v3 = self.builder.insert_binary(v1, BinaryOp::Eq, v2);
-        let v4 = self.builder.insert_load(result_alloc, Type::bool());
-        let v5 = self.builder.insert_binary(v4, BinaryOp::And, v3);
-        self.builder.insert_store(result_alloc, v5);
+        let v1 = self.builder.insert_array_get_with_source_location(
+            lhs,
+            i,
+            element_type.clone(),
+            location,
+        );
+        let v2 = self.builder.insert_array_get_with_source_location(rhs, i, element_type, location);
+        let v3 =
+            self.builder.insert_binary_with_source_location(v1, BinaryOp::Eq, v2, Some(location));
+        let v4 =
+            self.builder.insert_load_with_source_location(result_alloc, Type::bool(), location);
+        let v5 =
+            self.builder.insert_binary_with_source_location(v4, BinaryOp::And, v3, Some(location));
+        self.builder.insert_store_with_source_location(result_alloc, v5, location);
         let one = self.builder.field_constant(1u128);
-        let v6 = self.builder.insert_binary(i, BinaryOp::Add, one);
+        let v6 =
+            self.builder.insert_binary_with_source_location(i, BinaryOp::Add, one, Some(location));
         self.builder.terminate_with_jmp(loop_start, vec![v6]);
 
         // loop end
         self.builder.switch_to_block(loop_end);
-        let mut result = self.builder.insert_load(result_alloc, Type::bool());
+        let mut result =
+            self.builder.insert_load_with_source_location(result_alloc, Type::bool(), location);
 
         if operator_requires_not(operator) {
-            result = self.builder.insert_not(result);
+            result = self.builder.insert_not(result, Some(location));
         }
         result.into()
     }
@@ -356,9 +375,15 @@ impl<'a> FunctionContext<'a> {
         function: ValueId,
         arguments: Vec<ValueId>,
         result_type: &ast::Type,
+        location: Location,
     ) -> Values {
         let result_types = Self::convert_type(result_type).flatten();
-        let results = self.builder.insert_call(function, arguments, result_types);
+        let results = self.builder.insert_call_with_source_location(
+            function,
+            arguments,
+            result_types,
+            location,
+        );
 
         let mut i = 0;
         let reshaped_return_values = Self::map_type(result_type, |_| {
@@ -505,9 +530,9 @@ impl<'a> FunctionContext<'a> {
                 let variable = self.ident_lvalue(ident);
                 (variable.clone(), LValue::Ident(variable))
             }
-            ast::LValue::Index { array, index, element_type, location: _ } => {
+            ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
-                let element = self.codegen_array_index(old_array, index, element_type);
+                let element = self.codegen_array_index(old_array, index, element_type, *location);
                 (element, index_lvalue)
             }
             ast::LValue::MemberAccess { object, field_index: index } => {

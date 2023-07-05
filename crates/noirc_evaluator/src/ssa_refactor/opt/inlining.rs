@@ -379,6 +379,7 @@ impl<'function> PerFunctionContext<'function> {
     /// function being inlined into.
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
+        let location = self.source_function.dfg.get_location(&id);
         let results = self.source_function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
 
@@ -386,7 +387,8 @@ impl<'function> PerFunctionContext<'function> {
             .requires_ctrl_typevars()
             .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
 
-        let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
+        let new_results =
+            self.context.builder.insert_instruction(instruction, ctrl_typevars, location);
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 

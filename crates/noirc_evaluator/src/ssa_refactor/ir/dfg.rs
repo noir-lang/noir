@@ -15,6 +15,7 @@ use super::{
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
+use noirc_errors::Location;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -69,6 +70,8 @@ pub(crate) struct DataFlowGraph {
     /// for that of another. This information is purely used for printing the SSA, and has no
     /// material effect on the SSA itself.
     replaced_value_ids: HashMap<ValueId, ValueId>,
+
+    locations: HashMap<InstructionId, Location>,
 }
 
 impl DataFlowGraph {
@@ -137,6 +140,7 @@ impl DataFlowGraph {
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
+        location: Option<Location>,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
         match instruction.simplify(self, block) {
@@ -145,6 +149,9 @@ impl DataFlowGraph {
             SimplifyResult::None => {
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
+                if let Some(location) = location {
+                    self.locations.insert(id, location);
+                }
                 InsertInstructionResult::Results(self.instruction_results(id))
             }
         }
@@ -361,6 +368,17 @@ impl DataFlowGraph {
         let destination = &mut self.blocks[destination];
         destination.instructions_mut().append(&mut instructions);
         destination.set_terminator(terminator);
+    }
+
+    pub(crate) fn get_location(&self, id: &InstructionId) -> Option<Location> {
+        self.locations.get(id).cloned()
+    }
+
+    pub(crate) fn get_value_location(&self, id: &ValueId) -> Option<Location> {
+        match &self.values[*id] {
+            Value::Instruction { instruction, .. } => self.get_location(instruction),
+            _ => None,
+        }
     }
 }
 

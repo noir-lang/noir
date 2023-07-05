@@ -17,6 +17,7 @@ use acvm::{
     FieldElement,
 };
 use iter_extended::vecmap;
+use noirc_errors::Location;
 use std::collections::HashMap;
 use std::{borrow::Cow, hash::Hash};
 
@@ -121,6 +122,10 @@ impl AcirContext {
         let var_data = AcirVarData::Witness(var_index);
 
         self.add_data(var_data)
+    }
+
+    pub(crate) fn set_location(&mut self, location: Option<Location>) {
+        self.acir_ir.current_location = location;
     }
 
     /// True if the given AcirVar refers to a constant one value

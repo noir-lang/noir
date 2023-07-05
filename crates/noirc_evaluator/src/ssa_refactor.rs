@@ -67,7 +67,7 @@ pub fn experimental_create_circuit(
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
-    let GeneratedAcir { current_witness_index, opcodes, return_witnesses } =
+    let GeneratedAcir { current_witness_index, opcodes, return_witnesses, .. } =
         optimize_into_acir(program, show_output, enable_logging);
 
     let abi = gen_abi(func_sig, return_witnesses.clone());

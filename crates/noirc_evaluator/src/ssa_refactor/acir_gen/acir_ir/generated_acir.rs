@@ -1,5 +1,7 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
+use std::collections::HashMap;
+
 use crate::brillig::brillig_gen::brillig_directive;
 
 use super::errors::AcirGenError;
@@ -18,6 +20,7 @@ use acvm::{
     FieldElement,
 };
 use iter_extended::{try_vecmap, vecmap};
+use noirc_errors::Location;
 use num_bigint::BigUint;
 
 #[derive(Debug, Default)]
@@ -36,6 +39,13 @@ pub(crate) struct GeneratedAcir {
     /// Note: This may contain repeated indices, which is necessary for later mapping into the
     /// abi's return type.
     pub(crate) return_witnesses: Vec<Witness>,
+
+    /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
+    locations: HashMap<usize, Location>,
+
+    /// Source code location of the current instruction being processed
+    /// None if we do not know the location
+    pub(crate) current_location: Option<Location>,
 }
 
 impl GeneratedAcir {
@@ -47,6 +57,9 @@ impl GeneratedAcir {
     /// Adds a new opcode into ACIR.
     fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
+        if let Some(location) = self.current_location {
+            self.locations.insert(self.opcodes.len() - 1, location);
+        }
     }
 
     /// Updates the witness index counter and returns

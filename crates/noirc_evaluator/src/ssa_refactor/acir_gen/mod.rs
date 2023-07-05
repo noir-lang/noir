@@ -231,7 +231,7 @@ impl Context {
         allow_log_ops: bool,
     ) {
         let instruction = &dfg[instruction_id];
-
+        self.acir_context.set_location(dfg.get_location(&instruction_id));
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self
