@@ -6,7 +6,7 @@ use std::{
 use nargo::manifest::{Dependency, Manifest, PackageManifest, WorkspaceConfig};
 use noirc_driver::{add_dep, create_local_crate, create_non_local_crate};
 use noirc_frontend::{
-    graph::{CrateId, CrateName, CrateType},
+    graph::{CrateId, CrateName},
     hir::Context,
 };
 use thiserror::Error;
@@ -68,7 +68,6 @@ pub(crate) enum DependencyResolutionError {
 #[derive(Debug, Clone)]
 struct CachedDep {
     entry_path: PathBuf,
-    crate_type: CrateType,
     manifest: PackageManifest,
     // Whether the dependency came from
     // a remote dependency
@@ -95,9 +94,9 @@ pub(crate) fn resolve_root_manifest(
 
     let crate_id = match manifest {
         Manifest::Package(package) => {
-            let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
+            let entry_path = super::lib_or_bin(dir_path)?;
 
-            let crate_id = create_local_crate(&mut context, entry_path, crate_type);
+            let crate_id = create_local_crate(&mut context, entry_path);
             let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
 
             resolve_package_manifest(&mut context, crate_id, package, pkg_root)?;
@@ -134,15 +133,12 @@ fn resolve_package_manifest(
     for (dep_pkg_name, pkg_src) in manifest.dependencies.iter() {
         let (dir_path, dep_meta) = cache_dep(pkg_src, pkg_root)?;
 
-        let (entry_path, crate_type) = (&dep_meta.entry_path, &dep_meta.crate_type);
-
-        if crate_type == &CrateType::Binary {
+        let crate_id = create_non_local_crate(context, &dep_meta.entry_path);
+        if context.is_binary_crate(&crate_id) {
             return Err(DependencyResolutionError::BinaryDependency {
                 dep_pkg_name: dep_pkg_name.to_string(),
             });
         }
-
-        let crate_id = create_non_local_crate(context, entry_path, *crate_type);
         add_dep(context, parent_crate, crate_id, dep_pkg_name);
 
         cached_packages.insert(dir_path, (crate_id, dep_meta));
@@ -221,12 +217,12 @@ fn resolve_workspace_manifest(
         .remove(&local_package)
         .ok_or_else(|| DependencyResolutionError::PackageNotFound(crate_name(local_package)))?;
 
-    let (entry_path, _crate_type) = super::lib_or_bin(local_crate)?;
-    let crate_id = create_local_crate(context, entry_path, CrateType::Workspace);
+    let entry_path = super::lib_or_bin(local_crate)?;
+    let crate_id = create_local_crate(context, entry_path);
 
     for (_, package_path) in packages.drain() {
-        let (entry_path, crate_type) = super::lib_or_bin(package_path)?;
-        create_non_local_crate(context, entry_path, crate_type);
+        let entry_path = super::lib_or_bin(package_path)?;
+        create_non_local_crate(context, entry_path);
     }
 
     Ok(crate_id)
@@ -246,12 +242,12 @@ fn cache_dep(
         dir_path: &Path,
         remote: bool,
     ) -> Result<CachedDep, DependencyResolutionError> {
-        let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
+        let entry_path = super::lib_or_bin(dir_path)?;
         let manifest_path = super::find_package_manifest(dir_path)?;
         let manifest = super::manifest::parse(manifest_path)?
             .to_package()
             .ok_or(DependencyResolutionError::WorkspaceDependency)?;
-        Ok(CachedDep { entry_path, crate_type, manifest, remote })
+        Ok(CachedDep { entry_path, manifest, remote })
     }
 
     match dep {

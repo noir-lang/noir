@@ -90,7 +90,7 @@ pub fn start_cli() -> eyre::Result<()> {
 mod tests {
     use noirc_driver::{check_crate, create_local_crate};
     use noirc_errors::reporter;
-    use noirc_frontend::{graph::CrateType, hir::Context};
+    use noirc_frontend::hir::Context;
 
     use std::path::{Path, PathBuf};
 
@@ -101,7 +101,7 @@ mod tests {
     /// This is used for tests.
     fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
         let mut context = Context::default();
-        let crate_id = create_local_crate(&mut context, &root_file, CrateType::Binary);
+        let crate_id = create_local_crate(&mut context, &root_file);
 
         let result = check_crate(&mut context, crate_id, false, false);
         let success = result.is_ok();

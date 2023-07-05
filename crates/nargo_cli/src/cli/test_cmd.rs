@@ -48,12 +48,7 @@ fn run_tests<B: Backend>(
         compile_options.experimental_ssa,
     )?;
 
-    let test_functions = match context.crate_graph.crate_type(crate_id) {
-        noirc_frontend::graph::CrateType::Workspace => {
-            context.get_all_test_functions_in_workspace_matching(test_name)
-        }
-        _ => context.get_all_test_functions_in_crate_matching(&crate_id, test_name),
-    };
+    let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, test_name);
 
     println!("Running {} test functions...", test_functions.len());
     let mut failing = 0;

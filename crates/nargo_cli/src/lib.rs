@@ -7,7 +7,6 @@
 //! This name was used because it sounds like `cargo` and
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
-use noirc_frontend::graph::CrateType;
 use std::{
     fs::ReadDir,
     path::{Path, PathBuf},
@@ -49,7 +48,7 @@ fn find_package_manifest(current_path: &Path) -> Result<PathBuf, InvalidPackageE
         .ok_or_else(|| InvalidPackageError::MissingManifestFile(current_path.to_path_buf()))
 }
 
-fn lib_or_bin(current_path: impl AsRef<Path>) -> Result<(PathBuf, CrateType), InvalidPackageError> {
+fn lib_or_bin(current_path: impl AsRef<Path>) -> Result<PathBuf, InvalidPackageError> {
     let current_path = current_path.as_ref();
     // A library has a lib.nr and a binary has a main.nr
     // You cannot have both.
@@ -60,8 +59,8 @@ fn lib_or_bin(current_path: impl AsRef<Path>) -> Result<(PathBuf, CrateType), In
     let bin_nr_path = find_file(&src_path, "main", "nr");
     match (lib_nr_path, bin_nr_path) {
         (Some(_), Some(_)) => Err(InvalidPackageError::ContainsMultipleCrates),
-        (None, Some(path)) => Ok((path, CrateType::Binary)),
-        (Some(path), None) => Ok((path, CrateType::Library)),
+        (None, Some(path)) => Ok(path),
+        (Some(path), None) => Ok(path),
         (None, None) => Err(InvalidPackageError::ContainsZeroCrates),
     }
 }

@@ -8,7 +8,7 @@ use fm::FileId;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
-use noirc_frontend::graph::{CrateId, CrateName, CrateType};
+use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
@@ -69,7 +69,7 @@ pub fn compile_file(
     context: &mut Context,
     root_file: PathBuf,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let crate_id = create_local_crate(context, root_file, CrateType::Binary);
+    let crate_id = create_local_crate(context, root_file);
     compile_main(context, crate_id, &CompileOptions::default())
 }
 
@@ -79,30 +79,22 @@ pub fn compile_file(
 /// we have multiple binaries in one workspace
 /// A Fix would be for the driver instance to store the local crate id.
 // Granted that this is the only place which relies on the local crate being first
-pub fn create_local_crate<P: AsRef<Path>>(
-    context: &mut Context,
-    root_file: P,
-    crate_type: CrateType,
-) -> CrateId {
+pub fn create_local_crate<P: AsRef<Path>>(context: &mut Context, root_file: P) -> CrateId {
     let dir_path = root_file.as_ref().to_path_buf();
     let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
 
-    context.crate_graph.add_crate_root(crate_type, root_file_id)
+    context.crate_graph.add_crate_root(root_file_id)
 }
 
 /// Creates a Non Local Crate. A Non Local Crate is any crate which is the not the crate that
 /// the compiler is compiling.
-pub fn create_non_local_crate<P: AsRef<Path>>(
-    context: &mut Context,
-    root_file: P,
-    crate_type: CrateType,
-) -> CrateId {
+pub fn create_non_local_crate<P: AsRef<Path>>(context: &mut Context, root_file: P) -> CrateId {
     let dir_path = root_file.as_ref().to_path_buf();
     let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
 
     // You can add any crate type to the crate graph
     // but you cannot depend on Binaries
-    context.crate_graph.add_crate_root(crate_type, root_file_id)
+    context.crate_graph.add_crate_root(root_file_id)
 }
 
 /// Adds a edge in the crate graph for two crates
@@ -111,7 +103,7 @@ pub fn add_dep(context: &mut Context, this_crate: CrateId, depends_on: CrateId, 
         .expect("crate name contains blacklisted characters, please remove");
 
     // Cannot depend on a binary
-    if context.crate_graph.crate_type(depends_on) == CrateType::Binary {
+    if context.is_binary_crate(&depends_on) {
         panic!("crates cannot depend on binaries. {crate_name:?} is a binary crate")
     }
 
@@ -156,23 +148,13 @@ pub fn check_crate(
     let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
     let root_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
 
-    // You can add any crate type to the crate graph
-    // but you cannot depend on Binaries
-    let std_crate = context.crate_graph.add_stdlib(CrateType::Library, root_file_id);
+    let std_crate = context.crate_graph.add_stdlib(root_file_id);
     propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
 
     context.def_interner.enable_slices = enable_slices;
 
     let mut errors = vec![];
-    match context.crate_graph.crate_type(crate_id) {
-        CrateType::Workspace => {
-            let keys: Vec<_> = context.crate_graph.iter_keys().collect(); // avoid borrow checker
-            for crate_id in keys {
-                CrateDefMap::collect_defs(crate_id, context, &mut errors);
-            }
-        }
-        _ => CrateDefMap::collect_defs(crate_id, context, &mut errors),
-    }
+    CrateDefMap::collect_defs(crate_id, context, &mut errors);
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)
