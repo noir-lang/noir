@@ -179,7 +179,7 @@ mod tests {
     /// This is used for tests.
     fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
         let mut driver = Driver::new(
-            &acvm::Language::R1CS,
+            acvm::Language::R1CS,
             #[allow(deprecated)]
             Box::new(acvm::pwg::default_is_opcode_supported(acvm::Language::R1CS)),
         );

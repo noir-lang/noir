@@ -73,8 +73,8 @@ pub type Warnings = Vec<FileDiagnostic>;
 pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 
 impl Driver {
-    pub fn new(language: &Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
-        Driver { context: Context::default(), language: language.clone(), is_opcode_supported }
+    pub fn new(language: Language, is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>) -> Self {
+        Driver { context: Context::default(), language, is_opcode_supported }
     }
 
     // TODO(#1599): Move control of the FileManager into nargo
@@ -86,7 +86,7 @@ impl Driver {
     // with the restricted version which only uses one file
     pub fn compile_file(
         root_file: PathBuf,
-        language: &Language,
+        language: Language,
         is_opcode_supported: Box<dyn Fn(&Opcode) -> bool>,
     ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
         let mut driver = Driver::new(language, is_opcode_supported);
@@ -345,12 +345,10 @@ impl Driver {
     ) -> Result<CompiledProgram, FileDiagnostic> {
         let program = monomorphize(main_function, &self.context.def_interner);
 
-        let np_language = self.language.clone();
-
         let circuit_abi = if options.experimental_ssa {
             experimental_create_circuit(
                 program,
-                np_language,
+                self.language,
                 &self.is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
@@ -358,7 +356,7 @@ impl Driver {
         } else {
             create_circuit(
                 program,
-                np_language,
+                self.language,
                 &self.is_opcode_supported,
                 options.show_ssa,
                 options.show_output,
@@ -408,6 +406,6 @@ impl Driver {
 impl Default for Driver {
     fn default() -> Self {
         #[allow(deprecated)]
-        Self::new(&Language::R1CS, Box::new(acvm::pwg::default_is_opcode_supported(Language::R1CS)))
+        Self::new(Language::R1CS, Box::new(acvm::pwg::default_is_opcode_supported(Language::R1CS)))
     }
 }

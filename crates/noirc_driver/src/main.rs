@@ -7,7 +7,7 @@ fn main() {
     const ROOT_DIR_MAIN: &str = "example_real_project/main.nr";
 
     let mut driver = Driver::new(
-        &Language::R1CS,
+        Language::R1CS,
         #[allow(deprecated)]
         Box::new(acvm::pwg::default_is_opcode_supported(Language::R1CS)),
     );

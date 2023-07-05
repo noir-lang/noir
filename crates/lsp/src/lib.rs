@@ -136,7 +136,7 @@ fn on_code_lens_request(
     async move {
         // TODO: Requiring `Language` and `is_opcode_supported` to construct a driver makes for some real stinky code
         // The driver should not require knowledge of the backend; instead should be implemented as an independent pass (in nargo?)
-        let mut driver = Driver::new(&Language::R1CS, Box::new(|_op| false));
+        let mut driver = Driver::new(Language::R1CS, Box::new(|_op| false));
 
         let file_path = &params.text_document.uri.to_file_path().unwrap();
 
@@ -224,7 +224,7 @@ fn on_did_save_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     // TODO: Requiring `Language` and `is_opcode_supported` to construct a driver makes for some real stinky code
     // The driver should not require knowledge of the backend; instead should be implemented as an independent pass (in nargo?)
-    let mut driver = Driver::new(&Language::R1CS, Box::new(|_op| false));
+    let mut driver = Driver::new(Language::R1CS, Box::new(|_op| false));
 
     let file_path = &params.text_document.uri.to_file_path().unwrap();
 
