@@ -174,6 +174,21 @@ impl DataFlowGraph {
         }
     }
 
+    /// Set the type of value_id to the target_type.
+    pub(crate) fn set_type_of_value(&mut self, value_id: ValueId, target_type: Type) {
+        let value = &mut self.values[value_id];
+        match value {
+            Value::Instruction { typ, .. }
+            | Value::Param { typ, .. }
+            | Value::NumericConstant { typ, .. } => {
+                *typ = target_type;
+            }
+            _ => {
+                unreachable!("ICE: Cannot set type of {:?}", value);
+            }
+        }
+    }
+
     /// If `original_value_id`'s underlying `Value` has been substituted for that of another
     /// `ValueId`, this function will return the `ValueId` from which the substitution was taken.
     /// If `original_value_id`'s underlying `Value` has not been substituted, the same `ValueId`

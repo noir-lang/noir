@@ -15,7 +15,7 @@ use crate::ssa_refactor::{
         function::{Function, FunctionId, RuntimeType},
         instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
-        value::{Value, ValueId},
+        value::Value,
     },
     ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
@@ -104,7 +104,7 @@ impl DefunctionalizationContext {
                 let instruction = func.dfg[instruction_id].clone();
                 let mut replacement_instruction = None;
                 // Operate on call instructions
-                let (target_func_id, arguments) = match instruction {
+                let (target_func_id, mut arguments) = match instruction {
                     Instruction::Call { func: target_func_id, arguments } => {
                         (target_func_id, arguments)
                     }
@@ -152,39 +152,21 @@ impl DefunctionalizationContext {
         // Change the type of all the values that are not call targets to NativeField
         let value_ids = vecmap(func.dfg.values_iter(), |(id, _)| id);
         for value_id in value_ids {
-            let value = &func.dfg[value_id];
-            if let Type::Function = value.get_type() {
-                // If the value is a static function, transform it to the function id
-                let mut replacement_value_id = None;
-
-                match value {
+            if let Type::Function = &func.dfg[value_id].get_type() {
+                match &func.dfg[value_id] {
+                    // If the value is a static function, transform it to the function id
                     Value::Function(id) => {
                         if !target_function_ids.contains(id) {
-                            replacement_value_id = Some(func.dfg.make_constant(
-                                function_id_to_field(*id),
-                                Type::Numeric(NumericType::NativeField),
-                            ));
+                            let new_value =
+                                func.dfg.make_constant(function_id_to_field(*id), Type::field());
+                            func.dfg.set_value_from_id(value_id, new_value);
                         }
                     }
-                    Value::Instruction { instruction, position, .. } => {
-                        replacement_value_id = Some(func.dfg.make_value(Value::Instruction {
-                            instruction: *instruction,
-                            position: *position,
-                            typ: Type::Numeric(NumericType::NativeField),
-                        }));
-                    }
-                    Value::Param { block, position, .. } => {
-                        replacement_value_id = Some(func.dfg.make_value(Value::Param {
-                            block: *block,
-                            position: *position,
-                            typ: Type::Numeric(NumericType::NativeField),
-                        }));
+                    // If the value is a function used as value, just change the type of it
+                    Value::Instruction { .. } | Value::Param { .. } => {
+                        func.dfg.set_type_of_value(value_id, Type::field());
                     }
                     _ => {}
-                }
-
-                if let Some(new_value_id) = replacement_value_id {
-                    func.dfg.set_value_from_id(value_id, new_value_id);
                 }
             }
         }
@@ -206,7 +188,7 @@ fn find_variants(ssa: &Ssa) -> HashMap<FunctionSignature, Vec<FunctionId>> {
     }
 
     for function_id in functions_used_as_values {
-        let function = ssa.get_fn(function_id);
+        let function = &ssa.functions[&function_id];
         let signature = FunctionSignature::from(function);
         variants.entry(signature).or_default().push(function_id);
     }
