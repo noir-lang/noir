@@ -58,3 +58,4 @@ wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
 async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09dbcc11046f7a188a80137f8d36484d86c78c78" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg.git", rev = "0842911beed6c54b7efcd721372fb73431c95bbf" }
