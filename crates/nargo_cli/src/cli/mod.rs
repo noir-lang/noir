@@ -111,7 +111,7 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
     )
     .expect("Should read inputs");
 
-    execute_cmd::execute_program(&backend, circuit, &program.abi, &inputs_map).is_ok()
+    execute_cmd::execute_program(&backend, program.circuit, &program.abi, &inputs_map).is_ok()
 
     // let initial_witness = program.abi.encode(&inputs_map, None).expect("could not encode inputs");
 
