@@ -231,7 +231,7 @@ impl GeneratedAcir {
             },
             BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
                 inputs,
-                outputs,
+                outputs: (outputs[0], outputs[1]),
                 domain_separator: constants[0].to_u128() as u32,
             },
             BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -244,9 +244,10 @@ impl GeneratedAcir {
                 hashed_message: inputs[128..].to_vec(),
                 output: outputs[0],
             },
-            BlackBoxFunc::FixedBaseScalarMul => {
-                BlackBoxFuncCall::FixedBaseScalarMul { input: inputs[0], outputs }
-            }
+            BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
+                input: inputs[0],
+                outputs: (outputs[0], outputs[1]),
+            },
             BlackBoxFunc::Keccak256 => {
                 let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
                 BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
@@ -319,7 +320,7 @@ impl GeneratedAcir {
         let max_power_of_two =
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
         let inter = &(&Expression::from_field(max_power_of_two) - lhs) * &leading.into();
-        lhs.add_mul(FieldElement::from(2_i128), &inter)
+        lhs.add_mul(FieldElement::from(2_i128), &inter.unwrap())
     }
 
     /// Signed division lhs /  rhs
@@ -374,7 +375,7 @@ impl GeneratedAcir {
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
         let q_sign = (&Expression::from(lhs_leading) + &Expression::from(rhs_leading)).add_mul(
             -FieldElement::from(2_i128),
-            &(&Expression::from(lhs_leading) * &Expression::from(rhs_leading)),
+            &(&Expression::from(lhs_leading) * &Expression::from(rhs_leading)).unwrap(),
         );
         let q_sign_witness = self.get_or_create_witness(&q_sign);
         let quotient = self.two_complement(&q1.into(), q_sign_witness, max_bit_size);
@@ -421,10 +422,10 @@ impl GeneratedAcir {
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let mut rhs_constraint = rhs * &Expression::from(q_witness);
+        let mut rhs_constraint = (rhs * &Expression::from(q_witness)).unwrap();
         rhs_constraint = &rhs_constraint + r_witness;
-        rhs_constraint = &rhs_constraint * predicate;
-        let lhs_constraint = lhs * predicate;
+        rhs_constraint = (&rhs_constraint * predicate).unwrap();
+        let lhs_constraint = (lhs * predicate).unwrap();
         let div_euclidean = &lhs_constraint - &rhs_constraint;
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
