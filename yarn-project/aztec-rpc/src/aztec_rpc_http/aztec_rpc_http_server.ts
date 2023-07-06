@@ -1,9 +1,9 @@
-import { foundry } from 'viem/chains';
-import { Tx, TxHash, ContractDeploymentTx } from '@aztec/types';
-import { JsonRpcServer } from '@aztec/foundation/json-rpc';
+import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
+import { JsonRpcServer } from '@aztec/foundation/json-rpc';
+import { ContractDeploymentTx, Tx, TxHash } from '@aztec/types';
+import { foundry } from 'viem/chains';
 
 import { EthAddress, createAztecRPCServer } from '../index.js';
 

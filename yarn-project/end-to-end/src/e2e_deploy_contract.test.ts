@@ -32,7 +32,7 @@ describe('e2e_deploy_contract', () => {
     expect(receipt).toEqual(
       expect.objectContaining({
         from: accounts[0],
-        to: undefined,
+        to: accounts[0],
         status: TxStatus.PENDING,
         error: '',
       }),

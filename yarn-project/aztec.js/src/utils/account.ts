@@ -1,7 +1,16 @@
-import { AztecRPC } from '@aztec/aztec-rpc';
-import { AztecAddress, Point } from '@aztec/circuits.js';
-import { SentTx } from '../index.js';
+import { AztecRPC, TxStatus, getContractDeploymentInfo } from '@aztec/aztec-rpc';
+import { AztecAddress, CircuitsWasm, Fr, Point } from '@aztec/circuits.js';
+import { randomBytes } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { EcdsaAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { AccountWallet, Wallet } from '../aztec_rpc_client/wallet.js';
+import {
+  AccountCollection,
+  AccountContract,
+  ContractDeployer,
+  EcdsaAuthProvider,
+  generatePublicKey,
+} from '../index.js';
 
 /**
  * Creates an Aztec Account.
@@ -12,20 +21,41 @@ export async function createAccounts(
   privateKey: Buffer,
   numberOfAccounts = 1,
   logger = createDebugLogger('aztec:aztec.js:accounts'),
-): Promise<[AztecAddress, Point][]> {
+): Promise<Wallet> {
+  const accountImpls = new AccountCollection();
   const results: [AztecAddress, Point][] = [];
+  const wasm = await CircuitsWasm.get();
   for (let i = 0; i < numberOfAccounts; ++i) {
     // We use the well-known private key and the validating account contract for the first account,
     // and generate random keypairs with gullible account contracts (ie no sig validation) for the rest.
     // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key
-    const privKey = i == 0 ? privateKey : undefined;
-    const [txHash, newAddress] = await aztecRpcClient.createSmartAccount(privKey);
-    // wait for tx to be mined
-    await new SentTx(aztecRpcClient, Promise.resolve(txHash)).isMined();
-    const address = newAddress;
-    const pubKey = await aztecRpcClient.getAccountPublicKey(address);
-    logger(`Created account ${address.toString()} with public key ${pubKey.toString()}`);
-    results.push([newAddress, pubKey]);
+    const privKey = i == 0 ? privateKey : randomBytes(32);
+    const accountAbi = EcdsaAccountContractAbi;
+    const publicKey = await generatePublicKey(privateKey);
+    const salt = Fr.random();
+    const deploymentInfo = await getContractDeploymentInfo(accountAbi, [], salt, publicKey);
+    await aztecRpcClient.addAccount(privKey, deploymentInfo.address, deploymentInfo.partialAddress, accountAbi);
+    const contractDeployer = new ContractDeployer(accountAbi, aztecRpcClient, publicKey);
+    const tx = contractDeployer.deploy().send({ contractAddressSalt: salt });
+    await tx.isMined(0, 0.1);
+    const receipt = await tx.getReceipt();
+    if (receipt.status !== TxStatus.MINED) {
+      throw new Error(`Deployment tx not mined (status is ${receipt.status})`);
+    }
+    const address = receipt.contractAddress!;
+    logger(`Created account ${address.toString()} with public key ${publicKey.toString()}`);
+    accountImpls.registerAccount(
+      address,
+      new AccountContract(
+        address,
+        publicKey,
+        new EcdsaAuthProvider(privKey),
+        deploymentInfo.partialAddress,
+        accountAbi,
+        wasm,
+      ),
+    );
+    results.push([address, publicKey]);
   }
-  return results;
+  return new AccountWallet(aztecRpcClient, accountImpls);
 }

@@ -1,24 +1,24 @@
 import { AztecNode } from '@aztec/aztec-node';
-import { Grumpkin, Schnorr } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress, CircuitsWasm, KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { ConstantKeyPair, KeyPair, getAddressFromPublicKey } from '@aztec/key-store';
+import { ConstantKeyPair, KeyPair, KeyStore } from '@aztec/key-store';
 import { FunctionL2Logs, L2Block, L2BlockContext, L2BlockL2Logs, NoteSpendingInfo, TxL2Logs } from '@aztec/types';
 import { jest } from '@jest/globals';
-import { mock } from 'jest-mock-extended';
+import { MockProxy, mock } from 'jest-mock-extended';
 import { Database, MemoryDB } from '../database/index.js';
 import { AccountState } from './account_state.js';
 import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
 
 describe('Account State', () => {
   let grumpkin: Grumpkin;
-  let schnorr: Schnorr;
   let database: Database;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
   let addNoteSpendingInfoBatchSpy: any;
   let accountState: AccountState;
   let owner: KeyPair;
   let ownerAddress: AztecAddress;
+  let keyStore: MockProxy<KeyStore>;
 
   const createEncryptedLogsAndOwnedNoteSpendingInfo = (ownedDataIndices: number[] = []) => {
     ownedDataIndices.forEach(index => {
@@ -61,26 +61,25 @@ describe('Account State', () => {
   beforeAll(async () => {
     const wasm = await CircuitsWasm.get();
     grumpkin = new Grumpkin(wasm);
-    schnorr = new Schnorr(wasm);
-    owner = ConstantKeyPair.random(grumpkin, schnorr);
+    owner = ConstantKeyPair.random(grumpkin);
   });
 
-  beforeEach(async () => {
+  beforeEach(() => {
     database = new MemoryDB();
     addNoteSpendingInfoBatchSpy = jest.spyOn(database, 'addNoteSpendingInfoBatch');
 
-    const ownerPrivateKey = await owner.getPrivateKey();
-    ownerAddress = getAddressFromPublicKey(owner.getPublicKey());
+    ownerAddress = AztecAddress.random();
     const partialAccountContractAddress = Fr.random();
     aztecNode = mock<AztecNode>();
+    keyStore = mock<KeyStore>();
+    keyStore.getAccountPrivateKey.mockResolvedValue(owner.getPrivateKey());
     accountState = new AccountState(
-      ownerPrivateKey,
+      owner.getPublicKey(),
+      keyStore,
       ownerAddress,
       partialAccountContractAddress,
       database,
       aztecNode,
-      grumpkin,
-      schnorr,
       SchnorrAccountContractAbi,
     );
   });
@@ -158,22 +157,5 @@ describe('Account State', () => {
     const txs = await accountState.getTxs();
     expect(txs).toEqual([]);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledTimes(0);
-  });
-
-  it('should throw an error if invalid privKey is passed on input', () => {
-    const ownerPrivateKey = Buffer.alloc(0);
-    expect(
-      () =>
-        new AccountState(
-          ownerPrivateKey,
-          ownerAddress,
-          Fr.random(),
-          database,
-          aztecNode,
-          grumpkin,
-          schnorr,
-          SchnorrAccountContractAbi,
-        ),
-    ).toThrowError();
   });
 });

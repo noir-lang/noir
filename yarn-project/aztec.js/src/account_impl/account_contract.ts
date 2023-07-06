@@ -2,12 +2,13 @@ import { encodeArguments } from '@aztec/acir-simulator';
 import { AztecAddress, CircuitsWasm, Fr, FunctionData, TxContext } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
-import { KeyStore, PublicKey } from '@aztec/key-store';
+import { PublicKey } from '@aztec/key-store';
 import { ExecutionRequest, PackedArguments, PartialContractAddress, TxExecutionRequest } from '@aztec/types';
 import partition from 'lodash.partition';
 import { generateFunctionSelector } from '../index.js';
 import { AccountImplementation } from './index.js';
 import { ContractAbi } from '@aztec/foundation/abi';
+import { TxAuthProvider } from '../auth/index.js';
 
 /**
  * Account backed by an account contract
@@ -16,11 +17,15 @@ export class AccountContract implements AccountImplementation {
   constructor(
     private address: AztecAddress,
     private pubKey: PublicKey,
-    private keyStore: KeyStore,
+    private authProvider: TxAuthProvider,
     private partialContractAddress: PartialContractAddress,
     private contractAbi: ContractAbi,
     private wasm: CircuitsWasm,
   ) {}
+
+  getAddress(): AztecAddress {
+    return this.address;
+  }
 
   async createAuthenticatedTxRequest(
     executions: ExecutionRequest[],
@@ -40,7 +45,7 @@ export class AccountContract implements AccountImplementation {
     const { payload, packedArguments: callsPackedArguments } = await buildPayload(privateCalls, publicCalls, this.wasm);
     const hash = hashPayload(payload);
 
-    const signature = await this.keyStore.sign(hash, this.pubKey);
+    const signature = await this.authProvider.authenticateTx(payload, hash, this.address);
     const signatureAsFrArray = signature.toFields();
     const publicKeyAsBuffer = this.pubKey.toBuffer();
     const args = [payload, publicKeyAsBuffer, signatureAsFrArray, this.partialContractAddress];
@@ -84,7 +89,7 @@ const ACCOUNT_MAX_PRIVATE_CALLS = 1;
 const ACCOUNT_MAX_PUBLIC_CALLS = 1;
 
 /** A call to a function in a noir contract */
-type FunctionCall = {
+export type FunctionCall = {
   /** The encoded arguments */
   args: Fr[];
   /** The function selector */
@@ -94,7 +99,7 @@ type FunctionCall = {
 };
 
 /** Encoded payload for the account contract entrypoint */
-type EntrypointPayload = {
+export type EntrypointPayload = {
   // eslint-disable-next-line camelcase
   /** Concatenated arguments for every call */
   flattened_args_hashes: Fr[];

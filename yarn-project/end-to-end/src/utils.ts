@@ -1,37 +1,42 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
-import { DebugLogger, Logger, createDebugLogger } from '@aztec/foundation/log';
 import { Fr } from '@aztec/foundation/fields';
+import { DebugLogger, Logger, createDebugLogger } from '@aztec/foundation/log';
 import { MAPPING_SLOT_PEDERSEN_SEPARATOR } from '@aztec/circuits.js';
 
 import {
+  AccountCollection,
+  AccountContract,
+  AccountWallet,
   AztecAddress,
   AztecRPCServer,
   Contract,
   ContractDeployer,
   EthAddress,
   Point,
-  SentTx,
+  TxStatus,
+  Wallet,
   createAztecRPCServer,
-  CurveType,
-  SignerType,
+  generatePublicKey,
+  getContractDeploymentInfo,
 } from '@aztec/aztec.js';
+import { CircuitsWasm } from '@aztec/circuits.js';
+import { Schnorr, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
-import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import {
-  SchnorrAccountContractAbi,
   GullibleAccountContractAbi,
   NonNativeTokenContractAbi,
+  SchnorrAccountContractAbi,
 } from '@aztec/noir-contracts/examples';
-import every from 'lodash.every';
-import zipWith from 'lodash.zipwith';
+import { randomBytes } from 'crypto';
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
-import { MNEMONIC, localAnvil, privateKey } from './fixtures.js';
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
-import { KeyStore, TestKeyStore } from '@aztec/key-store';
+import { SchnorrAuthProvider } from './auth.js';
+import { MNEMONIC, localAnvil } from './fixtures.js';
+import every from 'lodash.every';
+import zipWith from 'lodash.zipwith';
+import { ContractAbi } from '@aztec/foundation/abi';
 
 /**
  * Sets up the environment for the end-to-end tests.
@@ -58,8 +63,10 @@ export async function setup(numberOfAccounts = 1): Promise<{
    * The Aztec Node configuration.
    */
   config: AztecNodeConfig;
-  /** The underlying keystore. */
-  keyStore: KeyStore;
+  /**
+   * The wallet to be used.
+   */
+  wallet: Wallet;
   /**
    * Logger instance named as the current test.
    */
@@ -78,27 +85,52 @@ export async function setup(numberOfAccounts = 1): Promise<{
   config.inboxContract = deployL1ContractsValues.inboxAddress;
 
   const aztecNode = await AztecNodeService.createAndSync(config);
-  const keyStore = new TestKeyStore();
-  const aztecRpcServer = await createAztecRPCServer(aztecNode, { keyStore });
+  const aztecRpcServer = await createAztecRPCServer(aztecNode);
+  const accountCollection = new AccountCollection();
+  const wasm = await CircuitsWasm.get();
+
   for (let i = 0; i < numberOfAccounts; ++i) {
     // We use the well-known private key and the validating account contract for the first account,
     // and generate random keypairs with gullible account contracts (ie no sig validation) for the rest.
+    // TODO: Kill the gullible account contract.
     // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key
-    const [privKey, impl] = i == 0 ? [privateKey, SchnorrAccountContractAbi] : [undefined, GullibleAccountContractAbi];
-    const [txHash, newAddress] = await aztecRpcServer.createSmartAccount(
-      privKey,
-      CurveType.GRUMPKIN,
-      SignerType.SCHNORR,
-      impl,
+    const privateKey = i === 0 ? Buffer.from(privKey!) : randomBytes(32);
+    const abi = i == 0 ? SchnorrAccountContractAbi : GullibleAccountContractAbi;
+    const publicKey = await generatePublicKey(privateKey);
+    const salt = Fr.random();
+    const deploymentData = await getContractDeploymentInfo(abi, [], salt, publicKey);
+    await aztecRpcServer.addAccount(privateKey, deploymentData.address, deploymentData.partialAddress, abi);
+
+    const contractDeployer = new ContractDeployer(abi, aztecRpcServer, publicKey);
+    const deployMethod = contractDeployer.deploy();
+    const tx = deployMethod.send({ contractAddressSalt: salt });
+    await tx.isMined(0, 0.1);
+    const receipt = await tx.getReceipt();
+    if (receipt.status !== TxStatus.MINED) {
+      throw new Error(`Deployment tx not mined (status is ${receipt.status})`);
+    }
+    const receiptAddress = receipt.contractAddress!;
+    if (!receiptAddress.equals(deploymentData.address)) {
+      throw new Error(
+        `Deployment address does not match for account contract (expected ${deploymentData.address} got ${receiptAddress})`,
+      );
+    }
+    accountCollection.registerAccount(
+      deploymentData.address,
+      new AccountContract(
+        deploymentData.address,
+        publicKey,
+        new SchnorrAuthProvider(await Schnorr.new(), privateKey),
+        deploymentData.partialAddress,
+        abi,
+        wasm,
+      ),
     );
-    const isMined = await new SentTx(aztecRpcServer, Promise.resolve(txHash)).isMined();
-    expect(isMined).toBeTruthy();
-    const address = newAddress;
-    const pubKey = await aztecRpcServer.getAccountPublicKey(address);
-    logger(`Created account ${address.toString()} with public key ${pubKey.toString()}`);
+    logger(`Created account ${deploymentData.address.toString()} with public key ${publicKey.toString()}`);
   }
 
   const accounts = await aztecRpcServer.getAccounts();
+  const wallet = new AccountWallet(aztecRpcServer, accountCollection);
 
   return {
     aztecNode,
@@ -106,7 +138,7 @@ export async function setup(numberOfAccounts = 1): Promise<{
     deployL1ContractsValues,
     accounts,
     config,
-    keyStore,
+    wallet,
     logger,
   };
 }
@@ -127,22 +159,18 @@ export async function setNextBlockTimestamp(rpcUrl: string, timestamp: number) {
 
 /**
  * Deploys a set of contracts to the network.
- * @param aztecRpcServer - the RPC server to make the request.
+ * @param wallet - the wallet to make the request.
  * @param abi - contracts to be deployed.
  * @returns The deployed contract instances.
  */
-export async function deployL2Contracts(aztecRpcServer: AztecRPCServer, abis: ContractAbi[]) {
+export async function deployL2Contracts(wallet: Wallet, abis: ContractAbi[]) {
   const logger = getLogger();
-  const calls = await Promise.all(abis.map(abi => new ContractDeployer(abi, aztecRpcServer).deploy()));
+  const calls = await Promise.all(abis.map(abi => new ContractDeployer(abi, wallet).deploy()));
   for (const call of calls) await call.create();
   const txs = await Promise.all(calls.map(c => c.send()));
   expect(every(await Promise.all(txs.map(tx => tx.isMined(0, 0.1))))).toBeTruthy();
   const receipts = await Promise.all(txs.map(tx => tx.getReceipt()));
-  const contracts = zipWith(
-    abis,
-    receipts,
-    (abi, receipt) => new Contract(receipt!.contractAddress!, abi!, aztecRpcServer),
-  );
+  const contracts = zipWith(abis, receipts, (abi, receipt) => new Contract(receipt!.contractAddress!, abi!, wallet));
   contracts.forEach(c => logger(`L2 contract ${c.abi.name} deployed at ${c.address}`));
   return contracts;
 }
@@ -182,7 +210,7 @@ export function pointToPublicKey(point: Point) {
  * @returns l2 contract instance, token portal instance, token portal address and the underlying ERC20 instance
  */
 export async function deployAndInitializeNonNativeL2TokenContracts(
-  aztecRpcServer: AztecRPCServer,
+  wallet: Wallet,
   walletClient: WalletClient<HttpTransport, Chain, Account>,
   publicClient: PublicClient<HttpTransport, Chain>,
   rollupRegistryAddress: EthAddress,
@@ -211,13 +239,15 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   });
 
   // deploy l2 contract and attach to portal
-  const deployer = new ContractDeployer(NonNativeTokenContractAbi, aztecRpcServer);
+  const deployer = new ContractDeployer(NonNativeTokenContractAbi, wallet);
   const tx = deployer.deploy(initialBalance, owner).send({
     portalContract: tokenPortalAddress,
+    contractAddressSalt: Fr.random(),
   });
   await tx.isMined(0, 0.1);
   const receipt = await tx.getReceipt();
-  const l2Contract = new Contract(receipt.contractAddress!, NonNativeTokenContractAbi, aztecRpcServer);
+  if (receipt.status !== TxStatus.MINED) throw new Error(`Tx status is ${receipt.status}`);
+  const l2Contract = new Contract(receipt.contractAddress!, NonNativeTokenContractAbi, wallet);
   await l2Contract.attach(tokenPortalAddress);
   const l2TokenAddress = l2Contract.address.toString() as `0x${string}`;
 

@@ -1,15 +1,16 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
 
+import { L2BlockL2Logs } from '@aztec/types';
 import times from 'lodash.times';
 import { expectAztecStorageSlot, pointToPublicKey, setup } from './utils.js';
-import { L2BlockL2Logs } from '@aztec/types';
 
 describe('e2e_public_token_contract', () => {
   let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
+  let wallet: Wallet;
   let accounts: AztecAddress[];
   let logger: DebugLogger;
 
@@ -23,9 +24,10 @@ describe('e2e_public_token_contract', () => {
 
     logger(`Tx sent with hash ${await tx.getTxHash()}`);
     const receipt = await tx.getReceipt();
-    contract = new Contract(receipt.contractAddress!, PublicTokenContractAbi, aztecRpcServer);
+    contract = new Contract(receipt.contractAddress!, PublicTokenContractAbi, wallet);
     await tx.isMined(0, 0.1);
     const txReceipt = await tx.getReceipt();
+    expect(txReceipt.status).toEqual(TxStatus.MINED);
     logger(`L2 contract deployed at ${receipt.contractAddress}`);
     return { contract, tx, txReceipt };
   };
@@ -40,7 +42,7 @@ describe('e2e_public_token_contract', () => {
   };
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, accounts, logger } = await setup());
+    ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup());
   }, 100_000);
 
   afterEach(async () => {
@@ -84,7 +86,7 @@ describe('e2e_public_token_contract', () => {
 
     // Assemble two mint txs sequentially (no parallel calls to circuits!) and send them simultaneously
     const methods = times(3, () => deployedContract.methods.mint(mintAmount, pointToPublicKey(PK)));
-    for (const method of methods) await method.create({ from: recipient });
+    for (const method of methods) await method.simulate({ from: recipient });
     const txs = await Promise.all(methods.map(method => method.send()));
 
     // Check that all txs got mined in the same block

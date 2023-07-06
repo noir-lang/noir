@@ -1,5 +1,5 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer, Contract, TxStatus, computeMessageSecretHash } from '@aztec/aztec.js';
+import { AztecRPCServer, Contract, TxStatus, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
 import { AztecAddress, EthAddress, Fr, Point } from '@aztec/circuits.js';
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { DebugLogger } from '@aztec/foundation/log';
@@ -20,6 +20,7 @@ export class CrossChainTestHarness {
     aztecRpcServer: AztecRPCServer,
     deployL1ContractsValues: DeployL1Contracts,
     accounts: AztecAddress[],
+    wallet: Wallet,
     logger: DebugLogger,
   ): Promise<CrossChainTestHarness> {
     const walletClient = deployL1ContractsValues.walletClient;
@@ -38,7 +39,7 @@ export class CrossChainTestHarness {
     // Deploy and initialize all required contracts
     logger('Deploying Portal, initializing and deploying l2 contract...');
     const contracts = await deployAndInitializeNonNativeL2TokenContracts(
-      aztecRpcServer,
+      wallet,
       walletClient,
       publicClient,
       deployL1ContractsValues!.registryAddress,

@@ -1,17 +1,17 @@
 import { AztecAddress, EthAddress, Fr } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { Point } from '@aztec/foundation/fields';
+import { PublicKey } from '@aztec/key-store';
 import {
   ContractData,
-  ContractDeploymentTx,
   ContractPublicData,
   L2BlockL2Logs,
   PartialContractAddress,
   Tx,
+  TxExecutionRequest,
   TxHash,
 } from '@aztec/types';
 import { TxReceipt } from '../tx/index.js';
-import { CurveType, SignerType } from '../crypto/types.js';
 
 /**
  * Represents a deployed contract on the Aztec network.
@@ -33,27 +33,58 @@ export interface DeployedContract {
 }
 
 /**
+ * Provides basic information about the running node.
+ */
+export type NodeInfo = {
+  /**
+   * The version number of the node.
+   */
+  version: number;
+  /**
+   * The network's chain id.
+   */
+  chainId: number;
+};
+
+/**
+ * Represents the data generated as part of contract deployment.
+ */
+export type DeploymentInfo = {
+  /**
+   * The derived aztec address of the contract.
+   */
+  address: AztecAddress;
+  /**
+   * The partially derived aztec address of the contract.
+   */
+  partialAddress: PartialContractAddress;
+  /**
+   * The contract's constructor hash.
+   */
+  constructorHash: Fr;
+  /**
+   * The root of the contract's function tree.
+   */
+  functionTreeRoot: Fr;
+  /**
+   * The public key associated with the contract.
+   */
+  publicKey: PublicKey;
+};
+
+/**
  * Represents an Aztec RPC implementation.
  * Provides functionality for all the operations needed to interact with the Aztec network,
  * including account management, contract deployment, transaction creation, and execution,
  * as well as storage and view functions for smart contracts.
  */
 export interface AztecRPC {
-  createSmartAccount(
-    privKey?: Buffer,
-    curve?: CurveType,
-    signer?: SignerType,
-    abi?: ContractAbi,
-  ): Promise<[TxHash, AztecAddress]>;
-  registerSmartAccount(
+  addAccount(
     privKey: Buffer,
     address: AztecAddress,
     partialContractAddress: PartialContractAddress,
-    curve?: CurveType,
-    signer?: SignerType,
     abi?: ContractAbi,
   ): Promise<AztecAddress>;
-  getMessageHash(secret: Fr): Promise<Fr>;
   getAccounts(): Promise<AztecAddress[]>;
   getAccountPublicKey(address: AztecAddress): Promise<Point>;
   addContracts(contracts: DeployedContract[]): Promise<void>;
@@ -63,14 +94,7 @@ export interface AztecRPC {
    * @returns Whether the contract was deployed.
    */
   isContractDeployed(contract: AztecAddress): Promise<boolean>;
-  createDeploymentTx(
-    abi: ContractAbi,
-    args: any[],
-    portalContract: EthAddress,
-    contractAddressSalt?: Fr,
-    from?: AztecAddress,
-  ): Promise<ContractDeploymentTx>;
-  createTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress): Promise<Tx>;
+  simulateTx(txRequest: TxExecutionRequest, optionalFromAddress?: AztecAddress): Promise<Tx>;
   sendTx(tx: Tx): Promise<TxHash>;
   getTxReceipt(txHash: TxHash): Promise<TxReceipt>;
   getStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any>;
@@ -79,4 +103,5 @@ export interface AztecRPC {
   getContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined>;
   getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
   getBlockNum(): Promise<number>;
+  getNodeInfo(): Promise<NodeInfo>;
 }

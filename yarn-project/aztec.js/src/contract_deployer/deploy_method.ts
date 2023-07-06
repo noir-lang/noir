@@ -1,10 +1,13 @@
-import { AztecRPC } from '@aztec/aztec-rpc';
-import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
-import { ContractFunctionInteraction, SendMethodOptions } from '../contract/index.js';
+import { AztecRPC, getContractDeploymentInfo } from '@aztec/aztec-rpc';
+import { CircuitsWasm, ContractDeploymentData, TxContext } from '@aztec/circuits.js';
+import { ContractAbi } from '@aztec/foundation/abi';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { PartialContractAddress } from '@aztec/types';
+import { PublicKey } from '@aztec/key-store';
+import { ExecutionRequest, PackedArguments, PartialContractAddress, Tx, TxExecutionRequest } from '@aztec/types';
+import { BaseWallet, Wallet } from '../aztec_rpc_client/wallet.js';
+import { Contract, ContractFunctionInteraction, SendMethodOptions } from '../contract/index.js';
 
 /**
  * Options for deploying a contract on the Aztec network.
@@ -22,6 +25,29 @@ export interface DeployOptions extends SendMethodOptions {
 }
 
 /**
+ * Simple wallet implementation for use when deploying contracts only.
+ */
+class DeployerWallet extends BaseWallet {
+  getAddress(): AztecAddress {
+    return AztecAddress.ZERO;
+  }
+  async createAuthenticatedTxRequest(
+    executions: ExecutionRequest[],
+    txContext: TxContext,
+  ): Promise<TxExecutionRequest> {
+    if (executions.length !== 1) {
+      throw new Error(`Deployer wallet can only run one execution at a time (requested ${executions.length})`);
+    }
+    const [execution] = executions;
+    const wasm = await CircuitsWasm.get();
+    const packedArguments = await PackedArguments.fromArgs(execution.args, wasm);
+    return Promise.resolve(
+      new TxExecutionRequest(execution.to, execution.functionData, packedArguments.hash, txContext, [packedArguments]),
+    );
+  }
+}
+
+/**
  * Creates a TxRequest from a contract ABI, for contract deployment.
  * Extends the ContractFunctionInteraction class.
  */
@@ -31,13 +57,18 @@ export class DeployMethod extends ContractFunctionInteraction {
    */
   public partialContractAddress?: PartialContractAddress = undefined;
 
-  constructor(arc: AztecRPC, private abi: ContractAbi, args: any[] = []) {
+  /**
+   * The complete contract address.
+   */
+  public completeContractAddress?: AztecAddress = undefined;
+
+  constructor(private publicKey: PublicKey, arc: AztecRPC, private abi: ContractAbi, args: any[] = []) {
     const constructorAbi = abi.functions.find(f => f.name === 'constructor');
     if (!constructorAbi) {
       throw new Error('Cannot find constructor in the ABI.');
     }
 
-    super(arc, AztecAddress.ZERO, 'constructor', args, FunctionType.SECRET);
+    super(new DeployerWallet(arc), AztecAddress.ZERO, constructorAbi, args);
   }
 
   /**
@@ -50,17 +81,40 @@ export class DeployMethod extends ContractFunctionInteraction {
    * @returns A Promise resolving to an object containing the signed transaction data and other relevant information.
    */
   public async create(options: DeployOptions = {}) {
-    const { portalContract, contractAddressSalt, from } = options;
-    const deploymentTx = await this.arc.createDeploymentTx(
+    const { portalContract, contractAddressSalt } = Object.assign(
+      { portalContract: EthAddress.ZERO, contractAddressSalt: Fr.random() },
+      options,
+    );
+
+    const { address, constructorHash, functionTreeRoot, partialAddress } = await getContractDeploymentInfo(
       this.abi,
       this.args,
-      portalContract || new EthAddress(Buffer.alloc(EthAddress.SIZE_IN_BYTES)),
       contractAddressSalt,
-      from,
+      this.publicKey,
     );
-    this.tx = deploymentTx.tx;
-    this.partialContractAddress = deploymentTx.partialContractAddress;
-    return this.tx;
+
+    const contractDeploymentData = new ContractDeploymentData(
+      this.publicKey,
+      constructorHash,
+      functionTreeRoot,
+      contractAddressSalt,
+      portalContract,
+    );
+
+    const { chainId, version } = await this.wallet.getNodeInfo();
+
+    const txContext = new TxContext(false, false, true, contractDeploymentData, new Fr(chainId), new Fr(version));
+    const executionRequest = this.getExecutionRequest(address, AztecAddress.ZERO);
+    const txRequest = await this.wallet.createAuthenticatedTxRequest([executionRequest], txContext);
+
+    this.txRequest = txRequest;
+    this.partialContractAddress = partialAddress;
+    this.completeContractAddress = address;
+
+    // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?
+    await this.wallet.addContracts([{ abi: this.abi, address, portalContract }]);
+
+    return this.txRequest;
   }
 
   /**
@@ -73,5 +127,39 @@ export class DeployMethod extends ContractFunctionInteraction {
    */
   public send(options: DeployOptions = {}) {
     return super.send(options);
+  }
+
+  /**
+   * Simulate the request.
+   * @param options - Deployment options.
+   * @returns The simulated tx.
+   */
+  public async simulate(options: DeployOptions): Promise<Tx> {
+    const txRequest = this.txRequest ?? (await this.create(options));
+
+    // We need to tell the rpc server which account state to use to simulate
+    // the tx. In the context of a deployment, we need to use an account state
+    // that matches the account contract being deployed. But if what we deploy is
+    // an "application" contract, then there's no account state associated with it,
+    // so we just let the rpc server use whichever it wants. This is an accident
+    // of all simulations happening over an account state, which should not be necessary.
+    const rpcServerRegisteredAccounts = await this.wallet.getAccounts();
+    const deploymentAddress = this.completeContractAddress!;
+    const accountStateAddress = rpcServerRegisteredAccounts.includes(deploymentAddress) ? deploymentAddress : undefined;
+
+    this.tx = await this.wallet.simulateTx(txRequest, accountStateAddress);
+    return this.tx;
+  }
+
+  /**
+   * Creates a contract abstraction given a wallet.
+   * @param withWallet - The wallet to provide to the contract abstraction
+   * @returns - The generated contract abstraction.
+   */
+  public getContract(withWallet: Wallet) {
+    if (!this.completeContractAddress) {
+      throw new Error(`Cannot get a contract instance for a contract not yet deployed`);
+    }
+    return new Contract(this.completeContractAddress, this.abi, withWallet);
   }
 }

@@ -1,8 +1,8 @@
-import { Account, Chain, Hex, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
-import type { Abi, Narrow } from 'abitype';
+import { Contract, ContractDeployer, EthAddress, Wallet } from '@aztec/aztec.js';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { NonNativeTokenContractAbi } from '@aztec/noir-contracts/examples';
-import { Contract, ContractDeployer, EthAddress, AztecRPC } from '@aztec/aztec.js';
+import type { Abi, Narrow } from 'abitype';
+import { Account, Chain, Hex, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
 
 /**
  * Deploy L1 token and portal, initialize portal, deploy a non native l2 token contract and attach is to the portal.
@@ -16,7 +16,7 @@ import { Contract, ContractDeployer, EthAddress, AztecRPC } from '@aztec/aztec.j
  * @returns l2 contract instance, token portal instance, token portal address and the underlying ERC20 instance
  */
 export async function deployAndInitializeNonNativeL2TokenContracts(
-  aztecRpcServer: AztecRPC,
+  wallet: Wallet,
   walletClient: WalletClient<HttpTransport, Chain, Account>,
   publicClient: PublicClient<HttpTransport, Chain>,
   rollupRegistryAddress: EthAddress,
@@ -45,13 +45,13 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   });
 
   // deploy l2 contract and attach to portal
-  const deployer = new ContractDeployer(NonNativeTokenContractAbi, aztecRpcServer);
+  const deployer = new ContractDeployer(NonNativeTokenContractAbi, wallet);
   const tx = deployer.deploy(initialBalance, owner).send({
     portalContract: tokenPortalAddress,
   });
   await tx.isMined(0, 0.1);
   const receipt = await tx.getReceipt();
-  const l2Contract = new Contract(receipt.contractAddress!, NonNativeTokenContractAbi, aztecRpcServer);
+  const l2Contract = new Contract(receipt.contractAddress!, NonNativeTokenContractAbi, wallet);
   await l2Contract.attach(tokenPortalAddress);
   const l2TokenAddress = l2Contract.address.toString() as `0x${string}`;
 

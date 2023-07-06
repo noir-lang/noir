@@ -21,7 +21,7 @@ export async function createAztecRpc(numberOfAccounts = 1, aztecNode: AztecNode)
     // the account contract implementation. This hack hints at the fact that we
     // need to rethink the APIs of the aztec-rpc-server and keystore post AA.
     const privKey = randomBytes(32);
-    await arc.registerSmartAccount(privKey, AztecAddress.random(), Fr.random());
+    await arc.addAccount(privKey, AztecAddress.random(), Fr.random());
   }
 
   return arc;
@@ -74,8 +74,8 @@ export async function deployL2Contract(rollupProviderUrl: string, intervalMs: nu
     logger(`Deploying L2 contract...`);
     const initialBalance = 1_000_000_000n;
     const zkContract = ZkTokenContractAbi as ContractAbi;
-    const deployer = new ContractDeployer(zkContract, aztecRpcServer);
     const owner = await aztecRpcServer.getAccountPublicKey(accounts[0]);
+    const deployer = new ContractDeployer(zkContract, aztecRpcServer, owner);
     const d = deployer.deploy(initialBalance, pointToPublicKey(owner));
     await d.create();
     const tx = d.send();

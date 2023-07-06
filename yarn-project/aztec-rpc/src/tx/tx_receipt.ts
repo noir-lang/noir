@@ -29,6 +29,7 @@ export interface TxReceipt {
   blockNumber?: number;
   /**
    * The sender's address.
+   * TODO: From and to are the same since we went full AA. We should unify these.
    */
   from?: AztecAddress;
   /**

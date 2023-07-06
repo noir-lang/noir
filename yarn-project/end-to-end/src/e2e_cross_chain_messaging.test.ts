@@ -30,6 +30,7 @@ describe('e2e_cross_chain_messaging', () => {
       aztecRpcServer: aztecRpcServer_,
       deployL1ContractsValues,
       accounts,
+      wallet,
       logger: logger_,
     } = await setup(2);
     crossChainTestHarness = await CrossChainTestHarness.new(
@@ -38,6 +39,7 @@ describe('e2e_cross_chain_messaging', () => {
       aztecRpcServer_,
       deployL1ContractsValues,
       accounts,
+      wallet,
       logger_,
     );
 

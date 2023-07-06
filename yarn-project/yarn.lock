@@ -224,6 +224,7 @@ __metadata:
     "@aztec/aztec-rpc": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/key-store": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4

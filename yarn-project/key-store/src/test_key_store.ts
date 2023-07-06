@@ -1,4 +1,4 @@
-import { Curve, Signature, Signer } from '@aztec/circuits.js/barretenberg';
+import { Curve } from '@aztec/circuits.js/barretenberg';
 import { ConstantKeyPair, KeyPair } from './key_pair.js';
 import { KeyStore, PublicKey } from './key_store.js';
 import { Point } from '@aztec/circuits.js';
@@ -9,18 +9,16 @@ import { Point } from '@aztec/circuits.js';
  */
 export class TestKeyStore implements KeyStore {
   private accounts: KeyPair[] = [];
-
-  constructor() {}
+  constructor(private curve: Curve) {}
 
   /**
    * Adds an account to the key store from the provided private key.
    * @param curve - The curve to use for generating the public key.
-   * @param signer - The signer to use on the account.
    * @param privKey - The private key of the account.
    * @returns - The account's public key.
    */
-  public addAccount(curve: Curve, signer: Signer, privKey: Buffer): PublicKey {
-    const keyPair = ConstantKeyPair.fromPrivateKey(curve, signer, privKey);
+  public addAccount(privKey: Buffer): PublicKey {
+    const keyPair = ConstantKeyPair.fromPrivateKey(this.curve, privKey);
     this.accounts.push(keyPair);
     return keyPair.getPublicKey();
   }
@@ -29,11 +27,10 @@ export class TestKeyStore implements KeyStore {
    * Adds a new account to the TestKeyStore with a randomly generated ConstantKeyPair.
    * The account will have its own private and public key pair, which can be used for signing transactions.
    * @param curve - The curve to use for generating the public key.
-   * @param signer - The signer to use on the account.
    * @returns A promise that resolves to the newly created account's AztecAddress.
    */
-  public createAccount(curve: Curve, signer: Signer): Promise<Point> {
-    const keyPair = ConstantKeyPair.random(curve, signer);
+  public createAccount(): Promise<Point> {
+    const keyPair = ConstantKeyPair.random(this.curve);
     this.accounts.push(keyPair);
     return Promise.resolve(keyPair.getPublicKey());
   }
@@ -60,20 +57,6 @@ export class TestKeyStore implements KeyStore {
   public getAccountPrivateKey(pubKey: PublicKey): Promise<Buffer> {
     const account = this.getAccount(pubKey);
     return account.getPrivateKey();
-  }
-
-  /**
-   * Sign a buffer using the private key of the sender account.
-   * The 'signMessage' method of the account private key is called internally to generate the signature.
-   * Throws an error if the sender account is not found in the TestKeyStore.
-   *
-   * @param what - What to sign.
-   * @param from - What key to use.
-   * @returns The signed message.
-   */
-  public async sign(what: Buffer, from: PublicKey): Promise<Signature> {
-    const account = this.getAccount(from);
-    return await account.sign(what);
   }
 
   /**

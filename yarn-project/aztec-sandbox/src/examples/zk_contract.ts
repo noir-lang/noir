@@ -1,7 +1,7 @@
 import {
-  AztecRPC,
   Contract,
   ContractDeployer,
+  Wallet,
   createAccounts,
   createAztecRpcClient,
   pointToPublicKey,
@@ -9,7 +9,6 @@ import {
 import { AztecAddress, Point } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
-import { L2BlockL2Logs } from '@aztec/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
 
@@ -18,6 +17,7 @@ export const privateKey = Buffer.from('ac0974bec39a17e36ba4a6b4d238ff944bacb478c
 const url = 'http://localhost:8080';
 
 const aztecRpcClient = createAztecRpcClient(url);
+let wallet: Wallet;
 
 const INITIAL_BALANCE = 333n;
 const SECONDARY_AMOUNT = 33n;
@@ -32,7 +32,7 @@ async function deployZKContract(pubKeyPoint: Point) {
   const deployer = new ContractDeployer(ZkTokenContractAbi, aztecRpcClient);
   const tx = deployer.deploy(INITIAL_BALANCE, pointToPublicKey(pubKeyPoint)).send();
   const receipt = await tx.getReceipt();
-  const contract = new Contract(receipt.contractAddress!, ZkTokenContractAbi, aztecRpcClient);
+  const contract = new Contract(receipt.contractAddress!, ZkTokenContractAbi, wallet);
   await tx.isMined();
   await tx.getReceipt();
   logger('L2 contract deployed');
@@ -57,16 +57,17 @@ async function getBalance(contract: Contract, ownerKey: Point, ownerAddress: Azt
 async function main() {
   logger('Running ZK contract test on HTTP interface.');
 
-  const [[ownerAddress, ownerPubKeyPoint], [address2, address2PubKeyPoint]] = await createAccounts(
-    aztecRpcClient,
-    privateKey,
-    2,
-  );
-  logger(`Created account ${ownerAddress.toString()} with public key ${ownerPubKeyPoint.toString()}`);
-  const zkContract = await deployZKContract(ownerPubKeyPoint);
+  wallet = await createAccounts(aztecRpcClient, privateKey, 1);
   const accounts = await aztecRpcClient.getAccounts();
   logger(`Created ${accounts.length} accounts`);
-  const balance1 = await getBalance(zkContract, ownerPubKeyPoint, ownerAddress);
+  const [ownerAddress, address2] = accounts;
+  const ownerPubKeyPoint = await aztecRpcClient.getAccountPublicKey(ownerAddress);
+  const address2PubKeyPoint = await aztecRpcClient.getAccountPublicKey(address2);
+  logger(`Created account ${ownerAddress.toString()} with public key ${ownerPubKeyPoint.toString()}`);
+  const zkContract = await deployZKContract(ownerPubKeyPoint);
+  const [balance1] = await zkContract.methods
+    .getBalance(pointToPublicKey(ownerPubKeyPoint))
+    .view({ from: ownerAddress });
   logger(`Initial owner balance: ${balance1}`);
 
   // Mint more tokens

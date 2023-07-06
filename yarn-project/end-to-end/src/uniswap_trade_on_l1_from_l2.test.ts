@@ -1,5 +1,5 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus, Wallet } from '@aztec/aztec.js';
 import { deployL1Contract } from '@aztec/ethereum';
 
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -26,6 +26,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
   let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
+  let wallet: Wallet;
   let accounts: AztecAddress[];
   let logger: DebugLogger;
 
@@ -45,7 +46,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
   beforeEach(async () => {
     let deployL1ContractsValues: DeployL1Contracts;
-    ({ aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, logger } = await setup(2));
+    ({ aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, logger, wallet } = await setup(2));
 
     const walletClient = deployL1ContractsValues.walletClient;
     const publicClient = deployL1ContractsValues.publicClient;
@@ -61,7 +62,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     logger('Deploying DAI Portal, initializing and deploying l2 contract...');
     const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(
-      aztecRpcServer,
+      wallet,
       walletClient,
       publicClient,
       deployL1ContractsValues!.registryAddress,
@@ -89,7 +90,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     logger('Deploying WETH Portal, initializing and deploying l2 contract...');
     const wethContracts = await deployAndInitializeNonNativeL2TokenContracts(
-      aztecRpcServer,
+      wallet,
       walletClient,
       publicClient,
       deployL1ContractsValues!.registryAddress,
@@ -128,7 +129,8 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     const tx = deployer.deploy().send({ portalContract: uniswapPortalAddress });
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();
-    uniswapL2Contract = new Contract(receipt.contractAddress!, UniswapContractAbi, aztecRpcServer);
+    expect(receipt.status).toEqual(TxStatus.MINED);
+    uniswapL2Contract = new Contract(receipt.contractAddress!, UniswapContractAbi, wallet);
     await uniswapL2Contract.attach(uniswapPortalAddress);
 
     await uniswapPortal.write.initialize(

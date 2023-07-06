@@ -14,9 +14,12 @@ class ArgumentEncoder {
    * Encodes a single argument from the given type to field.
    * @param abiType - The abi type of the argument.
    * @param arg - The value to encode.
+   * @param name - Name.
    */
-  private encodeArgument(abiType: ABIType, arg: any) {
-    if (arg === undefined || arg == null) throw new Error(`Undefined argument of type ${abiType.kind}`);
+  private encodeArgument(abiType: ABIType, arg: any, name?: string) {
+    if (arg === undefined || arg == null) {
+      throw new Error(`Undefined argument ${name ?? 'unnamed'} of type ${abiType.kind}`);
+    }
     switch (abiType.kind) {
       case 'field':
         if (typeof arg === 'number') {
@@ -36,12 +39,12 @@ class ArgumentEncoder {
         break;
       case 'array':
         for (let i = 0; i < abiType.length; i += 1) {
-          this.encodeArgument(abiType.type, arg[i]);
+          this.encodeArgument(abiType.type, arg[i], `${name}[${i}]`);
         }
         break;
       case 'struct':
         for (const field of abiType.fields) {
-          this.encodeArgument(field.type, arg[field.name]);
+          this.encodeArgument(field.type, arg[field.name], `${name}.${field.name}`);
         }
         break;
       case 'integer':
@@ -59,7 +62,7 @@ class ArgumentEncoder {
   public encode() {
     for (let i = 0; i < this.abi.parameters.length; i += 1) {
       const parameterAbi = this.abi.parameters[i];
-      this.encodeArgument(parameterAbi.type, this.args[i]);
+      this.encodeArgument(parameterAbi.type, this.args[i], parameterAbi.name);
     }
     return this.flattened;
   }

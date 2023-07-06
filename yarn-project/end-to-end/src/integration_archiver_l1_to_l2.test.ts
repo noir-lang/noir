@@ -1,5 +1,5 @@
 import { AztecNodeConfig, AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, computeMessageSecretHash } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
 import { DeployL1Contracts } from '@aztec/ethereum';
@@ -18,6 +18,7 @@ import { Archiver } from '@aztec/archiver';
 describe('archiver integration with l1 to l2 messages', () => {
   let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
+  let wallet: Wallet;
   let archiver: Archiver;
   let accounts: AztecAddress[];
   let logger: DebugLogger;
@@ -37,7 +38,7 @@ describe('archiver integration with l1 to l2 messages', () => {
 
   beforeEach(async () => {
     let deployL1ContractsValues: DeployL1Contracts | undefined;
-    ({ aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, config, logger } = await setup(2));
+    ({ aztecNode, aztecRpcServer, wallet, deployL1ContractsValues, accounts, config, logger } = await setup(2));
     archiver = await Archiver.createAndSync(config);
 
     const walletClient = deployL1ContractsValues.walletClient;
@@ -50,7 +51,7 @@ describe('archiver integration with l1 to l2 messages', () => {
     // Deploy and initialize all required contracts
     logger('Deploying Portal, initializing and deploying l2 contract...');
     const contracts = await deployAndInitializeNonNativeL2TokenContracts(
-      aztecRpcServer,
+      wallet,
       walletClient,
       publicClient,
       deployL1ContractsValues!.registryAddress,

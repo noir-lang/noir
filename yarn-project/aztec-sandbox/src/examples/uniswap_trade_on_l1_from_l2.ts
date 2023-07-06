@@ -10,6 +10,8 @@ import {
   AztecAddress,
   EthAddress,
   Fr,
+  Wallet,
+  computeMessageSecretHash,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { UniswapContractAbi } from '@aztec/noir-contracts/examples';
@@ -64,6 +66,7 @@ if (Number(await publicClient.getBlockNumber()) < EXPECTED_FORKED_BLOCK) {
 const ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
 
 const aztecRpcClient = createAztecRpcClient(aztecRpcUrl);
+let wallet: Wallet;
 
 /**
  * Deploys all l1 / l2 contracts
@@ -73,7 +76,7 @@ async function deployAllContracts(ownerPub: PublicKey) {
   const l1ContractsAddresses = await getL1ContractAddresses(aztecRpcUrl);
   logger('Deploying DAI Portal, initializing and deploying l2 contract...');
   const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(
-    aztecRpcClient,
+    wallet,
     walletClient,
     publicClient,
     l1ContractsAddresses!.registry,
@@ -87,7 +90,7 @@ async function deployAllContracts(ownerPub: PublicKey) {
 
   logger('Deploying WETH Portal, initializing and deploying l2 contract...');
   const wethContracts = await deployAndInitializeNonNativeL2TokenContracts(
-    aztecRpcClient,
+    wallet,
     walletClient,
     publicClient,
     l1ContractsAddresses!.registry,
@@ -115,11 +118,11 @@ async function deployAllContracts(ownerPub: PublicKey) {
   });
 
   // deploy l2 uniswap contract and attach to portal
-  const deployer = new ContractDeployer(UniswapContractAbi, aztecRpcClient);
-  const tx = deployer.deploy().send({ portalContract: uniswapPortalAddress });
+  const deployer = new ContractDeployer(UniswapContractAbi, aztecRpcClient).deploy();
+  const tx = deployer.send({ portalContract: uniswapPortalAddress });
   await tx.isMined(0, 0.5);
   const receipt = await tx.getReceipt();
-  const uniswapL2Contract = new Contract(receipt.contractAddress!, UniswapContractAbi, aztecRpcClient);
+  const uniswapL2Contract = new Contract(receipt.contractAddress!, UniswapContractAbi, wallet);
   await uniswapL2Contract.attach(uniswapPortalAddress);
 
   await uniswapPortal.write.initialize(
@@ -183,8 +186,9 @@ const transferWethOnL2 = async (
 async function main() {
   logger('Running L1/L2 messaging test on HTTP interface.');
 
-  const accounts = await createAccounts(aztecRpcClient, privateKey!, 2);
-  const [[owner], [receiver]] = accounts;
+  wallet = await createAccounts(aztecRpcClient, privateKey!, 2);
+  const accounts = await wallet.getAccounts();
+  const [owner, receiver] = accounts;
   const ownerPub = pointToPublicKey(await aztecRpcClient.getAccountPublicKey(owner));
 
   const result = await deployAllContracts(ownerPub);
@@ -212,7 +216,7 @@ async function main() {
   // 2. Deposit weth into the portal and move to L2
   // generate secret
   const secret = Fr.random();
-  const secretHash = await aztecRpcClient.getMessageHash(secret);
+  const secretHash = await computeMessageSecretHash(secret);
   const secretString = `0x${secretHash.toBuffer().toString('hex')}` as `0x${string}`;
   const deadline = 2 ** 32 - 1; // max uint32 - 1
   logger('Sending messages to L1 portal');

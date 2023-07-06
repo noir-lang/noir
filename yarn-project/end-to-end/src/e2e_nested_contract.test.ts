@@ -1,5 +1,5 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus, Wallet } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { DebugLogger } from '@aztec/foundation/log';
 import { ChildAbi, ParentAbi } from '@aztec/noir-contracts/examples';
@@ -10,6 +10,7 @@ import { setup } from './utils.js';
 describe('e2e_nested_contract', () => {
   let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
+  let wallet: Wallet;
   let accounts: AztecAddress[];
   let logger: DebugLogger;
 
@@ -17,7 +18,7 @@ describe('e2e_nested_contract', () => {
   let childContract: Contract;
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, accounts, logger } = await setup());
+    ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup());
 
     parentContract = await deployContract(ParentAbi);
     childContract = await deployContract(ChildAbi);
@@ -36,7 +37,7 @@ describe('e2e_nested_contract', () => {
     await tx.isMined(0, 0.1);
 
     const receipt = await tx.getReceipt();
-    const contract = new Contract(receipt.contractAddress!, abi, aztecRpcServer);
+    const contract = new Contract(receipt.contractAddress!, abi, wallet);
     logger(`L2 contract ${abi.name} deployed at ${contract.address}`);
     return contract;
   };

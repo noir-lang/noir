@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import { Signature } from '../index.js';
 import { mapTuple } from '@aztec/foundation/serialize';
 import { Fr } from '@aztec/foundation/fields';
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 
 /**
  * ECDSA signature used for transactions.
@@ -48,6 +49,17 @@ export class EcdsaSignature implements Signature {
    */
   public static fromBuffer(buffer: Buffer) {
     return new EcdsaSignature(buffer.subarray(0, 32), buffer.subarray(32, 64), buffer.subarray(64, 65));
+  }
+
+  /**
+   * Creates a new instance from bigint r and s values.
+   * @param r - r.
+   * @param s - s.
+   * @param v - v.
+   * @returns The resulting signature.
+   */
+  public static fromBigInts(r: bigint, s: bigint, v: number) {
+    return new EcdsaSignature(toBufferBE(r, 32), toBufferBE(s, 32), Buffer.from([v]));
   }
 
   /**

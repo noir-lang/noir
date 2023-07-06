@@ -57,12 +57,12 @@ contract EcdsaAccount {
 
         // Verify payload signature using ethereum's signing scheme
         let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
-        let payload_hash: [u8; 32] = std::hash::sha256(payload_bytes);
-        
-        let verification = std::ecdsa_secp256k1::verify_signature(x, y, decompressed_signature, payload_hash);
+        let challenge: [u8; 32] = std::hash::sha256(payload_bytes);
+
+        let verification = std::ecdsa_secp256k1::verify_signature(x, y, decompressed_signature, challenge);
         assert(verification == true);
 
-        // TODO: When we can use pedersen with non-zero generators, get this working        
+        // TODO: When we can use pedersen with non-zero generators, get this working
         //let reproduced_address = dep::std::hash::pedersen([owner, partialContractAddress])[0];
         //constrain reproduced_address == inputs.call_context.storage_contract_address;
 
@@ -88,6 +88,18 @@ contract EcdsaAccount {
             }
         }
 
+        // // Create args_hash manually since we exceed the MAX_ARGS in PrivateFunctionContext.
+        // // Alternatively, we could make PrivateFunctionContext generic on the args size.
+        // // ENTRYPOINT_PAYLOAD_SIZE + size_of(signature) = 21 + 64 = 85
+        // let mut args: BoundedVec<Field, 85> = BoundedVec::new(0);
+        // args = args.push_array(payload.flattened_args);
+        // args = args.push_array(payload.flattened_selectors);
+        // args = args.push(payload.nonce);
+        // for byte in signature {
+        //     args = args.push(byte as Field);
+        // }
+        // TODO(#499): Use hash index
+        // let args_hash = dep::std::hash::pedersen(args.storage)[0];
         context.finish()
     }
 

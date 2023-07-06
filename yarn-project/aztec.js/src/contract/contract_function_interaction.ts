@@ -1,6 +1,9 @@
-import { AztecRPC, Tx, TxHash } from '@aztec/aztec-rpc';
-import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { FunctionType } from '@aztec/foundation/abi';
+import { encodeArguments } from '@aztec/acir-simulator';
+import { generateFunctionSelector, Tx } from '@aztec/aztec-rpc';
+import { AztecAddress, Fr, FunctionData, TxContext } from '@aztec/circuits.js';
+import { FunctionAbi, FunctionType } from '@aztec/foundation/abi';
+import { ExecutionRequest, TxExecutionRequest } from '@aztec/types';
+import { Wallet } from '../aztec_rpc_client/wallet.js';
 import { SentTx } from './sent_tx.js';
 
 /**
@@ -35,13 +38,13 @@ export interface ViewMethodOptions {
  */
 export class ContractFunctionInteraction {
   protected tx?: Tx;
+  protected txRequest?: TxExecutionRequest;
 
   constructor(
-    protected arc: AztecRPC,
+    protected wallet: Wallet,
     protected contractAddress: AztecAddress,
-    protected functionName: string,
+    protected functionDao: FunctionAbi,
     protected args: any[],
-    protected functionType: FunctionType,
   ) {}
 
   /**
@@ -53,12 +56,47 @@ export class ContractFunctionInteraction {
    * @param options - An optional object containing additional configuration for the transaction.
    * @returns A Promise that resolves to a transaction instance.
    */
-  public async create(options: SendMethodOptions = {}) {
-    if (this.functionType === FunctionType.UNCONSTRAINED) {
+  public async create(options: SendMethodOptions = {}): Promise<TxExecutionRequest> {
+    if (this.functionDao.functionType === FunctionType.UNCONSTRAINED) {
       throw new Error("Can't call `create` on an unconstrained function.");
     }
-    this.tx = await this.arc.createTx(this.functionName, this.args, this.contractAddress, options.from);
+    if (!this.txRequest) {
+      const executionRequest = this.getExecutionRequest(this.contractAddress, options.from);
+      const nodeInfo = await this.wallet.getNodeInfo();
+      const txContext = TxContext.empty(new Fr(nodeInfo.chainId), new Fr(nodeInfo.version));
+      const txRequest = await this.wallet.createAuthenticatedTxRequest([executionRequest], txContext);
+      this.txRequest = txRequest;
+    }
+    return this.txRequest;
+  }
+
+  /**
+   * Simulates a transaction's execution.
+   * @param options - optional arguments to be used in the creation of the transaction
+   * @returns The resulting transaction
+   */
+  public async simulate(options: SendMethodOptions): Promise<Tx> {
+    const txRequest = this.txRequest ?? (await this.create(options));
+    // TODO: Why do we need from separately, and cannot get it from txRequest.origin? When would they differ?
+    this.tx = await this.wallet.simulateTx(txRequest, txRequest.origin);
     return this.tx;
+  }
+
+  protected getExecutionRequest(to: AztecAddress, from?: AztecAddress): ExecutionRequest {
+    const flatArgs = encodeArguments(this.functionDao, this.args);
+
+    const functionData = new FunctionData(
+      generateFunctionSelector(this.functionDao.name, this.functionDao.parameters),
+      this.functionDao.functionType === FunctionType.SECRET,
+      this.functionDao.name === 'constructor',
+    );
+
+    return {
+      args: flatArgs,
+      functionData,
+      to,
+      from: from || AztecAddress.ZERO,
+    };
   }
 
   /**
@@ -72,18 +110,16 @@ export class ContractFunctionInteraction {
    * @returns A SentTx instance for tracking the transaction status and information.
    */
   public send(options: SendMethodOptions = {}) {
-    if (this.functionType === FunctionType.UNCONSTRAINED) {
+    if (this.functionDao.functionType === FunctionType.UNCONSTRAINED) {
       throw new Error("Can't call `send` on an unconstrained function.");
     }
 
-    let promise: Promise<TxHash>;
-    if (this.tx) {
-      promise = this.arc.sendTx(this.tx);
-    } else {
-      promise = (async () => this.arc.sendTx(await this.create(options)))();
-    }
+    const promise = (async () => {
+      const tx = this.tx ?? (await this.simulate(options));
+      return this.wallet.sendTx(tx);
+    })();
 
-    return new SentTx(this.arc, promise);
+    return new SentTx(this.wallet, promise);
   }
 
   /**
@@ -95,11 +131,11 @@ export class ContractFunctionInteraction {
    * @returns The result of the view transaction as returned by the contract function.
    */
   public view(options: ViewMethodOptions = {}) {
-    if (this.functionType !== FunctionType.UNCONSTRAINED) {
+    if (this.functionDao.functionType !== FunctionType.UNCONSTRAINED) {
       throw new Error('Can only call `view` on an unconstrained function.');
     }
 
     const { from } = options;
-    return this.arc.viewTx(this.functionName, this.args, this.contractAddress, from);
+    return this.wallet.viewTx(this.functionDao.name, this.args, this.contractAddress, from);
   }
 }

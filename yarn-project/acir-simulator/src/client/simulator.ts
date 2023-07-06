@@ -1,4 +1,4 @@
-import { pedersenCompressWithHashIndex, pedersenPlookupCommitInputs, Curve } from '@aztec/circuits.js/barretenberg';
+import { pedersenCompressWithHashIndex, pedersenPlookupCommitInputs, Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { CallContext, CircuitsWasm, PrivateHistoricTreeRoots, TxContext } from '@aztec/circuits.js';
 import { FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -47,7 +47,6 @@ export class AcirSimulator {
     contractAddress: AztecAddress,
     portalContractAddress: EthAddress,
     historicRoots: PrivateHistoricTreeRoots,
-    curve: Curve,
   ): Promise<ExecutionResult> {
     if (entryPointABI.functionType !== FunctionType.SECRET) {
       throw new Error(`Cannot run ${entryPointABI.functionType} function as secret`);
@@ -56,6 +55,8 @@ export class AcirSimulator {
     if (request.origin !== contractAddress) {
       this.log(`WARN: Request origin does not match contract address in simulation`);
     }
+
+    const curve = await Grumpkin.new();
 
     const callContext = new CallContext(
       AztecAddress.ZERO,
@@ -104,7 +105,7 @@ export class AcirSimulator {
       throw new Error(`Cannot run ${entryPointABI.functionType} function as constrained`);
     }
     const callContext = new CallContext(
-      request.from,
+      request.from!,
       contractAddress,
       portalContractAddress,
       false,

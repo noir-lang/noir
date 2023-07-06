@@ -36,7 +36,7 @@ import { computeFunctionTreeData } from './function_tree_data.js';
  * @param wasm - An instance of CircuitsWasm class used for hashing.
  * @returns A Promise resolving to a Buffer containing the hash of the verification key.
  */
-function hashVKStr(vk: string, wasm: CircuitsWasm) {
+export function hashVKStr(vk: string, wasm: CircuitsWasm) {
   // TODO - check consistent encoding
   return hashVK(wasm, Buffer.from(vk, 'hex'));
 }
@@ -49,7 +49,7 @@ function hashVKStr(vk: string, wasm: CircuitsWasm) {
  * @param Object - An object containing a 'name' property.
  * @returns Boolean indicating if the function is a constructor.
  */
-function isConstructor({
+export function isConstructor({
   name,
 }: {
   /**
@@ -89,7 +89,7 @@ function isConstrained({
  * @param wasm - CircuitsWasm instance used for hashing and computations.
  * @returns An array of Fr instances representing the generated function leaves.
  */
-function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: CircuitsWasm) {
+export function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: CircuitsWasm) {
   const targetFunctions = functions.filter(isConstrained);
   const result: Fr[] = [];
   for (let i = 0; i < targetFunctions.length; i++) {
@@ -258,7 +258,9 @@ export class ContractTree {
       const committment = computeContractLeaf(this.wasm, newContractData);
       const index = await this.node.findContractIndex(committment.toBuffer());
       if (index === undefined) {
-        throw new Error('Failed to find contract.');
+        throw new Error(
+          `Failed to find contract at ${address} with portal ${portalContract} resulting in commitment ${committment}.`,
+        );
       }
 
       const siblingPath = await this.node.getContractPath(index);
