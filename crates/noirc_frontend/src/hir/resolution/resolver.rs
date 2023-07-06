@@ -710,18 +710,15 @@ impl<'a> Resolver<'a> {
     }
 
     fn handle_is_function_internal(&mut self, func: &NoirFunction) -> Option<bool> {
-        if func.def.is_internal {
-            if self.in_contract() {
-                Some(true)
-            } else {
-                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction {
-                    span: func.name_ident().span(),
-                });
-                None
-            }
-        } else {
-            Some(false)
-        }
+if self.in_contract() {
+    Some(func.def.is_internal)
+} else {
+    if func.def.is_internal {
+        self.push_err(ResolverError::ContractFunctionInternalInNormalFunction {
+        span: func.name_ident().span(),
+    });
+    None
+}
     }
 
     fn declare_numeric_generics(&mut self, params: &[Type], return_type: &Type) {
