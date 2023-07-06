@@ -2,10 +2,20 @@
 // 
 // The features being tested is basic conditonal on brillig
 fn main(x: Field)  {
-    assert(4 == conditional(x as bool));
+    assert(5 == conditional(x as bool));
 }
 
 unconstrained fn conditional(x : bool) -> Field {
+    // if x {
+    //     4
+    // }else {
+    //     5
+    // }
+    let a = toto(x);
+    a + 1
+}
+
+unconstrained fn toto(x : bool) -> Field {
     if x {
         4
     }else {

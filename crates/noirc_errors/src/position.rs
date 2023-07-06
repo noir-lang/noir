@@ -1,3 +1,4 @@
+
 use codespan::Span as ByteSpan;
 use fm::FileId;
 use std::{
@@ -51,6 +52,7 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default)]
+#[cfg_attr(feature = "serialization", derive(Deserialize, Serialize))]
 pub struct Span(ByteSpan);
 
 impl Span {
@@ -115,6 +117,7 @@ impl chumsky::Span for Span {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serialization", derive(Deserialize, Serialize))]
 pub struct Location {
     pub span: Span,
     pub file: FileId,
@@ -123,5 +126,8 @@ pub struct Location {
 impl Location {
     pub fn new(span: Span, file: FileId) -> Self {
         Self { span, file }
+    }
+    pub fn flatten(&self) -> (u32, u32, usize) {
+        (self.span.start(), self.span.end(), self.file.as_usize())
     }
 }

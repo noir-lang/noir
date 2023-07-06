@@ -2,10 +2,15 @@
 // 
 // The features being tested is not instruction on brillig
 fn main(x: Field, y : Field)  {
-    assert(false == not_operator(x as bool));
-    assert(true == not_operator(y as bool));
+    assert(!(x as bool) == not_operator(x as bool));
+    assert((x as bool)== not_operator(!(x as bool)));
+    assert(!(y as u8) == not_operator_8bit(y as u8));
 }
 
 unconstrained fn not_operator(x : bool) -> bool {
+    !x
+}
+
+unconstrained fn not_operator_8bit(x : u8) -> u8 {
     !x
 }

@@ -1977,6 +1977,7 @@ dependencies = [
  "color-eyre",
  "const_format",
  "dirs",
+ "fm",
  "hex",
  "iter-extended",
  "nargo",
@@ -2076,6 +2077,7 @@ version = "0.7.1"
 dependencies = [
  "acvm",
  "arena",
+ "fm",
  "im",
  "iter-extended",
  "noirc_abi",
@@ -2084,6 +2086,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "rand 0.8.5",
+ "serde",
  "thiserror",
 ]
 
@@ -4218,3 +4221,7 @@ dependencies = [
  "quote",
  "syn 2.0.18",
 ]
+
+[[patch.unused]]
+name = "acvm"
+version = "0.16.0"

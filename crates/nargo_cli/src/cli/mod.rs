@@ -73,7 +73,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
-        NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
+        NargoCommand::Execute(args) =>execute_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
@@ -99,7 +99,7 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
         experimental_ssa,
     };
 
-    let program =
+    let (program, driver) =
         compile_circuit(&backend, program_dir, &compile_options).expect("Compile should succeed");
 
     // Parse the initial witness values from Prover.toml

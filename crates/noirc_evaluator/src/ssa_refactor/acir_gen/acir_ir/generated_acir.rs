@@ -41,7 +41,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) return_witnesses: Vec<Witness>,
 
     /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
-    locations: HashMap<usize, Location>,
+    pub(crate) locations: HashMap<usize, (u32, u32, usize)>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
@@ -58,7 +58,7 @@ impl GeneratedAcir {
     fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
         if let Some(location) = self.current_location {
-            self.locations.insert(self.opcodes.len() - 1, location);
+            self.locations.insert(self.opcodes.len() - 1, location.flatten());
         }
     }
 

@@ -766,6 +766,17 @@ impl AcirContext {
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
     pub(crate) fn finish(self) -> GeneratedAcir {
+        // let mut diag = Vec::new();
+        // for op in self.acir_ir.locations.keys() {
+        //     diag.push(
+        //     Diagnostic::simple_error(
+        //         format!("opcode:{}", op),
+        //         self.acir_ir.opcodes[*op].to_string(),
+        //         self.acir_ir.locations[op],
+        //     ));
+        // }
+
+
         self.acir_ir
     }
 

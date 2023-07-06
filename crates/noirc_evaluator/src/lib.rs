@@ -11,17 +11,20 @@ mod ssa;
 pub mod ssa_refactor;
 
 pub mod brillig;
+pub mod debug_info;
 
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
 };
+use debug_info::DebugInfo;
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiType, AbiVisibility};
+use noirc_errors::{Location};
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node::ObjectType, ssa_gen::IrGenerator};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 #[derive(Default)]
 pub struct Evaluator {
@@ -67,7 +70,7 @@ pub fn create_circuit(
     program: Program,
     enable_logging: bool,
     show_output: bool,
-) -> Result<(Circuit, Abi), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let mut evaluator = Evaluator::default();
 
     // First evaluate the main function
@@ -91,7 +94,7 @@ pub fn create_circuit(
     let (parameters, return_type) = program.main_function_signature;
     let abi = Abi { parameters, param_witnesses, return_type, return_witnesses: return_values };
 
-    Ok((circuit, abi))
+    Ok((circuit, DebugInfo::default(), abi))
 }
 
 impl Evaluator {

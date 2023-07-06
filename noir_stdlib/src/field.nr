@@ -33,6 +33,30 @@ impl Field {
         r
     }
 
+    // fn to_le_bits<N>(x : Field) -> [u1; N] {
+    //     let bits = x.to_le_bits_unconstrained(N);
+    //     let result = [0;N];
+    //     for i in 0..N {
+    //         result[i] = bits[i];
+    //     }
+    //     result
+    // }
+        fn toto<N>(_x : Field) -> [u1; N] {
+        [0;N]
+    }
+
+    unconstrained fn to_le_bits_unconstrained(self, bit_size: u32) -> [u1; 254] {
+        let mut bits = [0; 254];
+        let mut a = self;
+        for i in 0..bit_size {
+            let b = (a as u120) % 2;  ///temp
+            bits[i as Field] = b as u1;
+            a = (a - b as Field) /2;
+        }
+        bits
+    }
+
+
     // Parity of (prime) Field element, i.e. sgn0(x mod p) = 0 if x ∈ {0, ..., p-1} is even, otherwise sgn0(x mod p) = 1.
     fn sgn0(self) -> u1 {
         self as u1

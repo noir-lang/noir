@@ -2,6 +2,7 @@ use acvm::Backend;
 use iter_extended::try_vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
 use noirc_driver::{CompileOptions, CompiledProgram, Driver, ErrorsAndWarnings, Warnings};
+use noirc_errors::{FileDiagnostic, CustomDiagnostic};
 use noirc_errors::reporter::ReportedErrors;
 use std::path::Path;
 
@@ -89,7 +90,7 @@ pub(crate) fn run<B: Backend>(
             );
         }
     } else {
-        let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
+        let (program, driver) = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
@@ -115,7 +116,8 @@ pub(crate) fn compile_circuit<B: Backend>(
         &|op| backend.supports_opcode(op),
         compile_options,
     );
-    report_errors(result, &driver, compile_options.deny_warnings).map_err(Into::into)
+    let compiled_program = report_errors(result, &driver, compile_options.deny_warnings);
+    Ok((compiled_program?, driver))
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>

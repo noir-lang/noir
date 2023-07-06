@@ -9,6 +9,9 @@
 
 use crate::errors::RuntimeError;
 use acvm::acir::circuit::{Circuit, PublicInputs};
+
+use crate::{debug_info::DebugInfo};
+
 use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
@@ -61,9 +64,9 @@ pub fn experimental_create_circuit(
     program: Program,
     enable_logging: bool,
     show_output: bool,
-) -> Result<(Circuit, Abi), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
-    let GeneratedAcir { current_witness_index, opcodes, return_witnesses, .. } =
+    let GeneratedAcir { current_witness_index, opcodes, return_witnesses, locations, .. } =
         optimize_into_acir(program, show_output, enable_logging);
 
     let abi = gen_abi(func_sig, return_witnesses.clone());
@@ -73,9 +76,14 @@ pub fn experimental_create_circuit(
         PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
 
+
     let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
 
-    Ok((circuit, abi))
+    //dbg!(&locations);
+    let mut debug_info = DebugInfo::new(locations);
+    //let opcode_ids = (0..optimized_circuit.opcodes.len()).collect();
+    //debug_info.update_acir(opcode_ids);
+    Ok((circuit, debug_info, abi))
 }
 
 impl Ssa {
