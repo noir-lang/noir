@@ -113,7 +113,7 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
 
     let initial_witness = program.abi.encode(&inputs_map, None).expect("could not encode inputs");
 
-    nargo::ops::execute_circuit(&backend, program.circuit, initial_witness).is_ok()
+    nargo::ops::execute_circuit(&backend, program.circuit, initial_witness).expect("Should execute circuit")
 }
 
 // FIXME: I not sure that this is the right place for this tests.
