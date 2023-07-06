@@ -3,9 +3,7 @@ name: Nix builds
 on:
   push:
     branches:
-      - master
-  schedule:
-    - cron: "0 2 * * *" # run at 2 AM UTC
+      - acvm-backend-barretenberg
   workflow_dispatch:
 
 # This will cancel previous runs when a branch or PR is updated
