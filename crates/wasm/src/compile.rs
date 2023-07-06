@@ -89,8 +89,7 @@ pub fn compile(args: JsValue) -> JsValue {
     if options.contracts {
         let compiled_contracts = driver
             .compile_contracts(
-                // TODO: Remove clone when it implements Copy
-                language.clone(),
+                language,
                 #[allow(deprecated)]
                 &acvm::pwg::default_is_opcode_supported(language),
                 &options.compile_options,
@@ -105,8 +104,7 @@ pub fn compile(args: JsValue) -> JsValue {
             .compile_no_check(
                 &options.compile_options,
                 main,
-                // TODO: Remove clone when it implements Copy
-                language.clone(),
+                language,
                 #[allow(deprecated)]
                 &acvm::pwg::default_is_opcode_supported(language),
             )
