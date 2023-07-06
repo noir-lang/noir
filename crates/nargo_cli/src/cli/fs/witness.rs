@@ -13,7 +13,7 @@ pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
     create_named_dir(witness_dir.as_ref(), "witness");
     let witness_path = witness_dir.as_ref().join(witness_name).with_extension(WITNESS_EXT);
 
-    let buf: Vec<u8> = witness.try_into()?;
+    let buf: Vec<u8> = witnesses.try_into()?;
     #[cfg(any(feature = "plonk_bn254_bb_js", feature = "plonk_bn254_wasm_bb_js"))]
     {
         let mut buf = Vec::new();
