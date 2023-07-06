@@ -115,8 +115,7 @@ impl DefunctionalizationContext {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
                         // Collect the argument types
-                        let argument_types: Vec<Type> =
-                            arguments.iter().map(|arg| func.dfg.type_of_value(*arg)).collect();
+                        let argument_types = vecmap(&arguments, |arg| func.dfg.type_of_value(*arg));
 
                         // Collect the result types
                         let result_types =
