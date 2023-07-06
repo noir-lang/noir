@@ -121,11 +121,11 @@ pub struct FuncMeta {
     /// Attribute per function.
     pub attributes: Option<Attribute>,
 
-    /// This function's visibility in its contract.
+    /// This function's type in its contract.
     /// If this function is not in a contract, this is always 'Secret'.
     pub contract_function_type: Option<ContractFunctionType>,
 
-    /// This function's ability to be called from other contracts.
+    /// This function's visibility.
     /// If this function is internal can only be called by itself.
     pub is_contract_function_internal: Option<bool>,
 
