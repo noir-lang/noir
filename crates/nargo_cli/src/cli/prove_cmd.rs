@@ -22,6 +22,7 @@ use super::{
 };
 use crate::{
     cli::execute_cmd::execute_program,
+    cli::execute_cmd::execute_program_without_debug,
     constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
     errors::CliError,
 };
@@ -91,7 +92,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
 ) -> Result<Option<PathBuf>, CliError<B>> {
     let common_reference_string = read_cached_common_reference_string();
 
-    let (common_reference_string, preprocessed_program) = match circuit_build_path {
+    let (common_reference_string, preprocessed_program, debug, driver) = match circuit_build_path {
         Some(circuit_build_path) => {
             let program = read_program_from_file(circuit_build_path)?;
             let common_reference_string = update_common_reference_string(
@@ -100,16 +101,18 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
                 &program.bytecode,
             )
             .map_err(CliError::CommonReferenceStringError)?;
-            (common_reference_string, program)
+            (common_reference_string, program, None, None)
         }
         None => {
-            let (program, driver) = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
+            let (program, driver) =
+                compile_circuit(backend, program_dir.as_ref(), compile_options)?;
+            let debug = program.debug.clone();
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
             let program = preprocess_program(backend, &common_reference_string, program)
                 .map_err(CliError::ProofSystemCompilerError)?;
-            (common_reference_string, program)
+            (common_reference_string, program, Some(debug), Some(driver))
         }
     };
 
@@ -122,7 +125,11 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     let (inputs_map, _) =
         read_inputs_from_file(&program_dir, prover_name.as_str(), Format::Toml, &abi)?;
 
-    let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map)?;
+    let solved_witness = if let Some(driver) = driver {
+        execute_program(backend, bytecode.clone(), &abi, &inputs_map, &debug.unwrap(), &driver)?
+    } else {
+        execute_program_without_debug(backend, bytecode.clone(), &abi, &inputs_map)?
+    };
 
     // Write public inputs into Verifier.toml
     let public_abi = abi.public_abi();

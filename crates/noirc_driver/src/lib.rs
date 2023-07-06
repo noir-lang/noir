@@ -359,7 +359,7 @@ impl Driver {
     ) -> Result<CompiledProgram, FileDiagnostic> {
         let program = monomorphize(main_function, &self.context.def_interner);
 
-        let (circuit, debug, abi) = if options.experimental_ssa {
+        let (circuit, mut debug, abi) = if options.experimental_ssa {
             experimental_create_circuit(program, options.show_ssa, options.show_output)?
         } else {
             create_circuit(program, options.show_ssa, options.show_output)?
@@ -368,35 +368,14 @@ impl Driver {
         let abi_len = abi.field_count();
 
         let simplifier = CircuitSimplifier::new(abi_len);
-        let optimized_circuit =
+        let (optimized_circuit, opcode_ids) =
             acvm::compiler::compile(circuit, np_language, is_opcode_supported, &simplifier)
                 .map_err(|_| FileDiagnostic {
                     file_id: FileId::dummy(),
                     diagnostic: CustomDiagnostic::from_message("produced an acvm compile error"),
                 })?;
-
+        debug.update_acir(opcode_ids);
         Ok(CompiledProgram { circuit: optimized_circuit, debug, abi })
-       /*  match circuit_abi {
-            Ok((circuit, debug, abi)) => {
-                //let  mut locations = Vec::new();
-                // todo si on veut ca (serialisation), on  met la methode dans DebugInfo 
-                // for opcode in loc.keys() {
-                //     if let Some(location) = loc.opcode_location(opcode) {
-                //         let file_id = location.file.as_usize();
-                //         let start = location.span.start();
-                //         let end = location.span.end();
-                //         locations.push((opcode, file_id,start,end));
-                //     }
-                // }
-                //locations.serialize(serializer)
-                Ok(CompiledProgram { circuit, abi, debug })
-            },
-            Err(err) => {
-                // The FileId here will be the file id of the file with the main file
-                // Errors will be shown at the call site without a stacktrace
-                Err(err.into())
-            }
-        }*/
     }
 
     /// Returns a list of all functions in the current crate marked with #[test]

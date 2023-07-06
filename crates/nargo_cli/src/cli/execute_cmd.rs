@@ -1,17 +1,14 @@
-use std::io::StdoutLock;
 use std::path::Path;
-
-use fm::FileId;
 
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::Backend;
 use clap::Args;
+use nargo::NargoError;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
-use noirc_driver::{CompileOptions, CompiledProgram, ErrorsAndWarnings};
-use noirc_errors::{Location, Span, FileDiagnostic, CustomDiagnostic};
+use noirc_driver::{CompileOptions, CompiledProgram, Driver, ErrorsAndWarnings};
+use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic, FileDiagnostic};
 
-use super::compile_cmd::report_errors;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::{
@@ -65,69 +62,90 @@ fn execute_with_path<B: Backend>(
     let (compiled_program, driver) = compile_circuit(backend, program_dir, compile_options)?;
     let CompiledProgram { abi, circuit, debug } = compiled_program;
 
-
-
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(program_dir, prover_name.as_str(), Format::Toml, &abi)?;
 
-    let solved_witness_err = execute_program(backend, circuit, &abi, &inputs_map);
+    let solved_witness_err = execute_program(backend, circuit, &abi, &inputs_map, &debug, &driver);
 
     match solved_witness_err {
         Ok(solved_witness) => {
             let public_abi = abi.public_abi();
             let (_, return_value) = public_abi.decode(&solved_witness)?;
-        
+
             Ok((return_value, solved_witness))
-        },
+        }
         Err(err) => {
-            match extract_unsatisfied_constraint_error(&err) {
-                Some(opcode_index) =>  {
-                    dbg!(&opcode_index);
-               //     let loca = Some(Location::new(Span::inclusive(3,4),FileId::new(0)));
-                    if let Some(loc) = debug.opcode_location(
-                        opcode_index
-                    ) {
-                        dbg!(&loc);
-                        let errs_warnings: ErrorsAndWarnings = vec![FileDiagnostic {
-                            file_id: loc.file,
-                            diagnostic: CustomDiagnostic::simple_error("Unsatisfied constraint".to_string(), "happening on this line".to_string(), loc.span)
-                        }];
-                        noirc_errors::reporter::report_all(driver.file_manager(), &errs_warnings, false);
-                    }
-                },
-                None => (),
-            };
+            let opcode_idx = extract_unsatisfied_constraint_error(&err);
+            report_unsatisfied_constraint_error(opcode_idx, &debug, &driver);
             Err(err)
-        },
+        }
     }
-   
 }
 
-fn extract_unsatisfied_constraint_error<B: acvm::Backend>(err : &CliError<B>) -> Option<usize>{
-
+fn extract_unsatisfied_constraint_error<B: acvm::Backend>(err: &CliError<B>) -> Option<usize> {
     let nargo_err = match err {
         CliError::NargoError(err) => err,
-        _=> return None,
+        _ => return None,
     };
+    extract_unsatisfied_constraint_from_nargo_error(nargo_err)
+}
 
-    let solving_err= match nargo_err {
+fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Option<usize> {
+    let solving_err = match nargo_err {
         nargo::NargoError::SolvingError(err) => err,
-        _=> return None,
+        _ => return None,
     };
 
-    match solving_err{
-        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain{opcode_index} => return Some(opcode_index),
-        _=> return None,
+    match solving_err {
+        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { opcode_index } => {
+            Some(*opcode_index)
+        }
+        _ => None,
     }
-
-    return None
- }
-
-
-
+}
+fn report_unsatisfied_constraint_error(
+    opcode_idx: Option<usize>,
+    debug: &DebugInfo,
+    driver: &Driver,
+) {
+    if let Some(opcode_index) = opcode_idx {
+        if let Some(loc) = debug.opcode_location(opcode_index) {
+            let errs_warnings: ErrorsAndWarnings = vec![FileDiagnostic {
+                file_id: loc.file,
+                diagnostic: CustomDiagnostic::simple_error(
+                    "Unsatisfied constraint".to_string(),
+                    "happening on this line".to_string(),
+                    loc.span,
+                ),
+            }];
+            noirc_errors::reporter::report_all(driver.file_manager(), &errs_warnings, false);
+        }
+    }
+}
 
 pub(crate) fn execute_program<B: Backend>(
+    backend: &B,
+    circuit: Circuit,
+    abi: &Abi,
+    inputs_map: &InputMap,
+    debug: &DebugInfo,
+    driver: &Driver,
+) -> Result<WitnessMap, CliError<B>> {
+    let initial_witness = abi.encode(inputs_map, None)?;
+
+    let solved_witness_err = nargo::ops::execute_circuit(backend, circuit, initial_witness);
+    match solved_witness_err {
+        Ok(solved_witness) => Ok(solved_witness),
+        Err(err) => {
+            let opcode_idx = extract_unsatisfied_constraint_from_nargo_error(&err);
+            report_unsatisfied_constraint_error(opcode_idx, debug, driver);
+            Err(crate::errors::CliError::NargoError(err))
+        }
+    }
+}
+
+pub(crate) fn execute_program_without_debug<B: Backend>(
     backend: &B,
     circuit: Circuit,
     abi: &Abi,
@@ -136,6 +154,5 @@ pub(crate) fn execute_program<B: Backend>(
     let initial_witness = abi.encode(inputs_map, None)?;
 
     let solved_witness = nargo::ops::execute_circuit(backend, circuit, initial_witness)?;
-
     Ok(solved_witness)
 }

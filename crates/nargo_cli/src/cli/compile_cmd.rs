@@ -2,7 +2,6 @@ use acvm::Backend;
 use iter_extended::try_vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
 use noirc_driver::{CompileOptions, CompiledProgram, Driver, ErrorsAndWarnings, Warnings};
-use noirc_errors::{FileDiagnostic, CustomDiagnostic};
 use noirc_errors::reporter::ReportedErrors;
 use std::path::Path;
 
@@ -90,7 +89,7 @@ pub(crate) fn run<B: Backend>(
             );
         }
     } else {
-        let (program, driver) = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
+        let (program, _) = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
@@ -109,7 +108,7 @@ pub(crate) fn compile_circuit<B: Backend>(
     backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<CompiledProgram, CliError<B>> {
+) -> Result<(CompiledProgram, Driver), CliError<B>> {
     let mut driver = Resolver::resolve_root_manifest(program_dir)?;
     let result = driver.compile_main(
         backend.np_language(),

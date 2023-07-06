@@ -11,20 +11,19 @@ mod ssa;
 pub mod ssa_refactor;
 
 pub mod brillig;
-pub mod debug_info;
 
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
 };
-use debug_info::DebugInfo;
+
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiType, AbiVisibility};
-use noirc_errors::{Location};
+use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::monomorphization::ast::*;
 use ssa::{node::ObjectType, ssa_gen::IrGenerator};
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Default)]
 pub struct Evaluator {

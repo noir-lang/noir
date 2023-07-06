@@ -10,7 +10,7 @@
 use crate::errors::RuntimeError;
 use acvm::acir::circuit::{Circuit, PublicInputs};
 
-use crate::{debug_info::DebugInfo};
+use noirc_errors::debug_info::DebugInfo;
 
 use noirc_abi::Abi;
 
@@ -76,13 +76,9 @@ pub fn experimental_create_circuit(
         PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
 
-
     let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
+    let debug_info = DebugInfo::new(locations);
 
-    //dbg!(&locations);
-    let mut debug_info = DebugInfo::new(locations);
-    //let opcode_ids = (0..optimized_circuit.opcodes.len()).collect();
-    //debug_info.update_acir(opcode_ids);
     Ok((circuit, debug_info, abi))
 }
 

@@ -1,8 +1,6 @@
-use std::collections::{HashMap, BTreeMap};
-
 use acvm::acir::circuit::Circuit;
 
-use noirc_evaluator::debug_info::DebugInfo;
+use noirc_errors::debug_info::DebugInfo;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -31,4 +29,3 @@ where
     let circuit = Circuit::read(&*circuit_bytes).unwrap();
     Ok(circuit)
 }
-
