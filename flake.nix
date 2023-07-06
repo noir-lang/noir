@@ -94,7 +94,7 @@
         #
         # Note: Setting this allows for consistent behavior across build and shells, but is mostly
         # hidden from the developer - i.e. when they see the command being run via `nix flake check`
-        # RUST_TEST_THREADS = "1";
+        RUST_TEST_THREADS = "1";
       };
 
       # The `self.rev` property is only available when the working tree is not dirty
