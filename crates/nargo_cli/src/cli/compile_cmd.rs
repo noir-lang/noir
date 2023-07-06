@@ -29,6 +29,10 @@ pub(crate) struct CompileCommand {
     /// The name of the ACIR file
     circuit_name: String,
 
+    /// Include Proving and Verification keys in the build artifacts.
+    #[arg(long)]
+    include_keys: bool,
+
     /// Compile each contract function used within the program
     #[arg(short, long)]
     contracts: bool,
@@ -71,8 +75,13 @@ pub(crate) fn run<B: Backend>(
                     )
                     .map_err(CliError::CommonReferenceStringError)?;
 
-                    preprocess_contract_function(backend, &common_reference_string, func)
-                        .map_err(CliError::ProofSystemCompilerError)
+                    preprocess_contract_function(
+                        backend,
+                        args.include_keys,
+                        &common_reference_string,
+                        func,
+                    )
+                    .map_err(CliError::ProofSystemCompilerError)
                 })?;
 
                 Ok(PreprocessedContract {
@@ -94,8 +103,9 @@ pub(crate) fn run<B: Backend>(
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
 
-        let preprocessed_program = preprocess_program(backend, &common_reference_string, program)
-            .map_err(CliError::ProofSystemCompilerError)?;
+        let preprocessed_program =
+            preprocess_program(backend, args.include_keys, &common_reference_string, program)
+                .map_err(CliError::ProofSystemCompilerError)?;
         save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
     }
 
