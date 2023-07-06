@@ -1,3 +1,9 @@
+//! This module defines the defunctionalization pass for the SSA IR.
+//! The purpose of this pass is to transforms all functions used as values into
+//! constant numbers (fields) that represent the function id. That way all calls
+//! with a non-literal target can be replaced with a call to an apply function.
+//! The apply function is a dispatch function that takes the function id as a parameter
+//! and dispatches to the correct target.
 use std::collections::{HashMap, HashSet};
 
 use acvm::FieldElement;
