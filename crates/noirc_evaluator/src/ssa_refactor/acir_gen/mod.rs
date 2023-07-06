@@ -350,7 +350,7 @@ impl Context {
             let artifact = &brillig
                 .find_by_function_label(unresolved_fn_label.clone())
                 .expect("Cannot find linked fn {unresolved_fn_label}");
-            entry_point.link_with(unresolved_fn_label, artifact);
+            entry_point.link_with(artifact);
         }
         // Generate the final bytecode
         entry_point.finish()

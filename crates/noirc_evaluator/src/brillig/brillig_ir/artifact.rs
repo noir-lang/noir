@@ -152,7 +152,7 @@ impl BrilligArtifact {
     /// This method will offset the positions in the Brillig artifact to
     /// account for the fact that it is being appended to the end of this
     /// Brillig artifact (self).
-    pub(crate) fn link_with(&mut self, func_label: Label, obj: &BrilligArtifact) {
+    pub(crate) fn link_with(&mut self, obj: &BrilligArtifact) {
         // Add the unresolved jumps of the linked function to this artifact.
         self.add_unresolved_jumps_and_calls(obj);
 
