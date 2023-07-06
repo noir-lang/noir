@@ -1,5 +1,5 @@
 use acvm::acir::brillig_vm::ForeignCallResult;
-use acvm::pwg::{ForeignCallWaitInfo, PartialWitnessGeneratorStatus, ACVM};
+use acvm::pwg::{ACVMStatus, ForeignCallWaitInfo, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
@@ -15,11 +15,15 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
     // TODO(#1615): Nargo only supports "oracle_print_**_impl" functions  that print a singular value or an array and nothing else
     // This should be expanded in a general logging refactor
     loop {
-        let solver_status = acvm.solve()?;
+        let solver_status = acvm.solve();
 
         match solver_status {
-            PartialWitnessGeneratorStatus::Solved => break,
-            PartialWitnessGeneratorStatus::RequiresForeignCall => {
+            ACVMStatus::Solved => break,
+            ACVMStatus::InProgress => {
+                unreachable!("Execution should not stop while in `InProgress` state.")
+            }
+            ACVMStatus::Failure(error) => return Err(error.into()),
+            ACVMStatus::RequiresForeignCall => {
                 let foreign_call =
                     acvm.get_pending_foreign_call().expect("Should be waiting on a foreign call");
 
