@@ -124,7 +124,7 @@
 
       sharedArgs = {
         # x-release-please-start-version
-        version = "0.7.0";
+        version = "0.7.1";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
@@ -170,7 +170,7 @@
       };
 
       # Combine the environmnet with cargo args needed to build wasm package
-      noirWasmArgs = wasmEnvironment // {
+      noirWasmArgs = sharedEnvironment // sharedArgs // {
         pname = "noir_wasm";
 
         src = ./.;

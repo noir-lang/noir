@@ -2,7 +2,10 @@
 
 use std::collections::HashMap;
 
-use crate::brillig::{brillig_ir::artifact::BrilligArtifact, Brillig};
+use crate::brillig::{
+    brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
+    brillig_ir::artifact::BrilligArtifact, Brillig,
+};
 
 use self::acir_ir::{
     acir_variable::{AcirContext, AcirType, AcirVar},
@@ -11,7 +14,7 @@ use self::acir_ir::{
 use super::{
     ir::{
         dfg::DataFlowGraph,
-        function::RuntimeType,
+        function::{Function, RuntimeType},
         instruction::{
             Binary, BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
         },
@@ -21,10 +24,14 @@ use super::{
     },
     ssa_gen::Ssa,
 };
-use acvm::FieldElement;
+use acvm::{
+    acir::{brillig_vm::Opcode, native_types::Expression},
+    FieldElement,
+};
 use iter_extended::vecmap;
 
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
+use noirc_abi::AbiDistinctness;
 
 mod acir_ir;
 
@@ -71,26 +78,92 @@ impl AcirValue {
 }
 
 impl Ssa {
-    pub(crate) fn into_acir(self, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
+    pub(crate) fn into_acir(
+        self,
+        brillig: Brillig,
+        abi_distinctness: AbiDistinctness,
+        allow_log_ops: bool,
+    ) -> GeneratedAcir {
         let context = Context::default();
-        context.convert_ssa(self, brillig, allow_log_ops)
+        let mut generated_acir = context.convert_ssa(self, brillig, allow_log_ops);
+
+        match abi_distinctness {
+            AbiDistinctness::Distinct => {
+                // Create a witness for each return witness we have
+                // to guarantee that the return witnesses are distinct
+                let distinct_return_witness: Vec<_> = generated_acir
+                    .return_witnesses
+                    .clone()
+                    .into_iter()
+                    .map(|return_witness| {
+                        generated_acir
+                            .create_witness_for_expression(&Expression::from(return_witness))
+                    })
+                    .collect();
+
+                generated_acir.return_witnesses = distinct_return_witness;
+                generated_acir
+            }
+            AbiDistinctness::DuplicationAllowed => generated_acir,
+        }
     }
 }
 
 impl Context {
     /// Converts SSA into ACIR
-    fn convert_ssa(mut self, ssa: Ssa, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
+    fn convert_ssa(self, ssa: Ssa, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
         let main_func = ssa.main();
+        match main_func.runtime() {
+            RuntimeType::Acir => self.convert_acir_main(main_func, &ssa, brillig, allow_log_ops),
+            RuntimeType::Brillig => self.convert_brillig_main(main_func, brillig),
+        }
+    }
+
+    fn convert_acir_main(
+        mut self,
+        main_func: &Function,
+        ssa: &Ssa,
+        brillig: Brillig,
+        allow_log_ops: bool,
+    ) -> GeneratedAcir {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
 
         self.convert_ssa_block_params(entry_block.parameters(), dfg);
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, &ssa, &brillig, allow_log_ops);
+            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, allow_log_ops);
         }
 
         self.convert_ssa_return(entry_block.terminator().unwrap(), dfg);
+
+        self.acir_context.finish()
+    }
+
+    fn convert_brillig_main(mut self, main_func: &Function, brillig: Brillig) -> GeneratedAcir {
+        let dfg = &main_func.dfg;
+
+        let inputs = vecmap(dfg[main_func.entry_block()].parameters(), |param_id| {
+            let typ = dfg.type_of_value(*param_id);
+            self.create_value_from_type(&typ, &mut |this, _| this.acir_context.add_variable())
+        });
+
+        let outputs: Vec<AcirType> = vecmap(self.get_return_values(main_func), |result_id| {
+            dfg.type_of_value(result_id).into()
+        });
+
+        let code = self.gen_brillig_for(main_func, &brillig);
+
+        let output_values = self.acir_context.brillig(None, code, inputs, outputs);
+        let output_vars: Vec<_> = output_values
+            .iter()
+            .flat_map(|value| value.clone().flatten())
+            .map(|value| value.0)
+            .collect();
+
+        for acir_var in output_vars {
+            self.acir_context.return_var(acir_var);
+        }
 
         self.acir_context.finish()
     }
@@ -105,17 +178,25 @@ impl Context {
     }
 
     fn convert_ssa_block_param(&mut self, param_type: &Type) -> AcirValue {
+        self.create_value_from_type(param_type, &mut |this, typ| this.add_numeric_input_var(&typ))
+    }
+
+    fn create_value_from_type(
+        &mut self,
+        param_type: &Type,
+        make_var: &mut impl FnMut(&mut Self, NumericType) -> AcirVar,
+    ) -> AcirValue {
         match param_type {
             Type::Numeric(numeric_type) => {
                 let typ = AcirType::new(*numeric_type);
-                AcirValue::Var(self.add_numeric_input_var(numeric_type), typ)
+                AcirValue::Var(make_var(self, *numeric_type), typ)
             }
             Type::Array(element_types, length) => {
                 let mut elements = im::Vector::new();
 
                 for _ in 0..*length {
                     for element in element_types.iter() {
-                        elements.push_back(self.convert_ssa_block_param(element));
+                        elements.push_back(self.create_value_from_type(element, make_var));
                     }
                 }
 
@@ -182,19 +263,11 @@ impl Context {
                             RuntimeType::Brillig => {
                                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                                // Create the entry point artifact
-                                let mut entry_point = BrilligArtifact::to_entry_point_artifact(&brillig[*id]);
-                                // Link the entry point with all dependencies
-                                while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
-                                    let artifact = &brillig.find_by_function_label(unresolved_fn_label.clone()).expect("Cannot find linked fn {unresolved_fn_label}");
-                                    entry_point.link_with(unresolved_fn_label, artifact);
-                                }
-                                // Generate the final bytecode
-                                let code = entry_point.finish();
+                                let code = self.gen_brillig_for(func, brillig);
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
-                                let output_values = self.acir_context.brillig(code, inputs, outputs);
+                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var,code, inputs, outputs);
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
 
@@ -266,6 +339,24 @@ impl Context {
         }
     }
 
+    fn gen_brillig_for(&self, func: &Function, brillig: &Brillig) -> Vec<Opcode> {
+        // Create the entry point artifact
+        let mut entry_point = BrilligArtifact::new_entry_point_artifact(
+            BrilligFunctionContext::parameters(func),
+            BrilligFunctionContext::return_values(func),
+            BrilligFunctionContext::function_id_to_function_label(func.id()),
+        );
+        // Link the entry point with all dependencies
+        while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
+            let artifact = &brillig
+                .find_by_function_label(unresolved_fn_label.clone())
+                .expect("Cannot find linked fn {unresolved_fn_label}");
+            entry_point.link_with(unresolved_fn_label, artifact);
+        }
+        // Generate the final bytecode
+        entry_point.finish()
+    }
+
     /// Handles an ArrayGet or ArraySet instruction.
     /// To set an index of the array (and create a new array in doing so), pass Some(value) for
     /// store_value. To just retrieve an index of the array, pass None for store_value.
@@ -283,6 +374,20 @@ impl Context {
             .expect("Expected array index to be a known constant")
             .try_to_u64()
             .expect("Expected array index to fit into a u64") as usize;
+
+        if index >= array.len() {
+            // Ignore the error if side effects are disabled.
+            if let Some(var) = self.current_side_effects_enabled_var {
+                if self.acir_context.is_constant_one(&var) {
+                    // TODO: Can we save a source Location for this error?
+                    panic!("Index {} is out of bounds for array of length {}", index, array.len());
+                }
+            }
+            let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
+            let value = self.create_default_value(&result_type);
+            self.define_result(dfg, instruction, value);
+            return;
+        }
 
         let value = match store_value {
             Some(store_value) => {
@@ -316,6 +421,22 @@ impl Context {
         let result_ids = dfg.instruction_results(instruction);
         let typ = dfg.type_of_value(result_ids[0]).into();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
+    }
+
+    /// Finds the return values of a given function
+    fn get_return_values(&self, func: &Function) -> Vec<ValueId> {
+        let blocks = func.reachable_blocks();
+        let mut function_return_values = None;
+        for block in blocks {
+            let terminator = func.dfg[block].terminator();
+            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
+                function_return_values = Some(return_values);
+                break;
+            }
+        }
+        function_return_values
+            .expect("Expected a return instruction, as block is finished construction")
+            .clone()
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
@@ -603,7 +724,31 @@ impl Context {
                 }
                 Vec::new()
             }
-            _ => todo!("expected a black box function"),
+            Intrinsic::Sort => {
+                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+                // We flatten the inputs and retrieve the bit_size of the elements
+                let mut input_vars = Vec::new();
+                let mut bit_size = 0;
+                for input in inputs {
+                    for (var, typ) in input.flatten() {
+                        input_vars.push(var);
+                        if bit_size == 0 {
+                            bit_size = typ.bit_size();
+                        } else {
+                            assert_eq!(
+                                bit_size,
+                                typ.bit_size(),
+                                "cannot sort element of different bit size"
+                            );
+                        }
+                    }
+                }
+                // Generate the sorted output variables
+                let out_vars =
+                    self.acir_context.sort(input_vars, bit_size).expect("Could not sort");
+
+                Self::convert_vars_to_values(out_vars, dfg, result_ids)
+            }
         }
     }
 
@@ -679,6 +824,13 @@ impl Context {
                 AcirValue::Var(var, typ.into())
             }
         }
+    }
+
+    /// Creates a default, meaningless value meant only to be a valid value of the given type.
+    fn create_default_value(&mut self, param_type: &Type) -> AcirValue {
+        self.create_value_from_type(param_type, &mut |this, _| {
+            this.acir_context.add_constant(FieldElement::zero())
+        })
     }
 }
 

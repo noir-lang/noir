@@ -21,4 +21,3 @@ unconstrained fn oracle_print_array_wrapper(arr: [Field; 2]) {
     oracle_print_array(arr);
 }
 
-

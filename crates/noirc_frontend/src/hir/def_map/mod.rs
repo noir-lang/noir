@@ -71,7 +71,7 @@ impl CrateDefMap {
         // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
-        if context.def_map(crate_id).is_some() {
+        if context.def_map(&crate_id).is_some() {
             return;
         }
 

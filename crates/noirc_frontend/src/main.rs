@@ -36,7 +36,7 @@ fn main() {
     let mut errors = vec![];
     CrateDefMap::collect_defs(crate_id, &mut context, &mut errors);
     assert_eq!(errors, vec![]);
-    let def_map = context.def_map(crate_id).unwrap();
+    let def_map = context.def_map(&crate_id).unwrap();
 
     // Get root module
     let root = def_map.root();
