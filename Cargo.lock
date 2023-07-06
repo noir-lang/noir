@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.15.1"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a0f4d70cd78f13cc17b2b16953af71d1a4fd0aa923cc35e6741c1f810eccdad"
+checksum = "bed559b3e6e10a04b2a1af7a8b0f23d4bbaf4a87a6c8ac9946583f8945c53ce5"
 dependencies = [
  "acir_field",
  "brillig_vm",
@@ -18,9 +18,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.15.1"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74a1bdec0ba9ddb54d3337bb487a889dd212211a7daf6fe9fb175adf107eecdc"
+checksum = "29adbffe34f7ae42e080833364f66ea0e933ca4aa3880e12444780538e1f6767"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -32,9 +32,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.15.1"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e27004072f628c96c5666068c0d9efae134423331859b60923265a017a5920b"
+checksum = "c4808764cc92ba018210ec2f276f6d90908263af33f9a8abea6ae4139ba49aa0"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -51,9 +51,9 @@ dependencies = [
 
 [[package]]
 name = "acvm-backend-barretenberg"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a378e1d68ed47b4ed1af4533b455e01836d21bf27bde482e977edea0869f0b21"
+checksum = "ca6b0dcd4fb93738eeb51a4558247c4dbacea4d3d5fd72842349638688d00ed6"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -71,9 +71,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.15.1"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a16b18f0dc47de9c3f60eb320dda05b31355d7d4f76239f75852cc5a518db69e"
+checksum = "57b0fea96f9ddc8866782636f1317aa0ac958ab7bc628fa9620a4915cc667edc"
 dependencies = [
  "acir",
 ]
@@ -513,12 +513,16 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.15.1"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae057025d1898257631c65c63071209dc41093cf9c0d77cdaae976798fa18b93"
+checksum = "a9400d1493af661cba05923a5b4a78e3aeaeb4210b321831fc0461b01203191e"
 dependencies = [
  "acir_field",
+ "blake2",
+ "k256",
  "serde",
+ "sha2",
+ "sha3",
 ]
 
 [[package]]

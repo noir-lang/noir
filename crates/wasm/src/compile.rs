@@ -75,11 +75,7 @@ pub fn compile(args: JsValue) -> JsValue {
 
     // For now we default to plonk width = 3, though we can add it as a parameter
     let language = acvm::Language::PLONKCSat { width: 3 };
-    let mut driver = noirc_driver::Driver::new(
-        &language,
-        #[allow(deprecated)]
-        Box::new(acvm::pwg::default_is_opcode_supported(language.clone())),
-    );
+    let mut driver = noirc_driver::Driver::new();
 
     let path = PathBuf::from(&options.entry_point);
     driver.create_local_crate(path, CrateType::Binary);
@@ -92,15 +88,27 @@ pub fn compile(args: JsValue) -> JsValue {
 
     if options.contracts {
         let compiled_contracts = driver
-            .compile_contracts(&options.compile_options)
+            .compile_contracts(
+                language,
+                #[allow(deprecated)]
+                &acvm::pwg::default_is_opcode_supported(language),
+                &options.compile_options,
+            )
             .expect("Contract compilation failed")
             .0;
 
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_contracts).unwrap()
     } else {
         let main = driver.main_function().expect("Could not find main function!");
-        let compiled_program =
-            driver.compile_no_check(&options.compile_options, main).expect("Compilation failed");
+        let compiled_program = driver
+            .compile_no_check(
+                &options.compile_options,
+                main,
+                language,
+                #[allow(deprecated)]
+                &acvm::pwg::default_is_opcode_supported(language),
+            )
+            .expect("Compilation failed");
 
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
     }

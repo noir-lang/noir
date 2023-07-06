@@ -130,13 +130,13 @@ pub(crate) fn evaluate(
                         ctx.get_as_constant(args[1]).expect("domain separator to be comptime");
                     BlackBoxFuncCall::Pedersen {
                         inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
-                        outputs: outputs.to_vec(),
+                        outputs: (outputs[0], outputs[1]),
                         domain_separator: separator.to_u128() as u32,
                     }
                 }
                 BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
                     input: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
-                    outputs: outputs.to_vec(),
+                    outputs: (outputs[0], outputs[1]),
                 },
                 BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
                     public_key_x: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),

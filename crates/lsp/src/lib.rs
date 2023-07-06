@@ -5,7 +5,6 @@ use std::{
     task::{Context, Poll},
 };
 
-use acvm::Language;
 use async_lsp::{
     router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LanguageClient,
     LspService, ResponseError,
@@ -134,9 +133,7 @@ fn on_code_lens_request(
     params: CodeLensParams,
 ) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
     async move {
-        // TODO: Requiring `Language` and `is_opcode_supported` to construct a driver makes for some real stinky code
-        // The driver should not require knowledge of the backend; instead should be implemented as an independent pass (in nargo?)
-        let mut driver = Driver::new(&Language::R1CS, Box::new(|_op| false));
+        let mut driver = Driver::new();
 
         let file_path = &params.text_document.uri.to_file_path().unwrap();
 
@@ -222,9 +219,7 @@ fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    // TODO: Requiring `Language` and `is_opcode_supported` to construct a driver makes for some real stinky code
-    // The driver should not require knowledge of the backend; instead should be implemented as an independent pass (in nargo?)
-    let mut driver = Driver::new(&Language::R1CS, Box::new(|_op| false));
+    let mut driver = Driver::new();
 
     let file_path = &params.text_document.uri.to_file_path().unwrap();
 

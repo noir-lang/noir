@@ -714,8 +714,8 @@ mod tests {
     use std::vec;
 
     use acvm::acir::brillig_vm::{
-        BinaryIntOp, ForeignCallOutput, ForeignCallResult, RegisterIndex, RegisterOrMemory,
-        Registers, VMStatus, Value, VM,
+        BinaryIntOp, ForeignCallOutput, ForeignCallResult, HeapVector, RegisterIndex,
+        RegisterOrMemory, Registers, VMStatus, Value, VM,
     };
 
     use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
@@ -749,7 +749,7 @@ mod tests {
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[RegisterOrMemory::RegisterIndex(r_input_size)],
-            &[RegisterOrMemory::HeapVector(r_stack, r_output_size)],
+            &[RegisterOrMemory::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
         );
         // push stack frame by r_returned_size
         context.binary_instruction(
