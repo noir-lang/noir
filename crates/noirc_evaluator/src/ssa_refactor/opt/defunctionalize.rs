@@ -363,9 +363,3 @@ fn build_return_block(
     builder.switch_to_block(previous_block);
     return_block
 }
-
-impl Ssa {
-    pub(crate) fn defunctionalize(self) -> Ssa {
-        DefunctionalizationContext::defunctionalize_ssa(self)
-    }
-}
