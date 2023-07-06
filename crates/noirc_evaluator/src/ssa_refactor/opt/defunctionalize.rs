@@ -37,7 +37,21 @@ impl FunctionSignature {
     }
 }
 
-/// Describes an apply function existing in the SSA
+/// Represents an 'apply' function created by this pass to dispatch higher order functions to.
+/// Pseudocode of an `apply` function is given below:
+/// ```
+/// fn apply(function_id: Field, arg1: Field, arg2: Field) -> Field {
+///     match function_id {
+///         0 -> function0(arg1, arg2),
+///         1 -> function0(arg1, arg2),
+///         ...
+///         N -> functionN(arg1, arg2),
+///     }
+/// }
+/// ```
+/// Apply functions generally take the function to apply as their first parameter. This is a Field value
+/// obtained by converting the FunctionId into a Field. The remaining parameters of apply are the
+/// arguments to forward to this function when calling it internally.
 #[derive(Debug, Clone, Copy)]
 struct ApplyFunction {
     id: FunctionId,
