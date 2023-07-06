@@ -110,8 +110,9 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
         &program.circuit,
     )
     .expect("Should fetch CRS");
-    let preprocessed_program = preprocess_program(&backend, &common_reference_string, program)
-        .expect("Preprocess should succeed");
+    let preprocessed_program =
+        preprocess_program(&backend, true, &common_reference_string, program)
+            .expect("Preprocess should succeed");
 
     let nargo::artifacts::program::PreprocessedProgram {
         abi,
@@ -120,6 +121,8 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
         verification_key,
         ..
     } = preprocessed_program;
+    let proving_key = proving_key.unwrap();
+    let verification_key = verification_key.unwrap();
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) = fs::inputs::read_inputs_from_file(
