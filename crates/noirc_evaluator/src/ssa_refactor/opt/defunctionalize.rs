@@ -56,21 +56,23 @@ struct DefunctionalizationContext {
     apply_functions: HashMap<FunctionSignature, ApplyFunction>,
 }
 
-impl DefunctionalizationContext {
-    /// Returns a defunctionalized ssa
-    pub(crate) fn defunctionalize_ssa(mut ssa: Ssa) -> Ssa {
+impl Ssa {
+    pub(crate) fn defunctionalize(mut self) -> Ssa {
         // Find all functions used as value that share the same signature
-        let variants = find_variants(&ssa);
-        // Create apply functions
-        let apply_functions = create_apply_functions(&mut ssa, &variants);
+        let variants = find_variants(&self);
+
+        let apply_functions = create_apply_functions(&mut self, &variants);
         let fn_to_runtime =
-            ssa.functions.iter().map(|(func_id, func)| (*func_id, func.runtime())).collect();
+            self.functions.iter().map(|(func_id, func)| (*func_id, func.runtime())).collect();
 
         let context = DefunctionalizationContext { fn_to_runtime, variants, apply_functions };
 
-        context.defunctionalize_all(&mut ssa);
-        ssa
+        context.defunctionalize_all(&mut self);
+        self
     }
+}
+
+impl DefunctionalizationContext {
 
     /// Defunctionalize all functions in the Ssa
     fn defunctionalize_all(mut self, ssa: &mut Ssa) {
