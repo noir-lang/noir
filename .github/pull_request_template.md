@@ -33,6 +33,10 @@ Resolves <!-- Link to GitHub Issue -->
 
 <!-- Supplement further information if applicable. -->
 
+# Releases\*
+
+- [ ] There are no breaking changes OR the release-please branch has been merged.
+
 # PR Checklist\*
 
 - [ ] I have tested the changes locally.
