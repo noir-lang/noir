@@ -4,8 +4,8 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#7ffc1e44cdcad69273c162ce57b922f10abff9ba"
+version = "0.16.0"
+source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#202f0db43501e731b3cccabb77294539f45e1201"
 dependencies = [
  "acir_field",
  "brillig_vm",
@@ -17,8 +17,8 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#7ffc1e44cdcad69273c162ce57b922f10abff9ba"
+version = "0.16.0"
+source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#202f0db43501e731b3cccabb77294539f45e1201"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -30,8 +30,8 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#7ffc1e44cdcad69273c162ce57b922f10abff9ba"
+version = "0.16.0"
+source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#202f0db43501e731b3cccabb77294539f45e1201"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -49,8 +49,8 @@ dependencies = [
 
 [[package]]
 name = "acvm-backend-barretenberg"
-version = "0.5.1"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?branch=md/hackathon#ca56235c2e2e2e08b0197744666a74b2a6efe92f"
+version = "0.6.0"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?branch=md/hackathon#bb3efecd8a646ac41d9bb9148ed93580f1cc41b1"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -68,8 +68,8 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#7ffc1e44cdcad69273c162ce57b922f10abff9ba"
+version = "0.16.0"
+source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#202f0db43501e731b3cccabb77294539f45e1201"
 dependencies = [
  "acir",
 ]
@@ -515,8 +515,8 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#7ffc1e44cdcad69273c162ce57b922f10abff9ba"
+version = "0.16.0"
+source = "git+https://github.com/noir-lang/acvm?branch=md/hackathon-patch#202f0db43501e731b3cccabb77294539f45e1201"
 dependencies = [
  "acir_field",
  "blake2",

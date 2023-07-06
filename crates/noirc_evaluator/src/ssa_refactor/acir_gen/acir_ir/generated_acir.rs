@@ -251,9 +251,10 @@ impl GeneratedAcir {
                 hashed_message: inputs[128..].to_vec(),
                 output: outputs[0],
             },
-            BlackBoxFunc::FixedBaseScalarMul => {
-                BlackBoxFuncCall::FixedBaseScalarMul { input: inputs[0], outputs }
-            }
+            BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
+                input: inputs[0],
+                outputs: (outputs[0], outputs[1]),
+            },
             BlackBoxFunc::Keccak256 => {
                 let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
                 BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
