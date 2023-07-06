@@ -61,7 +61,7 @@ impl Function {
 
     /// Runtime type of the function.
     pub(crate) fn runtime(&self) -> RuntimeType {
-        self.runtime.clone()
+        self.runtime
     }
 
     /// Set runtime type of the function.

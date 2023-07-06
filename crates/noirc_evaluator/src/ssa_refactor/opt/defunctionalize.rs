@@ -6,9 +6,9 @@ use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{BinaryOp, Instruction},
+        instruction::{BinaryOp, Instruction, TerminatorInstruction},
         types::{NumericType, Type},
-        value::Value,
+        value::{Value, ValueId},
     },
     ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
@@ -152,15 +152,61 @@ impl DefunctionalizationContext {
     }
 }
 
+/// Collects all functions used as a value by their signatures
 fn find_variants(ssa: &Ssa) -> HashMap<FunctionSignature, Vec<FunctionId>> {
     let mut variants: HashMap<FunctionSignature, Vec<FunctionId>> = HashMap::new();
+    let mut functions_used_as_values = HashSet::new();
+
     for function in ssa.functions.values() {
-        if function.id() != ssa.main_id {
-            let signature = FunctionSignature::from(function);
-            variants.entry(signature).or_default().push(function.id());
+        functions_used_as_values.extend(functions_as_values(function));
+    }
+
+    for function_id in functions_used_as_values {
+        let function = ssa.get_fn(function_id);
+        let signature = FunctionSignature::from(function);
+        variants.entry(signature).or_default().push(function_id);
+    }
+
+    variants
+}
+
+/// Finds all literal functions used as values in the given function
+fn functions_as_values(func: &Function) -> HashSet<FunctionId> {
+    let mut functions = HashSet::new();
+
+    let mut append_functions = |values: &[ValueId]| {
+        for value in values {
+            if let Value::Function(id) = func.dfg[*value] {
+                functions.insert(id);
+            }
+        }
+    };
+
+    for block_id in func.reachable_blocks() {
+        let block = &func.dfg[block_id];
+        for instruction_id in block.instructions() {
+            let instruction = &func.dfg[*instruction_id];
+            match instruction {
+                Instruction::Call { arguments, .. } => {
+                    append_functions(arguments);
+                }
+                Instruction::Store { value, .. } => {
+                    append_functions(&[*value]);
+                }
+                _ => {}
+            }
+        }
+        match block.terminator() {
+            Some(TerminatorInstruction::Jmp { arguments, .. }) => {
+                append_functions(arguments);
+            }
+            Some(TerminatorInstruction::Return { return_values }) => {
+                append_functions(return_values);
+            }
+            _ => {}
         }
     }
-    variants
+    functions
 }
 
 fn create_apply_functions(
@@ -193,16 +239,17 @@ fn create_apply_function(
             let is_last = index == function_ids.len() - 1;
             let mut next_function_block = None;
 
+            let function_id_constant = function_builder.numeric_constant(
+                function_id.to_usize() as u128,
+                Type::Numeric(NumericType::NativeField),
+            );
+            let condition =
+                function_builder.insert_binary(target_id, BinaryOp::Eq, function_id_constant);
+
             // If it's not the last function to dispatch, crate an if statement
             if !is_last {
                 next_function_block = Some(function_builder.insert_block());
                 let executor_block = function_builder.insert_block();
-                let function_id_constant = function_builder.numeric_constant(
-                    function_id.to_usize() as u128,
-                    Type::Numeric(NumericType::NativeField),
-                );
-                let condition =
-                    function_builder.insert_binary(target_id, BinaryOp::Eq, function_id_constant);
 
                 function_builder.terminate_with_jmpif(
                     condition,
@@ -210,6 +257,9 @@ fn create_apply_function(
                     next_function_block.unwrap(),
                 );
                 function_builder.switch_to_block(executor_block);
+            } else {
+                // Else just constrain the condition
+                function_builder.insert_constrain(condition);
             }
             // Find the target block or build it if necessary
             let target_block = match previous_target_block {
@@ -252,6 +302,8 @@ fn create_apply_function(
     })
 }
 
+/// Crates a return block, if no previous return exists, it will create a final return
+/// Else, it will create a bypass return block that points to the previous return block
 fn build_return_block(
     builder: &mut FunctionBuilder,
     previous_block: BasicBlockId,
