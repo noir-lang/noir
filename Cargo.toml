@@ -40,7 +40,7 @@ noir_wasm = { path = "crates/wasm" }
 
 cfg-if = "1.0.0"
 clap = { version = "4.1.4", features = ["derive"] }
-codespan = "0.11.1"
+codespan = {version = "0.11.1", features = ["serialization"]}
 codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
@@ -58,4 +58,3 @@ wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
 async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09dbcc11046f7a188a80137f8d36484d86c78c78" }
-acvm = { path = "../../noir-4commit/acvm-master/acvm/acvm" }
