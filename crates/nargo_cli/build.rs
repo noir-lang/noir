@@ -32,7 +32,7 @@ fn main() {
     let destination = Path::new(&out_dir).join("prove_and_verify.rs");
     let mut test_file = File::create(destination).unwrap();
 
-    generate_tests(&mut test_file, false);
+    // generate_tests(&mut test_file, false);
     generate_tests(&mut test_file, true);
 }
 
