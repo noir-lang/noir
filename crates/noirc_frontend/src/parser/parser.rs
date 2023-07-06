@@ -308,15 +308,35 @@ fn nothing<T>() -> impl NoirParser<T> {
 }
 
 fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)> {
-    filter_map(move |span, found: Token| match found {
-        Token::Ident(ref word) if word == "self" => {
-            let ident = Ident::from_token(found, span);
+    let refmut_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
+    let mut_pattern = keyword(Keyword::Mut);
+
+    refmut_pattern
+        .or(mut_pattern)
+        .map_with_span(|token, span| (token, span))
+        .or_not()
+        .then(filter_map(move |span, found: Token| match found {
+            Token::Ident(ref word) if word == "self" => Ok(span),
+            _ => Err(ParserError::expected_label(ParsingRuleLabel::Parameter, found, span)),
+        }))
+        .map(|(pattern_keyword, span)| {
+            let ident = Ident::new("self".to_string(), span);
             let path = Path::from_single("Self".to_owned(), span);
-            let self_type = UnresolvedType::Named(path, vec![]);
-            Ok((Pattern::Identifier(ident), self_type, AbiVisibility::Private))
-        }
-        _ => Err(ParserError::expected_label(ParsingRuleLabel::Parameter, found, span)),
-    })
+            let mut self_type = UnresolvedType::Named(path, vec![]);
+            let mut pattern = Pattern::Identifier(ident);
+
+            match pattern_keyword {
+                Some((Token::Ampersand, _)) => {
+                    self_type = UnresolvedType::MutableReference(Box::new(self_type));
+                }
+                Some((Token::Keyword(_), span)) => {
+                    pattern = Pattern::Mutable(Box::new(pattern), span);
+                }
+                _ => (),
+            }
+
+            (pattern, self_type, AbiVisibility::Private)
+        })
 }
 
 fn implementation() -> impl NoirParser<TopLevelStatement> {
@@ -598,12 +618,17 @@ where
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
         .map(LValueRhs::Index);
 
-    l_ident.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
-        LValueRhs::MemberAccess(field_name) => {
-            LValue::MemberAccess { object: Box::new(lvalue), field_name }
-        }
-        LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
-    })
+    let dereferences = just(Token::Star).repeated();
+
+    let lvalues =
+        l_ident.then(l_member_rhs.or(l_index).repeated()).foldl(|lvalue, rhs| match rhs {
+            LValueRhs::MemberAccess(field_name) => {
+                LValue::MemberAccess { object: Box::new(lvalue), field_name }
+            }
+            LValueRhs::Index(index) => LValue::Index { array: Box::new(lvalue), index },
+        });
+
+    dereferences.then(lvalues).foldr(|_, lvalue| LValue::Dereference(Box::new(lvalue)))
 }
 
 fn parse_type<'a>() -> impl NoirParser<UnresolvedType> + 'a {
@@ -622,7 +647,8 @@ fn parse_type_inner(
         array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         vec_type(recursive_type_parser.clone()),
-        function_type(recursive_type_parser),
+        function_type(recursive_type_parser.clone()),
+        mutable_reference_type(recursive_type_parser),
     ))
 }
 
@@ -738,6 +764,16 @@ where
         .map(|(args, ret)| UnresolvedType::Function(args, Box::new(ret)))
 }
 
+fn mutable_reference_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
+where
+    T: NoirParser<UnresolvedType>,
+{
+    just(Token::Ampersand)
+        .ignore_then(keyword(Keyword::Mut))
+        .ignore_then(type_parser)
+        .map(|element| UnresolvedType::MutableReference(Box::new(element)))
+}
+
 fn expression() -> impl ExprParser {
     recursive(|expr| expression_with_precedence(Precedence::Lowest, expr, false))
         .labelled(ParsingRuleLabel::Expression)
@@ -820,12 +856,17 @@ where
     P: ExprParser + 'a,
 {
     recursive(move |term_parser| {
-        choice((not(term_parser.clone()), negation(term_parser)))
-            .map_with_span(Expression::new)
-            // right-unary operators like a[0] or a.f bind more tightly than left-unary
-            // operators like  - or !, so that !a[0] is parsed as !(a[0]). This is a bit
-            // awkward for casts so -a as i32 actually binds as -(a as i32).
-            .or(atom_or_right_unary(expr_parser))
+        choice((
+            not(term_parser.clone()),
+            negation(term_parser.clone()),
+            mutable_reference(term_parser.clone()),
+            dereference(term_parser),
+        ))
+        .map_with_span(Expression::new)
+        // right-unary operators like a[0] or a.f bind more tightly than left-unary
+        // operators like  - or !, so that !a[0] is parsed as !(a[0]). This is a bit
+        // awkward for casts so -a as i32 actually binds as -(a as i32).
+        .or(atom_or_right_unary(expr_parser))
     })
 }
 
@@ -1001,6 +1042,25 @@ where
     just(Token::Minus)
         .ignore_then(term_parser)
         .map(|rhs| ExpressionKind::prefix(UnaryOp::Minus, rhs))
+}
+
+fn mutable_reference<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    just(Token::Ampersand)
+        .ignore_then(keyword(Keyword::Mut))
+        .ignore_then(term_parser)
+        .map(|rhs| ExpressionKind::prefix(UnaryOp::MutableReference, rhs))
+}
+
+fn dereference<P>(term_parser: P) -> impl NoirParser<ExpressionKind>
+where
+    P: ExprParser,
+{
+    just(Token::Star)
+        .ignore_then(term_parser)
+        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference, rhs))
 }
 
 fn atom<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a

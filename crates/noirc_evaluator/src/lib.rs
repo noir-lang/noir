@@ -15,8 +15,6 @@ pub mod brillig;
 use acvm::{
     acir::circuit::{opcodes::Opcode as AcirOpcode, Circuit, PublicInputs},
     acir::native_types::{Expression, Witness},
-    compiler::CircuitSimplifier,
-    Language,
 };
 use errors::{RuntimeError, RuntimeErrorKind};
 use iter_extended::vecmap;
@@ -67,8 +65,6 @@ pub struct Evaluator {
 // If we had a composer object, we would not need it
 pub fn create_circuit(
     program: Program,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&AcirOpcode) -> bool,
     enable_logging: bool,
     show_output: bool,
 ) -> Result<(Circuit, Abi), RuntimeError> {
@@ -85,24 +81,17 @@ pub fn create_circuit(
         opcodes,
         ..
     } = evaluator;
-    let simplifier = CircuitSimplifier::new(current_witness_index);
-    let optimized_circuit = acvm::compiler::compile(
-        Circuit {
-            current_witness_index,
-            opcodes,
-            public_parameters: PublicInputs(public_parameters),
-            return_values: PublicInputs(return_values.iter().copied().collect()),
-        },
-        np_language,
-        is_opcode_supported,
-        &simplifier,
-    )
-    .map_err(|_| RuntimeErrorKind::Spanless(String::from("produced an acvm compile error")))?;
+    let circuit = Circuit {
+        current_witness_index,
+        opcodes,
+        public_parameters: PublicInputs(public_parameters),
+        return_values: PublicInputs(return_values.iter().copied().collect()),
+    };
 
     let (parameters, return_type) = program.main_function_signature;
     let abi = Abi { parameters, param_witnesses, return_type, return_witnesses: return_values };
 
-    Ok((optimized_circuit, abi))
+    Ok((circuit, abi))
 }
 
 impl Evaluator {

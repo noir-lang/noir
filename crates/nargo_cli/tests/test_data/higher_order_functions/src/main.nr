@@ -1,7 +1,7 @@
 use dep::std;
 
 fn main() -> pub Field {
-    let f = if 3 * 7 > 200 { foo } else { bar };
+    let f = if 3 * 7 > 200 as u32 { foo } else { bar };
     assert(f()[1] == 2);
 
     // Lambdas:

@@ -6,11 +6,7 @@ fn main() {
     const EXTERNAL_DIR2: &str = "dep_a/lib.nr";
     const ROOT_DIR_MAIN: &str = "example_real_project/main.nr";
 
-    let mut driver = Driver::new(
-        &Language::R1CS,
-        #[allow(deprecated)]
-        Box::new(acvm::pwg::default_is_opcode_supported(Language::R1CS)),
-    );
+    let mut driver = Driver::new();
 
     // Add local crate to dep graph
     driver.create_local_crate(ROOT_DIR_MAIN, CrateType::Binary);
@@ -23,5 +19,12 @@ fn main() {
     driver.add_dep(LOCAL_CRATE, crate_id1, "coo4");
     driver.add_dep(LOCAL_CRATE, crate_id2, "coo3");
 
-    driver.compile_main(&CompileOptions::default()).ok();
+    driver
+        .compile_main(
+            Language::R1CS,
+            #[allow(deprecated)]
+            &acvm::pwg::default_is_opcode_supported(Language::R1CS),
+            &CompileOptions::default(),
+        )
+        .ok();
 }

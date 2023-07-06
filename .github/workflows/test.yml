@@ -1,6 +1,8 @@
 name: Test
 
-on: [push, pull_request]
+on:
+  pull_request:
+  merge_group:
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
@@ -11,6 +13,7 @@ jobs:
   test:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -20,7 +23,7 @@ jobs:
             runner: ubuntu-large
             target: x86_64-linux
           - os: mac
-            runner: macos-latest
+            runner: macos-latest-xl
             target: x86_64-darwin
 
     steps:

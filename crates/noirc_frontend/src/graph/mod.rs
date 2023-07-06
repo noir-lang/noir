@@ -83,7 +83,11 @@ impl CrateGraph {
     pub fn add_crate_root(&mut self, crate_type: CrateType, file_id: FileId) -> CrateId {
         let mut roots_with_file_id =
             self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
-        assert!(roots_with_file_id.next().is_none(), "you cannot add the same file id twice");
+
+        let next_file_id = roots_with_file_id.next();
+        if let Some(file_id) = next_file_id {
+            return *file_id.0;
+        }
 
         let data = CrateData { root_file_id: file_id, crate_type, dependencies: Vec::new() };
         let crate_id = CrateId(self.arena.len());
@@ -232,7 +236,6 @@ mod tests {
         assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
     }
     #[test]
-    #[should_panic]
     fn it_works2() {
         let file_ids = dummy_file_ids(3);
         let file_id_0 = file_ids[0];
@@ -241,7 +244,10 @@ mod tests {
         let mut graph = CrateGraph::default();
         let _crate1 = graph.add_crate_root(CrateType::Library, file_id_0);
         let _crate2 = graph.add_crate_root(CrateType::Library, file_id_1);
-        let _crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
-        let _crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
+
+        // Adding the same file, so the crate should be the same.
+        let crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
+        let crate3_2 = graph.add_crate_root(CrateType::Library, file_id_2);
+        assert_eq!(crate3, crate3_2);
     }
 }

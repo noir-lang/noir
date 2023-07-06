@@ -34,7 +34,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, Path, Pattern, Shared,
-    StructType, Type, TypeBinding, TypeVariable, UnresolvedGenerics, UnresolvedType,
+    StructType, Type, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics, UnresolvedType,
     UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
@@ -362,6 +362,9 @@ impl<'a> Resolver<'a> {
                 };
                 Type::Vec(Box::new(arg))
             }
+            UnresolvedType::MutableReference(element) => {
+                Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
+            }
         }
     }
 
@@ -618,6 +621,7 @@ impl<'a> Resolver<'a> {
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
+
             parameters.push(Param(pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
@@ -781,6 +785,7 @@ impl<'a> Resolver<'a> {
                 }
             }
             Type::Vec(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
         }
     }
 
@@ -841,6 +846,10 @@ impl<'a> Resolver<'a> {
                 let index = self.resolve_expression(index);
                 HirLValue::Index { array, index, typ: Type::Error }
             }
+            LValue::Dereference(lvalue) => {
+                let lvalue = Box::new(self.resolve_lvalue(*lvalue));
+                HirLValue::Dereference { lvalue, element_type: Type::Error }
+            }
         }
     }
 
@@ -880,6 +889,13 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Prefix(prefix) => {
                 let operator = prefix.operator;
                 let rhs = self.resolve_expression(prefix.rhs);
+
+                if operator == UnaryOp::MutableReference {
+                    if let Err(error) = verify_mutable_reference(self.interner, rhs) {
+                        self.errors.push(error);
+                    }
+                }
+
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
             ExpressionKind::Infix(infix) => {
@@ -1243,6 +1259,31 @@ impl<'a> Resolver<'a> {
     fn in_contract(&self) -> bool {
         let module_id = self.path_resolver.module_id();
         module_id.module(self.def_maps).is_contract
+    }
+}
+
+/// Gives an error if a user tries to create a mutable reference
+/// to an immutable variable.
+pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<(), ResolverError> {
+    match interner.expression(&rhs) {
+        HirExpression::MemberAccess(member_access) => {
+            verify_mutable_reference(interner, member_access.lhs)
+        }
+        HirExpression::Index(_) => {
+            let span = interner.expr_span(&rhs);
+            Err(ResolverError::MutableReferenceToArrayElement { span })
+        }
+        HirExpression::Ident(ident) => {
+            let definition = interner.definition(ident.id);
+            if !definition.mutable {
+                let span = interner.expr_span(&rhs);
+                let variable = definition.name.clone();
+                Err(ResolverError::MutableReferenceToImmutableVariable { span, variable })
+            } else {
+                Ok(())
+            }
+        }
+        _ => Ok(()),
     }
 }
 

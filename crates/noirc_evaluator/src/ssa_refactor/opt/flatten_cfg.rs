@@ -266,10 +266,18 @@ impl<'f> Context<'f> {
                 let else_condition = self.insert_instruction(Instruction::Not(then_condition));
                 let zero = FieldElement::zero();
 
+                // Make sure the else branch sees the previous values of each store
+                // rather than any values created in the 'then' branch.
+                self.undo_stores_in_then_branch(&then_branch);
+
                 let else_branch =
                     self.inline_branch(block, else_block, old_condition, else_condition, zero);
 
+                // We must remember to reset whether side effects are enabled when both branches
+                // end, in addition to resetting the value of old_condition since it is set to
+                // known to be true/false within the then/else branch respectively.
                 self.insert_current_side_effects_enabled();
+                self.inserter.map_value(old_condition, old_condition);
 
                 // While there is a condition on the stack we don't compile outside the condition
                 // until it is popped. This ensures we inline the full then and else branches
@@ -494,10 +502,16 @@ impl<'f> Context<'f> {
             let old_stores = std::mem::take(&mut self.store_values);
             let old_allocations = std::mem::take(&mut self.local_allocations);
 
-            // Remember the old condition value is now known to be true/false within this branch
-            let known_value =
-                self.inserter.function.dfg.make_constant(condition_value, Type::bool());
-            self.inserter.map_value(old_condition, known_value);
+            // Optimization: within the then branch we know the condition to be true, so replace
+            // any references of it within this branch with true. Likewise, do the same with false
+            // with the else branch. We must be careful not to replace the condition if it is a
+            // known constant, otherwise we can end up setting 1 = 0 or vice-versa.
+            if self.inserter.function.dfg.get_numeric_constant(old_condition).is_none() {
+                let known_value =
+                    self.inserter.function.dfg.make_constant(condition_value, Type::bool());
+
+                self.inserter.map_value(old_condition, known_value);
+            }
 
             let final_block = self.inline_block(destination, &[]);
 
@@ -562,9 +576,25 @@ impl<'f> Context<'f> {
     /// instruction. If this ordering is changed, the ordering that store values are merged within
     /// this function also needs to be changed to reflect that.
     fn merge_stores(&mut self, then_branch: Branch, else_branch: Branch) {
-        let mut merge_store = |address, then_case, else_case, old_value| {
-            let then_condition = then_branch.condition;
-            let else_condition = else_branch.condition;
+        // Address -> (then_value, else_value, value_before_the_if)
+        let mut new_map = HashMap::with_capacity(then_branch.store_values.len());
+
+        for (address, store) in then_branch.store_values {
+            new_map.insert(address, (store.new_value, store.old_value, store.old_value));
+        }
+
+        for (address, store) in else_branch.store_values {
+            if let Some(entry) = new_map.get_mut(&address) {
+                entry.1 = store.new_value;
+            } else {
+                new_map.insert(address, (store.old_value, store.new_value, store.old_value));
+            }
+        }
+
+        let then_condition = then_branch.condition;
+        let else_condition = else_branch.condition;
+
+        for (address, (then_case, else_case, old_value)) in new_map {
             let value = self.merge_values(then_condition, else_condition, then_case, else_case);
             self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
 
@@ -573,14 +603,6 @@ impl<'f> Context<'f> {
             } else {
                 self.store_values.insert(address, Store { old_value, new_value: value });
             }
-        };
-
-        for (address, store) in then_branch.store_values {
-            merge_store(address, store.new_value, store.old_value, store.old_value);
-        }
-
-        for (address, store) in else_branch.store_values {
-            merge_store(address, store.old_value, store.new_value, store.old_value);
         }
     }
 
@@ -666,15 +688,24 @@ impl<'f> Context<'f> {
             instruction
         }
     }
+
+    fn undo_stores_in_then_branch(&mut self, then_branch: &Branch) {
+        for (address, store) in &then_branch.store_values {
+            let address = *address;
+            let value = store.old_value;
+            self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use std::rc::Rc;
 
     use crate::ssa_refactor::{
         ir::{
             dfg::DataFlowGraph,
-            function::RuntimeType,
+            function::{Function, RuntimeType},
             instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
@@ -825,41 +856,35 @@ mod test {
         //     v4 = load v1
         //     store Field 5 at v1
         //     v5 = not v0
-        //     enable_side_effects v5
+        //     store v4 at v1
         //     enable_side_effects u1 1
-        //     v7 = mul v0, Field 5
-        //     v8 = mul v5, v4
-        //     v9 = add v7, v8
-        //     store v9 at v1
+        //     v6 = cast v0 as Field
+        //     v7 = cast v5 as Field
+        //     v8 = mul v6, Field 5
+        //     v9 = mul v7, v4
+        //     v10 = add v8, v9
+        //     store v10 at v1
         //     return
         // }
         let ssa = ssa.flatten_cfg();
         let main = ssa.main();
+
         assert_eq!(main.reachable_blocks().len(), 1);
 
-        let store_count = main.dfg[main.entry_block()]
-            .instructions()
-            .iter()
-            .filter(|id| matches!(&main.dfg[**id], Instruction::Store { .. }))
-            .count();
-
-        assert_eq!(store_count, 2);
+        let store_count = count_instruction(main, |ins| matches!(ins, Instruction::Store { .. }));
+        assert_eq!(store_count, 3);
     }
 
-    // Currently failing since the offsets create additions with different ValueIds which are
-    // treated wrongly as different addresses.
     #[test]
-    fn merge_stores_with_offsets() {
+    fn merge_stores_with_else_block() {
         // fn main f0 {
         //   b0(v0: u1, v1: ref):
         //     jmpif v0, then: b1, else: b2
         //   b1():
-        //     v2 = add v1, 1
-        //     store v2, Field 5
+        //     store Field 5 in v1
         //     jmp b3()
         //   b2():
-        //     v3 = add v1, 1
-        //     store v3, Field 6
+        //     store Field 6 in v1
         //     jmp b3()
         //   b3():
         //     return
@@ -877,16 +902,13 @@ mod test {
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        let one = builder.field_constant(1u128);
-        let v2 = builder.insert_binary(v1, BinaryOp::Add, one);
         let five = builder.field_constant(5u128);
-        builder.insert_store(v2, five);
+        builder.insert_store(v1, five);
         builder.terminate_with_jmp(b3, vec![]);
 
         builder.switch_to_block(b2);
-        let v3 = builder.insert_binary(v1, BinaryOp::Add, one);
         let six = builder.field_constant(6u128);
-        builder.insert_store(v3, six);
+        builder.insert_store(v1, six);
         builder.terminate_with_jmp(b3, vec![]);
 
         builder.switch_to_block(b3);
@@ -898,36 +920,37 @@ mod test {
         // fn main f0 {
         //   b0(v0: u1, v1: reference):
         //     enable_side_effects v0
-        //     v7 = add v1, Field 1
-        //     v8 = load v7
-        //     store Field 5 at v7
-        //     v9 = not v0
-        //     enable_side_effects v9
-        //     v11 = add v1, Field 1
-        //     v12 = load v11
-        //     store Field 6 at v11
-        //     enable_side_effects Field 1
-        //     v13 = mul v0, Field 5
-        //     v14 = mul v9, v8
-        //     v15 = add v13, v14
-        //     store v15 at v7
-        //     v16 = mul v0, v12
-        //     v17 = mul v9, Field 6
-        //     v18 = add v16, v17
-        //     store v18 at v11
+        //     v5 = load v1
+        //     store Field 5 at v1
+        //     v6 = not v0
+        //     store v5 at v1
+        //     enable_side_effects v6
+        //     v8 = load v1
+        //     store Field 6 at v1
+        //     enable_side_effects u1 1
+        //     v9 = cast v0 as Field
+        //     v10 = cast v6 as Field
+        //     v11 = mul v9, Field 5
+        //     v12 = mul v10, Field 6
+        //     v13 = add v11, v12
+        //     store v13 at v1
         //     return
         // }
         let ssa = ssa.flatten_cfg();
         let main = ssa.main();
+        println!("{ssa}");
         assert_eq!(main.reachable_blocks().len(), 1);
 
-        let store_count = main.dfg[main.entry_block()]
+        let store_count = count_instruction(main, |ins| matches!(ins, Instruction::Store { .. }));
+        assert_eq!(store_count, 4);
+    }
+
+    fn count_instruction(function: &Function, f: impl Fn(&Instruction) -> bool) -> usize {
+        function.dfg[function.entry_block()]
             .instructions()
             .iter()
-            .filter(|id| matches!(&main.dfg[**id], Instruction::Store { .. }))
-            .count();
-
-        assert_eq!(store_count, 4);
+            .filter(|id| f(&function.dfg[**id]))
+            .count()
     }
 
     #[test]
@@ -1194,6 +1217,255 @@ mod test {
             }
             Value::NumericConstant { constant, .. } => vec![constant.to_u128()],
             _ => Vec::new(),
+        }
+    }
+
+    #[test]
+    fn should_not_merge_away_constraints() {
+        // Very simplified derived regression test for #1792
+        // Tests that it does not simplify to a true constraint an always-false constraint
+        // The original function is replaced by the following:
+        // fn main f1 {
+        //   b0():
+        //     jmpif u1 0 then: b1, else: b2
+        //   b1():
+        //     jmp b2()
+        //   b2():
+        //     constrain u1 0 // was incorrectly removed
+        //     return
+        // }
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        builder.insert_block(); // entry
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let v_false = builder.numeric_constant(0_u128, Type::bool());
+        builder.terminate_with_jmpif(v_false, b1, b2);
+
+        builder.switch_to_block(b1);
+        builder.terminate_with_jmp(b2, vec![]);
+
+        builder.switch_to_block(b2);
+        builder.insert_constrain(v_false); // should not be removed
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().flatten_cfg();
+        let main = ssa.main();
+
+        // Assert we have not incorrectly removed a constraint:
+        use Instruction::Constrain;
+        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_)));
+        assert_eq!(constrain_count, 1);
+    }
+
+    #[test]
+    fn should_not_merge_incorrectly_to_false() {
+        // Regression test for #1792
+        // Tests that it does not simplify a true constraint an always-false constraint
+        // fn main f1 {
+        //   b0():
+        //     v4 = call pedersen([Field 0], u32 0)
+        //     v5 = array_get v4, index Field 0
+        //     v6 = cast v5 as u32
+        //     v8 = mod v6, u32 2
+        //     v9 = cast v8 as u1
+        //     v10 = allocate
+        //     store Field 0 at v10
+        //     jmpif v9 then: b1, else: b2
+        //   b1():
+        //     v14 = add v5, Field 1
+        //     store v14 at v10
+        //     jmp b3()
+        //   b3():
+        //     v12 = eq v9, u1 1
+        //     constrain v12
+        //     return
+        //   b2():
+        //     store Field 0 at v10
+        //     jmp b3()
+        // }
+        let main_id = Id::test_new(1);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        builder.insert_block(); // b0
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+
+        let element_type = Rc::new(vec![Type::field()]);
+        let zero = builder.field_constant(0_u128);
+        let zero_array = builder.array_constant(im::Vector::unit(zero), element_type.clone());
+        let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
+        let pedersen =
+            builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));
+        let v4 = builder.insert_call(
+            pedersen,
+            vec![zero_array, i_zero],
+            vec![Type::Array(element_type, 2)],
+        )[0];
+        let v5 = builder.insert_array_get(v4, zero, Type::field());
+        let v6 = builder.insert_cast(v5, Type::unsigned(32));
+        let i_two = builder.numeric_constant(2_u128, Type::unsigned(32));
+        let v8 = builder.insert_binary(v6, BinaryOp::Mod, i_two);
+        let v9 = builder.insert_cast(v8, Type::bool());
+
+        let v10 = builder.insert_allocate();
+        builder.insert_store(v10, zero);
+
+        builder.terminate_with_jmpif(v9, b1, b2);
+
+        builder.switch_to_block(b1);
+        let one = builder.field_constant(1_u128);
+        let v14 = builder.insert_binary(v5, BinaryOp::Add, one);
+        builder.insert_store(v10, v14);
+        builder.terminate_with_jmp(b3, vec![]);
+
+        builder.switch_to_block(b2);
+        builder.insert_store(v10, zero);
+        builder.terminate_with_jmp(b3, vec![]);
+
+        builder.switch_to_block(b3);
+        let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
+        let v12 = builder.insert_binary(v9, BinaryOp::Eq, b_true);
+        builder.insert_constrain(v12);
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish().flatten_cfg();
+        let main = ssa.main();
+
+        // Now assert that there is not an always-false constraint after flattening:
+        let mut constrain_count = 0;
+        for instruction in main.dfg[main.entry_block()].instructions() {
+            if let Instruction::Constrain(value) = main.dfg[*instruction] {
+                if let Some(constant) = main.dfg.get_numeric_constant(value) {
+                    assert!(constant.is_one());
+                }
+                constrain_count += 1;
+            }
+        }
+        assert_eq!(constrain_count, 1);
+    }
+
+    #[test]
+    fn undo_stores() {
+        // Regression test for #1826. Ensures the `else` branch does not see the stores of the
+        // `then` branch.
+        //
+        // fn main f1 {
+        //   b0():
+        //     v0 = allocate
+        //     store Field 0 at v0
+        //     v2 = allocate
+        //     store Field 2 at v2
+        //     v4 = load v2
+        //     v5 = lt v4, Field 2
+        //     jmpif v5 then: b1, else: b2
+        //   b1():
+        //     v24 = load v0
+        //     v25 = load v2
+        //     v26 = mul v25, Field 10
+        //     v27 = add v24, v26
+        //     store v27 at v0
+        //     v28 = load v2
+        //     v29 = add v28, Field 1
+        //     store v29 at v2
+        //     jmp b5()
+        //   b5():
+        //     v14 = load v0
+        //     return v14
+        //   b2():
+        //     v6 = load v2
+        //     v8 = lt v6, Field 4
+        //     jmpif v8 then: b3, else: b4
+        //   b3():
+        //     v16 = load v0
+        //     v17 = load v2
+        //     v19 = mul v17, Field 100
+        //     v20 = add v16, v19
+        //     store v20 at v0
+        //     v21 = load v2
+        //     v23 = add v21, Field 1
+        //     store v23 at v2
+        //     jmp b4()
+        //   b4():
+        //     jmp b5()
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+        let b3 = builder.insert_block();
+        let b4 = builder.insert_block();
+        let b5 = builder.insert_block();
+
+        let zero = builder.field_constant(0u128);
+        let one = builder.field_constant(1u128);
+        let two = builder.field_constant(2u128);
+        let four = builder.field_constant(4u128);
+        let ten = builder.field_constant(10u128);
+        let one_hundred = builder.field_constant(100u128);
+
+        let v0 = builder.insert_allocate();
+        builder.insert_store(v0, zero);
+        let v2 = builder.insert_allocate();
+        builder.insert_store(v2, two);
+        let v4 = builder.insert_load(v2, Type::field());
+        let v5 = builder.insert_binary(v4, BinaryOp::Lt, two);
+        builder.terminate_with_jmpif(v5, b1, b2);
+
+        builder.switch_to_block(b1);
+        let v24 = builder.insert_load(v0, Type::field());
+        let v25 = builder.insert_load(v2, Type::field());
+        let v26 = builder.insert_binary(v25, BinaryOp::Mul, ten);
+        let v27 = builder.insert_binary(v24, BinaryOp::Add, v26);
+        builder.insert_store(v0, v27);
+        let v28 = builder.insert_load(v2, Type::field());
+        let v29 = builder.insert_binary(v28, BinaryOp::Add, one);
+        builder.insert_store(v2, v29);
+        builder.terminate_with_jmp(b5, vec![]);
+
+        builder.switch_to_block(b5);
+        let v14 = builder.insert_load(v0, Type::field());
+        builder.terminate_with_return(vec![v14]);
+
+        builder.switch_to_block(b2);
+        let v6 = builder.insert_load(v2, Type::field());
+        let v8 = builder.insert_binary(v6, BinaryOp::Lt, four);
+        builder.terminate_with_jmpif(v8, b3, b4);
+
+        builder.switch_to_block(b3);
+        let v16 = builder.insert_load(v0, Type::field());
+        let v17 = builder.insert_load(v2, Type::field());
+        let v19 = builder.insert_binary(v17, BinaryOp::Mul, one_hundred);
+        let v20 = builder.insert_binary(v16, BinaryOp::Add, v19);
+        builder.insert_store(v0, v20);
+        let v21 = builder.insert_load(v2, Type::field());
+        let v23 = builder.insert_binary(v21, BinaryOp::Add, one);
+        builder.insert_store(v2, v23);
+        builder.terminate_with_jmp(b4, vec![]);
+
+        builder.switch_to_block(b4);
+        builder.terminate_with_jmp(b5, vec![]);
+
+        let ssa = builder.finish().flatten_cfg().mem2reg().fold_constants();
+
+        let main = ssa.main();
+
+        // The return value should be 200, not 310
+        match main.dfg[main.entry_block()].terminator() {
+            Some(TerminatorInstruction::Return { return_values }) => {
+                match main.dfg.get_numeric_constant(return_values[0]) {
+                    Some(constant) => {
+                        let value = constant.to_u128();
+                        assert_eq!(value, 200);
+                    }
+                    None => unreachable!("Expected constant 200 for return value"),
+                }
+            }
+            _ => unreachable!(),
         }
     }
 }

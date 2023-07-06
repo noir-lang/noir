@@ -1,6 +1,6 @@
 name: Spellcheck
 
-on: [push]
+on: [pull_request]
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
