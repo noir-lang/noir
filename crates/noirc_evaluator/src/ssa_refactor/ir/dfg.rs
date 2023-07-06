@@ -110,8 +110,8 @@ impl DataFlowGraph {
     }
 
     /// Gets a vec of the value ids of the function
-    pub(crate) fn value_ids(&self) -> Vec<ValueId> {
-        self.values.iter().map(|(id, _)| id).collect()
+    pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
+        self.values.iter()
     }
 
     /// Returns the parameters of the given block
@@ -386,12 +386,6 @@ impl std::ops::Index<ValueId> for DataFlowGraph {
     type Output = Value;
     fn index(&self, id: ValueId) -> &Self::Output {
         &self.values[id]
-    }
-}
-
-impl std::ops::IndexMut<ValueId> for DataFlowGraph {
-    fn index_mut(&mut self, id: ValueId) -> &mut Self::Output {
-        &mut self.values[id]
     }
 }
 

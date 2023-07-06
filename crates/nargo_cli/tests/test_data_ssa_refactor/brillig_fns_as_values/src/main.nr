@@ -1,7 +1,3 @@
-// Tests a very simple program.
-// 
-// The features being tested are brillig functions as values
-
 struct MyStruct {
     operation: fn (u32) -> u32,
 }

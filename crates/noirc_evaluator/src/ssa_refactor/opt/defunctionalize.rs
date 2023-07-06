@@ -15,7 +15,7 @@ use crate::ssa_refactor::{
         function::{Function, FunctionId, RuntimeType},
         instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
-        value::Value,
+        value::{Value, ValueId},
     },
     ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
@@ -68,21 +68,19 @@ impl DefunctionalizationContext {
 
         let context = DefunctionalizationContext { fn_to_runtime, variants, apply_functions };
 
-        context.defunctionalize_all(ssa)
-    }
-
-    /// Defunctionalize all functions in the Ssa
-    fn defunctionalize_all(mut self, mut ssa: Ssa) -> Ssa {
-        let func_ids: Vec<_> = ssa.functions.keys().copied().collect();
-        for func_id in func_ids {
-            ssa = self.defunctionalize(func_id, ssa);
-        }
+        context.defunctionalize_all(&mut ssa);
         ssa
     }
 
+    /// Defunctionalize all functions in the Ssa
+    fn defunctionalize_all(mut self, ssa: &mut Ssa) {
+        for function in ssa.functions.values_mut() {
+            self.defunctionalize(function);
+        }
+    }
+
     /// Defunctionalize a single function
-    fn defunctionalize(&mut self, func_id: FunctionId, mut ssa: Ssa) -> Ssa {
-        let func = ssa.get_fn_mut(func_id);
+    fn defunctionalize(&mut self, func: &mut Function) {
         let mut target_function_ids = HashSet::new();
 
         for block_id in func.reachable_blocks() {
@@ -104,14 +102,14 @@ impl DefunctionalizationContext {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
                         // Collect the argument types
-                        let argument_types =
-                            vecmap(arguments.to_owned(), |arg| func.dfg.type_of_value(arg));
+                        let argument_types: Vec<Type> =
+                            arguments.iter().map(|arg| func.dfg.type_of_value(*arg)).collect();
 
                         // Collect the result types
-                        let result_types = vecmap(
-                            func.dfg.instruction_results(instruction_id).to_owned(),
-                            |result| func.dfg.type_of_value(result),
-                        );
+                        let result_types =
+                            vecmap(func.dfg.instruction_results(instruction_id), |result| {
+                                func.dfg.type_of_value(*result)
+                            });
                         // Find the correct apply function
                         let apply_function = self.get_apply_function(&FunctionSignature {
                             parameters: argument_types,
@@ -148,27 +146,44 @@ impl DefunctionalizationContext {
         }
 
         // Change the type of all the values that are not call targets to NativeField
-        for value_id in func.dfg.value_ids() {
-            let value = &mut func.dfg[value_id];
+        let value_ids: Vec<ValueId> = func.dfg.values_iter().map(|(id, _)| id).collect();
+        for value_id in value_ids {
+            let value = &func.dfg[value_id];
             if let Type::Function = value.get_type() {
                 // If the value is a static function, transform it to the function id
-                if let Value::Function(id) = value {
-                    let id = *id;
-                    if !target_function_ids.contains(&id) {
-                        *value = Value::NumericConstant {
-                            constant: function_id_to_field(id),
-                            typ: Type::Numeric(NumericType::NativeField),
+                let mut replacement_value_id = None;
+
+                match value {
+                    Value::Function(id) => {
+                        if !target_function_ids.contains(id) {
+                            replacement_value_id = Some(func.dfg.make_constant(
+                                function_id_to_field(*id),
+                                Type::Numeric(NumericType::NativeField),
+                            ));
                         }
                     }
+                    Value::Instruction { instruction, position, .. } => {
+                        replacement_value_id = Some(func.dfg.make_value(Value::Instruction {
+                            instruction: *instruction,
+                            position: *position,
+                            typ: Type::Numeric(NumericType::NativeField),
+                        }));
+                    }
+                    Value::Param { block, position, .. } => {
+                        replacement_value_id = Some(func.dfg.make_value(Value::Param {
+                            block: *block,
+                            position: *position,
+                            typ: Type::Numeric(NumericType::NativeField),
+                        }));
+                    }
+                    _ => {}
                 }
-                // If it is a dynamic function, just change the type
-                if let Value::Instruction { typ, .. } | Value::Param { typ, .. } = value {
-                    *typ = Type::Numeric(NumericType::NativeField);
+
+                if let Some(new_value_id) = replacement_value_id {
+                    func.dfg.set_value_from_id(value_id, new_value_id);
                 }
             }
         }
-
-        ssa
     }
 
     /// Returns the apply function for the given signature
@@ -199,9 +214,8 @@ fn find_variants(ssa: &Ssa) -> HashMap<FunctionSignature, Vec<FunctionId>> {
 fn functions_as_values(func: &Function) -> HashSet<FunctionId> {
     let mut literal_functions: HashSet<_> = func
         .dfg
-        .value_ids()
-        .iter()
-        .filter_map(|id| match func.dfg[*id] {
+        .values_iter()
+        .filter_map(|(id, _)| match func.dfg[id] {
             Value::Function(id) => Some(id),
             _ => None,
         })

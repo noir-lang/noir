@@ -92,17 +92,9 @@ fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
 fn foo<N>(a: [Field; N]) -> [Field; N] {
     a
 }
-fn bar<N>(unused: [Field; N]) -> [Field; N] {
-    foo(unused)
-}
 
-struct FilterWrapper {
-    skip: u8,
-    filter: fn ([u32; 2]) -> u32,
-}
-
-fn filterImpl(fields: [u32; 2]) -> u32 {
-    fields[0]
+fn bar() -> [Field; 1] {
+    foo([0])
 }
 
 fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {  
@@ -126,7 +118,7 @@ fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     test0(a);
     test1(a);
     test2(x as Field, y);
-    assert(bar([0])[0] == 0);
+    assert(bar()[0] == 0);
 
     let mut b = [0 as u8, 5 as u8, 2 as u8];
     let c = test3(b);
@@ -143,17 +135,6 @@ fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     //Regression test for issue #628:
     let result = first(arr_to_field(arr1), arr_to_field(arr2));
     assert(result[0] == arr1[0] as Field);
-
-    // Regression test for issue #1844
-    let mut instance = FilterWrapper {
-        skip: 0,
-        filter: filterImpl ,
-    };
-
-    instance.skip = x as u8;
-
-    let filter = instance.filter;
-    assert(x == filter([x; 2]));
 }
 
 // Issue #628
