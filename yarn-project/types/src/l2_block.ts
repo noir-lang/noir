@@ -324,11 +324,11 @@ export class L2Block {
      */
     newL1ToL2Messages: Fr[];
     /**
-     * Encrypted logs from private txs in a block.
+     * Encrypted logs emitted by txs in a block.
      */
     newEncryptedLogs?: L2BlockL2Logs;
     /**
-     * Unencrypted logs from all txs in a block.
+     * Unencrypted logs emitted by txs in a block.
      */
     newUnencryptedLogs?: L2BlockL2Logs;
   }) {

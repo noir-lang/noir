@@ -25,7 +25,7 @@ export interface NoteSpendingInfoDao {
    */
   nullifier: Fr;
   /**
-   * The location in the tree.
+   * The location of the relevant note in the private data tree.
    */
   index: bigint;
   /**

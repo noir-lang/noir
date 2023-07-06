@@ -56,7 +56,7 @@ export function txFromJson(json: any) {
   const enqueuedPublicFunctions = json.enqueuedPublicFunctions?.length
     ? json.enqueuedPublicFunctions.map((x: string) => PublicCallRequest.fromBuffer(Buffer.from(x, 'hex')))
     : [];
-  return Tx.createTx(
+  return new Tx(
     publicInputs,
     Proof.fromBuffer(proof),
     encryptedLogs,

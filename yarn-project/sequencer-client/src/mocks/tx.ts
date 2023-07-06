@@ -15,7 +15,7 @@ export function makeEmptyLogs(): TxL2Logs {
  * Testing utility to create a tx with gibberish kernel circuit output, random logs, and an empty proof.
  */
 export function makeTx(seed = 0) {
-  return Tx.createTx(
+  return new Tx(
     makeKernelPublicInputs(seed),
     makeEmptyProof(),
     TxL2Logs.random(2, 3),

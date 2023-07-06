@@ -18,10 +18,10 @@ import {
   toTxMessage,
 } from './tx_messages.js';
 
-const makePrivateTx = () => {
+const makeTx = () => {
   const encodedPublicFunctions = [EncodedContractFunction.random(), EncodedContractFunction.random()];
   const enqueuedPublicFunctionCalls = times(KERNEL_PUBLIC_CALL_STACK_LENGTH, i => makePublicCallRequest(i));
-  return Tx.createTx(
+  return new Tx(
     makeKernelPublicInputs(),
     Proof.fromBuffer(Buffer.alloc(10, 9)),
     TxL2Logs.random(8, 2),
@@ -35,7 +35,7 @@ const makeTxHash = () => {
   return new TxHash(randomBytes(32));
 };
 
-const verifyPrivateTx = (actual: Tx, expected: Tx) => {
+const verifyTx = (actual: Tx, expected: Tx) => {
   expect(actual.data!.toBuffer()).toEqual(expected.data?.toBuffer());
   expect(actual.proof!.toBuffer()).toEqual(expected.proof!.toBuffer());
   expect(actual.encryptedLogs!.toBuffer()).toEqual(expected.encryptedLogs?.toBuffer());
@@ -49,20 +49,20 @@ const verifyPrivateTx = (actual: Tx, expected: Tx) => {
 
 describe('Messages', () => {
   it('Correctly serialises and deserialises a single private transaction', () => {
-    const transaction = makePrivateTx();
+    const transaction = makeTx();
     const message = toTxMessage(transaction);
     const decodedTransaction = fromTxMessage(message);
-    verifyPrivateTx(decodedTransaction, transaction);
+    verifyTx(decodedTransaction, transaction);
   });
 
   it('Correctly serialises and deserialises transactions messages', () => {
-    const privateTransactions = [makePrivateTx(), makePrivateTx(), makePrivateTx()];
+    const privateTransactions = [makeTx(), makeTx(), makeTx()];
     const message = createTransactionsMessage(privateTransactions);
     expect(decodeMessageType(message)).toBe(Messages.POOLED_TRANSACTIONS);
     const decodedTransactions = decodeTransactionsMessage(getEncodedMessage(message));
-    verifyPrivateTx(decodedTransactions[0], privateTransactions[0]);
-    verifyPrivateTx(decodedTransactions[1], privateTransactions[1]);
-    verifyPrivateTx(decodedTransactions[2], privateTransactions[2]);
+    verifyTx(decodedTransactions[0], privateTransactions[0]);
+    verifyTx(decodedTransactions[1], privateTransactions[1]);
+    verifyTx(decodedTransactions[2], privateTransactions[2]);
   });
 
   it('Correctly serialises and deserialises transaction hashes message', () => {

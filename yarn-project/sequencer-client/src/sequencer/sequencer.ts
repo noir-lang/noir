@@ -141,7 +141,7 @@ export class Sequencer {
       const blockNumber = (await this.l2BlockSource.getBlockHeight()) + 1;
       const globalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
 
-      // Process public txs and drop the ones that fail processing
+      // Process txs and drop the ones that fail processing
       // We create a fresh processor each time to reset any cached state (eg storage writes)
       const processor = this.publicProcessorFactory.create();
       const [processedTxs, failedTxs] = await processor.process(validTxs, globalVariables);
@@ -183,7 +183,7 @@ export class Sequencer {
    * @param block - The L2Block to be published.
    */
   protected async publishContractPublicData(validTxs: Tx[], block: L2Block) {
-    // Publishes new encrypted logs & contract data for private txs to the network and awaits the tx to be mined
+    // Publishes contract data for txs to the network and awaits the tx to be mined
     this.state = SequencerState.PUBLISHING_CONTRACT_DATA;
     const newContractData = validTxs
       .map(tx => {

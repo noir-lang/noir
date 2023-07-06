@@ -131,6 +131,10 @@ describe('Account State', () => {
         blockNumber: 5,
         from: ownerAddress,
       }),
+      expect.objectContaining({
+        blockNumber: 5,
+        from: ownerAddress,
+      }),
     ]);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledTimes(1);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledWith([

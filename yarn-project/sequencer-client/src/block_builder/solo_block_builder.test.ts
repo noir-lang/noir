@@ -145,7 +145,7 @@ describe('sequencer/solo_block_builder', () => {
     kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(expectsDb);
 
     const tx = await makeProcessedTx(
-      Tx.createTx(
+      new Tx(
         kernelOutput,
         emptyProof,
         makeEmptyLogs(),

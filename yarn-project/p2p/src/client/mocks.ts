@@ -4,7 +4,7 @@ import { Tx, TxL2Logs, L2BlockSource, L2Block } from '@aztec/types';
 import times from 'lodash.times';
 
 export const MockTx = () => {
-  return Tx.createTx(
+  return new Tx(
     makeKernelPublicInputs(),
     new Proof(Buffer.alloc(0)),
     TxL2Logs.random(8, 3), // 8 priv function invocations creating 3 encrypted logs each

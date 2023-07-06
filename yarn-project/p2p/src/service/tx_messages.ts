@@ -200,7 +200,7 @@ export function fromTxMessage(buffer: Buffer): Tx {
 
   const functions = toObjectArray(unencryptedLogs.remainingData, EncodedContractFunction);
   const publicCalls = toObjectArray(functions.remainingData, PublicCallRequest);
-  return Tx.createTx(
+  return new Tx(
     publicInputs.obj!,
     proof.obj!,
     encryptedLogs.obj,

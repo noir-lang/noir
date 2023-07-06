@@ -38,11 +38,11 @@ interface ProcessedData {
    */
   blockContext: L2BlockContext;
   /**
-   * Indices of private transactions in the block that pertain to the user.
+   * Indices of transactions in the block that emitted encrypted log which the user could decrypt.
    */
-  userPertainingPrivateTxIndices: number[];
+  userPertainingTxIndices: number[];
   /**
-   * A collection of data access objects for transaction auxiliary data.
+   * A collection of data access objects for note spending info.
    */
   noteSpendingInfoDaos: NoteSpendingInfoDao[];
 }
@@ -271,7 +271,7 @@ export class AccountState {
     const encryptedLogs = new TxL2Logs(collectEncryptedLogs(executionResult));
     const unencryptedLogs = new TxL2Logs(collectUnencryptedLogs(executionResult));
 
-    return Tx.createTx(
+    return new Tx(
       publicInputs,
       proof,
       encryptedLogs,
@@ -329,22 +329,24 @@ export class AccountState {
       const { txLogs } = encryptedL2BlockLogs[blockIndex];
       let logIndexWithinBlock = 0;
 
-      // Try decrypting the encrypted logs.
-      // Note: Public txs don't generate commitments and encrypted logs and for this reason we can ignore them here.
-      const privateTxIndices: Set<number> = new Set();
+      // We are using set for `userPertainingTxIndices` to avoid duplicates. This would happen in case there were
+      // multiple encrypted logs in a tx pertaining to a user.
+      const userPertainingTxIndices: Set<number> = new Set();
       const noteSpendingInfoDaos: NoteSpendingInfoDao[] = [];
       const privateKey = await this.keyStore.getAccountPrivateKey(this.publicKey);
       const curve = await Grumpkin.new();
 
-      for (let txIndex = 0; txIndex < txLogs.length; ++txIndex) {
-        const txFunctionLogs = txLogs[txIndex].functionLogs;
+      // Iterate over all the encrypted logs and try decrypting them. If successful, store the note spending info.
+      for (let indexOfTxInABlock = 0; indexOfTxInABlock < txLogs.length; ++indexOfTxInABlock) {
+        // Note: Each tx generates a `TxL2Logs` object and for this reason we can rely on its index corresponding
+        //       to the index of a tx in a block.
+        const txFunctionLogs = txLogs[indexOfTxInABlock].functionLogs;
         for (const functionLogs of txFunctionLogs) {
           for (const logs of functionLogs.logs) {
             const noteSpendingInfo = NoteSpendingInfo.fromEncryptedBuffer(logs, privateKey, curve);
             if (noteSpendingInfo) {
               // We have successfully decrypted the data.
-              const privateTxIndex = Math.floor(txIndex / KERNEL_NEW_COMMITMENTS_LENGTH);
-              privateTxIndices.add(privateTxIndex);
+              userPertainingTxIndices.add(indexOfTxInABlock);
               noteSpendingInfoDaos.push({
                 ...noteSpendingInfo,
                 nullifier: await this.computeNullifier(noteSpendingInfo),
@@ -359,7 +361,7 @@ export class AccountState {
 
       blocksAndNoteSpendingInfo.push({
         blockContext: l2BlockContexts[blockIndex],
-        userPertainingPrivateTxIndices: [...privateTxIndices],
+        userPertainingTxIndices: [...userPertainingTxIndices], // Convert set to array.
         noteSpendingInfoDaos,
       });
       dataStartIndex += txLogs.length;
@@ -409,10 +411,10 @@ export class AccountState {
     let newNullifiers: Fr[] = [];
 
     for (let i = 0; i < blocksAndNoteSpendingInfo.length; ++i) {
-      const { blockContext, userPertainingPrivateTxIndices, noteSpendingInfoDaos } = blocksAndNoteSpendingInfo[i];
+      const { blockContext, userPertainingTxIndices, noteSpendingInfoDaos } = blocksAndNoteSpendingInfo[i];
 
-      // Process all the user pertaining private txs.
-      userPertainingPrivateTxIndices.map((txIndex, j) => {
+      // Process all the user pertaining txs.
+      userPertainingTxIndices.map((txIndex, j) => {
         const txHash = blockContext.getTxHash(txIndex);
         this.log(`Processing tx ${txHash!.toString()} from block ${blockContext.block.number}`);
         const { newContractData } = blockContext.block.getTx(txIndex);
@@ -441,13 +443,13 @@ export class AccountState {
     if (noteSpendingInfoDaosBatch.length) {
       await this.db.addNoteSpendingInfoBatch(noteSpendingInfoDaosBatch);
       noteSpendingInfoDaosBatch.forEach(noteSpendingInfo => {
-        this.log(`Added tx aux data with nullifier ${noteSpendingInfo.nullifier.toString()}}`);
+        this.log(`Added note spending info with nullifier ${noteSpendingInfo.nullifier.toString()}}`);
       });
     }
     if (txDaos.length) await this.db.addTxs(txDaos);
     const removedNoteSpendingInfo = await this.db.removeNullifiedNoteSpendingInfo(newNullifiers, this.publicKey);
     removedNoteSpendingInfo.forEach(noteSpendingInfo => {
-      this.log(`Removed tx aux data with nullifier ${noteSpendingInfo.nullifier.toString()}}`);
+      this.log(`Removed note spending info with nullifier ${noteSpendingInfo.nullifier.toString()}}`);
     });
   }
 
