@@ -1003,8 +1003,6 @@ impl Type {
                 }
             }
 
-            (Vec(elem_a), Vec(elem_b)) => elem_a.try_unify(elem_b, span),
-
             (MutableReference(elem_a), MutableReference(elem_b)) => elem_a.try_unify(elem_b, span),
 
             (other_a, other_b) => {
@@ -1141,8 +1139,6 @@ impl Type {
                     Err(SpanKind::None)
                 }
             }
-
-            (Vec(elem_a), Vec(elem_b)) => elem_a.is_subtype_of(elem_b, span),
 
             // `T <: U  =>  &mut T <: &mut U` would be unsound(*), so mutable
             // references are never subtypes of each other.
@@ -1425,7 +1421,6 @@ impl Type {
                 let ret = Box::new(ret.follow_bindings());
                 Function(args, ret)
             }
-            Vec(element) => Vec(Box::new(element.follow_bindings())),
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types

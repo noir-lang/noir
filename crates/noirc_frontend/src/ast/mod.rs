@@ -107,10 +107,6 @@ impl std::fmt::Display for UnresolvedType {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {ret}", args.join(", "))
             }
-            Vec(args, _span) => {
-                let args = vecmap(args, ToString::to_string);
-                write!(f, "Vec<{}>", args.join(", "))
-            }
             MutableReference(element) => write!(f, "&mut {element}"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),

@@ -609,7 +609,6 @@ enum TypeMethodKey {
     Unit,
     Tuple,
     Function,
-    Vec,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
