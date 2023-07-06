@@ -85,7 +85,7 @@ impl Function {
         self.dfg.block_parameters(self.entry_block)
     }
 
-    /// Returns the return values of this function.
+    /// Returns the return types of this function.
     pub(crate) fn returns(&self) -> &[ValueId] {
         let blocks = self.reachable_blocks();
         let mut function_return_values = None;
@@ -97,7 +97,7 @@ impl Function {
             }
         }
         function_return_values
-            .expect("Expected a return instruction, as block is finished construction")
+            .expect("Expected a return instruction, as function construction is finished")
     }
 
     /// Collects all the reachable blocks of this function.
@@ -115,6 +115,15 @@ impl Function {
             }
         }
         blocks
+    }
+}
+
+impl std::fmt::Display for RuntimeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RuntimeType::Acir => write!(f, "acir"),
+            RuntimeType::Brillig => write!(f, "brillig"),
+        }
     }
 }
 

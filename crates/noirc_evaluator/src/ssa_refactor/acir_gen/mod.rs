@@ -769,7 +769,7 @@ impl Context {
     }
 
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
-    /// If the type of a result id is an array, several acirvars are collected into
+    /// If the type of a result id is an array, several acir vars are collected into
     /// a single AcirValue::Array of the same length.
     fn convert_vars_to_values(
         vars: Vec<AcirVar>,

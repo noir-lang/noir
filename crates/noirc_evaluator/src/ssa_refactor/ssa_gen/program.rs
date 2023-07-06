@@ -36,7 +36,7 @@ impl Ssa {
 
     /// Returns the function with the given ID
     pub(crate) fn get_fn(&self, id: FunctionId) -> &Function {
-        &self.functions[&id]
+        self.functions.get(&id).expect("ICE: Could not find function")
     }
 
     /// Returns the entry-point function of the program as a mutable reference

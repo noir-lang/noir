@@ -1,14 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
-        value::{Value, ValueId},
+        value::Value,
     },
     ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
@@ -50,17 +51,14 @@ struct DefunctionalizationContext {
 }
 
 impl DefunctionalizationContext {
-    /// Returns the new ssa with the function defunctionalized
+    /// Returns a defunctionalized ssa
     pub(crate) fn defunctionalize_ssa(mut ssa: Ssa) -> Ssa {
-        // Find all functions that share the signature
+        // Find all functions used as value that share the same signature
         let variants = find_variants(&ssa);
         // Create apply functions
         let apply_functions = create_apply_functions(&mut ssa, &variants);
-        let fn_to_runtime = ssa
-            .functions
-            .iter()
-            .map(|(func_id, func)| (*func_id, func.runtime()))
-            .collect::<HashMap<_, _>>();
+        let fn_to_runtime =
+            ssa.functions.iter().map(|(func_id, func)| (*func_id, func.runtime())).collect();
 
         let context = DefunctionalizationContext { fn_to_runtime, variants, apply_functions };
 
@@ -69,7 +67,7 @@ impl DefunctionalizationContext {
 
     /// Defunctionalize all functions in the Ssa
     fn defunctionalize_all(mut self, mut ssa: Ssa) -> Ssa {
-        let func_ids = ssa.functions.keys().copied().collect::<Vec<_>>();
+        let func_ids: Vec<_> = ssa.functions.keys().copied().collect();
         for func_id in func_ids {
             ssa = self.defunctionalize(func_id, ssa);
         }
@@ -87,53 +85,57 @@ impl DefunctionalizationContext {
 
             for instruction_id in instructions {
                 let instruction = func.dfg[instruction_id].clone();
-                let mut new_instruction = None;
+                let mut replacement_instruction = None;
                 // Operate on call instructions
-                if let Instruction::Call { func: target_func_id, arguments } = instruction {
-                    match func.dfg[target_func_id] {
-                        // If the target is a function used as value
-                        Value::Param { .. } | Value::Instruction { .. } => {
-                            // Collect the argument types
-                            let argument_types =
-                                vecmap(arguments.to_owned(), |arg| func.dfg.type_of_value(arg));
-
-                            // Collect the result types
-                            let result_types = vecmap(
-                                func.dfg.instruction_results(instruction_id).to_owned(),
-                                |result| func.dfg.type_of_value(result),
-                            );
-                            // Find the correct apply function
-                            let apply_function = self.get_apply_function(&FunctionSignature {
-                                parameters: argument_types,
-                                returns: result_types,
-                                runtime: func.runtime(),
-                            });
-                            target_function_ids.insert(apply_function.id);
-
-                            // Replace the instruction with a call to apply
-                            let apply_function_value_id =
-                                func.dfg.import_function(apply_function.id);
-                            if apply_function.is_multiple {
-                                let mut new_arguments = vec![target_func_id];
-                                new_arguments.extend(arguments);
-                                new_instruction = Some(Instruction::Call {
-                                    func: apply_function_value_id,
-                                    arguments: new_arguments,
-                                });
-                            } else {
-                                new_instruction = Some(Instruction::Call {
-                                    func: apply_function_value_id,
-                                    arguments,
-                                });
-                            }
-                        }
-                        Value::Function(id) => {
-                            target_function_ids.insert(id);
-                        }
-                        _ => {}
+                let (target_func_id, arguments) = match instruction {
+                    Instruction::Call { func: target_func_id, arguments } => {
+                        (target_func_id, arguments)
                     }
+                    _ => continue,
+                };
+
+                match func.dfg[target_func_id] {
+                    // If the target is a function used as value
+                    Value::Param { .. } | Value::Instruction { .. } => {
+                        // Collect the argument types
+                        let argument_types =
+                            vecmap(arguments.to_owned(), |arg| func.dfg.type_of_value(arg));
+
+                        // Collect the result types
+                        let result_types = vecmap(
+                            func.dfg.instruction_results(instruction_id).to_owned(),
+                            |result| func.dfg.type_of_value(result),
+                        );
+                        // Find the correct apply function
+                        let apply_function = self.get_apply_function(&FunctionSignature {
+                            parameters: argument_types,
+                            returns: result_types,
+                            runtime: func.runtime(),
+                        });
+                        target_function_ids.insert(apply_function.id);
+
+                        // Replace the instruction with a call to apply
+                        let apply_function_value_id = func.dfg.import_function(apply_function.id);
+                        if apply_function.is_multiple {
+                            let mut new_arguments = vec![target_func_id];
+                            new_arguments.extend(arguments);
+                            replacement_instruction = Some(Instruction::Call {
+                                func: apply_function_value_id,
+                                arguments: new_arguments,
+                            });
+                        } else {
+                            replacement_instruction = Some(Instruction::Call {
+                                func: apply_function_value_id,
+                                arguments,
+                            });
+                        }
+                    }
+                    Value::Function(id) => {
+                        target_function_ids.insert(id);
+                    }
+                    _ => {}
                 }
-                if let Some(new_instruction) = new_instruction {
+                if let Some(new_instruction) = replacement_instruction {
                     func.dfg[instruction_id] = new_instruction;
                 }
             }
@@ -148,7 +150,7 @@ impl DefunctionalizationContext {
                     let id = *id;
                     if !target_function_ids.contains(&id) {
                         *value = Value::NumericConstant {
-                            constant: (id.to_usize() as u128).into(),
+                            constant: function_id_to_field(id),
                             typ: Type::Numeric(NumericType::NativeField),
                         }
                     }
@@ -189,41 +191,32 @@ fn find_variants(ssa: &Ssa) -> HashMap<FunctionSignature, Vec<FunctionId>> {
 
 /// Finds all literal functions used as values in the given function
 fn functions_as_values(func: &Function) -> HashSet<FunctionId> {
-    let mut functions = HashSet::new();
-
-    let mut append_functions = |values: &[ValueId]| {
-        for value in values {
-            if let Value::Function(id) = func.dfg[*value] {
-                functions.insert(id);
-            }
-        }
-    };
+    let mut literal_functions: HashSet<_> = func
+        .dfg
+        .value_ids()
+        .iter()
+        .filter_map(|id| match func.dfg[*id] {
+            Value::Function(id) => Some(id),
+            _ => None,
+        })
+        .collect();
 
     for block_id in func.reachable_blocks() {
         let block = &func.dfg[block_id];
         for instruction_id in block.instructions() {
             let instruction = &func.dfg[*instruction_id];
-            match instruction {
-                Instruction::Call { arguments, .. } => {
-                    append_functions(arguments);
-                }
-                Instruction::Store { value, .. } => {
-                    append_functions(&[*value]);
-                }
-                _ => {}
-            }
-        }
-        match block.terminator() {
-            Some(TerminatorInstruction::Jmp { arguments, .. }) => {
-                append_functions(arguments);
-            }
-            Some(TerminatorInstruction::Return { return_values }) => {
-                append_functions(return_values);
-            }
-            _ => {}
+            let target_value = match instruction {
+                Instruction::Call { func, .. } => func,
+                _ => continue,
+            };
+            let target_id = match func.dfg[*target_value] {
+                Value::Function(id) => id,
+                _ => continue,
+            };
+            literal_functions.remove(&target_id);
         }
     }
-    functions
+    literal_functions
 }
 
 fn create_apply_functions(
@@ -242,6 +235,10 @@ fn create_apply_functions(
         }
     }
     apply_functions
+}
+
+fn function_id_to_field(function_id: FunctionId) -> FieldElement {
+    (function_id.to_usize() as u128).into()
 }
 
 /// Creates an apply function for the given signature and variants
@@ -263,7 +260,7 @@ fn create_apply_function(
             let mut next_function_block = None;
 
             let function_id_constant = function_builder.numeric_constant(
-                function_id.to_usize() as u128,
+                function_id_to_field(*function_id),
                 Type::Numeric(NumericType::NativeField),
             );
             let condition =
