@@ -189,11 +189,11 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         )
 }
 
-/// function_modifiers: 'unconstrained' 'open' | 'unconstrained' | 'open' | %empty
+/// function_modifiers: 'internal' 'unconstrained' 'open' | 'internal' 'unconstrained' | 'internal' 'open' |
+/// 'internal' | 'unconstrained' | 'open' | %empty
 ///
-/// returns (is_unconstrained, is_open) for whether each keyword was present
+/// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, bool, bool)> {
-    // @todo @lherskind This is retarded, send help. Also update comments.
     keyword(Keyword::Unconstrained)
         .or_not()
         .then(keyword(Keyword::Open).or_not())
