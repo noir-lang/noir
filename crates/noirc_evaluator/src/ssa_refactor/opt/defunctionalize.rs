@@ -30,6 +30,15 @@ impl FunctionSignature {
     }
 }
 
+/// Describes an apply function existing in the SSA
+#[derive(Debug, Clone, Copy)]
+struct ApplyFunction {
+    // The function id of the apply function
+    id: FunctionId,
+    // Whether the apply function dispatches to other functions or not
+    is_multiple: bool,
+}
+
 /// Performs defunctionalization on all functions
 /// This is done by changing all functions as value to be a number (FieldElement)
 /// And creating apply functions that dispatch to the correct target by runtime comparisons with constants
@@ -37,7 +46,7 @@ impl FunctionSignature {
 struct DefunctionalizationContext {
     fn_to_runtime: HashMap<FunctionId, RuntimeType>,
     variants: HashMap<FunctionSignature, Vec<FunctionId>>,
-    apply_functions: HashMap<FunctionSignature, FunctionId>,
+    apply_functions: HashMap<FunctionSignature, ApplyFunction>,
 }
 
 impl DefunctionalizationContext {
@@ -99,16 +108,24 @@ impl DefunctionalizationContext {
                                 returns: result_types,
                                 runtime: func.runtime(),
                             });
-                            target_function_ids.insert(apply_function);
+                            target_function_ids.insert(apply_function.id);
 
                             // Replace the instruction with a call to apply
-                            let apply_function = func.dfg.import_function(apply_function);
-                            let mut new_arguments = vec![target_func_id];
-                            new_arguments.extend(arguments);
-                            new_instruction = Some(Instruction::Call {
-                                func: apply_function,
-                                arguments: new_arguments,
-                            });
+                            let apply_function_value_id =
+                                func.dfg.import_function(apply_function.id);
+                            if apply_function.is_multiple {
+                                let mut new_arguments = vec![target_func_id];
+                                new_arguments.extend(arguments);
+                                new_instruction = Some(Instruction::Call {
+                                    func: apply_function_value_id,
+                                    arguments: new_arguments,
+                                });
+                            } else {
+                                new_instruction = Some(Instruction::Call {
+                                    func: apply_function_value_id,
+                                    arguments,
+                                });
+                            }
                         }
                         Value::Function(id) => {
                             target_function_ids.insert(id);
@@ -147,7 +164,7 @@ impl DefunctionalizationContext {
     }
 
     /// Returns the apply function for the given signature
-    fn get_apply_function(&self, signature: &FunctionSignature) -> FunctionId {
+    fn get_apply_function(&self, signature: &FunctionSignature) -> ApplyFunction {
         *self.apply_functions.get(signature).expect("Could not find apply function")
     }
 }
@@ -212,11 +229,17 @@ fn functions_as_values(func: &Function) -> HashSet<FunctionId> {
 fn create_apply_functions(
     ssa: &mut Ssa,
     variants_map: &HashMap<FunctionSignature, Vec<FunctionId>>,
-) -> HashMap<FunctionSignature, FunctionId> {
+) -> HashMap<FunctionSignature, ApplyFunction> {
     let mut apply_functions = HashMap::new();
     for (signature, variants) in variants_map.iter() {
-        let apply_function = create_apply_function(ssa, signature, variants);
-        apply_functions.insert(signature.clone(), apply_function);
+        if variants.len() > 1 {
+            let apply_function = create_apply_function(ssa, signature, variants);
+            apply_functions
+                .insert(signature.clone(), ApplyFunction { id: apply_function, is_multiple: true });
+        } else {
+            apply_functions
+                .insert(signature.clone(), ApplyFunction { id: variants[0], is_multiple: false });
+        }
     }
     apply_functions
 }
