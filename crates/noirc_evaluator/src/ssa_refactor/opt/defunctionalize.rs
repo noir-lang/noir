@@ -258,18 +258,14 @@ fn create_apply_functions(
 ) -> HashMap<FunctionSignature, ApplyFunction> {
     let mut apply_functions = HashMap::new();
     for (signature, variants) in variants_map.iter() {
-        if variants.len() > 1 {
-            let apply_function = create_apply_function(ssa, signature, variants);
-            apply_functions.insert(
-                signature.clone(),
-                ApplyFunction { id: apply_function, dispatches_to_multiple_functions: true },
-            );
+        let dispatches_to_multiple_functions = variants.len() > 1;
+        let id = if dispatches_to_multiple_functions {
+            create_apply_function(ssa, signature, variants)
         } else {
-            apply_functions.insert(
-                signature.clone(),
-                ApplyFunction { id: variants[0], dispatches_to_multiple_functions: false },
-            );
-        }
+            variants[0]
+        };
+        apply_functions
+            .insert(signature.clone(), ApplyFunction { id, dispatches_to_multiple_functions });
     }
     apply_functions
 }
@@ -287,7 +283,7 @@ fn create_apply_function(
     assert!(!function_ids.is_empty());
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id, signature.runtime);
-        let target_id = function_builder.add_parameter(Type::Numeric(NumericType::NativeField));
+        let target_id = function_builder.add_parameter(Type::field());
         let params_ids =
             vecmap(signature.parameters.clone(), |typ| function_builder.add_parameter(typ));
 
@@ -303,7 +299,7 @@ fn create_apply_function(
             let condition =
                 function_builder.insert_binary(target_id, BinaryOp::Eq, function_id_constant);
 
-            // If it's not the last function to dispatch, crate an if statement
+            // If it's not the last function to dispatch, create an if statement
             if !is_last {
                 next_function_block = Some(function_builder.insert_block());
                 let executor_block = function_builder.insert_block();
@@ -319,26 +315,14 @@ fn create_apply_function(
                 function_builder.insert_constrain(condition);
             }
             // Find the target block or build it if necessary
-            let target_block = match previous_target_block {
-                Some(block) => {
-                    let current_block = function_builder.current_block();
-                    build_return_block(
-                        &mut function_builder,
-                        current_block,
-                        signature.returns.clone(),
-                        Some(block),
-                    )
-                }
-                None => {
-                    let current_block = function_builder.current_block();
-                    build_return_block(
-                        &mut function_builder,
-                        current_block,
-                        signature.returns.clone(),
-                        None,
-                    )
-                }
-            };
+            let current_block = function_builder.current_block();
+
+            let target_block = build_return_block(
+                &mut function_builder,
+                current_block,
+                signature.returns.clone(),
+                previous_target_block,
+            );
             previous_target_block = Some(target_block);
 
             // Call the function
