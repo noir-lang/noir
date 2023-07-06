@@ -39,7 +39,7 @@ impl FunctionSignature {
 
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
-/// ```
+/// ```text
 /// fn apply(function_id: Field, arg1: Field, arg2: Field) -> Field {
 ///     match function_id {
 ///         0 -> function0(arg1, arg2),
