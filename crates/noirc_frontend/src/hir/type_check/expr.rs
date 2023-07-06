@@ -309,7 +309,7 @@ impl<'interner> TypeChecker<'interner> {
 
         index_type.unify(&Type::polymorphic_integer(self.interner), span, &mut self.errors, || {
             TypeCheckError::TypeMismatch {
-                expected_typ: "Integer".to_owned(),
+                expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
             }
