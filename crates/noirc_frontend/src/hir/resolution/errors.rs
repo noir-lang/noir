@@ -60,6 +60,10 @@ pub enum ResolverError {
     ParserError(Box<ParserError>),
     #[error("Function is not defined in a contract yet sets its contract visibility")]
     ContractFunctionTypeInNormalFunction { span: Span },
+    #[error("Cannot create a mutable reference to {variable}, it was declared to be immutable")]
+    MutableReferenceToImmutableVariable { variable: String, span: Span },
+    #[error("Mutable references to array indices are unsupported")]
+    MutableReferenceToArrayElement { span: Span },
 }
 
 impl ResolverError {
@@ -258,6 +262,12 @@ impl From<ResolverError> for Diagnostic {
                 "Non-contract functions cannot be 'open'".into(),
                 span,
             ),
+            ResolverError::MutableReferenceToImmutableVariable { variable, span } => {
+                Diagnostic::simple_error(format!("Cannot mutably reference the immutable variable {variable}"), format!("{variable} is immutable"), span)
+            },
+            ResolverError::MutableReferenceToArrayElement { span } => {
+                Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), span)
+            },
         }
     }
 }
