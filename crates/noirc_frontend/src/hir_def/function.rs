@@ -127,7 +127,8 @@ pub struct FuncMeta {
 
     /// This function's visibility.
     /// If this function is internal can only be called by itself.
-    pub is_contract_function_internal: Option<bool>,
+    /// Will be None if not in contract.
+    pub is_internal: Option<bool>,
 
     pub is_unconstrained: bool,
 
