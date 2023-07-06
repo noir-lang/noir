@@ -351,20 +351,6 @@ impl<'a> Resolver<'a> {
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
             }
-            UnresolvedType::Vec(mut args, span) => {
-                let arg = if args.len() != 1 {
-                    self.push_err(ResolverError::IncorrectGenericCount {
-                        span,
-                        struct_type: "Vec".into(),
-                        actual: args.len(),
-                        expected: 1,
-                    });
-                    Type::Error
-                } else {
-                    self.resolve_type_inner(args.remove(0), new_variables)
-                };
-                Type::Vec(Box::new(arg))
-            }
             UnresolvedType::MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
@@ -791,7 +777,6 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            Type::Vec(element) => Self::find_numeric_generics_in_type(element, found),
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
         }
     }

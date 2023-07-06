@@ -39,14 +39,6 @@ pub enum UnresolvedType {
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
-    /// A vector of some element type.
-    /// It is expected the length of the generics is 1 so the inner Vec is technically unnecessary,
-    /// but we keep them all around to verify generic count after parsing for better error messages.
-    ///
-    /// The Span here encompasses the entire type and is used to issue an error if exactly 1
-    /// generic argument is not given.
-    Vec(Vec<UnresolvedType>, Span),
-
     /// &mut T
     MutableReference(Box<UnresolvedType>),
 

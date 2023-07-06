@@ -210,7 +210,6 @@ pub enum Type {
     Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
-    Vec(Box<Type>),
     MutableReference(Box<Type>),
     Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
 }
@@ -325,7 +324,6 @@ impl std::fmt::Display for Type {
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
             Type::Slice(element) => write!(f, "[{element}"),
-            Type::Vec(element) => write!(f, "Vec<{element}>"),
             Type::MutableReference(element) => write!(f, "&mut {element}"),
         }
     }

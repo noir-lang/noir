@@ -215,11 +215,6 @@ impl<'a> FunctionContext<'a> {
                 Self::convert_non_tuple_type(element);
                 Type::Reference
             }
-
-            // How should we represent Vecs?
-            // Are they a struct of array + length + capacity?
-            // Or are they just references?
-            ast::Type::Vec(_) => Type::Reference,
         }
     }
 

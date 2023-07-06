@@ -406,10 +406,7 @@ impl<'interner> Monomorphizer<'interner> {
                 },
             )),
 
-            ast::Type::Array(_, _)
-            | ast::Type::String(_)
-            | ast::Type::Vec(_)
-            | ast::Type::Slice(_) => {
+            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
                 unreachable!("Nested arrays, arrays of strings, and Vecs are not supported")
             }
         }
@@ -453,10 +450,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
 
-            ast::Type::Array(_, _)
-            | ast::Type::String(_)
-            | ast::Type::Vec(_)
-            | ast::Type::Slice(_) => {
+            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
                 unreachable!("Nested arrays and arrays of strings or Vecs are not supported")
             }
         }
@@ -713,11 +707,6 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Function(args, ret)
             }
 
-            HirType::Vec(element) => {
-                let element = Self::convert_type(element);
-                ast::Type::Vec(Box::new(element))
-            }
-
             HirType::MutableReference(element) => {
                 let element = Self::convert_type(element);
                 ast::Type::MutableReference(Box::new(element))
@@ -744,10 +733,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(vecmap(elements, |typ| Self::aos_to_soa_type(length, typ)))
             }
 
-            ast::Type::Array(_, _)
-            | ast::Type::String(_)
-            | ast::Type::Vec(_)
-            | ast::Type::Slice(_) => {
+            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
                 unreachable!("Nested arrays and arrays of strings are not supported")
             }
         }
@@ -1015,14 +1001,18 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::Function(parameter_types, ret_type) => {
                 self.create_zeroed_function(parameter_types, ret_type)
             }
-            ast::Type::Slice(element_type) => ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents: vec![], element_type: *element_type.clone() })),
-            ast::Type::Vec(_) => panic!("Cannot create a zeroed Vec value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
+            ast::Type::Slice(element_type) => {
+                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
+                    contents: vec![],
+                    element_type: *element_type.clone(),
+                }))
+            }
             ast::Type::MutableReference(element) => {
                 use crate::UnaryOp::MutableReference;
                 let rhs = Box::new(self.zeroed_value_of_type(element));
                 let result_type = typ.clone();
                 ast::Expression::Unary(ast::Unary { rhs, result_type, operator: MutableReference })
-            },
+            }
         }
     }
 

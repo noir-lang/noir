@@ -74,11 +74,6 @@ pub enum Type {
     /// A functions with arguments, and a return type.
     Function(Vec<Type>, Box<Type>),
 
-    /// A variable-sized Vector type.
-    /// Unlike arrays, this type can have a dynamic size and can grow/shrink dynamically via .push,
-    /// .pop, and similar methods.
-    Vec(Box<Type>),
-
     /// &mut T
     MutableReference(Box<Type>),
 
@@ -605,7 +600,6 @@ impl Type {
                     }
                 })
             }
-            Type::Vec(element) => element.contains_numeric_typevar(target_id),
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
         }
     }
@@ -673,9 +667,6 @@ impl std::fmt::Display for Type {
             Type::Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
-            }
-            Type::Vec(element) => {
-                write!(f, "Vec<{element}>")
             }
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
@@ -1241,7 +1232,6 @@ impl Type {
             Type::Function(_, _) => unreachable!(),
             Type::Slice(_) => unreachable!("slices cannot be used in the abi"),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
-            Type::Vec(_) => unreachable!("Vecs cannot be used in the abi"),
         }
     }
 
@@ -1359,7 +1349,6 @@ impl Type {
                 let ret = Box::new(ret.substitute(type_bindings));
                 Type::Function(args, ret)
             }
-            Type::Vec(element) => Type::Vec(Box::new(element.substitute(type_bindings))),
             Type::MutableReference(element) => {
                 Type::MutableReference(Box::new(element.substitute(type_bindings)))
             }
@@ -1393,7 +1382,6 @@ impl Type {
             Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
-            Type::Vec(element) => element.occurs(target_id),
             Type::MutableReference(element) => element.occurs(target_id),
 
             Type::FieldElement(_)
