@@ -40,7 +40,6 @@ impl FunctionSignature {
 /// Describes an apply function existing in the SSA
 #[derive(Debug, Clone, Copy)]
 struct ApplyFunction {
-    // The function id of the apply function
     id: FunctionId,
     // Whether the apply function dispatches to other functions or not
     is_multiple: bool,
