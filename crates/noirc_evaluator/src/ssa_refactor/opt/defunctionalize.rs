@@ -133,18 +133,10 @@ impl DefunctionalizationContext {
                         // Replace the instruction with a call to apply
                         let apply_function_value_id = func.dfg.import_function(apply_function.id);
                         if apply_function.dispatches_to_multiple_functions {
-                            let mut new_arguments = vec![target_func_id];
-                            new_arguments.extend(arguments);
-                            replacement_instruction = Some(Instruction::Call {
-                                func: apply_function_value_id,
-                                arguments: new_arguments,
-                            });
-                        } else {
-                            replacement_instruction = Some(Instruction::Call {
-                                func: apply_function_value_id,
-                                arguments,
-                            });
+                            arguments.insert(0, target_func_id);
                         }
+                        let func = apply_function_value_id;
+                        replacement_instruction = Some(Instruction::Call { func, arguments });
                     }
                     Value::Function(id) => {
                         target_function_ids.insert(id);
