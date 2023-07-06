@@ -248,13 +248,7 @@ impl Driver {
         let mut errors = warnings;
 
         for contract in contracts {
-            match self.compile_contract(
-                contract,
-                // TODO: Remove clone when it implements Copy
-                np_language.clone(),
-                is_opcode_supported,
-                options,
-            ) {
+            match self.compile_contract(contract, np_language, is_opcode_supported, options) {
                 Ok(contract) => compiled_contracts.push(contract),
                 Err(mut more_errors) => errors.append(&mut more_errors),
             }
@@ -303,8 +297,7 @@ impl Driver {
             let function = match self.compile_no_check(
                 options,
                 *function_id,
-                // TODO: Remove clone when it implements Copy
-                np_language.clone(),
+                np_language,
                 is_opcode_supported,
             ) {
                 Ok(function) => function,

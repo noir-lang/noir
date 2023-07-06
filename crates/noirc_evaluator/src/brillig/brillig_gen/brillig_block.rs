@@ -10,7 +10,9 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterOrMemory};
+use acvm::acir::brillig_vm::{
+    BinaryFieldOp, BinaryIntOp, HeapArray, RegisterIndex, RegisterOrMemory,
+};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
@@ -440,7 +442,9 @@ impl<'block> BrilligBlock<'block> {
         let typ = dfg[value_id].get_type();
         match typ {
             Type::Numeric(_) => RegisterOrMemory::RegisterIndex(register_index),
-            Type::Array(_, size) => RegisterOrMemory::HeapArray(register_index, size),
+            Type::Array(_, size) => {
+                RegisterOrMemory::HeapArray(HeapArray { pointer: register_index, size })
+            }
             _ => {
                 unreachable!("type not supported for conversion into brillig register")
             }
