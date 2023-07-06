@@ -150,7 +150,7 @@ impl DefunctionalizationContext {
         }
 
         // Change the type of all the values that are not call targets to NativeField
-        let value_ids: Vec<ValueId> = func.dfg.values_iter().map(|(id, _)| id).collect();
+        let value_ids = vecmap(func.dfg.values_iter(), |(id, _)| id);
         for value_id in value_ids {
             let value = &func.dfg[value_id];
             if let Type::Function = value.get_type() {
