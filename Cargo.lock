@@ -4,8 +4,9 @@ version = 3
 
 [[package]]
 name = "acir"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=fc3240d456d0128f6eb42096beb8b7a586ea48da#fc3240d456d0128f6eb42096beb8b7a586ea48da"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bed559b3e6e10a04b2a1af7a8b0f23d4bbaf4a87a6c8ac9946583f8945c53ce5"
 dependencies = [
  "acir_field",
  "brillig_vm",
@@ -17,8 +18,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=fc3240d456d0128f6eb42096beb8b7a586ea48da#fc3240d456d0128f6eb42096beb8b7a586ea48da"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29adbffe34f7ae42e080833364f66ea0e933ca4aa3880e12444780538e1f6767"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -30,8 +32,9 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=fc3240d456d0128f6eb42096beb8b7a586ea48da#fc3240d456d0128f6eb42096beb8b7a586ea48da"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4808764cc92ba018210ec2f276f6d90908263af33f9a8abea6ae4139ba49aa0"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -48,8 +51,9 @@ dependencies = [
 
 [[package]]
 name = "acvm-backend-barretenberg"
-version = "0.5.1"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=5ad2deaeafdaa6415091c4558ed3845e21101b77#5ad2deaeafdaa6415091c4558ed3845e21101b77"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca6b0dcd4fb93738eeb51a4558247c4dbacea4d3d5fd72842349638688d00ed6"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -67,8 +71,9 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=fc3240d456d0128f6eb42096beb8b7a586ea48da#fc3240d456d0128f6eb42096beb8b7a586ea48da"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57b0fea96f9ddc8866782636f1317aa0ac958ab7bc628fa9620a4915cc667edc"
 dependencies = [
  "acir",
 ]
@@ -508,8 +513,9 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.15.1"
-source = "git+https://github.com/noir-lang/acvm?rev=fc3240d456d0128f6eb42096beb8b7a586ea48da#fc3240d456d0128f6eb42096beb8b7a586ea48da"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9400d1493af661cba05923a5b4a78e3aeaeb4210b321831fc0461b01203191e"
 dependencies = [
  "acir_field",
  "blake2",
