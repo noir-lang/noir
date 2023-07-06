@@ -12,8 +12,6 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
 ) -> Result<WitnessMap, NargoError> {
     let mut acvm = ACVM::new(B::default(), circuit.opcodes, initial_witness);
 
-    // TODO(#1615): Nargo only supports "oracle_print_**_impl" functions  that print a singular value or an array and nothing else
-    // This should be expanded in a general logging refactor
     loop {
         let solver_status = acvm.solve();
 
@@ -38,7 +36,8 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
 }
 
 fn execute_foreign_call(foreign_call: &ForeignCallWaitInfo) -> ForeignCallResult {
-    // TODO(#1615): "oracle_print_impl" and "oracle_print_array_impl" are just identity funcs
+    // TODO(#1615): Nargo only supports "oracle_print_**_impl" functions  that print a singular value or an array and nothing else
+    // This should be expanded in a general logging refactor
     match foreign_call.function.as_str() {
         "oracle_print_impl" => {
             let values = &foreign_call.inputs[0];
