@@ -162,7 +162,10 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .map(
             |(
                 (
-                    ((((attribute, (is_unconstrained, is_open)), name), generics), parameters),
+                    (
+                        (((attribute, (is_unconstrained, is_open, is_internal)), name), generics),
+                        parameters,
+                    ),
                     ((return_distinctness, return_visibility), return_type),
                 ),
                 body,
@@ -172,6 +175,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                     name,
                     attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
                     is_open,
+                    is_internal,
                     is_unconstrained,
                     generics,
                     parameters,
@@ -188,11 +192,15 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
 /// function_modifiers: 'unconstrained' 'open' | 'unconstrained' | 'open' | %empty
 ///
 /// returns (is_unconstrained, is_open) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool)> {
+fn function_modifiers() -> impl NoirParser<(bool, bool, bool)> {
+    // @todo @lherskind This is retarded, send help. Also update comments.
     keyword(Keyword::Unconstrained)
         .or_not()
         .then(keyword(Keyword::Open).or_not())
-        .map(|(unconstrained, open)| (unconstrained.is_some(), open.is_some()))
+        .then(keyword(Keyword::Internal).or_not())
+        .map(|((unconstrained, open), internal)| {
+            (unconstrained.is_some(), open.is_some(), internal.is_some())
+        })
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
