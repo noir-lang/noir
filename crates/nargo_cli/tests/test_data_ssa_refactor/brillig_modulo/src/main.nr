@@ -1,9 +1,8 @@
 
-use dep::std;// Tests a very simple program.
+// Tests a very simple program.
 // 
 // The features being tested is modulo operations on brillig
 fn main() {
-   // std::println(modulo(47, 3));
     assert(modulo(47, 3) == 2);
     assert(modulo(2, 3) == 2);
     assert(signed_modulo(5, 3) == 2);
