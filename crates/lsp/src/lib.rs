@@ -284,6 +284,11 @@ fn on_did_save_text_document(
             } else if fm.path(file_id).file_name().unwrap().to_str().unwrap()
                 != actual_path.file_name().unwrap().to_str().unwrap().replace(".nr", "")
             {
+                if actual_path.file_name().unwrap().to_str() == Some("main.nr")
+                    || actual_path.file_name().unwrap().to_str() == Some("lib.nr")
+                {
+                    continue;
+                }
                 // every other file case
                 continue; // TODO(AD): HACK, we list all errors, filter by hacky final path component
             }
