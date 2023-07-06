@@ -41,8 +41,7 @@ impl FunctionSignature {
 #[derive(Debug, Clone, Copy)]
 struct ApplyFunction {
     id: FunctionId,
-    // Whether the apply function dispatches to other functions or not
-    is_multiple: bool,
+    dispatches_to_multiple_functions: bool,
 }
 
 /// Performs defunctionalization on all functions
@@ -72,7 +71,6 @@ impl Ssa {
 }
 
 impl DefunctionalizationContext {
-
     /// Defunctionalize all functions in the Ssa
     fn defunctionalize_all(mut self, ssa: &mut Ssa) {
         for function in ssa.functions.values_mut() {
@@ -121,7 +119,7 @@ impl DefunctionalizationContext {
 
                         // Replace the instruction with a call to apply
                         let apply_function_value_id = func.dfg.import_function(apply_function.id);
-                        if apply_function.is_multiple {
+                        if apply_function.dispatches_to_multiple_functions {
                             let mut new_arguments = vec![target_func_id];
                             new_arguments.extend(arguments);
                             replacement_instruction = Some(Instruction::Call {
@@ -248,11 +246,15 @@ fn create_apply_functions(
     for (signature, variants) in variants_map.iter() {
         if variants.len() > 1 {
             let apply_function = create_apply_function(ssa, signature, variants);
-            apply_functions
-                .insert(signature.clone(), ApplyFunction { id: apply_function, is_multiple: true });
+            apply_functions.insert(
+                signature.clone(),
+                ApplyFunction { id: apply_function, dispatches_to_multiple_functions: true },
+            );
         } else {
-            apply_functions
-                .insert(signature.clone(), ApplyFunction { id: variants[0], is_multiple: false });
+            apply_functions.insert(
+                signature.clone(),
+                ApplyFunction { id: variants[0], dispatches_to_multiple_functions: false },
+            );
         }
     }
     apply_functions
