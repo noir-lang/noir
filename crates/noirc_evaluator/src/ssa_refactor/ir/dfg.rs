@@ -109,7 +109,7 @@ impl DataFlowGraph {
         self.blocks.iter()
     }
 
-    /// Gets a vec of the value ids of the function
+    /// Iterate over every Value in this DFG in no particular order, including unused Values
     pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
         self.values.iter()
     }
