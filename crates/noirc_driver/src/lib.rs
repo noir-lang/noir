@@ -7,7 +7,7 @@ use acvm::acir::circuit::Opcode;
 use acvm::compiler::CircuitSimplifier;
 use acvm::Language;
 use clap::Args;
-use fm::{FileId, FileType};
+use fm::FileId;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
@@ -90,7 +90,7 @@ pub fn create_local_crate<P: AsRef<Path>>(
     crate_type: CrateType,
 ) -> CrateId {
     let dir_path = root_file.as_ref().to_path_buf();
-    let root_file_id = context.file_manager.add_file(&dir_path, FileType::Root).unwrap();
+    let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
 
     let crate_id = context.crate_graph.add_crate_root(crate_type, root_file_id);
 
@@ -107,7 +107,7 @@ pub fn create_non_local_crate<P: AsRef<Path>>(
     crate_type: CrateType,
 ) -> CrateId {
     let dir_path = root_file.as_ref().to_path_buf();
-    let root_file_id = context.file_manager.add_file(&dir_path, FileType::Root).unwrap();
+    let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
 
     // The first crate is always the local crate
     assert!(context.crate_graph.number_of_crates() != 0);

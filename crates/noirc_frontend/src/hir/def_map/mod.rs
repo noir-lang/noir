@@ -92,7 +92,7 @@ impl CrateDefMap {
                 .path(root_file_id)
                 .to_str()
                 .expect("expected std path to be convertible to str");
-            assert_eq!(path_as_str, "std");
+            assert_eq!(path_as_str, "std/lib");
             ast.module_decls.retain(|ident| ident.0.contents != "slice");
         }
 
