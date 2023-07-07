@@ -112,7 +112,7 @@ pub(crate) fn compile_circuit<B: Backend>(
     backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<CompiledProgram, CliError<B>> {
+) -> Result<(CompiledProgram, Context), CliError<B>> {
     let mut context = resolve_root_manifest(program_dir)?;
     let result = compile_main(
         &mut context,
@@ -120,7 +120,12 @@ pub(crate) fn compile_circuit<B: Backend>(
         &|op| backend.supports_opcode(op),
         compile_options,
     );
-    report_errors(result, &context, compile_options.deny_warnings).map_err(Into::into)
+    let result: Result<CompiledProgram, CliError<B>> =
+        report_errors(result, &context, compile_options.deny_warnings).map_err(Into::into);
+    match result {
+        Ok(program) => Ok((program, context)),
+        Err(err) => Err(err),
+    }
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
