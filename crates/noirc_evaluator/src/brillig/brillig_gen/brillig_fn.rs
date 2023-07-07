@@ -9,7 +9,6 @@ use crate::{
     },
     ssa_refactor::ir::{
         function::{Function, FunctionId},
-        instruction::TerminatorInstruction,
         types::Type,
         value::ValueId,
     },
@@ -71,17 +70,7 @@ impl FunctionContext {
 
     /// Collects the return values of a given function
     pub(crate) fn return_values(func: &Function) -> Vec<BrilligParameter> {
-        let blocks = func.reachable_blocks();
-        let mut function_return_values = None;
-        for block in blocks {
-            let terminator = func.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
-                function_return_values = Some(return_values);
-                break;
-            }
-        }
-        function_return_values
-            .expect("Expected a return instruction, as block is finished construction")
+        func.returns()
             .iter()
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
