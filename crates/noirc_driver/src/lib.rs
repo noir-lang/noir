@@ -299,15 +299,10 @@ fn compile_contract(
 
         let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
 
-        let is_internal = match func_meta.is_internal.is_some() {
-            true => func_meta.is_internal.unwrap(),
-            false => false,
-        };
-
         functions.push(ContractFunction {
             name,
             function_type,
-            is_internal,
+            is_internal: func_meta.is_internal.unwrap_or(false),
             abi: function.abi,
             bytecode: function.circuit,
         });
