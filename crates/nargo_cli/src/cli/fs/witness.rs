@@ -13,19 +13,24 @@ pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
     create_named_dir(witness_dir.as_ref(), "witness");
     let witness_path = witness_dir.as_ref().join(witness_name).with_extension(WITNESS_EXT);
 
-    let mut buf: Vec<u8> = Vec::new();
-    #[cfg(not(feature = "flat_witness"))]
-    {
-        buf = witnesses.try_into()?;
-    }
-    #[cfg(feature = "flat_witness")]
-    {
-        for (_, value) in witnesses {
-            buf.extend_from_slice(&value.to_be_bytes());
-        }
-    }
+    let buf: Vec<u8> = serialize_witness_map(witnesses)?;
 
     write_to_file(buf.as_slice(), &witness_path);
 
     Ok(witness_path)
+}
+
+#[cfg(not(feature = "flat_witness"))]
+fn serialize_witness_map(witnesses: WitnessMap) -> Result<Vec<u8>, FilesystemError> {
+    let buf: Vec<u8> = witnesses.try_into()?;
+    Ok(buf)
+}
+
+#[cfg(feature = "flat_witness")]
+fn serialize_witness_map(witnesses: WitnessMap) -> Result<Vec<u8>, FilesystemError> {
+    let mut buf: Vec<u8> = Vec::new();
+    for (_, value) in witnesses {
+        buf.extend_from_slice(&value.to_be_bytes());
+    }
+    Ok(buf)
 }
