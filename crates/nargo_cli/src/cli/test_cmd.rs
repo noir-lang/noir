@@ -41,7 +41,7 @@ fn run_tests<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let mut context = resolve_root_manifest(program_dir)?;
-    check_crate_and_report_errors(&mut context, compile_options.deny_warnings)?;
+    check_crate_and_report_errors(&mut context, compile_options.deny_warnings, compile_options.experimental_ssa)?;
 
     let test_functions = context.get_all_test_functions_in_crate_matching(&LOCAL_CRATE, test_name);
     println!("Running {} test functions...", test_functions.len());

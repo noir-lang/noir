@@ -238,10 +238,16 @@ impl DataFlowGraph {
 
     /// Gets or creates a ValueId for the given Intrinsic.
     pub(crate) fn import_intrinsic(&mut self, intrinsic: Intrinsic) -> ValueId {
-        if let Some(existing) = self.intrinsics.get(&intrinsic) {
+        if let Some(existing) = self.get_intrinsic(intrinsic) {
             return *existing;
         }
-        self.values.insert(Value::Intrinsic(intrinsic))
+        let intrinsic_value_id = self.values.insert(Value::Intrinsic(intrinsic));
+        self.intrinsics.insert(intrinsic, intrinsic_value_id);
+        intrinsic_value_id
+    }
+
+    pub(crate) fn get_intrinsic(&mut self, intrinsic: Intrinsic) -> Option<&ValueId> {
+        self.intrinsics.get(&intrinsic)
     }
 
     /// Attaches results to the instruction, clearing any previous results.
@@ -356,6 +362,20 @@ impl DataFlowGraph {
         match &self.values[self.resolve(value)] {
             // Vectors are shared, so cloning them is cheap
             Value::Array { array, element_type } => Some((array.clone(), element_type.clone())),
+            _ => None,
+        }
+    }
+
+    /// Returns the Type::Array associated with this ValueId if it refers to an array parameter.
+    /// Otherwise, this returns None.
+    pub(crate) fn get_array_parameter_type(
+        &self,
+        value: ValueId,
+    ) -> Option<(Rc<CompositeType>, usize)> {
+        match &self.values[self.resolve(value)] {
+            Value::Param { typ: Type::Array(element_type, size), .. } => {
+                Some((element_type.clone(), *size))
+            }
             _ => None,
         }
     }

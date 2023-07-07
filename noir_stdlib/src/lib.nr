@@ -1,5 +1,6 @@
 mod hash;
 mod array;
+mod slice;
 mod merkle;
 mod schnorr;
 mod ecdsa_secp256k1;
@@ -10,7 +11,6 @@ mod sha512;
 mod field;
 mod ec;
 mod unsafe;
-mod collections;
 mod compat;
 
 #[builtin(println)]

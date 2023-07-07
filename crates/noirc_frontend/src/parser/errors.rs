@@ -11,8 +11,6 @@ use super::labels::ParsingRuleLabel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
-    #[error("Arrays must have at least one element")]
-    ZeroSizedArray,
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
     #[error("Expected a ; separating these two statements")]

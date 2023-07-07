@@ -157,6 +157,7 @@ pub fn propagate_dep(
 pub fn check_crate(
     context: &mut Context,
     deny_warnings: bool,
+    enable_slices: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
     // Add the stdlib before we check the crate
     // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
@@ -166,6 +167,8 @@ pub fn check_crate(
     let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
     let std_crate = create_non_local_crate(context, path_to_std_lib_file, CrateType::Library);
     propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
+
+    context.def_interner.enable_slices = enable_slices;
 
     let mut errors = vec![];
     CrateDefMap::collect_defs(LOCAL_CRATE, context, &mut errors);
@@ -195,7 +198,7 @@ pub fn compile_main(
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
     options: &CompileOptions,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, options.deny_warnings)?;
+    let warnings = check_crate(context, options.deny_warnings, options.experimental_ssa)?;
 
     let main = match context.get_main_function(&LOCAL_CRATE) {
         Some(m) => m,
@@ -226,7 +229,7 @@ pub fn compile_contracts(
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
     options: &CompileOptions,
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, options.deny_warnings)?;
+    let warnings = check_crate(context, options.deny_warnings, options.experimental_ssa)?;
 
     let contracts = context.get_all_contracts(&LOCAL_CRATE);
     let mut compiled_contracts = vec![];
