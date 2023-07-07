@@ -125,9 +125,9 @@ pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
 // FIXME: I not sure that this is the right place for this tests.
 #[cfg(test)]
 mod tests {
-    use noirc_driver::Driver;
+    use noirc_driver::{check_crate, create_local_crate};
     use noirc_errors::reporter;
-    use noirc_frontend::graph::CrateType;
+    use noirc_frontend::{graph::CrateType, hir::Context};
 
     use std::path::{Path, PathBuf};
 
@@ -137,10 +137,10 @@ mod tests {
     ///
     /// This is used for tests.
     fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut driver = Driver::new();
-        driver.create_local_crate(&root_file, CrateType::Binary);
+        let mut context = Context::default();
+        create_local_crate(&mut context, &root_file, CrateType::Binary);
 
-        let result = driver.check_crate(false);
+        let result = check_crate(&mut context, false);
         let success = result.is_ok();
 
         let errors = match result {
@@ -148,7 +148,7 @@ mod tests {
             Err(errors) => errors,
         };
 
-        reporter::report_all(driver.file_manager(), &errors, false);
+        reporter::report_all(&context.file_manager, &errors, false);
         success
     }
 
