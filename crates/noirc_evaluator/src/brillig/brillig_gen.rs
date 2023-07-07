@@ -1,3 +1,4 @@
+pub(crate) mod brillig_black_box;
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_directive;
 pub(crate) mod brillig_fn;

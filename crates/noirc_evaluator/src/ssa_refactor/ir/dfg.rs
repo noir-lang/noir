@@ -109,6 +109,11 @@ impl DataFlowGraph {
         self.blocks.iter()
     }
 
+    /// Iterate over every Value in this DFG in no particular order, including unused Values
+    pub(crate) fn values_iter(&self) -> impl ExactSizeIterator<Item = (ValueId, &Value)> {
+        self.values.iter()
+    }
+
     /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
         self.blocks[block].parameters()
@@ -166,6 +171,21 @@ impl DataFlowGraph {
             self.replaced_value_ids.insert(value_to_replace, self.resolve(new_value));
             let new_value = self.values[new_value].clone();
             self.values[value_to_replace] = new_value;
+        }
+    }
+
+    /// Set the type of value_id to the target_type.
+    pub(crate) fn set_type_of_value(&mut self, value_id: ValueId, target_type: Type) {
+        let value = &mut self.values[value_id];
+        match value {
+            Value::Instruction { typ, .. }
+            | Value::Param { typ, .. }
+            | Value::NumericConstant { typ, .. } => {
+                *typ = target_type;
+            }
+            _ => {
+                unreachable!("ICE: Cannot set type of {:?}", value);
+            }
         }
     }
 

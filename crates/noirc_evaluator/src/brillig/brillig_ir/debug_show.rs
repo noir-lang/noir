@@ -2,7 +2,8 @@
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
 use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, HeapArray, HeapVector, RegisterIndex, RegisterOrMemory, Value,
+    BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, RegisterIndex, RegisterOrMemory,
+    Value,
 };
 
 /// Controls whether debug traces are enabled
@@ -32,6 +33,18 @@ impl DebugToString for RegisterIndex {
         } else {
             format!("R{}", self.to_usize())
         }
+    }
+}
+
+impl DebugToString for HeapArray {
+    fn debug_to_string(&self) -> String {
+        format!("{}[0..{}]", self.pointer.debug_to_string(), self.size)
+    }
+}
+
+impl DebugToString for HeapVector {
+    fn debug_to_string(&self) -> String {
+        format!("{}[0..{}]", self.pointer.debug_to_string(), self.size.debug_to_string())
     }
 }
 
@@ -102,12 +115,8 @@ impl DebugToString for RegisterOrMemory {
     fn debug_to_string(&self) -> String {
         match self {
             RegisterOrMemory::RegisterIndex(index) => index.debug_to_string(),
-            RegisterOrMemory::HeapArray(HeapArray { pointer, size }) => {
-                format!("{}[0..{}]", pointer.debug_to_string(), size)
-            }
-            RegisterOrMemory::HeapVector(HeapVector { pointer, size }) => {
-                format!("{}[0..*{}]", pointer.debug_to_string(), size.debug_to_string())
-            }
+            RegisterOrMemory::HeapArray(heap_array) => heap_array.debug_to_string(),
+            RegisterOrMemory::HeapVector(vector) => vector.debug_to_string(),
         }
     }
 }
@@ -254,6 +263,40 @@ pub(crate) fn cast_instruction(
     target_bit_size: u32,
 ) {
     debug_println!("  CAST {} FROM {} TO {} BITS", destination, source, target_bit_size);
+}
+
+/// Debug function for black_box_op
+pub(crate) fn black_box_op_instruction(op: BlackBoxOp) {
+    match op {
+        BlackBoxOp::Sha256 { message, output } => {
+            debug_println!("  SHA256 {} -> {}", message, output);
+        }
+        BlackBoxOp::Keccak256 { message, output } => {
+            debug_println!("  KECCAK256 {} -> {}", message, output);
+        }
+        BlackBoxOp::Blake2s { message, output } => {
+            debug_println!("  BLAKE2S {} -> {}", message, output);
+        }
+        BlackBoxOp::HashToField128Security { message, output } => {
+            debug_println!("  HASH_TO_FIELD_128_SECURITY {} -> {}", message, output);
+        }
+        BlackBoxOp::EcdsaSecp256k1 {
+            hashed_msg,
+            public_key_x,
+            public_key_y,
+            signature,
+            result,
+        } => {
+            debug_println!(
+                "  ECDSA_SECP256K1 {} {} {} {} -> {}",
+                hashed_msg,
+                public_key_x,
+                public_key_y,
+                signature,
+                result
+            );
+        }
+    }
 }
 
 /// Debug function for cast_instruction
