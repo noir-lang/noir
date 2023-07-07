@@ -387,8 +387,10 @@ impl<'function> PerFunctionContext<'function> {
             .requires_ctrl_typevars()
             .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
 
-        let new_results =
-            self.context.builder.insert_instruction(instruction, ctrl_typevars, location);
+        if let Some(location) = location {
+            self.context.builder.set_location(location);
+        }
+        let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 

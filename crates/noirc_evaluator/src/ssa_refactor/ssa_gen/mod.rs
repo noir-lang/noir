@@ -169,7 +169,7 @@ impl<'a> FunctionContext<'a> {
         match unary.operator {
             noirc_frontend::UnaryOp::Not => {
                 let rhs = rhs.into_leaf().eval(self);
-                self.builder.insert_not(rhs, None).into()
+                self.builder.insert_not(rhs).into()
             }
             noirc_frontend::UnaryOp::Minus => {
                 let rhs = rhs.into_leaf().eval(self);
@@ -223,18 +223,14 @@ impl<'a> FunctionContext<'a> {
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size = self.builder.field_constant(type_size as u128);
-        let base_index = self.builder.insert_binary_with_source_location(
-            index,
-            BinaryOp::Mul,
-            type_size,
-            Some(location),
-        );
+        let base_index =
+            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
         let mut field_index = 0u128;
         Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
-            self.builder.insert_array_get_with_source_location(array, offset, typ, location).into()
+            self.builder.insert_array_get(array, offset, typ).into()
         })
     }
 
@@ -398,7 +394,7 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_constrain(&mut self, expr: &Expression, location: Location) -> Values {
         let boolean = self.codegen_non_tuple_expression(expr);
-        self.builder.insert_constrain_with_source_location(boolean, location);
+        self.builder.set_location(location).insert_constrain(boolean);
         Self::unit_value()
     }
 
