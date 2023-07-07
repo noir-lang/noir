@@ -78,7 +78,15 @@ export interface ExecutionResult {
  * @returns All encrypted logs.
  */
 export function collectEncryptedLogs(execResult: ExecutionResult): FunctionL2Logs[] {
-  return [execResult.encryptedLogs, ...execResult.nestedExecutions.flatMap(collectEncryptedLogs)];
+  const logs: FunctionL2Logs[] = [];
+  // traverse through the stack of nested executions
+  const executionStack = [execResult];
+  while (executionStack.length) {
+    const currentExecution = executionStack.pop()!;
+    executionStack.push(...currentExecution.nestedExecutions);
+    logs.push(currentExecution.encryptedLogs);
+  }
+  return logs;
 }
 
 /**
@@ -87,7 +95,15 @@ export function collectEncryptedLogs(execResult: ExecutionResult): FunctionL2Log
  * @returns All unencrypted logs.
  */
 export function collectUnencryptedLogs(execResult: ExecutionResult): FunctionL2Logs[] {
-  return [execResult.unencryptedLogs, ...execResult.nestedExecutions.flatMap(collectUnencryptedLogs)];
+  const logs: FunctionL2Logs[] = [];
+  // traverse through the stack of nested executions
+  const executionStack = [execResult];
+  while (executionStack.length) {
+    const currentExecution = executionStack.pop()!;
+    executionStack.push(...currentExecution.nestedExecutions);
+    logs.push(currentExecution.unencryptedLogs);
+  }
+  return logs;
 }
 
 /**
