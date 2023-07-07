@@ -37,7 +37,11 @@ fn check_from_path<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let mut context = resolve_root_manifest(program_dir)?;
-    check_crate_and_report_errors(&mut context, compile_options.deny_warnings, compile_options.experimental_ssa)?;
+    check_crate_and_report_errors(
+        &mut context,
+        compile_options.deny_warnings,
+        compile_options.experimental_ssa,
+    )?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some((parameters, return_type)) = compute_function_signature(&context) {

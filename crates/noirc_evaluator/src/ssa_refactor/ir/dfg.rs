@@ -146,6 +146,9 @@ impl DataFlowGraph {
         use InsertInstructionResult::*;
         match instruction.simplify(self, block) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
+            SimplifyResult::SimplifiedToMultiple(simplification) => {
+                SimplifiedToMultiple(simplification)
+            }
             SimplifyResult::Remove => InstructionRemoved,
             SimplifyResult::None => {
                 let id = self.make_instruction(instruction, ctrl_typevars);
@@ -444,6 +447,7 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 pub(crate) enum InsertInstructionResult<'dfg> {
     Results(&'dfg [ValueId]),
     SimplifiedTo(ValueId),
+    SimplifiedToMultiple(Vec<ValueId>),
     InstructionRemoved,
 }
 
@@ -452,6 +456,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     pub(crate) fn first(&self) -> ValueId {
         match self {
             InsertInstructionResult::SimplifiedTo(value) => *value,
+            InsertInstructionResult::SimplifiedToMultiple(values) => values[0],
             InsertInstructionResult::Results(results) => results[0],
             InsertInstructionResult::InstructionRemoved => {
                 panic!("Instruction was removed, no results")
@@ -465,6 +470,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
         match self {
             InsertInstructionResult::Results(results) => Cow::Borrowed(results),
             InsertInstructionResult::SimplifiedTo(result) => Cow::Owned(vec![*result]),
+            InsertInstructionResult::SimplifiedToMultiple(results) => Cow::Owned(results.clone()),
             InsertInstructionResult::InstructionRemoved => {
                 panic!("InsertInstructionResult::results called on a removed instruction")
             }
@@ -475,6 +481,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
     pub(crate) fn len(&self) -> usize {
         match self {
             InsertInstructionResult::SimplifiedTo(_) => 1,
+            InsertInstructionResult::SimplifiedToMultiple(results) => results.len(),
             InsertInstructionResult::Results(results) => results.len(),
             InsertInstructionResult::InstructionRemoved => 0,
         }

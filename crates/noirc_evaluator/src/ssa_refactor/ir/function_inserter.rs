@@ -97,6 +97,11 @@ impl<'f> FunctionInserter<'f> {
             InsertInstructionResult::SimplifiedTo(new_result) => {
                 values.insert(old_results[0], *new_result);
             }
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => {
+                for (old_result, new_result) in old_results.iter().zip(new_results.clone()) {
+                    values.insert(*old_result, new_result);
+                }
+            }
             InsertInstructionResult::Results(new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(*new_results) {
                     values.insert(*old_result, *new_result);
