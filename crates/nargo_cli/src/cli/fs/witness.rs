@@ -20,8 +20,14 @@ pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
     }
     #[cfg(feature = "flat_witness")]
     {
-        for (_, value) in witnesses {
+        let mut counter = 1;
+        for (index, value) in witnesses {
+            while counter < index.witness_index() {
+                buf.extend(vec![0; 32]);
+                counter += 1;
+            }
             buf.extend_from_slice(&value.to_be_bytes());
+            counter += 1;
         }
     }
 

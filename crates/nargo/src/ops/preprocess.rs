@@ -14,15 +14,15 @@ pub fn preprocess_program<B: ProofSystemCompiler>(
     // TODO: currently `compiled_program`'s bytecode is already optimized for the backend.
     // In future we'll need to apply those optimizations here.
     let optimized_bytecode = compiled_program.circuit;
-    let (proving_key, verification_key) =
-        backend.preprocess(common_reference_string, &optimized_bytecode)?;
+    // let (proving_key, verification_key) =
+    //     backend.preprocess(common_reference_string, &optimized_bytecode)?;
 
     Ok(PreprocessedProgram {
         backend: String::from(BACKEND_IDENTIFIER),
         abi: compiled_program.abi,
         bytecode: optimized_bytecode,
-        proving_key,
-        verification_key,
+        proving_key: Vec::new(),
+        verification_key: Vec::new(),
     })
 }
 
