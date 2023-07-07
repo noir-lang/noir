@@ -14,7 +14,7 @@ The next version of our rollup, Aztec, is a privacy-preserving, programmable ext
 A smart contract on Aztec is a collection of functions, written as ZK-SNARK circuits. These circuits can have different modes of execution:
 
 1. Secret Functions -- can read and write private state, read historic public state, consume or send messages to / from L1, and read Ethereum state. Can call other secret functions in the same contract, or other contracts. They can call public functions.
-2. Public Functions -- can read and write public state, write public state, consume or send messages to / from L1 and read Ethereum state. Can call other public functions on the same or other contracts.
+2. Public Functions -- can read and write public state, write private state, consume or send messages to / from L1 and read Ethereum state. Can call other public functions on the same or other contracts.
 3. Portal Contracts -- these are contracts on L1 that can receive messages from L2 or send allow messages to be sent to L2 from L1 contracts.
 
 Using these different modes of execution, developers can build applications with user privacy, data privacy and code privacy.
