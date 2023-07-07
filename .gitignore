@@ -21,3 +21,4 @@ result
 **/Verifier.toml
 **/target
 !crates/nargo_cli/tests/test_data/*/target
+!crates/nargo_cli/tests/test_data/*/target/witness.tr
