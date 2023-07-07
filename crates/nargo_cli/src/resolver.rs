@@ -4,8 +4,11 @@ use std::{
 };
 
 use nargo::manifest::{Dependency, PackageManifest};
-use noirc_driver::Driver;
-use noirc_frontend::graph::{CrateId, CrateType};
+use noirc_driver::{add_dep, create_local_crate, create_non_local_crate};
+use noirc_frontend::{
+    graph::{CrateId, CrateType},
+    hir::Context,
+};
 use thiserror::Error;
 
 use crate::{git::clone_git_repo, InvalidPackageError};
@@ -54,112 +57,101 @@ struct CachedDep {
 /// or it uses the repo on the cache.
 /// Downloading will be recursive, so if a package contains packages
 /// We need to download those too
-pub(crate) struct Resolver<'a> {
-    driver: &'a mut Driver,
+
+/// Returns the Driver and the backend to use
+/// Note that the backend is ignored in the dependencies.
+/// Since Noir is backend agnostic, this is okay to do.
+/// XXX: Need to handle when a local package changes!
+pub(crate) fn resolve_root_manifest(
+    dir_path: &std::path::Path,
+) -> Result<Context, DependencyResolutionError> {
+    let mut context = Context::default();
+    let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
+
+    let manifest_path = super::find_package_manifest(dir_path)?;
+    let manifest = super::manifest::parse(&manifest_path)?;
+
+    let crate_id = create_local_crate(&mut context, entry_path, crate_type);
+
+    let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
+    resolve_manifest(&mut context, crate_id, manifest, pkg_root)?;
+
+    Ok(context)
 }
 
-impl<'a> Resolver<'a> {
-    fn with_driver(driver: &mut Driver) -> Resolver {
-        Resolver { driver }
+// Resolves a config file by recursively resolving the dependencies in the config
+// Need to solve the case of a project trying to use itself as a dep
+//
+// We do not need to add stdlib, as it's implicitly
+// imported. However, it may be helpful to have the stdlib imported by the
+// package manager.
+fn resolve_manifest(
+    context: &mut Context,
+    parent_crate: CrateId,
+    manifest: PackageManifest,
+    pkg_root: &Path,
+) -> Result<(), DependencyResolutionError> {
+    let mut cached_packages: HashMap<PathBuf, (CrateId, CachedDep)> = HashMap::new();
+
+    // First download and add these top level dependencies crates to the Driver
+    for (dep_pkg_name, pkg_src) in manifest.dependencies.iter() {
+        let (dir_path, dep_meta) = cache_dep(pkg_src, pkg_root)?;
+
+        let (entry_path, crate_type) = (&dep_meta.entry_path, &dep_meta.crate_type);
+
+        if crate_type == &CrateType::Binary {
+            return Err(DependencyResolutionError::BinaryDependency {
+                dep_pkg_name: dep_pkg_name.to_string(),
+            });
+        }
+
+        let crate_id = create_non_local_crate(context, entry_path, *crate_type);
+        add_dep(context, parent_crate, crate_id, dep_pkg_name);
+
+        cached_packages.insert(dir_path, (crate_id, dep_meta));
     }
 
-    /// Returns the Driver and the backend to use
-    /// Note that the backend is ignored in the dependencies.
-    /// Since Noir is backend agnostic, this is okay to do.
-    /// XXX: Need to handle when a local package changes!
-    pub(crate) fn resolve_root_manifest(
-        dir_path: &std::path::Path,
-    ) -> Result<Driver, DependencyResolutionError> {
-        let mut driver = Driver::new();
+    // Resolve all transitive dependencies
+    for (dependency_path, (crate_id, dep_meta)) in cached_packages {
+        if dep_meta.remote && dep_meta.manifest.has_local_dependency() {
+            return Err(DependencyResolutionError::RemoteDepWithLocalDep { dependency_path });
+        }
+        // TODO: Why did it create a new resolver?
+        resolve_manifest(context, crate_id, dep_meta.manifest, &dependency_path)?;
+    }
+    Ok(())
+}
+
+/// If the dependency is remote, download the dependency
+/// and return the directory path along with the metadata
+/// Needed to fill the CachedDep struct
+///
+/// If it's a local path, the same applies, however it will not
+/// be downloaded
+fn cache_dep(
+    dep: &Dependency,
+    pkg_root: &Path,
+) -> Result<(PathBuf, CachedDep), DependencyResolutionError> {
+    fn retrieve_meta(
+        dir_path: &Path,
+        remote: bool,
+    ) -> Result<CachedDep, DependencyResolutionError> {
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
-
         let manifest_path = super::find_package_manifest(dir_path)?;
-        let manifest = super::manifest::parse(&manifest_path)?;
-
-        let crate_id = driver.create_local_crate(entry_path, crate_type);
-
-        let mut resolver = Resolver::with_driver(&mut driver);
-        let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
-        resolver.resolve_manifest(crate_id, manifest, pkg_root)?;
-
-        Ok(driver)
+        let manifest = super::manifest::parse(manifest_path)?;
+        Ok(CachedDep { entry_path, crate_type, manifest, remote })
     }
 
-    // Resolves a config file by recursively resolving the dependencies in the config
-    // Need to solve the case of a project trying to use itself as a dep
-    //
-    // We do not need to add stdlib, as it's implicitly
-    // imported. However, it may be helpful to have the stdlib imported by the
-    // package manager.
-    fn resolve_manifest(
-        &mut self,
-        parent_crate: CrateId,
-        manifest: PackageManifest,
-        pkg_root: &Path,
-    ) -> Result<(), DependencyResolutionError> {
-        let mut cached_packages: HashMap<PathBuf, (CrateId, CachedDep)> = HashMap::new();
-
-        // First download and add these top level dependencies crates to the Driver
-        for (dep_pkg_name, pkg_src) in manifest.dependencies.iter() {
-            let (dir_path, dep_meta) = Resolver::cache_dep(pkg_src, pkg_root)?;
-
-            let (entry_path, crate_type) = (&dep_meta.entry_path, &dep_meta.crate_type);
-
-            if crate_type == &CrateType::Binary {
-                return Err(DependencyResolutionError::BinaryDependency {
-                    dep_pkg_name: dep_pkg_name.to_string(),
-                });
-            }
-
-            let crate_id = self.driver.create_non_local_crate(entry_path, *crate_type);
-            self.driver.add_dep(parent_crate, crate_id, dep_pkg_name);
-
-            cached_packages.insert(dir_path, (crate_id, dep_meta));
+    match dep {
+        Dependency::Github { git, tag } => {
+            let dir_path = clone_git_repo(git, tag).map_err(DependencyResolutionError::GitError)?;
+            let meta = retrieve_meta(&dir_path, true)?;
+            Ok((dir_path, meta))
         }
-
-        // Resolve all transitive dependencies
-        for (dependency_path, (crate_id, dep_meta)) in cached_packages {
-            if dep_meta.remote && dep_meta.manifest.has_local_dependency() {
-                return Err(DependencyResolutionError::RemoteDepWithLocalDep { dependency_path });
-            }
-            let mut new_res = Resolver::with_driver(self.driver);
-            new_res.resolve_manifest(crate_id, dep_meta.manifest, &dependency_path)?;
-        }
-        Ok(())
-    }
-
-    /// If the dependency is remote, download the dependency
-    /// and return the directory path along with the metadata
-    /// Needed to fill the CachedDep struct
-    ///
-    /// If it's a local path, the same applies, however it will not
-    /// be downloaded
-    fn cache_dep(
-        dep: &Dependency,
-        pkg_root: &Path,
-    ) -> Result<(PathBuf, CachedDep), DependencyResolutionError> {
-        fn retrieve_meta(
-            dir_path: &Path,
-            remote: bool,
-        ) -> Result<CachedDep, DependencyResolutionError> {
-            let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
-            let manifest_path = super::find_package_manifest(dir_path)?;
-            let manifest = super::manifest::parse(manifest_path)?;
-            Ok(CachedDep { entry_path, crate_type, manifest, remote })
-        }
-
-        match dep {
-            Dependency::Github { git, tag } => {
-                let dir_path =
-                    clone_git_repo(git, tag).map_err(DependencyResolutionError::GitError)?;
-                let meta = retrieve_meta(&dir_path, true)?;
-                Ok((dir_path, meta))
-            }
-            Dependency::Path { path } => {
-                let dir_path = pkg_root.join(path);
-                let meta = retrieve_meta(&dir_path, false)?;
-                Ok((dir_path, meta))
-            }
+        Dependency::Path { path } => {
+            let dir_path = pkg_root.join(path);
+            let meta = retrieve_meta(&dir_path, false)?;
+            Ok((dir_path, meta))
         }
     }
 }
