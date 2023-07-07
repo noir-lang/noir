@@ -64,11 +64,11 @@ export class PrivateFunctionExecution {
     const acir = Buffer.from(this.abi.bytecode, 'hex');
     const initialWitness = this.writeInputs();
 
+    // TODO: Move to ClientTxExecutionContext.
     const newNotePreimages: NewNoteData[] = [];
     const newNullifiers: NewNullifierData[] = [];
     const nestedExecutionContexts: ExecutionResult[] = [];
     const enqueuedPublicFunctionCalls: PublicCallRequest[] = [];
-    const readRequestCommitmentIndices: bigint[] = [];
     const encryptedLogs = new FunctionL2Logs([]);
     const unencryptedLogs = new FunctionL2Logs([]);
 
@@ -87,16 +87,7 @@ export class PrivateFunctionExecution {
           ),
         ),
       ],
-      getNotes2: async ([storageSlot]: ACVMField[]) => {
-        const { preimages, indices } = await this.context.getNotes(this.contractAddress, storageSlot, 2);
-        // TODO(dbanks12): https://github.com/AztecProtocol/aztec-packages/issues/779
-        // if preimages length is > rrcIndices length, we are either relying on
-        // the app circuit to remove fake preimages, or on the kernel to handle
-        // the length diff.
-        const filteredIndices = indices.filter(index => index != BigInt(-1));
-        readRequestCommitmentIndices.push(...filteredIndices);
-        return preimages;
-      },
+      getNotes: (fields: ACVMField[]) => this.context.getNotes(this.contractAddress, fields),
       getRandomField: () => Promise.resolve([toACVMField(Fr.random())]),
       notifyCreatedNote: ([storageSlot, ...acvmPreimage]: ACVMField[]) => {
         newNotePreimages.push({
@@ -135,11 +126,7 @@ export class PrivateFunctionExecution {
       getL1ToL2Message: ([msgKey]: ACVMField[]) => {
         return this.context.getL1ToL2Message(fromACVMField(msgKey));
       },
-      getCommitment: async ([commitment]: ACVMField[]) => {
-        const commitmentData = await this.context.getCommitment(this.contractAddress, fromACVMField(commitment));
-        readRequestCommitmentIndices.push(commitmentData.index);
-        return commitmentData.acvmData;
-      },
+      getCommitment: ([commitment]: ACVMField[]) => this.context.getCommitment(this.contractAddress, commitment),
       debugLog: (fields: ACVMField[]) => {
         this.log(fieldsToFormattedStr(fields));
         return Promise.resolve([ZERO_ACVM_FIELD]);
@@ -156,7 +143,6 @@ export class PrivateFunctionExecution {
         enqueuedPublicFunctionCalls.push(enqueuedRequest);
         return toAcvmEnqueuePublicFunctionResult(enqueuedRequest);
       },
-      viewNotesPage: notAvailable,
       storageRead: notAvailable,
       storageWrite: notAvailable,
       createCommitment: notAvailable,
@@ -213,6 +199,8 @@ export class PrivateFunctionExecution {
       this.context.txContext.contractDeploymentData.deployerPublicKey;
 
     this.log(`Returning from call to ${this.contractAddress.toString()}:${selector}`);
+
+    const readRequestCommitmentIndices = this.context.getReadRequestCommitmentIndices();
 
     return {
       acir,
@@ -287,9 +275,10 @@ export class PrivateFunctionExecution {
     const targetAbi = await this.context.db.getFunctionABI(targetContractAddress, targetFunctionSelector);
     const targetFunctionData = new FunctionData(targetFunctionSelector, true, false);
     const derivedCallContext = await this.deriveCallContext(callerContext, targetContractAddress, false, false);
+    const context = this.context.extend();
 
     const nestedExecution = new PrivateFunctionExecution(
-      this.context,
+      context,
       targetAbi,
       targetContractAddress,
       targetFunctionData,

@@ -33,3 +33,19 @@ export interface NoteSpendingInfoDao {
    */
   account: Point;
 }
+
+export const createRandomNoteSpendingInfoDao = ({
+  contractAddress = AztecAddress.random(),
+  storageSlot = Fr.random(),
+  notePreimage = NotePreimage.random(),
+  nullifier = Fr.random(),
+  index = Fr.random().value,
+  account = Point.random(),
+}: Partial<NoteSpendingInfoDao> = {}): NoteSpendingInfoDao => ({
+  contractAddress,
+  storageSlot,
+  notePreimage,
+  nullifier,
+  index,
+  account,
+});

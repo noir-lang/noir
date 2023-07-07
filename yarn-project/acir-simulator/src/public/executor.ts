@@ -81,14 +81,13 @@ export class PublicExecutor {
         return [toACVMField(await packedArgs.pack(args.map(fromACVMField)))];
       },
       getSecretKey: notAvailable,
-      getNotes2: notAvailable,
+      getNotes: notAvailable,
       getRandomField: notAvailable,
       notifyCreatedNote: notAvailable,
       notifyNullifiedNote: notAvailable,
       callPrivateFunction: notAvailable,
       enqueuePublicFunctionCall: notAvailable,
       emitEncryptedLog: notAvailable,
-      viewNotesPage: notAvailable,
 
       debugLog: (fields: ACVMField[]) => {
         this.log(fieldsToFormattedStr(fields));

@@ -29,7 +29,7 @@ impl Sort {
 
 struct NoteGetterOptions<Note, N, S, P> {
     sort_by: [Sort; N],
-    skip: u32,
+    offset: u32,
     filter: fn ([Note; MAX_READ_REQUESTS], P) -> [Note; S],
     filter_args: P,
 }
@@ -39,11 +39,11 @@ impl<Note, N, S, P> NoteGetterOptions<Note, N, S, P> {
         filter: fn ([Note; MAX_READ_REQUESTS], P) -> [Note; S],
         filter_args: P,
         sort_by: [Sort; N],
-        skip: u32,
+        offset: u32,
     ) -> Self {
         NoteGetterOptions {
             sort_by,
-            skip,
+            offset,
             filter,
             filter_args,
         }
@@ -55,7 +55,7 @@ impl<Note, N, S, P> NoteGetterOptions<Note, N, S, P> {
     ) -> Self {
          NoteGetterOptions {
             sort_by: [Sort::nada(); N],
-            skip: 0,
+            offset: 0,
             filter,
             filter_args,
         }

@@ -48,23 +48,33 @@ export class SimulatorOracle implements DBOracle {
    *
    * @param contractAddress - The AztecAddress instance representing the contract address.
    * @param storageSlot - The Fr instance representing the storage slot of the notes.
+   * @param sortBy - An array of indices of the fields to sort.
+   * @param sortOrder - The order of the corresponding index in sortBy. (1: DESC, 2: ASC, 0: Do nothing)
    * @param limit - The number of notes to retrieve per query (pagination limit).
    * @param offset - The starting index for pagination.
    * @returns A Promise that resolves to an object with properties 'count' and 'notes'.
    */
-  async getNotes(contractAddress: AztecAddress, storageSlot: Fr, limit: number, offset: number) {
-    const noteDaos = await this.db.getNoteSpendingInfo(contractAddress, storageSlot);
+  async getNotes(
+    contractAddress: AztecAddress,
+    storageSlot: Fr,
+    sortBy: number[],
+    sortOrder: number[],
+    limit: number,
+    offset: number,
+  ) {
+    const noteDaos = await this.db.getNoteSpendingInfo(contractAddress, storageSlot, {
+      sortBy,
+      sortOrder,
+      limit,
+      offset,
+    });
     return {
       count: noteDaos.length,
-      notes: await Promise.all(
-        noteDaos.slice(offset, offset + limit).map(noteDao => {
-          return {
-            preimage: noteDao.notePreimage.items,
-            // RPC Client can use this index to get full MembershipWitness
-            index: noteDao.index,
-          };
-        }),
-      ),
+      notes: noteDaos.map(({ notePreimage, index }) => ({
+        preimage: notePreimage.items,
+        // RPC Client can use this index to get full MembershipWitness
+        index,
+      })),
     };
   }
 

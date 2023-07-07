@@ -3,29 +3,21 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import {
   ACVMField,
-  createDummyNote,
+  ACVMFieldsReader,
   fromACVMField,
   toACVMField,
   toAcvmCommitmentLoadOracleInputs,
   toAcvmL1ToL2MessageLoadOracleInputs,
 } from '../acvm/index.js';
-import { NoteLoadOracleInputs, DBOracle } from './db_oracle.js';
 import { PackedArgsCache } from '../packed_args_cache.js';
-
-/**
- * A type that wraps data with it's read request index
- */
-type ACVMWithReadRequestIndex = {
-  /** The index of the data in the tree. */
-  index: bigint;
-  /** The formatted data. */
-  acvmData: ACVMField[];
-};
+import { DBOracle } from './db_oracle.js';
 
 /**
  * The execution context for a client tx simulation.
  */
 export class ClientTxExecutionContext {
+  private readRequestCommitmentIndices: bigint[] = [];
+
   constructor(
     /**  The database oracle. */
     public db: DBOracle,
@@ -38,6 +30,22 @@ export class ClientTxExecutionContext {
   ) {}
 
   /**
+   * Create context for nested executions.
+   * @returns ClientTxExecutionContext
+   */
+  public extend() {
+    return new ClientTxExecutionContext(this.db, this.txContext, this.historicRoots, this.packedArgsCache);
+  }
+
+  /**
+   * For getting accumulated data.
+   * @returns An array of readRequestCommitment indices.
+   */
+  public getReadRequestCommitmentIndices() {
+    return this.readRequestCommitmentIndices;
+  }
+
+  /**
    * Gets the notes for a contract address and storage slot.
    * Returns note preimages and their indices in the private data tree.
    * Note that indices are not passed to app circuit. They forwarded to
@@ -45,61 +53,32 @@ export class ClientTxExecutionContext {
    * to the private kernel.
    *
    * @param contractAddress - The contract address.
-   * @param storageSlot - The storage slot.
-   * @param limit - The amount of notes to get.
+   * @param fields - An array of ACVM fields.
    * @returns An array of ACVM fields for the note count and the requested note preimages,
    * and another array of indices corresponding to each note
    */
-  public async getNotes(contractAddress: AztecAddress, storageSlot: ACVMField, limit: number) {
-    const { count, notes } = await this.fetchNotes(contractAddress, storageSlot, limit);
+  public async getNotes(contractAddress: AztecAddress, fields: ACVMField[]) {
+    const reader = new ACVMFieldsReader(fields);
+    const storageSlot = reader.readField();
+    const noteSize = reader.readNumber();
+    const sortBy = reader.readNumberArray(noteSize);
+    const sortOrder = reader.readNumberArray(noteSize);
+    const limit = reader.readNumber();
+    const offset = reader.readNumber();
+    const returnSize = reader.readNumber();
 
-    const preimages = [
-      toACVMField(count),
-      ...notes.flatMap(noteGetData => noteGetData.preimage.map(f => toACVMField(f))),
-    ];
-    const indices = notes.map(noteGetData => noteGetData.index);
+    const { count, notes } = await this.db.getNotes(contractAddress, storageSlot, sortBy, sortOrder, limit, offset);
+    const preimages = notes.flatMap(({ preimage }) => preimage);
 
-    return { preimages, indices };
-  }
+    // TODO(dbanks12): https://github.com/AztecProtocol/aztec-packages/issues/779
+    // if preimages length is > rrcIndices length, we are either relying on
+    // the app circuit to remove fake preimages, or on the kernel to handle
+    // the length diff.
+    const indices = notes.map(({ index }) => index).filter(index => index != BigInt(-1));
+    this.readRequestCommitmentIndices.push(...indices);
 
-  /**
-   * Views the notes for a contract address and storage slot.
-   * Doesn't include the leaf indices.
-   * @param contractAddress - The contract address.
-   * @param storageSlot - The storage slot.
-   * @param limit - The amount of notes to get.
-   * @param offset - The offset to start from (for pagination).
-   * @returns The ACVM fields for the count and the requested notes.
-   */
-  public async viewNotes(contractAddress: AztecAddress, storageSlot: ACVMField, limit: number, offset = 0) {
-    const { count, notes } = await this.fetchNotes(contractAddress, storageSlot, limit, offset);
-
-    return [toACVMField(count), ...notes.flatMap(noteGetData => noteGetData.preimage.map(f => toACVMField(f)))];
-  }
-
-  /**
-   * Fetches the notes for a contract address and storage slot from the db.
-   * @param contractAddress - The contract address.
-   * @param storageSlot - The storage slot.
-   * @param limit - The amount of notes to get.
-   * @param offset - The offset to start from (for pagination).
-   * @returns The count and the requested notes, padded with dummy notes.
-   */
-  private async fetchNotes(contractAddress: AztecAddress, storageSlot: ACVMField, limit: number, offset = 0) {
-    const { count, notes } = await this.db.getNotes(contractAddress, fromACVMField(storageSlot), limit, offset);
-
-    const dummyNotes = Array.from(
-      { length: Math.max(0, limit - notes.length) },
-      (): NoteLoadOracleInputs => ({
-        preimage: createDummyNote(),
-        index: BigInt(-1),
-      }),
-    );
-
-    return {
-      count,
-      notes: notes.concat(dummyNotes),
-    };
+    const paddedZeros = Array(returnSize - 1 - preimages.length).fill(Fr.ZERO);
+    return [count, preimages, paddedZeros].flat().map(f => toACVMField(f));
   }
 
   /**
@@ -118,11 +97,9 @@ export class ClientTxExecutionContext {
    * @param commitment - The commitment.
    * @returns The commitment data.
    */
-  public async getCommitment(contractAddress: AztecAddress, commitment: Fr): Promise<ACVMWithReadRequestIndex> {
-    const commitmentInputs = await this.db.getCommitmentOracle(contractAddress, commitment);
-    return {
-      acvmData: toAcvmCommitmentLoadOracleInputs(commitmentInputs, this.historicRoots.privateDataTreeRoot),
-      index: commitmentInputs.index,
-    };
+  public async getCommitment(contractAddress: AztecAddress, commitment: ACVMField) {
+    const commitmentInputs = await this.db.getCommitmentOracle(contractAddress, fromACVMField(commitment));
+    this.readRequestCommitmentIndices.push(commitmentInputs.index);
+    return toAcvmCommitmentLoadOracleInputs(commitmentInputs, this.historicRoots.privateDataTreeRoot);
   }
 }

@@ -10,7 +10,10 @@ fn emit_encrypted_log<N>(
     log: [Field; N],
 ) -> Context {
     let hash = oracle::logs::emit_encrypted_log(contract_address, storage_slot, account, log);
-    let len = log.len();
+    let mut len = log.len();
+    if (hash[0] == 0) & (hash[1] == 0) {
+        len = 0;
+    };
     context = context.set_encrypted_logs_hash(hash);
     context = context.set_encrypted_log_preimages_length(len);
     context

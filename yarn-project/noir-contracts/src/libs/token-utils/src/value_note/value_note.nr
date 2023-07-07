@@ -18,12 +18,13 @@ impl ValueNote {
     fn new(value: Field, owner: Point) -> Self {
         let randomness = rand();
         let nonce = 3;      // Guaranteed to be random
+        let is_real = value != 0;
         ValueNote {
             value,
             owner,
             randomness,
             nonce,
-            is_real: true,
+            is_real,
         }
     }
 

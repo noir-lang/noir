@@ -20,7 +20,7 @@ contract NonNativeToken {
         balance_utils,
         value_note::{
             value_note::ValueNote,
-            filter::get_2_notes,
+            utils::spend_notes,
         }
     };
     use dep::custom_notes::transparent_note::TransparentNote;
@@ -61,11 +61,10 @@ contract NonNativeToken {
         owner: Point,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let balances = storage.balances;
 
         let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner.x, owner.y]));
 
-        let owner_balance = balances.at(owner.x);
+        let owner_balance = storage.balances.at(owner.x);
         let note = ValueNote::new(initial_supply, owner);
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
@@ -93,7 +92,6 @@ contract NonNativeToken {
         canceller: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let balances = storage.balances;
 
         let mut context = Context::new(inputs, abi::hash_args([
             amount, owner.x, owner.y, owner_address, msg_key, secret, canceller
@@ -105,7 +103,7 @@ contract NonNativeToken {
         let updated_context = context.consume_l1_to_l2_message(inputs, msg_key, content_hash, secret);
         context = updated_context;
 
-        let owner_balance = balances.at(owner.x);
+        let owner_balance = storage.balances.at(owner.x);
         let note = ValueNote::new(amount, owner);
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
@@ -132,43 +130,14 @@ contract NonNativeToken {
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let balances = storage.balances;
-
-        let mut initialContext = Context::new(inputs, abi::hash_args([
+        let mut context = Context::new(inputs, abi::hash_args([
             amount, sender.x, sender.y, recipient, callerOnL1
         ]));
 
-        // Gets the set of sender's notes and picks 2 of those.
-        let sender_balance = balances.at(sender.x);
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
-        let (mut context, notes) = sender_balance.get_notes(initialContext, options);
-        let note1 = notes[0];
-        let note2 = notes[1];
+        let sender_balance = storage.balances.at(sender.x);
+        context = spend_notes(context, inputs, sender_balance, amount, sender);
 
-        // TODO: Removing this return breaks the circuit (???)
-        context.return_values = context.return_values.push(note1.is_real as Field);
-        context.return_values = context.return_values.push(note2.is_real as Field);
-
-        // Ensure the notes are actually owned by the sender (to prevent user from generating a valid proof while
-        // spending someone else's notes).
-        note1.validate(sender);
-        note2.validate(sender);
-
-        let sum = note1.value + note2.value;
-        assert(sum as u120 >= amount as u120);
-        let change_value = sum - amount;
-
-        context = sender_balance.remove(context, note1);
-        context = sender_balance.remove(context, note2);
-
-        let change_note = ValueNote::new(change_value, sender);
-
-        // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
-        context = sender_balance.insert(context, change_note);
-        context = emit_encrypted_log(context, inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note.serialise());
-        
         let content = _get_withdraw_content_hash(amount, recipient, callerOnL1);
-
         context = context.message_portal(content);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
@@ -249,47 +218,25 @@ contract NonNativeToken {
         recipient: Point,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let balances = storage.balances;
-
-        let mut initialContext = Context::new(inputs, abi::hash_args([
+        let mut context = Context::new(inputs, abi::hash_args([
             amount, sender.x, sender.y, recipient.x, recipient.y
         ]));
 
         // Gets the set of sender's notes and picks 2 of those.
-        let sender_balance = balances.at(sender.x);
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
-        let (mut context, notes) = sender_balance.get_notes(initialContext, options);
-        let note1 = notes[0];
-        let note2 = notes[1];
-
-        // Ensure the notes are actually owned by the sender (to prevent user from generating a valid proof while
-        // spending someone else's notes).
-        note1.validate(sender);
-        note2.validate(sender);
-
-        // Checks that the sum of the notes is greater than or equal to the amount being transferred.
-        let sum = note1.value + note2.value;
-        assert(sum as u120 >= amount as u120);
-        let change_value = sum - amount;
-
-        // Removes the 2 notes from the sender's set of notes.
-        context = sender_balance.remove(context, note1);
-        context = sender_balance.remove(context, note2);
+        let sender_balance = storage.balances.at(sender.x);
+        context = spend_notes(context, inputs, sender_balance, amount, sender);
 
         // Creates 2 new notes, one for the recipient and one for the sender (change note).
-        let change_note = ValueNote::new(change_value, sender);
         let recipient_note = ValueNote::new(amount, recipient);
 
         // Get the recipient's set of notes.
-        let recipient_balance = balances.at(recipient.x);
+        let recipient_balance = storage.balances.at(recipient.x);
 
         // Insert the 2 new notes to the recipient's and sender's sets of notes.
         context = recipient_balance.insert(context, recipient_note);
-        context = sender_balance.insert(context, change_note);
 
         // Emit the newly created encrypted note preimages via oracle calls.
         context = emit_encrypted_log(context, inputs.call_context.storage_contract_address, recipient_balance.storage_slot, recipient_note.owner, recipient_note.serialise());
-        context = emit_encrypted_log(context, inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note.serialise());
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -330,7 +277,6 @@ contract NonNativeToken {
         owner: Point,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let balances = storage.balances;
 
         let mut context = Context::new(inputs, abi::hash_args([
             amount, secret, owner.x, owner.y
@@ -341,7 +287,7 @@ contract NonNativeToken {
         context = public_note.consume_in_secret(context, inputs.roots.private_data_tree_root, secret);
 
         // Mint the tokens
-        let owner_balance = balances.at(owner.x);
+        let owner_balance = storage.balances.at(owner.x);
         let note = ValueNote::new(amount, owner);
 
         // Insert note and emit encrypted preimage
@@ -358,33 +304,13 @@ contract NonNativeToken {
         recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let balances = storage.balances;
-
-        let mut initialContext = Context::new(inputs, abi::hash_args([
+        let mut context = Context::new(inputs, abi::hash_args([
             amount, owner.x, owner.y, recipient
         ]));
 
         // Remove user balance
-        let sender_balance = balances.at(owner.x);
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
-        let (mut context, notes) = sender_balance.get_notes(initialContext, options);
-        let note1 = notes[0];
-        let note2 = notes[1];
-
-        note1.validate(owner);
-        note2.validate(owner);
-
-        let sum = note1.value + note2.value;
-        assert(sum as u120 >= amount as u120);
-        let change_value = sum - amount;
-
-        context = sender_balance.remove(context, note1);
-        context = sender_balance.remove(context, note2);
-
-        let change_note = ValueNote::new(change_value, owner);
-
-        context = sender_balance.insert(context, change_note);
-        context = emit_encrypted_log(context, inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note.serialise());
+        let sender_balance = storage.balances.at(owner.x);
+        context = spend_notes(context, inputs, sender_balance, amount, owner);
 
         // enqueue a public function to perform the public state update.
         let thisAddress = inputs.call_context.storage_contract_address;
@@ -393,8 +319,9 @@ contract NonNativeToken {
         // recompute by: `cast keccak addUnshieldedBalance(field,field)` -> convert to decimal
         let pubEntryPointSelector = 753269941;
         let (_callStackItem1, mut context1) = PublicCallStackItem::call(thisAddress, pubEntryPointSelector, [amount, recipient], context);
+        context = context1;
 
-        context1.finish()
+        context.finish()
     }
 
     open fn addUnshieldedBalance(

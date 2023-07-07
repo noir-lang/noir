@@ -6,7 +6,7 @@ contract ZkToken {
         balance_utils,
         value_note::{
             value_note::ValueNote,
-            filter::get_2_notes,
+            utils::spend_notes,
         }
     };
 
@@ -84,43 +84,23 @@ contract ZkToken {
         recipient: Point,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut initialContext = Context::new(inputs, abi::hash_args([amount, sender.x, sender.y, recipient.x, recipient.y]));
+        let mut context = Context::new(inputs, abi::hash_args([amount, sender.x, sender.y, recipient.x, recipient.y]));
 
-        // Gets the set of sender's notes and picks 2 of those.
+        // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender.x);
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
-        let (mut context, notes) = sender_balance.get_notes(initialContext, options);
-        let note1 = notes[0];
-        let note2 = notes[1];
+        context = spend_notes(context, inputs, sender_balance, amount, sender);
 
-        // Ensure the notes are actually owned by the sender (to prevent user from generating a valid proof while
-        // spending someone else's notes).
-        note1.validate(sender);
-        note2.validate(sender);
-
-        // Checks that the sum of the notes is greater than or equal to the amount being transferred.
-        let sum = note1.value + note2.value;
-        assert(sum as u64 >= amount as u64);
-        let change_value = sum - amount;
-
-        // Removes the 2 notes from the sender's set of notes.
-        context = sender_balance.remove(context, note1);
-        context = sender_balance.remove(context, note2);
-
-        // Creates 2 new notes, one for the recipient and one for the sender (change note).
-        let change_note = ValueNote::new(change_value, sender);
+        // Creates new note for the recipient.
         let recipient_note = ValueNote::new(amount, recipient);
 
         // Get the recipient's set of notes.
         let recipient_balance = storage.balances.at(recipient.x);
 
-        // Insert the 2 new notes to the recipient's and sender's sets of notes.
+        // Insert the new note to the recipient's set of notes.
         context = recipient_balance.insert(context, recipient_note);
-        context = sender_balance.insert(context, change_note);
 
         // Emit the newly created encrypted note preimages via oracle calls.
         context = emit_encrypted_log(context, inputs.call_context.storage_contract_address, recipient_balance.storage_slot, recipient_note.owner, recipient_note.serialise());
-        context = emit_encrypted_log(context, inputs.call_context.storage_contract_address, sender_balance.storage_slot, change_note.owner, change_note.serialise());
         context = emit_unencrypted_log(context, "Coins transferred");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..

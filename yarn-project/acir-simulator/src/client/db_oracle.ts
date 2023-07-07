@@ -61,6 +61,8 @@ export interface DBOracle extends CommitmentsDB {
   getNotes(
     contractAddress: AztecAddress,
     storageSlot: Fr,
+    sortBy: number[],
+    sortOrder: number[],
     limit: number,
     offset: number,
   ): Promise<{

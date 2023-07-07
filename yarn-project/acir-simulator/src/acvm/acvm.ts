@@ -25,7 +25,7 @@ export interface ACIRCallback {
    */
   packArguments(params: ACVMField[]): Promise<ACVMField[]>;
   getSecretKey(params: ACVMField[]): Promise<[ACVMField]>;
-  getNotes2(params: ACVMField[]): Promise<ACVMField[]>;
+  getNotes(params: ACVMField[]): Promise<ACVMField[]>;
   getRandomField(): Promise<[ACVMField]>;
   notifyCreatedNote(params: ACVMField[]): Promise<[ACVMField]>;
   notifyNullifiedNote(params: ACVMField[]): Promise<[ACVMField]>;
@@ -37,7 +37,6 @@ export interface ACIRCallback {
   createCommitment(params: ACVMField[]): Promise<[ACVMField]>;
   createL2ToL1Message(params: ACVMField[]): Promise<[ACVMField]>;
   createNullifier(params: ACVMField[]): Promise<[ACVMField]>;
-  viewNotesPage(params: ACVMField[]): Promise<ACVMField[]>;
   getCommitment(params: ACVMField[]): Promise<ACVMField[]>;
   getL1ToL2Message(params: ACVMField[]): Promise<ACVMField[]>;
   /**
@@ -67,9 +66,11 @@ export interface ACIRExecutionResult {
 /**
  * The function call that executes an ACIR.
  */
-export type execute = (acir: Buffer, initialWitness: ACVMWitness, oracle: ACIRCallback) => Promise<ACIRExecutionResult>;
-
-export const acvm: execute = async (acir, initialWitness, callback) => {
+export async function acvm(
+  acir: Buffer,
+  initialWitness: ACVMWitness,
+  callback: ACIRCallback,
+): Promise<ACIRExecutionResult> {
   const logger = createDebugLogger('aztec:simulator:acvm');
   const partialWitness = await executeCircuit(acir, initialWitness, async (name: string, args: string[]) => {
     try {
@@ -83,7 +84,7 @@ export const acvm: execute = async (acir, initialWitness, callback) => {
     }
   });
   return Promise.resolve({ partialWitness });
-};
+}
 
 /**
  * Adapts the buffer to the field size.
@@ -141,13 +142,4 @@ export function convertACVMFieldToBuffer(field: ACVMField): Buffer {
  */
 export function fromACVMField(field: ACVMField): Fr {
   return Fr.fromBuffer(convertACVMFieldToBuffer(field));
-}
-
-// TODO this should use an unconstrained fn in the future.
-/**
- * Creates a dummy note.
- * @returns The dummy note.
- */
-export function createDummyNote() {
-  return [Fr.ZERO, Fr.random(), Fr.ZERO, Fr.ZERO, Fr.random(), Fr.ZERO];
 }

@@ -4,7 +4,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Coordinate, Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
-import { extractReturnWitness, frToNumber } from '../acvm/deserialize.js';
+import { extractReturnWitness } from '../acvm/deserialize.js';
 import { ACVMField, ZERO_ACVM_FIELD, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { fieldsToFormattedStr } from './debug.js';
@@ -54,27 +54,14 @@ export class UnconstrainedFunctionExecution {
           ),
         ),
       ],
-      getNotes2: async ([storageSlot]: ACVMField[]) => {
-        const { preimages } = await this.context.getNotes(this.contractAddress, storageSlot, 2);
-        return preimages;
-      },
+      getNotes: (fields: ACVMField[]) => this.context.getNotes(this.contractAddress, fields),
       getRandomField: () => Promise.resolve([toACVMField(Fr.random())]),
-      viewNotesPage: ([acvmSlot, acvmLimit, acvmOffset]) =>
-        this.context.viewNotes(
-          this.contractAddress,
-          acvmSlot,
-          frToNumber(fromACVMField(acvmLimit)),
-          frToNumber(fromACVMField(acvmOffset)),
-        ),
       debugLog: (fields: ACVMField[]) => {
         this.log(fieldsToFormattedStr(fields));
         return Promise.resolve([ZERO_ACVM_FIELD]);
       },
       getL1ToL2Message: ([msgKey]: ACVMField[]) => this.context.getL1ToL2Message(fromACVMField(msgKey)),
-      getCommitment: ([commitment]: ACVMField[]) =>
-        this.context
-          .getCommitment(this.contractAddress, fromACVMField(commitment))
-          .then(commitmentData => commitmentData.acvmData),
+      getCommitment: ([commitment]: ACVMField[]) => this.context.getCommitment(this.contractAddress, commitment),
       packArguments: notAvailable,
       enqueuePublicFunctionCall: notAvailable,
       notifyCreatedNote: notAvailable,
