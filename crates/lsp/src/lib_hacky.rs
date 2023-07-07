@@ -78,7 +78,7 @@ pub fn on_code_lens_request(
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut driver, false, false);
+    let _ = check_crate(&mut driver, current_crate_id, false, false);
 
     let fm = &driver.file_manager;
     let files = fm.as_simple_files();
@@ -197,9 +197,9 @@ pub fn on_did_save_text_document(
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let actual_path = params.text_document.uri.to_file_path().unwrap();
-    let (mut context, _) = create_context_at_path(actual_path.clone());
+    let (mut context, crate_id) = create_context_at_path(actual_path.clone());
 
-    let file_diagnostics = match check_crate(&mut context, false, false) {
+    let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
         Ok(warnings) => warnings,
         Err(errors_and_warnings) => errors_and_warnings,
     };

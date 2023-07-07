@@ -72,19 +72,21 @@ struct CachedDep {
 /// XXX: Need to handle when a local package changes!
 pub(crate) fn resolve_root_manifest(
     dir_path: &std::path::Path,
-) -> Result<Context, DependencyResolutionError> {
+) -> Result<(Context, CrateId), DependencyResolutionError> {
     let mut context = Context::default();
 
     let manifest_path = super::find_package_manifest(dir_path)?;
     let manifest = super::manifest::parse(&manifest_path)?;
 
-    match manifest {
+    let crate_id = match manifest {
         Manifest::Package(package) => {
             let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
             let crate_id = create_local_crate(&mut context, entry_path, crate_type);
 
             let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
             resolve_manifest(&mut context, crate_id, package, pkg_root)?;
+
+            crate_id
         }
         Manifest::Workspace(workspace) => {
             let config = workspace.config;
@@ -103,17 +105,19 @@ pub(crate) fn resolve_root_manifest(
             };
 
             let (entry_path, _crate_type) = super::lib_or_bin(default_member)?;
-            let _local = create_local_crate(&mut context, entry_path, CrateType::Workspace);
+            let crate_id = create_local_crate(&mut context, entry_path, CrateType::Workspace);
 
             for member in members {
                 let path: PathBuf = dir_path.join(member);
                 let (entry_path, crate_type) = super::lib_or_bin(path)?;
                 create_non_local_crate(&mut context, entry_path, crate_type);
             }
+
+            crate_id
         }
     };
 
-    Ok(context)
+    Ok((context, crate_id))
 }
 
 // Resolves a config file by recursively resolving the dependencies in the config
