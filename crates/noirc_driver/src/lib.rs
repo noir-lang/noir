@@ -299,8 +299,8 @@ fn compile_contract(
 
         let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
 
-        let is_internal = match func_meta.is_contract_function_internal.is_some() {
-            true => func_meta.is_contract_function_internal.unwrap(),
+        let is_internal = match func_meta.is_internal.is_some() {
+            true => func_meta.is_internal.unwrap(),
             false => false,
         };
 
