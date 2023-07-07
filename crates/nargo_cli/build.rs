@@ -41,15 +41,20 @@ fn load_conf(conf_path: &Path) -> BTreeMap<String, Vec<String>> {
 
     let mut conf_data = match toml::from_str(&config_str) {
         Ok(t) => t,
-        Err(_) => {
-            BTreeMap::from([("exclude".to_string(), Vec::new()), ("fail".to_string(), Vec::new())])
-        }
+        Err(_) => BTreeMap::from([
+            ("exclude".to_string(), Vec::new()),
+            ("fail".to_string(), Vec::new()),
+            ("panic".to_string(), Vec::new()),
+        ]),
     };
     if conf_data.get("exclude").is_none() {
         conf_data.insert("exclude".to_string(), Vec::new());
     }
     if conf_data.get("fail").is_none() {
         conf_data.insert("fail".to_string(), Vec::new());
+    }
+    if conf_data.get("panic").is_none() {
+        conf_data.insert("panic".to_string(), Vec::new());
     }
     conf_data
 }
@@ -102,7 +107,7 @@ fn prove_and_verify_{test_sub_dir}_{test_name}() {{
     if {experimental_ssa} {{
         cmd.arg("--experimental-ssa");
     }};
-    
+
 
     if {should_fail} {{
         cmd.assert().failure();
