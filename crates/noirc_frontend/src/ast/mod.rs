@@ -8,6 +8,7 @@ mod expression;
 mod function;
 mod statement;
 mod structure;
+mod traits;
 
 pub use expression::*;
 pub use function::*;
@@ -15,6 +16,7 @@ pub use function::*;
 use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
+pub use traits::*;
 
 use crate::{
     parser::{ParserError, ParserErrorReason},
