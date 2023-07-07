@@ -14,7 +14,8 @@ use self::{
 };
 use acvm::{
     acir::brillig_vm::{
-        BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory, Value,
+        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, Opcode as BrilligOpcode,
+        RegisterIndex, RegisterOrMemory, Value,
     },
     FieldElement,
 };
@@ -696,6 +697,18 @@ impl BrilligContext {
         // After the call instruction, the stack frame pointer should be back to where we left off,
         // so we do our instructions in reverse order.
         self.load_all_saved_registers(saved_registers);
+    }
+
+    /// Utility method to transform a HeapArray to a HeapVector by making a runtime constant with the size.
+    pub(crate) fn array_to_vector(&mut self, array: &HeapArray) -> HeapVector {
+        let size_register = self.make_constant(array.size.into());
+        HeapVector { size: size_register, pointer: array.pointer }
+    }
+
+    /// Issues a blackbox operation.
+    pub(crate) fn black_box_op_instruction(&mut self, op: BlackBoxOp) {
+        debug_show::black_box_op_instruction(op);
+        self.push_opcode(BrilligOpcode::BlackBox(op));
     }
 }
 
