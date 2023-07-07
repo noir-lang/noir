@@ -18,7 +18,7 @@ import {
  */
 export async function createAccounts(
   aztecRpcClient: AztecRPC,
-  privateKey: Buffer,
+  privateKey?: Buffer,
   numberOfAccounts = 1,
   logger = createDebugLogger('aztec:aztec.js:accounts'),
 ): Promise<Wallet> {
@@ -26,12 +26,10 @@ export async function createAccounts(
   const results: [AztecAddress, Point][] = [];
   const wasm = await CircuitsWasm.get();
   for (let i = 0; i < numberOfAccounts; ++i) {
-    // We use the well-known private key and the validating account contract for the first account,
-    // and generate random keypairs with gullible account contracts (ie no sig validation) for the rest.
     // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key
-    const privKey = i == 0 ? privateKey : randomBytes(32);
+    const privKey = i == 0 && privateKey ? privateKey : randomBytes(32);
     const accountAbi = EcdsaAccountContractAbi;
-    const publicKey = await generatePublicKey(privateKey);
+    const publicKey = await generatePublicKey(privKey);
     const salt = Fr.random();
     const deploymentInfo = await getContractDeploymentInfo(accountAbi, [], salt, publicKey);
     await aztecRpcClient.addAccount(privKey, deploymentInfo.address, deploymentInfo.partialAddress, accountAbi);

@@ -8,6 +8,8 @@ import { retry } from '../../retry/index.js';
 import { ClassConverter, ClassConverterInput } from '../class_converter.js';
 import { JsonStringify, convertFromJsonObj, convertToJsonObj } from '../convert.js';
 
+export { JsonStringify } from '../convert.js';
+
 const debug = createDebugLogger('json-rpc:json_rpc_client');
 /**
  * A normal fetch function that does not retry.

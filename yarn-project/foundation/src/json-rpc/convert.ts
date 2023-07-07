@@ -6,14 +6,17 @@ import { Buffer } from 'buffer';
  * @param obj - The object to be stringified.
  * @returns The resulting string.
  */
-export function JsonStringify(obj: object): string {
-  return JSON.stringify(obj, (key, value) =>
-    typeof value === 'bigint'
-      ? JSON.stringify({
-          type: 'bigint',
-          data: value.toString(),
-        })
-      : value,
+export function JsonStringify(obj: object, prettify?: boolean): string {
+  return JSON.stringify(
+    obj,
+    (key, value) =>
+      typeof value === 'bigint'
+        ? JSON.stringify({
+            type: 'bigint',
+            data: value.toString(),
+          })
+        : value,
+    prettify ? 2 : 0,
   );
 }
 

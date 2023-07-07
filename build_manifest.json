@@ -117,12 +117,9 @@
       "^yarn-project/aztec-cli/"
     ],
     "dependencies": [
-      "aztec-node",
       "aztec.js",
       "ethereum",
-      "foundation",
-      "l1-artifacts",
-      "noir-contracts"
+      "foundation"
     ]
   },
   "aztec-rpc": {

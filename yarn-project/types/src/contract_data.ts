@@ -131,6 +131,14 @@ export class ContractPublicData {
   }
 
   /**
+   * Serializes this instance into a string.
+   * @returns Encoded string.
+   */
+  public toString(): string {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
    * Deserializes a contract data object from an encoded buffer, using 20 bytes for the eth address.
    * @param buffer - Byte array resulting from calling toBuffer.
    * @returns Deserialized instance.
@@ -142,6 +150,15 @@ export class ContractPublicData {
     const contractData = reader.readObject(ContractData);
     const publicFns = reader.readVector(EncodedContractFunction);
     return new ContractPublicData(contractData, publicFns);
+  }
+
+  /**
+   * Deserializes a contract data object from an encoded string, using 20 bytes for the eth address.
+   * @param str - String resulting from calling toString.
+   * @returns Deserialized instance.
+   */
+  static fromString(str: string) {
+    return ContractPublicData.fromBuffer(Buffer.from(str, 'hex'));
   }
 
   /**
@@ -180,6 +197,14 @@ export class ContractData {
   }
 
   /**
+   * Serializes this instance into a string, using 20 bytes for the eth address.
+   * @returns Encoded string.
+   */
+  public toString(): string {
+    return this.toBuffer().toString('hex');
+  }
+
+  /**
    * Deserializes a contract data object from an encoded buffer, using 20 bytes for the eth address.
    * @param buffer - Byte array resulting from calling toBuffer.
    * @returns Deserialized instance.
@@ -189,6 +214,15 @@ export class ContractData {
     const aztecAddr = AztecAddress.fromBuffer(reader);
     const ethAddr = new EthAddress(reader.readBytes(EthAddress.SIZE_IN_BYTES));
     return new ContractData(aztecAddr, ethAddr);
+  }
+
+  /**
+   * Deserializes a contract data object from an encoded string, using 20 bytes for the eth address.
+   * @param str - String resulting from calling toString.
+   * @returns Deserialized instance.
+   */
+  static fromString(str: string) {
+    return ContractData.fromBuffer(Buffer.from(str, 'hex'));
   }
 
   /**

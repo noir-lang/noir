@@ -1,11 +1,11 @@
 {
-  "name": "@aztec/aztec-cli",
-  "version": "0.0.0",
+  "name": "@aztec/cli",
+  "version": "0.1.0",
   "type": "module",
   "exports": "./dest/index.js",
   "typedoc": {
     "entryPoint": "./src/index.ts",
-    "displayName": "Aztec cli",
+    "displayName": "Aztec CLI",
     "tsconfig": "./tsconfig.json"
   },
   "bin": {
@@ -34,12 +34,9 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/l1-artifacts": "workspace:^",
-    "@aztec/noir-contracts": "workspace:^",
     "commander": "^9.0.0",
     "tslib": "^2.4.0",
     "viem": "^1.2.5"

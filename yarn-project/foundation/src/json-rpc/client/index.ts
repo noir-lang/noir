@@ -1,1 +1,1 @@
-export { createJsonRpcClient } from './json_rpc_client.js';
+export { createJsonRpcClient, JsonStringify } from './json_rpc_client.js';

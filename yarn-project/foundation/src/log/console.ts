@@ -36,7 +36,7 @@ class ConsoleLogger {
  * @param prefix - The optional string to prepend to each log message.
  * @returns A Logger function that accepts any number of arguments and logs them with the specified prefix.
  */
-export function createLogger(prefix: string): Logger {
+export function createLogger(prefix?: string): Logger {
   if (prefix) {
     const logger = new ConsoleLogger(prefix, console.log);
     return (...args: any[]) => logger.log(...args);
