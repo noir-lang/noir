@@ -5,7 +5,7 @@ describe('env', () => {
 
   beforeAll(async () => {
     api = await newBarretenbergApiAsync(3);
-  });
+  }, 15000);
 
   afterAll(async () => {
     await api.destroy();
