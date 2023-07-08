@@ -3,11 +3,14 @@ use std::{io::Write, path::Path};
 use acvm::{acir::native_types::WitnessMap, Backend};
 use clap::Args;
 use nargo::ops::execute_circuit;
-use noirc_driver::{CompileOptions, Driver};
-use noirc_frontend::node_interner::FuncId;
+use noirc_driver::{compile_no_check, CompileOptions};
+use noirc_frontend::{graph::LOCAL_CRATE, hir::Context, node_interner::FuncId};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError, resolver::Resolver};
+use crate::{
+    cli::check_cmd::check_crate_and_report_errors, errors::CliError,
+    resolver::resolve_root_manifest,
+};
 
 use super::NargoConfig;
 
@@ -37,10 +40,10 @@ fn run_tests<B: Backend>(
     test_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = Resolver::resolve_root_manifest(program_dir)?;
-    check_crate_and_report_errors(&mut driver, compile_options.deny_warnings)?;
+    let mut context = resolve_root_manifest(program_dir)?;
+    check_crate_and_report_errors(&mut context, compile_options.deny_warnings, compile_options.experimental_ssa)?;
 
-    let test_functions = driver.get_all_test_functions_in_crate_matching(test_name);
+    let test_functions = context.get_all_test_functions_in_crate_matching(&LOCAL_CRATE, test_name);
     println!("Running {} test functions...", test_functions.len());
     let mut failing = 0;
 
@@ -48,11 +51,11 @@ fn run_tests<B: Backend>(
     let mut writer = writer.lock();
 
     for test_function in test_functions {
-        let test_name = driver.function_name(test_function);
+        let test_name = context.function_name(&test_function);
         writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match run_test(backend, test_name, test_function, &driver, compile_options) {
+        match run_test(backend, test_name, test_function, &context, compile_options) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
@@ -79,12 +82,13 @@ fn run_test<B: Backend>(
     backend: &B,
     test_name: &str,
     main: FuncId,
-    driver: &Driver,
+    context: &Context,
     config: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let program = driver
-        .compile_no_check(config, main, backend.np_language(), &|op| backend.supports_opcode(op))
-        .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
+    let program = compile_no_check(context, config, main, backend.np_language(), &|op| {
+        backend.supports_opcode(op)
+    })
+    .map_err(|_| CliError::Generic(format!("Test '{test_name}' failed to compile")))?;
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.

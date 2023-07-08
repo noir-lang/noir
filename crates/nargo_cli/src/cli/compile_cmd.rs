@@ -1,15 +1,18 @@
 use acvm::Backend;
 use iter_extended::try_vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
-use noirc_driver::{CompileOptions, CompiledProgram, Driver, ErrorsAndWarnings, Warnings};
+use noirc_driver::{
+    compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
+};
 use noirc_errors::reporter::ReportedErrors;
+use noirc_frontend::hir::Context;
 use std::path::Path;
 
 use clap::Args;
 
 use nargo::ops::{preprocess_contract_function, preprocess_program};
 
-use crate::{constants::TARGET_DIR, errors::CliError, resolver::Resolver};
+use crate::{constants::TARGET_DIR, errors::CliError, resolver::resolve_root_manifest};
 
 use super::fs::{
     common_reference_string::{
@@ -28,6 +31,10 @@ const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 pub(crate) struct CompileCommand {
     /// The name of the ACIR file
     circuit_name: String,
+
+    /// Include Proving and Verification keys in the build artifacts.
+    #[arg(long)]
+    include_keys: bool,
 
     /// Compile each contract function used within the program
     #[arg(short, long)]
@@ -48,14 +55,15 @@ pub(crate) fn run<B: Backend>(
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
-        let mut driver = Resolver::resolve_root_manifest(&config.program_dir)?;
+        let mut context = resolve_root_manifest(&config.program_dir)?;
 
-        let result = driver.compile_contracts(
+        let result = compile_contracts(
+            &mut context,
             backend.np_language(),
             &|op| backend.supports_opcode(op),
             &args.compile_options,
         );
-        let contracts = report_errors(result, &driver, args.compile_options.deny_warnings)?;
+        let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
 
         // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
         // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
@@ -71,8 +79,13 @@ pub(crate) fn run<B: Backend>(
                     )
                     .map_err(CliError::CommonReferenceStringError)?;
 
-                    preprocess_contract_function(backend, &common_reference_string, func)
-                        .map_err(CliError::ProofSystemCompilerError)
+                    preprocess_contract_function(
+                        backend,
+                        args.include_keys,
+                        &common_reference_string,
+                        func,
+                    )
+                    .map_err(CliError::ProofSystemCompilerError)
                 })?;
 
                 Ok(PreprocessedContract {
@@ -95,9 +108,9 @@ pub(crate) fn run<B: Backend>(
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
 
-        let preprocessed_program = preprocess_program(backend, &common_reference_string, program)
-            .map_err(CliError::ProofSystemCompilerError)?;
-
+        let preprocessed_program =
+            preprocess_program(backend, args.include_keys, &common_reference_string, program)
+                .map_err(CliError::ProofSystemCompilerError)?;
         save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
     }
 
@@ -111,26 +124,27 @@ pub(crate) fn compile_circuit<B: Backend>(
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CliError<B>> {
-    let mut driver = Resolver::resolve_root_manifest(program_dir)?;
-    let result = driver.compile_main(
+    let mut context = resolve_root_manifest(program_dir)?;
+    let result = compile_main(
+        &mut context,
         backend.np_language(),
         &|op| backend.supports_opcode(op),
         compile_options,
     );
-    report_errors(result, &driver, compile_options.deny_warnings).map_err(Into::into)
+    report_errors(result, &context, compile_options.deny_warnings).map_err(Into::into)
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
 /// structure that is commonly used as a return result in this file.
 pub(crate) fn report_errors<T>(
     result: Result<(T, Warnings), ErrorsAndWarnings>,
-    driver: &Driver,
+    context: &Context,
     deny_warnings: bool,
 ) -> Result<T, ReportedErrors> {
     let (t, warnings) = result.map_err(|errors| {
-        noirc_errors::reporter::report_all(driver.file_manager(), &errors, deny_warnings)
+        noirc_errors::reporter::report_all(&context.file_manager, &errors, deny_warnings)
     })?;
 
-    noirc_errors::reporter::report_all(driver.file_manager(), &warnings, deny_warnings);
+    noirc_errors::reporter::report_all(&context.file_manager, &warnings, deny_warnings);
     Ok(t)
 }

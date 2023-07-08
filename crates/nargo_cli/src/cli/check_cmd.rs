@@ -1,10 +1,11 @@
-use crate::{errors::CliError, resolver::Resolver};
+use crate::{errors::CliError, resolver::resolve_root_manifest};
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::CompileOptions;
+use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
 use noirc_errors::reporter::ReportedErrors;
+use noirc_frontend::hir::Context;
 use std::path::{Path, PathBuf};
 
 use super::fs::write_to_file;
@@ -35,11 +36,11 @@ fn check_from_path<B: Backend>(
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = Resolver::resolve_root_manifest(program_dir)?;
-    check_crate_and_report_errors(&mut driver, compile_options.deny_warnings)?;
+    let mut context = resolve_root_manifest(program_dir)?;
+    check_crate_and_report_errors(&mut context, compile_options.deny_warnings, compile_options.experimental_ssa)?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-    if let Some((parameters, return_type)) = driver.compute_function_signature() {
+    if let Some((parameters, return_type)) = compute_function_signature(&context) {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
         // For now it is hard-coded to be toml.
         //
@@ -211,9 +212,10 @@ d2 = ["", "", ""]
 /// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
 /// and errors found.
 pub(crate) fn check_crate_and_report_errors(
-    driver: &mut noirc_driver::Driver,
+    context: &mut Context,
     deny_warnings: bool,
+    enable_slices: bool,
 ) -> Result<(), ReportedErrors> {
-    let result = driver.check_crate(deny_warnings).map(|warnings| ((), warnings));
-    super::compile_cmd::report_errors(result, driver, deny_warnings)
+    let result = check_crate(context, deny_warnings, enable_slices).map(|warnings| ((), warnings));
+    super::compile_cmd::report_errors(result, context, deny_warnings)
 }

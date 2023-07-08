@@ -162,7 +162,10 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .map(
             |(
                 (
-                    ((((attribute, (is_unconstrained, is_open)), name), generics), parameters),
+                    (
+                        (((attribute, (is_unconstrained, is_open, is_internal)), name), generics),
+                        parameters,
+                    ),
                     ((return_distinctness, return_visibility), return_type),
                 ),
                 body,
@@ -172,6 +175,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                     name,
                     attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
                     is_open,
+                    is_internal,
                     is_unconstrained,
                     generics,
                     parameters,
@@ -185,14 +189,16 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         )
 }
 
-/// function_modifiers: 'unconstrained' 'open' | 'unconstrained' | 'open' | %empty
-///
-/// returns (is_unconstrained, is_open) for whether each keyword was present
-fn function_modifiers() -> impl NoirParser<(bool, bool)> {
+/// function_modifiers:  'open internal' | 'internal' | 'unconstrained' | 'open' | %empty
+/// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
+fn function_modifiers() -> impl NoirParser<(bool, bool, bool)> {
     keyword(Keyword::Unconstrained)
         .or_not()
         .then(keyword(Keyword::Open).or_not())
-        .map(|(unconstrained, open)| (unconstrained.is_some(), open.is_some()))
+        .then(keyword(Keyword::Internal).or_not())
+        .map(|((unconstrained, open), internal)| {
+            (unconstrained.is_some(), open.is_some(), internal.is_some())
+        })
 }
 
 /// non_empty_ident_list: ident ',' non_empty_ident_list
@@ -646,7 +652,6 @@ fn parse_type_inner(
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
-        vec_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser),
     ))
@@ -704,12 +709,6 @@ fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
     path()
         .then(generic_type_args(type_parser))
         .map(|(path, args)| UnresolvedType::Named(path, args))
-}
-
-fn vec_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Vec)
-        .ignore_then(generic_type_args(type_parser))
-        .map_with_span(UnresolvedType::Vec)
 }
 
 fn generic_type_args(
@@ -1001,12 +1000,7 @@ where
 {
     expression_list(expr_parser)
         .delimited_by(just(Token::LeftBracket), just(Token::RightBracket))
-        .validate(|elements, span, emit| {
-            if elements.is_empty() {
-                emit(ParserError::with_reason(ParserErrorReason::ZeroSizedArray, span));
-            }
-            ExpressionKind::array(elements)
-        })
+        .validate(|elements, _span, _emit| ExpressionKind::array(elements))
 }
 
 /// [a; N]
