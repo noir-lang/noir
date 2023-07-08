@@ -62,6 +62,7 @@ std::vector<uint8_t> AcirComposer::create_proof(
 
     vinfo("building circuit...");
     create_circuit_with_witness(builder_, constraint_system, witness);
+    vinfo("gates: ", builder_.get_total_circuit_size());
 
     composer_ = [&]() {
         if (proving_key_) {

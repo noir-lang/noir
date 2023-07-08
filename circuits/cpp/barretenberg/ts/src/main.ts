@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --no-warnings
+#!/usr/bin/env node
 import { Crs, BarretenbergApiAsync, newBarretenbergApiAsync, RawBuffer } from './index.js';
 import createDebug from 'debug';
 import { readFileSync, writeFileSync } from 'fs';
@@ -49,7 +49,7 @@ async function computeCircuitSize(jsonPath: string, api: BarretenbergApiAsync) {
   return { exact, total, subgroup };
 }
 
-async function init(jsonPath: string) {
+async function init(jsonPath: string, crsPath: string) {
   const api = await newBarretenbergApiAsync();
 
   const circuitSize = await getGates(jsonPath, api);
@@ -62,7 +62,7 @@ async function init(jsonPath: string) {
   debug(`subgroup size: ${subgroupSize}`);
   debug('loading crs...');
   // Plus 1 needed! (Move +1 into Crs?)
-  const crs = await Crs.new(subgroupSize + 1);
+  const crs = await Crs.new(subgroupSize + 1, crsPath);
 
   // Important to init slab allocator as first thing, to ensure maximum memory efficiency.
   await api.commonInitSlabAllocator(subgroupSize);
@@ -88,8 +88,8 @@ async function initLite() {
   return { api, acirComposer };
 }
 
-export async function proveAndVerify(jsonPath: string, witnessPath: string, isRecursive: boolean) {
-  const { api, acirComposer } = await init(jsonPath);
+export async function proveAndVerify(jsonPath: string, witnessPath: string, crsPath: string, isRecursive: boolean) {
+  const { api, acirComposer } = await init(jsonPath, crsPath);
   try {
     debug(`creating proof...`);
     const bytecode = getBytecode(jsonPath);
@@ -105,8 +105,14 @@ export async function proveAndVerify(jsonPath: string, witnessPath: string, isRe
   }
 }
 
-export async function prove(jsonPath: string, witnessPath: string, isRecursive: boolean, outputPath: string) {
-  const { api, acirComposer } = await init(jsonPath);
+export async function prove(
+  jsonPath: string,
+  witnessPath: string,
+  crsPath: string,
+  isRecursive: boolean,
+  outputPath: string,
+) {
+  const { api, acirComposer } = await init(jsonPath, crsPath);
   try {
     debug(`creating proof...`);
     const bytecode = getBytecode(jsonPath);
@@ -158,8 +164,8 @@ export async function contract(outputPath: string, vkPath: string) {
   }
 }
 
-export async function writeVk(jsonPath: string, outputPath: string) {
-  const { api, acirComposer } = await init(jsonPath);
+export async function writeVk(jsonPath: string, crsPath: string, outputPath: string) {
+  const { api, acirComposer } = await init(jsonPath, crsPath);
   try {
     debug('initing proving key...');
     const bytecode = getBytecode(jsonPath);
@@ -214,6 +220,7 @@ export async function vkAsFields(vkPath: string, vkeyOutputPath: string) {
 const program = new Command();
 
 program.option('-v, --verbose', 'enable verbose logging', false);
+program.option('-c, --crs-path <path>', 'set crs path', './crs');
 
 function handleGlobalOptions() {
   if (program.opts().verbose) {
@@ -227,9 +234,9 @@ program
   .option('-j, --json-path <path>', 'Specify the JSON path', './target/main.json')
   .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.tr')
   .option('-r, --recursive', 'prove and verify using recursive prover and verifier', false)
-  .action(async ({ jsonPath, witnessPath, recursive }) => {
+  .action(async ({ jsonPath, witnessPath, recursive, crsPath }) => {
     handleGlobalOptions();
-    const result = await proveAndVerify(jsonPath, witnessPath, recursive);
+    const result = await proveAndVerify(jsonPath, witnessPath, crsPath, recursive);
     process.exit(result ? 0 : 1);
   });
 
@@ -240,9 +247,9 @@ program
   .option('-w, --witness-path <path>', 'Specify the witness path', './target/witness.tr')
   .option('-r, --recursive', 'prove using recursive prover', false)
   .option('-o, --output-path <path>', 'Specify the proof output path', './proofs/proof')
-  .action(async ({ jsonPath, witnessPath, recursive, outputPath }) => {
+  .action(async ({ jsonPath, witnessPath, recursive, outputPath, crsPath }) => {
     handleGlobalOptions();
-    await prove(jsonPath, witnessPath, recursive, outputPath);
+    await prove(jsonPath, witnessPath, crsPath, recursive, outputPath);
   });
 
 program
@@ -282,9 +289,9 @@ program
   .description('Output verification key.')
   .option('-j, --json-path <path>', 'Specify the JSON path', './target/main.json')
   .requiredOption('-o, --output-path <path>', 'Specify the path to write the key')
-  .action(async ({ jsonPath, outputPath }) => {
+  .action(async ({ jsonPath, outputPath, crsPath }) => {
     handleGlobalOptions();
-    await writeVk(jsonPath, outputPath);
+    await writeVk(jsonPath, crsPath, outputPath);
   });
 
 program

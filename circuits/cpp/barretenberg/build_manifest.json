@@ -39,5 +39,10 @@
     "buildDir": "ts",
     "rebuildPatterns": ["^ts/"],
     "dependencies": ["barretenberg-wasm-linux-clang"]
+  },
+  "acir-tests": {
+    "buildDir": "acir_tests",
+    "rebuildPatterns": ["^acir_tests/"],
+    "dependencies": ["bb.js", "barretenberg-wasm-linux-clang-assert"]
   }
 }

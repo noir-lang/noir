@@ -12,8 +12,8 @@ const debug = createDebug('bb.js:crs');
 export class Crs {
   constructor(public readonly numPoints: number, public readonly path: string) {}
 
-  static async new(numPoints: number) {
-    const crs = new Crs(numPoints, './crs');
+  static async new(numPoints: number, crsPath = './crs') {
+    const crs = new Crs(numPoints, crsPath);
     await crs.init();
     return crs;
   }

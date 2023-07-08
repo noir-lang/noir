@@ -8,3 +8,4 @@ CMakeUserPresets.json
 .vscode/settings.json
 # to be unignored when we agree on clang-tidy rules
 .clangd
+acir_tests

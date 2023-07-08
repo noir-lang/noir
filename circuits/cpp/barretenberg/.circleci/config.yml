@@ -276,7 +276,6 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_test_script ./scripts/bin-test.sh barretenberg-x86_64-linux-clang-assert
-      - *save_logs
 
   benchmark-aggregator:
     docker:
@@ -313,6 +312,17 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_tests bb.js
+
+  acir-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: cond_spot_run_build acir-tests 32
 
   # These machines cost a fortune (10x other machines).
   # There is a branch coming for github actions that will build mac stuff on releases.
@@ -448,6 +458,11 @@ workflows:
           <<: *defaults
       - bb-js-tests:
           requires:
+            - bb-js
+          <<: *defaults
+      - acir-tests:
+          requires:
+            - x86_64-linux-clang-assert
             - bb-js
           <<: *defaults
       #- circuits-wasm-linux-clang-builder-runner: *notmaster

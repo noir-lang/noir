@@ -32,6 +32,7 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
     static constexpr uint32_t UNINITIALIZED_MEMORY_RECORD = UINT32_MAX;
     static constexpr size_t NUMBER_OF_GATES_PER_RAM_ACCESS = 2;
     static constexpr size_t NUMBER_OF_ARITHMETIC_GATES_PER_RAM_ARRAY = 1;
+    static constexpr size_t NUM_RESERVED_GATES = 4;
     // number of gates created per non-native field operation in process_non_native_field_multiplications
     static constexpr size_t GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC = 7;
     struct non_native_field_witnesses {
@@ -827,7 +828,7 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
 
         auto minimum_circuit_size = tables_size + lookups_size;
         auto num_filled_gates = get_num_gates() + this->public_inputs.size();
-        return std::max(minimum_circuit_size, num_filled_gates);
+        return std::max(minimum_circuit_size, num_filled_gates) + NUM_RESERVED_GATES;
     }
 
     /**x
