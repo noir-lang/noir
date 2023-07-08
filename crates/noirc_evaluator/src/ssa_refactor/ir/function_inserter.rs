@@ -13,6 +13,7 @@ use super::{
 /// The FunctionInserter can be used to help modify existing Functions
 /// and map old values to new values after re-inserting optimized versions
 /// of old instructions.
+/// TODO: optimized meaning calls to the simplify method et al?
 pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 

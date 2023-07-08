@@ -17,10 +17,17 @@ pub(crate) struct Ssa {
 impl Ssa {
     /// Create a new Ssa object from the given SSA functions.
     /// The first function in this vector is expected to be the main function.
+    /// TODO: The above condition is somewhat hidden in the API, should we change it so that
+    /// TODO the caller needs to pass in the main function?
+    ///
     pub(crate) fn new(functions: Vec<Function>) -> Self {
         let main_id = functions.first().expect("Expected at least 1 SSA function").id();
+        // TODO: why is this sorting being done here?
+        // TODO: does the max_id need to be the main_id initially
+        // TODO or do generally just need the max_id from all functions?
         let mut max_id = main_id;
 
+        // Fetch the max_id from all functions
         let functions = btree_map(functions, |f| {
             max_id = std::cmp::max(max_id, f.id());
             (f.id(), f)

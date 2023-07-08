@@ -266,6 +266,7 @@ impl Instruction {
                 }
             }
             Instruction::Constrain(value) => {
+                // If the constraint value is known to be true, then we can remove the constraint instruction.
                 if let Some(constant) = dfg.get_numeric_constant(*value) {
                     if constant.is_one() {
                         return Remove;
@@ -277,10 +278,13 @@ impl Instruction {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
 
+                // If we are getting a value from a constant array with a constant index
+                // Then we can substitute that value in place of the array_get instruction.
+                // TODO: what is a non-constant array?
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
-
+                    // TODO: Where do we check for Out of Bounds(OOB) error?
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }
@@ -379,6 +383,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
         arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
     let constant_args = match constant_args {
         Some(constant_args) => constant_args,
+        // Not a big fan of adding SimplifyResult to the namespace because of the None variant which looks like Option::None
         Option::None => return None,
     };
     match intrinsic {
@@ -393,6 +398,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
             let limb_count = constant_args[2].to_u128() as u32;
             SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
         }
+        // TODO: Can simplify here too!
         Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,
     }
 }
@@ -421,7 +427,7 @@ fn constant_to_radix(
     }
 
     // For legacy reasons (see #617) the to_radix interface supports 256 bits even though
-    // FieldElement::max_num_bits() is only 254 bits. Any limbs beyond the specified count
+    // FieldElement::max_num_bits() is only 254 bits for bn254. Any limbs beyond the specified count
     // become zero padding.
     let max_decomposable_bits: u32 = 256;
     let limb_count_with_padding = max_decomposable_bits / bit_size;
@@ -442,7 +448,7 @@ pub(crate) enum InstructionResultType {
     Known(Type),
 
     /// The result type of this function is unknown and separate from its operand types.
-    /// This occurs for function calls and load operations.
+    /// TODO:WHY? This occurs for function calls and load operations.
     Unknown,
 
     /// This instruction does not return any results.

@@ -29,8 +29,14 @@ use super::{
 /// Contrary to the name, this struct has the capacity to build as many
 /// functions as needed, although it is limited to one function at a time.
 pub(crate) struct FunctionBuilder {
+    /// The current function being built.
+    /// A function builder can be re-used to build different functions.
+    ///
+    /// Note: What is the benefit of this vs creating a function builder per function?
     pub(super) current_function: Function,
+    /// The current block being built.
     current_block: BasicBlockId,
+    /// List of all of the functions that one has built.
     finished_functions: Vec<Function>,
 }
 
@@ -51,7 +57,7 @@ impl FunctionBuilder {
         Self { current_function: new_function, current_block, finished_functions: Vec::new() }
     }
 
-    /// Finish the current function and create a new function.
+    /// Finish the current function by storing it in a `finished_function` vector and create a new function.
     ///
     /// A FunctionBuilder can always only work on one function at a time, so care
     /// should be taken not to finish a function that is still in progress by calling
@@ -80,7 +86,7 @@ impl FunctionBuilder {
         self.new_function_with_type(name, function_id, RuntimeType::Brillig);
     }
 
-    /// Consume the FunctionBuilder returning all the functions it has generated.
+    /// Consume the `FunctionBuilder` returning all the functions it has generated.
     pub(crate) fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
         Ssa::new(self.finished_functions)
@@ -111,9 +117,10 @@ impl FunctionBuilder {
     pub(crate) fn array_constant(
         &mut self,
         elements: im::Vector<ValueId>,
-        element_types: Rc<CompositeType>,
+        // arrays are homogenous, so there is a single type that all elements abide by
+        element_type: Rc<CompositeType>,
     ) -> ValueId {
-        self.current_function.dfg.make_array(elements, element_types)
+        self.current_function.dfg.make_array(elements, element_type)
     }
 
     /// Returns the type of the given value.
@@ -122,7 +129,7 @@ impl FunctionBuilder {
     }
 
     /// Insert a new block into the current function and return it.
-    /// Note that this block is unreachable until another block is set to jump to it.
+    /// Note: This block is unreachable until another block is set to jump to it.
     pub(crate) fn insert_block(&mut self) -> BasicBlockId {
         self.current_function.dfg.make_block()
     }
@@ -139,6 +146,8 @@ impl FunctionBuilder {
     }
 
     /// Inserts a new instruction at the end of the current block and returns its results
+    ///
+    /// TODO: Noted elsewhere this is also doing simplification, can we do this separately? tradeoffs?
     pub(crate) fn insert_instruction(
         &mut self,
         instruction: Instruction,
@@ -152,44 +161,52 @@ impl FunctionBuilder {
     }
 
     /// Switch to inserting instructions in the given block.
+    ///
     /// Expects the given block to be within the same function. If you want to insert
-    /// instructions into a new function, call new_function instead.
+    /// instructions into a new function, call `new_function` instead.
     pub(crate) fn switch_to_block(&mut self, block: BasicBlockId) {
         self.current_block = block;
     }
 
-    /// Returns the block currently being inserted into
+    /// Returns the block currently being modified
     pub(crate) fn current_block(&mut self) -> BasicBlockId {
         self.current_block
     }
 
-    /// Insert an allocate instruction at the end of the current block, allocating the
-    /// given amount of field elements. Returns the result of the allocate instruction,
+    /// Insert an allocate instruction at the end of the current block.
+    /// Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self) -> ValueId {
+        // TODO: Rust has .first on vectors which is confusing because
+        // TODO that returns Option<T> whereas this returns T and expects there
+        // TODO to be only one T.Perhaps change this to be `first_and_only`
+        // TODO or something to not conflate this with .first, but also
+        // TODO to convey the fact that its the only one; `exactly_one` ?
         self.insert_instruction(Instruction::Allocate, None).first()
     }
 
-    /// Insert a Load instruction at the end of the current block, loading from the given offset
-    /// of the given address which should point to a previous Allocate instruction. Note that
-    /// this is limited to loading a single value. Loading multiple values (such as a tuple)
-    /// will require multiple loads.
-    /// 'offset' is in units of FieldElements here. So loading the fourth FieldElement stored in
-    /// an array will have an offset of 3.
-    /// Returns the element that was loaded.
+    /// Insert a Load instruction at the end of the current block.
+    /// TODO: check previous description was not outdated.
+    /// TODO: where do we check that `address` is a Reference?
     pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
         self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
     }
 
-    /// Insert a Store instruction at the end of the current block, storing the given element
-    /// at the given address. Expects that the address points somewhere
-    /// within a previous Allocate instruction.
+    /// Insert a Store instruction at the end of the current block.
+    /// Storing the given element at the given address.
+    /// TODO: check previous description was not outdated
+    /// TODO: where do we check that `address` is a Reference?
+    /// TODO: where do we check that `value` is the correct type for `address?
+    /// TODO: Is `address` still correct terminology, given that we are using stores for mutable variables?
     pub(crate) fn insert_store(&mut self, address: ValueId, value: ValueId) {
         self.insert_instruction(Instruction::Store { address, value }, None);
     }
 
     /// Insert a binary instruction at the end of the current block.
+    ///
     /// Returns the result of the binary instruction.
+    ///
+    /// All binary instructions return one result.
     pub(crate) fn insert_binary(
         &mut self,
         lhs: ValueId,
@@ -201,18 +218,21 @@ impl FunctionBuilder {
     }
 
     /// Insert a not instruction at the end of the current block.
+    ///
     /// Returns the result of the instruction.
     pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
         self.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
     /// Insert a cast instruction at the end of the current block.
+    ///
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
         self.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
     /// Insert a truncate instruction at the end of the current block.
+    ///
     /// Returns the result of the truncate instruction.
     pub(crate) fn insert_truncate(
         &mut self,
@@ -226,11 +246,14 @@ impl FunctionBuilder {
 
     /// Insert a constrain instruction at the end of the current block.
     pub(crate) fn insert_constrain(&mut self, boolean: ValueId) {
-        self.insert_instruction(Instruction::Constrain(boolean), None);
+        let results = self.insert_instruction(Instruction::Constrain(boolean), None).results();
+        assert!(results.is_empty(), "constrain instructions do not return any results");
+        // TODO: maybe put as a method on results like `.first`
     }
 
-    /// Insert a call instruction at the end of the current block and return
-    /// the results of the call.
+    /// Insert a call instruction at the end of the current block.
+    ///
+    /// Returns the results of the call.
     pub(crate) fn insert_call(
         &mut self,
         func: ValueId,
@@ -240,7 +263,11 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 
-    /// Insert an instruction to extract an element from an array
+    /// Insert array_get instruction at the end of the current block.
+    ///
+    /// This will extract an element from `array` at position `index`.
+    ///
+    /// Returns the `ValueId` of the fetched element.
     pub(crate) fn insert_array_get(
         &mut self,
         array: ValueId,
@@ -251,7 +278,12 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
     }
 
-    /// Insert an instruction to create a new array with the given index replaced with a new value
+    /// Insert an array_set instruction to the end of the block.
+    ///
+    /// This will create a new array with the given index replaced with a `value`.
+    /// Note: This will not modify `array`. Arrays are immutable in SSA.
+    ///
+    /// Returns the `ValueId` of the newly created array. This will be a reference.
     pub(crate) fn insert_array_set(
         &mut self,
         array: ValueId,
@@ -261,13 +293,17 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
     }
 
-    /// Terminates the current block with the given terminator instruction
+    /// Terminates the current block with the given terminator instruction.
+    ///
+    /// This is used to denote the block being completed, since basic blocks
+    /// can only have control flow instructions at the end of the block.
     fn terminate_block_with(&mut self, terminator: TerminatorInstruction) {
         self.current_function.dfg.set_block_terminator(self.current_block, terminator);
     }
 
-    /// Terminate the current block with a jmp instruction to jmp to the given
-    /// block with the given arguments.
+    /// Terminate the current block with a jump instruction.
+    ///
+    /// Jump to the given block with the given arguments.
     pub(crate) fn terminate_with_jmp(
         &mut self,
         destination: BasicBlockId,
@@ -276,8 +312,12 @@ impl FunctionBuilder {
         self.terminate_block_with(TerminatorInstruction::Jmp { destination, arguments });
     }
 
-    /// Terminate the current block with a jmpif instruction to jmp with the given arguments
-    /// block with the given arguments.
+    /// Terminate the current block with a conditional jump instruction.
+    ///
+    /// Jump to the `then` block if the condition is true, else jump to
+    /// the `else` block.
+    ///
+    /// TODO: where are the block arguments being supplied?
     pub(crate) fn terminate_with_jmpif(
         &mut self,
         condition: ValueId,
@@ -296,25 +336,23 @@ impl FunctionBuilder {
         self.terminate_block_with(TerminatorInstruction::Return { return_values });
     }
 
-    /// Returns a ValueId pointing to the given function or imports the function
-    /// into the current function if it was not already, and returns that ID.
+    /// Returns a `ValueId` pointing to the given function.
+    ///
+    /// If the function has already been imported, its `ValueId` will be returned,
+    /// else a new `ValueId` will be returned.
     pub(crate) fn import_function(&mut self, function: FunctionId) -> ValueId {
         self.current_function.dfg.import_function(function)
     }
 
-    /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
-    /// into the current function if it was not already, and returns that ID.
+    /// Returns a `ValueId` pointing to the given oracle/foreign function.
+    ///
+    /// If the function has already been imported, its `ValueId` will be returned,
+    /// else a new `ValueId` will be returned.
     pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
         self.current_function.dfg.import_foreign_function(function)
     }
 
-    /// Retrieve a value reference to the given intrinsic operation.
-    /// Returns None if there is no intrinsic matching the given name.
-    pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
-        Intrinsic::lookup(name).map(|intrinsic| self.import_intrinsic_id(intrinsic))
-    }
-
-    /// Retrieve a value reference to the given intrinsic operation.
+    /// Return a `ValueId` to the given intrinsic operation.
     pub(crate) fn import_intrinsic_id(&mut self, intrinsic: Intrinsic) -> ValueId {
         self.current_function.dfg.import_intrinsic(intrinsic)
     }
@@ -370,6 +408,11 @@ mod tests {
         // `bits` should be an array of constants [1, 1, 1, 0...]:
         // let x = 7;
         // let bits = x.to_le_bits(8);
+        //
+        // This is because when we insert an instruction, we are checking to see if that
+        // instruction can be simplified. When the arguments are constant, we can compute this
+        // at compile time.
+        // TODO(NOTE): We can do this for blackbox functions too
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
         let one = builder.numeric_constant(FieldElement::one(), Type::bool());
@@ -385,6 +428,7 @@ mod tests {
             Value::Array { array, .. } => array,
             _ => panic!(),
         };
+
         assert_eq!(array[0], one);
         assert_eq!(array[1], one);
         assert_eq!(array[2], one);

@@ -13,7 +13,7 @@ use super::{
 /// Dominator tree node. We keep one of these per reachable block.
 #[derive(Clone, Default)]
 struct DominatorTreeNode {
-    /// The block's idx in the control flow graph's reverse post-order
+    /// The block's index in the control flow graph's reverse post-order
     reverse_post_order_idx: u32,
 
     /// The block that immediately dominated that of the node in question.
@@ -59,7 +59,7 @@ impl DominatorTree {
     /// Returns the immediate dominator of `block_id`.
     ///
     /// A block is said to *dominate* `block_id` if all control flow paths from the function
-    /// entry to `block_id` must go through the block.
+    /// entry to `block_id` must go through that block.
     ///
     /// The *immediate dominator* is the dominator that is closest to `block_id`. All other
     /// dominators also dominate the immediate dominator.

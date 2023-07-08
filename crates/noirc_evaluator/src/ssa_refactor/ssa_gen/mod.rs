@@ -99,10 +99,11 @@ impl<'a> FunctionContext<'a> {
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
-                match self.builder.import_intrinsic(name) {
-                    Some(builtin) => builtin.into(),
+                let intrinsic_id = match super::ir::instruction::Intrinsic::lookup(name) {
+                    Some(intrinsic_id) => intrinsic_id,
                     None => panic!("No builtin function named '{name}' found"),
-                }
+                };
+                self.builder.import_intrinsic_id(intrinsic_id).into()
             }
         }
     }

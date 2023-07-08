@@ -55,8 +55,9 @@ pub(crate) struct DataFlowGraph {
     intrinsics: HashMap<Intrinsic, ValueId>,
 
     /// Contains each foreign function that has been imported into the current function.
-    /// This map is used to ensure that the ValueId for any given foreign functôn is always
+    /// This map is used to ensure that the ValueId for any given foreign function is always
     /// represented by only 1 ValueId within this function.
+    /// TODO: can we merge this into intrinsics?
     foreign_functions: HashMap<String, ValueId>,
 
     /// Function signatures of external methods
@@ -68,6 +69,7 @@ pub(crate) struct DataFlowGraph {
     /// Debugging information about which `ValueId`s have had their underlying `Value` substituted
     /// for that of another. This information is purely used for printing the SSA, and has no
     /// material effect on the SSA itself.
+    /// TODO: Is this true? How are we doing aliasing?
     replaced_value_ids: HashMap<ValueId, ValueId>,
 }
 
@@ -103,6 +105,8 @@ impl DataFlowGraph {
     /// block's id.
     ///
     /// The pairs are order by id, which is not guaranteed to be meaningful.
+    /// TODO: do we need to order by reverse post order? Is this useful? Check brillig
+    /// TODO: ie do we need to get all successors/predecessors first?
     pub(crate) fn basic_blocks_iter(
         &self,
     ) -> impl ExactSizeIterator<Item = (BasicBlockId, &BasicBlock)> {
@@ -115,6 +119,7 @@ impl DataFlowGraph {
     }
 
     /// Inserts a new instruction into the DFG.
+    ///
     /// This does not add the instruction to the block.
     /// Returns the id of the new instruction and its results.
     ///
@@ -132,6 +137,8 @@ impl DataFlowGraph {
     }
 
     /// Inserts a new instruction at the end of the given block and returns its results
+    ///
+    /// TODO: This is doing more than just inserting an instruction and its results
     pub(crate) fn insert_instruction_and_results(
         &mut self,
         instruction: Instruction,
@@ -139,6 +146,9 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
+        // TODO: Is simplify still inserting the instruction?
+        // TODO: or are we assuming that simplify will always return a ValueId that
+        // TODO: has already been inserted?
         match instruction.simplify(self, block) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::Remove => InstructionRemoved,
