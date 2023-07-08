@@ -4201,5 +4201,5 @@ dependencies = [
 
 [[patch.unused]]
 name = "acvm-backend-barretenberg"
-version = "0.6.0"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg.git?rev=0842911beed6c54b7efcd721372fb73431c95bbf#0842911beed6c54b7efcd721372fb73431c95bbf"
+version = "0.6.1"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=0db31acf1f2410f01aa364e8f8587b15808f8fee#0db31acf1f2410f01aa364e8f8587b15808f8fee"
