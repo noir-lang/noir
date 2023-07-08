@@ -52,8 +52,9 @@ dependencies = [
 
 [[package]]
 name = "acvm-backend-barretenberg"
-version = "0.6.0"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?branch=md/hackathon#79aa315e62fdff774b69eb948852aad7196cbce3"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e23bca54647ad1e9e89c24ca62f813427cea990177aebd68139081649b96e3b"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -4198,8 +4199,3 @@ dependencies = [
  "quote",
  "syn 2.0.23",
 ]
-
-[[patch.unused]]
-name = "acvm-backend-barretenberg"
-version = "0.6.1"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=0db31acf1f2410f01aa364e8f8587b15808f8fee#0db31acf1f2410f01aa364e8f8587b15808f8fee"
