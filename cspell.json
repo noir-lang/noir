@@ -90,6 +90,7 @@
         "rustc",
         "rustup",
         "secp256k1",
+        "secp256r1",
         "smol",
         "tempdir",
         "tempfile",

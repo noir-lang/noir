@@ -53,6 +53,7 @@ pub fn preprocess_contract_function<B: ProofSystemCompiler>(
     Ok(PreprocessedContractFunction {
         name: func.name,
         function_type: func.function_type,
+        is_internal: func.is_internal,
         abi: func.abi,
 
         bytecode: optimized_bytecode,

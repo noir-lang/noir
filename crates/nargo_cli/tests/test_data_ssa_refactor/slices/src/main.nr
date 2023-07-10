@@ -1,7 +1,7 @@
 use dep::std::slice;
 use dep::std;
 fn main(x : Field, y : pub Field) {
-    /// TODO: Using slices in if statements where the condition is a witness
+    /// TODO(#1889): Using slices in if statements where the condition is a witness
     /// is not yet supported
 
     let mut slice: [Field] = [0; 2];

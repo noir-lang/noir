@@ -40,6 +40,8 @@ pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
 pub(crate) enum ReservedRegisters {
     /// This register stores the stack pointer. Allocations must be done after this pointer.
     StackPointer = 0,
+    /// This register stores the previous stack pointer. The registers of the caller are stored here.
+    PreviousStackPointer = 1,
 }
 
 impl ReservedRegisters {
@@ -47,7 +49,7 @@ impl ReservedRegisters {
     ///
     /// This is used to offset the general registers
     /// which should not overwrite the special register
-    const NUM_RESERVED_REGISTERS: usize = 1;
+    const NUM_RESERVED_REGISTERS: usize = 2;
 
     /// Returns the length of the reserved registers
     pub(crate) fn len() -> usize {
@@ -57,6 +59,11 @@ impl ReservedRegisters {
     /// Returns the stack pointer register. This will get used to allocate memory in runtime.
     pub(crate) fn stack_pointer() -> RegisterIndex {
         RegisterIndex::from(ReservedRegisters::StackPointer as usize)
+    }
+
+    /// Returns the previous stack pointer register. This will be used to restore the registers after a fn call.
+    pub(crate) fn previous_stack_pointer() -> RegisterIndex {
+        RegisterIndex::from(ReservedRegisters::PreviousStackPointer as usize)
     }
 
     /// Returns a user defined (non-reserved) register index.
@@ -122,6 +129,24 @@ impl BrilligContext {
         size_register: RegisterIndex,
     ) {
         debug_show::allocate_array_instruction(pointer_register, size_register);
+        self.push_opcode(BrilligOpcode::Mov {
+            destination: pointer_register,
+            source: ReservedRegisters::stack_pointer(),
+        });
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            destination: ReservedRegisters::stack_pointer(),
+            op: BinaryIntOp::Add,
+            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            lhs: ReservedRegisters::stack_pointer(),
+            rhs: size_register,
+        });
+    }
+
+    /// Allocates a single value and stores the
+    /// pointer to the array in `pointer_register`
+    pub(crate) fn allocate_instruction(&mut self, pointer_register: RegisterIndex) {
+        debug_show::allocate_instruction(pointer_register);
+        let size_register = self.make_constant(1_u128.into());
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
             source: ReservedRegisters::stack_pointer(),
@@ -618,12 +643,21 @@ impl BrilligContext {
         //
         // Note that here it is important that the stack pointer register is at register 0,
         // as after the first register save we add to the pointer.
-        let used_registers: Vec<_> = self.registers.used_registers_iter().collect();
+        let mut used_registers: Vec<_> = self.registers.used_registers_iter().collect();
+
+        // Also dump the previous stack pointer
+        used_registers.push(ReservedRegisters::previous_stack_pointer());
         for register in used_registers.iter() {
             self.store_instruction(ReservedRegisters::stack_pointer(), *register);
             // Add one to our stack pointer
             self.usize_op(ReservedRegisters::stack_pointer(), BinaryIntOp::Add, 1);
         }
+
+        // Store the location of our registers in the previous stack pointer
+        self.mov_instruction(
+            ReservedRegisters::previous_stack_pointer(),
+            ReservedRegisters::stack_pointer(),
+        );
         used_registers
     }
 
@@ -632,10 +666,13 @@ impl BrilligContext {
         // Load all of the used registers that we saved.
         // We do all the reverse operations of save_all_used_registers.
         // Iterate our registers in reverse
+        let iterator_register = self.allocate_register();
+        self.mov_instruction(iterator_register, ReservedRegisters::previous_stack_pointer());
+
         for register in used_registers.iter().rev() {
             // Subtract one from our stack pointer
-            self.usize_op(ReservedRegisters::stack_pointer(), BinaryIntOp::Sub, 1);
-            self.load_instruction(*register, ReservedRegisters::stack_pointer());
+            self.usize_op(iterator_register, BinaryIntOp::Sub, 1);
+            self.load_instruction(*register, iterator_register);
         }
     }
 

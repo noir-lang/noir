@@ -328,6 +328,8 @@ pub struct FunctionDefinition {
     /// True if this function was defined with the 'open' keyword
     pub is_open: bool,
 
+    pub is_internal: bool,
+
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 

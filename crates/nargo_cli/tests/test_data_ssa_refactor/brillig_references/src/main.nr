@@ -1,4 +1,4 @@
-fn main(mut x: Field) {
+unconstrained fn main(mut x: Field) {
     add1(&mut x);
     assert(x == 3);
 
@@ -25,10 +25,12 @@ fn main(mut x: Field) {
         },
     };
     *c.bar.array = [3, 4];
-    assert(*c.bar.array == [3, 4]);
+    let arr: [Field; 2] = *c.bar.array;
+    assert(arr[0] == 3);
+    assert(arr[1] == 4);
 }
 
-fn add1(x: &mut Field) {
+unconstrained fn add1(x: &mut Field) {
     *x += 1;
 }
 
@@ -46,11 +48,11 @@ struct C2 {
 }
 
 impl S {
-    fn add2(&mut self) {
+    unconstrained fn add2(&mut self) {
         self.y += 2;
     }
 }
 
-fn mutate_copy(mut a: Field) {
+unconstrained fn mutate_copy(mut a: Field) {
     a = 7;
 }

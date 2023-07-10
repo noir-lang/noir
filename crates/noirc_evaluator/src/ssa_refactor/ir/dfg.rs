@@ -466,11 +466,11 @@ impl<'dfg> InsertInstructionResult<'dfg> {
 
     /// Return all the results contained in the internal results array.
     /// This is used for instructions returning multiple results like function calls.
-    pub(crate) fn results(&self) -> Cow<'dfg, [ValueId]> {
+    pub(crate) fn results(self) -> Cow<'dfg, [ValueId]> {
         match self {
             InsertInstructionResult::Results(results) => Cow::Borrowed(results),
-            InsertInstructionResult::SimplifiedTo(result) => Cow::Owned(vec![*result]),
-            InsertInstructionResult::SimplifiedToMultiple(results) => Cow::Owned(results.clone()),
+            InsertInstructionResult::SimplifiedTo(result) => Cow::Owned(vec![result]),
+            InsertInstructionResult::SimplifiedToMultiple(results) => Cow::Owned(results),
             InsertInstructionResult::InstructionRemoved => {
                 panic!("InsertInstructionResult::results called on a removed instruction")
             }
