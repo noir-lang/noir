@@ -77,7 +77,24 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
+        let mut ast = parse_file(&mut context.file_manager, root_file_id, errors);
+
+        // TODO(#1850): This check should be removed once we fully move over to the new SSA pass
+        // Compiling with the old SSA pass will lead to duplicate method definitions between
+        // the `slice` and `array` modules of the stdlib.
+        //
+        // The last crate represents the stdlib crate.
+        // After resolving the manifest of the local crate the stdlib is added to the manifest and propagated to all crates
+        // thus being the last crate.
+        if !context.def_interner.enable_slices && context.crate_graph.is_last_crate(crate_id) {
+            let path_as_str = context
+                .file_manager
+                .path(root_file_id)
+                .to_str()
+                .expect("expected std path to be convertible to str");
+            assert_eq!(path_as_str, "std/lib");
+            ast.module_decls.retain(|ident| ident.0.contents != "slice");
+        }
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();

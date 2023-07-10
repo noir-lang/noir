@@ -28,14 +28,12 @@ const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
 struct LspState {
-    context: Context,
     client: ClientSocket,
 }
 
 impl LspState {
     fn new(client: &ClientSocket) -> Self {
-        // TODO: Do we want to build the Context here or when we get the initialize message?
-        Self { client: client.clone(), context: Context::default() }
+        Self { client: client.clone() }
     }
 }
 
@@ -130,31 +128,33 @@ fn on_shutdown(
 }
 
 fn on_code_lens_request(
-    state: &mut LspState,
+    _state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
     let file_path = &params.text_document.uri.to_file_path().unwrap();
 
-    let crate_id = create_local_crate(&mut state.context, file_path, CrateType::Binary);
+    let mut context = Context::default();
+
+    let crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut state.context, false);
+    let _ = check_crate(&mut context, false, false);
 
-    let fm = &state.context.file_manager;
+    let fm = &context.file_manager;
     let files = fm.as_simple_files();
-    let tests = state.context.get_all_test_functions_in_crate_matching(&crate_id, "");
+    let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
 
     let mut lenses: Vec<CodeLens> = vec![];
     for func_id in tests {
-        let location = state.context.function_meta(&func_id).name.location;
+        let location = context.function_meta(&func_id).name.location;
         let file_id = location.file;
         // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
         if file_id.as_usize() != 0 {
             continue;
         }
 
-        let func_name = state.context.function_name(&func_id);
+        let func_name = context.function_name(&func_id);
 
         let range =
             byte_span_to_range(files, file_id.as_usize(), location.span.into()).unwrap_or_default();
@@ -220,17 +220,19 @@ fn on_did_save_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let file_path = &params.text_document.uri.to_file_path().unwrap();
 
-    create_local_crate(&mut state.context, file_path, CrateType::Binary);
+    let mut context = Context::default();
+
+    create_local_crate(&mut context, file_path, CrateType::Binary);
 
     let mut diagnostics = Vec::new();
 
-    let file_diagnostics = match check_crate(&mut state.context, false) {
+    let file_diagnostics = match check_crate(&mut context, false, false) {
         Ok(warnings) => warnings,
         Err(errors_and_warnings) => errors_and_warnings,
     };
 
     if !file_diagnostics.is_empty() {
-        let fm = &state.context.file_manager;
+        let fm = &context.file_manager;
         let files = fm.as_simple_files();
 
         for FileDiagnostic { file_id, diagnostic } in file_diagnostics {

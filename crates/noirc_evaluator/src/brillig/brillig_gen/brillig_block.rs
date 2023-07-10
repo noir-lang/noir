@@ -142,7 +142,7 @@ impl<'block> BrilligBlock<'block> {
                 // Simple parameters and arrays are passed as already filled registers
                 // In the case of arrays, the values should already be in memory and the register should
                 // Be a valid pointer to the array.
-                Type::Numeric(_) | Type::Array(..) => {
+                Type::Numeric(_) | Type::Array(..) | Type::Reference => {
                     self.function_context.get_or_create_register(self.brillig_context, *param_id);
                 }
                 _ => {
@@ -169,24 +169,25 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.constrain_instruction(condition);
             }
             Instruction::Allocate => {
-                let value: crate::ssa_refactor::ir::map::Id<Value> =
-                    dfg.instruction_results(instruction_id)[0];
-                self.function_context.get_or_create_register(self.brillig_context, value);
+                let value = dfg.instruction_results(instruction_id)[0];
+                let address_register =
+                    self.function_context.get_or_create_register(self.brillig_context, value);
+                self.brillig_context.allocate_instruction(address_register);
             }
             Instruction::Store { address, value } => {
-                let target_register = self.convert_ssa_value(*address, dfg);
+                let address_register = self.convert_ssa_value(*address, dfg);
                 let source_register = self.convert_ssa_value(*value, dfg);
 
-                self.brillig_context.mov_instruction(target_register, source_register);
+                self.brillig_context.store_instruction(address_register, source_register);
             }
             Instruction::Load { address } => {
                 let target_register = self.function_context.get_or_create_register(
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                 );
-                let source_register = self.convert_ssa_value(*address, dfg);
+                let address_register = self.convert_ssa_value(*address, dfg);
 
-                self.brillig_context.mov_instruction(target_register, source_register);
+                self.brillig_context.load_instruction(target_register, address_register);
             }
             Instruction::Not(value) => {
                 let condition = self.convert_ssa_value(*value, dfg);
@@ -497,6 +498,18 @@ impl<'block> BrilligBlock<'block> {
 /// This probably should be explicitly casted in SSA to avoid having to coerce at this level.
 pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
     match (lhs_type, rhs_type) {
+        (_, Type::Function) | (Type::Function, _) => {
+            unreachable!("Functions are invalid in binary operations")
+        }
+        (_, Type::Reference) | (Type::Reference, _) => {
+            unreachable!("References are invalid in binary operations")
+        }
+        (_, Type::Array(..)) | (Type::Array(..), _) => {
+            unreachable!("Arrays are invalid in binary operations")
+        }
+        (_, Type::Slice(..)) | (Type::Slice(..), _) => {
+            unreachable!("Arrays are invalid in binary operations")
+        }
         // If either side is a Field constant then, we coerce into the type
         // of the other operand
         (Type::Numeric(NumericType::NativeField), typ)
@@ -509,12 +522,6 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
                 "lhs and rhs types in a binary operation are always the same"
             );
             Type::Numeric(lhs_type)
-        }
-        (lhs_type, rhs_type) => {
-            unreachable!(
-                "ICE: Binary operation between types {:?} and {:?} is not allowed",
-                lhs_type, rhs_type
-            )
         }
     }
 }

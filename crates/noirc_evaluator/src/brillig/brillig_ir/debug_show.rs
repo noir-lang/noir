@@ -30,6 +30,8 @@ impl DebugToString for RegisterIndex {
     fn debug_to_string(&self) -> String {
         if *self == ReservedRegisters::stack_pointer() {
             "Stack".into()
+        } else if *self == ReservedRegisters::previous_stack_pointer() {
+            "PrevStack".into()
         } else {
             format!("R{}", self.to_usize())
         }
@@ -214,6 +216,11 @@ pub(crate) fn allocate_array_instruction(
     debug_println!("  ALLOCATE_ARRAY {} SIZE {}", pointer_register, size_register);
 }
 
+/// Debug function for allocate_instruction
+pub(crate) fn allocate_instruction(pointer_register: RegisterIndex) {
+    debug_println!("  ALLOCATE {} ", pointer_register);
+}
+
 /// Debug function for array_get
 pub(crate) fn array_get(array_ptr: RegisterIndex, index: RegisterIndex, result: RegisterIndex) {
     debug_println!("  ARRAY_GET {}[{}] -> {}", array_ptr, index, result);
@@ -289,6 +296,22 @@ pub(crate) fn black_box_op_instruction(op: BlackBoxOp) {
         } => {
             debug_println!(
                 "  ECDSA_SECP256K1 {} {} {} {} -> {}",
+                hashed_msg,
+                public_key_x,
+                public_key_y,
+                signature,
+                result
+            );
+        }
+        BlackBoxOp::EcdsaSecp256r1 {
+            hashed_msg,
+            public_key_x,
+            public_key_y,
+            signature,
+            result,
+        } => {
+            debug_println!(
+                "  ECDSA_SECP256R1 {} {} {} {} -> {}",
                 hashed_msg,
                 public_key_x,
                 public_key_y,

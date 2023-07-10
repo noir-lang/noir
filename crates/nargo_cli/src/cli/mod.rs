@@ -132,7 +132,7 @@ mod tests {
         let mut context = Context::default();
         create_local_crate(&mut context, &root_file, CrateType::Binary);
 
-        let result = check_crate(&mut context, false);
+        let result = check_crate(&mut context, false, false);
         let success = result.is_ok();
 
         let errors = match result {
