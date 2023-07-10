@@ -60,7 +60,7 @@ TEST_F(private_kernel_tests, basic)
 
     // Execute and prove the first kernel iteration
     Builder private_kernel_builder;
-    auto const& public_inputs = private_kernel_circuit(private_kernel_builder, private_inputs, true);
+    private_kernel_circuit(private_kernel_builder, private_inputs, true);
 
     // Check the private kernel circuit
     EXPECT_TRUE(private_kernel_builder.check_circuit());

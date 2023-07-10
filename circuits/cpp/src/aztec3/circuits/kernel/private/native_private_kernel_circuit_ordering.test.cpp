@@ -121,7 +121,7 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
 
     DummyBuilder builder = DummyBuilder("native_private_kernel_ordering_tests__native_read_request_unknown_fails");
-    auto const& public_inputs = native_private_kernel_circuit_ordering(
+    native_private_kernel_circuit_ordering(
         builder, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
 
     auto failure = builder.get_first_failure();

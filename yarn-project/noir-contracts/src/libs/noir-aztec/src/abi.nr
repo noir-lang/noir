@@ -323,7 +323,7 @@ fn hash_args<N>(args: [Field; N]) -> Field {
     let mut chunks_hashes = [0; ARGS_HASH_CHUNK_COUNT];
     for i in 0..ARGS_HASH_CHUNK_COUNT {
         let mut chunk_hash = 0;
-        if i * ARGS_HASH_CHUNK_SIZE < args.len() {
+        if (i * ARGS_HASH_CHUNK_SIZE) as u32 < args.len() as u32 {
             let mut chunk_args = [0; ARGS_HASH_CHUNK_SIZE];
             for j in 0..ARGS_HASH_CHUNK_SIZE {
                 if (i * ARGS_HASH_CHUNK_COUNT + j) as u32 < args.len() as u32 {

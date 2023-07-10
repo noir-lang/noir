@@ -195,7 +195,7 @@ TEST_F(native_private_kernel_inner_tests, private_kernel_should_fail_if_aggregat
         full_new_commitments[i] = i + 1;
     }
     private_inputs.previous_kernel.public_inputs.end.new_commitments = full_new_commitments;
-    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code, CircuitErrorCode::ARRAY_OVERFLOW);
