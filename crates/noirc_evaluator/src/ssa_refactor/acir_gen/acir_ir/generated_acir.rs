@@ -17,7 +17,7 @@ use acvm::{
     acir::{circuit::directives::Directive, native_types::Expression},
     FieldElement,
 };
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::vecmap;
 use num_bigint::BigUint;
 
 #[derive(Debug, Default)]
@@ -284,29 +284,28 @@ impl GeneratedAcir {
             "ICE: Radix must be a power of 2"
         );
 
-        let mut composed_limbs = Expression::default();
-
-        let mut radix_pow = BigUint::from(1u128);
-        let limb_witnesses = try_vecmap(0..limb_count, |_| {
-            let limb_witness = self.next_witness_index();
-            self.range_constraint(limb_witness, bit_size)?;
-
-            composed_limbs = composed_limbs.add_mul(
-                FieldElement::from_be_bytes_reduce(&radix_pow.to_bytes_be()),
-                &Expression::from(limb_witness),
-            );
-
-            radix_pow *= &radix_big;
-            Ok(limb_witness)
-        })?;
-
-        self.assert_is_zero(input_expr - &composed_limbs);
-
+        let limb_witnesses = vecmap(0..limb_count, |_| self.next_witness_index());
         self.push_opcode(AcirOpcode::Directive(Directive::ToLeRadix {
             a: input_expr.clone(),
             b: limb_witnesses.clone(),
             radix,
         }));
+
+        let mut composed_limbs = Expression::default();
+
+        let mut radix_pow = BigUint::from(1u128);
+        for limb_witness in &limb_witnesses {
+            self.range_constraint(*limb_witness, bit_size)?;
+
+            composed_limbs = composed_limbs.add_mul(
+                FieldElement::from_be_bytes_reduce(&radix_pow.to_bytes_be()),
+                &Expression::from(*limb_witness),
+            );
+
+            radix_pow *= &radix_big;
+        }
+
+        self.assert_is_zero(input_expr - &composed_limbs);
 
         Ok(limb_witnesses)
     }
