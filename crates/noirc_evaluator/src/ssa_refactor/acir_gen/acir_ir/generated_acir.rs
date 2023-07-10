@@ -159,15 +159,8 @@ impl GeneratedAcir {
         let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
 
         // 1. Generate witnesses a,b,c
-        let remainder_witness = self.next_witness_index();
-        let quotient_witness = self.next_witness_index();
-        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: lhs.clone(),
-            b: Expression::from_field(exp),
-            q: quotient_witness,
-            r: remainder_witness,
-            predicate: None,
-        })));
+        let (quotient_witness, remainder_witness) =
+            self.quotient_directive(lhs.clone(), exp.into(), None)?;
 
         // According to the division theorem, the remainder needs to be 0 <= r < 2^{rhs_bit_size}
         self.range_constraint(remainder_witness, rhs_bit_size)?;
@@ -404,19 +397,11 @@ impl GeneratedAcir {
         max_bit_size: u32,
         predicate: &Expression,
     ) -> Result<(Witness, Witness), AcirGenError> {
-        let q_witness = self.next_witness_index();
-        let r_witness = self.next_witness_index();
-
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
-        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: lhs.clone(),
-            b: rhs.clone(),
-            q: q_witness,
-            r: r_witness,
-            predicate: Some(predicate.clone()),
-        })));
+        let (q_witness, r_witness) =
+            self.quotient_directive(lhs.clone(), rhs.clone(), Some(predicate.clone()))?;
 
         // Constrain r to be 0 <= r < 2^{max_bit_size}
         let r_expr = Expression::from(r_witness);
@@ -658,7 +643,7 @@ impl GeneratedAcir {
     }
 
     /// Adds a constraint which ensure thats `witness` is an
-    /// integer within the range [0, 2^{num_bits} - 1]
+    /// integer within the range `[0, 2^{num_bits} - 1]`
     pub(crate) fn range_constraint(
         &mut self,
         witness: Witness,
@@ -680,6 +665,24 @@ impl GeneratedAcir {
         Ok(())
     }
 
+    /// Adds a directive which injects witnesses with values `q = a / b` and `r = a % b`.
+    pub(crate) fn quotient_directive(
+        &mut self,
+        a: Expression,
+        b: Expression,
+        predicate: Option<Expression>,
+    ) -> Result<(Witness, Witness), AcirGenError> {
+        let q_witness = self.next_witness_index();
+        let r_witness = self.next_witness_index();
+
+        let directive =
+            Directive::Quotient(QuotientDirective { a, b, q: q_witness, r: r_witness, predicate });
+
+        self.push_opcode(AcirOpcode::Directive(directive));
+
+        Ok((q_witness, r_witness))
+    }
+
     /// Returns a `Witness` that is constrained to be:
     /// - `1` if lhs >= rhs
     /// - `0` otherwise
@@ -697,23 +700,14 @@ impl GeneratedAcir {
         //
         // TODO: perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < FieldElement::max_num_bits());
+        let two = FieldElement::from(2_i128);
+        let two_max_bits: FieldElement = two.pow(&FieldElement::from(max_bits as i128));
 
         // Compute : 2^{max_bits} + a - b
-        let mut comparison_evaluation = a - b;
-        let two = FieldElement::from(2_i128);
-        let two_max_bits = two.pow(&FieldElement::from(max_bits as i128));
-        comparison_evaluation.q_c += two_max_bits;
+        let comparison_evaluation = (a - b) + two_max_bits;
 
-        let q_witness = self.next_witness_index();
-        let r_witness = self.next_witness_index();
-
-        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: comparison_evaluation.clone(),
-            b: Expression::from_field(two_max_bits),
-            q: q_witness,
-            r: r_witness,
-            predicate,
-        })));
+        let (q_witness, r_witness) =
+            self.quotient_directive(comparison_evaluation.clone(), two_max_bits.into(), predicate)?;
 
         // Add constraint : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
