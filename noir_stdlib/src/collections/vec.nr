@@ -10,6 +10,12 @@ impl<T> Vec<T> {
         Self { slice: [] }
     }
 
+    // Create a Vec containing each element from the given slice.
+    // Mutations to the resulting Vec will not affect the original slice.
+    fn from_slice(slice: [T]) -> Self {
+        Self { slice }
+    }
+
     /// Get an element from the vector at the given index.
     /// Panics if the given index
     /// points beyond the end of the vector.
