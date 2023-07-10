@@ -296,6 +296,22 @@ pub(crate) fn black_box_op_instruction(op: BlackBoxOp) {
                 result
             );
         }
+        BlackBoxOp::EcdsaSecp256r1 {
+            hashed_msg,
+            public_key_x,
+            public_key_y,
+            signature,
+            result,
+        } => {
+            debug_println!(
+                "  ECDSA_SECP256R1 {} {} {} {} -> {}",
+                hashed_msg,
+                public_key_x,
+                public_key_y,
+                signature,
+                result
+            );
+        }
     }
 }
 
