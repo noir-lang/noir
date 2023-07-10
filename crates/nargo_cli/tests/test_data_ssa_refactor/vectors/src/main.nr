@@ -25,4 +25,8 @@ fn main(x: Field, y: pub Field) {
     assert(removed_elem == 2);
     assert(vector.get(3) == 3);
     assert(vector.len() == 4);
+
+    let mut inputs_vector = Vec::from_slice([x, y]);
+    assert(inputs_vector.get(0) == x);
+    assert(inputs_vector.get(1) == y);
 }
