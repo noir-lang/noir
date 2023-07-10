@@ -84,7 +84,6 @@ fn verify_with_path<B: Backend, P: AsRef<Path>>(
         }
         None => {
             let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
-
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;

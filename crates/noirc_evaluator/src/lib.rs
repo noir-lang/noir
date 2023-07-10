@@ -81,13 +81,13 @@ pub fn create_circuit(
         opcodes,
         ..
     } = evaluator;
-
     let circuit = Circuit {
         current_witness_index,
         opcodes,
         public_parameters: PublicInputs(public_parameters),
         return_values: PublicInputs(return_values.iter().copied().collect()),
     };
+
     let (parameters, return_type) = program.main_function_signature;
     let abi = Abi { parameters, param_witnesses, return_type, return_witnesses: return_values };
 
