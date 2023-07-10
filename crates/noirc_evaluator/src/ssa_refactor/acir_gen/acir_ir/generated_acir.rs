@@ -700,10 +700,10 @@ impl GeneratedAcir {
         //
         // TODO: perhaps this should be a user error, instead of an assert
         assert!(max_bits + 1 < FieldElement::max_num_bits());
-        let two = FieldElement::from(2_i128);
-        let two_max_bits: FieldElement = two.pow(&FieldElement::from(max_bits as i128));
 
         // Compute : 2^{max_bits} + a - b
+        let two = FieldElement::from(2_i128);
+        let two_max_bits: FieldElement = two.pow(&FieldElement::from(max_bits as i128));
         let comparison_evaluation = (a - b) + two_max_bits;
 
         let (q_witness, r_witness) =
