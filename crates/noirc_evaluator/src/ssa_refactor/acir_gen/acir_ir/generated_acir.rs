@@ -542,13 +542,13 @@ impl GeneratedAcir {
     ///
     /// Safety: It is the callers responsibility to ensure that the
     /// resulting `Witness` is constrained to be the inverse.
-    pub(crate) fn brillig_inverse(&mut self, expr: &Expression) -> Witness {
+    pub(crate) fn brillig_inverse(&mut self, expr: Expression) -> Witness {
         // Create the witness for the result
         let inverted_witness = self.next_witness_index();
 
         // Compute the inverse with brillig code
         let inverse_code = brillig_directive::directive_invert();
-        let inputs = vec![BrilligInputs::Single(expr.clone())];
+        let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
         self.brillig(Some(Expression::one()), inverse_code, inputs, outputs);
 
@@ -625,16 +625,13 @@ impl GeneratedAcir {
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
     pub(crate) fn is_equal(&mut self, lhs: &Expression, rhs: &Expression) -> Witness {
         let t = lhs - rhs;
-
-        // This conversion is needed due to us calling Directive::Inverse;
-        //
-        // We avoid calling directive::inverse(expr) because we need
-        // the Witness representation for the Expression.
+        // We avoid passing the expression to `self.brillig_inverse` directly because we need
+        // the `Witness` representation for constructing `y_is_boolean_constraint`.
         let t_witness = self.get_or_create_witness(&t);
 
         // Call the inversion directive, since we do not apply a constraint
         // the prover can choose anything here.
-        let z = self.brillig_inverse(&Expression::from(t_witness));
+        let z = self.brillig_inverse(t_witness.into());
 
         let y = self.next_witness_index();
 
