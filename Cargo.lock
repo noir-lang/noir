@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.17.0"
-source = "git+https://github.com/noir-lang/acvm?rev=835a49b5ae79a1e06604991a743fe13d87444b29#835a49b5ae79a1e06604991a743fe13d87444b29"
+source = "git+https://github.com/noir-lang/acvm?rev=d03818bd5d7f267bcb2fd24594c3f5f7b72e0668#d03818bd5d7f267bcb2fd24594c3f5f7b72e0668"
 dependencies = [
  "acir_field",
  "brillig_vm",
@@ -18,7 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.17.0"
-source = "git+https://github.com/noir-lang/acvm?rev=835a49b5ae79a1e06604991a743fe13d87444b29#835a49b5ae79a1e06604991a743fe13d87444b29"
+source = "git+https://github.com/noir-lang/acvm?rev=d03818bd5d7f267bcb2fd24594c3f5f7b72e0668#d03818bd5d7f267bcb2fd24594c3f5f7b72e0668"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -31,7 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.17.0"
-source = "git+https://github.com/noir-lang/acvm?rev=835a49b5ae79a1e06604991a743fe13d87444b29#835a49b5ae79a1e06604991a743fe13d87444b29"
+source = "git+https://github.com/noir-lang/acvm?rev=d03818bd5d7f267bcb2fd24594c3f5f7b72e0668#d03818bd5d7f267bcb2fd24594c3f5f7b72e0668"
 dependencies = [
  "acir",
  "acvm_stdlib",
@@ -42,7 +42,6 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "p256",
- "rmp-serde",
  "sha2",
  "sha3",
  "thiserror",
@@ -70,7 +69,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.17.0"
-source = "git+https://github.com/noir-lang/acvm?rev=835a49b5ae79a1e06604991a743fe13d87444b29#835a49b5ae79a1e06604991a743fe13d87444b29"
+source = "git+https://github.com/noir-lang/acvm?rev=d03818bd5d7f267bcb2fd24594c3f5f7b72e0668#d03818bd5d7f267bcb2fd24594c3f5f7b72e0668"
 dependencies = [
  "acir",
 ]
@@ -517,7 +516,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.17.0"
-source = "git+https://github.com/noir-lang/acvm?rev=835a49b5ae79a1e06604991a743fe13d87444b29#835a49b5ae79a1e06604991a743fe13d87444b29"
+source = "git+https://github.com/noir-lang/acvm?rev=d03818bd5d7f267bcb2fd24594c3f5f7b72e0668#d03818bd5d7f267bcb2fd24594c3f5f7b72e0668"
 dependencies = [
  "acir_field",
  "blake2",
