@@ -403,6 +403,7 @@ impl<'f> Context<'f> {
                 then_value,
                 else_value,
             ),
+            Type::Slice(_) => panic!("Cannot return slices from an if expression"),
             Type::Reference => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
         }

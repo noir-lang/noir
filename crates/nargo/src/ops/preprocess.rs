@@ -8,14 +8,21 @@ const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 pub fn preprocess_program<B: ProofSystemCompiler>(
     backend: &B,
+    include_keys: bool,
     common_reference_string: &[u8],
     compiled_program: CompiledProgram,
 ) -> Result<PreprocessedProgram, B::Error> {
     // TODO: currently `compiled_program`'s bytecode is already optimized for the backend.
     // In future we'll need to apply those optimizations here.
     let optimized_bytecode = compiled_program.circuit;
-    let (proving_key, verification_key) =
-        backend.preprocess(common_reference_string, &optimized_bytecode)?;
+
+    let (proving_key, verification_key) = if include_keys {
+        let (proving_key, verification_key) =
+            backend.preprocess(common_reference_string, &optimized_bytecode)?;
+        (Some(proving_key), Some(verification_key))
+    } else {
+        (None, None)
+    };
 
     Ok(PreprocessedProgram {
         backend: String::from(BACKEND_IDENTIFIER),
@@ -28,18 +35,25 @@ pub fn preprocess_program<B: ProofSystemCompiler>(
 
 pub fn preprocess_contract_function<B: ProofSystemCompiler>(
     backend: &B,
+    include_keys: bool,
     common_reference_string: &[u8],
     func: ContractFunction,
 ) -> Result<PreprocessedContractFunction, B::Error> {
     // TODO: currently `func`'s bytecode is already optimized for the backend.
     // In future we'll need to apply those optimizations here.
     let optimized_bytecode = func.bytecode;
-    let (proving_key, verification_key) =
-        backend.preprocess(common_reference_string, &optimized_bytecode)?;
+    let (proving_key, verification_key) = if include_keys {
+        let (proving_key, verification_key) =
+            backend.preprocess(common_reference_string, &optimized_bytecode)?;
+        (Some(proving_key), Some(verification_key))
+    } else {
+        (None, None)
+    };
 
     Ok(PreprocessedContractFunction {
         name: func.name,
         function_type: func.function_type,
+        is_internal: func.is_internal,
         abi: func.abi,
 
         bytecode: optimized_bytecode,

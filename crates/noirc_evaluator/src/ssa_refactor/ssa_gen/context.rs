@@ -207,16 +207,15 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _) => Type::Function,
+            ast::Type::Slice(element) => {
+                let element_types = Self::convert_type(element).flatten();
+                Type::Slice(Rc::new(element_types))
+            }
             ast::Type::MutableReference(element) => {
                 // Recursive call to panic if element is a tuple
                 Self::convert_non_tuple_type(element);
                 Type::Reference
             }
-
-            // How should we represent Vecs?
-            // Are they a struct of array + length + capacity?
-            // Or are they just references?
-            ast::Type::Vec(_) => Type::Reference,
         }
     }
 

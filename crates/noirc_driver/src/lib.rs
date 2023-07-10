@@ -7,7 +7,7 @@ use acvm::acir::circuit::Opcode;
 use acvm::compiler::CircuitSimplifier;
 use acvm::Language;
 use clap::Args;
-use fm::{FileId, FileType};
+use fm::FileId;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
@@ -90,7 +90,7 @@ pub fn create_local_crate<P: AsRef<Path>>(
     crate_type: CrateType,
 ) -> CrateId {
     let dir_path = root_file.as_ref().to_path_buf();
-    let root_file_id = context.file_manager.add_file(&dir_path, FileType::Root).unwrap();
+    let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
 
     let crate_id = context.crate_graph.add_crate_root(crate_type, root_file_id);
 
@@ -107,7 +107,7 @@ pub fn create_non_local_crate<P: AsRef<Path>>(
     crate_type: CrateType,
 ) -> CrateId {
     let dir_path = root_file.as_ref().to_path_buf();
-    let root_file_id = context.file_manager.add_file(&dir_path, FileType::Root).unwrap();
+    let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
 
     // The first crate is always the local crate
     assert!(context.crate_graph.number_of_crates() != 0);
@@ -157,6 +157,7 @@ pub fn propagate_dep(
 pub fn check_crate(
     context: &mut Context,
     deny_warnings: bool,
+    enable_slices: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
     // Add the stdlib before we check the crate
     // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
@@ -166,6 +167,8 @@ pub fn check_crate(
     let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
     let std_crate = create_non_local_crate(context, path_to_std_lib_file, CrateType::Library);
     propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
+
+    context.def_interner.enable_slices = enable_slices;
 
     let mut errors = vec![];
     CrateDefMap::collect_defs(LOCAL_CRATE, context, &mut errors);
@@ -195,7 +198,7 @@ pub fn compile_main(
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
     options: &CompileOptions,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, options.deny_warnings)?;
+    let warnings = check_crate(context, options.deny_warnings, options.experimental_ssa)?;
 
     let main = match context.get_main_function(&LOCAL_CRATE) {
         Some(m) => m,
@@ -226,7 +229,7 @@ pub fn compile_contracts(
     is_opcode_supported: &impl Fn(&Opcode) -> bool,
     options: &CompileOptions,
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, options.deny_warnings)?;
+    let warnings = check_crate(context, options.deny_warnings, options.experimental_ssa)?;
 
     let contracts = context.get_all_contracts(&LOCAL_CRATE);
     let mut compiled_contracts = vec![];
@@ -302,6 +305,7 @@ fn compile_contract(
         functions.push(ContractFunction {
             name,
             function_type,
+            is_internal: func_meta.is_internal.unwrap_or(false),
             abi: function.abi,
             bytecode: function.circuit,
         });
