@@ -9,7 +9,7 @@ impl<T> Vec<T> {
     }
 
     /// Get an element from the vector at the given index.
-    /// Fails with a constraint error if the given index
+    /// Panics if the given index
     /// points beyond the end of the vector.
     fn get(&mut self, index: Field) -> T {
         self.slice[index]
@@ -18,17 +18,31 @@ impl<T> Vec<T> {
     /// Push a new element to the end of the vector, returning a
     /// new vector with a length one greater than the
     /// original unmodified vector.
-    fn push_back(&mut self, elem: T) { 
+    fn push(&mut self, elem: T) { 
         self.slice = self.slice.push_back(elem);
     }
 
     /// Pop an element from the end of the given vector, returning
     /// a new vector with a length of one less than the given vector,
     /// as well as the popped element.
-    /// Fails with a constraint error if the given vector's length is zero.
+    /// Panics if the given vector's length is zero.
     fn pop(&mut self) -> T { 
         let (popped_slice, last_elem) = self.slice.pop_back();
         self.slice = popped_slice;
         last_elem
+    }
+
+    /// Insert an element at a specified index, shifting all elements 
+    /// after it to the right
+    fn insert(&mut self, index: Field, elem: T) {
+        self.slice = self.slice.insert(index, elem);
+    } 
+
+    /// Remove an element at a specified index, shifting all elements
+    /// after it to the left, returning the removed element
+    fn remove(&mut self, index: Field) -> T {
+        let (new_slice, elem) = self.slice.remove(index);
+        self.slice = new_slice;
+        elem
     }
 }

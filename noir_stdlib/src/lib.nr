@@ -1,6 +1,7 @@
 mod hash;
 mod array;
 mod slice;
+mod collections;
 mod merkle;
 mod schnorr;
 mod ecdsa_secp256k1;
