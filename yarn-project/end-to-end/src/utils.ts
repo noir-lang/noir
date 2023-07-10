@@ -24,11 +24,7 @@ import { Schnorr, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barrete
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
-import {
-  GullibleAccountContractAbi,
-  NonNativeTokenContractAbi,
-  SchnorrAccountContractAbi,
-} from '@aztec/noir-contracts/examples';
+import { NonNativeTokenContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
 import { randomBytes } from 'crypto';
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
@@ -91,17 +87,20 @@ export async function setup(numberOfAccounts = 1): Promise<{
 
   for (let i = 0; i < numberOfAccounts; ++i) {
     // We use the well-known private key and the validating account contract for the first account,
-    // and generate random keypairs with gullible account contracts (ie no sig validation) for the rest.
-    // TODO: Kill the gullible account contract.
-    // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key
+    // and generate random key pairs for the rest.
+    // TODO(#662): Let the aztec rpc server generate the key pair rather than hardcoding the private key
     const privateKey = i === 0 ? Buffer.from(privKey!) : randomBytes(32);
-    const abi = i == 0 ? SchnorrAccountContractAbi : GullibleAccountContractAbi;
     const publicKey = await generatePublicKey(privateKey);
     const salt = Fr.random();
-    const deploymentData = await getContractDeploymentInfo(abi, [], salt, publicKey);
-    await aztecRpcServer.addAccount(privateKey, deploymentData.address, deploymentData.partialAddress, abi);
+    const deploymentData = await getContractDeploymentInfo(SchnorrAccountContractAbi, [], salt, publicKey);
+    await aztecRpcServer.addAccount(
+      privateKey,
+      deploymentData.address,
+      deploymentData.partialAddress,
+      SchnorrAccountContractAbi,
+    );
 
-    const contractDeployer = new ContractDeployer(abi, aztecRpcServer, publicKey);
+    const contractDeployer = new ContractDeployer(SchnorrAccountContractAbi, aztecRpcServer, publicKey);
     const deployMethod = contractDeployer.deploy();
     const tx = deployMethod.send({ contractAddressSalt: salt });
     await tx.isMined(0, 0.1);
@@ -122,7 +121,7 @@ export async function setup(numberOfAccounts = 1): Promise<{
         publicKey,
         new SchnorrAuthProvider(await Schnorr.new(), privateKey),
         deploymentData.partialAddress,
-        abi,
+        SchnorrAccountContractAbi,
         wasm,
       ),
     );
