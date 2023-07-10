@@ -190,8 +190,8 @@ TEST_F(native_private_kernel_inner_tests, private_kernel_should_fail_if_aggregat
         do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     // Mock the previous new commitments to be full, therefore no need commitments can be added
-    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> full_new_commitments{};
-    for (size_t i = 0; i < KERNEL_NEW_COMMITMENTS_LENGTH; ++i) {
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> full_new_commitments{};
+    for (size_t i = 0; i < MAX_NEW_COMMITMENTS_PER_TX; ++i) {
         full_new_commitments[i] = i + 1;
     }
     private_inputs.previous_kernel.public_inputs.end.new_commitments = full_new_commitments;

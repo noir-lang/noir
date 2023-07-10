@@ -3,12 +3,12 @@ import { assertMemberLength, FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';
 import {
-  NEW_COMMITMENTS_LENGTH,
-  NEW_L2_TO_L1_MSGS_LENGTH,
-  NEW_NULLIFIERS_LENGTH,
+  MAX_NEW_COMMITMENTS_PER_CALL,
+  MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+  MAX_NEW_NULLIFIERS_PER_CALL,
   NUM_FIELDS_PER_SHA256,
-  PRIVATE_CALL_STACK_LENGTH,
-  PUBLIC_CALL_STACK_LENGTH,
+  MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   READ_REQUESTS_LENGTH,
   RETURN_VALUES_LENGTH,
 } from './constants.js';
@@ -107,11 +107,11 @@ export class PrivateCircuitPublicInputs {
   ) {
     assertMemberLength(this, 'returnValues', RETURN_VALUES_LENGTH);
     assertMemberLength(this, 'readRequests', READ_REQUESTS_LENGTH);
-    assertMemberLength(this, 'newCommitments', NEW_COMMITMENTS_LENGTH);
-    assertMemberLength(this, 'newNullifiers', NEW_NULLIFIERS_LENGTH);
-    assertMemberLength(this, 'privateCallStack', PRIVATE_CALL_STACK_LENGTH);
-    assertMemberLength(this, 'publicCallStack', PUBLIC_CALL_STACK_LENGTH);
-    assertMemberLength(this, 'newL2ToL1Msgs', NEW_L2_TO_L1_MSGS_LENGTH);
+    assertMemberLength(this, 'newCommitments', MAX_NEW_COMMITMENTS_PER_CALL);
+    assertMemberLength(this, 'newNullifiers', MAX_NEW_NULLIFIERS_PER_CALL);
+    assertMemberLength(this, 'privateCallStack', MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL);
+    assertMemberLength(this, 'publicCallStack', MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
+    assertMemberLength(this, 'newL2ToL1Msgs', MAX_NEW_L2_TO_L1_MSGS_PER_CALL);
     assertMemberLength(this, 'encryptedLogsHash', NUM_FIELDS_PER_SHA256);
     assertMemberLength(this, 'unencryptedLogsHash', NUM_FIELDS_PER_SHA256);
   }
@@ -138,11 +138,11 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
       frArray(RETURN_VALUES_LENGTH),
       frArray(READ_REQUESTS_LENGTH),
-      frArray(NEW_COMMITMENTS_LENGTH),
-      frArray(NEW_NULLIFIERS_LENGTH),
-      frArray(PRIVATE_CALL_STACK_LENGTH),
-      frArray(PUBLIC_CALL_STACK_LENGTH),
-      frArray(NEW_L2_TO_L1_MSGS_LENGTH),
+      frArray(MAX_NEW_COMMITMENTS_PER_CALL),
+      frArray(MAX_NEW_NULLIFIERS_PER_CALL),
+      frArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL),
+      frArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL),
+      frArray(MAX_NEW_L2_TO_L1_MSGS_PER_CALL),
       frArray(NUM_FIELDS_PER_SHA256),
       frArray(NUM_FIELDS_PER_SHA256),
       Fr.ZERO,

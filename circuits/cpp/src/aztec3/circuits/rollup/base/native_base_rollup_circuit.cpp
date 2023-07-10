@@ -84,7 +84,7 @@ std::vector<NT::fr> calculate_contract_leaves(BaseRollupInputs const& baseRollup
 
 NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
 {
-    MerkleTree contracts_tree = MerkleTree(CONTRACT_SUBTREE_DEPTH);
+    MerkleTree contracts_tree = MerkleTree(CONTRACT_SUBTREE_HEIGHT);
 
     // Compute the merkle root of a contract subtree
     // Contracts subtree
@@ -96,19 +96,19 @@ NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
 
 NT::fr calculate_commitments_subtree(DummyBuilder& builder, BaseRollupInputs const& baseRollupInputs)
 {
-    MerkleTree commitments_tree = MerkleTree(PRIVATE_DATA_SUBTREE_DEPTH);
+    MerkleTree commitments_tree = MerkleTree(PRIVATE_DATA_SUBTREE_HEIGHT);
 
     for (size_t i = 0; i < 2; i++) {
         auto new_commitments = baseRollupInputs.kernel_data[i].public_inputs.end.new_commitments;
 
         // Our commitments size MUST be 4 to calculate our subtrees correctly
-        builder.do_assert(new_commitments.size() == KERNEL_NEW_COMMITMENTS_LENGTH,
+        builder.do_assert(new_commitments.size() == MAX_NEW_COMMITMENTS_PER_TX,
                           "New commitments in kernel data must be 4",
                           CircuitErrorCode::BASE__INCORRECT_NUM_OF_NEW_COMMITMENTS);
 
         for (size_t j = 0; j < new_commitments.size(); j++) {
             // todo: batch insert
-            commitments_tree.update_element(i * KERNEL_NEW_COMMITMENTS_LENGTH + j, new_commitments[j]);
+            commitments_tree.update_element(i * MAX_NEW_COMMITMENTS_PER_TX + j, new_commitments[j]);
         }
     }
 
@@ -188,10 +188,10 @@ void perform_historical_l1_to_l2_message_tree_membership_checks(DummyBuilder& bu
 }
 
 NT::fr create_nullifier_subtree(
-    std::array<NullifierLeafPreimage, KERNEL_NEW_NULLIFIERS_LENGTH * 2> const& nullifier_leaves)
+    std::array<NullifierLeafPreimage, MAX_NEW_NULLIFIERS_PER_TX * 2> const& nullifier_leaves)
 {
     // Build a merkle tree of the nullifiers
-    MerkleTree nullifier_subtree = MerkleTree(NULLIFIER_SUBTREE_DEPTH);
+    MerkleTree nullifier_subtree = MerkleTree(NULLIFIER_SUBTREE_HEIGHT);
     for (size_t i = 0; i < nullifier_leaves.size(); i++) {
         // hash() checks if nullifier is empty (and if so returns 0)
         nullifier_subtree.update_element(i, nullifier_leaves[i].hash());
@@ -223,7 +223,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
     // 2. If we receive the 0 nullifier leaf (where all values are 0, we skip insertion and leave a sparse subtree)
 
     // New nullifier subtree
-    std::array<NullifierLeafPreimage, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifier_insertion_subtree;
+    std::array<NullifierLeafPreimage, MAX_NEW_NULLIFIERS_PER_TX * 2> nullifier_insertion_subtree;
 
     // This will update on each iteration
     auto current_nullifier_tree_root = baseRollupInputs.start_nullifier_tree_snapshot.root;
@@ -236,9 +236,9 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
     for (size_t i = 0; i < 2; i++) {
         auto new_nullifiers = baseRollupInputs.kernel_data[i].public_inputs.end.new_nullifiers;
         // For each of our nullifiers
-        for (size_t j = 0; j < KERNEL_NEW_NULLIFIERS_LENGTH; j++) {
+        for (size_t j = 0; j < MAX_NEW_NULLIFIERS_PER_TX; j++) {
             // Witness containing index and path
-            auto nullifier_index = i * KERNEL_NEW_NULLIFIERS_LENGTH + j;
+            auto nullifier_index = i * MAX_NEW_NULLIFIERS_PER_TX + j;
 
             auto witness = baseRollupInputs.low_nullifier_membership_witness[nullifier_index];
             // Preimage of the lo-index required for a non-membership proof
@@ -348,9 +348,9 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
     }
 
     // Check that the new subtree is to be inserted at the next location, and is empty currently
-    const auto empty_nullifier_subtree_root = components::calculate_empty_tree_root(NULLIFIER_SUBTREE_DEPTH);
+    const auto empty_nullifier_subtree_root = components::calculate_empty_tree_root(NULLIFIER_SUBTREE_HEIGHT);
     auto leafIndexNullifierSubtreeDepth =
-        baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_DEPTH;
+        baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_HEIGHT;
     check_membership<NT>(builder,
                          empty_nullifier_subtree_root,
                          leafIndexNullifierSubtreeDepth,
@@ -364,7 +364,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
 
     // Calculate the new root
     // We are inserting a subtree rather than a full tree here
-    auto subtree_index = start_insertion_index >> (NULLIFIER_SUBTREE_DEPTH);
+    auto subtree_index = start_insertion_index >> (NULLIFIER_SUBTREE_HEIGHT);
     auto new_root = root_from_sibling_path<NT>(nullifier_subtree_root, subtree_index, nullifier_sibling_path);
 
     // Return the new state of the nullifier tree
@@ -377,14 +377,14 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
 fr insert_public_data_update_requests(
     DummyBuilder& builder,
     fr tree_root,
-    std::array<abis::PublicDataUpdateRequest<NT>, KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH> const&
+    std::array<abis::PublicDataUpdateRequest<NT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> const&
         public_data_update_requests,
     size_t witnesses_offset,
-    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH> const& witnesses)
+    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> const& witnesses)
 {
     auto root = tree_root;
 
-    for (size_t i = 0; i < KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH; ++i) {
+    for (size_t i = 0; i < MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX; ++i) {
         const auto& state_write = public_data_update_requests[i];
         const auto& witness = witnesses[i + witnesses_offset];
 
@@ -408,11 +408,11 @@ fr insert_public_data_update_requests(
 void validate_public_data_reads(
     DummyBuilder& builder,
     fr tree_root,
-    std::array<abis::PublicDataRead<NT>, KERNEL_PUBLIC_DATA_READS_LENGTH> const& public_data_reads,
+    std::array<abis::PublicDataRead<NT>, MAX_PUBLIC_DATA_READS_PER_TX> const& public_data_reads,
     size_t witnesses_offset,
-    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * KERNEL_PUBLIC_DATA_READS_LENGTH> const& witnesses)
+    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * MAX_PUBLIC_DATA_READS_PER_TX> const& witnesses)
 {
-    for (size_t i = 0; i < KERNEL_PUBLIC_DATA_READS_LENGTH; ++i) {
+    for (size_t i = 0; i < MAX_PUBLIC_DATA_READS_PER_TX; ++i) {
         const auto& public_data_read = public_data_reads[i];
         const auto& witness = witnesses[i + witnesses_offset];
 
@@ -450,14 +450,14 @@ fr validate_and_process_public_state(DummyBuilder& builder, BaseRollupInputs con
     validate_public_data_reads(builder,
                                mid_public_data_tree_root,
                                baseRollupInputs.kernel_data[1].public_inputs.end.public_data_reads,
-                               KERNEL_PUBLIC_DATA_READS_LENGTH,
+                               MAX_PUBLIC_DATA_READS_PER_TX,
                                baseRollupInputs.new_public_data_reads_sibling_paths);
 
     auto end_public_data_tree_root = insert_public_data_update_requests(
         builder,
         mid_public_data_tree_root,
         baseRollupInputs.kernel_data[1].public_inputs.end.public_data_update_requests,
-        KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
         baseRollupInputs.new_public_data_update_requests_sibling_paths);
 
     return end_public_data_tree_root;
@@ -493,25 +493,25 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyBuilder& builder, BaseRol
     NT::fr const commitments_tree_subroot = calculate_commitments_subtree(builder, baseRollupInputs);
 
     // Insert commitment subtrees:
-    const auto empty_commitments_subtree_root = components::calculate_empty_tree_root(PRIVATE_DATA_SUBTREE_DEPTH);
+    const auto empty_commitments_subtree_root = components::calculate_empty_tree_root(PRIVATE_DATA_SUBTREE_HEIGHT);
     auto end_private_data_tree_snapshot =
         components::insert_subtree_to_snapshot_tree(builder,
                                                     baseRollupInputs.start_private_data_tree_snapshot,
                                                     baseRollupInputs.new_commitments_subtree_sibling_path,
                                                     empty_commitments_subtree_root,
                                                     commitments_tree_subroot,
-                                                    PRIVATE_DATA_SUBTREE_DEPTH,
+                                                    PRIVATE_DATA_SUBTREE_HEIGHT,
                                                     "empty commitment subtree membership check");
 
     // Insert contract subtrees:
-    const auto empty_contracts_subtree_root = components::calculate_empty_tree_root(CONTRACT_SUBTREE_DEPTH);
+    const auto empty_contracts_subtree_root = components::calculate_empty_tree_root(CONTRACT_SUBTREE_HEIGHT);
     auto end_contract_tree_snapshot =
         components::insert_subtree_to_snapshot_tree(builder,
                                                     baseRollupInputs.start_contract_tree_snapshot,
                                                     baseRollupInputs.new_contracts_subtree_sibling_path,
                                                     empty_contracts_subtree_root,
                                                     contracts_tree_subroot,
-                                                    CONTRACT_SUBTREE_DEPTH,
+                                                    CONTRACT_SUBTREE_HEIGHT,
                                                     "empty contract subtree membership check");
 
     // Insert nullifiers:

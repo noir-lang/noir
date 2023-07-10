@@ -183,17 +183,17 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
 
     // Create commitments
     for (uint8_t kernel_j = 0; kernel_j < 4; kernel_j++) {
-        std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments;
-        for (uint8_t commitment_k = 0; commitment_k < KERNEL_NEW_COMMITMENTS_LENGTH; commitment_k++) {
-            auto val = fr(kernel_j * KERNEL_NEW_COMMITMENTS_LENGTH + commitment_k + 1);
+        std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments;
+        for (uint8_t commitment_k = 0; commitment_k < MAX_NEW_COMMITMENTS_PER_TX; commitment_k++) {
+            auto val = fr(kernel_j * MAX_NEW_COMMITMENTS_PER_TX + commitment_k + 1);
             new_commitments[commitment_k] = val;
-            data_tree.update_element(kernel_j * KERNEL_NEW_COMMITMENTS_LENGTH + commitment_k, val);
+            data_tree.update_element(kernel_j * MAX_NEW_COMMITMENTS_PER_TX + commitment_k, val);
         }
         kernels[kernel_j].public_inputs.end.new_commitments = new_commitments;
 
-        std::array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_messages;
-        for (uint8_t i = 0; i < KERNEL_NEW_L2_TO_L1_MSGS_LENGTH; i++) {
-            auto val = fr(kernel_j * KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + i + 1);
+        std::array<fr, MAX_NEW_L2_TO_L1_MSGS_PER_TX> new_l2_to_l1_messages;
+        for (uint8_t i = 0; i < MAX_NEW_L2_TO_L1_MSGS_PER_TX; i++) {
+            auto val = fr(kernel_j * MAX_NEW_L2_TO_L1_MSGS_PER_TX + i + 1);
             new_l2_to_l1_messages[i] = val;
         }
         kernels[kernel_j].public_inputs.end.new_l2_to_l1_msgs = new_l2_to_l1_messages;
@@ -258,7 +258,7 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
         rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_private_data_tree_snapshot);
     AppendOnlyTreeSnapshot<NT> const expected_private_data_tree_snapshot = { .root = data_tree.root(),
                                                                              .next_available_leaf_index =
-                                                                                 4 * KERNEL_NEW_COMMITMENTS_LENGTH };
+                                                                                 4 * MAX_NEW_COMMITMENTS_PER_TX };
     ASSERT_EQ(outputs.end_private_data_tree_snapshot, expected_private_data_tree_snapshot);
 
     // Check public data trees

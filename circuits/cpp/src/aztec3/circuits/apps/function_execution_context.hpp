@@ -50,7 +50,7 @@ template <typename Builder> class FunctionExecutionContext {
 
     Contract<NT>* contract = nullptr;
 
-    std::array<std::shared_ptr<FunctionExecutionContext<Builder>>, PRIVATE_CALL_STACK_LENGTH>
+    std::array<std::shared_ptr<FunctionExecutionContext<Builder>>, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>
         nested_private_call_exec_ctxs;
 
     // TODO: make this private!
@@ -124,9 +124,9 @@ template <typename Builder> class FunctionExecutionContext {
     /**
      * @brief Get the call_stack_items of any nested function calls made by this exec_ctx's function.
      */
-    std::array<CallStackItem<NT, PrivateTypes>, PRIVATE_CALL_STACK_LENGTH> get_private_call_stack_items()
+    std::array<CallStackItem<NT, PrivateTypes>, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL> get_private_call_stack_items()
     {
-        std::array<CallStackItem<NT, PrivateTypes>, PRIVATE_CALL_STACK_LENGTH> result;
+        std::array<CallStackItem<NT, PrivateTypes>, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL> result;
 
         for (size_t i = 0; i < result.size(); ++i) {
             auto& nested_exec_ctx = nested_private_call_exec_ctxs[i];

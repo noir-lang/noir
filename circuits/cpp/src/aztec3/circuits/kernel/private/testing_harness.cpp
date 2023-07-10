@@ -447,7 +447,7 @@ PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(
     // We mock a kernel circuit proof to initialize ipnut required by an inner call
     //***************************************************************************
 
-    std::array<NT::fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> initial_kernel_private_call_stack{};
+    std::array<NT::fr, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX> initial_kernel_private_call_stack{};
     initial_kernel_private_call_stack[0] = private_call_data.call_stack_item.hash();
 
     auto const& private_circuit_public_inputs = private_call_data.call_stack_item.public_inputs;

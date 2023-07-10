@@ -1,4 +1,4 @@
-import { KERNEL_PUBLIC_CALL_STACK_LENGTH, Proof } from '@aztec/circuits.js';
+import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Proof } from '@aztec/circuits.js';
 import { makeKernelPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/factories';
 import { EncodedContractFunction, Tx, TxHash, TxL2Logs } from '@aztec/types';
 import { expect } from '@jest/globals';
@@ -20,7 +20,7 @@ import {
 
 const makeTx = () => {
   const encodedPublicFunctions = [EncodedContractFunction.random(), EncodedContractFunction.random()];
-  const enqueuedPublicFunctionCalls = times(KERNEL_PUBLIC_CALL_STACK_LENGTH, i => makePublicCallRequest(i));
+  const enqueuedPublicFunctionCalls = times(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, i => makePublicCallRequest(i));
   return new Tx(
     makeKernelPublicInputs(),
     Proof.fromBuffer(Buffer.alloc(10, 9)),

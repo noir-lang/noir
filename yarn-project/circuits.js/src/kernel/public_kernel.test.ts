@@ -1,4 +1,4 @@
-import { CircuitError, KERNEL_PUBLIC_DATA_READS_LENGTH, makeTuple, simulatePublicKernelCircuit } from '../index.js';
+import { CircuitError, MAX_PUBLIC_DATA_READS_PER_TX, makeTuple, simulatePublicKernelCircuit } from '../index.js';
 import { makePublicDataRead, makePublicKernelInputsWithEmptyOutput } from '../tests/factories.js';
 
 describe('kernel/public_kernel', () => {
@@ -27,7 +27,7 @@ describe('kernel/public_kernel', () => {
     input.previousKernel.publicInputs.isPrivate = false;
 
     // Cause array overflow
-    const fullStateReadsObject = makeTuple(KERNEL_PUBLIC_DATA_READS_LENGTH, makePublicDataRead, 0x01);
+    const fullStateReadsObject = makeTuple(MAX_PUBLIC_DATA_READS_PER_TX, makePublicDataRead, 0x01);
     input.previousKernel.publicInputs.end.publicDataReads = fullStateReadsObject;
 
     await expect(simulatePublicKernelCircuit(input)).rejects.toThrow(

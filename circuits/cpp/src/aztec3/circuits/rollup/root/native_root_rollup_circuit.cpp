@@ -26,7 +26,7 @@ namespace aztec3::circuits::rollup::native_root_rollup {
  */
 NT::fr calculate_subtree(std::array<NT::fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> leaves)
 {
-    MerkleTree merkle_tree = MerkleTree(L1_TO_L2_MSG_SUBTREE_DEPTH);
+    MerkleTree merkle_tree = MerkleTree(L1_TO_L2_MSG_SUBTREE_HEIGHT);
 
     for (size_t i = 0; i < NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP; i++) {
         merkle_tree.update_element(i, leaves[i]);
@@ -109,14 +109,14 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
     auto l1_to_l2_subtree_root = calculate_subtree(rootRollupInputs.l1_to_l2_messages);
 
     // // Insert subtree into the l1 to l2 data tree
-    const auto empty_l1_to_l2_subtree_root = components::calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_DEPTH);
+    const auto empty_l1_to_l2_subtree_root = components::calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
     auto new_l1_to_l2_messages_tree_snapshot =
         components::insert_subtree_to_snapshot_tree(builder,
                                                     rootRollupInputs.start_l1_to_l2_message_tree_snapshot,
                                                     rootRollupInputs.new_l1_to_l2_message_tree_root_sibling_path,
                                                     empty_l1_to_l2_subtree_root,
                                                     l1_to_l2_subtree_root,
-                                                    L1_TO_L2_MSG_SUBTREE_DEPTH,
+                                                    L1_TO_L2_MSG_SUBTREE_HEIGHT,
                                                     "l1 to l2 message tree insertion");
 
     // Update the historic l1 to l2 data tree

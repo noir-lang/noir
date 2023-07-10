@@ -26,7 +26,7 @@ void chop_pending_commitments(DummyBuilder& builder,
                               std::array<NT::fr, READ_REQUESTS_LENGTH> const& read_requests,
                               std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> const&
                                   read_request_membership_witnesses,
-                              std::array<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH>& new_commitments)
+                              std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_TX>& new_commitments)
 {
     // chop commitments from the previous call(s)
     for (size_t i = 0; i < READ_REQUESTS_LENGTH; i++) {
@@ -34,13 +34,13 @@ void chop_pending_commitments(DummyBuilder& builder,
         const auto is_transient_read = (read_request_membership_witnesses[i].leaf_index == NT::fr(-1));
 
         if (is_transient_read) {
-            size_t match_pos = KERNEL_NEW_COMMITMENTS_LENGTH;
-            for (size_t j = 0; j < KERNEL_NEW_COMMITMENTS_LENGTH; j++) {
+            size_t match_pos = MAX_NEW_COMMITMENTS_PER_TX;
+            for (size_t j = 0; j < MAX_NEW_COMMITMENTS_PER_TX; j++) {
                 match_pos = (read_request == new_commitments[j]) ? j : match_pos;
             }
 
             // chop the pending commitment, i.e., replacing with 0.
-            if (match_pos != KERNEL_NEW_COMMITMENTS_LENGTH) {
+            if (match_pos != MAX_NEW_COMMITMENTS_PER_TX) {
                 new_commitments[match_pos] = fr(0);
             } else {
                 builder.do_assert(
@@ -52,7 +52,7 @@ void chop_pending_commitments(DummyBuilder& builder,
     }
 
     // Move all zero entries of this array to the end and preserve ordering of other entries
-    utils::array_rearrange<NT::fr, KERNEL_NEW_COMMITMENTS_LENGTH>(new_commitments);
+    utils::array_rearrange<NT::fr, MAX_NEW_COMMITMENTS_PER_TX>(new_commitments);
 }
 
 KernelCircuitPublicInputs<NT> native_private_kernel_circuit_ordering(

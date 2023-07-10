@@ -14,76 +14,87 @@ constexpr size_t log2(size_t input)
     return (input < 2) ? 0 : 1 + log2(input / 2);
 }
 
-
 // Note: must be kept in sync with ts/structs/constants.ts
 constexpr size_t ARGS_LENGTH = 16;
 constexpr size_t RETURN_VALUES_LENGTH = 4;
-
 constexpr size_t READ_REQUESTS_LENGTH = 4;
 
-
 /**
- * Note: The number of commitments that 1 function call can output is: NEW_COMMITMENTS_LENGTH = 4. The number of
- * nullifiers that 1 function call can output is: NEW_NULLIFIERS_LENGTH = 4. This is different from
- * KERNEL_NEW_COMMITMENTS_LENGTH and KERNEL_NEW_NULLIFIERS_LENGTH because, in the kernel circuits, we accumulate the
- * commitments and the nullifiers from all functions calls in a transaction. Therefore, we always must have:
+ * Convention for constant array lengths are mainly divided in 2 classes:
+ *  - FUNCTION CALL
+ *  - TRANSACTION
  *
- * KERNEL_NEW_COMMITMENTS_LENGTH ≥ NEW_COMMITMENTS_LENGTH
- * KERNEL_NEW_NULLIFIERS_LENGTH ≥ NEW_NULLIFIERS_LENGTH
+ * Agreed convention is to use MAX_XXX_PER_CALL resp. MAX_XXX_PER_TX, where XXX denotes a type of element such as
+ * commitment, or nullifier, e.g.,:
+ *  - MAX_NEW_NULLIFIERS_PER_CALL
+ *  - MAX_NEW_COMMITMENTS_PER_TX
+ *
+ * In the kernel circuits, we accumulate elements such as commitments and the nullifiers from all functions calls in a
+ * transaction. Therefore, we always must have:
+ * MAX_XXX_PER_TX ≥ MAX_XXX_PER_CALL
+ *
+ * For instance:
+ * MAX_NEW_COMMITMENTS_PER_TX ≥ MAX_NEW_COMMITMENTS_PER_CALL
+ * MAX_NEW_NULLIFIERS_PER_TX ≥ MAX_NEW_NULLIFIERS_PER_CALL
  *
  */
-// TODO(962): Rename this to `COMMITMENTS_PER_KERNEL` and make it consistent across the codebase.
-constexpr size_t NEW_COMMITMENTS_LENGTH = 4;
-constexpr size_t NEW_NULLIFIERS_LENGTH = 4;
 
-constexpr size_t PRIVATE_CALL_STACK_LENGTH = 4;
-constexpr size_t PUBLIC_CALL_STACK_LENGTH = 4;
-constexpr size_t NEW_L2_TO_L1_MSGS_LENGTH = 2;
+// "PER CALL" CONSTANTS
+constexpr size_t MAX_NEW_COMMITMENTS_PER_CALL = 4;
+constexpr size_t MAX_NEW_NULLIFIERS_PER_CALL = 4;
+constexpr size_t MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL = 4;
+constexpr size_t MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL = 4;
+constexpr size_t MAX_NEW_L2_TO_L1_MSGS_PER_CALL = 2;
+constexpr size_t MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL = 4;
+constexpr size_t MAX_PUBLIC_DATA_READS_PER_CALL = 4;
 
-constexpr size_t KERNEL_NEW_COMMITMENTS_LENGTH = PRIVATE_CALL_STACK_LENGTH * NEW_COMMITMENTS_LENGTH;
-constexpr size_t KERNEL_NEW_NULLIFIERS_LENGTH = PRIVATE_CALL_STACK_LENGTH * NEW_NULLIFIERS_LENGTH;
-constexpr size_t KERNEL_NEW_CONTRACTS_LENGTH = 1;
-constexpr size_t KERNEL_PRIVATE_CALL_STACK_LENGTH = 8;
-constexpr size_t KERNEL_PUBLIC_CALL_STACK_LENGTH = 8;
-constexpr size_t KERNEL_NEW_L2_TO_L1_MSGS_LENGTH = 2;
-constexpr size_t KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH = 4;
-constexpr size_t KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH = 4;
-constexpr size_t KERNEL_PUBLIC_DATA_READS_LENGTH = 4;
-constexpr size_t KERNEL_NUM_ENCRYPTED_LOGS_HASHES = 1;
-constexpr size_t KERNEL_NUM_UNENCRYPTED_LOGS_HASHES = 1;
+// "PER TRANSACTION" CONSTANTS
+constexpr size_t MAX_NEW_COMMITMENTS_PER_TX = MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL * MAX_NEW_COMMITMENTS_PER_CALL;
+constexpr size_t MAX_NEW_NULLIFIERS_PER_TX = MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL * MAX_NEW_NULLIFIERS_PER_CALL;
+constexpr size_t MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX = 8;
+constexpr size_t MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX = 8;
+constexpr size_t MAX_NEW_L2_TO_L1_MSGS_PER_TX = 2;
+constexpr size_t MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 4;
+constexpr size_t MAX_PUBLIC_DATA_READS_PER_TX = 4;
+constexpr size_t MAX_NEW_CONTRACTS_PER_TX = 1;
+constexpr size_t MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX = 4;
+constexpr size_t NUM_ENCRYPTED_LOGS_HASHES_PER_TX = 1;
+constexpr size_t NUM_UNENCRYPTED_LOGS_HASHES_PER_TX = 1;
 
+// ROLLUP CONSTANTS
+constexpr size_t NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP = 16;
+// TODO(961): Use this constant everywhere instead of hard-coded "2".
+constexpr size_t KERNELS_PER_ROLLUP = 2;
+
+
+// TREES RELATED CONSTANTS
 constexpr size_t VK_TREE_HEIGHT = 3;
 constexpr size_t FUNCTION_TREE_HEIGHT = 4;
 constexpr size_t CONTRACT_TREE_HEIGHT = 8;
 constexpr size_t PRIVATE_DATA_TREE_HEIGHT = 16;
-constexpr size_t NULLIFIER_TREE_HEIGHT = 16;
 constexpr size_t PUBLIC_DATA_TREE_HEIGHT = 254;
+constexpr size_t NULLIFIER_TREE_HEIGHT = 16;
 constexpr size_t L1_TO_L2_MSG_TREE_HEIGHT = 8;
-
-constexpr size_t CONTRACT_SUBTREE_DEPTH = 1;
-constexpr size_t CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH = CONTRACT_TREE_HEIGHT - CONTRACT_SUBTREE_DEPTH;
-
-// TODO(961): Use this constant everywhere instead of hard-coded "2".
-constexpr size_t KERNELS_PER_ROLLUP = 2;
-constexpr size_t PRIVATE_DATA_SUBTREE_DEPTH =
-    static_cast<size_t>(log2(KERNELS_PER_ROLLUP * KERNEL_NEW_COMMITMENTS_LENGTH));
-constexpr size_t PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH = PRIVATE_DATA_TREE_HEIGHT - PRIVATE_DATA_SUBTREE_DEPTH;
-
-constexpr size_t NULLIFIER_SUBTREE_DEPTH = static_cast<size_t>(log2(KERNELS_PER_ROLLUP * KERNEL_NEW_NULLIFIERS_LENGTH));
-constexpr size_t NULLIFIER_SUBTREE_INCLUSION_CHECK_DEPTH = NULLIFIER_TREE_HEIGHT - NULLIFIER_SUBTREE_DEPTH;
-
-// NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP must equal 2^L1_TO_L2_MSG_SUBTREE_DEPTH for subtree insertions.
-constexpr size_t L1_TO_L2_MSG_SUBTREE_DEPTH = 4;
-constexpr size_t NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP = 16;
-constexpr size_t L1_TO_L2_MSG_SUBTREE_INCLUSION_CHECK_DEPTH = L1_TO_L2_MSG_TREE_HEIGHT - L1_TO_L2_MSG_SUBTREE_DEPTH;
-
 constexpr size_t PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT = 8;
 constexpr size_t CONTRACT_TREE_ROOTS_TREE_HEIGHT = 8;
 constexpr size_t L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT = 8;
 constexpr size_t ROLLUP_VK_TREE_HEIGHT = 8;  // TODO: update
 
-constexpr size_t FUNCTION_SELECTOR_NUM_BYTES = 4;  // must be <= 31
 
+// SUB-TREES RELATED CONSTANTS
+constexpr size_t CONTRACT_SUBTREE_HEIGHT = 1;
+constexpr size_t CONTRACT_SUBTREE_SIBLING_PATH_LENGTH = CONTRACT_TREE_HEIGHT - CONTRACT_SUBTREE_HEIGHT;
+constexpr size_t PRIVATE_DATA_SUBTREE_HEIGHT =
+    static_cast<size_t>(log2(KERNELS_PER_ROLLUP * MAX_NEW_COMMITMENTS_PER_TX));
+constexpr size_t PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH = PRIVATE_DATA_TREE_HEIGHT - PRIVATE_DATA_SUBTREE_HEIGHT;
+constexpr size_t NULLIFIER_SUBTREE_HEIGHT = static_cast<size_t>(log2(KERNELS_PER_ROLLUP * MAX_NEW_NULLIFIERS_PER_TX));
+constexpr size_t NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH = NULLIFIER_TREE_HEIGHT - NULLIFIER_SUBTREE_HEIGHT;
+constexpr size_t L1_TO_L2_MSG_SUBTREE_HEIGHT = static_cast<size_t>(log2(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP));
+constexpr size_t L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH = L1_TO_L2_MSG_TREE_HEIGHT - L1_TO_L2_MSG_SUBTREE_HEIGHT;
+
+
+// MISC CONSTANTS
+constexpr size_t FUNCTION_SELECTOR_NUM_BYTES = 4;  // must be <= 31
 // sha256 hash is stored in two fields to accommodate all 256-bits of the hash
 constexpr size_t NUM_FIELDS_PER_SHA256 = 2;
 

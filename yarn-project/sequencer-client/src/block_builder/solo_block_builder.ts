@@ -6,8 +6,8 @@ import {
   CircuitsWasm,
   ConstantBaseRollupData,
   GlobalVariables,
-  L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
-  L1_TO_L2_MESSAGES_SUBTREE_HEIGHT,
+  L1_TO_L2_MSG_ROOTS_TREE_HEIGHT,
+  L1_TO_L2_MSG_SUBTREE_HEIGHT,
   MembershipWitness,
   MergeRollupInputs,
   NULLIFIER_TREE_HEIGHT,
@@ -426,7 +426,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     );
     const newL1ToL2MessageTreeRootSiblingPath = await this.getSubtreeSiblingPath(
       MerkleTreeId.L1_TO_L2_MESSAGES_TREE,
-      L1_TO_L2_MESSAGES_SUBTREE_HEIGHT,
+      L1_TO_L2_MSG_SUBTREE_HEIGHT,
     );
 
     // Get tree snapshots
@@ -518,7 +518,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     return this.getMembershipWitnessFor(
       tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.l1ToL2MessagesTreeRoot,
       MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
-      L1_TO_L2_MESSAGES_ROOTS_TREE_HEIGHT,
+      L1_TO_L2_MSG_ROOTS_TREE_HEIGHT,
     );
   }
 

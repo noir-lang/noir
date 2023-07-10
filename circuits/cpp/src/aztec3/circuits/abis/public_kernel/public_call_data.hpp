@@ -24,7 +24,7 @@ template <typename NCT> struct PublicCallData {
 
     CallStackItem<NCT, PublicTypes> call_stack_item{};
 
-    std::array<CallStackItem<NCT, PublicTypes>, PUBLIC_CALL_STACK_LENGTH> public_call_stack_preimages{};
+    std::array<CallStackItem<NCT, PublicTypes>, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> public_call_stack_preimages{};
 
     NativeTypes::Proof proof{};  // TODO: how to express proof as native/circuit type when it gets used as a buffer?
 

@@ -25,12 +25,12 @@ template <typename NCT> struct CombinedAccumulatedData {
 
     AggregationObject aggregation_object{};
 
-    std::array<fr, KERNEL_NEW_COMMITMENTS_LENGTH> new_commitments{};
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers{};
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> new_nullifiers{};
 
-    std::array<fr, KERNEL_PRIVATE_CALL_STACK_LENGTH> private_call_stack{};
-    std::array<fr, KERNEL_PUBLIC_CALL_STACK_LENGTH> public_call_stack{};
-    std::array<fr, KERNEL_NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs{};
+    std::array<fr, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX> private_call_stack{};
+    std::array<fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX> public_call_stack{};
+    std::array<fr, MAX_NEW_L2_TO_L1_MSGS_PER_TX> new_l2_to_l1_msgs{};
 
     std::array<fr, NUM_FIELDS_PER_SHA256> encrypted_logs_hash{};
     std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash{};
@@ -40,12 +40,12 @@ template <typename NCT> struct CombinedAccumulatedData {
     fr encrypted_log_preimages_length = 0;
     fr unencrypted_log_preimages_length = 0;
 
-    std::array<NewContractData<NCT>, KERNEL_NEW_CONTRACTS_LENGTH> new_contracts{};
+    std::array<NewContractData<NCT>, MAX_NEW_CONTRACTS_PER_TX> new_contracts{};
 
-    std::array<OptionallyRevealedData<NCT>, KERNEL_OPTIONALLY_REVEALED_DATA_LENGTH> optionally_revealed_data{};
+    std::array<OptionallyRevealedData<NCT>, MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX> optionally_revealed_data{};
 
-    std::array<PublicDataUpdateRequest<NCT>, KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH> public_data_update_requests{};
-    std::array<PublicDataRead<NCT>, KERNEL_PUBLIC_DATA_READS_LENGTH> public_data_reads{};
+    std::array<PublicDataUpdateRequest<NCT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX> public_data_update_requests{};
+    std::array<PublicDataRead<NCT>, MAX_PUBLIC_DATA_READS_PER_TX> public_data_reads{};
 
     // for serialization, update with new fields
     MSGPACK_FIELDS(aggregation_object,

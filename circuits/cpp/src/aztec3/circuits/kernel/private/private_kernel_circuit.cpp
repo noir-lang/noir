@@ -144,17 +144,17 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
             .function_tree_root = contract_deployment_data.function_tree_root,
         };
 
-        array_push<Builder, NewContractData<CT>, KERNEL_NEW_CONTRACTS_LENGTH>(public_inputs.end.new_contracts,
-                                                                              new_contract_data);
+        array_push<Builder, NewContractData<CT>, MAX_NEW_CONTRACTS_PER_TX>(public_inputs.end.new_contracts,
+                                                                           new_contract_data);
     }
 
     {  // commitments, nullifiers, and contracts
-        std::array<CT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments;
+        std::array<CT::fr, MAX_NEW_COMMITMENTS_PER_CALL> siloed_new_commitments;
         for (size_t i = 0; i < new_commitments.size(); ++i) {
             siloed_new_commitments[i] = CT::fr::conditional_assign(
                 new_commitments[i] == 0, 0, silo_commitment<CT>(storage_contract_address, new_commitments[i]));
         }
-        std::array<CT::fr, NEW_NULLIFIERS_LENGTH> siloed_new_nullifiers;
+        std::array<CT::fr, MAX_NEW_NULLIFIERS_PER_CALL> siloed_new_nullifiers;
         for (size_t i = 0; i < new_nullifiers.size(); ++i) {
             siloed_new_nullifiers[i] = CT::fr::conditional_assign(
                 new_nullifiers[i] == 0, 0, silo_nullifier<CT>(storage_contract_address, new_nullifiers[i]));
@@ -173,7 +173,7 @@ void update_end_values(PrivateKernelInputsInner<CT> const& private_inputs, Kerne
 
     // {
     //     const auto& new_l2_to_l1_msgs = private_call_public_inputs.new_l2_to_l1_msgs;
-    //     std::array<CT::fr, NEW_L2_TO_L1_MSGS_LENGTH> l1_call_stack;
+    //     std::array<CT::fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> l1_call_stack;
 
     //     for (size_t i = 0; i < new_l2_to_l1_msgs.size(); ++i) {
     //         l1_call_stack[i] = CT::fr::conditional_assign(

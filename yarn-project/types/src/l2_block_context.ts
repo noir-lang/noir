@@ -1,4 +1,4 @@
-import { KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
+import { MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
 
 import { L2Block } from './l2_block.js';
 import { TxHash } from './tx_hash.js';
@@ -17,7 +17,7 @@ export class L2BlockContext {
      */
     public readonly block: L2Block,
   ) {
-    this.txHashes = new Array(Math.floor(block.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH));
+    this.txHashes = new Array(Math.floor(block.newCommitments.length / MAX_NEW_COMMITMENTS_PER_TX));
   }
 
   /**

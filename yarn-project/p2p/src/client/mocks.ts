@@ -1,4 +1,4 @@
-import { KERNEL_PUBLIC_CALL_STACK_LENGTH, Proof } from '@aztec/circuits.js';
+import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Proof } from '@aztec/circuits.js';
 import { makeKernelPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/factories';
 import { Tx, TxL2Logs, L2BlockSource, L2Block } from '@aztec/types';
 import times from 'lodash.times';
@@ -10,7 +10,7 @@ export const MockTx = () => {
     TxL2Logs.random(8, 3), // 8 priv function invocations creating 3 encrypted logs each
     TxL2Logs.random(11, 2), // 8 priv + 3 pub function invocations creating 2 unencrypted logs each
     [],
-    times(KERNEL_PUBLIC_CALL_STACK_LENGTH, makePublicCallRequest),
+    times(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makePublicCallRequest),
   );
 };
 

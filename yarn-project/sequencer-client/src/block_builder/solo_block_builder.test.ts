@@ -5,11 +5,11 @@ import {
   CircuitsWasm,
   Fr,
   GlobalVariables,
-  KERNEL_NEW_COMMITMENTS_LENGTH,
-  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
-  KERNEL_NEW_NULLIFIERS_LENGTH,
-  KERNEL_PUBLIC_CALL_STACK_LENGTH,
-  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+  MAX_NEW_COMMITMENTS_PER_TX,
+  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
+  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   KernelCircuitPublicInputs,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   Proof,
@@ -154,7 +154,7 @@ describe('sequencer/solo_block_builder', () => {
         makeEmptyLogs(),
         makeEmptyLogs(),
         [],
-        times(KERNEL_PUBLIC_CALL_STACK_LENGTH, makePublicCallRequest),
+        times(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makePublicCallRequest),
       ),
     );
 
@@ -292,17 +292,17 @@ describe('sequencer/solo_block_builder', () => {
       const kernelOutput = KernelCircuitPublicInputs.empty();
       kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
       kernelOutput.end.publicDataUpdateRequests = makeTuple(
-        KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+        MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
         i => new PublicDataUpdateRequest(fr(i), fr(0), fr(i + 10)),
         seed + 0x500,
       );
 
       const processedTx = await makeProcessedTx(tx, kernelOutput, makeProof());
 
-      processedTx.data.end.newCommitments = makeTuple(KERNEL_NEW_COMMITMENTS_LENGTH, fr, seed + 0x100);
-      processedTx.data.end.newNullifiers = makeTuple(KERNEL_NEW_NULLIFIERS_LENGTH, fr, seed + 0x200);
+      processedTx.data.end.newCommitments = makeTuple(MAX_NEW_COMMITMENTS_PER_TX, fr, seed + 0x100);
+      processedTx.data.end.newNullifiers = makeTuple(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200);
       processedTx.data.end.newNullifiers[tx.data.end.newNullifiers.length - 1] = Fr.ZERO;
-      processedTx.data.end.newL2ToL1Msgs = makeTuple(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, fr, seed + 0x300);
+      processedTx.data.end.newL2ToL1Msgs = makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_TX, fr, seed + 0x300);
       processedTx.data.end.newContracts = [makeNewContractData(seed + 0x1000)];
       processedTx.data.end.encryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(processedTx.encryptedLogs));
       processedTx.data.end.unencryptedLogsHash = to2Fields(L2Block.computeKernelLogsHash(processedTx.unencryptedLogs));
@@ -375,7 +375,7 @@ describe('sequencer/solo_block_builder', () => {
       const prover = new EmptyRollupProver();
       builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);
       // update the starting tree
-      const updateVals = Array(4 * KERNEL_NEW_NULLIFIERS_LENGTH).fill(0n);
+      const updateVals = Array(4 * MAX_NEW_NULLIFIERS_PER_TX).fill(0n);
       updateVals[0] = 19777494491628650244807463906174285795660759352776418619064841306523677458742n;
       updateVals[1] = 10246291467305176436335175657884940686778521321101740385288169037814567547848n;
 

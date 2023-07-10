@@ -4,7 +4,7 @@ import {
   CONTRACT_TREE_HEIGHT,
   Fr,
   KernelCircuitPublicInputs,
-  L1_TO_L2_MESSAGES_TREE_HEIGHT,
+  L1_TO_L2_MSG_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
   Proof,
   PublicCallRequest,
@@ -313,7 +313,7 @@ export class HttpNode implements AztecNode {
    * @param leafIndex - Index of the leaf in the tree.
    * @returns The sibling path.
    */
-  async getL1ToL2MessagesTreePath(leafIndex: bigint): Promise<SiblingPath<typeof L1_TO_L2_MESSAGES_TREE_HEIGHT>> {
+  async getL1ToL2MessagesTreePath(leafIndex: bigint): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>> {
     const url = new URL(`${this.baseUrl}/l1-l2-path`);
     url.searchParams.append('leaf', leafIndex.toString());
     const response = await (await fetch(url.toString())).json();

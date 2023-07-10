@@ -5,7 +5,7 @@ import { PrivateCallStackItem } from '../call_stack_item.js';
 import {
   CONTRACT_TREE_HEIGHT,
   FUNCTION_TREE_HEIGHT,
-  PRIVATE_CALL_STACK_LENGTH,
+  MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   PRIVATE_DATA_TREE_HEIGHT,
   READ_REQUESTS_LENGTH,
 } from '../constants.js';
@@ -60,7 +60,7 @@ export class PrivateCallData {
      */
     public acirHash: Fr,
   ) {
-    assertMemberLength(this, 'privateCallStackPreimages', PRIVATE_CALL_STACK_LENGTH);
+    assertMemberLength(this, 'privateCallStackPreimages', MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL);
     assertMemberLength(this, 'readRequestMembershipWitnesses', READ_REQUESTS_LENGTH);
   }
 

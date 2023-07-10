@@ -1,7 +1,7 @@
 import { LeafData, SiblingPath, LowLeafWitnessData } from '@aztec/merkle-tree';
 import { L2Block, MerkleTreeId } from '@aztec/types';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { KERNEL_NEW_NULLIFIERS_LENGTH } from '@aztec/circuits.js';
+import { MAX_NEW_NULLIFIERS_PER_TX } from '@aztec/circuits.js';
 
 export * from './merkle_trees.js';
 export { LeafData } from '@aztec/merkle-tree';
@@ -31,7 +31,7 @@ export type PublicTreeId = MerkleTreeId.PUBLIC_DATA_TREE;
  *    1024 leaves for the first block, because there's only neat space for 1023 leaves after 0. By padding with 1023
  *    more leaves, we can then insert the first block of 1024 leaves into indices 1024:2047.
  */
-export const INITIAL_NULLIFIER_TREE_SIZE = 2 * KERNEL_NEW_NULLIFIERS_LENGTH;
+export const INITIAL_NULLIFIER_TREE_SIZE = 2 * MAX_NEW_NULLIFIERS_PER_TX;
 
 /**
  *  Defines tree information.

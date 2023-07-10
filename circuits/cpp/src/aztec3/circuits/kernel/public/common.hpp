@@ -228,7 +228,7 @@ void propagate_valid_public_data_update_requests(Builder& builder,
     const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
     const auto& update_requests =
         public_kernel_inputs.public_call.call_stack_item.public_inputs.contract_storage_update_requests;
-    for (size_t i = 0; i < KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH; ++i) {
+    for (size_t i = 0; i < MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX; ++i) {
         const auto& update_request = update_requests[i];
         if (update_request.is_empty()) {
             continue;
@@ -255,7 +255,7 @@ void propagate_valid_public_data_reads(Builder& builder,
 {
     const auto& contract_address = public_kernel_inputs.public_call.call_stack_item.contract_address;
     const auto& reads = public_kernel_inputs.public_call.call_stack_item.public_inputs.contract_storage_reads;
-    for (size_t i = 0; i < KERNEL_PUBLIC_DATA_READS_LENGTH; ++i) {
+    for (size_t i = 0; i < MAX_PUBLIC_DATA_READS_PER_TX; ++i) {
         const auto& contract_storage_read = reads[i];
         if (contract_storage_read.is_empty()) {
             continue;
@@ -287,7 +287,7 @@ void propagate_new_commitments(Builder& builder,
     const auto& new_commitments = public_call_public_inputs.new_commitments;
     const auto& storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    std::array<NT::fr, NEW_COMMITMENTS_LENGTH> siloed_new_commitments{};
+    std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_CALL> siloed_new_commitments{};
     for (size_t i = 0; i < new_commitments.size(); ++i) {
         if (!new_commitments[i].is_zero()) {
             siloed_new_commitments[i] = silo_commitment<NT>(storage_contract_address, new_commitments[i]);
@@ -316,7 +316,7 @@ void propagate_new_nullifiers(Builder& builder,
     const auto& new_nullifiers = public_call_public_inputs.new_nullifiers;
     const auto& storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
 
-    std::array<NT::fr, KERNEL_NEW_NULLIFIERS_LENGTH> siloed_new_nullifiers{};
+    std::array<NT::fr, MAX_NEW_NULLIFIERS_PER_TX> siloed_new_nullifiers{};
     for (size_t i = 0; i < new_nullifiers.size(); ++i) {
         if (!new_nullifiers[i].is_zero()) {
             siloed_new_nullifiers[i] = silo_nullifier<NT>(storage_contract_address, new_nullifiers[i]);
@@ -345,7 +345,7 @@ void propagate_new_l2_to_l1_messages(Builder& builder,
     const auto& storage_contract_address = public_call_public_inputs.call_context.storage_contract_address;
     const auto& new_l2_to_l1_msgs = public_call_public_inputs.new_l2_to_l1_msgs;
 
-    std::array<NT::fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs_to_insert{};
+    std::array<NT::fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> new_l2_to_l1_msgs_to_insert{};
     for (size_t i = 0; i < new_l2_to_l1_msgs.size(); ++i) {
         if (!new_l2_to_l1_msgs[i].is_zero()) {
             const auto chain_id = public_kernel_inputs.previous_kernel.public_inputs.constants.tx_context.chain_id;

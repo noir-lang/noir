@@ -29,12 +29,12 @@ template <typename NCT> class PrivateCircuitPublicInputs {
 
     std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
 
-    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments{};
-    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers{};
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_CALL> new_commitments{};
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_CALL> new_nullifiers{};
 
-    std::array<fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack{};
-    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack{};
-    std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs{};
+    std::array<fr, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL> private_call_stack{};
+    std::array<fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> public_call_stack{};
+    std::array<fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> new_l2_to_l1_msgs{};
 
     std::array<fr, NUM_FIELDS_PER_SHA256> encrypted_logs_hash{};
     std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash{};
@@ -303,12 +303,12 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
     std::array<opt_fr, READ_REQUESTS_LENGTH> read_requests;
 
-    std::array<opt_fr, NEW_COMMITMENTS_LENGTH> new_commitments;
-    std::array<opt_fr, NEW_NULLIFIERS_LENGTH> new_nullifiers;
+    std::array<opt_fr, MAX_NEW_COMMITMENTS_PER_CALL> new_commitments;
+    std::array<opt_fr, MAX_NEW_NULLIFIERS_PER_CALL> new_nullifiers;
 
-    std::array<opt_fr, PRIVATE_CALL_STACK_LENGTH> private_call_stack;
-    std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack;
-    std::array<opt_fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs;
+    std::array<opt_fr, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL> private_call_stack;
+    std::array<opt_fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> public_call_stack;
+    std::array<opt_fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> new_l2_to_l1_msgs;
 
     std::array<opt_fr, NUM_FIELDS_PER_SHA256> encrypted_logs_hash;
     std::array<opt_fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash;
@@ -328,35 +328,36 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
 
     OptionalPrivateCircuitPublicInputs<NCT>() = default;
 
-    OptionalPrivateCircuitPublicInputs<NCT>(std::optional<CallContext<NCT>> const& call_context,
+    OptionalPrivateCircuitPublicInputs<NCT>(
+        std::optional<CallContext<NCT>> const& call_context,
 
-                                            opt_fr const& args_hash,
-                                            std::array<opt_fr, RETURN_VALUES_LENGTH> const& return_values,
+        opt_fr const& args_hash,
+        std::array<opt_fr, RETURN_VALUES_LENGTH> const& return_values,
 
-                                            std::array<opt_fr, READ_REQUESTS_LENGTH> const& read_requests,
+        std::array<opt_fr, READ_REQUESTS_LENGTH> const& read_requests,
 
-                                            std::array<opt_fr, NEW_COMMITMENTS_LENGTH> const& new_commitments,
-                                            std::array<opt_fr, NEW_NULLIFIERS_LENGTH> const& new_nullifiers,
+        std::array<opt_fr, MAX_NEW_COMMITMENTS_PER_CALL> const& new_commitments,
+        std::array<opt_fr, MAX_NEW_NULLIFIERS_PER_CALL> const& new_nullifiers,
 
-                                            std::array<opt_fr, PRIVATE_CALL_STACK_LENGTH> const& private_call_stack,
-                                            std::array<opt_fr, PUBLIC_CALL_STACK_LENGTH> const& public_call_stack,
-                                            std::array<opt_fr, NEW_L2_TO_L1_MSGS_LENGTH> const& new_l2_to_l1_msgs,
+        std::array<opt_fr, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL> const& private_call_stack,
+        std::array<opt_fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> const& public_call_stack,
+        std::array<opt_fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> const& new_l2_to_l1_msgs,
 
-                                            std::array<opt_fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash,
-                                            std::array<opt_fr, NUM_FIELDS_PER_SHA256> const& unencrypted_logs_hash,
+        std::array<opt_fr, NUM_FIELDS_PER_SHA256> const& encrypted_logs_hash,
+        std::array<opt_fr, NUM_FIELDS_PER_SHA256> const& unencrypted_logs_hash,
 
-                                            opt_fr const& encrypted_log_preimages_length,
-                                            opt_fr const& unencrypted_log_preimages_length,
+        opt_fr const& encrypted_log_preimages_length,
+        opt_fr const& unencrypted_log_preimages_length,
 
-                                            opt_fr const& historic_private_data_tree_root,
-                                            opt_fr const& historic_nullifier_tree_root,
-                                            opt_fr const& historic_contract_tree_root,
-                                            opt_fr const& historic_l1_to_l2_messages_tree_root,
+        opt_fr const& historic_private_data_tree_root,
+        opt_fr const& historic_nullifier_tree_root,
+        opt_fr const& historic_contract_tree_root,
+        opt_fr const& historic_l1_to_l2_messages_tree_root,
 
-                                            std::optional<ContractDeploymentData<NCT>> const& contract_deployment_data,
+        std::optional<ContractDeploymentData<NCT>> const& contract_deployment_data,
 
-                                            opt_fr const& chain_id,
-                                            opt_fr const& version)
+        opt_fr const& chain_id,
+        opt_fr const& version)
         : call_context(call_context)
         , args_hash(args_hash)
         , return_values(return_values)

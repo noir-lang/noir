@@ -52,9 +52,9 @@ namespace aztec3::circuits::rollup::test_utils::utils {
 std::vector<uint8_t> get_empty_calldata_leaf()
 {
     auto const number_of_inputs =
-        (KERNEL_NEW_COMMITMENTS_LENGTH + KERNEL_NEW_NULLIFIERS_LENGTH + KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2 +
-         KERNEL_NEW_L2_TO_L1_MSGS_LENGTH + KERNEL_NEW_CONTRACTS_LENGTH * 3 + KERNEL_NUM_ENCRYPTED_LOGS_HASHES * 2 +
-         KERNEL_NUM_UNENCRYPTED_LOGS_HASHES * 2) *
+        (MAX_NEW_COMMITMENTS_PER_TX + MAX_NEW_NULLIFIERS_PER_TX + MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2 +
+         MAX_NEW_L2_TO_L1_MSGS_PER_TX + MAX_NEW_CONTRACTS_PER_TX * 3 + NUM_ENCRYPTED_LOGS_HASHES_PER_TX * 2 +
+         NUM_UNENCRYPTED_LOGS_HASHES_PER_TX * 2) *
         2;
 
     // We subtract 4 from inputs size because 1 logs hash is stored in 2 fields and those 2 fields get converted only
@@ -128,16 +128,16 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
                                               },
                                               .constants = constantRollupData };
 
-    std::vector<fr> initial_values(2 * KERNEL_NEW_NULLIFIERS_LENGTH - 1);
+    std::vector<fr> initial_values(2 * MAX_NEW_NULLIFIERS_PER_TX - 1);
 
     for (size_t i = 0; i < initial_values.size(); i++) {
         initial_values[i] = i + 1;
     }
 
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifiers;
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX * 2> nullifiers;
     for (size_t i = 0; i < 2; i++) {
-        for (size_t j = 0; j < KERNEL_NEW_NULLIFIERS_LENGTH; j++) {
-            nullifiers[i * KERNEL_NEW_NULLIFIERS_LENGTH + j] = kernel_data[i].public_inputs.end.new_nullifiers[j];
+        for (size_t j = 0; j < MAX_NEW_NULLIFIERS_PER_TX; j++) {
+            nullifiers[i * MAX_NEW_NULLIFIERS_PER_TX + j] = kernel_data[i].public_inputs.end.new_nullifiers[j];
         }
     }
 
@@ -147,10 +147,10 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
     baseRollupInputs = std::get<0>(temp);
 
     baseRollupInputs.new_contracts_subtree_sibling_path =
-        get_sibling_path<CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH>(contract_tree, 0, CONTRACT_SUBTREE_DEPTH);
+        get_sibling_path<CONTRACT_SUBTREE_SIBLING_PATH_LENGTH>(contract_tree, 0, CONTRACT_SUBTREE_HEIGHT);
 
     baseRollupInputs.new_commitments_subtree_sibling_path =
-        get_sibling_path<PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH>(private_data_tree, 0, PRIVATE_DATA_SUBTREE_DEPTH);
+        get_sibling_path<PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH>(private_data_tree, 0, PRIVATE_DATA_SUBTREE_HEIGHT);
 
 
     // Update public data tree to generate sibling paths: we first set the initial public data tree to the result of all
@@ -183,17 +183,17 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
     // Then we collect all sibling paths for the reads in the left tx, and then apply the update requests while
     // collecting their paths. And then repeat for the right tx.
     for (size_t i = 0; i < 2; i++) {
-        for (size_t j = 0; j < KERNEL_PUBLIC_DATA_READS_LENGTH; j++) {
+        for (size_t j = 0; j < MAX_PUBLIC_DATA_READS_PER_TX; j++) {
             auto public_data_read = kernel_data[i].public_inputs.end.public_data_reads[j];
             if (public_data_read.is_empty()) {
                 continue;
             }
             auto leaf_index = uint256_t(public_data_read.leaf_index);
-            baseRollupInputs.new_public_data_reads_sibling_paths[i * KERNEL_PUBLIC_DATA_READS_LENGTH + j] =
+            baseRollupInputs.new_public_data_reads_sibling_paths[i * MAX_PUBLIC_DATA_READS_PER_TX + j] =
                 get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index);
         }
 
-        for (size_t j = 0; j < KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH; j++) {
+        for (size_t j = 0; j < MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX; j++) {
             auto public_data_update_request = kernel_data[i].public_inputs.end.public_data_update_requests[j];
             if (public_data_update_request.is_empty()) {
                 continue;
@@ -201,7 +201,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
             auto leaf_index = uint256_t(public_data_update_request.leaf_index);
             public_data_tree.update_element(leaf_index, public_data_update_request.new_value);
             baseRollupInputs
-                .new_public_data_update_requests_sibling_paths[i * KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH + j] =
+                .new_public_data_update_requests_sibling_paths[i * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX + j] =
                 get_sibling_path<PUBLIC_DATA_TREE_HEIGHT>(public_data_tree, leaf_index);
         }
     }
@@ -254,25 +254,25 @@ std::array<PreviousRollupData<NT>, 2> get_previous_rollup_data(DummyBuilder& bui
     // Build the trees based on inputs in base_rollup_input_1.
     MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
     MerkleTree contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
-    std::vector<fr> initial_values(2 * KERNEL_NEW_NULLIFIERS_LENGTH - 1);
+    std::vector<fr> initial_values(2 * MAX_NEW_NULLIFIERS_PER_TX - 1);
 
     for (size_t i = 0; i < initial_values.size(); i++) {
         initial_values[i] = i + 1;
     }
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> nullifiers;
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX * 2> nullifiers;
 
     for (size_t i = 0; i < 2; i++) {
-        for (size_t j = 0; j < KERNEL_NEW_COMMITMENTS_LENGTH; j++) {
-            private_data_tree.update_element(i * KERNEL_NEW_COMMITMENTS_LENGTH + j,
+        for (size_t j = 0; j < MAX_NEW_COMMITMENTS_PER_TX; j++) {
+            private_data_tree.update_element(i * MAX_NEW_COMMITMENTS_PER_TX + j,
                                              kernel_data[i].public_inputs.end.new_commitments[j]);
         }
         auto contract_data = kernel_data[i].public_inputs.end.new_contracts[0];
         if (!contract_data.is_empty()) {
             contract_tree.update_element(i, contract_data.hash());
         }
-        for (size_t j = 0; j < KERNEL_NEW_NULLIFIERS_LENGTH; j++) {
+        for (size_t j = 0; j < MAX_NEW_NULLIFIERS_PER_TX; j++) {
             initial_values.push_back(kernel_data[i].public_inputs.end.new_nullifiers[j]);
-            nullifiers[i * KERNEL_NEW_NULLIFIERS_LENGTH + j] = kernel_data[2 + i].public_inputs.end.new_nullifiers[j];
+            nullifiers[i * MAX_NEW_NULLIFIERS_PER_TX + j] = kernel_data[2 + i].public_inputs.end.new_nullifiers[j];
         }
     }
 
@@ -285,10 +285,10 @@ std::array<PreviousRollupData<NT>, 2> get_previous_rollup_data(DummyBuilder& bui
     base_rollup_input_2.start_contract_tree_snapshot = base_public_input_1.end_contract_tree_snapshot;
 
     base_rollup_input_2.new_contracts_subtree_sibling_path =
-        get_sibling_path<CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH>(contract_tree, 2, CONTRACT_SUBTREE_DEPTH);
+        get_sibling_path<CONTRACT_SUBTREE_SIBLING_PATH_LENGTH>(contract_tree, 2, CONTRACT_SUBTREE_HEIGHT);
     base_rollup_input_2.new_commitments_subtree_sibling_path =
-        get_sibling_path<PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH>(
-            private_data_tree, 2 * KERNEL_NEW_COMMITMENTS_LENGTH, PRIVATE_DATA_SUBTREE_DEPTH);
+        get_sibling_path<PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH>(
+            private_data_tree, 2 * MAX_NEW_COMMITMENTS_PER_TX, PRIVATE_DATA_SUBTREE_HEIGHT);
 
     auto base_public_input_2 =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, base_rollup_input_2);
@@ -343,7 +343,7 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
         get_sibling_path<L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>(historic_l1_to_l2_msg_tree, 1, 0);
     // l1 to l2 tree
     auto l1_to_l2_tree_sibling_path =
-        get_sibling_path<L1_TO_L2_MSG_SUBTREE_INCLUSION_CHECK_DEPTH>(l1_to_l2_msg_tree, 0, L1_TO_L2_MSG_SUBTREE_DEPTH);
+        get_sibling_path<L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH>(l1_to_l2_msg_tree, 0, L1_TO_L2_MSG_SUBTREE_HEIGHT);
 
     // l1_to_l2_message tree snapshots
     AppendOnlyTreeSnapshot const start_l1_to_l2_msg_tree_snapshot = {
@@ -392,7 +392,7 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values(BaseRollupI
                                                                      size_t starting_insertion_value = 0,
                                                                      size_t spacing = 5)
 {
-    const size_t NUMBER_OF_NULLIFIERS = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
+    const size_t NUMBER_OF_NULLIFIERS = MAX_NEW_NULLIFIERS_PER_TX * 2;
     std::array<fr, NUMBER_OF_NULLIFIERS> nullifiers;
     for (size_t i = 0; i < NUMBER_OF_NULLIFIERS; ++i) {
         auto insertion_val = (starting_insertion_value + i * spacing);
@@ -409,11 +409,11 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values(BaseRollupI
 }
 
 nullifier_tree_testing_values generate_nullifier_tree_testing_values(
-    BaseRollupInputs inputs, std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> new_nullifiers, size_t spacing = 5)
+    BaseRollupInputs inputs, std::array<fr, MAX_NEW_NULLIFIERS_PER_TX * 2> new_nullifiers, size_t spacing = 5)
 {
     // Generate initial values lin spaced
     std::vector<fr> initial_values;
-    for (size_t i = 1; i < 2 * KERNEL_NEW_NULLIFIERS_LENGTH; ++i) {
+    for (size_t i = 1; i < 2 * MAX_NEW_NULLIFIERS_PER_TX; ++i) {
         initial_values.emplace_back(i * spacing);
     }
 
@@ -422,7 +422,7 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values(
 
 nullifier_tree_testing_values generate_nullifier_tree_testing_values_explicit(
     BaseRollupInputs rollupInputs,
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH * 2> new_nullifiers,
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX * 2> new_nullifiers,
     const std::vector<fr>& initial_values)
 {
     size_t const start_tree_size = initial_values.size() + 1;
@@ -435,21 +435,21 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values_explicit(
         .next_available_leaf_index = static_cast<uint32_t>(start_tree_size),
     };
 
-    const size_t NUMBER_OF_NULLIFIERS = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
+    const size_t NUMBER_OF_NULLIFIERS = MAX_NEW_NULLIFIERS_PER_TX * 2;
     std::array<NullifierLeafPreimage, NUMBER_OF_NULLIFIERS> new_nullifier_leaves{};
 
     // Calculate the predecessor nullifier pre-images
     // Get insertion values
     std::vector<fr> insertion_values;
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers_kernel_1{};
-    std::array<fr, KERNEL_NEW_NULLIFIERS_LENGTH> new_nullifiers_kernel_2{};
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> new_nullifiers_kernel_1{};
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> new_nullifiers_kernel_2{};
 
     for (size_t i = 0; i < NUMBER_OF_NULLIFIERS; ++i) {
         auto insertion_val = new_nullifiers[i];
-        if (i < KERNEL_NEW_NULLIFIERS_LENGTH) {
+        if (i < MAX_NEW_NULLIFIERS_PER_TX) {
             new_nullifiers_kernel_1[i] = insertion_val;
         } else {
-            new_nullifiers_kernel_2[i - KERNEL_NEW_NULLIFIERS_LENGTH] = insertion_val;
+            new_nullifiers_kernel_2[i - MAX_NEW_NULLIFIERS_PER_TX] = insertion_val;
         }
         insertion_values.push_back(insertion_val);
         reference_tree.update_element(insertion_val);
@@ -494,10 +494,10 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values_explicit(
     };
 
     std::vector<fr> sibling_path = reference_tree.get_sibling_path(start_tree_size);
-    std::array<fr, NULLIFIER_SUBTREE_INCLUSION_CHECK_DEPTH> sibling_path_array;
+    std::array<fr, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH> sibling_path_array;
 
     // Chop the first NULLIFIER-SUBTREE-DEPTH levels from the sibling_path
-    sibling_path.erase(sibling_path.begin(), sibling_path.begin() + NULLIFIER_SUBTREE_DEPTH);
+    sibling_path.erase(sibling_path.begin(), sibling_path.begin() + NULLIFIER_SUBTREE_HEIGHT);
     std::copy(sibling_path.begin(), sibling_path.end(), sibling_path_array.begin());
 
     // Update our start state

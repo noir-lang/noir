@@ -1,4 +1,4 @@
-import { KERNEL_PUBLIC_CALL_STACK_LENGTH, makeEmptyProof } from '@aztec/circuits.js';
+import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makeEmptyProof } from '@aztec/circuits.js';
 import { makeKernelPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/factories';
 import { FunctionL2Logs, Tx, TxL2Logs } from '@aztec/types';
 import times from 'lodash.times';
@@ -21,6 +21,6 @@ export function makeTx(seed = 0) {
     TxL2Logs.random(2, 3),
     TxL2Logs.random(3, 0),
     [],
-    times(KERNEL_PUBLIC_CALL_STACK_LENGTH, makePublicCallRequest),
+    times(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makePublicCallRequest),
   );
 }

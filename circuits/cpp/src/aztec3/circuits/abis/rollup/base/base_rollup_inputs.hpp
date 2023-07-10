@@ -21,18 +21,18 @@ template <typename NCT> struct BaseRollupInputs {
     AppendOnlyTreeSnapshot<NCT> start_contract_tree_snapshot;
     fr start_public_data_tree_root;
 
-    std::array<NullifierLeafPreimage<NCT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH> low_nullifier_leaf_preimages;
-    std::array<MembershipWitness<NCT, NULLIFIER_TREE_HEIGHT>, 2 * KERNEL_NEW_NULLIFIERS_LENGTH>
+    std::array<NullifierLeafPreimage<NCT>, 2 * MAX_NEW_NULLIFIERS_PER_TX> low_nullifier_leaf_preimages;
+    std::array<MembershipWitness<NCT, NULLIFIER_TREE_HEIGHT>, 2 * MAX_NEW_NULLIFIERS_PER_TX>
         low_nullifier_membership_witness;
 
     // For inserting the new subtrees into their respective trees:
     // Note: the insertion leaf index can be derived from the above snapshots' `next_available_leaf_index` values.
-    std::array<fr, PRIVATE_DATA_SUBTREE_INCLUSION_CHECK_DEPTH> new_commitments_subtree_sibling_path;
-    std::array<fr, NULLIFIER_SUBTREE_INCLUSION_CHECK_DEPTH> new_nullifiers_subtree_sibling_path;
-    std::array<fr, CONTRACT_SUBTREE_INCLUSION_CHECK_DEPTH> new_contracts_subtree_sibling_path;
-    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH>
+    std::array<fr, PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH> new_commitments_subtree_sibling_path;
+    std::array<fr, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH> new_nullifiers_subtree_sibling_path;
+    std::array<fr, CONTRACT_SUBTREE_SIBLING_PATH_LENGTH> new_contracts_subtree_sibling_path;
+    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>
         new_public_data_update_requests_sibling_paths;
-    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * KERNEL_PUBLIC_DATA_READS_LENGTH>
+    std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * MAX_PUBLIC_DATA_READS_PER_TX>
         new_public_data_reads_sibling_paths;
 
     std::array<MembershipWitness<NCT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>, 2>

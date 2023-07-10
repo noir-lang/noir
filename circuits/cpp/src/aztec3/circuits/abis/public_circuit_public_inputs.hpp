@@ -26,14 +26,14 @@ template <typename NCT> struct PublicCircuitPublicInputs {
     fr args_hash = 0;
     std::array<fr, RETURN_VALUES_LENGTH> return_values{};
 
-    std::array<ContractStorageUpdateRequest<NCT>, KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH>
+    std::array<ContractStorageUpdateRequest<NCT>, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL>
         contract_storage_update_requests{};
-    std::array<ContractStorageRead<NCT>, KERNEL_PUBLIC_DATA_READS_LENGTH> contract_storage_reads{};
+    std::array<ContractStorageRead<NCT>, MAX_PUBLIC_DATA_READS_PER_CALL> contract_storage_reads{};
 
-    std::array<fr, PUBLIC_CALL_STACK_LENGTH> public_call_stack{};
-    std::array<fr, NEW_COMMITMENTS_LENGTH> new_commitments{};
-    std::array<fr, NEW_NULLIFIERS_LENGTH> new_nullifiers{};
-    std::array<fr, NEW_L2_TO_L1_MSGS_LENGTH> new_l2_to_l1_msgs{};
+    std::array<fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> public_call_stack{};
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_CALL> new_commitments{};
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_CALL> new_nullifiers{};
+    std::array<fr, MAX_NEW_L2_TO_L1_MSGS_PER_CALL> new_l2_to_l1_msgs{};
 
     std::array<fr, NUM_FIELDS_PER_SHA256> unencrypted_logs_hash{};
 

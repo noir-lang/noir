@@ -4,7 +4,7 @@ import {
   FunctionData,
   CircuitsWasm,
   PrivateHistoricTreeRoots,
-  L1_TO_L2_MESSAGES_TREE_HEIGHT,
+  L1_TO_L2_MSG_TREE_HEIGHT,
   GlobalVariables,
 } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -364,7 +364,7 @@ describe('ACIR public execution simulator', () => {
         return await Promise.resolve({
           message: preimage.toFieldArray(),
           index: 0n,
-          siblingPath: Array(L1_TO_L2_MESSAGES_TREE_HEIGHT).fill(Fr.random()),
+          siblingPath: Array(L1_TO_L2_MSG_TREE_HEIGHT).fill(Fr.random()),
         });
       });
 

@@ -1,11 +1,11 @@
 import {
   AppendOnlyTreeSnapshot,
-  KERNEL_NEW_COMMITMENTS_LENGTH,
-  KERNEL_NEW_CONTRACTS_LENGTH,
-  KERNEL_NEW_NULLIFIERS_LENGTH,
-  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
+  MAX_NEW_COMMITMENTS_PER_TX,
+  MAX_NEW_CONTRACTS_PER_TX,
+  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-  KERNEL_NEW_L2_TO_L1_MSGS_LENGTH,
+  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   GlobalVariables,
 } from '@aztec/circuits.js';
 import { makeAppendOnlyTreeSnapshot, makeGlobalVariables } from '@aztec/circuits.js/factories';
@@ -146,8 +146,8 @@ export class L2Block {
     newEncryptedLogs?: L2BlockL2Logs,
     newUnencryptedLogs?: L2BlockL2Logs,
   ) {
-    if (newCommitments.length % KERNEL_NEW_COMMITMENTS_LENGTH !== 0) {
-      throw new Error(`The number of new commitments must be a multiple of ${KERNEL_NEW_COMMITMENTS_LENGTH}.`);
+    if (newCommitments.length % MAX_NEW_COMMITMENTS_PER_TX !== 0) {
+      throw new Error(`The number of new commitments must be a multiple of ${MAX_NEW_COMMITMENTS_PER_TX}.`);
     }
 
     if (newEncryptedLogs) {
@@ -176,13 +176,13 @@ export class L2Block {
     numEncryptedLogs = 2,
     numUnencryptedLogs = 1,
   ): L2Block {
-    const newNullifiers = times(KERNEL_NEW_NULLIFIERS_LENGTH * txsPerBlock, Fr.random);
-    const newCommitments = times(KERNEL_NEW_COMMITMENTS_LENGTH * txsPerBlock, Fr.random);
-    const newContracts = times(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock, Fr.random);
-    const newContractData = times(KERNEL_NEW_CONTRACTS_LENGTH * txsPerBlock, ContractData.random);
-    const newPublicDataWrites = times(KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * txsPerBlock, PublicDataWrite.random);
+    const newNullifiers = times(MAX_NEW_NULLIFIERS_PER_TX * txsPerBlock, Fr.random);
+    const newCommitments = times(MAX_NEW_COMMITMENTS_PER_TX * txsPerBlock, Fr.random);
+    const newContracts = times(MAX_NEW_CONTRACTS_PER_TX * txsPerBlock, Fr.random);
+    const newContractData = times(MAX_NEW_CONTRACTS_PER_TX * txsPerBlock, ContractData.random);
+    const newPublicDataWrites = times(MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * txsPerBlock, PublicDataWrite.random);
     const newL1ToL2Messages = times(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, Fr.random);
-    const newL2ToL1Msgs = times(KERNEL_NEW_L2_TO_L1_MSGS_LENGTH, Fr.random);
+    const newL2ToL1Msgs = times(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr.random);
     const newEncryptedLogs = L2BlockL2Logs.random(txsPerBlock, numPrivateFunctionCalls, numEncryptedLogs);
     const newUnencryptedLogs = L2BlockL2Logs.random(txsPerBlock, numPublicFunctionCalls, numUnencryptedLogs);
 
@@ -493,7 +493,7 @@ export class L2Block {
       throw new Error(`L2 block already has ${logType} attached.`);
     }
 
-    const numTxs = this.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH;
+    const numTxs = this.newCommitments.length / MAX_NEW_COMMITMENTS_PER_TX;
 
     if (numTxs !== logs.txLogs.length) {
       throw new Error(
@@ -611,14 +611,14 @@ export class L2Block {
       return layers[layers.length - 1][0];
     };
 
-    const leafCount = this.newCommitments.length / (KERNEL_NEW_COMMITMENTS_LENGTH * 2);
+    const leafCount = this.newCommitments.length / (MAX_NEW_COMMITMENTS_PER_TX * 2);
     const leafs: Buffer[] = [];
 
     for (let i = 0; i < leafCount; i++) {
-      const commitmentsPerBase = KERNEL_NEW_COMMITMENTS_LENGTH * 2;
-      const nullifiersPerBase = KERNEL_NEW_NULLIFIERS_LENGTH * 2;
-      const publicDataUpdateRequestsPerBase = KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * 2;
-      const l2ToL1MsgsPerBase = KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * 2;
+      const commitmentsPerBase = MAX_NEW_COMMITMENTS_PER_TX * 2;
+      const nullifiersPerBase = MAX_NEW_NULLIFIERS_PER_TX * 2;
+      const publicDataUpdateRequestsPerBase = MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 2;
+      const l2ToL1MsgsPerBase = MAX_NEW_L2_TO_L1_MSGS_PER_TX * 2;
       const commitmentsBuffer = Buffer.concat(
         this.newCommitments.slice(i * commitmentsPerBase, (i + 1) * commitmentsPerBase).map(x => x.toBuffer()),
       );
@@ -677,34 +677,34 @@ export class L2Block {
    * @returns The tx.
    */
   getTx(txIndex: number) {
-    const numTxs = Math.floor(this.newCommitments.length / KERNEL_NEW_COMMITMENTS_LENGTH);
+    const numTxs = Math.floor(this.newCommitments.length / MAX_NEW_COMMITMENTS_PER_TX);
     if (txIndex >= numTxs) {
       throw new Error(`Failed to get tx ${txIndex}. Block ${this.globalVariables.blockNumber} only has ${numTxs} txs.`);
     }
 
     const newCommitments = this.newCommitments.slice(
-      KERNEL_NEW_COMMITMENTS_LENGTH * txIndex,
-      KERNEL_NEW_COMMITMENTS_LENGTH * (txIndex + 1),
+      MAX_NEW_COMMITMENTS_PER_TX * txIndex,
+      MAX_NEW_COMMITMENTS_PER_TX * (txIndex + 1),
     );
     const newNullifiers = this.newNullifiers.slice(
-      KERNEL_NEW_NULLIFIERS_LENGTH * txIndex,
-      KERNEL_NEW_NULLIFIERS_LENGTH * (txIndex + 1),
+      MAX_NEW_NULLIFIERS_PER_TX * txIndex,
+      MAX_NEW_NULLIFIERS_PER_TX * (txIndex + 1),
     );
     const newPublicDataWrites = this.newPublicDataWrites.slice(
-      KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * txIndex,
-      KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH * (txIndex + 1),
+      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * txIndex,
+      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * (txIndex + 1),
     );
     const newL2ToL1Msgs = this.newL2ToL1Msgs.slice(
-      KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * txIndex,
-      KERNEL_NEW_L2_TO_L1_MSGS_LENGTH * (txIndex + 1),
+      MAX_NEW_L2_TO_L1_MSGS_PER_TX * txIndex,
+      MAX_NEW_L2_TO_L1_MSGS_PER_TX * (txIndex + 1),
     );
     const newContracts = this.newContracts.slice(
-      KERNEL_NEW_CONTRACTS_LENGTH * txIndex,
-      KERNEL_NEW_CONTRACTS_LENGTH * (txIndex + 1),
+      MAX_NEW_CONTRACTS_PER_TX * txIndex,
+      MAX_NEW_CONTRACTS_PER_TX * (txIndex + 1),
     );
     const newContractData = this.newContractData.slice(
-      KERNEL_NEW_CONTRACTS_LENGTH * txIndex,
-      KERNEL_NEW_CONTRACTS_LENGTH * (txIndex + 1),
+      MAX_NEW_CONTRACTS_PER_TX * txIndex,
+      MAX_NEW_CONTRACTS_PER_TX * (txIndex + 1),
     );
 
     return new L2Tx(newCommitments, newNullifiers, newPublicDataWrites, newL2ToL1Msgs, newContracts, newContractData);

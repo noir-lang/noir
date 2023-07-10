@@ -4,9 +4,9 @@ import { assertMemberLength } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { PublicCallStackItem } from '../call_stack_item.js';
 import {
-  KERNEL_PUBLIC_DATA_READS_LENGTH,
-  KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
-  PUBLIC_CALL_STACK_LENGTH,
+  MAX_PUBLIC_DATA_READS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../constants.js';
 import { MembershipWitness } from '../membership_witness.js';
@@ -56,8 +56,8 @@ export class WitnessedPublicCallData {
      */
     public readonly publicDataTreeRoot: Fr,
   ) {
-    assertMemberLength(this, 'updateRequestsHashPaths', KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH);
-    assertMemberLength(this, 'readsHashPaths', KERNEL_PUBLIC_DATA_READS_LENGTH);
+    assertMemberLength(this, 'updateRequestsHashPaths', MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX);
+    assertMemberLength(this, 'readsHashPaths', MAX_PUBLIC_DATA_READS_PER_TX);
   }
 
   toBuffer() {
@@ -82,7 +82,7 @@ export class PublicCallData {
     /**
      * Children call stack items.
      */
-    public readonly publicCallStackPreimages: Tuple<PublicCallStackItem, typeof PUBLIC_CALL_STACK_LENGTH>,
+    public readonly publicCallStackPreimages: Tuple<PublicCallStackItem, typeof MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
     /**
      * Proof of the call stack item execution.
      */
@@ -96,7 +96,7 @@ export class PublicCallData {
      */
     public readonly bytecodeHash: Fr,
   ) {
-    assertMemberLength(this, 'publicCallStackPreimages', PUBLIC_CALL_STACK_LENGTH);
+    assertMemberLength(this, 'publicCallStackPreimages', MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL);
   }
 
   toBuffer() {

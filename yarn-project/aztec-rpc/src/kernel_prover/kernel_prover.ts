@@ -5,7 +5,7 @@ import {
   Fr,
   KernelCircuitPublicInputs,
   MembershipWitness,
-  PRIVATE_CALL_STACK_LENGTH,
+  MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   PRIVATE_DATA_TREE_HEIGHT,
   PreviousKernelData,
   PrivateCallData,
@@ -85,14 +85,14 @@ export class KernelProver {
       const currentExecution = executionStack.pop()!;
       executionStack.push(...currentExecution.nestedExecutions);
       const privateCallStackPreimages = currentExecution.nestedExecutions.map(result => result.callStackItem);
-      if (privateCallStackPreimages.length > PRIVATE_CALL_STACK_LENGTH) {
+      if (privateCallStackPreimages.length > MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL) {
         throw new Error(
-          `Too many items in the call stack. Maximum amount is ${PRIVATE_CALL_STACK_LENGTH}. Got ${privateCallStackPreimages.length}.`,
+          `Too many items in the call stack. Maximum amount is ${MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL}. Got ${privateCallStackPreimages.length}.`,
         );
       }
       // Pad with empty items to reach max/const length expected by circuit.
       privateCallStackPreimages.push(
-        ...Array(PRIVATE_CALL_STACK_LENGTH - privateCallStackPreimages.length)
+        ...Array(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL - privateCallStackPreimages.length)
           .fill(0)
           .map(() => PrivateCallStackItem.empty()),
       );

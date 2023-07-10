@@ -1,6 +1,6 @@
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { AztecAddress, CircuitsWasm, KERNEL_NEW_COMMITMENTS_LENGTH } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair, KeyPair, KeyStore } from '@aztec/key-store';
 import { FunctionL2Logs, L2Block, L2BlockContext, L2BlockL2Logs, NoteSpendingInfo, TxL2Logs } from '@aztec/types';
@@ -22,14 +22,14 @@ describe('Account State', () => {
 
   const createEncryptedLogsAndOwnedNoteSpendingInfo = (ownedDataIndices: number[] = []) => {
     ownedDataIndices.forEach(index => {
-      if (index >= KERNEL_NEW_COMMITMENTS_LENGTH) {
-        throw new Error(`Data index should be less than ${KERNEL_NEW_COMMITMENTS_LENGTH}.`);
+      if (index >= MAX_NEW_COMMITMENTS_PER_TX) {
+        throw new Error(`Data index should be less than ${MAX_NEW_COMMITMENTS_PER_TX}.`);
       }
     });
 
     const txLogs: TxL2Logs[] = [];
     const ownedNoteSpendingInfo: NoteSpendingInfo[] = [];
-    for (let i = 0; i < KERNEL_NEW_COMMITMENTS_LENGTH; ++i) {
+    for (let i = 0; i < MAX_NEW_COMMITMENTS_PER_TX; ++i) {
       const noteSpendingInfo = NoteSpendingInfo.random();
       const isOwner = ownedDataIndices.includes(i);
       const publicKey = isOwner ? owner.getPublicKey() : Point.random();
@@ -140,15 +140,15 @@ describe('Account State', () => {
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledWith([
       expect.objectContaining({
         ...ownedNoteSpendingInfos[0],
-        index: BigInt(KERNEL_NEW_COMMITMENTS_LENGTH + 1),
+        index: BigInt(MAX_NEW_COMMITMENTS_PER_TX + 1),
       }),
       expect.objectContaining({
         ...ownedNoteSpendingInfos[1],
-        index: BigInt(KERNEL_NEW_COMMITMENTS_LENGTH * 4),
+        index: BigInt(MAX_NEW_COMMITMENTS_PER_TX * 4),
       }),
       expect.objectContaining({
         ...ownedNoteSpendingInfos[2],
-        index: BigInt(KERNEL_NEW_COMMITMENTS_LENGTH * 4 + 2),
+        index: BigInt(MAX_NEW_COMMITMENTS_PER_TX * 4 + 2),
       }),
     ]);
   });
