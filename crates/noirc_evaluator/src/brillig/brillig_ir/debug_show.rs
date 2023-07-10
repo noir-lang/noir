@@ -30,6 +30,8 @@ impl DebugToString for RegisterIndex {
     fn debug_to_string(&self) -> String {
         if *self == ReservedRegisters::stack_pointer() {
             "Stack".into()
+        } else if *self == ReservedRegisters::previous_stack_pointer() {
+            "PrevStack".into()
         } else {
             format!("R{}", self.to_usize())
         }
@@ -212,6 +214,11 @@ pub(crate) fn allocate_array_instruction(
     size_register: RegisterIndex,
 ) {
     debug_println!("  ALLOCATE_ARRAY {} SIZE {}", pointer_register, size_register);
+}
+
+/// Debug function for allocate_instruction
+pub(crate) fn allocate_instruction(pointer_register: RegisterIndex) {
+    debug_println!("  ALLOCATE {} ", pointer_register);
 }
 
 /// Debug function for array_get

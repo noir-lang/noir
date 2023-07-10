@@ -53,7 +53,7 @@ thiserror = "1.0.21"
 toml = "0.7.2"
 tower = "0.4"
 url = "2.2.0"
-wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"] }
+wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
