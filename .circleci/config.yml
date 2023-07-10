@@ -728,6 +728,21 @@ defaults: &defaults
     - slack/notify:
         event: fail
         branch_pattern: "master"
+deploy_defaults: &deploy_defaults
+  filters:
+    branches:
+      only:
+        - master
+        - stage
+    tags:
+      only: *tag_regex
+  context:
+    - build
+    - slack
+  post-steps:
+    - slack/notify:
+        event: fail
+        branch_pattern: "master"
 yarn_project: &yarn_project
   requires:
     - yarn-project-base
@@ -861,14 +876,8 @@ workflows:
           requires:
             - e2e-end
             - aztec-sandbox
-          filters:
-            branches:
-              only: master
-          <<: *defaults
+          <<: *deploy_defaults
       - deploy-npm:
           requires:
             - e2e-end
-          filters:
-            branches:
-              only: master
-          <<: *defaults
+          <<: *deploy_defaults
