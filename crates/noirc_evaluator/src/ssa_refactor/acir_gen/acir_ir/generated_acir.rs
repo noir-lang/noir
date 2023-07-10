@@ -708,7 +708,7 @@ impl GeneratedAcir {
         let r_witness = self.next_witness_index();
 
         self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: comparison_evaluation,
+            a: comparison_evaluation.clone(),
             b: Expression::from_field(two_max_bits),
             q: q_witness,
             r: r_witness,
