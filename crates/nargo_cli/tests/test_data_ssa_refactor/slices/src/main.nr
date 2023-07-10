@@ -5,7 +5,6 @@ fn main(x : Field, y : pub Field) {
     /// is not yet supported
 
     let mut slice: [Field] = [0; 2];
-    
     assert(slice[0] == 0);
     assert(slice[0] != 1);
     slice[0] = x;
