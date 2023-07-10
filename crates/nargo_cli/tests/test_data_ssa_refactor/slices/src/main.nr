@@ -11,11 +11,6 @@ fn main(x : Field, y : pub Field) {
     slice[0] = x;
     assert(slice[0] == x);
 
-    // TODO: this will pass
-    assert(slice[3] == 0);
-    let array = [0; 2];
-    assert(array[3] == 0);
-
     let slice_plus_10 = slice.push_back(y);
     assert(slice_plus_10[2] == 10);
     assert(slice_plus_10[2] != 8);
