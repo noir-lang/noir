@@ -43,6 +43,6 @@
   "acir-tests": {
     "buildDir": "acir_tests",
     "rebuildPatterns": ["^acir_tests/"],
-    "dependencies": ["bb.js", "barretenberg-wasm-linux-clang-assert"]
+    "dependencies": ["bb.js", "barretenberg-x86_64-linux-clang-assert"]
   }
 }

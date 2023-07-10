@@ -1,7 +1,7 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/barretenberg-x86_64-linux-clang-assert
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/bb.js
 
-FROM rust:alpine as atbbc
+FROM rust:alpine AS atbbc
 RUN apk update && apk add musl-dev
 WORKDIR /usr/src/barretenberg/acir_tests
 COPY acir-to-bberg-circuit acir-to-bberg-circuit
