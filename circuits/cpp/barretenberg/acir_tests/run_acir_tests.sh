@@ -8,11 +8,12 @@ set -e
 BB=$PWD/${BB:-../cpp/build/bin/bb}
 ATBBC=$PWD/acir-to-bberg-circuit/target/release/acir-to-bberg-circuit
 CRS_PATH=~/.bb-crs
+BRANCH=master
 
 # Pull down the test vectors from the noir repo, if we don't have the folder already.
 if [ ! -d acir_tests ]; then
   rm -rf noir
-  git clone --filter=blob:none --no-checkout https://github.com/noir-lang/noir.git
+  git clone -b $BRANCH --filter=blob:none --no-checkout https://github.com/noir-lang/noir.git
   cd noir
   git sparse-checkout init --cone
   git sparse-checkout set crates/nargo_cli/tests/test_data

@@ -18,12 +18,12 @@ dependencies = [
 
 [[package]]
 name = "acir"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bed559b3e6e10a04b2a1af7a8b0f23d4bbaf4a87a6c8ac9946583f8945c53ce5"
+checksum = "502a9126627ae67868515031c2283e64f3e1fef5ff93850009ed89a8a24fac60"
 dependencies = [
- "acir_field 0.16.0",
- "brillig_vm 0.16.0",
+ "acir_field 0.17.0",
+ "brillig_vm 0.17.0",
  "flate2",
  "rmp-serde",
  "serde",
@@ -34,7 +34,7 @@ dependencies = [
 name = "acir-to-bberg-circuit"
 version = "0.1.0"
 dependencies = [
- "acvm 0.16.0",
+ "acvm 0.17.0",
  "base64",
  "flate2",
  "noirc_abi",
@@ -59,9 +59,9 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29adbffe34f7ae42e080833364f66ea0e933ca4aa3880e12444780538e1f6767"
+checksum = "4a98fe4e3f9156f5551c8c9686e8f720a990d000e1e666e08a86e938a36ac8be"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -92,18 +92,19 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4808764cc92ba018210ec2f276f6d90908263af33f9a8abea6ae4139ba49aa0"
+checksum = "95315759a51115860af49a492791ae5155c3d2c0555eec1358faa5d74c763391"
 dependencies = [
- "acir 0.16.0",
- "acvm_stdlib 0.16.0",
+ "acir 0.17.0",
+ "acvm_stdlib 0.17.0",
  "async-trait",
  "blake2",
  "indexmap 1.9.3",
  "k256",
  "num-bigint",
  "num-traits",
+ "p256",
  "sha2",
  "sha3",
  "thiserror",
@@ -120,11 +121,11 @@ dependencies = [
 
 [[package]]
 name = "acvm_stdlib"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57b0fea96f9ddc8866782636f1317aa0ac958ab7bc628fa9620a4915cc667edc"
+checksum = "0f7d2d8407e55ac26078af1d783408525e7f906e531cb04adcc47650d7994f62"
 dependencies = [
- "acir 0.16.0",
+ "acir 0.17.0",
 ]
 
 [[package]]
@@ -326,13 +327,14 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9400d1493af661cba05923a5b4a78e3aeaeb4210b321831fc0461b01203191e"
+checksum = "36821ba87dd1807784d679bca54d753665014b109f6acfe38516eec7f3d71941"
 dependencies = [
- "acir_field 0.16.0",
+ "acir_field 0.17.0",
  "blake2",
  "k256",
+ "p256",
  "serde",
  "sha2",
  "sha3",
@@ -690,6 +692,17 @@ name = "once_cell"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
+
+[[package]]
+name = "p256"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51f44edd08f51e2ade572f141051021c5af22677e42b7dd28a88155151c33594"
+dependencies = [
+ "ecdsa",
+ "elliptic-curve",
+ "sha2",
+]
 
 [[package]]
 name = "paste"

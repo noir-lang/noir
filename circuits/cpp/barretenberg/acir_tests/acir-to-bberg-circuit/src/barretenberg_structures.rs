@@ -126,6 +126,7 @@ impl EcdsaConstraint {
         buffer
     }
 }
+
 #[derive(Clone, Hash, Debug, Serialize, Deserialize)]
 pub(crate) struct SchnorrConstraint {
     pub(crate) message: Vec<i32>,
@@ -390,6 +391,7 @@ pub struct ConstraintSystem {
     sha256_constraints: Vec<Sha256Constraint>,
     schnorr_constraints: Vec<SchnorrConstraint>,
     ecdsa_secp256k1_constraints: Vec<EcdsaConstraint>,
+    ecdsa_secp256r1_constraints: Vec<EcdsaConstraint>,
     blake2s_constraints: Vec<Blake2sConstraint>,
     block_constraints: Vec<BlockConstraint>,
     keccak_constraints: Vec<Keccak256Constraint>,
@@ -451,6 +453,14 @@ impl ConstraintSystem {
         ecdsa_secp256k1_constraints: Vec<EcdsaConstraint>,
     ) -> Self {
         self.ecdsa_secp256k1_constraints = ecdsa_secp256k1_constraints;
+        self
+    }
+
+    pub(crate) fn ecdsa_secp256r1_constraints(
+        mut self,
+        ecdsa_secp256r1_constraints: Vec<EcdsaConstraint>,
+    ) -> Self {
+        self.ecdsa_secp256r1_constraints = ecdsa_secp256r1_constraints;
         self
     }
 
@@ -555,9 +565,15 @@ impl ConstraintSystem {
         }
 
         // Serialize each ECDSA constraint
-        let ecdsa_len = self.ecdsa_secp256k1_constraints.len() as u32;
-        buffer.extend_from_slice(&ecdsa_len.to_be_bytes());
+        let ecdsa_k1_len = self.ecdsa_secp256k1_constraints.len() as u32;
+        buffer.extend_from_slice(&ecdsa_k1_len.to_be_bytes());
         for constraint in self.ecdsa_secp256k1_constraints.iter() {
+            buffer.extend(&constraint.to_bytes());
+        }
+
+        let ecdsa_r1_len = self.ecdsa_secp256r1_constraints.len() as u32;
+        buffer.extend_from_slice(&ecdsa_r1_len.to_be_bytes());
+        for constraint in self.ecdsa_secp256r1_constraints.iter() {
             buffer.extend(&constraint.to_bytes());
         }
 
@@ -768,6 +784,7 @@ impl TryFrom<&Circuit> for ConstraintSystem {
         let mut pedersen_constraints: Vec<PedersenConstraint> = Vec::new();
         let mut schnorr_constraints: Vec<SchnorrConstraint> = Vec::new();
         let mut ecdsa_secp256k1_constraints: Vec<EcdsaConstraint> = Vec::new();
+        let mut ecdsa_secp256r1_constraints: Vec<EcdsaConstraint> = Vec::new();
         let mut fixed_base_scalar_mul_constraints: Vec<FixedBaseScalarMulConstraint> = Vec::new();
         let mut hash_to_field_constraints: Vec<HashToFieldConstraint> = Vec::new();
         let mut recursion_constraints: Vec<RecursionConstraint> = Vec::new();
@@ -1018,6 +1035,65 @@ impl TryFrom<&Circuit> for ConstraintSystem {
 
                             ecdsa_secp256k1_constraints.push(constraint);
                         }
+                        BlackBoxFuncCall::EcdsaSecp256r1 {
+                            public_key_x: public_key_x_inputs,
+                            public_key_y: public_key_y_inputs,
+                            signature: signature_inputs,
+                            hashed_message: hashed_message_inputs,
+                            output,
+                        } => {
+                            // public key x
+                            let mut public_key_x_inputs = public_key_x_inputs.iter();
+                            let mut public_key_x = [0i32; 32];
+                            for (i, pkx) in public_key_x.iter_mut().enumerate() {
+                                let x_byte = public_key_x_inputs
+                                    .next()
+                                    .ok_or_else(|| format!("Missing rest of `x` component for public key. Tried to get byte {i} but failed"))?;
+                                let x_byte_index = x_byte.witness.witness_index() as i32;
+                                *pkx = x_byte_index;
+                            }
+
+                            // public key y
+                            let mut public_key_y_inputs = public_key_y_inputs.iter();
+                            let mut public_key_y = [0i32; 32];
+                            for (i, pky) in public_key_y.iter_mut().enumerate() {
+                                let y_byte = public_key_y_inputs
+                                    .next()
+                                    .ok_or_else(|| format!("Missing rest of `y` component for public key. Tried to get byte {i} but failed"))?;
+                                let y_byte_index = y_byte.witness.witness_index() as i32;
+                                *pky = y_byte_index;
+                            }
+
+                            // signature
+                            let mut signature_inputs = signature_inputs.iter();
+                            let mut signature = [0i32; 64];
+                            for (i, sig) in signature.iter_mut().enumerate() {
+                                let sig_byte =
+                                    signature_inputs.next().ok_or_else(|| format!("Missing rest of signature. Tried to get byte {i} but failed"))?;
+                                let sig_byte_index = sig_byte.witness.witness_index() as i32;
+                                *sig = sig_byte_index;
+                            }
+
+                            // The rest of the input is the message
+                            let mut hashed_message = Vec::new();
+                            for msg in hashed_message_inputs.iter() {
+                                let msg_byte_index = msg.witness.witness_index() as i32;
+                                hashed_message.push(msg_byte_index);
+                            }
+
+                            // result
+                            let result = output.witness_index() as i32;
+
+                            let constraint = EcdsaConstraint {
+                                hashed_message,
+                                signature,
+                                public_key_x,
+                                public_key_y,
+                                result,
+                            };
+
+                            ecdsa_secp256r1_constraints.push(constraint);
+                        }
                         BlackBoxFuncCall::FixedBaseScalarMul { input, outputs } => {
                             let scalar = input.witness.witness_index() as i32;
 
@@ -1204,6 +1280,7 @@ impl TryFrom<&Circuit> for ConstraintSystem {
             pedersen_constraints,
             schnorr_constraints,
             ecdsa_secp256k1_constraints,
+            ecdsa_secp256r1_constraints,
             blake2s_constraints,
             block_constraints,
             keccak_constraints,

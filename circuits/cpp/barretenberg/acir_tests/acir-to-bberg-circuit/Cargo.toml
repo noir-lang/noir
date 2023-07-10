@@ -12,5 +12,5 @@ serde-big-array = "0.5.1"
 flate2 = "1.0"
 base64 = "0.13"
 
-acvm = { version = "0.16.0", features = ["bn254"] }
+acvm = { version = "0.17.0", features = ["bn254"] }
 noirc_abi = { git = "https://github.com/noir-lang/noir.git" }
