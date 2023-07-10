@@ -22,7 +22,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
-    CompTime, FunctionKind, TypeBinding, TypeBindings,
+    CompTime, FunctionKind, Type, TypeBinding, TypeBindings,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -220,7 +220,6 @@ impl<'interner> Monomorphizer<'interner> {
     ) {
         match param {
             HirPattern::Identifier(ident) => {
-                //let value = self.expand_parameter(typ, new_params);
                 let new_id = self.next_local_id();
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
@@ -267,7 +266,7 @@ impl<'interner> Monomorphizer<'interner> {
                 Literal(Integer(value, typ))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
-                HirArrayLiteral::Standard(array) => self.standard_array(array),
+                HirArrayLiteral::Standard(array) => self.standard_array(expr, array),
                 HirArrayLiteral::Repeated { repeated_element, length } => {
                     self.repeated_array(repeated_element, length)
                 }
@@ -277,6 +276,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Prefix(prefix) => ast::Expression::Unary(ast::Unary {
                 operator: prefix.operator,
                 rhs: Box::new(self.expr(prefix.rhs)),
+                result_type: Self::convert_type(&self.interner.id_type(expr)),
             }),
 
             HirExpression::Infix(infix) => {
@@ -347,9 +347,14 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn standard_array(&mut self, array: Vec<node_interner::ExprId>) -> ast::Expression {
-        let element_type = Self::convert_type(&self.interner.id_type(array[0]));
-        let contents = vecmap(array, |id| self.expr(id));
+    fn standard_array(
+        &mut self,
+        array: node_interner::ExprId,
+        array_elements: Vec<node_interner::ExprId>,
+    ) -> ast::Expression {
+        let element_type =
+            Self::convert_type(&unwrap_array_element_type(&self.interner.id_type(array)));
+        let contents = vecmap(array_elements, |id| self.expr(id));
         Self::aos_to_soa(contents, element_type)
     }
 
@@ -382,7 +387,8 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) => {
+            | ast::Type::Function(_, _)
+            | ast::Type::MutableReference(_) => {
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: array_contents,
                     element_type,
@@ -400,7 +406,7 @@ impl<'interner> Monomorphizer<'interner> {
                 },
             )),
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
+            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
                 unreachable!("Nested arrays, arrays of strings, and Vecs are not supported")
             }
         }
@@ -428,7 +434,8 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) => {
+            | ast::Type::Function(_, _)
+            | ast::Type::MutableReference(_) => {
                 ast::Expression::Index(ast::Index { collection, index, element_type, location })
             }
 
@@ -443,7 +450,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
+            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
                 unreachable!("Nested arrays and arrays of strings or Vecs are not supported")
             }
         }
@@ -659,6 +666,11 @@ impl<'interner> Monomorphizer<'interner> {
                 Self::aos_to_soa_type(length, element)
             }
 
+            HirType::Slice(element) => {
+                let element = Self::convert_type(element.as_ref());
+                ast::Type::Slice(Box::new(element))
+            }
+
             HirType::PolymorphicInteger(_, binding)
             | HirType::TypeVariable(binding)
             | HirType::NamedGeneric(binding, _) => {
@@ -695,9 +707,9 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Function(args, ret)
             }
 
-            HirType::Vec(element) => {
+            HirType::MutableReference(element) => {
                 let element = Self::convert_type(element);
-                ast::Type::Vec(Box::new(element))
+                ast::Type::MutableReference(Box::new(element))
             }
 
             HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
@@ -714,13 +726,14 @@ impl<'interner> Monomorphizer<'interner> {
             | ast::Type::Integer(_, _)
             | ast::Type::Bool
             | ast::Type::Unit
-            | ast::Type::Function(_, _) => ast::Type::Array(length, Box::new(element)),
+            | ast::Type::Function(_, _)
+            | ast::Type::MutableReference(_) => ast::Type::Array(length, Box::new(element)),
 
             ast::Type::Tuple(elements) => {
                 ast::Type::Tuple(vecmap(elements, |typ| Self::aos_to_soa_type(length, typ)))
             }
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
+            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
                 unreachable!("Nested arrays and arrays of strings are not supported")
             }
         }
@@ -755,13 +768,16 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Option<ast::Expression> {
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
+                // TODO(#1736): Move this builtin to the SSA pass
                 if opcode == "array_len" {
                     let typ = self.interner.id_type(arguments[0]);
-                    let len = typ.evaluate_to_u64().unwrap();
-                    return Some(ast::Expression::Literal(ast::Literal::Integer(
-                        (len as u128).into(),
-                        ast::Type::Field,
-                    )));
+                    if let Type::Array(_, _) = typ {
+                        let len = typ.evaluate_to_u64().unwrap();
+                        return Some(ast::Expression::Literal(ast::Literal::Integer(
+                            (len as u128).into(),
+                            ast::Type::Field,
+                        )));
+                    }
                 } else if opcode == "modulus_num_bits" {
                     return Some(ast::Expression::Literal(ast::Literal::Integer(
                         (FieldElement::max_num_bits() as u128).into(),
@@ -882,6 +898,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let element_type = Self::convert_type(&typ);
                 (array, Some((index, element_type, location)))
             }
+            HirLValue::Dereference { lvalue, element_type } => {
+                let (reference, index) = self.lvalue(*lvalue);
+                let reference = Box::new(reference);
+                let element_type = Self::convert_type(&element_type);
+                let lvalue = ast::LValue::Dereference { reference, element_type };
+                (lvalue, index)
+            }
         }
     }
 
@@ -978,7 +1001,18 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::Function(parameter_types, ret_type) => {
                 self.create_zeroed_function(parameter_types, ret_type)
             }
-            ast::Type::Vec(_) => panic!("Cannot create a zeroed Vec value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
+            ast::Type::Slice(element_type) => {
+                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
+                    contents: vec![],
+                    element_type: *element_type.clone(),
+                }))
+            }
+            ast::Type::MutableReference(element) => {
+                use crate::UnaryOp::MutableReference;
+                let rhs = Box::new(self.zeroed_value_of_type(element));
+                let result_type = typ.clone();
+                ast::Expression::Unary(ast::Unary { rhs, result_type, operator: MutableReference })
+            }
         }
     }
 
@@ -1038,6 +1072,20 @@ fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
             TypeBinding::Unbound(_) => unreachable!(),
         },
         other => unreachable!("unwrap_struct_type: expected struct, found {:?}", other),
+    }
+}
+
+fn unwrap_array_element_type(typ: &HirType) -> HirType {
+    match typ {
+        HirType::Array(_, elem) => *elem.clone(),
+        HirType::Slice(elem) => *elem.clone(),
+        HirType::TypeVariable(binding) => match &*binding.borrow() {
+            TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
+            TypeBinding::Unbound(_) => unreachable!(),
+        },
+        other => {
+            unreachable!("unwrap_array_element_type: expected an array or slice, found {:?}", other)
+        }
     }
 }
 

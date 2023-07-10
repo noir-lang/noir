@@ -70,6 +70,10 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+
+    /// TODO(#1850): This is technical debt that should be removed once we fully move over
+    /// to the new SSA pass which does have slices enabled
+    pub enable_slices: bool,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -249,6 +253,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            enable_slices: false,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -527,8 +532,7 @@ impl NodeInterner {
     }
 
     pub fn next_type_variable(&mut self) -> Type {
-        let binding = TypeBinding::Unbound(self.next_type_variable_id());
-        Type::TypeVariable(Shared::new(binding))
+        Type::type_variable(self.next_type_variable_id())
     }
 
     pub fn store_instantiation_bindings(
@@ -599,12 +603,12 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
+    Slice,
     Bool,
     String,
     Unit,
     Tuple,
     Function,
-    Vec,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -613,6 +617,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     match &typ {
         Type::FieldElement(_) => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
+        Type::Slice(_) => Some(Slice),
         Type::Integer(_, _, _) => Some(FieldOrInt),
         Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),
@@ -620,7 +625,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _) => Some(Function),
-        Type::Vec(_) => Some(Vec),
+        Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_)

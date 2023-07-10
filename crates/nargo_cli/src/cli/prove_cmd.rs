@@ -104,15 +104,12 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
             (common_reference_string, program)
         }
         None => {
-            let program = compile_circuit(backend,program_dir.as_ref(), compile_options)?;
-            // TODO: clean this up
-            let optimized_bytecode = optimize_circuit(backend, program.circuit).unwrap();
-            let program = CompiledProgram { circuit: optimized_bytecode, abi: program.abi };
+            let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
 
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
-            let program = preprocess_program(backend, &common_reference_string, program)
+            let program = preprocess_program(backend, true, &common_reference_string, program)
                 .map_err(CliError::ProofSystemCompilerError)?;
             (common_reference_string, program)
         }
@@ -136,10 +133,14 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     write_inputs_to_file(
         &public_inputs,
         &return_value,
+        &public_abi,
         &program_dir,
         verifier_name.as_str(),
         Format::Toml,
     )?;
+
+    let proving_key =
+        proving_key.expect("Proving key should exist as `true` is passed to `preprocess_program`");
 
     let proof =
         prove_execution(backend, &common_reference_string, &bytecode, solved_witness, &proving_key)
@@ -147,6 +148,8 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
+        let verification_key = verification_key
+            .expect("Verification key should exist as `true` is passed to `preprocess_program`");
         let valid_proof = verify_proof(
             backend,
             &common_reference_string,

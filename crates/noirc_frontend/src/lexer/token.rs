@@ -431,6 +431,7 @@ pub enum Keyword {
     Impl,
     If,
     In,
+    Internal,
     Let,
     Mod,
     Mut,
@@ -441,7 +442,6 @@ pub enum Keyword {
     Struct,
     Unconstrained,
     Use,
-    Vec,
     While,
 }
 
@@ -466,6 +466,7 @@ impl fmt::Display for Keyword {
             Keyword::Impl => write!(f, "impl"),
             Keyword::If => write!(f, "if"),
             Keyword::In => write!(f, "in"),
+            Keyword::Internal => write!(f, "internal"),
             Keyword::Let => write!(f, "let"),
             Keyword::Mod => write!(f, "mod"),
             Keyword::Mut => write!(f, "mut"),
@@ -476,7 +477,6 @@ impl fmt::Display for Keyword {
             Keyword::Struct => write!(f, "struct"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
-            Keyword::Vec => write!(f, "Vec"),
             Keyword::While => write!(f, "while"),
         }
     }
@@ -504,6 +504,7 @@ impl Keyword {
             "impl" => Keyword::Impl,
             "if" => Keyword::If,
             "in" => Keyword::In,
+            "internal" => Keyword::Internal,
             "let" => Keyword::Let,
             "mod" => Keyword::Mod,
             "mut" => Keyword::Mut,
@@ -514,7 +515,6 @@ impl Keyword {
             "struct" => Keyword::Struct,
             "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,
-            "Vec" => Keyword::Vec,
             "while" => Keyword::While,
 
             "true" => return Some(Token::Bool(true)),

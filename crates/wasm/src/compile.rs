@@ -1,7 +1,14 @@
+use acvm::{acir::circuit::Circuit, compiler::CircuitSimplifier};
 use gloo_utils::format::JsValueSerdeExt;
 use log::debug;
-use noirc_driver::{CompileOptions, Driver};
-use noirc_frontend::graph::{CrateName, CrateType};
+use noirc_driver::{
+    check_crate, compile_contracts, compile_no_check, create_local_crate, create_non_local_crate,
+    propagate_dep, CompileOptions, CompiledContract,
+};
+use noirc_frontend::{
+    graph::{CrateName, CrateType},
+    hir::Context,
+};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use wasm_bindgen::prelude::*;
@@ -53,11 +60,11 @@ impl Default for WASMCompileOptions {
     }
 }
 
-fn add_noir_lib(driver: &mut Driver, crate_name: &str) {
+fn add_noir_lib(context: &mut Context, crate_name: &str) {
     let path_to_lib = PathBuf::from(&crate_name).join("lib.nr");
-    let library_crate = driver.create_non_local_crate(path_to_lib, CrateType::Library);
+    let library_crate = create_non_local_crate(context, path_to_lib, CrateType::Library);
 
-    driver.propagate_dep(library_crate, &CrateName::new(crate_name).unwrap());
+    propagate_dep(context, library_crate, &CrateName::new(crate_name).unwrap());
 }
 
 #[wasm_bindgen]
@@ -73,34 +80,64 @@ pub fn compile(args: JsValue) -> JsValue {
 
     debug!("Compiler configuration {:?}", &options);
 
-    let mut driver = noirc_driver::Driver::new();
+    let mut context = Context::default();
 
     let path = PathBuf::from(&options.entry_point);
-    driver.create_local_crate(path, CrateType::Binary);
+    let crate_id = create_local_crate(&mut context, path, CrateType::Binary);
 
     for dependency in options.optional_dependencies_set {
-        add_noir_lib(&mut driver, dependency.as_str());
+        add_noir_lib(&mut context, dependency.as_str());
     }
 
-    // We are always adding std lib implicitly. It comes bundled with binary.
-    add_noir_lib(&mut driver, "std");
+    check_crate(&mut context, false, false).expect("Crate check failed");
 
-    driver.check_crate(false).expect("Crate check failed");
+    let optimize_acir = |circuit: Circuit| {
+        // For now we default to plonk width = 3, though we can add it as a parameter
+        let language = acvm::Language::PLONKCSat { width: 3 };
+        #[allow(deprecated)]
+        let opcode_supported = acvm::pwg::default_is_opcode_supported(language);
+        let simplifier = CircuitSimplifier::new(0);
+        acvm::compiler::compile(circuit, language, &opcode_supported, &simplifier)
+            .expect("Circuit optimization failed")
+    };
 
     if options.contracts {
-        let compiled_contracts = driver
-            .compile_contracts(&options.compile_options)
+        let compiled_contracts = compile_contracts(&mut context, &options.compile_options)
             .expect("Contract compilation failed")
             .0;
 
+        let optimized_contracts: Vec<CompiledContract> = compiled_contracts
+            .into_iter()
+            .map(|contract| optimize_contract(contract, &optimize_acir))
+            .collect();
+
         // TODO: optimize circuits
-        <JsValue as JsValueSerdeExt>::from_serde(&compiled_contracts).unwrap()
+        <JsValue as JsValueSerdeExt>::from_serde(&optimized_contracts).unwrap()
     } else {
-        let main = driver.main_function().expect("Could not find main function!");
-        let compiled_program =
-            driver.compile_no_check(&options.compile_options, main).expect("Compilation failed");
+        let main = context.get_main_function(&crate_id).expect("Could not find main function!");
+        let mut compiled_program =
+            compile_no_check(&context, &options.compile_options, main).expect("Compilation failed");
+
+        compiled_program.circuit = optimize_acir(compiled_program.circuit);
 
         // TODO: optimize circuit
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
+    }
+}
+
+fn optimize_contract(
+    contract: CompiledContract,
+    acir_optimizer: &impl Fn(Circuit) -> Circuit,
+) -> CompiledContract {
+    CompiledContract {
+        name: contract.name,
+        functions: contract
+            .functions
+            .into_iter()
+            .map(|mut func| {
+                func.bytecode = acir_optimizer(func.bytecode);
+                func
+            })
+            .collect(),
     }
 }

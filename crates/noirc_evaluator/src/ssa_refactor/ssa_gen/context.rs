@@ -165,12 +165,17 @@ impl<'a> FunctionContext<'a> {
 
     // This helper is needed because we need to take f by mutable reference,
     // otherwise we cannot move it multiple times each loop of vecmap.
-    fn map_type_helper<T>(typ: &ast::Type, f: &mut impl FnMut(Type) -> T) -> Tree<T> {
+    fn map_type_helper<T>(typ: &ast::Type, f: &mut dyn FnMut(Type) -> T) -> Tree<T> {
         match typ {
             ast::Type::Tuple(fields) => {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
             ast::Type::Unit => Tree::empty(),
+            // A mutable reference wraps each element into a reference.
+            // This can be multiple values if the element type is a tuple.
+            ast::Type::MutableReference(element) => {
+                Self::map_type_helper(element, &mut |_| f(Type::Reference))
+            }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
         }
     }
@@ -201,11 +206,15 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _) => Type::Function,
-
-            // How should we represent Vecs?
-            // Are they a struct of array + length + capacity?
-            // Or are they just references?
-            ast::Type::Vec(_) => Type::Reference,
+            ast::Type::Slice(element) => {
+                let element_types = Self::convert_type(element).flatten();
+                Type::Slice(Rc::new(element_types))
+            }
+            ast::Type::MutableReference(element) => {
+                // Recursive call to panic if element is a tuple
+                Self::convert_non_tuple_type(element);
+                Type::Reference
+            }
         }
     }
 
@@ -473,7 +482,19 @@ impl<'a> FunctionContext<'a> {
                 let object_lvalue = Box::new(object_lvalue);
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
             }
+            ast::LValue::Dereference { reference, .. } => {
+                let (reference, _) = self.extract_current_value_recursive(reference);
+                LValue::Dereference { reference }
+            }
         }
+    }
+
+    pub(super) fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+        let element_types = Self::convert_type(element_type);
+        values.map_both(element_types, |value, element_type| {
+            let reference = value.eval(self);
+            self.builder.insert_load(reference, element_type).into()
+        })
     }
 
     /// Compile the given identifier as a reference - ie. avoid calling .eval()
@@ -516,16 +537,19 @@ impl<'a> FunctionContext<'a> {
                 let element = Self::get_field_ref(&old_object, *index).clone();
                 (element, LValue::MemberAccess { old_object, object_lvalue, index: *index })
             }
+            ast::LValue::Dereference { reference, element_type } => {
+                let (reference, _) = self.extract_current_value_recursive(reference);
+                let dereferenced = self.dereference(&reference, element_type);
+                (dereferenced, LValue::Dereference { reference })
+            }
         }
     }
 
     /// Assigns a new value to the given LValue.
     /// The LValue can be created via a previous call to extract_current_value.
     /// This method recurs on the given LValue to create a new value to assign an allocation
-    /// instruction within an LValue::Ident - see the comment on `extract_current_value` for more
-    /// details.
-    /// When first-class references are supported the nearest reference may be in any LValue
-    /// variant rather than just LValue::Ident.
+    /// instruction within an LValue::Ident or LValue::Dereference - see the comment on
+    /// `extract_current_value` for more details.
     pub(super) fn assign_new_value(&mut self, lvalue: LValue, new_value: Values) {
         match lvalue {
             LValue::Ident(references) => self.assign(references, new_value),
@@ -537,6 +561,9 @@ impl<'a> FunctionContext<'a> {
             LValue::MemberAccess { old_object, index, object_lvalue } => {
                 let new_object = Self::replace_field(old_object, index, new_value);
                 self.assign_new_value(*object_lvalue, new_object);
+            }
+            LValue::Dereference { reference } => {
+                self.assign(reference, new_value);
             }
         }
     }
@@ -705,8 +732,10 @@ impl SharedContext {
 }
 
 /// Used to remember the results of each step of extracting a value from an ast::LValue
+#[derive(Debug)]
 pub(super) enum LValue {
     Ident(Values),
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
+    Dereference { reference: Values },
 }

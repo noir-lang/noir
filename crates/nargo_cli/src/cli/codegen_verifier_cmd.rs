@@ -51,23 +51,24 @@ pub(crate) fn run<B: Backend>(
             (common_reference_string, program)
         }
         None => {
-            let program =
+            let mut program =
                 compile_circuit(backend, config.program_dir.as_ref(), &args.compile_options)?;
-            // TODO: clean this up
-            let optimized_bytecode = optimize_circuit(backend, program.circuit).unwrap();
-            let program = CompiledProgram { circuit: optimized_bytecode, abi: program.abi };
+            program.circuit = optimize_circuit(backend, program.circuit).unwrap();
 
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
-            let program = preprocess_program(backend, &common_reference_string, program)
+            let program = preprocess_program(backend, true, &common_reference_string, program)
                 .map_err(CliError::ProofSystemCompilerError)?;
             (common_reference_string, program)
         }
     };
 
+    let verification_key = preprocessed_program
+        .verification_key
+        .expect("Verification key should exist as `true` is passed to `preprocess_program`");
     let smart_contract_string =
-        codegen_verifier(backend, &common_reference_string, &preprocessed_program.verification_key)
+        codegen_verifier(backend, &common_reference_string, &verification_key)
             .map_err(CliError::SmartContractError)?;
 
     write_cached_common_reference_string(&common_reference_string);

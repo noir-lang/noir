@@ -145,6 +145,7 @@ impl Evaluator {
     ) -> Result<(), RuntimeError> {
         self.return_is_distinct =
             program.return_distinctness == noirc_abi::AbiDistinctness::Distinct;
+
         let mut ir_gen = IrGenerator::new(program);
         self.parse_abi_alt(&mut ir_gen);
 

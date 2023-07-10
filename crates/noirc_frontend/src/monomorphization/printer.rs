@@ -262,6 +262,10 @@ impl AstPrinter {
                 self.print_lvalue(object, f)?;
                 write!(f, ".{field_index}")
             }
+            LValue::Dereference { reference, .. } => {
+                write!(f, "*")?;
+                self.print_lvalue(reference, f)
+            }
         }
     }
 }

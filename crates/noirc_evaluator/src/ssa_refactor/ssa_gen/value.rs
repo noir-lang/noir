@@ -123,6 +123,36 @@ impl<T> Tree<T> {
         }
     }
 
+    /// Map two trees alongside each other.
+    /// This asserts each tree has the same internal structure.
+    pub(super) fn map_both<U, R>(
+        &self,
+        other: Tree<U>,
+        mut f: impl FnMut(T, U) -> Tree<R>,
+    ) -> Tree<R>
+    where
+        T: std::fmt::Debug + Clone,
+        U: std::fmt::Debug,
+    {
+        self.map_both_helper(other, &mut f)
+    }
+
+    fn map_both_helper<U, R>(&self, other: Tree<U>, f: &mut impl FnMut(T, U) -> Tree<R>) -> Tree<R>
+    where
+        T: std::fmt::Debug + Clone,
+        U: std::fmt::Debug,
+    {
+        match (self, other) {
+            (Tree::Branch(self_trees), Tree::Branch(other_trees)) => {
+                assert_eq!(self_trees.len(), other_trees.len());
+                let trees = self_trees.iter().zip(other_trees);
+                Tree::Branch(vecmap(trees, |(l, r)| l.map_both_helper(r, f)))
+            }
+            (Tree::Leaf(self_value), Tree::Leaf(other_value)) => f(self_value.clone(), other_value),
+            other => panic!("Found unexpected tree combination during SSA: {other:?}"),
+        }
+    }
+
     /// Unwraps this Tree into the value of the leaf node. Panics if
     /// this Tree is a Branch
     pub(super) fn into_leaf(self) -> T {
