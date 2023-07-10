@@ -245,8 +245,11 @@ impl GeneratedAcir {
                 output: outputs[0],
             },
             BlackBoxFunc::EcdsaSecp256r1 => BlackBoxFuncCall::EcdsaSecp256r1 {
+                // 32 bytes for each public key co-ordinate
                 public_key_x: inputs[0..32].to_vec(),
                 public_key_y: inputs[32..64].to_vec(),
+                // (r,s) are both 32 bytes each, so signature
+                // takes up 64 bytes
                 signature: inputs[64..128].to_vec(),
                 hashed_message: inputs[128..].to_vec(),
                 output: outputs[0],
