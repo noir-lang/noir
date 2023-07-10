@@ -1,4 +1,6 @@
-struct Vec<T> { slice: [T] }
+struct Vec<T> { 
+    slice: [T]
+}
 
 // These methods are all stubs currently and aren't implemented internally yet.
 // For a similar reason, no constructor for Vec is exposed yet since the type
@@ -44,5 +46,10 @@ impl<T> Vec<T> {
         let (new_slice, elem) = self.slice.remove(index);
         self.slice = new_slice;
         elem
+    }
+
+    /// Returns the number of elements in the vector
+    fn len(self: Self) -> Field {
+        self.slice.len()
     }
 }

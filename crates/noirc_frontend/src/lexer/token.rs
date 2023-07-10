@@ -441,7 +441,6 @@ pub enum Keyword {
     Struct,
     Unconstrained,
     Use,
-    Vec,
     While,
 }
 
@@ -476,7 +475,6 @@ impl fmt::Display for Keyword {
             Keyword::Struct => write!(f, "struct"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
-            Keyword::Vec => write!(f, "Vec"),
             Keyword::While => write!(f, "while"),
         }
     }
@@ -514,7 +512,6 @@ impl Keyword {
             "struct" => Keyword::Struct,
             "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,
-            "Vec" => Keyword::Vec,
             "while" => Keyword::While,
 
             "true" => return Some(Token::Bool(true)),

@@ -5,11 +5,16 @@ fn main(x : Field, y : pub Field) {
     /// is not yet supported
 
     let mut slice: [Field] = [0; 2];
-
+    
     assert(slice[0] == 0);
     assert(slice[0] != 1);
     slice[0] = x;
     assert(slice[0] == x);
+
+    // TODO: this will pass
+    assert(slice[3] == 0);
+    let array = [0; 2];
+    assert(array[3] == 0);
 
     let slice_plus_10 = slice.push_back(y);
     assert(slice_plus_10[2] == 10);
