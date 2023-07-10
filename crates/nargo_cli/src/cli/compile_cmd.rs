@@ -103,6 +103,7 @@ pub(crate) fn run<B: Backend>(
         }
     } else {
         let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
+
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;

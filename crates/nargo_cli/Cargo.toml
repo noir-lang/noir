@@ -35,7 +35,11 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tower.workspace = true
-async-lsp = { version = "0.0.4", default-features = false, features = ["client-monitor", "stdio", "tracing"] }
+async-lsp = { version = "0.0.4", default-features = false, features = [
+    "client-monitor",
+    "stdio",
+    "tracing",
+] }
 const_format = "0.2.30"
 hex = "0.4.2"
 termcolor = "1.1.2"
