@@ -707,6 +707,14 @@ impl GeneratedAcir {
         let q_witness = self.next_witness_index();
         let r_witness = self.next_witness_index();
 
+        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
+            a: comparison_evaluation,
+            b: Expression::from_field(two_max_bits),
+            q: q_witness,
+            r: r_witness,
+            predicate,
+        })));
+
         // Add constraint : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
         // case: a == b
@@ -731,14 +739,6 @@ impl GeneratedAcir {
         expr.push_addition_term(two_max_bits, q_witness);
         expr.push_addition_term(FieldElement::one(), r_witness);
         self.push_opcode(AcirOpcode::Arithmetic(&comparison_evaluation - &expr));
-
-        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: comparison_evaluation,
-            b: Expression::from_field(two_max_bits),
-            q: q_witness,
-            r: r_witness,
-            predicate,
-        })));
 
         // Add constraint to ensure `r` is correctly bounded
         // between [0, 2^{max_bits}-1]
