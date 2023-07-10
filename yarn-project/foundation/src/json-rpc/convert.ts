@@ -2,6 +2,25 @@ import { ClassConverter } from './class_converter.js';
 import { Buffer } from 'buffer';
 
 /**
+ * Recursively looks through an object for bigints and converts them to object format.
+ * @param obj - The object to convert.
+ * @returns The converted object with stringified bigints.
+ */
+export const convertBigintsInObj = (obj: any) => {
+  for (const i in obj) {
+    if (typeof obj[i] === 'bigint') {
+      obj[i] = {
+        type: 'bigint',
+        data: obj[i].toString(),
+      };
+    } else if (typeof obj[i] === 'object') {
+      convertBigintsInObj(obj[i]);
+    }
+  }
+  return obj;
+};
+
+/**
  * JSON.stringify helper that handles bigints.
  * @param obj - The object to be stringified.
  * @returns The resulting string.

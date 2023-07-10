@@ -1,5 +1,5 @@
 import { createDebugLogger } from '../../log/index.js';
-import { ClassConverter, ClassConverterInput } from '../class_converter.js';
+import { ClassConverter, StringClassConverterInput, JsonClassConverterInput } from '../class_converter.js';
 import { convertFromJsonObj, convertToJsonObj } from '../convert.js';
 import { assert, hasOwnProperty } from '../js_utils.js';
 
@@ -11,7 +11,11 @@ const debug = createDebugLogger('json-rpc:json_proxy');
  */
 export class JsonProxy {
   classConverter: ClassConverter;
-  constructor(private handler: object, stringClassMap: ClassConverterInput, objectClassMap: ClassConverterInput) {
+  constructor(
+    private handler: object,
+    stringClassMap: StringClassConverterInput,
+    objectClassMap: JsonClassConverterInput,
+  ) {
     this.classConverter = new ClassConverter(stringClassMap, objectClassMap);
   }
   /**

@@ -2,7 +2,7 @@ import { assert, hasOwnProperty } from './js_utils.js';
 
 /**
  * Represents a class compatible with our class conversion system.
- * E.g. PublicKey here satisfies 'IOClass'.
+ * E.g. PublicKey here satisfies 'StringIOClass'.
  * ```
  *    class PublicKey {
  *      toString() {
@@ -14,24 +14,55 @@ import { assert, hasOwnProperty } from './js_utils.js';
  *    }
  * ```
  */
-interface IOClass {
+interface StringIOClass {
   new (...args: any): any;
+
   /**
    * Creates an IOClass from a given string.
    */
-  fromString?: (str: string) => any;
+  fromString: (str: string) => any;
+}
+
+/**
+ * Represents a class compatible with our class conversion system.
+ * E.g. PublicKey here satisfies 'ObjIOClass'.
+ * ```
+ *    class PublicKey {
+ *      toJSON() {
+ *        return {...};
+ *      }
+ *      static fromJSON(obj) {
+ *        return new PublicKey({...});
+ *      }
+ *    }
+ * ```
+ */
+interface ObjIOClass {
+  new (...args: any): any;
 
   /**
    * Creates an IOClass from a given JSON object.
    */
-  fromJSON?: (obj: object) => any;
+  fromJSON: (str: object) => any;
+}
+
+/**
+ * Either a StringIOClass or ObjIOClass
+ */
+type IOClass = ObjIOClass | StringIOClass;
+
+/**
+ * Registered classes available for conversion.
+ */
+export interface StringClassConverterInput {
+  [className: string]: StringIOClass;
 }
 
 /**
  * Registered classes available for conversion.
  */
-export interface ClassConverterInput {
-  [className: string]: IOClass;
+export interface JsonClassConverterInput {
+  [className: string]: ObjIOClass;
 }
 
 /**
@@ -79,7 +110,7 @@ export class ClassConverter {
    * @param stringClassMap - The class table of string encoded classes.
    * @param objectClassMap - The class table of complex object classes
    */
-  constructor(stringClassMap?: ClassConverterInput, objectClassMap?: ClassConverterInput) {
+  constructor(stringClassMap?: StringClassConverterInput, objectClassMap?: JsonClassConverterInput) {
     if (stringClassMap) {
       for (const key of Object.keys(stringClassMap)) {
         this.register(key, stringClassMap[key], 'string');
@@ -106,7 +137,7 @@ export class ClassConverter {
       `Class ${type} must define a toString() OR toJSON() method.`,
     );
     assert(
-      class_['fromString'] || class_['fromJSON'],
+      (class_ as StringIOClass)['fromString'] || (class_ as ObjIOClass)['fromJSON'],
       `Class ${type} must define a fromString() OR fromJSON() static method.`,
     );
     this.toName.set(class_, [type, encoding]);
@@ -140,9 +171,9 @@ export class ClassConverter {
 
     const [class_, encoding] = result;
     if (encoding === 'string' && typeof jsonObj.data === 'string') {
-      return class_!.fromString!(jsonObj.data);
+      return (class_ as StringIOClass)!.fromString!(jsonObj.data);
     } else {
-      return class_!.fromJSON!(jsonObj.data as object);
+      return (class_ as ObjIOClass)!.fromJSON!(jsonObj.data as object);
     }
   }
   /**
