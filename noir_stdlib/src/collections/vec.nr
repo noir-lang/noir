@@ -2,9 +2,8 @@ struct Vec<T> {
     slice: [T]
 }
 
-// These methods are all stubs currently and aren't implemented internally yet.
-// For a similar reason, no constructor for Vec is exposed yet since the type
-// is still in-progress.
+// A mutable vector type implemented as a wrapper around immutable slices.
+// A separate type is technically not needed but helps differentiate which operations are mutable.
 impl<T> Vec<T> {
     fn new() -> Self {
         Self { slice: [] }
