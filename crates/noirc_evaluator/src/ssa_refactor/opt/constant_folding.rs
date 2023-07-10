@@ -74,6 +74,7 @@ impl Context {
         let new_results =
             match function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars) {
                 InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
+                InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
                 InsertInstructionResult::Results(new_results) => new_results.to_vec(),
                 InsertInstructionResult::InstructionRemoved => vec![],
             };
