@@ -142,6 +142,24 @@ impl BrilligContext {
         });
     }
 
+    /// Allocates a single value and stores the
+    /// pointer to the array in `pointer_register`
+    pub(crate) fn allocate_instruction(&mut self, pointer_register: RegisterIndex) {
+        debug_show::allocate_instruction(pointer_register);
+        let size_register = self.make_constant(1_u128.into());
+        self.push_opcode(BrilligOpcode::Mov {
+            destination: pointer_register,
+            source: ReservedRegisters::stack_pointer(),
+        });
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            destination: ReservedRegisters::stack_pointer(),
+            op: BinaryIntOp::Add,
+            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            lhs: ReservedRegisters::stack_pointer(),
+            rhs: size_register,
+        });
+    }
+
     /// Gets the value in the array at index `index` and stores it in `result`
     pub(crate) fn array_get(
         &mut self,
@@ -635,8 +653,11 @@ impl BrilligContext {
             self.usize_op(ReservedRegisters::stack_pointer(), BinaryIntOp::Add, 1);
         }
 
-        // Store where the location of our registers in the previous stack pointer
-        self.mov_instruction(ReservedRegisters::previous_stack_pointer(), ReservedRegisters::stack_pointer());
+        // Store the location of our registers in the previous stack pointer
+        self.mov_instruction(
+            ReservedRegisters::previous_stack_pointer(),
+            ReservedRegisters::stack_pointer(),
+        );
         used_registers
     }
 
