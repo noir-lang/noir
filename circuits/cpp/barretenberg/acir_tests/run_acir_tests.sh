@@ -12,8 +12,7 @@ CRS_PATH=~/.bb-crs
 # Pull down the test vectors from the noir repo, if we don't have the folder already.
 if [ ! -d acir_tests ]; then
   rm -rf noir
-  # TODO: Merge this branch to master! It contains all precompiled test vectors and flat witness data.
-  git clone -b mv/witness-for-bbjs --filter=blob:none --no-checkout https://github.com/noir-lang/noir.git
+  git clone --filter=blob:none --no-checkout https://github.com/noir-lang/noir.git
   cd noir
   git sparse-checkout init --cone
   git sparse-checkout set crates/nargo_cli/tests/test_data
