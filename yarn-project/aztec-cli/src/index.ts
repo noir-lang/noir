@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --no-warnings
 import { Command } from 'commander';
 import { createLogger } from '@aztec/foundation/log';
 import { createDebugLogger } from '@aztec/foundation/log';

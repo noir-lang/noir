@@ -1,6 +1,6 @@
 {
   "name": "@aztec/circuits.js",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
@@ -53,7 +53,6 @@
     "tslib": "^2.4.0"
   },
   "devDependencies": {
-    "@aztec/yarn-project-base": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/detect-node": "^2.0.0",
     "@types/jest": "^29.5.0",

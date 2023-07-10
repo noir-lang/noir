@@ -2,14 +2,14 @@
   "name": "@aztec/cli",
   "version": "0.1.0",
   "type": "module",
-  "exports": "./dest/index.js",
+  "main": "./dest/index.js",
+  "bin": {
+    "azti": "./dest/index.js"
+  },
   "typedoc": {
     "entryPoint": "./src/index.ts",
     "displayName": "Aztec CLI",
     "tsconfig": "./tsconfig.json"
-  },
-  "bin": {
-    "aztec_cli": "index.js"
   },
   "scripts": {
     "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
@@ -20,7 +20,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "start": "node ./dest/index.js"
+    "start": "node --no-warnings ./dest/index.js"
   },
   "inherits": [
     "../package.common.json"
