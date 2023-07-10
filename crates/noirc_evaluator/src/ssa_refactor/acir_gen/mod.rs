@@ -381,10 +381,6 @@ impl Context {
                     // TODO: Can we save a source Location for this error?
                     panic!("Index {} is out of bounds for array of length {}", index, array.len());
                 }
-            } else {
-                // If `current_side_effects_enabled_var` are `None` it means
-                // that we are in the main function and want to panic
-                panic!("Index {} is out of bounds for array of length {}", index, array.len());
             }
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
             let value = self.create_default_value(&result_type);
