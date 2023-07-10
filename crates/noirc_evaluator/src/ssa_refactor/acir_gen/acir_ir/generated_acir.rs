@@ -665,6 +665,8 @@ impl GeneratedAcir {
     }
 
     /// Adds a directive which injects witnesses with values `q = a / b` and `r = a % b`.
+    ///
+    /// Suitable range constraints are also applied to `q` and `r`.
     pub(crate) fn quotient_directive(
         &mut self,
         a: Expression,
