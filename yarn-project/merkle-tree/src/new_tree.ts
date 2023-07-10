@@ -18,7 +18,7 @@ export async function newTree<T extends TreeBase>(
   hasher: Hasher,
   name: string,
   depth: number,
-  prefilledSize = 0,
+  prefilledSize = 1,
 ): Promise<T> {
   const tree = new c(db, hasher, name, depth, 0n, undefined);
   await tree.init(prefilledSize);

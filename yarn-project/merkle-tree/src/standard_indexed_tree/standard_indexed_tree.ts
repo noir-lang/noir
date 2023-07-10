@@ -1,6 +1,5 @@
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { createLogger } from '@aztec/foundation/log';
-import { Hasher } from '../hasher.js';
 import { IndexedTree, LeafData } from '../interfaces/indexed_tree.js';
 import { TreeBase } from '../tree_base.js';
 import { SiblingPath } from '../index.js';
@@ -56,10 +55,6 @@ const encodeTreeValue = (leafData: LeafData) => {
   return Buffer.concat([valueAsBuffer, indexAsBuffer, nextValueAsBuffer]);
 };
 
-const hashEncodedTreeValue = (leaf: LeafData, hasher: Hasher) => {
-  return hasher.compressInputs([leaf.value, leaf.nextIndex, leaf.nextValue].map(val => toBufferBE(val, 32)));
-};
-
 const decodeTreeValue = (buf: Buffer) => {
   const value = toBigIntBE(buf.subarray(0, 32));
   const nextIndex = toBigIntBE(buf.subarray(32, 64));
@@ -71,28 +66,21 @@ const decodeTreeValue = (buf: Buffer) => {
   } as LeafData;
 };
 
-const initialLeaf: LeafData = {
-  value: 0n,
-  nextIndex: 0n,
-  nextValue: 0n,
-};
-
 /**
  * Indexed merkle tree.
  */
 export class StandardIndexedTree extends TreeBase implements IndexedTree {
-  private leaves: LeafData[] = [];
-  private cachedLeaves: { [key: number]: LeafData } = {};
+  protected leaves: LeafData[] = [];
+  protected cachedLeaves: { [key: number]: LeafData } = {};
 
   /**
    * Appends the given leaves to the tree.
-   * @param leaves - The leaves to append.
+   * @param _leaves - The leaves to append.
    * @returns Empty promise.
+   * @remarks Use batchInsert method instead.
    */
-  public async appendLeaves(leaves: Buffer[]): Promise<void> {
-    for (const leaf of leaves) {
-      await this.appendLeaf(leaf);
-    }
+  public appendLeaves(_leaves: Buffer[]): Promise<void> {
+    throw new Error('Not implemented');
   }
 
   /**
@@ -184,48 +172,6 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
   }
 
   /**
-   * Appends the given leaf to the tree.
-   * @param leaf - The leaf to append.
-   * @returns Empty promise.
-   */
-  private async appendLeaf(leaf: Buffer): Promise<void> {
-    const newValue = toBigIntBE(leaf);
-
-    // Special case when appending zero
-    if (newValue === 0n) {
-      const newSize = (this.cachedSize ?? this.size) + 1n;
-      if (newSize - 1n > this.maxIndex) {
-        throw Error(`Can't append beyond max index. Max index: ${this.maxIndex}`);
-      }
-      this.cachedSize = newSize;
-      return;
-    }
-
-    const indexOfPrevious = this.findIndexOfPreviousValue(newValue, true);
-    const previousLeafCopy = this.getLatestLeafDataCopy(indexOfPrevious.index, true);
-
-    if (previousLeafCopy === undefined) {
-      throw new Error(`Previous leaf not found!`);
-    }
-    const newLeaf = {
-      value: newValue,
-      nextIndex: previousLeafCopy.nextIndex,
-      nextValue: previousLeafCopy.nextValue,
-    } as LeafData;
-    if (indexOfPrevious.alreadyPresent) {
-      return;
-    }
-    // insert a new leaf at the highest index and update the values of our previous leaf copy
-    const currentSize = this.getNumLeaves(true);
-    previousLeafCopy.nextIndex = BigInt(currentSize);
-    previousLeafCopy.nextValue = newLeaf.value;
-    this.cachedLeaves[Number(currentSize)] = newLeaf;
-    this.cachedLeaves[Number(indexOfPrevious.index)] = previousLeafCopy;
-    await this._updateLeaf(hashEncodedTreeValue(previousLeafCopy, this.hasher), BigInt(indexOfPrevious.index));
-    await this._updateLeaf(hashEncodedTreeValue(newLeaf, this.hasher), this.getNumLeaves(true));
-  }
-
-  /**
    * Finds the index of the minimum value in an array.
    * @param values - The collection of values to be searched.
    * @returns The index of the minimum value in the array.
@@ -247,15 +193,39 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    * Initializes the tree.
    * @param prefilledSize - A number of leaves that are prefilled with values.
    * @returns Empty promise.
+   *
+   * @remarks Explanation of pre-filling:
+   *    There needs to be an initial (0,0,0) leaf in the tree, so that when we insert the first 'proper' leaf, we can
+   *    prove that any value greater than 0 doesn't exist in the tree yet. We prefill/pad the tree with "the number of
+   *    leaves that are added by one block" so that the first 'proper' block can insert a full subtree.
+   *
+   *    Without this padding, there would be a leaf (0,0,0) at leaf index 0, making it really difficult to insert e.g.
+   *    1024 leaves for the first block, because there's only neat space for 1023 leaves after 0. By padding with 1023
+   *    more leaves, we can then insert the first block of 1024 leaves into indices 1024:2047.
    */
   public async init(prefilledSize: number): Promise<void> {
-    this.leaves.push(initialLeaf);
-    await this._updateLeaf(hashEncodedTreeValue(initialLeaf, this.hasher), 0n);
-
-    for (let i = 1; i < prefilledSize; i++) {
-      await this.appendLeaf(Buffer.from([i]));
+    if (prefilledSize < 1) {
+      throw new Error(`Prefilled size must be at least 1!`);
     }
 
+    const leaves: LeafData[] = [];
+    for (let i = 0n; i < prefilledSize; i++) {
+      const newLeaf = {
+        value: toBigIntBE(Buffer.from([Number(i)])),
+        nextIndex: i + 1n,
+        nextValue: i + 1n,
+      };
+      leaves.push(newLeaf);
+    }
+
+    // Make the first leaf have 0 value
+    leaves[0].value = 0n;
+
+    // Make the last leaf point to the first leaf
+    leaves[prefilledSize - 1].nextIndex = 0n;
+    leaves[prefilledSize - 1].nextValue = 0n;
+
+    await this.encodeAndAppendLeaves(leaves, true);
     await this.commit();
   }
 
@@ -315,33 +285,17 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    * @param leaf - New contents of the leaf.
    * @param index - Index of the leaf to be updated.
    */
-  // TODO: rename back to updateLeaf once the old updateLeaf is removed
-  private async _updateLeaf(leaf: Buffer, index: bigint) {
+  protected async updateLeaf(leaf: LeafData, index: bigint) {
     if (index > this.maxIndex) {
       throw Error(`Index out of bounds. Index ${index}, max index: ${this.maxIndex}.`);
     }
-    await this.addLeafToCacheAndHashToRoot(leaf, index);
+
+    const encodedLeaf = this.encodeLeaf(leaf, true);
+    await this.addLeafToCacheAndHashToRoot(encodedLeaf, index);
     const numLeaves = this.getNumLeaves(true);
     if (index >= numLeaves) {
       this.cachedSize = index + 1n;
     }
-  }
-
-  /**
-   * Exposes the underlying tree's update leaf method.
-   * @param leaf - The hash to set at the leaf.
-   * @param index - The index of the element.
-   */
-  // TODO: remove once the batch insertion functionality is moved here from circuit_block_builder.ts
-  public async updateLeaf(leaf: LeafData, index: bigint): Promise<void> {
-    let encodedLeaf;
-    if (leaf.value == 0n) {
-      encodedLeaf = toBufferBE(0n, 32);
-    } else {
-      encodedLeaf = hashEncodedTreeValue(leaf, this.hasher);
-    }
-    this.cachedLeaves[Number(index)] = leaf;
-    await this._updateLeaf(encodedLeaf, index);
   }
 
   /* eslint-disable jsdoc/require-description-complete-sentence */
@@ -366,8 +320,8 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    *
    * Algorithm overview
    *
-   * In general, if we want to batch insert items, we first to update their low nullifier to point to them,
-   * then batch insert all of the values as at once in the final step.
+   * In general, if we want to batch insert items, we first need to update their low nullifier to point to them,
+   * then batch insert all of the values at once in the final step.
    * To update a low nullifier, we provide an insertion proof that the low nullifier currently exists to the
    * circuit, then update the low nullifier.
    * Updating this low nullifier will in turn change the root of the tree. Therefore future low nullifier insertion proofs
@@ -422,7 +376,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    *  nextVal   2      10      15       0         3       5       -       -
    *
    * Inserting 20: (happy path)
-   * 1. Find the low nullifier (15) - provide inculsion proof
+   * 1. Find the low nullifier (15) - provide inclusion proof
    * 2. Update its pointers
    * 3. Insert 20 into the pending subtree
    *
@@ -454,7 +408,6 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
    *
    * TODO: this implementation will change once the zero value is changed from h(0,0,0). Changes incoming over the next sprint
    * @param leaves - Values to insert into the tree.
-   * @param treeHeight - Height of the tree.
    * @param subtreeHeight - Height of the subtree.
    * @returns The data for the leaves to be updated when inserting the new ones.
    */
@@ -464,7 +417,6 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     SubtreeSiblingPathHeight extends number,
   >(
     leaves: Buffer[],
-    treeHeight: TreeHeight,
     subtreeHeight: SubtreeHeight,
   ): Promise<
     | [LowLeafWitnessData<TreeHeight>[], SiblingPath<SubtreeSiblingPathHeight>]
@@ -473,7 +425,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     // Keep track of touched low leaves
     const touched = new Map<number, bigint[]>();
 
-    const emptyLowLeafWitness = getEmptyLowLeafWitness(treeHeight);
+    const emptyLowLeafWitness = getEmptyLowLeafWitness(this.getDepth() as TreeHeight);
     // Accumulators
     const lowLeavesWitnesses: LowLeafWitnessData<TreeHeight>[] = [];
     const pendingInsertionSubtree: LeafData[] = [];
@@ -494,7 +446,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
 
       const indexOfPrevious = this.findIndexOfPreviousValue(newValue, true);
 
-      // If a touched node has a value that is less greater than the current value
+      // If a touched node has a value that is less than the current value
       const prevNodes = touched.get(indexOfPrevious.index);
       if (prevNodes && prevNodes.some(v => v < newValue)) {
         // check the pending low nullifiers for a low nullifier that works
@@ -561,7 +513,9 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
         lowLeaf.nextValue = newValue;
         lowLeaf.nextIndex = startInsertionIndex + BigInt(i);
 
-        await this.updateLeaf(lowLeaf, BigInt(indexOfPrevious.index));
+        const lowLeafIndex = indexOfPrevious.index;
+        this.cachedLeaves[lowLeafIndex] = lowLeaf;
+        await this.updateLeaf(lowLeaf, BigInt(lowLeafIndex));
       }
     }
 
@@ -571,10 +525,9 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
     );
 
     // Perform batch insertion of new pending values
-    for (let i = 0; i < pendingInsertionSubtree.length; i++) {
-      await this.updateLeaf(pendingInsertionSubtree[i], startInsertionIndex + BigInt(i));
-    }
-
+    // Note: In this case we set `hash0Leaf` param to false because batch insertion algorithm use forced null leaf
+    // inclusion. See {@link encodeLeaf} for  a more through param explanation.
+    await this.encodeAndAppendLeaves(pendingInsertionSubtree, false);
     return [lowLeavesWitnesses, newSubtreeSiblingPath];
   }
 
@@ -587,5 +540,42 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
 
     // Drop the first subtreeHeight items since we only care about the path to the subtree root
     return fullSiblingPath.getSubtreeSiblingPath(subtreeHeight);
+  }
+
+  /**
+   * Encodes leaves and appends them to a tree.
+   * @param leaves - Leaves to encode.
+   * @param hash0Leaf - Indicates whether 0 value leaf should be hashed. See {@link encodeLeaf}.
+   * @returns Empty promise
+   */
+  private async encodeAndAppendLeaves(leaves: LeafData[], hash0Leaf: boolean): Promise<void> {
+    const startInsertionIndex = Number(this.getNumLeaves(true));
+
+    const serialisedLeaves = leaves.map((leaf, i) => {
+      this.cachedLeaves[startInsertionIndex + i] = leaf;
+      return this.encodeLeaf(leaf, hash0Leaf);
+    });
+
+    await super.appendLeaves(serialisedLeaves);
+  }
+
+  /**
+   * Encode a leaf into a buffer.
+   * @param leaf - Leaf to encode.
+   * @param hash0Leaf - Indicates whether 0 value leaf should be hashed. Not hashing 0 value can represent a forced
+   *                    null leaf insertion. Detecting this case by checking for 0 value is safe as in the case of
+   *                    nullifier it is improbable that a valid nullifier would be 0.
+   * @returns Leaf encoded in a buffer.
+   */
+  private encodeLeaf(leaf: LeafData, hash0Leaf: boolean): Buffer {
+    let encodedLeaf;
+    if (!hash0Leaf && leaf.value == 0n) {
+      encodedLeaf = toBufferBE(0n, 32);
+    } else {
+      encodedLeaf = this.hasher.compressInputs(
+        [leaf.value, leaf.nextIndex, leaf.nextValue].map(val => toBufferBE(val, 32)),
+      );
+    }
+    return encodedLeaf;
   }
 }

@@ -1,4 +1,5 @@
 import {
+  BaseRollupInputs,
   CONTRACT_TREE_HEIGHT,
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   CircuitsWasm,
@@ -359,7 +360,6 @@ export class MerkleTrees implements MerkleTreeDb {
    * Batch insert multiple leaves into the tree.
    * @param treeId - The ID of the tree.
    * @param leaves - Leaves to insert into the tree.
-   * @param treeHeight - Height of the tree.
    * @param subtreeHeight - Height of the subtree.
    * @returns The data for the leaves to be updated when inserting the new ones.
    */
@@ -370,7 +370,6 @@ export class MerkleTrees implements MerkleTreeDb {
   >(
     treeId: MerkleTreeId,
     leaves: Buffer[],
-    treeHeight: TreeHeight,
     subtreeHeight: SubtreeHeight,
   ): Promise<
     | [LowLeafWitnessData<TreeHeight>[], SiblingPath<SubtreeSiblingPathHeight>]
@@ -380,7 +379,7 @@ export class MerkleTrees implements MerkleTreeDb {
     if (!('batchInsert' in tree)) {
       throw new Error('Tree does not support `batchInsert` method');
     }
-    return await this.synchronise(() => tree.batchInsert(leaves, treeHeight, subtreeHeight));
+    return await this.synchronise(() => tree.batchInsert(leaves, subtreeHeight));
   }
 
   /**
@@ -513,7 +512,6 @@ export class MerkleTrees implements MerkleTreeDb {
 
       for (const [tree, leaves] of [
         [MerkleTreeId.CONTRACT_TREE, l2Block.newContracts],
-        [MerkleTreeId.NULLIFIER_TREE, l2Block.newNullifiers],
         [MerkleTreeId.PRIVATE_DATA_TREE, l2Block.newCommitments],
         [MerkleTreeId.L1_TO_L2_MESSAGES_TREE, l2Block.newL1ToL2Messages],
       ] as const) {
@@ -522,6 +520,11 @@ export class MerkleTrees implements MerkleTreeDb {
           leaves.map(fr => fr.toBuffer()),
         );
       }
+
+      await (this.trees[MerkleTreeId.NULLIFIER_TREE] as StandardIndexedTree).batchInsert(
+        l2Block.newNullifiers.map(fr => fr.toBuffer()),
+        BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+      );
 
       for (const dataWrite of l2Block.newPublicDataWrites) {
         if (dataWrite.isEmpty()) continue;

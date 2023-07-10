@@ -17,9 +17,19 @@ export type IndexedTreeId = MerkleTreeId.NULLIFIER_TREE;
 export type PublicTreeId = MerkleTreeId.PUBLIC_DATA_TREE;
 
 /**
- * The nullifier tree must be pre filled with the number of leaves that are added by one rollup.
- * The tree must be initially padded as the pre-populated 0 index prevents efficient subtree insertion.
- * Padding with some values solves this issue.
+ *
+ * @remarks Short explanation:
+ *    The nullifier tree must be initially padded as the pre-populated 0 index prevents efficient subtree insertion.
+ *    Padding with some values solves this issue.
+ *
+ * @remarks Thorough explanation:
+ *    There needs to be an initial (0,0,0) leaf in the tree, so that when we insert the first 'proper' leaf, we can
+ *    prove that any value greater than 0 doesn't exist in the tree yet. We prefill/pad the tree with "the number of
+ *    leaves that are added by one block" so that the first 'proper' block can insert a full subtree.
+ *
+ *    Without this padding, there would be a leaf (0,0,0) at leaf index 0, making it really difficult to insert e.g.
+ *    1024 leaves for the first block, because there's only neat space for 1023 leaves after 0. By padding with 1023
+ *    more leaves, we can then insert the first block of 1024 leaves into indices 1024:2047.
  */
 export const INITIAL_NULLIFIER_TREE_SIZE = 2 * KERNEL_NEW_NULLIFIERS_LENGTH;
 
@@ -168,14 +178,12 @@ export interface MerkleTreeOperations {
    * Batch insert multiple leaves into the tree.
    * @param leaves - Leaves to insert into the tree.
    * @param treeId - The tree on which to insert.
-   * @param treeHeight - Height of the tree.
    * @param subtreeHeight - Height of the subtree.
    * @returns The witness data for the leaves to be updated when inserting the new ones.
    */
   batchInsert(
     treeId: MerkleTreeId,
     leaves: Buffer[],
-    treeHeight: number,
     subtreeHeight: number,
   ): Promise<[LowLeafWitnessData<number>[], SiblingPath<number>] | [undefined, SiblingPath<number>]>;
 

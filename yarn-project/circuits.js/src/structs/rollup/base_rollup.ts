@@ -169,7 +169,7 @@ export class BaseRollupInputs {
     public startPublicDataTreeRoot: Fr,
 
     /**
-     * The nullifiers which need to be udpated to perform the batch insertion of the new nullifiers.
+     * The nullifiers which need to be updated to perform the batch insertion of the new nullifiers.
      * See `StandardIndexedTree.batchInsert` function for more details.
      */
     public lowNullifierLeafPreimages: NullifierLeafPreimage[],

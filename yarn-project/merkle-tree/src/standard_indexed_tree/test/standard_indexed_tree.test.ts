@@ -1,21 +1,21 @@
 import { default as levelup } from 'levelup';
-import { Hasher, INITIAL_LEAF, MerkleTree, Pedersen, SiblingPath } from '../index.js';
-import { StandardIndexedTree } from './standard_indexed_tree.js';
-import { treeTestSuite } from '../test/test_suite.js';
+import { Hasher, INITIAL_LEAF, MerkleTree, Pedersen, SiblingPath } from '../../index.js';
+import { treeTestSuite } from '../../test/test_suite.js';
 
-import { createMemDown } from '../test/utils/create_mem_down.js';
-import { newTree } from '../new_tree.js';
-import { loadTree } from '../load_tree.js';
+import { createMemDown } from '../../test/utils/create_mem_down.js';
+import { newTree } from '../../new_tree.js';
+import { loadTree } from '../../load_tree.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { IWasmModule } from '@aztec/foundation/wasm';
 import { CircuitsWasm } from '@aztec/circuits.js';
+import { StandardIndexedTreeWithAppend } from './standard_indexed_tree_with_append.js';
 
-const createDb = async (levelUp: levelup.LevelUp, hasher: Hasher, name: string, depth: number) => {
-  return await newTree(StandardIndexedTree, levelUp, hasher, name, depth);
+const createDb = async (levelUp: levelup.LevelUp, hasher: Hasher, name: string, depth: number, prefilledSize = 1) => {
+  return await newTree(StandardIndexedTreeWithAppend, levelUp, hasher, name, depth, prefilledSize);
 };
 
 const createFromName = async (levelUp: levelup.LevelUp, hasher: Hasher, name: string) => {
-  return await loadTree(StandardIndexedTree, levelUp, hasher, name);
+  return await loadTree(StandardIndexedTreeWithAppend, levelUp, hasher, name);
 };
 
 const createIndexedTreeLeaf = (value: number, nextIndex: number, nextValue: number) => {
@@ -446,5 +446,31 @@ describe('StandardIndexedTreeSpecific', () => {
     for (let i = 0; i < 8; i++) {
       expect(await tree.getSiblingPath(BigInt(i), false)).toEqual(await tree.getSiblingPath(BigInt(i), true));
     }
+  });
+
+  // For varying orders of insertions assert the local batch insertion generator creates the correct proofs
+  it.each([
+    // These are arbitrary but it needs to be higher than the constant `INITIAL_NULLIFIER_TREE_SIZE` and `KERNEL_NEW_NULLIFIERS_LENGTH * 2`
+    [[1003, 1002, 1001, 1000, 0, 0, 0, 0]],
+    [[1003, 1004, 1005, 1006, 0, 0, 0, 0]],
+    [[1234, 1098, 0, 0, 99999, 1096, 1054, 0]],
+    [[1970, 1980, 1040, 0, 99999, 1880, 100001, 9000000]],
+  ] as const)('performs nullifier tree batch insertion correctly', async nullifiers => {
+    const leaves = nullifiers.map(i => toBufferBE(BigInt(i), 32));
+
+    const TREE_HEIGHT = 16; // originally from NULLIFIER_TREE_HEIGHT
+    const INITIAL_TREE_SIZE = 8; // originally from INITIAL_NULLIFIER_TREE_SIZE
+    const SUBTREE_HEIGHT = 5; // originally from BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT
+
+    // Create a depth-3 indexed merkle tree
+    const appendTree = await createDb(levelup(createMemDown()), pedersen, 'test', TREE_HEIGHT, INITIAL_TREE_SIZE);
+    const insertTree = await createDb(levelup(createMemDown()), pedersen, 'test', TREE_HEIGHT, INITIAL_TREE_SIZE);
+
+    await appendTree.appendLeaves(leaves);
+    await insertTree.batchInsert(leaves, SUBTREE_HEIGHT);
+
+    const expectedRoot = appendTree.getRoot(true);
+    const actualRoot = insertTree.getRoot(true);
+    expect(actualRoot).toEqual(expectedRoot);
   });
 });

@@ -11,7 +11,6 @@ import {
   KERNEL_PUBLIC_CALL_STACK_LENGTH,
   KERNEL_PUBLIC_DATA_UPDATE_REQUESTS_LENGTH,
   KernelCircuitPublicInputs,
-  NULLIFIER_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   Proof,
   PublicDataUpdateRequest,
@@ -121,10 +120,14 @@ describe('sequencer/solo_block_builder', () => {
     for (const [tree, leaves] of [
       [MerkleTreeId.PRIVATE_DATA_TREE, flatMap(txs, tx => tx.data.end.newCommitments.map(l => l.toBuffer()))],
       [MerkleTreeId.CONTRACT_TREE, newContracts.map(x => x.toBuffer())],
-      [MerkleTreeId.NULLIFIER_TREE, flatMap(txs, tx => tx.data.end.newNullifiers.map(x => x.toBuffer()))],
     ] as const) {
       await expectsDb.appendLeaves(tree, leaves);
     }
+    await expectsDb.batchInsert(
+      MerkleTreeId.NULLIFIER_TREE,
+      flatMap(txs, tx => tx.data.end.newNullifiers.map(x => x.toBuffer())),
+      BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
+    );
     for (const write of txs.flatMap(tx => tx.data.end.publicDataUpdateRequests)) {
       await expectsDb.updateLeaf(MerkleTreeId.PUBLIC_DATA_TREE, write.newValue.toBuffer(), write.leafIndex.value);
     }
@@ -263,29 +266,6 @@ describe('sequencer/solo_block_builder', () => {
       expect(proof).toEqual(emptyProof);
     }, 20000);
 
-    // For varying orders of insertions assert the local batch insertion generator creates the correct proofs
-    it.each([
-      // These are arbitrary but it needs to be higher than the constant `INITIAL_NULLIFIER_TREE_SIZE` and `KERNEL_NEW_NULLIFIERS_LENGTH * 2`
-      [[1003, 1002, 1001, 1000, 0, 0, 0, 0]],
-      [[1003, 1004, 1005, 1006, 0, 0, 0, 0]],
-      [[1234, 1098, 0, 0, 99999, 1096, 1054, 0]],
-      [[1970, 1980, 1040, 0, 99999, 1880, 100001, 9000000]],
-    ] as const)('performs nullifier tree batch insertion correctly', async nullifiers => {
-      const leaves = nullifiers.map(i => toBufferBE(BigInt(i), 32));
-      await expectsDb.appendLeaves(MerkleTreeId.NULLIFIER_TREE, leaves);
-
-      await builderDb.batchInsert(
-        MerkleTreeId.NULLIFIER_TREE,
-        leaves,
-        NULLIFIER_TREE_HEIGHT,
-        BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
-      );
-
-      const expected = await expectsDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
-      const actual = await builderDb.getTreeInfo(MerkleTreeId.NULLIFIER_TREE);
-      expect(actual).toEqual(expected);
-    });
-
     it('rejects if too many l1 to l2 messages are provided', async () => {
       // Assemble a fake transaction
       const txs = await buildMockSimulatorInputs();
@@ -399,9 +379,10 @@ describe('sequencer/solo_block_builder', () => {
       updateVals[0] = 19777494491628650244807463906174285795660759352776418619064841306523677458742n;
       updateVals[1] = 10246291467305176436335175657884940686778521321101740385288169037814567547848n;
 
-      await builderDb.appendLeaves(
+      await builderDb.batchInsert(
         MerkleTreeId.NULLIFIER_TREE,
         updateVals.map(v => toBufferBE(v, 32)),
+        BaseRollupInputs.NULLIFIER_SUBTREE_HEIGHT,
       );
 
       // new added values
