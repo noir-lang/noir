@@ -51,9 +51,8 @@ pub(crate) fn run<B: Backend>(
             (common_reference_string, program)
         }
         None => {
-            let mut program =
+            let program =
                 compile_circuit(backend, config.program_dir.as_ref(), &args.compile_options)?;
-            program.circuit = optimize_circuit(backend, program.circuit).unwrap();
 
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)

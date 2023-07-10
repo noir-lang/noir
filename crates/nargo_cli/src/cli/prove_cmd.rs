@@ -94,7 +94,6 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     let (common_reference_string, preprocessed_program) = match circuit_build_path {
         Some(circuit_build_path) => {
             let program = read_program_from_file(circuit_build_path)?;
-
             let common_reference_string = update_common_reference_string(
                 backend,
                 &common_reference_string,
@@ -105,7 +104,6 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         }
         None => {
             let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
-
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
