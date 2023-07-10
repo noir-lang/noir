@@ -100,7 +100,7 @@ pub(crate) fn run<B: Backend>(
             );
         }
     } else {
-        let mut program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
+        let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
 
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
@@ -118,7 +118,7 @@ pub(crate) fn run<B: Backend>(
 }
 
 pub(crate) fn compile_circuit<B: Backend>(
-    _backend: &B,
+    backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CliError<B>> {

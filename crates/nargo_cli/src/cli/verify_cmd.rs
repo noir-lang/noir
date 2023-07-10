@@ -17,9 +17,9 @@ use crate::{
 use acvm::Backend;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
-use nargo::ops::{optimize_circuit, preprocess_program, verify_proof};
+use nargo::ops::{preprocess_program, verify_proof};
 use noirc_abi::input_parser::Format;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_driver::CompileOptions;
 use std::path::{Path, PathBuf};
 
 /// Given a proof and a program, verify whether the proof is valid

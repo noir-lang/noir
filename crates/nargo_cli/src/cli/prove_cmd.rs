@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 use acvm::Backend;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
-use nargo::ops::{optimize_circuit, preprocess_program, prove_execution, verify_proof};
+use nargo::ops::{preprocess_program, prove_execution, verify_proof};
 use noirc_abi::input_parser::Format;
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_driver::CompileOptions;
 
 use super::NargoConfig;
 use super::{

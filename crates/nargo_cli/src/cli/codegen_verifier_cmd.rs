@@ -14,8 +14,8 @@ use crate::{
 };
 use acvm::Backend;
 use clap::Args;
-use nargo::ops::{codegen_verifier, optimize_circuit, preprocess_program};
-use noirc_driver::{CompileOptions, CompiledProgram};
+use nargo::ops::{codegen_verifier, preprocess_program};
+use noirc_driver::CompileOptions;
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
