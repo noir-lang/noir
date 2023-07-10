@@ -1,10 +1,12 @@
 use crate::context::Context;
 use crate::generators;
-use crate::note::lifecycle::create_note;
-use crate::note::lifecycle::destroy_note;
-use crate::note::note_getter::get_notes;
-use crate::note::note_getter_options::NoteGetterOptions;
-use crate::note::note_interface::NoteInterface;
+use crate::note::lifecycle::{create_note, destroy_note};
+use crate::note::{
+    note_getter::{get_notes, ensure_note_exists},
+    note_getter_options::NoteGetterOptions,
+    note_interface::NoteInterface,
+};
+use crate::oracle::create_commitment::create_commitment;
 
 struct Set<Note, N> {
     storage_slot: Field,
@@ -18,6 +20,17 @@ impl<Note, N> Set<Note, N> {
 
     fn insert(self, context: Context, note: Note) -> Context {
         create_note(context, self.storage_slot, note, self.note_interface)
+    }
+
+    fn insert_from_public(self, note: Note) {
+        let compute_note_hash = self.note_interface.compute_note_hash;
+        let note_hash = compute_note_hash(note);
+        create_commitment(note_hash);
+    }
+
+    fn has(self, context: Context, note: Note) -> Context {
+        ensure_note_exists(context, self.storage_slot, self.note_interface, note)
+        // TODO: Check from oracle and early out if the note doesn't exist.
     }
 
     fn remove(self, context: Context, note: Note) -> Context {

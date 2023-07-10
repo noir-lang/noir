@@ -104,6 +104,8 @@ describe('Private Execution test suite', () => {
     return trees[name];
   };
 
+  const hash = (data: Buffer[]) => pedersenPlookupCommitInputs(circuitsWasm, data);
+
   beforeAll(async () => {
     circuitsWasm = await CircuitsWasm.get();
     logger = createDebugLogger('aztec:test:private_execution');
@@ -283,6 +285,32 @@ describe('Private Execution test suite', () => {
       expect(recipientNote.preimage[0]).toEqual(new Fr(amountToTransfer));
       expect(changeNote.preimage[0]).toEqual(new Fr(balance - amountToTransfer));
     }, 30_000);
+
+    it('Should be able to claim a note by providing the correct secret', async () => {
+      const contractAddress = AztecAddress.random();
+      const amount = 100n;
+      const secret = Fr.random();
+      const abi = ZkTokenContractAbi.functions.find(f => f.name === 'claim')!;
+
+      const storageSlot = 2n;
+      const innerNoteHash = hash([toBufferBE(amount, 32), secret.toBuffer()]);
+      const noteHash = Fr.fromBuffer(hash([toBufferBE(storageSlot, 32), innerNoteHash]));
+
+      const result = await runSimulator({
+        origin: contractAddress,
+        abi,
+        args: [amount, secret, recipient],
+      });
+
+      // Check a nullifier has been created.
+      const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
+      expect(newNullifiers).toHaveLength(1);
+
+      // Check the read request was created successfully.
+      const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
+      expect(readRequests).toHaveLength(1);
+      expect(readRequests[0]).toEqual(noteHash);
+    }, 30_000);
   });
 
   describe('nested calls', () => {
@@ -373,9 +401,7 @@ describe('Private Execution test suite', () => {
       const wasm = await CircuitsWasm.get();
       const secret = new Fr(1n);
       const secretHash = computeSecretMessageHash(wasm, secret);
-      const commitment = Fr.fromBuffer(
-        pedersenPlookupCommitInputs(wasm, [toBufferBE(amount, 32), secretHash.toBuffer()]),
-      );
+      const commitment = Fr.fromBuffer(hash([toBufferBE(amount, 32), secretHash.toBuffer()]));
       const siloedCommitment = siloCommitment(wasm, contractAddress, commitment);
 
       const tree = await insertLeaves([siloedCommitment.toBuffer()]);

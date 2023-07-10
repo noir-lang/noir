@@ -54,3 +54,28 @@ fn spend_notes(
 
     context
 }
+
+fn send_note(
+    mut context: Context,
+    inputs: PrivateContextInputs,
+    balance: Set<ValueNote, VALUE_NOTE_LEN>,
+    amount: Field,
+    recipient: Point,
+) -> Context {
+     // Creates new note for the recipient.
+    let note = ValueNote::new(amount, recipient);
+
+    // Insert the new note to the recipient's set of notes.
+    context = balance.insert(context, note);
+
+    // Emit the newly created encrypted note preimages via oracle calls.
+    context = emit_encrypted_log(
+        context,
+        inputs.call_context.storage_contract_address,
+        balance.storage_slot,
+        recipient,
+        note.serialise(),
+    );
+
+    context
+}

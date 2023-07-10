@@ -4,13 +4,9 @@ contract ZkToken {
     // Libs
     use dep::token_utils::{
         balance_utils,
-        value_note::{
-            value_note::ValueNote,
-            utils::spend_notes,
-        }
+        value_note::utils::{send_note, spend_notes},
     };
-
-    use crate::storage::Storage;
+    use dep::custom_notes::claim_note::ClaimNote;
 
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
@@ -21,6 +17,8 @@ contract ZkToken {
     use dep::aztec::state_vars::set::Set;
     use dep::aztec::log::emit_encrypted_log;
     use dep::aztec::log::emit_unencrypted_log;
+
+    use crate::storage::Storage;
 
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
@@ -35,13 +33,9 @@ contract ZkToken {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner.x, owner.y]));
 
-        let owner_balance = storage.balances.at(owner.x);
-        let note = ValueNote::new(initial_supply, owner);
-
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
-        context = owner_balance.insert(context, note);
-        let preimage = note.serialise();
-        context = emit_encrypted_log(context, inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, preimage);
+        let owner_balance = storage.balances.at(owner.x);
+        context = send_note(context, inputs, owner_balance, initial_supply, owner);
         context = emit_unencrypted_log(context, "Balance set in constructor");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
@@ -60,13 +54,9 @@ contract ZkToken {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([amount, owner.x, owner.y]));
 
-        let owner_balance = storage.balances.at(owner.x);
-        let note = ValueNote::new(amount, owner);
-
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
-        context = owner_balance.insert(context, note);
-        let preimage = note.serialise();
-        context = emit_encrypted_log(context, inputs.call_context.storage_contract_address, owner_balance.storage_slot, note.owner, preimage);
+        let owner_balance = storage.balances.at(owner.x);
+        context = send_note(context, inputs, owner_balance, amount, owner);
         context = emit_unencrypted_log(context, "Coins minted");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
@@ -91,17 +81,65 @@ contract ZkToken {
         context = spend_notes(context, inputs, sender_balance, amount, sender);
 
         // Creates new note for the recipient.
-        let recipient_note = ValueNote::new(amount, recipient);
-
-        // Get the recipient's set of notes.
         let recipient_balance = storage.balances.at(recipient.x);
-
-        // Insert the new note to the recipient's set of notes.
-        context = recipient_balance.insert(context, recipient_note);
-
-        // Emit the newly created encrypted note preimages via oracle calls.
-        context = emit_encrypted_log(context, inputs.call_context.storage_contract_address, recipient_balance.storage_slot, recipient_note.owner, recipient_note.serialise());
+        context = send_note(context, inputs, recipient_balance, amount, recipient);
+        
         context = emit_unencrypted_log(context, "Coins transferred");
+
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
+        context.finish()
+    }
+
+    fn createClaims(
+        //*********************************/
+        // Should eventually be hidden:
+        inputs: PrivateContextInputs,
+        //*********************************/
+        amounts: [Field; 2], 
+        secrets: [Field; 2], 
+        sender: Point, 
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        let storage = Storage::init();
+        let mut context = Context::new(inputs, abi::hash_args([amounts[0], amounts[1], secrets[0], secrets[1], sender.x, sender.y]));
+
+        // Pick from the set of sender's notes to spend amount.
+        let sender_balance = storage.balances.at(sender.x);
+        let total = amounts[0] + amounts[1];
+        context = spend_notes(context, inputs, sender_balance, total, sender);
+
+        // Create claim notes.
+        let claims = storage.claims;
+        let note0 = ClaimNote::new(amounts[0], secrets[0]);
+        let note1 = ClaimNote::new(amounts[1], secrets[1]);
+
+        // Insert the new claim notes to the set.
+        context = claims.insert(context, note0);
+        context = claims.insert(context, note1);
+
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
+        context.finish()
+    }
+
+    fn claim(
+        //*********************************/
+        // Should eventually be hidden:
+        inputs: PrivateContextInputs,
+        //*********************************/
+        amount: Field,
+        secret: Field,
+        owner: Point,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        let storage = Storage::init();
+        let mut context = Context::new(inputs, abi::hash_args([amount, secret, owner.x, owner.y]));
+
+        // Remove the claim note if it exists in the set.
+        let note = ClaimNote::new(amount, secret);
+        context = storage.claims.has(context, note);
+        context = storage.claims.remove(context, note);
+
+        // Send the value note.
+        let balance = storage.balances.at(owner.x);
+        context = send_note(context, inputs, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()

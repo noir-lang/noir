@@ -10,6 +10,21 @@ global GET_NOTE_ORACLE_RETURN_SIZE = 321; // MAX_READ_REQUESTS * MAX_NOTE_FIELDS
 global MAX_NOTES_PER_PAGE = 10;
 global VIEW_NOTE_ORACLE_RETURN_SIZE = 201; // MAX_NOTES_PER_PAGE * MAX_NOTE_FIELDS_SIZE + EXTRA_DATA = 10 * 20 + 1
 
+fn ensure_note_exists<Note, N>(
+    mut context: Context,
+    storage_slot: Field,
+    note_interface: NoteInterface<Note, N>,
+    note: Note,
+) -> Context {
+    let mut note_hash = 0;
+    let is_dummy = note_interface.is_dummy;
+    if is_dummy(note) == false {
+        let compute_note_hash = note_interface.compute_note_hash;
+        note_hash = compute_siloed_note_hash(storage_slot, compute_note_hash(note));
+    };
+    context.push_read_request(note_hash)
+}
+
 fn get_note<Note, N>(
     mut context: Context,
     storage_slot: Field,
@@ -18,15 +33,7 @@ fn get_note<Note, N>(
     let deserialise = note_interface.deserialise;
     let dummy = note_interface.dummy;
     let note = oracle::notes::get_note(storage_slot, deserialise, dummy);
-
-    let mut note_hash = 0;
-    let is_dummy = note_interface.is_dummy;
-    if is_dummy(note) == false {
-        let compute_note_hash = note_interface.compute_note_hash;
-        note_hash = compute_siloed_note_hash(storage_slot, compute_note_hash(note));
-    };
-    context = context.push_read_request(note_hash);
-
+    context = ensure_note_exists(context, storage_slot, note_interface, note);
     (context, note)
 }
 
