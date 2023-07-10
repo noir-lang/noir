@@ -52,12 +52,4 @@ impl<T> Vec<T> {
     fn len(self: Self) -> Field {
         self.slice.len()
     }
-
-    /// Moves all elements of `other` into `self`, leaving `other` empty
-    fn append(&mut self, other: &mut Self) {
-        for i in 0..*other.len() {
-            let other_elem = *other.remove(i);
-            self.push(other_elem);
-        }
-    }
 }
