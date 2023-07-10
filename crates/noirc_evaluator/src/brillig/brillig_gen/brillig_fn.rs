@@ -60,7 +60,7 @@ impl FunctionContext {
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
                 match typ {
-                    Type::Numeric(_) => BrilligParameter::Register,
+                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
                     Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
                     _ => unimplemented!("Unsupported function parameter type {typ:?}"),
                 }
@@ -75,7 +75,7 @@ impl FunctionContext {
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
                 match typ {
-                    Type::Numeric(_) => BrilligParameter::Register,
+                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
                     Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
                     _ => unimplemented!("Unsupported return value type {typ:?}"),
                 }
