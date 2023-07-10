@@ -1,8 +1,8 @@
 
 
 #[oracle(getRandomField)]
-fn rand_oracle() -> [Field; 1] {}
+fn rand_oracle() -> Field {}
 
 unconstrained fn rand() -> Field {
-    rand_oracle()[0]
+    rand_oracle()
 }

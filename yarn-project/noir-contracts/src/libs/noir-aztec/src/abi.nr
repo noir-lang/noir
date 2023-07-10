@@ -316,17 +316,17 @@ impl PublicCircuitPublicInputs {
     }
 }
 
-global ARGS_HASH_CHUNK_SIZE = 32;
-global ARGS_HASH_CHUNK_COUNT = 16;
+global ARGS_HASH_CHUNK_SIZE: u32 = 32;
+global ARGS_HASH_CHUNK_COUNT: u32 = 16;
 
 fn hash_args<N>(args: [Field; N]) -> Field {
     let mut chunks_hashes = [0; ARGS_HASH_CHUNK_COUNT];
     for i in 0..ARGS_HASH_CHUNK_COUNT {
         let mut chunk_hash = 0;
-        if (i * ARGS_HASH_CHUNK_SIZE) as u32 < args.len() as u32 {
+        if (i * ARGS_HASH_CHUNK_SIZE) < (args.len() as u32) {
             let mut chunk_args = [0; ARGS_HASH_CHUNK_SIZE];
             for j in 0..ARGS_HASH_CHUNK_SIZE {
-                if (i * ARGS_HASH_CHUNK_COUNT + j) as u32 < args.len() as u32 {
+                if (i * ARGS_HASH_CHUNK_COUNT + j) < (args.len() as u32) {
                     chunk_args[j] = args[i * ARGS_HASH_CHUNK_SIZE + j];
                 }
             }

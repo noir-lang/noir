@@ -3,7 +3,6 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import {
   ACVMField,
-  ACVMFieldsReader,
   fromACVMField,
   toACVMField,
   toAcvmCommitmentLoadOracleInputs,
@@ -53,21 +52,33 @@ export class ClientTxExecutionContext {
    * to the private kernel.
    *
    * @param contractAddress - The contract address.
-   * @param fields - An array of ACVM fields.
+   * @param storageSlot - The storage slot.
+   * @param noteSize - The note size.
+   * @param sortBy - The sort by fields.
+   * @param sortOrder - The sort order fields.
+   * @param limit - The limit.
+   * @param offset - The offset.
+   * @param returnSize - The return size.
    * @returns An array of ACVM fields for the note count and the requested note preimages,
    * and another array of indices corresponding to each note
    */
-  public async getNotes(contractAddress: AztecAddress, fields: ACVMField[]) {
-    const reader = new ACVMFieldsReader(fields);
-    const storageSlot = reader.readField();
-    const noteSize = reader.readNumber();
-    const sortBy = reader.readNumberArray(noteSize);
-    const sortOrder = reader.readNumberArray(noteSize);
-    const limit = reader.readNumber();
-    const offset = reader.readNumber();
-    const returnSize = reader.readNumber();
-
-    const { count, notes } = await this.db.getNotes(contractAddress, storageSlot, sortBy, sortOrder, limit, offset);
+  public async getNotes(
+    contractAddress: AztecAddress,
+    storageSlot: ACVMField,
+    sortBy: ACVMField[],
+    sortOrder: ACVMField[],
+    limit: ACVMField,
+    offset: ACVMField,
+    returnSize: ACVMField,
+  ) {
+    const { count, notes } = await this.db.getNotes(
+      contractAddress,
+      fromACVMField(storageSlot),
+      sortBy.map(field => +field),
+      sortOrder.map(field => +field),
+      +limit,
+      +offset,
+    );
     const preimages = notes.flatMap(({ preimage }) => preimage);
 
     // TODO(dbanks12): https://github.com/AztecProtocol/aztec-packages/issues/779
@@ -77,7 +88,7 @@ export class ClientTxExecutionContext {
     const indices = notes.map(({ index }) => index).filter(index => index != BigInt(-1));
     this.readRequestCommitmentIndices.push(...indices);
 
-    const paddedZeros = Array(returnSize - 1 - preimages.length).fill(Fr.ZERO);
+    const paddedZeros = Array(+returnSize - 1 - preimages.length).fill(Fr.ZERO);
     return [count, preimages, paddedZeros].flat().map(f => toACVMField(f));
   }
 

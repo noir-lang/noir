@@ -2,7 +2,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { WitnessMap, executeCircuit } from 'acvm-simulator';
+import { ForeignCallInput, ForeignCallOutput, WitnessMap, executeCircuit } from 'acvm_js';
 
 /**
  * The format for fields on the ACVM.
@@ -17,41 +17,38 @@ export const ZERO_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES)}`;
 export const ONE_ACVM_FIELD: ACVMField = `0x${'00'.repeat(Fr.SIZE_IN_BYTES - 1)}01`;
 
 /**
+ * The supported oracle names.
+ */
+type ORACLE_NAMES =
+  | 'packArguments'
+  | 'getSecretKey'
+  | 'getNotes'
+  | 'getRandomField'
+  | 'notifyCreatedNote'
+  | 'notifyNullifiedNote'
+  | 'callPrivateFunction'
+  | 'callPublicFunction'
+  | 'enqueuePublicFunctionCall'
+  | 'storageRead'
+  | 'storageWrite'
+  | 'createCommitment'
+  | 'createL2ToL1Message'
+  | 'createNullifier'
+  | 'getCommitment'
+  | 'getL1ToL2Message'
+  | 'emitEncryptedLog'
+  | 'emitUnencryptedLog'
+  | 'debugLog';
+
+/**
+ * A type that does not require all keys to be present.
+ */
+type PartialRecord<K extends keyof any, T> = Partial<Record<K, T>>;
+
+/**
  * The callback interface for the ACIR.
  */
-export interface ACIRCallback {
-  /**
-   * Oracle call used to pack a set of arguments for the execution
-   */
-  packArguments(params: ACVMField[]): Promise<ACVMField[]>;
-  getSecretKey(params: ACVMField[]): Promise<[ACVMField]>;
-  getNotes(params: ACVMField[]): Promise<ACVMField[]>;
-  getRandomField(): Promise<[ACVMField]>;
-  notifyCreatedNote(params: ACVMField[]): Promise<[ACVMField]>;
-  notifyNullifiedNote(params: ACVMField[]): Promise<[ACVMField]>;
-  callPrivateFunction(params: ACVMField[]): Promise<ACVMField[]>;
-  callPublicFunction(params: ACVMField[]): Promise<ACVMField[]>;
-  enqueuePublicFunctionCall(params: ACVMField[]): Promise<ACVMField[]>;
-  storageRead(params: ACVMField[]): Promise<ACVMField[]>;
-  storageWrite(params: ACVMField[]): Promise<ACVMField[]>;
-  createCommitment(params: ACVMField[]): Promise<[ACVMField]>;
-  createL2ToL1Message(params: ACVMField[]): Promise<[ACVMField]>;
-  createNullifier(params: ACVMField[]): Promise<[ACVMField]>;
-  getCommitment(params: ACVMField[]): Promise<ACVMField[]>;
-  getL1ToL2Message(params: ACVMField[]): Promise<ACVMField[]>;
-  /**
-   * Oracle call used to emit an encrypted log.
-   */
-  emitEncryptedLog: (params: ACVMField[]) => Promise<ACVMField[]>;
-  /**
-   * Oracle call used to emit an unencrypted log.
-   */
-  emitUnencryptedLog: (params: ACVMField[]) => Promise<string[]>;
-  /**
-   * Debugging utility for printing out info from Noir (i.e. console.log).
-   */
-  debugLog: (params: ACVMField[]) => Promise<ACVMField[]>;
-}
+export type ACIRCallback = PartialRecord<ORACLE_NAMES, (...args: ForeignCallInput[]) => Promise<ForeignCallOutput>>;
 
 /**
  * The result of executing an ACIR.
@@ -72,12 +69,16 @@ export async function acvm(
   callback: ACIRCallback,
 ): Promise<ACIRExecutionResult> {
   const logger = createDebugLogger('aztec:simulator:acvm');
-  const partialWitness = await executeCircuit(acir, initialWitness, async (name: string, args: string[]) => {
+  const partialWitness = await executeCircuit(acir, initialWitness, async (name: string, args: ForeignCallInput[]) => {
     try {
       logger(`Oracle callback ${name}`);
-      if (!(name in callback)) throw new Error(`Callback ${name} not found`);
-      const result = await callback[name as keyof ACIRCallback](args);
-      return result;
+      const oracleFunction = callback[name as ORACLE_NAMES];
+      if (!oracleFunction) {
+        throw new Error(`Callback ${name} not found`);
+      }
+
+      const result = await oracleFunction.call(callback, ...args);
+      return [result];
     } catch (err: any) {
       logger(`Error in ACVM callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
       throw err;

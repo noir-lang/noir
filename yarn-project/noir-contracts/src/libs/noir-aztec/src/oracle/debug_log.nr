@@ -2,17 +2,17 @@
 // WARNING: sometimes when using debug logs the ACVM errors with: `thrown: "solver opcode resolution error: cannot solve opcode: expression has too many unknowns x155"`
 
 #[oracle(debugLog)]
-fn debug_log_oracle<T, N>(_msg: T, _num_args: Field) -> [Field; 1] {}
+fn debug_log_oracle<T, N>(_msg: T, _num_args: Field) -> Field {}
 #[oracle(debugLog)]
-fn debug_log_format_oracle<T, N>(_msg: T, _args: [Field; N], _num_args: Field) -> [Field; 1] {}
+fn debug_log_format_oracle<T, N>(_msg: T, _args: [Field; N], _num_args: Field) -> Field {}
 #[oracle(debugLog)]
-fn debug_log_field_oracle(_field: Field) -> [Field; 1] {}
+fn debug_log_field_oracle(_field: Field) -> Field {}
 
 /// NOTE: call this with a str<N> msg of length > 1
 /// Example:
 /// `debug_log("blah blah this is a debug string");`
 unconstrained fn debug_log<T>(msg: T) {
-    assert(debug_log_oracle(msg, 0)[0] == 0);
+    assert(debug_log_oracle(msg, 0) == 0);
 }
 
 /// NOTE: call this with a str<N> msg of form
@@ -22,11 +22,11 @@ unconstrained fn debug_log<T>(msg: T) {
 /// Example:
 /// debug_log_format("get_2(slot:{0}) =>\n\t0:{1}\n\t1:{2}", [storage_slot, note0_hash, note1_hash]);
 unconstrained fn debug_log_format<T, N>(msg: T, args: [Field; N]) {
-    assert(debug_log_format_oracle(msg, args, args.len())[0] == 0);
+    assert(debug_log_format_oracle(msg, args, args.len()) == 0);
 }
 
 /// Example:
 /// `debug_log_field(my_field);`
 unconstrained fn debug_log_field(field: Field) {
-    assert(debug_log_field_oracle(field)[0] == 0);
+    assert(debug_log_field_oracle(field) == 0);
 }

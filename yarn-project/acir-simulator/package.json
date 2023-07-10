@@ -35,7 +35,7 @@
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
-    "acvm-simulator": "github:sirasistant/acvm-simulator-wasm#180bc5bec8b79034e9e3a508a959cac3fe801ed1",
+    "acvm_js": "github:sirasistant/acvm-simulator-wasm#1e84f2b4ecf0d0a7aee37f3d8d568add711b9e93",
     "levelup": "^5.1.1",
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"

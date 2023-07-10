@@ -1,3 +1,4 @@
+import { ForeignCallInput } from 'acvm_js';
 import { ACVMField } from '../acvm/index.js';
 
 /**
@@ -47,28 +48,23 @@ function applyStringFormatting(formatStr: string, args: ACVMField[]): string {
 /**
  * Convert an array of ACVMFields from ACVM to a formatted string.
  *
- * @param fields - either a single field to be printed, or a string to be formatted.
- * When it is a string to be formatted:
- * The last entry in `fields` is `numArgs` (the number of formatting
- * args). The `formatArgs` occupy the end of the `fields` array,
- * excluding that last entry (`numArgs`). The message string `msg`
- * takes up the remaining entries at the start of the `fields` array.
+ * @param parameters - either one parameter representing a simple field, or two parameters when
+ * It's a message without args or three parameters when it's a message with arguments.
  *
  * @returns formatted string
  */
-export function fieldsToFormattedStr(fields: ACVMField[]): string {
-  if (fields.length === 1) {
-    return `${fields[0]}`;
-  } else {
-    const numArgs = Number(fields[fields.length - 1]);
-    const msgLen = fields.length - 1 - numArgs;
-
-    const msgFields = fields.slice(0, msgLen);
-    const formatArgs = fields.slice(msgLen, fields.length - 1);
-
-    const msg = acvmFieldMessageToString(msgFields);
-    const formattedMsg = applyStringFormatting(msg, formatArgs);
-
-    return formattedMsg;
+export function oracleDebugCallToFormattedStr(parameters: ForeignCallInput[]): string {
+  if (parameters.length === 1) {
+    return `${parameters[0][0]}`;
   }
+
+  let formatArgs: string[] = [];
+
+  if (parameters.length > 2) {
+    formatArgs = parameters[1];
+  }
+
+  const formattedMsg = applyStringFormatting(acvmFieldMessageToString(parameters[0]), formatArgs);
+
+  return formattedMsg;
 }

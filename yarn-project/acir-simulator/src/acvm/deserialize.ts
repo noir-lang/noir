@@ -14,7 +14,7 @@ import {
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { getReturnWitness } from 'acvm-simulator';
+import { getReturnWitness } from 'acvm_js';
 import { ACVMField, ACVMWitness, fromACVMField } from './acvm.js';
 
 // Utilities to read TS classes from ACVM Field arrays
