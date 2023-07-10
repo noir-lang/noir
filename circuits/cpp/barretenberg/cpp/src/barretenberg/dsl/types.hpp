@@ -15,6 +15,7 @@
 #include "barretenberg/stdlib/primitives/byte_array/byte_array.hpp"
 #include "barretenberg/stdlib/primitives/curves/bn254.hpp"
 #include "barretenberg/stdlib/primitives/curves/secp256k1.hpp"
+#include "barretenberg/stdlib/primitives/curves/secp256r1.hpp"
 #include "barretenberg/stdlib/primitives/memory/ram_table.hpp"
 #include "barretenberg/stdlib/primitives/memory/rom_table.hpp"
 #include "barretenberg/stdlib/primitives/packed_byte_array/packed_byte_array.hpp"
@@ -60,6 +61,7 @@ using pedersen_commitment = proof_system::plonk::stdlib::pedersen_commitment<Bui
 using group_ct = proof_system::plonk::stdlib::group<Builder>;
 using bn254 = proof_system::plonk::stdlib::bn254<Builder>;
 using secp256k1_ct = proof_system::plonk::stdlib::secp256k1<Builder>;
+using secp256r1_ct = proof_system::plonk::stdlib::secp256r1<Builder>;
 
 using hash_path_ct = proof_system::plonk::stdlib::merkle_tree::hash_path<Builder>;
 

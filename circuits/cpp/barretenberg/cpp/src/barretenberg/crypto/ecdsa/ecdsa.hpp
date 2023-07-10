@@ -1,6 +1,9 @@
 #pragma once
 #include "../hashers/hashers.hpp"
 #include "barretenberg/ecc/curves/secp256k1/secp256k1.hpp"
+
+#include "barretenberg/ecc/curves/secp256r1/secp256r1.hpp"
+
 #include "barretenberg/serialize/msgpack.hpp"
 #include <array>
 #include <string>
@@ -65,6 +68,18 @@ template <typename B> inline void read(B& it, key_pair<secp256k1::fr, secp256k1:
 }
 
 template <typename B> inline void write(B& buf, key_pair<secp256k1::fr, secp256k1::g1> const& keypair)
+{
+    write(buf, keypair.private_key);
+    write(buf, keypair.public_key);
+}
+
+template <typename B> inline void read(B& it, key_pair<secp256r1::fr, secp256r1::g1>& keypair)
+{
+    read(it, keypair.private_key);
+    read(it, keypair.public_key);
+}
+
+template <typename B> inline void write(B& buf, key_pair<secp256r1::fr, secp256r1::g1> const& keypair)
 {
     write(buf, keypair.private_key);
     write(buf, keypair.public_key);
