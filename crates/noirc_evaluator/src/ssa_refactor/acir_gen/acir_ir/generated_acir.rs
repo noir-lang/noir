@@ -159,14 +159,14 @@ impl GeneratedAcir {
         let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
 
         // 1. Generate witnesses a,b,c
-        let (quotient_witness, remainder_witness) =
-            self.quotient_directive(lhs.clone(), exp.into(), None)?;
 
         // According to the division theorem, the remainder needs to be 0 <= r < 2^{rhs_bit_size}
-        self.range_constraint(remainder_witness, rhs_bit_size)?;
-
+        let r_max_bits = rhs_bit_size;
         // According to the formula above, the quotient should be within the range 0 <= q < 2^{max_bits - rhs}
-        self.range_constraint(quotient_witness, max_bits - rhs_bit_size)?;
+        let q_max_bits = max_bits - rhs_bit_size;
+
+        let (quotient_witness, remainder_witness) =
+            self.quotient_directive(lhs.clone(), exp.into(), None, q_max_bits, r_max_bits)?;
 
         // 2. Add the constraint a == r + (q * 2^{rhs})
         //
@@ -400,17 +400,16 @@ impl GeneratedAcir {
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
-        let (q_witness, r_witness) =
-            self.quotient_directive(lhs.clone(), rhs.clone(), Some(predicate.clone()))?;
+        let (q_witness, r_witness) = self.quotient_directive(
+            lhs.clone(),
+            rhs.clone(),
+            Some(predicate.clone()),
+            max_bit_size,
+            max_bit_size,
+        )?;
 
-        // Constrain r to be 0 <= r < 2^{max_bit_size}
-        let r_expr = Expression::from(r_witness);
-        self.range_constraint(r_witness, max_bit_size)?;
         // Constrain r < rhs
-        self.bound_constraint_with_offset(&r_expr, rhs, predicate, max_bit_size)?;
-
-        // Constrain q to be 0 <= q < 2^{max_bit_size}
-        self.range_constraint(q_witness, max_bit_size)?;
+        self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_bit_size)?;
 
         // a * predicate == (b * q + r) * predicate
         // => predicate * ( a - b * q - r) == 0
@@ -671,14 +670,20 @@ impl GeneratedAcir {
         a: Expression,
         b: Expression,
         predicate: Option<Expression>,
+        q_max_bits: u32,
+        r_max_bits: u32,
     ) -> Result<(Witness, Witness), AcirGenError> {
         let q_witness = self.next_witness_index();
         let r_witness = self.next_witness_index();
 
         let directive =
             Directive::Quotient(QuotientDirective { a, b, q: q_witness, r: r_witness, predicate });
-
         self.push_opcode(AcirOpcode::Directive(directive));
+
+        // Apply range constraints to injected witness values.
+        // Constrains `q` to be 0 <= q < 2^{q_max_bits}, etc.
+        self.range_constraint(q_witness, q_max_bits)?;
+        self.range_constraint(r_witness, r_max_bits)?;
 
         Ok((q_witness, r_witness))
     }
@@ -706,8 +711,24 @@ impl GeneratedAcir {
         let two_max_bits: FieldElement = two.pow(&FieldElement::from(max_bits as i128));
         let comparison_evaluation = (a - b) + two_max_bits;
 
-        let (q_witness, r_witness) =
-            self.quotient_directive(comparison_evaluation.clone(), two_max_bits.into(), predicate)?;
+        // We want to enforce that `q` is a boolean value.
+        // In particular it should be the `n` bit of the `comparison_evaluation`
+        // which will indicate whether a >= b.
+        //
+        // In the document linked above, they mention negating the value of `q`
+        // which would tell us whether a < b. Since we do not negate `q`
+        // what we get is a boolean indicating whether a >= b.
+        let q_max_bits = 1;
+        // `r` can take any value up to `two_max_bits`.
+        let r_max_bits = max_bits;
+
+        let (q_witness, r_witness) = self.quotient_directive(
+            comparison_evaluation.clone(),
+            two_max_bits.into(),
+            predicate,
+            q_max_bits,
+            r_max_bits,
+        )?;
 
         // Add constraint : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
@@ -733,18 +754,6 @@ impl GeneratedAcir {
         expr.push_addition_term(two_max_bits, q_witness);
         expr.push_addition_term(FieldElement::one(), r_witness);
         self.push_opcode(AcirOpcode::Arithmetic(&comparison_evaluation - &expr));
-
-        // Add constraint to ensure `r` is correctly bounded
-        // between [0, 2^{max_bits}-1]
-        self.range_constraint(r_witness, max_bits)?;
-        // Add constraint to ensure that `q` is a boolean value
-        // in particular it should be the `n` bit of the comparison_evaluation
-        // which will indicate whether a >= b
-        //
-        // In the document linked above, they mention negating the value of `q`
-        // which would tell us whether a < b. Since we do not negate `q`
-        // what we get is a boolean indicating whether a >= b.
-        self.range_constraint(q_witness, 1)?;
 
         Ok(q_witness)
     }
