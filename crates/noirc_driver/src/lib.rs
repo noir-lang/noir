@@ -338,6 +338,11 @@ pub fn compile_no_check(
         create_circuit(program, options.show_ssa, options.show_output)?
     };
 
+    if options.print_acir {
+        println!("Unoptimised ACIR for main:");
+        println!("{}", circuit);
+    }
+
     let abi_len = abi.field_count();
 
     let simplifier = CircuitSimplifier::new(abi_len);
