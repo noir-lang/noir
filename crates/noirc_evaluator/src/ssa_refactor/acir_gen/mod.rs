@@ -37,7 +37,6 @@ mod acir_ir;
 
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
-#[derive(Default)]
 struct Context {
     /// Maps SSA values to `AcirVar`.
     ///
@@ -49,7 +48,7 @@ struct Context {
 
     /// The `AcirVar` that describes the condition belonging to the most recently invoked
     /// `SideEffectsEnabled` instruction.
-    current_side_effects_enabled_var: Option<AcirVar>,
+    current_side_effects_enabled_var: AcirVar,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext,
@@ -84,7 +83,7 @@ impl Ssa {
         abi_distinctness: AbiDistinctness,
         allow_log_ops: bool,
     ) -> GeneratedAcir {
-        let context = Context::default();
+        let context = Context::new();
         let mut generated_acir = context.convert_ssa(self, brillig, allow_log_ops);
 
         match abi_distinctness {
@@ -110,6 +109,13 @@ impl Ssa {
 }
 
 impl Context {
+    fn new() -> Context {
+        let mut acir_context = AcirContext::default();
+        let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
+
+        Context { ssa_values: HashMap::new(), current_side_effects_enabled_var, acir_context }
+    }
+
     /// Converts SSA into ACIR
     fn convert_ssa(self, ssa: Ssa, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
         let main_func = ssa.main();
@@ -266,7 +272,8 @@ impl Context {
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
-                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var,code, inputs, outputs);
+                                let output_values = self.acir_context.brillig(Some(self.current_side_effects_enabled_var), code, inputs, outputs);
+
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
 
@@ -318,7 +325,7 @@ impl Context {
             }
             Instruction::EnableSideEffects { condition } => {
                 let acir_var = self.convert_numeric_value(*condition, dfg);
-                self.current_side_effects_enabled_var = Some(acir_var);
+                self.current_side_effects_enabled_var = acir_var;
             }
             Instruction::ArrayGet { array, index } => {
                 self.handle_array_operation(instruction_id, *array, *index, None, dfg);
@@ -375,12 +382,10 @@ impl Context {
             .expect("Expected array index to fit into a u64") as usize;
 
         if index >= array.len() {
-            if let Some(var) = self.current_side_effects_enabled_var {
-                // Ignore the error if side effects are disabled.
-                if self.acir_context.is_constant_one(&var) {
-                    // TODO: Can we save a source Location for this error?
-                    panic!("Index {} is out of bounds for array of length {}", index, array.len());
-                }
+            // Ignore the error if side effects are disabled.
+            if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
+                // TODO: Can we save a source Location for this error?
+                panic!("Index {} is out of bounds for array of length {}", index, array.len());
             }
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
             let value = self.create_default_value(&result_type);
@@ -865,7 +870,7 @@ mod tests {
 
         let ssa = builder.finish();
 
-        let context = Context::default();
+        let context = Context::new();
         let acir = context.convert_ssa(ssa, Brillig::default(), false);
 
         let expected_opcodes =
