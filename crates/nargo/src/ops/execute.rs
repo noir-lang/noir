@@ -2,6 +2,7 @@ use acvm::acir::brillig_vm::{ForeignCallResult, Value};
 use acvm::pwg::{ACVMStatus, ForeignCallWaitInfo, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use iter_extended::vecmap;
 
 use crate::NargoError;
 
@@ -60,12 +61,12 @@ fn execute_foreign_call(foreign_call: &ForeignCallWaitInfo) -> ForeignCallResult
         "get_number_sequence" => {
             let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
 
-            vecmap(0..sequence_length, |i| Value::from(i)).into()
+            vecmap(0..sequence_length, Value::from).into()
         }
         "get_reverse_number_sequence" => {
             let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
 
-            vecmap(0..sequence_length).rev(), |i| Value::from(i)).into()
+            vecmap((0..sequence_length).rev(), Value::from).into()
         }
         _ => panic!("unexpected foreign call type"),
     }
