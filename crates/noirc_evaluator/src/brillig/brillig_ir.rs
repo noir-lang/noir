@@ -146,7 +146,10 @@ impl BrilligContext {
             ReservedRegisters::stack_pointer(),
             size_register,
             ReservedRegisters::stack_pointer(),
-            BinaryIntOp::Add,
+            BrilligBinaryOp::Integer {
+                op: BinaryIntOp::Add,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
         );
         self.push_opcode(BrilligOpcode::BinaryIntOp {
             destination: ReservedRegisters::stack_pointer(),

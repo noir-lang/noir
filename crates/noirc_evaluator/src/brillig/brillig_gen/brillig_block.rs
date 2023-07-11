@@ -1,5 +1,5 @@
 use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+    BrilligBinaryOp, BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 use crate::ssa_refactor::ir::function::FunctionId;
 use crate::ssa_refactor::ir::instruction::Intrinsic;
@@ -216,20 +216,15 @@ impl<'block> BrilligBlock<'block> {
                     );
 
                     for output_register in output_registers {
-                        match output_register {
-                            // The array size register is only set once an external call is resolved, thus
-                            // allocation of the dynamic sized array should happen after the external call.
-                            RegisterOrMemory::HeapVector(HeapVector { size, .. }) => {
-                                // Update the stack pointer so that we do not overwrite
-                                // dynamic memory returned from other external calls
-                                self.brillig_context.update_stack_pointer(size);
-                            }
-                            // Single values and allocation of fixed sized arrays has already been handled
-                            // inside of `allocate_external_call_result`
-                            RegisterOrMemory::RegisterIndex(_) | RegisterOrMemory::HeapArray(_) => {
-                                ()
-                            }
+                        if let RegisterOrMemory::HeapVector(HeapVector { size, .. }) =
+                            output_register
+                        {
+                            // Update the stack pointer so that we do not overwrite
+                            // dynamic memory returned from other external calls
+                            self.brillig_context.update_stack_pointer(size);
                         }
+                        // Single values and allocation of fixed sized arrays has already been handled
+                        // inside of `allocate_external_call_result`
                     }
                 }
                 Value::Function(func_id) => {
