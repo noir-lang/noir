@@ -25,6 +25,7 @@ using RootRollupPublicInputs = abis::RootRollupPublicInputs<NT>;
 
 using Aggregator = aztec3::circuits::recursion::Aggregator;
 
-using MerkleTree = stdlib::merkle_tree::MemoryTree;
+using MemoryStore = stdlib::merkle_tree::MemoryStore;
+using MerkleTree = stdlib::merkle_tree::MerkleTree<MemoryStore>;
 
 }  // namespace aztec3::circuits::rollup::native_root_rollup

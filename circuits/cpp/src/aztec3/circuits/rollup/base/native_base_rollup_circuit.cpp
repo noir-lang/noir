@@ -24,7 +24,8 @@ namespace aztec3::circuits::rollup::native_base_rollup {
 
 NT::fr calculate_empty_tree_root(const size_t depth)
 {
-    MerkleTree const empty_tree = MerkleTree(depth);
+    MemoryStore empty_tree_store;
+    MerkleTree const empty_tree = MerkleTree(empty_tree_store, depth);
     return empty_tree.root();
 }
 
@@ -84,7 +85,9 @@ std::vector<NT::fr> calculate_contract_leaves(BaseRollupInputs const& baseRollup
 
 NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
 {
-    MerkleTree contracts_tree = MerkleTree(CONTRACT_SUBTREE_HEIGHT);
+    MemoryStore contracts_tree_store;
+    MerkleTree contracts_tree(contracts_tree_store, CONTRACT_SUBTREE_HEIGHT);
+
 
     // Compute the merkle root of a contract subtree
     // Contracts subtree
@@ -96,7 +99,9 @@ NT::fr calculate_contract_subtree(std::vector<NT::fr> contract_leaves)
 
 NT::fr calculate_commitments_subtree(DummyBuilder& builder, BaseRollupInputs const& baseRollupInputs)
 {
-    MerkleTree commitments_tree = MerkleTree(PRIVATE_DATA_SUBTREE_HEIGHT);
+    MemoryStore commitments_tree_store;
+    MerkleTree commitments_tree(commitments_tree_store, PRIVATE_DATA_SUBTREE_HEIGHT);
+
 
     for (size_t i = 0; i < 2; i++) {
         auto new_commitments = baseRollupInputs.kernel_data[i].public_inputs.end.new_commitments;
@@ -191,7 +196,8 @@ NT::fr create_nullifier_subtree(
     std::array<NullifierLeafPreimage, MAX_NEW_NULLIFIERS_PER_TX * 2> const& nullifier_leaves)
 {
     // Build a merkle tree of the nullifiers
-    MerkleTree nullifier_subtree = MerkleTree(NULLIFIER_SUBTREE_HEIGHT);
+    MemoryStore nullifier_subtree_store;
+    MerkleTree nullifier_subtree(nullifier_subtree_store, NULLIFIER_SUBTREE_HEIGHT);
     for (size_t i = 0; i < nullifier_leaves.size(); i++) {
         // hash() checks if nullifier is empty (and if so returns 0)
         nullifier_subtree.update_element(i, nullifier_leaves[i].hash());

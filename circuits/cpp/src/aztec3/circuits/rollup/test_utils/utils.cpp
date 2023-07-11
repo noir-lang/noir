@@ -30,11 +30,10 @@ using KernelData = aztec3::circuits::abis::PreviousKernelData<NT>;
 
 using NullifierLeafPreimage = aztec3::circuits::abis::NullifierLeafPreimage<NT>;
 
-using MerkleTree = stdlib::merkle_tree::MemoryTree;
+using MemoryStore = stdlib::merkle_tree::MemoryStore;
+using MerkleTree = stdlib::merkle_tree::MerkleTree<MemoryStore>;
 using NullifierTree = stdlib::merkle_tree::NullifierMemoryTree;
 using NullifierLeaf = stdlib::merkle_tree::nullifier_leaf;
-using MemoryStore = stdlib::merkle_tree::MemoryStore;
-using SparseTree = stdlib::merkle_tree::MerkleTree<MemoryStore>;
 
 using aztec3::circuits::abis::MembershipWitness;
 using MergeRollupInputs = aztec3::circuits::abis::MergeRollupInputs<NT>;
@@ -78,19 +77,26 @@ std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> get_empty_l1_to_l2_messages(
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
                                                  MerkleTree& private_data_tree,
                                                  MerkleTree& contract_tree,
-                                                 SparseTree& public_data_tree,
+                                                 MerkleTree& public_data_tree,
                                                  MerkleTree& l1_to_l2_msg_tree)
 {
     // @todo Look at the starting points for all of these.
     // By supporting as inputs we can make very generic tests, where it is trivial to try new setups.
-    MerkleTree historic_private_data_tree = MerkleTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
-    MerkleTree historic_contract_tree = MerkleTree(CONTRACT_TREE_ROOTS_TREE_HEIGHT);
-    MerkleTree historic_l1_to_l2_msg_tree = MerkleTree(L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
+    MemoryStore historic_data_tree_store;
+    MerkleTree historic_private_data_tree = MerkleTree(historic_data_tree_store, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
+
+    MemoryStore historic_contract_tree_store;
+    MerkleTree historic_contract_tree = MerkleTree(historic_contract_tree_store, CONTRACT_TREE_ROOTS_TREE_HEIGHT);
+
+    MemoryStore historic_l1_to_l2_msg_tree_store;
+    MerkleTree historic_l1_to_l2_msg_tree =
+        MerkleTree(historic_l1_to_l2_msg_tree_store, L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
 
     // Historic trees are initialised with an empty root at position 0.
     historic_private_data_tree.update_element(0, private_data_tree.root());
     historic_contract_tree.update_element(0, contract_tree.root());
-    historic_l1_to_l2_msg_tree.update_element(0, MerkleTree(L1_TO_L2_MSG_TREE_HEIGHT).root());
+    MemoryStore tmp_store;
+    historic_l1_to_l2_msg_tree.update_element(0, MerkleTree(tmp_store, L1_TO_L2_MSG_TREE_HEIGHT).root());
 
     ConstantRollupData const constantRollupData = {
         .start_tree_of_historic_private_data_tree_roots_snapshot = {
@@ -232,12 +238,15 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
 
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data)
 {
-    MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
-    MerkleTree contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
-    MerkleTree l1_to_l2_messages_tree = MerkleTree(L1_TO_L2_MSG_TREE_HEIGHT);
+    MemoryStore private_data_store;
+    MerkleTree private_data_tree = MerkleTree(private_data_store, PRIVATE_DATA_TREE_HEIGHT);
+    MemoryStore contract_tree_store;
+    MerkleTree contract_tree = MerkleTree(contract_tree_store, CONTRACT_TREE_HEIGHT);
+    MemoryStore l1_to_l2_messages_store;
+    MerkleTree l1_to_l2_messages_tree = MerkleTree(l1_to_l2_messages_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
     MemoryStore public_data_tree_store;
-    SparseTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
+    MerkleTree public_data_tree(public_data_tree_store, PUBLIC_DATA_TREE_HEIGHT);
 
     return base_rollup_inputs_from_kernels(
         std::move(kernel_data), private_data_tree, contract_tree, public_data_tree, l1_to_l2_messages_tree);
@@ -252,8 +261,10 @@ std::array<PreviousRollupData<NT>, 2> get_previous_rollup_data(DummyBuilder& bui
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, base_rollup_input_1);
 
     // Build the trees based on inputs in base_rollup_input_1.
-    MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
-    MerkleTree contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
+    MemoryStore private_data_store;
+    MerkleTree private_data_tree = MerkleTree(private_data_store, PRIVATE_DATA_TREE_HEIGHT);
+    MemoryStore contract_tree_store;
+    MerkleTree contract_tree = MerkleTree(contract_tree_store, CONTRACT_TREE_HEIGHT);
     std::vector<fr> initial_values(2 * MAX_NEW_NULLIFIERS_PER_TX - 1);
 
     for (size_t i = 0; i < initial_values.size(); i++) {
@@ -321,13 +332,25 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
                                         std::array<KernelData, 4> kernel_data,
                                         std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> l1_to_l2_messages)
 {
-    MerkleTree historic_private_data_tree = MerkleTree(PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
-    MerkleTree historic_contract_tree = MerkleTree(CONTRACT_TREE_ROOTS_TREE_HEIGHT);
-    MerkleTree historic_l1_to_l2_msg_tree = MerkleTree(L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
+    MemoryStore historic_private_data_store;
+    MerkleTree historic_private_data_tree(historic_private_data_store, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
 
-    MerkleTree const private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
-    MerkleTree const contract_tree = MerkleTree(CONTRACT_TREE_HEIGHT);
-    MerkleTree l1_to_l2_msg_tree = MerkleTree(L1_TO_L2_MSG_TREE_HEIGHT);
+    MemoryStore historic_contract_tree_store;
+    MerkleTree historic_contract_tree(historic_contract_tree_store, CONTRACT_TREE_ROOTS_TREE_HEIGHT);
+
+    MemoryStore historic_l1_to_l2_msg_tree_store;
+    MerkleTree historic_l1_to_l2_msg_tree(historic_l1_to_l2_msg_tree_store, L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
+
+
+    MemoryStore private_data_store;
+    const MerkleTree private_data_tree(private_data_store, PRIVATE_DATA_TREE_HEIGHT);
+
+    MemoryStore contract_tree_store;
+    const MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
+
+    MemoryStore l1_to_l2_msg_tree_store;
+    MerkleTree l1_to_l2_msg_tree(l1_to_l2_msg_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
+
 
     // Historic trees are initialised with an empty root at position 0.
     historic_private_data_tree.update_element(0, private_data_tree.root());
@@ -430,10 +453,7 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values_explicit(
     NullifierMemoryTreeTestingHarness nullifier_tree = get_initial_nullifier_tree(initial_values);
     NullifierMemoryTreeTestingHarness reference_tree = get_initial_nullifier_tree(initial_values);
 
-    AppendOnlyTreeSnapshot const nullifier_tree_start_snapshot = {
-        .root = nullifier_tree.root(),
-        .next_available_leaf_index = static_cast<uint32_t>(start_tree_size),
-    };
+    AppendOnlyTreeSnapshot const nullifier_tree_start_snapshot = nullifier_tree.get_snapshot();
 
     const size_t NUMBER_OF_NULLIFIERS = MAX_NEW_NULLIFIERS_PER_TX * 2;
     std::array<NullifierLeafPreimage, NUMBER_OF_NULLIFIERS> new_nullifier_leaves{};
@@ -488,10 +508,7 @@ nullifier_tree_testing_values generate_nullifier_tree_testing_values_explicit(
 
     // Get expected root with subtrees inserted correctly
     // Expected end state
-    AppendOnlyTreeSnapshot const nullifier_tree_end_snapshot = {
-        .root = reference_tree.root(),
-        .next_available_leaf_index = uint32_t(reference_tree.size()),
-    };
+    AppendOnlyTreeSnapshot const nullifier_tree_end_snapshot = reference_tree.get_snapshot();
 
     std::vector<fr> sibling_path = reference_tree.get_sibling_path(start_tree_size);
     std::array<fr, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH> sibling_path_array;

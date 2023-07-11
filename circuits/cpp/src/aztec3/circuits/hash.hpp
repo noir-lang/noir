@@ -18,7 +18,8 @@ using abis::FunctionData;
 using abis::Point;
 using aztec3::circuits::abis::ContractLeafPreimage;
 using aztec3::circuits::abis::FunctionLeafPreimage;
-using MerkleTree = stdlib::merkle_tree::MemoryTree;
+using MemoryStore = stdlib::merkle_tree::MemoryStore;
+using MerkleTree = stdlib::merkle_tree::MerkleTree<MemoryStore>;
 
 template <typename NCT> typename NCT::fr compute_var_args_hash(std::vector<typename NCT::fr> args)
 {
