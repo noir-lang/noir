@@ -68,7 +68,7 @@ pub(crate) fn run<B: Backend>(
             try_vecmap(contracts, |contract| {
                 let preprocessed_contract_functions =
                     try_vecmap(contract.functions, |mut func| {
-                        func.bytecode = optimize_circuit(backend, func.bytecode).unwrap();
+                        func.bytecode = optimize_circuit(backend, func.bytecode)?;
 
                         common_reference_string = update_common_reference_string(
                             backend,
