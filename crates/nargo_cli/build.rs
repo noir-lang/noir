@@ -108,12 +108,6 @@ fn prove_and_verify_{test_sub_dir}_{test_name}() {{
     }} else {{
         cmd.assert().success();
     }}
-
-    // if {should_fail} {{
-    //     assert!(!r, "{test_name} should not succeed");
-    // }} else {{
-    //     assert!(r, "verification fail for {test_name}");
-    // }}
 }}
             "#,
             test_dir = test_dir.display(),
