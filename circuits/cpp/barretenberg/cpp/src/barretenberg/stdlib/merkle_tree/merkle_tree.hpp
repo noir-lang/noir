@@ -21,6 +21,8 @@ template <typename Store> class MerkleTree {
 
     fr_hash_path get_hash_path(index_t index);
 
+    fr_sibling_path get_sibling_path(index_t index);
+
     fr update_element(index_t index, fr const& value);
 
     fr root() const;

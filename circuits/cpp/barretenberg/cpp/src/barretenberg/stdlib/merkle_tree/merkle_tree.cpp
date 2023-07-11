@@ -14,6 +14,10 @@ namespace merkle_tree {
 
 using namespace barretenberg;
 
+// Size of merkle tree nodes in bytes.
+constexpr size_t REGULAR_NODE_SIZE = 64;
+constexpr size_t STUMP_NODE_SIZE = 65;
+
 template <typename T> inline bool bit_set(T const& index, size_t i)
 {
     return bool((index >> i) & 0x1);
@@ -76,7 +80,7 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
             continue;
         }
 
-        if (data.size() == 64) {
+        if (data.size() == REGULAR_NODE_SIZE) {
             // This is a regular node with left and right trees. Descend according to index path.
             auto left = from_buffer<fr>(data, 0);
             auto right = from_buffer<fr>(data, 32);
@@ -87,7 +91,7 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
         } else {
             // This is a stump. The hash path can be fully restored from this node.
             // In case of a stump, we store: [key : (value, local_index, true)], i.e. 65-byte data.
-            ASSERT(data.size() == 65);
+            ASSERT(data.size() == STUMP_NODE_SIZE);
             fr current = from_buffer<fr>(data, 0);
             index_t element_index = from_buffer<index_t>(data, 32);
             index_t subtree_index = numeric::keep_n_lsb(index, i + 1);
@@ -106,8 +110,8 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
                     current = hash_pair_native(path[j].first, path[j].second);
                 }
             } else {
-                // Requesting path to a different, indepenent element.
-                // We know that this element exits in an empty subtree, of height determined by the common bits in the
+                // Requesting path to a different, independent element.
+                // We know that this element exists in an empty subtree, of height determined by the common bits in the
                 // stumps index and the requested index.
                 size_t common_bits = numeric::count_leading_zeros(diff);
                 size_t common_height = sizeof(index_t) * 8 - common_bits - 1;
@@ -125,6 +129,65 @@ template <typename Store> fr_hash_path MerkleTree<Store>::get_hash_path(index_t 
                     }
                     current = hash_pair_native(path[j].first, path[j].second);
                 }
+            }
+            break;
+        }
+    }
+
+    return path;
+}
+
+template <typename Store> fr_sibling_path MerkleTree<Store>::get_sibling_path(index_t index)
+{
+    fr_sibling_path path(depth_);
+
+    std::vector<uint8_t> data;
+    bool status = store_.get(root().to_buffer(), data);
+
+    for (size_t i = depth_ - 1; i < depth_; --i) {
+        if (!status) {
+            // This is an empty subtree. Fill in zero value.
+            path[i] = zero_hashes_[i];
+            continue;
+        }
+
+        if (data.size() == REGULAR_NODE_SIZE) {
+            // This is a regular node with left and right trees. Descend according to index path.
+            bool is_right = bit_set(index, i);
+            path[i] = from_buffer<fr>(data, is_right ? 0 : 32);
+
+            auto it = data.data() + (is_right ? 32 : 0);
+            status = store_.get(std::vector<uint8_t>(it, it + 32), data);
+        } else {
+            // This is a stump. The sibling path can be fully restored from this node.
+            // In case of a stump, we store: [key : (value, local_index, true)], i.e. 65-byte data.
+            ASSERT(data.size() == STUMP_NODE_SIZE);
+            fr current = from_buffer<fr>(data, 0);
+            index_t element_index = from_buffer<index_t>(data, 32);
+            index_t subtree_index = numeric::keep_n_lsb(index, i + 1);
+            index_t diff = element_index ^ subtree_index;
+
+            // Populate the sibling path with zero hashes.
+            for (size_t j = 0; j <= i; ++j) {
+                path[j] = zero_hashes_[j];
+            }
+
+            // If diff == 0, we are requesting the sibling path of the only non-zero element in the stump which is
+            // populated only with zero hashes.
+            if (diff == 1) {
+                // Requesting path of the sibling of the non-zero leaf in the stump.
+                // Set the bottom element of the path to the non-zero leaf (the rest is already populated correctly
+                // with zero hashes).
+                path[0] = current;
+            } else if (diff > 1) {
+                // Requesting path to a different, independent element.
+                // We know that this element exists in an empty subtree, of height determined by the common bits in the
+                // stumps index and the requested index.
+                size_t common_bits = numeric::count_leading_zeros(diff);
+                size_t common_height = sizeof(index_t) * 8 - common_bits - 1;
+
+                // Insert the only non-zero sibling at the common height.
+                path[common_height] = compute_zero_path_hash(common_height, element_index, current);
             }
             break;
         }
@@ -206,7 +269,7 @@ fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t in
         return key;
     }
 
-    if (data.size() == 65) {
+    if (data.size() == STUMP_NODE_SIZE) {
         // We've come across a stump.
         index_t existing_index = from_buffer<index_t>(data, 32);
 
@@ -224,7 +287,7 @@ fr MerkleTree<Store>::update_element(fr const& root, fr const& value, index_t in
         return fork_stump(existing_value, existing_index, value, index, height, common_height);
     } else {
         // If its not a stump, the data size must be 64 bytes.
-        ASSERT(data.size() == 64);
+        ASSERT(data.size() == REGULAR_NODE_SIZE);
         bool is_right = bit_set(index, height - 1);
         fr subtree_root = from_buffer<fr>(data, is_right ? 32 : 0);
         fr subtree_root_copy = subtree_root;

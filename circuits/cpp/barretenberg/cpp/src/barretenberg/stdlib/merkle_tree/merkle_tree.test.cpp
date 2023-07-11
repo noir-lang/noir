@@ -105,6 +105,28 @@ TEST(stdlib_merkle_tree, test_get_hash_path)
     EXPECT_EQ(db.get_hash_path(512), memdb.get_hash_path(512));
 }
 
+TEST(stdlib_merkle_tree, test_get_sibling_path)
+{
+    MemoryTree memdb(10);
+
+    MemoryStore store;
+    auto db = MerkleTree(store, 10);
+
+    EXPECT_EQ(memdb.get_sibling_path(512), db.get_sibling_path(512));
+
+    memdb.update_element(512, VALUES[512]);
+    db.update_element(512, VALUES[512]);
+
+    EXPECT_EQ(db.get_sibling_path(512), memdb.get_sibling_path(512));
+
+    for (size_t i = 0; i < 1024; ++i) {
+        memdb.update_element(i, VALUES[i]);
+        db.update_element(i, VALUES[i]);
+    }
+
+    EXPECT_EQ(db.get_sibling_path(512), memdb.get_sibling_path(512));
+}
+
 TEST(stdlib_merkle_tree, test_get_hash_path_layers)
 {
     {
@@ -127,6 +149,35 @@ TEST(stdlib_merkle_tree, test_get_hash_path_layers)
         auto before = db.get_hash_path(7);
         db.update_element(0x0, VALUES[1]);
         auto after = db.get_hash_path(7);
+
+        EXPECT_EQ(before[0], after[0]);
+        EXPECT_EQ(before[1], after[1]);
+        EXPECT_NE(before[2], after[2]);
+    }
+}
+
+TEST(stdlib_merkle_tree, test_get_sibling_path_layers)
+{
+    {
+        MemoryStore store;
+        auto db = MerkleTree(store, 3);
+
+        auto before = db.get_sibling_path(1);
+        db.update_element(0, VALUES[1]);
+        auto after = db.get_sibling_path(1);
+
+        EXPECT_NE(before[0], after[0]);
+        EXPECT_EQ(before[1], after[1]);
+        EXPECT_EQ(before[2], after[2]);
+    }
+
+    {
+        MemoryStore store;
+        auto db = MerkleTree(store, 3);
+
+        auto before = db.get_sibling_path(7);
+        db.update_element(0x0, VALUES[1]);
+        auto after = db.get_sibling_path(7);
 
         EXPECT_EQ(before[0], after[0]);
         EXPECT_EQ(before[1], after[1]);
