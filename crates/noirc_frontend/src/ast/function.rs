@@ -23,6 +23,7 @@ pub enum FunctionKind {
     LowLevel,
     Builtin,
     Normal,
+    Oracle,
 }
 
 impl NoirFunction {
@@ -34,6 +35,9 @@ impl NoirFunction {
     }
     pub fn low_level(def: FunctionDefinition) -> NoirFunction {
         NoirFunction { kind: FunctionKind::LowLevel, def }
+    }
+    pub fn oracle(def: FunctionDefinition) -> NoirFunction {
+        NoirFunction { kind: FunctionKind::Oracle, def }
     }
 
     pub fn return_type(&self) -> UnresolvedType {
@@ -76,8 +80,8 @@ impl From<FunctionDefinition> for NoirFunction {
         let kind = match fd.attribute {
             Some(Attribute::Builtin(_)) => FunctionKind::Builtin,
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
-            Some(Attribute::Alternative(_)) => FunctionKind::Normal,
             Some(Attribute::Test) => FunctionKind::Normal,
+            Some(Attribute::Oracle(_)) => FunctionKind::Oracle,
             None => FunctionKind::Normal,
         };
 

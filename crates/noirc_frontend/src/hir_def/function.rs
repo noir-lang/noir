@@ -121,9 +121,14 @@ pub struct FuncMeta {
     /// Attribute per function.
     pub attributes: Option<Attribute>,
 
-    /// This function's visibility in its contract.
+    /// This function's type in its contract.
     /// If this function is not in a contract, this is always 'Secret'.
     pub contract_function_type: Option<ContractFunctionType>,
+
+    /// This function's visibility.
+    /// If this function is internal can only be called by itself.
+    /// Will be None if not in contract.
+    pub is_internal: Option<bool>,
 
     pub is_unconstrained: bool,
 
@@ -144,13 +149,13 @@ pub struct FuncMeta {
 }
 
 impl FuncMeta {
-    /// Builtin and LowLevel functions usually have the return type
+    /// Builtin, LowLevel and Oracle functions usually have the return type
     /// declared, however their function bodies will be empty
     /// So this method tells the type checker to ignore the return
     /// of the empty function, which is unit
     pub fn can_ignore_return_type(&self) -> bool {
         match self.kind {
-            FunctionKind::LowLevel | FunctionKind::Builtin => true,
+            FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
             FunctionKind::Normal => false,
         }
     }

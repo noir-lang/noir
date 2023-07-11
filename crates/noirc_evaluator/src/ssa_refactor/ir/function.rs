@@ -1,7 +1,19 @@
+use std::collections::HashSet;
+
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
+use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
+use super::value::ValueId;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub(crate) enum RuntimeType {
+    // A noir function, to be compiled in ACIR and executed by ACVM
+    Acir,
+    // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
+    Brillig,
+}
 
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
@@ -10,7 +22,7 @@ use super::types::Type;
 /// To reference external functions its FunctionId can be used but this
 /// cannot be checked for correctness until inlining is performed.
 #[derive(Debug)]
-pub struct Function {
+pub(crate) struct Function {
     /// The first basic block in the function
     entry_block: BasicBlockId,
 
@@ -18,6 +30,8 @@ pub struct Function {
     name: String,
 
     id: FunctionId,
+
+    runtime: RuntimeType,
 
     /// The DataFlowGraph holds the majority of data pertaining to the function
     /// including its blocks, instructions, and values.
@@ -27,11 +41,11 @@ pub struct Function {
 impl Function {
     /// Creates a new function with an automatically inserted entry block.
     ///
-    /// Note that any parameters to the function must be manually added later.
+    /// Note that any parameters or attributes of the function must be manually added later.
     pub(crate) fn new(name: String, id: FunctionId) -> Self {
         let mut dfg = DataFlowGraph::default();
         let entry_block = dfg.make_block();
-        Self { name, id, entry_block, dfg }
+        Self { name, id, entry_block, dfg, runtime: RuntimeType::Acir }
     }
 
     /// The name of the function.
@@ -45,6 +59,16 @@ impl Function {
         self.id
     }
 
+    /// Runtime type of the function.
+    pub(crate) fn runtime(&self) -> RuntimeType {
+        self.runtime
+    }
+
+    /// Set runtime type of the function.
+    pub(crate) fn set_runtime(&mut self, runtime: RuntimeType) {
+        self.runtime = runtime;
+    }
+
     /// Retrieves the entry block of a function.
     ///
     /// A function's entry block contains the instructions
@@ -53,6 +77,53 @@ impl Function {
     /// entry block's parameters.
     pub(crate) fn entry_block(&self) -> BasicBlockId {
         self.entry_block
+    }
+
+    /// Returns the parameters of this function.
+    /// The parameters will always match that of this function's entry block.
+    pub(crate) fn parameters(&self) -> &[ValueId] {
+        self.dfg.block_parameters(self.entry_block)
+    }
+
+    /// Returns the return types of this function.
+    pub(crate) fn returns(&self) -> &[ValueId] {
+        let blocks = self.reachable_blocks();
+        let mut function_return_values = None;
+        for block in blocks {
+            let terminator = self.dfg[block].terminator();
+            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
+                function_return_values = Some(return_values);
+                break;
+            }
+        }
+        function_return_values
+            .expect("Expected a return instruction, as function construction is finished")
+    }
+
+    /// Collects all the reachable blocks of this function.
+    ///
+    /// Note that self.dfg.basic_blocks_iter() iterates over all blocks,
+    /// whether reachable or not. This function should be used if you
+    /// want to iterate only reachable blocks.
+    pub(crate) fn reachable_blocks(&self) -> HashSet<BasicBlockId> {
+        let mut blocks = HashSet::new();
+        let mut stack = vec![self.entry_block];
+
+        while let Some(block) = stack.pop() {
+            if blocks.insert(block) {
+                stack.extend(self.dfg[block].successors());
+            }
+        }
+        blocks
+    }
+}
+
+impl std::fmt::Display for RuntimeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RuntimeType::Acir => write!(f, "acir"),
+            RuntimeType::Brillig => write!(f, "brillig"),
+        }
     }
 }
 

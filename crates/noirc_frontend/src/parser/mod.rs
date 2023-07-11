@@ -7,6 +7,7 @@
 //! This file is mostly helper functions and types for the parser. For the parser itself,
 //! see parser.rs. The definition of the abstract syntax tree can be found in the `ast` folder.
 mod errors;
+mod labels;
 #[allow(clippy::module_inception)]
 mod parser;
 
@@ -17,13 +18,14 @@ use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
     BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
     MethodCallExpression, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
-    UnresolvedType,
+    UnresolvedType, UseTree,
 };
 
 use acvm::FieldElement;
 use chumsky::prelude::*;
 use chumsky::primitive::Container;
 pub use errors::ParserError;
+pub use errors::ParserErrorReason;
 use noirc_errors::Span;
 pub use parser::parse_program;
 
@@ -36,7 +38,7 @@ static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
 pub(crate) enum TopLevelStatement {
     Function(NoirFunction),
     Module(Ident),
-    Import(ImportStatement),
+    Import(UseTree),
     Struct(NoirStruct),
     Impl(NoirImpl),
     SubModule(SubModule),
@@ -176,7 +178,7 @@ where
         .try_map(move |peek, span| {
             if too_far.get_iter().any(|t| t == peek) {
                 // This error will never be shown to the user
-                Err(ParserError::with_reason(String::new(), span))
+                Err(ParserError::empty(Token::EOF, span))
             } else {
                 Ok(Recoverable::error(span))
             }
@@ -250,8 +252,8 @@ impl ParsedModule {
         self.impls.push(r#impl);
     }
 
-    fn push_import(&mut self, import_stmt: ImportStatement) {
-        self.imports.push(import_stmt);
+    fn push_import(&mut self, import_stmt: UseTree) {
+        self.imports.extend(import_stmt.desugar(None));
     }
 
     fn push_module_decl(&mut self, mod_name: Ident) {
@@ -444,7 +446,7 @@ impl std::fmt::Display for TopLevelStatement {
         match self {
             TopLevelStatement::Function(fun) => fun.fmt(f),
             TopLevelStatement::Module(m) => write!(f, "mod {m}"),
-            TopLevelStatement::Import(i) => i.fmt(f),
+            TopLevelStatement::Import(tree) => write!(f, "use {tree}"),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),

@@ -4,7 +4,7 @@ use noirc_abi::{
 };
 use std::{collections::BTreeMap, path::Path};
 
-use crate::errors::CliError;
+use crate::errors::FilesystemError;
 
 use super::write_to_file;
 
@@ -20,14 +20,14 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
     file_name: &str,
     format: Format,
     abi: &Abi,
-) -> Result<(InputMap, Option<InputValue>), CliError> {
+) -> Result<(InputMap, Option<InputValue>), FilesystemError> {
     if abi.is_empty() {
         return Ok((BTreeMap::new(), None));
     }
 
     let file_path = path.as_ref().join(file_name).with_extension(format.ext());
     if !file_path.exists() {
-        return Err(CliError::MissingTomlFile(file_name.to_owned(), file_path));
+        return Err(FilesystemError::MissingTomlFile(file_name.to_owned(), file_path));
     }
 
     let input_string = std::fs::read_to_string(file_path).unwrap();
@@ -40,10 +40,11 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
 pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
     input_map: &InputMap,
     return_value: &Option<InputValue>,
+    abi: &Abi,
     path: P,
     file_name: &str,
     format: Format,
-) -> Result<(), CliError> {
+) -> Result<(), FilesystemError> {
     let file_path = path.as_ref().join(file_name).with_extension(format.ext());
 
     // We must insert the return value into the `InputMap` in order for it to be written to file.
@@ -53,10 +54,10 @@ pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
         Some(return_value) => {
             let mut input_map = input_map.clone();
             input_map.insert(MAIN_RETURN_NAME.to_owned(), return_value.clone());
-            format.serialize(&input_map)?
+            format.serialize(&input_map, abi)?
         }
         // If no return value exists, then we can serialize the original map directly.
-        None => format.serialize(input_map)?,
+        None => format.serialize(input_map, abi)?,
     };
 
     write_to_file(serialized_output.as_bytes(), &file_path);
@@ -113,6 +114,7 @@ mod tests {
         write_inputs_to_file(
             &input_map,
             &return_value,
+            &abi,
             &input_dir,
             VERIFIER_INPUT_FILE,
             Format::Toml,

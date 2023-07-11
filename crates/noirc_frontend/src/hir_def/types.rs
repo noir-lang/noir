@@ -1,11 +1,12 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap},
     rc::Rc,
 };
 
 use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
-use iter_extended::{btree_map, vecmap};
+use iter_extended::vecmap;
 use noirc_abi::AbiType;
 use noirc_errors::Span;
 
@@ -19,6 +20,9 @@ pub enum Type {
     /// Array(N, E) is an array of N elements of type E. It is expected that N
     /// is either a type variable of some kind or a Type::Constant.
     Array(Box<Type>, Box<Type>),
+
+    /// Slice(E) is a slice with elements of type E.
+    Slice(Box<Type>),
 
     /// A primitive integer type with the given sign, bit count, and whether it is known at compile-time.
     /// E.g. `u32` would be `Integer(CompTime::No(None), Unsigned, 32)`
@@ -70,10 +74,8 @@ pub enum Type {
     /// A functions with arguments, and a return type.
     Function(Vec<Type>, Box<Type>),
 
-    /// A variable-sized Vector type.
-    /// Unlike arrays, this type can have a dynamic size and can grow/shrink dynamically via .push,
-    /// .pop, and similar methods.
-    Vec(Box<Type>),
+    /// &mut T
+    MutableReference(Box<Type>),
 
     /// A type generic over the given type variables.
     /// Storing both the TypeVariableId and TypeVariable isn't necessary
@@ -112,7 +114,7 @@ pub struct StructType {
     /// Fields are ordered and private, they should only
     /// be accessed through get_field(), get_fields(), or instantiate()
     /// since these will handle applying generic arguments to fields as well.
-    fields: BTreeMap<Ident, Type>,
+    fields: Vec<(Ident, Type)>,
 
     pub generics: Generics,
     pub span: Span,
@@ -141,7 +143,7 @@ impl StructType {
         id: StructId,
         name: Ident,
         span: Span,
-        fields: BTreeMap<Ident, Type>,
+        fields: Vec<(Ident, Type)>,
         generics: Generics,
     ) -> StructType {
         StructType { id, fields, name, span, generics }
@@ -151,7 +153,7 @@ impl StructType {
     /// fields are resolved strictly after the struct itself is initially
     /// created. Therefore, this method is used to set the fields once they
     /// become known.
-    pub fn set_fields(&mut self, fields: BTreeMap<Ident, Type>) {
+    pub fn set_fields(&mut self, fields: Vec<(Ident, Type)>) {
         assert!(self.fields.is_empty());
         self.fields = fields;
     }
@@ -179,7 +181,7 @@ impl StructType {
     }
 
     /// Returns all the fields of this type, after being applied to the given generic arguments.
-    pub fn get_fields(&self, generic_args: &[Type]) -> BTreeMap<String, Type> {
+    pub fn get_fields(&self, generic_args: &[Type]) -> Vec<(String, Type)> {
         assert_eq!(self.generics.len(), generic_args.len());
 
         let substitutions = self
@@ -189,17 +191,14 @@ impl StructType {
             .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
             .collect();
 
-        self.fields
-            .iter()
-            .map(|(name, typ)| {
-                let name = name.0.contents.clone();
-                (name, typ.substitute(&substitutions))
-            })
-            .collect()
+        vecmap(&self.fields, |(name, typ)| {
+            let name = name.0.contents.clone();
+            (name, typ.substitute(&substitutions))
+        })
     }
 
     pub fn field_names(&self) -> BTreeSet<Ident> {
-        self.fields.keys().cloned().collect()
+        self.fields.iter().map(|(name, _)| name.clone()).collect()
     }
 
     /// True if the given index is the same index as a generic type of this struct
@@ -526,6 +525,11 @@ impl Type {
         Type::TypeVariable(Shared::new(TypeBinding::Unbound(id)))
     }
 
+    pub fn polymorphic_integer(interner: &mut NodeInterner) -> Type {
+        let id = interner.next_type_variable_id();
+        Type::PolymorphicInteger(CompTime::new(interner), Shared::new(TypeBinding::Unbound(id)))
+    }
+
     /// A bit of an awkward name for this function - this function returns
     /// true for type variables or polymorphic integers which are unbound.
     /// NamedGenerics will always be false as although they are bindable,
@@ -578,6 +582,8 @@ impl Type {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
             }
 
+            Type::Slice(elem) => elem.contains_numeric_typevar(target_id),
+
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
@@ -594,7 +600,17 @@ impl Type {
                     }
                 })
             }
-            Type::Vec(element) => element.contains_numeric_typevar(target_id),
+            Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
+        }
+    }
+
+    pub(crate) fn try_get_comptime(&self) -> Cow<CompTime> {
+        match self {
+            Type::FieldElement(comptime)
+            | Type::Integer(comptime, _, _)
+            | Type::Bool(comptime)
+            | Type::PolymorphicInteger(comptime, _) => Cow::Borrowed(comptime),
+            _ => Cow::Owned(CompTime::No(None)),
         }
     }
 }
@@ -606,6 +622,7 @@ impl std::fmt::Display for Type {
                 write!(f, "{comp_time}Field")
             }
             Type::Array(len, typ) => write!(f, "[{typ}; {len}]"),
+            Type::Slice(typ) => write!(f, "[{typ}]"),
             Type::Integer(comp_time, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{comp_time}i{num_bits}"),
                 Signedness::Unsigned => write!(f, "{comp_time}u{num_bits}"),
@@ -651,8 +668,8 @@ impl std::fmt::Display for Type {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
-            Type::Vec(element) => {
-                write!(f, "Vec<{}>", element)
+            Type::MutableReference(element) => {
+                write!(f, "&mut {element}")
             }
         }
     }
@@ -921,6 +938,8 @@ impl Type {
                 elem_a.try_unify(elem_b, span)
             }
 
+            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, span),
+
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
                     Err(SpanKind::None)
@@ -984,7 +1003,7 @@ impl Type {
                 }
             }
 
-            (Vec(elem_a), Vec(elem_b)) => elem_a.try_unify(elem_b, span),
+            (MutableReference(elem_a), MutableReference(elem_b)) => elem_a.try_unify(elem_b, span),
 
             (other_a, other_b) => {
                 if other_a == other_b {
@@ -1054,6 +1073,10 @@ impl Type {
                 elem_a.is_subtype_of(elem_b, span)
             }
 
+            (Slice(elem_a), Slice(elem_b)) => elem_a.is_subtype_of(elem_b, span),
+
+            (Array(_, elem_a), Slice(elem_b)) => elem_a.is_subtype_of(elem_b, span),
+
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
                     Err(SpanKind::None)
@@ -1117,7 +1140,21 @@ impl Type {
                 }
             }
 
-            (Vec(elem_a), Vec(elem_b)) => elem_a.is_subtype_of(elem_b, span),
+            // `T <: U  =>  &mut T <: &mut U` would be unsound(*), so mutable
+            // references are never subtypes of each other.
+            //
+            // (*) Consider:
+            // ```
+            // // Assume Dog <: Animal and Cat <: Animal
+            // let x: &mut Dog = ...;
+            //
+            // fn set_to_cat(y: &mut Animal) {
+            //     *y = Cat;
+            // }
+            //
+            // set_to_cat(x); // uh-oh: x: Dog, yet it now holds a Cat
+            // ```
+            (MutableReference(elem_a), MutableReference(elem_b)) => elem_a.try_unify(elem_b, span),
 
             (other_a, other_b) => {
                 if other_a == other_b {
@@ -1181,15 +1218,16 @@ impl Type {
             Type::Struct(def, args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                let abi_map = btree_map(fields, |(name, typ)| (name, typ.as_abi_type()));
-                AbiType::Struct { fields: abi_map }
+                let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
+                AbiType::Struct { fields }
             }
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _) => unreachable!(),
-            Type::Vec(_) => unreachable!("Vecs cannot be used in the abi"),
+            Type::Slice(_) => unreachable!("slices cannot be used in the abi"),
+            Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
         }
     }
 
@@ -1271,6 +1309,10 @@ impl Type {
                 let element = Box::new(element.substitute(type_bindings));
                 Type::Array(size, element)
             }
+            Type::Slice(element) => {
+                let element = Box::new(element.substitute(type_bindings));
+                Type::Slice(element)
+            }
             Type::String(size) => {
                 let size = Box::new(size.substitute(type_bindings));
                 Type::String(size)
@@ -1303,7 +1345,9 @@ impl Type {
                 let ret = Box::new(ret.substitute(type_bindings));
                 Type::Function(args, ret)
             }
-            Type::Vec(element) => Type::Vec(Box::new(element.substitute(type_bindings))),
+            Type::MutableReference(element) => {
+                Type::MutableReference(Box::new(element.substitute(type_bindings)))
+            }
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -1318,6 +1362,7 @@ impl Type {
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
+            Type::Slice(element) => element.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
@@ -1333,7 +1378,7 @@ impl Type {
             Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
-            Type::Vec(element) => element.occurs(target_id),
+            Type::MutableReference(element) => element.occurs(target_id),
 
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
@@ -1356,6 +1401,7 @@ impl Type {
             Array(size, elem) => {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
+            Slice(elem) => Slice(Box::new(elem.follow_bindings())),
             String(size) => String(Box::new(size.follow_bindings())),
             Struct(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
@@ -1375,7 +1421,7 @@ impl Type {
                 let ret = Box::new(ret.follow_bindings());
                 Function(args, ret)
             }
-            Vec(element) => Vec(Box::new(element.follow_bindings())),
+            MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),

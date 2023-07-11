@@ -18,7 +18,7 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
@@ -34,7 +34,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, Path, Pattern, Shared,
-    StructType, Type, TypeBinding, TypeVariable, UnresolvedGenerics, UnresolvedType,
+    StructType, Type, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics, UnresolvedType,
     UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
@@ -305,9 +305,10 @@ impl<'a> Resolver<'a> {
 
     fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
         let func_meta = self.extract_meta(&func, id);
-
         let hir_func = match func.kind {
-            FunctionKind::Builtin | FunctionKind::LowLevel => HirFunction::empty(),
+            FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
+                HirFunction::empty()
+            }
             FunctionKind::Normal => {
                 let expr_id = self.intern_block(func.def.body);
                 self.interner.push_expr_location(expr_id, func.def.span, self.file);
@@ -324,8 +325,11 @@ impl<'a> Resolver<'a> {
         match typ {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
-                let resolved_size = self.resolve_array_size(size, new_variables);
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                if self.interner.enable_slices && size.is_none() {
+                    return Type::Slice(elem);
+                }
+                let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::Array(Box::new(resolved_size), elem)
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
@@ -347,19 +351,8 @@ impl<'a> Resolver<'a> {
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
             }
-            UnresolvedType::Vec(mut args, span) => {
-                let arg = if args.len() != 1 {
-                    self.push_err(ResolverError::IncorrectGenericCount {
-                        span,
-                        struct_type: "Vec".into(),
-                        actual: args.len(),
-                        expected: 1,
-                    });
-                    Type::Error
-                } else {
-                    self.resolve_type_inner(args.remove(0), new_variables)
-                };
-                Type::Vec(Box::new(arg))
+            UnresolvedType::MutableReference(element) => {
+                Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
         }
     }
@@ -567,17 +560,13 @@ impl<'a> Resolver<'a> {
     pub fn resolve_struct_fields(
         mut self,
         unresolved: NoirStruct,
-    ) -> (Generics, BTreeMap<Ident, Type>, Vec<ResolverError>) {
+    ) -> (Generics, Vec<(Ident, Type)>, Vec<ResolverError>) {
         let generics = self.add_generics(&unresolved.generics);
 
         // Check whether the struct definition has globals in the local module and add them to the scope
         self.resolve_local_globals();
 
-        let fields = unresolved
-            .fields
-            .into_iter()
-            .map(|(ident, typ)| (ident, self.resolve_type(typ)))
-            .collect();
+        let fields = vecmap(unresolved.fields, |(ident, typ)| (ident, self.resolve_type(typ)));
 
         (generics, fields, self.errors)
     }
@@ -621,6 +610,7 @@ impl<'a> Resolver<'a> {
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
+
             parameters.push(Param(pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
@@ -662,6 +652,7 @@ impl<'a> Resolver<'a> {
             kind: func.kind,
             attributes,
             contract_function_type: self.handle_function_type(func),
+            is_internal: self.handle_is_function_internal(func),
             is_unconstrained: func.def.is_unconstrained,
             location,
             typ,
@@ -704,6 +695,19 @@ impl<'a> Resolver<'a> {
             }
         } else {
             Some(ContractFunctionType::Secret)
+        }
+    }
+
+    fn handle_is_function_internal(&mut self, func: &NoirFunction) -> Option<bool> {
+        if self.in_contract() {
+            Some(func.def.is_internal)
+        } else {
+            if func.def.is_internal {
+                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction {
+                    span: func.name_ident().span(),
+                });
+            }
+            None
         }
     }
 
@@ -761,6 +765,10 @@ impl<'a> Resolver<'a> {
                 }
             }
 
+            Type::Slice(typ) => {
+                Self::find_numeric_generics_in_type(typ, found);
+            }
+
             Type::Tuple(fields) => {
                 for field in fields {
                     Self::find_numeric_generics_in_type(field, found);
@@ -783,7 +791,7 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            Type::Vec(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
         }
     }
 
@@ -844,6 +852,10 @@ impl<'a> Resolver<'a> {
                 let index = self.resolve_expression(index);
                 HirLValue::Index { array, index, typ: Type::Error }
             }
+            LValue::Dereference(lvalue) => {
+                let lvalue = Box::new(self.resolve_lvalue(*lvalue));
+                HirLValue::Dereference { lvalue, element_type: Type::Error }
+            }
         }
     }
 
@@ -859,7 +871,7 @@ impl<'a> Resolver<'a> {
                     let span = length.span;
                     let length = UnresolvedTypeExpression::from_expr(*length, span).unwrap_or_else(
                         |error| {
-                            self.errors.push(ResolverError::ParserError(error));
+                            self.errors.push(ResolverError::ParserError(Box::new(error)));
                             UnresolvedTypeExpression::Constant(0, span)
                         },
                     );
@@ -883,6 +895,13 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Prefix(prefix) => {
                 let operator = prefix.operator;
                 let rhs = self.resolve_expression(prefix.rhs);
+
+                if operator == UnaryOp::MutableReference {
+                    if let Err(error) = verify_mutable_reference(self.interner, rhs) {
+                        self.errors.push(error);
+                    }
+                }
+
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
             ExpressionKind::Infix(infix) => {
@@ -1094,7 +1113,7 @@ impl<'a> Resolver<'a> {
     ) -> Vec<(Ident, U)> {
         let mut ret = Vec::with_capacity(fields.len());
         let mut seen_fields = HashSet::new();
-        let mut unseen_fields = self.get_field_names_of_type(&struct_type);
+        let mut unseen_fields = struct_type.borrow().field_names();
 
         for (field, expr) in fields {
             let resolved = resolve_function(self, expr);
@@ -1131,10 +1150,6 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    fn get_field_names_of_type(&self, typ: &Shared<StructType>) -> BTreeSet<Ident> {
-        typ.borrow().field_names()
-    }
-
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -1149,23 +1164,7 @@ impl<'a> Resolver<'a> {
         let span = path.span();
         let id = self.resolve_path(path)?;
 
-        if let Some(mut function) = TryFromModuleDefId::try_from(id) {
-            // Check if this is an unsupported low level opcode. If so, replace it with
-            // an alternative in the stdlib.
-            if let Some(meta) = self.interner.try_function_meta(&function) {
-                if meta.kind == crate::FunctionKind::LowLevel {
-                    let attribute = meta.attributes.expect("all low level functions must contain an attribute which contains the opcode which it links to");
-                    let opcode = attribute.foreign().expect(
-                        "ice: function marked as foreign, but attribute kind does not match this",
-                    );
-                    if !self.interner.foreign(&opcode) {
-                        if let Some(new_id) = self.interner.get_alt(opcode) {
-                            function = new_id;
-                        }
-                    }
-                }
-            }
-
+        if let Some(function) = TryFromModuleDefId::try_from(id) {
             return Ok(self.interner.function_definition_id(function));
         }
 
@@ -1266,6 +1265,31 @@ impl<'a> Resolver<'a> {
     fn in_contract(&self) -> bool {
         let module_id = self.path_resolver.module_id();
         module_id.module(self.def_maps).is_contract
+    }
+}
+
+/// Gives an error if a user tries to create a mutable reference
+/// to an immutable variable.
+pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<(), ResolverError> {
+    match interner.expression(&rhs) {
+        HirExpression::MemberAccess(member_access) => {
+            verify_mutable_reference(interner, member_access.lhs)
+        }
+        HirExpression::Index(_) => {
+            let span = interner.expr_span(&rhs);
+            Err(ResolverError::MutableReferenceToArrayElement { span })
+        }
+        HirExpression::Ident(ident) => {
+            let definition = interner.definition(ident.id);
+            if !definition.mutable {
+                let span = interner.expr_span(&rhs);
+                let variable = definition.name.clone();
+                Err(ResolverError::MutableReferenceToImmutableVariable { span, variable })
+            } else {
+                Ok(())
+            }
+        }
+        _ => Ok(()),
     }
 }
 

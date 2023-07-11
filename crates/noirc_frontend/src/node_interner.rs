@@ -1,8 +1,5 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
-use acvm::acir::circuit::opcodes::BlackBoxFuncCall;
-use acvm::acir::circuit::Opcode;
-use acvm::Language;
 use arena::{Arena, Index};
 use fm::FileId;
 use iter_extended::vecmap;
@@ -12,7 +9,6 @@ use crate::ast::Ident;
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::UnresolvedStruct;
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::type_check::TypeCheckError;
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::types::{StructType, Type};
@@ -69,19 +65,16 @@ pub struct NodeInterner {
 
     next_type_variable_id: usize,
 
-    //used for fallback mechanism
-    language: Language,
-
-    delayed_type_checks: Vec<TypeCheckFn>,
-
     /// A map from a struct type and method name to a function id for the method.
     struct_methods: HashMap<(StructId, String), FuncId>,
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
-}
 
-type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
+    /// TODO(#1850): This is technical debt that should be removed once we fully move over
+    /// to the new SSA pass which does have slices enabled
+    pub enable_slices: bool,
+}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);
@@ -258,10 +251,9 @@ impl Default for NodeInterner {
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
             globals: HashMap::new(),
-            language: Language::R1CS,
-            delayed_type_checks: vec![],
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            enable_slices: false,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -305,7 +297,7 @@ impl NodeInterner {
                 type_id,
                 typ.struct_def.name.clone(),
                 typ.struct_def.span,
-                BTreeMap::new(),
+                Vec::new(),
                 vecmap(&typ.struct_def.generics, |_| {
                     // Temporary type variable ids before the struct is resolved to its actual ids.
                     // This lets us record how many arguments the type expects so that other types
@@ -393,17 +385,6 @@ impl NodeInterner {
     /// See ModCollector for it's usage.
     pub fn push_fn_meta(&mut self, func_data: FuncMeta, func_id: FuncId) {
         self.func_meta.insert(func_id, func_data);
-    }
-
-    pub fn get_alt(&self, opcode: String) -> Option<FuncId> {
-        for (func_id, meta) in &self.func_meta {
-            if let Some(crate::token::Attribute::Alternative(name)) = &meta.attributes {
-                if *name == opcode {
-                    return Some(*func_id);
-                }
-            }
-        }
-        None
     }
 
     pub fn push_definition(
@@ -551,8 +532,7 @@ impl NodeInterner {
     }
 
     pub fn next_type_variable(&mut self) -> Type {
-        let binding = TypeBinding::Unbound(self.next_type_variable_id());
-        Type::TypeVariable(Shared::new(binding))
+        Type::type_variable(self.next_type_variable_id())
     }
 
     pub fn store_instantiation_bindings(
@@ -577,32 +557,6 @@ impl NodeInterner {
 
     pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
         self.function_definition_ids[&function]
-    }
-
-    pub fn set_language(&mut self, language: &Language) {
-        self.language = language.clone();
-    }
-
-    #[allow(deprecated)]
-    pub fn foreign(&self, opcode: &str) -> bool {
-        let is_supported = acvm::default_is_opcode_supported(self.language.clone());
-        let black_box_func = match acvm::acir::BlackBoxFunc::lookup(opcode) {
-            Some(black_box_func) => black_box_func,
-            None => return false,
-        };
-        is_supported(&Opcode::BlackBoxFuncCall(BlackBoxFuncCall {
-            name: black_box_func,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-        }))
-    }
-
-    pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
-        self.delayed_type_checks.push(f);
-    }
-
-    pub fn take_delayed_type_check_functions(&mut self) -> Vec<TypeCheckFn> {
-        std::mem::take(&mut self.delayed_type_checks)
     }
 
     /// Add a method to a type.
@@ -649,12 +603,12 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
+    Slice,
     Bool,
     String,
     Unit,
     Tuple,
     Function,
-    Vec,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -663,6 +617,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     match &typ {
         Type::FieldElement(_) => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
+        Type::Slice(_) => Some(Slice),
         Type::Integer(_, _, _) => Some(FieldOrInt),
         Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),
@@ -670,7 +625,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _) => Some(Function),
-        Type::Vec(_) => Some(Vec),
+        Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_)

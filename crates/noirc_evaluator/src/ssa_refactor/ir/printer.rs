@@ -15,7 +15,7 @@ use super::{
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
 pub(crate) fn display_function(function: &Function, f: &mut Formatter) -> Result {
-    writeln!(f, "fn {} {} {{", function.name(), function.id())?;
+    writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     display_block_with_successors(function, function.entry_block(), &mut HashSet::new(), f)?;
     write!(f, "}}")
 }
@@ -61,14 +61,20 @@ pub(crate) fn display_block(
 /// constant or a function we print those directly.
 fn value(function: &Function, id: ValueId) -> String {
     use super::value::Value;
+    let id = function.dfg.resolve(id);
     match &function.dfg[id] {
         Value::NumericConstant { constant, typ } => {
-            let value = function.dfg[*constant].value();
-            format!("{} {}", typ, value)
+            format!("{typ} {constant}")
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
-        _ => id.to_string(),
+        Value::Array { array, .. } => {
+            let elements = vecmap(array, |element| value(function, *element));
+            format!("[{}]", elements.join(", "))
+        }
+        Value::Param { .. } | Value::Instruction { .. } | Value::ForeignFunction(_) => {
+            id.to_string()
+        }
     }
 }
 
@@ -145,10 +151,25 @@ pub(crate) fn display_instruction(
         Instruction::Call { func, arguments } => {
             writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
         }
-        Instruction::Allocate { size } => writeln!(f, "alloc {size} fields"),
+        Instruction::Allocate => writeln!(f, "allocate"),
         Instruction::Load { address } => writeln!(f, "load {}", show(*address)),
         Instruction::Store { address, value } => {
             writeln!(f, "store {} at {}", show(*value), show(*address))
+        }
+        Instruction::EnableSideEffects { condition } => {
+            writeln!(f, "enable_side_effects {}", show(*condition))
+        }
+        Instruction::ArrayGet { array, index } => {
+            writeln!(f, "array_get {}, index {}", show(*array), show(*index))
+        }
+        Instruction::ArraySet { array, index, value } => {
+            writeln!(
+                f,
+                "array_set {}, index {}, value {}",
+                show(*array),
+                show(*index),
+                show(*value)
+            )
         }
     }
 }

@@ -16,7 +16,11 @@ use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
 
-use crate::{parser::ParserError, token::IntType, BinaryTypeOperator, CompTime};
+use crate::{
+    parser::{ParserError, ParserErrorReason},
+    token::IntType,
+    BinaryTypeOperator, CompTime,
+};
 use iter_extended::vecmap;
 
 /// The parser parses types as 'UnresolvedType's which
@@ -35,13 +39,8 @@ pub enum UnresolvedType {
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
-    /// A vector of some element type.
-    /// It is expected the length of the generics is 1 so the inner Vec is technically unnecessary,
-    /// but we keep them all around to verify generic count after parsing for better error messages.
-    ///
-    /// The Span here encompasses the entire type and is used to issue an error if exactly 1
-    /// generic argument is not given.
-    Vec(Vec<UnresolvedType>, Span),
+    /// &mut T
+    MutableReference(Box<UnresolvedType>),
 
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
@@ -108,10 +107,7 @@ impl std::fmt::Display for UnresolvedType {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {ret}", args.join(", "))
             }
-            Vec(args, _span) => {
-                let args = vecmap(args, ToString::to_string);
-                write!(f, "Vec<{}>", args.join(", "))
-            }
+            MutableReference(element) => write!(f, "&mut {element}"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
@@ -148,13 +144,16 @@ pub enum Signedness {
 }
 
 impl UnresolvedTypeExpression {
+    // This large error size is justified because it improves parsing speeds by around 40% in
+    // release mode. See `ParserError` definition for further explanation.
+    #[allow(clippy::result_large_err)]
     pub fn from_expr(
         expr: Expression,
         span: Span,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
-        Self::from_expr_helper(expr).map_err(|err| {
+        Self::from_expr_helper(expr).map_err(|err_expr| {
             ParserError::with_reason(
-                format!("Expression is invalid in an array-length type: '{err}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context."),
+                ParserErrorReason::InvalidArrayLengthExpression(err_expr),
                 span,
             )
         })

@@ -96,11 +96,12 @@ impl Value {
             Type::Unit
             | Type::Function(..)
             | Type::Array(..)
-            | Type::Vec(..)
+            | Type::Slice(..)
             | Type::String(..)
             | Type::Integer(..)
             | Type::Bool
-            | Type::Field => Value::Node(*iter.next().unwrap()),
+            | Type::Field
+            | Type::MutableReference(_) => Value::Node(*iter.next().unwrap()),
         }
     }
 
