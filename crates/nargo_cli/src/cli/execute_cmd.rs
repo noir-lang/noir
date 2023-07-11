@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use acvm::acir::circuit::OpcodeLabel;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::Backend;
 use clap::Args;
@@ -81,8 +82,13 @@ fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Op
     };
 
     match solving_err {
-        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { opcode_index } => {
-            Some(*opcode_index)
+        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { opcode_label } => {
+            match opcode_label {
+                OpcodeLabel::Unresolved => {
+                    unreachable!("Cannot resolve index for unsatisifed constraint")
+                }
+                OpcodeLabel::Resolved(opcode_index) => Some(*opcode_index as usize),
+            }
         }
         _ => None,
     }

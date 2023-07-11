@@ -3,7 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use acvm::acir::circuit::Opcode;
+use acvm::acir::circuit::{Opcode, OpcodeLabel};
 use acvm::compiler::CircuitSimplifier;
 use acvm::Language;
 use clap::Args;
@@ -23,6 +23,7 @@ mod contract;
 mod program;
 
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
+use iter_extended::vecmap;
 pub use program::CompiledProgram;
 
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
@@ -348,6 +349,12 @@ pub fn compile_no_check(
                 diagnostic: CustomDiagnostic::from_message("produced an acvm compile error"),
             },
         )?;
+    let opcode_ids = vecmap(opcode_ids, |id| match id {
+        OpcodeLabel::Unresolved => {
+            unreachable!("Compiled circuit opcodes must resolve to some index")
+        }
+        OpcodeLabel::Resolved(index) => index as usize,
+    });
     debug.update_acir(opcode_ids);
     Ok(CompiledProgram { circuit: optimized_circuit, debug, abi })
 }

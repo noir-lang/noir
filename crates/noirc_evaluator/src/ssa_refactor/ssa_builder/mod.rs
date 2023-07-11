@@ -213,7 +213,6 @@ impl FunctionBuilder {
         self.insert_instruction(instruction, None).first()
     }
 
-
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
     pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
