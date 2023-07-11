@@ -8,8 +8,6 @@ fn main(x: Field)  {
     // TODO(#1615) Nargo currently only supports resolving one foreign call
     // oracle_print_wrapper(x);
 
-    // let slice = get_number_sequence_wrapper(12);
-    // assert(slice.len() == 12);
     get_number_sequence_wrapper(20);
 }
 
