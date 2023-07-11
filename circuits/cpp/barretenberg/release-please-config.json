@@ -3,9 +3,6 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "prerelease": true,
-  "bootstrap-sha": "2fa0805c00d1feb0928e5eca1d922a957d79c7fc",
-  "last-release-sha": "2fa0805c00d1feb0928e5eca1d922a957d79c7fc",
-  "release-as": "0.3.0",
   "group-pull-request-title-pattern": "chore(barretenberg): Release ${version}",
     "packages": {
         ".": {
