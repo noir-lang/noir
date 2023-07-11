@@ -99,7 +99,6 @@ pub fn compile(args: JsValue) -> JsValue {
         let optimized_contracts: Vec<CompiledContract> =
             compiled_contracts.into_iter().map(|contract| optimize_contract(contract)).collect();
 
-        // TODO: optimize circuits
         <JsValue as JsValueSerdeExt>::from_serde(&optimized_contracts).unwrap()
     } else {
         let main = context.get_main_function(&crate_id).expect("Could not find main function!");
@@ -108,7 +107,6 @@ pub fn compile(args: JsValue) -> JsValue {
 
         compiled_program.circuit = optimize_circuit(compiled_program.circuit);
 
-        // TODO: optimize circuit
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
     }
 }
