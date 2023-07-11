@@ -102,7 +102,7 @@ describe('Contract Class', () => {
     const param0 = 12;
     const param1 = 345n;
     const sentTx = fooContract.methods.bar(param0, param1).send({
-      from: account,
+      origin: account,
     });
     const txHash = await sentTx.getTxHash();
     const receipt = await sentTx.getReceipt();
@@ -128,7 +128,7 @@ describe('Contract Class', () => {
     const fooContract = new Contract(contractAddress, defaultAbi, wallet);
     expect(() =>
       fooContract.methods.qux().send({
-        from: account,
+        origin: account,
       }),
     ).toThrow();
   });

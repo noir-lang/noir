@@ -14,7 +14,7 @@ export interface SendMethodOptions {
   /**
    * Sender's address initiating the transaction.
    */
-  from?: AztecAddress;
+  origin?: AztecAddress;
   /**
    * The nonce representing the order of transactions sent by the address.
    */
@@ -61,7 +61,7 @@ export class ContractFunctionInteraction {
       throw new Error("Can't call `create` on an unconstrained function.");
     }
     if (!this.txRequest) {
-      const executionRequest = this.getExecutionRequest(this.contractAddress, options.from);
+      const executionRequest = this.getExecutionRequest(this.contractAddress, options.origin);
       const nodeInfo = await this.wallet.getNodeInfo();
       const txContext = TxContext.empty(new Fr(nodeInfo.chainId), new Fr(nodeInfo.version));
       const txRequest = await this.wallet.createAuthenticatedTxRequest([executionRequest], txContext);

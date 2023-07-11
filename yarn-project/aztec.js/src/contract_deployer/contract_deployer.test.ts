@@ -43,7 +43,7 @@ describe.skip('Contract Deployer', () => {
     const sentTx = deployer.deploy(args[0], args[1]).send({
       portalContract,
       contractAddressSalt,
-      from: account,
+      origin: account,
     });
     const txHash = await sentTx.getTxHash();
     const receipt = await sentTx.getReceipt();

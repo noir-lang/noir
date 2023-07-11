@@ -206,7 +206,7 @@ async function main() {
     .argument('[functionArgs...]', 'Function arguments', [])
     .option('-u, --rpcUrl <string>', 'URL of the Aztec RPC', 'http://localhost:8080')
     .action(async (contractFile, _contractAddress, functionName, _from, _functionArgs, options) => {
-      const { contractAddress, functionArgs, from, contractAbi } = prepTx(
+      const { contractAddress, functionArgs, origin, contractAbi } = prepTx(
         contractFile,
         _contractAddress,
         functionName,
@@ -217,7 +217,7 @@ async function main() {
       const client = createAztecRpcClient(options.rpcUrl);
       const wallet = await createAccounts(client);
       const contract = new Contract(contractAddress, contractAbi, wallet);
-      const tx = contract.methods[functionName](...functionArgs).send({ from });
+      const tx = contract.methods[functionName](...functionArgs).send({ origin });
       await tx.isMined();
       log('TX has been mined');
       const receipt = await tx.getReceipt();
@@ -236,7 +236,7 @@ async function main() {
     .argument('[functionArgs...]', 'Function arguments', [])
     .option('-u, --rpcUrl <string>', 'URL of the Aztec RPC', 'http://localhost:8080')
     .action(async (contractFile, _contractAddress, functionName, _from, _functionArgs, options) => {
-      const { contractAddress, functionArgs, from } = prepTx(
+      const { contractAddress, functionArgs, origin } = prepTx(
         contractFile,
         _contractAddress,
         functionName,
@@ -245,7 +245,7 @@ async function main() {
         log,
       );
       const client = createAztecRpcClient(options.rpcUrl);
-      const result = await client.viewTx(functionName, functionArgs, contractAddress, from);
+      const result = await client.viewTx(functionName, functionArgs, contractAddress, origin);
       log('View TX returned result: ', JsonStringify(result, true));
     });
 

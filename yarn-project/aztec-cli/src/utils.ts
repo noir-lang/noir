@@ -47,7 +47,7 @@ export function getContractAbi(fileDir: string, log: Logger) {
  * @param contractFile - Directory of the compiled contract ABI.
  * @param _contractAddress - Aztec Address of the contract.
  * @param functionName - Name of the function to be called.
- * @param _from - The caller's address.
+ * @param _origin - The caller's address.
  * @param _functionArgs - Arguments to call the function with.
  * @param log - Logger instance that will output to the CLI
  * @returns Formatted contract address, function arguments and caller's aztec address.
@@ -56,7 +56,7 @@ export function prepTx(
   contractFile: string,
   _contractAddress: string,
   functionName: string,
-  _from: string,
+  _origin: string,
   _functionArgs: string[],
   log: Logger,
 ) {
@@ -73,14 +73,14 @@ export function prepTx(
   }
 
   const functionArgs = encodeArgs(_functionArgs, functionAbi.parameters);
-  let from;
-  if (_from) {
+  let origin;
+  if (_origin) {
     try {
-      from = AztecAddress.fromString(_from);
+      origin = AztecAddress.fromString(_origin);
     } catch {
-      throw new Error(`Unable to parse caller address ${_from}.`);
+      throw new Error(`Unable to parse caller address ${_origin}.`);
     }
   }
 
-  return { contractAddress, functionArgs, from, contractAbi };
+  return { contractAddress, functionArgs, origin, contractAbi };
 }
