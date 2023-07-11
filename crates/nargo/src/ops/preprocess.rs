@@ -1,10 +1,7 @@
-use acvm::{acir::circuit::Circuit, compiler::CircuitSimplifier, ProofSystemCompiler};
+use acvm::ProofSystemCompiler;
 use noirc_driver::{CompiledProgram, ContractFunction};
 
-use crate::{
-    artifacts::{contract::PreprocessedContractFunction, program::PreprocessedProgram},
-    NargoError,
-};
+use crate::artifacts::{contract::PreprocessedContractFunction, program::PreprocessedProgram};
 
 // TODO(#1388): pull this from backend.
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
@@ -63,22 +60,4 @@ pub fn preprocess_contract_function<B: ProofSystemCompiler>(
         proving_key,
         verification_key,
     })
-}
-
-pub fn optimize_circuit(
-    backend: &impl ProofSystemCompiler,
-    circuit: Circuit,
-) -> Result<Circuit, NargoError> {
-    // Note that this makes the `CircuitSimplifier` a noop.
-    // The `CircuitSimplifier` should be reworked to not rely on values being inserted during ACIR gen.
-    let simplifier = CircuitSimplifier::new(0);
-    let optimized_circuit = acvm::compiler::compile(
-        circuit,
-        backend.np_language(),
-        |opcode| backend.supports_opcode(opcode),
-        &simplifier,
-    )
-    .map_err(|_| NargoError::CompilationError)?;
-
-    Ok(optimized_circuit)
 }

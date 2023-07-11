@@ -1,6 +1,6 @@
-use acvm::Backend;
+use acvm::{acir::circuit::Circuit, compiler::CircuitSimplifier, Backend};
 use iter_extended::try_vecmap;
-use nargo::artifacts::contract::PreprocessedContract;
+use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use noirc_driver::{
     compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
 };
@@ -10,7 +10,7 @@ use std::path::Path;
 
 use clap::Args;
 
-use nargo::ops::{optimize_circuit, preprocess_contract_function, preprocess_program};
+use nargo::ops::{preprocess_contract_function, preprocess_program};
 
 use crate::{constants::TARGET_DIR, errors::CliError, resolver::resolve_root_manifest};
 
@@ -129,6 +129,21 @@ pub(crate) fn compile_circuit<B: Backend>(
     // Apply backend specific optimizations.
     program.circuit = optimize_circuit(backend, program.circuit).unwrap();
     Ok(program)
+}
+
+fn optimize_circuit<B: Backend>(backend: &B, circuit: Circuit) -> Result<Circuit, CliError<B>> {
+    // Note that this makes the `CircuitSimplifier` a noop.
+    // The `CircuitSimplifier` should be reworked to not rely on values being inserted during ACIR gen.
+    let simplifier = CircuitSimplifier::new(0);
+    let optimized_circuit = acvm::compiler::compile(
+        circuit,
+        backend.np_language(),
+        |opcode| backend.supports_opcode(opcode),
+        &simplifier,
+    )
+    .map_err(|_| NargoError::CompilationError)?;
+
+    Ok(optimized_circuit)
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
