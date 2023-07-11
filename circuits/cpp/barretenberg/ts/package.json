@@ -1,6 +1,6 @@
 {
   "name": "@aztec/bb.js",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "license": "MIT",
   "type": "module",
   "typedoc": {
