@@ -59,10 +59,6 @@ fn execute_foreign_call(foreign_call: &ForeignCallWaitInfo) -> ForeignCallResult
         }
         "get_number_sequence" => {
             let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
-            // let mut sequence_length: u128 = 0;
-            // for values in &foreign_call.inputs {
-            //     sequence_length = values[0].to_field().to_u128();
-            // }
 
             let mut sequence = Vec::new();
             for i in 0..sequence_length {
