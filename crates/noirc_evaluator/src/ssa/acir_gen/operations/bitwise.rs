@@ -40,8 +40,8 @@ pub(super) fn simplify_bitwise(
     let max = FieldElement::from((1_u128 << bit_size) - 1);
 
     let (field, var) = match (lhs.to_const(), rhs.to_const()) {
-        (Some(l_c), None) => (l_c == FieldElement::zero() || l_c == max).then_some((l_c, rhs))?,
-        (None, Some(r_c)) => (r_c == FieldElement::zero() || r_c == max).then_some((r_c, lhs))?,
+        (Some(l_c), None) => (l_c.is_zero() || l_c == max).then_some((l_c, rhs))?,
+        (None, Some(r_c)) => (r_c.is_zero() || r_c == max).then_some((r_c, lhs))?,
         _ => return None,
     };
 
@@ -121,9 +121,17 @@ pub(super) fn evaluate_bitwise(
     let bit_size = if bit_size % 2 == 1 { bit_size + 1 } else { bit_size };
     assert!(bit_size < FieldElement::max_num_bits() - 1);
     let max = FieldElement::from((1_u128 << bit_size) - 1);
-    let bit_gate = match opcode {
-        BinaryOp::And => acvm::acir::BlackBoxFunc::AND,
-        BinaryOp::Xor => acvm::acir::BlackBoxFunc::XOR,
+    let gate = match opcode {
+        BinaryOp::And => AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
+            lhs: FunctionInput { witness: a_witness, num_bits: bit_size },
+            rhs: FunctionInput { witness: b_witness, num_bits: bit_size },
+            output: result,
+        }),
+        BinaryOp::Xor => AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::XOR {
+            lhs: FunctionInput { witness: a_witness, num_bits: bit_size },
+            rhs: FunctionInput { witness: b_witness, num_bits: bit_size },
+            output: result,
+        }),
         BinaryOp::Or => {
             a_witness = evaluator.create_intermediate_variable(constraints::subtract(
                 &Expression::from_field(max),
@@ -136,28 +144,24 @@ pub(super) fn evaluate_bitwise(
                 &Expression::from(b_witness),
             ));
             // We do not have an OR gate yet, so we use the AND gate
-            acvm::acir::BlackBoxFunc::AND
+            AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
+                lhs: FunctionInput { witness: a_witness, num_bits: bit_size },
+                rhs: FunctionInput { witness: b_witness, num_bits: bit_size },
+                output: result,
+            })
         }
         _ => unreachable!("ICE: expected a bitwise operation"),
     };
 
-    let gate = AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall {
-        name: bit_gate,
-        inputs: vec![
-            FunctionInput { witness: a_witness, num_bits: bit_size },
-            FunctionInput { witness: b_witness, num_bits: bit_size },
-        ],
-        outputs: vec![result],
-    });
     evaluator.opcodes.push(gate);
 
     if opcode == BinaryOp::Or {
         constraints::subtract(
             &Expression::from_field(max),
             FieldElement::one(),
-            &Expression::from(&result),
+            &Expression::from(result),
         )
     } else {
-        Expression::from(&result)
+        Expression::from(result)
     }
 }

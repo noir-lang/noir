@@ -69,7 +69,7 @@ pub(super) fn evaluate_neq(
             .get_or_compute_witness(x, evaluator)
             .expect("unexpected constant expression");
 
-        return Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator));
+        return Expression::from(constraints::evaluate_zero_equality(x_witness, evaluator));
     }
 
     // Arriving here means that `lhs` and `rhs` are not Arrays
@@ -95,7 +95,7 @@ pub(super) fn evaluate_neq(
             .var_cache
             .get_or_compute_witness(x, evaluator)
             .expect("unexpected constant expression");
-        Expression::from(&constraints::evaluate_zero_equality(x_witness, evaluator))
+        Expression::from(constraints::evaluate_zero_equality(x_witness, evaluator))
     }
 }
 
@@ -126,8 +126,8 @@ fn array_eq(
     // Fetch the elements in both `MemArrays`s, these are `InternalVar`s
     // We then convert these to `Expressions`
     let internal_var_to_expr = |internal_var: InternalVar| internal_var.expression().clone();
-    let a_values = vecmap(memory_map.load_array(a), internal_var_to_expr);
-    let b_values = vecmap(memory_map.load_array(b), internal_var_to_expr);
+    let a_values = vecmap(memory_map.load_array(a, evaluator), internal_var_to_expr);
+    let b_values = vecmap(memory_map.load_array(b, evaluator), internal_var_to_expr);
 
     constraints::arrays_eq_predicate(&a_values, &b_values, evaluator)
 }

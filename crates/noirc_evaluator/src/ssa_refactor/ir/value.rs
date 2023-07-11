@@ -1,10 +1,20 @@
-use super::{instruction::InstructionId, types::Typ};
+use std::rc::Rc;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+use acvm::FieldElement;
+
+use crate::ssa_refactor::ir::basic_block::BasicBlockId;
+
+use super::{
+    function::FunctionId,
+    instruction::{InstructionId, Intrinsic},
+    map::Id,
+    types::{CompositeType, Type},
+};
+
+pub(crate) type ValueId = Id<Value>;
+
 /// Value is the most basic type allowed in the IR.
-/// Transition Note: This is similar to `NodeId` in our previous IR.
-pub(crate) struct ValueId(pub(crate) u32);
-
+/// Transition Note: A Id<Value> is similar to `NodeId` in our previous IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub(crate) enum Value {
     /// This value was created due to an instruction
@@ -16,5 +26,48 @@ pub(crate) enum Value {
     /// Example, if you add two numbers together, then the resulting
     /// value would have position `0`, the typ would be the type
     /// of the operands, and the instruction would map to an add instruction.
-    Instruction { typ: Typ, position: u16, instruction: InstructionId },
+    Instruction { instruction: InstructionId, position: usize, typ: Type },
+
+    /// This Value originates from a block parameter. Since function parameters
+    /// are also represented as block parameters, this includes function parameters as well.
+    ///
+    /// position -- the index of this Value in the block parameters list
+    Param { block: BasicBlockId, position: usize, typ: Type },
+
+    /// This Value originates from a numeric constant
+    NumericConstant { constant: FieldElement, typ: Type },
+
+    /// Represents a constant array value
+    Array { array: im::Vector<ValueId>, element_type: Rc<CompositeType> },
+
+    /// This Value refers to a function in the IR.
+    /// Functions always have the type Type::Function.
+    /// If the argument or return types are needed, users should retrieve
+    /// their types via the Call instruction's arguments or the Call instruction's
+    /// result types respectively.
+    Function(FunctionId),
+
+    /// An Intrinsic is a special kind of builtin function that may be handled internally
+    /// or optimized into a special form.
+    Intrinsic(Intrinsic),
+
+    /// This Value refers to an external function in the IR.
+    /// ForeignFunction's always have the type Type::Function and have simlar semantics to Function,
+    /// other than generating different backend operations and being only accessible through Brillig.
+    ForeignFunction(String),
+}
+
+impl Value {
+    /// Retrieves the type of this Value
+    pub(crate) fn get_type(&self) -> Type {
+        match self {
+            Value::Instruction { typ, .. } => typ.clone(),
+            Value::Param { typ, .. } => typ.clone(),
+            Value::NumericConstant { typ, .. } => typ.clone(),
+            Value::Array { element_type, array } => Type::Array(element_type.clone(), array.len()),
+            Value::Function { .. } => Type::Function,
+            Value::Intrinsic { .. } => Type::Function,
+            Value::ForeignFunction { .. } => Type::Function,
+        }
+    }
 }

@@ -7,7 +7,7 @@ use crate::{
         },
         builtin,
         context::SsaContext,
-        mem::{ArrayId, Memory},
+        mem::Memory,
         node::{self, Instruction, Node, NodeId, ObjectType},
     },
     Evaluator,
@@ -19,6 +19,7 @@ use acvm::{
             opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
         },
         native_types::{Expression, Witness},
+        BlackBoxFunc,
     },
     FieldElement,
 };
@@ -79,15 +80,116 @@ pub(crate) fn evaluate(
             }
         }
         Opcode::LowLevel(op) => {
-            let inputs = prepare_inputs(acir_gen, args, ctx, evaluator);
-            let output_count = op.definition().output_size.0 as u32;
-            outputs =
-                prepare_outputs(&mut acir_gen.memory, instruction_id, output_count, ctx, evaluator);
+            outputs = match op {
+                BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => {
+                    prepare_outputs(&mut acir_gen.memory, instruction_id, 32, ctx, evaluator)
+                }
+                BlackBoxFunc::Keccak256 => {
+                    prepare_outputs(&mut acir_gen.memory, instruction_id, 32, ctx, evaluator)
+                }
+                BlackBoxFunc::Pedersen | BlackBoxFunc::FixedBaseScalarMul => {
+                    prepare_outputs(&mut acir_gen.memory, instruction_id, 2, ctx, evaluator)
+                }
+                BlackBoxFunc::SchnorrVerify
+                | BlackBoxFunc::EcdsaSecp256k1
+                | BlackBoxFunc::EcdsaSecp256r1
+                | BlackBoxFunc::HashToField128Security => {
+                    prepare_outputs(&mut acir_gen.memory, instruction_id, 1, ctx, evaluator)
+                }
+                // There are some low level functions that have variable outputs and
+                // should not have a set output count in Noir
+                BlackBoxFunc::RecursiveAggregation => {
+                    prepare_outputs_no_count(&mut acir_gen.memory, instruction_id, ctx, evaluator)
+                }
+                _ => panic!("Unsupported low level function {:?}", op),
+            };
+            let func_call = match op {
+                BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 {
+                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    outputs: outputs.to_vec(),
+                },
+                BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s {
+                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    outputs: outputs.to_vec(),
+                },
+                BlackBoxFunc::Keccak256 => {
+                    let msg_size = acir_gen
+                        .var_cache
+                        .get_or_compute_internal_var(args[1], evaluator, ctx)
+                        .expect("ICE - could not get an expression for keccak message size");
+                    let witness =
+                        acir_gen.var_cache.get_or_compute_witness_unwrap(msg_size, evaluator, ctx);
+                    let var_message_size = FunctionInput { witness, num_bits: 32 };
+                    BlackBoxFuncCall::Keccak256VariableLength {
+                        inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                        var_message_size,
+                        outputs: outputs.to_vec(),
+                    }
+                }
+                BlackBoxFunc::Pedersen => {
+                    let separator =
+                        ctx.get_as_constant(args[1]).expect("domain separator to be comptime");
+                    BlackBoxFuncCall::Pedersen {
+                        inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                        outputs: (outputs[0], outputs[1]),
+                        domain_separator: separator.to_u128() as u32,
+                    }
+                }
+                BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
+                    input: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
+                    outputs: (outputs[0], outputs[1]),
+                },
+                BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
+                    public_key_x: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
+                    public_key_y: resolve_variable(&args[1], acir_gen, ctx, evaluator).unwrap(),
+                    signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                    message: resolve_array(&args[3], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
+                BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
+                    public_key_x: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    public_key_y: resolve_array(&args[1], acir_gen, ctx, evaluator),
+                    signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                    hashed_message: resolve_array(&args[3], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
+                BlackBoxFunc::EcdsaSecp256r1 => BlackBoxFuncCall::EcdsaSecp256r1 {
+                    public_key_x: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    public_key_y: resolve_array(&args[1], acir_gen, ctx, evaluator),
+                    signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                    hashed_message: resolve_array(&args[3], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
+                BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
+                    inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
+                BlackBoxFunc::RecursiveAggregation => {
+                    let has_previous_aggregation = evaluator.opcodes.iter().any(|op| {
+                        matches!(
+                            op,
+                            AcirOpcode::BlackBoxFuncCall(
+                                BlackBoxFuncCall::RecursiveAggregation { .. }
+                            )
+                        )
+                    });
 
-            let func_call = BlackBoxFuncCall {
-                name: op,
-                inputs,                   //witness + bit size
-                outputs: outputs.clone(), //witness
+                    let input_aggregation_object = if !has_previous_aggregation {
+                        None
+                    } else {
+                        Some(resolve_array(&args[4], acir_gen, ctx, evaluator))
+                    };
+
+                    BlackBoxFuncCall::RecursiveAggregation {
+                        verification_key: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                        proof: resolve_array(&args[1], acir_gen, ctx, evaluator),
+                        public_inputs: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                        key_hash: resolve_variable(&args[3], acir_gen, ctx, evaluator).unwrap(),
+                        input_aggregation_object,
+                        output_aggregation_object: outputs.to_vec(),
+                    }
+                }
+                _ => panic!("Unsupported low level function {:?}", op),
             };
             evaluator.opcodes.push(AcirOpcode::BlackBoxFuncCall(func_call));
         }
@@ -107,7 +209,7 @@ pub(crate) fn evaluate(
             }
             outputs =
                 prepare_outputs(&mut acir_gen.memory, instruction_id, array.len, ctx, evaluator);
-            let out_expr: Vec<Expression> = outputs.iter().map(|w| w.into()).collect();
+            let out_expr: Vec<Expression> = outputs.iter().map(|w| (*w).into()).collect();
             for i in 0..(out_expr.len() - 1) {
                 bound_constraint_with_offset(
                     &out_expr[i],
@@ -139,64 +241,45 @@ pub(crate) fn evaluate(
     (outputs.len() == 1).then(|| InternalVar::from(outputs[0]))
 }
 
-// Transform the arguments of intrinsic functions into witnesses
-fn prepare_inputs(
-    acir_gen: &mut Acir,
-    arguments: &[NodeId],
-    cfg: &SsaContext,
-    evaluator: &mut Evaluator,
-) -> Vec<FunctionInput> {
-    let mut inputs: Vec<FunctionInput> = Vec::new();
-
-    for argument in arguments {
-        inputs.extend(resolve_node_id(argument, acir_gen, cfg, evaluator));
-    }
-    inputs
-}
-
-fn resolve_node_id(
+fn resolve_variable(
     node_id: &NodeId,
     acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
-) -> Vec<FunctionInput> {
+) -> Option<FunctionInput> {
     let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
     match node_object {
         node::NodeObject::Variable(v) => {
-            let node_obj_type = node_object.get_type();
-            match node_obj_type {
-                // If the `Variable` represents a Pointer
-                // Then we know that it is an `Array`
-                node::ObjectType::ArrayPointer(a) => resolve_array(a, acir_gen, cfg, evaluator),
-                // If it is not a pointer, we attempt to fetch the witness associated with it
-                _ => match v.witness {
-                    Some(w) => {
-                        vec![FunctionInput { witness: w, num_bits: v.size_in_bits() }]
-                    }
-                    None => todo!("generate a witness"),
-                },
-            }
+            Some(FunctionInput { witness: v.witness?, num_bits: v.size_in_bits() })
         }
         _ => {
             // Upon the case that the `NodeObject` is not a `Variable`,
             // we attempt to fetch an associated `InternalVar`.
             // Otherwise, this is a internal compiler error.
             let internal_var = acir_gen.var_cache.get(node_id).expect("invalid input").clone();
-            let witness = acir_gen
-                .var_cache
-                .get_or_compute_witness(internal_var, evaluator)
-                .expect("unexpected constant expression");
-            vec![FunctionInput { witness, num_bits: node_object.size_in_bits() }]
+            let witness = acir_gen.var_cache.get_or_compute_witness(internal_var, evaluator)?;
+            Some(FunctionInput { witness, num_bits: node_object.size_in_bits() })
         }
     }
 }
 
 fn resolve_array(
-    array_id: ArrayId,
+    node_id: &NodeId,
     acir_gen: &mut Acir,
     cfg: &SsaContext,
     evaluator: &mut Evaluator,
 ) -> Vec<FunctionInput> {
+    let node_object = cfg.try_get_node(*node_id).expect("could not find node for {node_id}");
+    let array_id = match node_object {
+        node::NodeObject::Variable(_) => {
+            let node_obj_type = node_object.get_type();
+            match node_obj_type {
+                node::ObjectType::ArrayPointer(a) => a,
+                _ => unreachable!(),
+            }
+        }
+        _ => todo!("generate a witness"),
+    };
     let mut inputs = Vec::new();
 
     let array = &cfg.mem[array_id];
@@ -233,6 +316,25 @@ fn prepare_outputs(
         memory_map.map_array(a, &outputs, ctx);
     }
     outputs
+}
+
+fn prepare_outputs_no_count(
+    memory_map: &mut AcirMem,
+    pointer: NodeId,
+    ctx: &SsaContext,
+    evaluator: &mut Evaluator,
+) -> Vec<Witness> {
+    // Create fresh variables that will link to the output
+    let l_obj = ctx.try_get_node(pointer).unwrap();
+    if let node::ObjectType::ArrayPointer(a) = l_obj.get_type() {
+        let mem_array = &ctx.mem[a];
+        let output_nb = mem_array.len;
+        let outputs = vecmap(0..output_nb, |_| evaluator.add_witness_to_cs());
+        memory_map.map_array(a, &outputs, ctx);
+        outputs
+    } else {
+        vec![evaluator.add_witness_to_cs()]
+    }
 }
 
 fn evaluate_println(

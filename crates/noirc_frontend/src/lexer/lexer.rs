@@ -162,9 +162,8 @@ impl<'a> Lexer<'a> {
                 if self.peek_char_is('=') {
                     self.next_char();
                     Ok(Token::GreaterEqual.into_span(start, start + 1))
-                } else if self.peek_char_is('>') {
-                    self.next_char();
-                    Ok(Token::ShiftRight.into_span(start, start + 1))
+                    // Note: There is deliberately no case for RightShift. We always lex >> as
+                    // two separate Greater tokens to help the parser parse nested generic types.
                 } else {
                     Ok(prev_token.into_single_span(start))
                 }
@@ -387,7 +386,8 @@ fn test_single_double_char() {
         Token::Assign,
         Token::Equal,
         Token::ShiftLeft,
-        Token::ShiftRight,
+        Token::Greater,
+        Token::Greater,
         Token::EOF,
     ];
 
@@ -560,6 +560,7 @@ fn test_basic_language_syntax() {
             x * y;
         };
         constrain mul(five, ten) == 50;
+        assert(ten + five == 15);
     ";
 
     let expected = vec![
@@ -600,6 +601,15 @@ fn test_basic_language_syntax() {
         Token::RightParen,
         Token::Equal,
         Token::Int(50_i128.into()),
+        Token::Semicolon,
+        Token::Keyword(Keyword::Assert),
+        Token::LeftParen,
+        Token::Ident("ten".to_string()),
+        Token::Plus,
+        Token::Ident("five".to_string()),
+        Token::Equal,
+        Token::Int(15_i128.into()),
+        Token::RightParen,
         Token::Semicolon,
         Token::EOF,
     ];

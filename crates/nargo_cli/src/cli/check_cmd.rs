@@ -1,9 +1,11 @@
-use crate::{errors::CliError, resolver::Resolver};
-use acvm::ProofSystemCompiler;
+use crate::{errors::CliError, resolver::resolve_root_manifest};
+use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::CompileOptions;
+use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
+use noirc_errors::reporter::ReportedErrors;
+use noirc_frontend::hir::Context;
 use std::path::{Path, PathBuf};
 
 use super::fs::write_to_file;
@@ -17,26 +19,37 @@ pub(crate) struct CheckCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run(args: CheckCommand, config: NargoConfig) -> Result<(), CliError> {
-    check_from_path(config.program_dir, &args.compile_options)?;
+pub(crate) fn run<B: Backend>(
+    backend: &B,
+    args: CheckCommand,
+    config: NargoConfig,
+) -> Result<(), CliError<B>> {
+    check_from_path(backend, &config.program_dir, &args.compile_options)?;
     println!("Constraint system successfully built!");
     Ok(())
 }
 
-fn check_from_path<P: AsRef<Path>>(p: P, compile_options: &CompileOptions) -> Result<(), CliError> {
-    let backend = crate::backends::ConcreteBackend;
-
-    let mut driver = Resolver::resolve_root_manifest(p.as_ref(), backend.np_language())?;
-
-    driver.check_crate(compile_options).map_err(|_| CliError::CompilationError)?;
+fn check_from_path<B: Backend>(
+    // Backend isn't used but keeping it in the signature allows for better type inference
+    // TODO: This function doesn't need to exist but requires a little more refactoring
+    _backend: &B,
+    program_dir: &Path,
+    compile_options: &CompileOptions,
+) -> Result<(), CliError<B>> {
+    let mut context = resolve_root_manifest(program_dir)?;
+    check_crate_and_report_errors(
+        &mut context,
+        compile_options.deny_warnings,
+        compile_options.experimental_ssa,
+    )?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-    if let Some((parameters, return_type)) = driver.compute_function_signature() {
+    if let Some((parameters, return_type)) = compute_function_signature(&context) {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
         // For now it is hard-coded to be toml.
         //
         // Check for input.toml and verifier.toml
-        let path_to_root = PathBuf::from(p.as_ref());
+        let path_to_root = PathBuf::from(program_dir);
         let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
         let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
 
@@ -94,7 +107,7 @@ fn create_input_toml_template(
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, path::PathBuf};
+    use std::path::PathBuf;
 
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
     use noirc_driver::CompileOptions;
@@ -117,13 +130,13 @@ mod tests {
             typed_param(
                 "d",
                 AbiType::Struct {
-                    fields: BTreeMap::from([
+                    fields: vec![
                         (String::from("d1"), AbiType::Field),
                         (
                             String::from("d2"),
                             AbiType::Array { length: 3, typ: Box::new(AbiType::Field) },
                         ),
-                    ]),
+                    ],
                 },
             ),
             typed_param("e", AbiType::Boolean),
@@ -148,12 +161,13 @@ d2 = ["", "", ""]
         let pass_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
+        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, &path, &config).is_ok(),
                 "path: {}",
                 path.display()
             );
@@ -166,12 +180,13 @@ d2 = ["", "", ""]
         let fail_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
+        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), &config).is_err(),
+                super::check_from_path(&backend, &path, &config).is_err(),
                 "path: {}",
                 path.display()
             );
@@ -183,16 +198,28 @@ d2 = ["", "", ""]
         let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
-        let config = CompileOptions { allow_warnings: true, ..Default::default() };
+        let backend = crate::backends::ConcreteBackend::default();
+        let config = CompileOptions { deny_warnings: false, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, &path, &config).is_ok(),
                 "path: {}",
                 path.display()
             );
         }
     }
+}
+
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub(crate) fn check_crate_and_report_errors(
+    context: &mut Context,
+    deny_warnings: bool,
+    enable_slices: bool,
+) -> Result<(), ReportedErrors> {
+    let result = check_crate(context, deny_warnings, enable_slices).map(|warnings| ((), warnings));
+    super::compile_cmd::report_errors(result, context, deny_warnings)
 }

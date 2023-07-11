@@ -1,0 +1,19 @@
+{
+    "direnv.restart.automatic": true,
+    "redhat.telemetry.enabled": false,
+    "yaml.recommendations.show": false,
+    "nix.serverPath": "nil",
+    "nix.enableLanguageServer": true,
+    "nix.serverSettings": {
+        "nil": {
+            "formatting": {
+                "command": [
+                    "nixpkgs-fmt"
+                ]
+            }
+        }
+    },
+    "yaml.schemas": {
+        "https://json.schemastore.org/github-workflow.json": "${workspaceRoot}/.github/workflows/*.yml"
+    },
+}

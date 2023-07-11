@@ -22,7 +22,10 @@ use crate::{
     Type,
 };
 
+type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
+
 pub struct TypeChecker<'interner> {
+    delayed_type_checks: Vec<TypeCheckFn>,
     current_function: Option<FuncId>,
     interner: &'interner mut NodeInterner,
     errors: Vec<TypeCheckError>,
@@ -47,10 +50,11 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         type_checker.bind_pattern(&param.0, param.1);
     }
 
-    let (function_last_type, mut errors) = type_checker.check_function_body(function_body_id);
+    let (function_last_type, delayed_type_check_functions, mut errors) =
+        type_checker.check_function_body(function_body_id);
 
     // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
-    for type_check_fn in interner.take_delayed_type_check_functions() {
+    for type_check_fn in delayed_type_check_functions {
         if let Err(error) = type_check_fn() {
             errors.push(error);
         }
@@ -73,16 +77,33 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
 impl<'interner> TypeChecker<'interner> {
     fn new(current_function: FuncId, interner: &'interner mut NodeInterner) -> Self {
-        Self { current_function: Some(current_function), interner, errors: vec![] }
+        Self {
+            delayed_type_checks: Vec::new(),
+            current_function: Some(current_function),
+            interner,
+            errors: vec![],
+        }
     }
 
-    fn check_function_body(mut self, body: &ExprId) -> (Type, Vec<TypeCheckError>) {
+    pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
+        self.delayed_type_checks.push(f);
+    }
+
+    fn check_function_body(
+        mut self,
+        body: &ExprId,
+    ) -> (Type, Vec<TypeCheckFn>, Vec<TypeCheckError>) {
         let body_type = self.check_expression(body);
-        (body_type, self.errors)
+        (body_type, self.delayed_type_checks, self.errors)
     }
 
     pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
-        let mut this = Self { current_function: None, interner, errors: vec![] };
+        let mut this = Self {
+            delayed_type_checks: Vec::new(),
+            current_function: None,
+            interner,
+            errors: vec![],
+        };
         this.check_statement(id);
         this.errors
     }
@@ -211,6 +232,7 @@ mod test {
             attributes: None,
             location,
             contract_function_type: None,
+            is_internal: None,
             is_unconstrained: false,
             typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![
@@ -219,6 +241,7 @@ mod test {
             ]
             .into(),
             return_visibility: noirc_abi::AbiVisibility::Private,
+            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
             has_body: true,
         };
         interner.push_fn_meta(func_meta, func_id);

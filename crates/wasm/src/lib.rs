@@ -9,11 +9,17 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use wasm_bindgen::prelude::*;
 
+// This dependency is not used. We import it
+// to bypass the `unused_crate_dependencies` lint.
+//
+// It is being imported as we get errors regarding the
+// js feature not being enabled.
+use getrandom as _;
+
 mod circuit;
 mod compile;
 
-#[allow(deprecated)]
-pub use circuit::{acir_from_bytes, acir_read_bytes, acir_to_bytes, acir_write_bytes};
+pub use circuit::{acir_read_bytes, acir_write_bytes};
 pub use compile::{compile, WASMCompileOptions};
 
 #[derive(Serialize, Deserialize)]

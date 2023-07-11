@@ -1,3 +1,5 @@
+use acvm::acir::native_types::Expression;
+
 use crate::{
     errors::RuntimeErrorKind,
     ssa::{
@@ -30,7 +32,8 @@ pub(crate) fn evaluate(
         let objects = match Memory::deref(ctx, *node_id) {
             Some(a) => {
                 let array = &ctx.mem[a];
-                memory_map.load_array(array)
+                memory_map.return_array(a);
+                memory_map.load_array(array, evaluator)
             }
             None => {
                 vec![var_cache.get_or_compute_internal_var_unwrap(*node_id, evaluator, ctx)]
@@ -46,7 +49,15 @@ pub(crate) fn evaluate(
                     "we do not allow private ABI inputs to be returned as public outputs",
                 )));
             }
-            evaluator.return_values.push(witness);
+            // Check if the outputted witness needs separating from an existing occurrence in the
+            // abi. This behavior stems from usage of the `distinct` keyword.
+            let return_witness = if evaluator.should_proxy_witness_for_abi_output(witness) {
+                let proxy_constraint = Expression::from(witness);
+                evaluator.create_intermediate_variable(proxy_constraint)
+            } else {
+                witness
+            };
+            evaluator.return_values.push(return_witness);
         }
     }
 

@@ -18,14 +18,7 @@ jobs:
         uses: google-github-actions/release-please-action@v3
         with:
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
-          release-type: simple
-          package-name: noir
-          bump-minor-pre-major: true
-          bump-patch-for-minor-pre-major: true
-          prerelease: true # Marks GitHub Releases for 0.x.x versions as "Pre-release"
-          pull-request-title-pattern: "chore(noir): Release ${version}"
-          extra-files: |
-            Cargo.toml
+          command: manifest
 
   update-lockfile:
     name: Update lockfile
@@ -57,8 +50,8 @@ jobs:
           git commit -m 'chore: Update lockfile'
           git push
 
-  build-linux-binaries:
-    name: Build linux binaries
+  build-binaries:
+    name: Build binaries
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
@@ -66,41 +59,11 @@ jobs:
       - name: Dispatch to build-nargo
         uses: benc-uk/workflow-dispatch@v1
         with:
-          workflow: publish-linux.yml
+          workflow: publish.yml
           repo: noir-lang/build-nargo
           ref: master
           token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
-
-  build-windows-binaries:
-    name: Build windows binaries
-    needs: [release-please]
-    if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Dispatch to build-nargo
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: publish-x86_64-pc-windows-wasm.yml
-          repo: noir-lang/build-nargo
-          ref: master
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
-
-  build-mac-binaries:
-    name: Build mac binaries
-    needs: [release-please]
-    if: ${{ needs.release-please.outputs.tag-name }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Dispatch to build-nargo
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: publish-apple-darwin-wasm.yml
-          repo: noir-lang/build-nargo
-          ref: master
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}" }'
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
   publish-wasm:
     name: Publish noir_wasm package

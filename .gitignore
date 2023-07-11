@@ -2,9 +2,14 @@
 .DS_Store
 examples/**/target/
 examples/9
-.vscode
 node_modules
 pkg/
+
+# Nix stuff
+**/outputs
+result
+.envrc.local
+.direnv/
 
 # Nargo output
 *.proof
@@ -14,3 +19,6 @@ pkg/
 *.pk
 *.vk
 **/Verifier.toml
+**/target
+!crates/nargo_cli/tests/test_data/*/target
+!crates/nargo_cli/tests/test_data/*/target/witness.tr

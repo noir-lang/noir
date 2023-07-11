@@ -4,8 +4,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::errors::CliError;
+use crate::errors::FilesystemError;
 
+pub(super) mod common_reference_string;
 pub(super) mod inputs;
 pub(super) mod program;
 pub(super) mod proof;
@@ -32,11 +33,11 @@ pub(super) fn write_to_file(bytes: &[u8], path: &Path) -> String {
     }
 }
 
-pub(super) fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, CliError> {
-    let hex_data: Vec<_> =
-        std::fs::read(&path).map_err(|_| CliError::PathNotValid(path.as_ref().to_path_buf()))?;
+pub(super) fn load_hex_data<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FilesystemError> {
+    let hex_data: Vec<_> = std::fs::read(&path)
+        .map_err(|_| FilesystemError::PathNotValid(path.as_ref().to_path_buf()))?;
 
-    let raw_bytes = hex::decode(hex_data).map_err(CliError::HexArtifactNotValid)?;
+    let raw_bytes = hex::decode(hex_data).map_err(FilesystemError::HexArtifactNotValid)?;
 
     Ok(raw_bytes)
 }
