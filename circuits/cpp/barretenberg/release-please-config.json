@@ -30,6 +30,7 @@
             "barretenberg",
             "barretenberg.js"
           ]
-    }
+    },
+    "sentence-case"
     ]
 }
