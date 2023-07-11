@@ -1,4 +1,3 @@
-use acvm::Language;
 use noirc_driver::{
     add_dep, compile_main, create_local_crate, create_non_local_crate, CompileOptions,
 };
@@ -24,12 +23,5 @@ fn main() {
     add_dep(&mut context, LOCAL_CRATE, crate_id1, "coo4");
     add_dep(&mut context, LOCAL_CRATE, crate_id2, "coo3");
 
-    compile_main(
-        &mut context,
-        Language::R1CS,
-        #[allow(deprecated)]
-        &acvm::pwg::default_is_opcode_supported(Language::R1CS),
-        &CompileOptions::default(),
-    )
-    .ok();
+    compile_main(&mut context, &CompileOptions::default()).ok();
 }
