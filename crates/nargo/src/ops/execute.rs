@@ -5,6 +5,8 @@ use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 use crate::NargoError;
 
+use super::foreign_calls::ForeignCall;
+
 pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
     _backend: &B,
     circuit: Circuit,
@@ -58,5 +60,24 @@ fn execute_foreign_call(foreign_call: &ForeignCallWaitInfo) -> ForeignCallResult
             foreign_call.inputs[0][0].into()
         }
         _ => panic!("unexpected foreign call type"),
+    }
+}
+
+fn execute_foreign_call_new(foreign_call: &ForeignCallWaitInfo) {
+    let foreign_call_name = foreign_call.function.as_str();
+    match ForeignCall::lookup(foreign_call_name) {
+        Some(ForeignCall::Println) => {
+            dbg!("println");
+        }
+        Some(ForeignCall::PrintlnFormat) => {
+            dbg!("println_format");
+        }
+        Some(ForeignCall::Sequence) => {
+            dbg!("sequence");
+        }
+        Some(ForeignCall::ReverseSequence) => {
+            dbg!("ReverseSequence");
+        }
+        None => panic!("unexpected foreign call {:?}", foreign_call_name),
     }
 }
