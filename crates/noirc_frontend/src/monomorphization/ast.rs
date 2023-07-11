@@ -44,6 +44,8 @@ pub enum Definition {
     Function(FuncId),
     Builtin(String),
     LowLevel(String),
+    // used as a foreign/externally defined unconstrained function
+    Oracle(String),
 }
 
 /// ID of a local definition, e.g. from a let binding or
@@ -87,6 +89,7 @@ pub enum Literal {
 pub struct Unary {
     pub operator: crate::UnaryOp,
     pub rhs: Box<Expression>,
+    pub result_type: Type,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -174,6 +177,7 @@ pub enum LValue {
     Ident(Ident),
     Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
     MemberAccess { object: Box<LValue>, field_index: usize },
+    Dereference { reference: Box<LValue>, element_type: Type },
 }
 
 pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
@@ -205,7 +209,8 @@ pub enum Type {
     String(/*len:*/ u64), // String(4) = str[4]
     Unit,
     Tuple(Vec<Type>),
-    Vec(Box<Type>),
+    Slice(Box<Type>),
+    MutableReference(Box<Type>),
     Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
 }
 
@@ -318,7 +323,8 @@ impl std::fmt::Display for Type {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
             }
-            Type::Vec(element) => write!(f, "Vec<{element}>"),
+            Type::Slice(element) => write!(f, "[{element}"),
+            Type::MutableReference(element) => write!(f, "&mut {element}"),
         }
     }
 }

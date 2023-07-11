@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
-    basic_block_visitors,
     function::Function,
 };
 
@@ -28,30 +27,43 @@ pub(crate) struct ControlFlowGraph {
 impl ControlFlowGraph {
     /// Allocate and compute the control flow graph for `func`.
     pub(crate) fn with_function(func: &Function) -> Self {
-        let mut cfg = ControlFlowGraph { data: HashMap::new() };
+        // It is expected to be safe to query the control flow graph for any reachable block,
+        // therefore we must ensure that a node exists for the entry block, regardless of whether
+        // it later comes to describe any edges after calling compute.
+        let entry_block = func.entry_block();
+        let empty_node = CfgNode { predecessors: HashSet::new(), successors: HashSet::new() };
+        let data = HashMap::from([(entry_block, empty_node)]);
+
+        let mut cfg = ControlFlowGraph { data };
         cfg.compute(func);
         cfg
     }
 
+    /// Compute all of the edges between each reachable block in the function
     fn compute(&mut self, func: &Function) {
-        for (basic_block_id, basic_block) in func.dfg.basic_blocks_iter() {
+        for basic_block_id in func.reachable_blocks() {
+            let basic_block = &func.dfg[basic_block_id];
             self.compute_block(basic_block_id, basic_block);
         }
     }
 
+    /// Compute all of the edges for the current block given
     fn compute_block(&mut self, basic_block_id: BasicBlockId, basic_block: &BasicBlock) {
-        basic_block_visitors::visit_block_succs(basic_block, |dest| {
+        for dest in basic_block.successors() {
             self.add_edge(basic_block_id, dest);
-        });
+        }
     }
 
+    /// Clears out a given block's successors. This also removes the given block from
+    /// being a predecessor of any of its previous successors.
     fn invalidate_block_successors(&mut self, basic_block_id: BasicBlockId) {
         let node = self
             .data
             .get_mut(&basic_block_id)
             .expect("ICE: Attempted to invalidate cfg node successors for non-existent node.");
-        let old_successors = node.successors.clone();
-        node.successors.clear();
+
+        let old_successors = std::mem::take(&mut node.successors);
+
         for successor_id in old_successors {
             self.data
                 .get_mut(&successor_id)
@@ -71,6 +83,7 @@ impl ControlFlowGraph {
         self.compute_block(basic_block_id, basic_block);
     }
 
+    /// Add a directed edge making `from` a predecessor of `to`.
     fn add_edge(&mut self, from: BasicBlockId, to: BasicBlockId) {
         let predecessor_node = self.data.entry(from).or_default();
         assert!(
@@ -87,7 +100,7 @@ impl ControlFlowGraph {
     }
 
     /// Get an iterator over the CFG predecessors to `basic_block_id`.
-    pub(crate) fn pred_iter(
+    pub(crate) fn predecessors(
         &self,
         basic_block_id: BasicBlockId,
     ) -> impl ExactSizeIterator<Item = BasicBlockId> + '_ {
@@ -100,7 +113,7 @@ impl ControlFlowGraph {
     }
 
     /// Get an iterator over the CFG successors to `basic_block_id`.
-    pub(crate) fn succ_iter(
+    pub(crate) fn successors(
         &self,
         basic_block_id: BasicBlockId,
     ) -> impl ExactSizeIterator<Item = BasicBlockId> + '_ {
@@ -133,11 +146,11 @@ mod tests {
     fn jumps() {
         // Build function of form
         // fn func {
-        // block0(cond: u1):
+        //   block0(cond: u1):
         //     jmpif cond, then: block2, else: block1
-        // block1():
+        //   block1():
         //     jmpif cond, then: block1, else: block2
-        // block2():
+        //   block2():
         //     return ()
         // }
         let func_id = Id::test_new(0);
@@ -163,13 +176,13 @@ mod tests {
 
         #[allow(clippy::needless_collect)]
         {
-            let block0_predecessors: Vec<_> = cfg.pred_iter(block0_id).collect();
-            let block1_predecessors: Vec<_> = cfg.pred_iter(block1_id).collect();
-            let block2_predecessors: Vec<_> = cfg.pred_iter(block2_id).collect();
+            let block0_predecessors: Vec<_> = cfg.predecessors(block0_id).collect();
+            let block1_predecessors: Vec<_> = cfg.predecessors(block1_id).collect();
+            let block2_predecessors: Vec<_> = cfg.predecessors(block2_id).collect();
 
-            let block0_successors: Vec<_> = cfg.succ_iter(block0_id).collect();
-            let block1_successors: Vec<_> = cfg.succ_iter(block1_id).collect();
-            let block2_successors: Vec<_> = cfg.succ_iter(block2_id).collect();
+            let block0_successors: Vec<_> = cfg.successors(block0_id).collect();
+            let block1_successors: Vec<_> = cfg.successors(block1_id).collect();
+            let block2_successors: Vec<_> = cfg.successors(block2_id).collect();
 
             assert_eq!(block0_predecessors.len(), 0);
             assert_eq!(block1_predecessors.len(), 2);
@@ -192,13 +205,13 @@ mod tests {
 
         // Modify function to form:
         // fn func {
-        // block0(cond: u1):
+        //   block0(cond: u1):
         //     jmpif cond, then: block1, else: ret_block
-        // block1():
+        //   block1():
         //     jmpif cond, then: block1, else: block2
-        // block2():
+        //   block2():
         //     jmp ret_block()
-        // ret_block():
+        //   ret_block():
         //     return ()
         // }
         let ret_block_id = func.dfg.make_block();
@@ -221,13 +234,13 @@ mod tests {
 
         #[allow(clippy::needless_collect)]
         {
-            let block0_predecessors: Vec<_> = cfg.pred_iter(block0_id).collect();
-            let block1_predecessors: Vec<_> = cfg.pred_iter(block1_id).collect();
-            let block2_predecessors: Vec<_> = cfg.pred_iter(block2_id).collect();
+            let block0_predecessors: Vec<_> = cfg.predecessors(block0_id).collect();
+            let block1_predecessors: Vec<_> = cfg.predecessors(block1_id).collect();
+            let block2_predecessors: Vec<_> = cfg.predecessors(block2_id).collect();
 
-            let block0_successors: Vec<_> = cfg.succ_iter(block0_id).collect();
-            let block1_successors: Vec<_> = cfg.succ_iter(block1_id).collect();
-            let block2_successors: Vec<_> = cfg.succ_iter(block2_id).collect();
+            let block0_successors: Vec<_> = cfg.successors(block0_id).collect();
+            let block1_successors: Vec<_> = cfg.successors(block1_id).collect();
+            let block2_successors: Vec<_> = cfg.successors(block2_id).collect();
 
             assert_eq!(block0_predecessors.len(), 0);
             assert_eq!(block1_predecessors.len(), 2);

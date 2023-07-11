@@ -1,36 +1,39 @@
-# Related issue(s)
-
-<!-- If it does not already exist, first create a GitHub issue that describes the problem this Pull Request (PR) solves before creating the PR and link it here. -->
-
-Resolves # <!-- link to issue -->
-
 # Description
 
-## Summary of changes
+<!-- Thanks for taking the time to improve Noir! -->
+<!-- Please fill out all fields marked with an asterisk (*). -->
 
-<!-- Describe the changes in this PR. Point out breaking changes if any. -->
+## Problem\*
 
-## Dependency additions / changes
+<!-- Describe the problem this Pull Request (PR) resolves / link to the GitHub Issue that describes the problem. -->
 
-<!-- If applicable. -->
+Resolves <!-- Link to GitHub Issue -->
 
-## Test additions / changes
+## Summary\*
 
-<!-- If applicable. -->
+<!-- Describe the changes in this PR. -->
+<!-- Supplement code examples and highlight breaking changes, if applicable. -->
 
-# Checklist
+## Documentation
 
-- [ ] I have tested the changes locally.
-- [ ] I have formatted the changes with [Prettier](https://prettier.io/) and/or `cargo fmt` with default settings.
-- [ ] I have [linked](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue) this PR to the issue(s) that it resolves.
-- [ ] I have reviewed the changes on GitHub, line by line.
-- [ ] I have ensured all changes are covered in the description.
-
-## Documentation needs
 - [ ] This PR requires documentation updates when merged.
 
-<!-- If checked, list / describe what needs to be documented. -->
+  <!-- If checked, check one of the following: -->
 
-# Additional context
+  - [ ] I will submit a noir-lang/docs PR.
 
-<!-- If applicable. -->
+  <!-- Submit a PR on https://github.com/noir-lang/docs. Thank you! -->
+
+  - [ ] I will request for and support Dev Rel's help in documenting this PR.
+
+  <!-- List / highlight what should be documented. -->
+  <!-- Dev Rel will reach out for clarifications when needed. Thank you! -->
+
+## Additional Context
+
+<!-- Supplement further information if applicable. -->
+
+# PR Checklist\*
+
+- [ ] I have tested the changes locally.
+- [ ] I have formatted the changes with [Prettier](https://prettier.io/) and/or `cargo fmt` on default settings.

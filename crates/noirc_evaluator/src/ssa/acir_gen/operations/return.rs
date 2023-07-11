@@ -32,7 +32,8 @@ pub(crate) fn evaluate(
         let objects = match Memory::deref(ctx, *node_id) {
             Some(a) => {
                 let array = &ctx.mem[a];
-                memory_map.load_array(array)
+                memory_map.return_array(a);
+                memory_map.load_array(array, evaluator)
             }
             None => {
                 vec![var_cache.get_or_compute_internal_var_unwrap(*node_id, evaluator, ctx)]

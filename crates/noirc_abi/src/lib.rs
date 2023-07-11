@@ -5,7 +5,10 @@
 
 use std::{collections::BTreeMap, str};
 
-use acvm::{acir::native_types::Witness, FieldElement};
+use acvm::{
+    acir::native_types::{Witness, WitnessMap},
+    FieldElement,
+};
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
@@ -21,9 +24,6 @@ mod serialization;
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
-
-/// A map from the witnesses in a constraint system to the field element values
-pub type WitnessMap = BTreeMap<Witness, FieldElement>;
 
 /// A tuple of the arguments to a function along with its return value.
 pub type FunctionSignature = (Vec<AbiParameter>, Option<AbiType>);
@@ -59,7 +59,7 @@ pub enum AbiType {
             serialize_with = "serialization::serialize_struct_fields",
             deserialize_with = "serialization::deserialize_struct_fields"
         )]
-        fields: BTreeMap<String, AbiType>,
+        fields: Vec<(String, AbiType)>,
     },
     String {
         length: u64,
@@ -249,12 +249,12 @@ impl Abi {
                     return Err(AbiError::TypeMismatch { param, value });
                 }
 
-                Self::encode_value(value).map(|v| (param_name, v))
+                Self::encode_value(value, &expected_type).map(|v| (param_name, v))
             })
             .collect::<Result<_, _>>()?;
 
         // Write input field elements into witness indices specified in `self.param_witnesses`.
-        let mut witness_map: WitnessMap = encoded_input_map
+        let mut witness_map: BTreeMap<Witness, FieldElement> = encoded_input_map
             .iter()
             .flat_map(|(param_name, encoded_param_fields)| {
                 let param_witness_indices = &self.param_witnesses[param_name];
@@ -275,7 +275,7 @@ impl Abi {
                         value: return_value,
                     });
                 }
-                let encoded_return_fields = Self::encode_value(return_value)?;
+                let encoded_return_fields = Self::encode_value(return_value, return_type)?;
 
                 // We need to be more careful when writing the return value's witness values.
                 // This is as it may share witness indices with other public inputs so we must check that when
@@ -297,24 +297,28 @@ impl Abi {
             (_, None) => {}
         }
 
-        Ok(witness_map)
+        Ok(witness_map.into())
     }
 
-    fn encode_value(value: InputValue) -> Result<Vec<FieldElement>, AbiError> {
+    fn encode_value(value: InputValue, abi_type: &AbiType) -> Result<Vec<FieldElement>, AbiError> {
         let mut encoded_value = Vec::new();
-        match value {
-            InputValue::Field(elem) => encoded_value.push(elem),
-            InputValue::Vec(vec_elem) => encoded_value.extend(vec_elem),
-            InputValue::String(string) => {
+        match (value, abi_type) {
+            (InputValue::Field(elem), _) => encoded_value.push(elem),
+
+            (InputValue::Vec(vec_elem), _) => encoded_value.extend(vec_elem),
+
+            (InputValue::String(string), _) => {
                 let str_as_fields =
                     string.bytes().map(|byte| FieldElement::from_be_bytes_reduce(&[byte]));
                 encoded_value.extend(str_as_fields);
             }
-            InputValue::Struct(object) => {
-                for value in object.into_values() {
-                    encoded_value.extend(Self::encode_value(value)?);
+
+            (InputValue::Struct(object), AbiType::Struct { fields }) => {
+                for (field, typ) in fields {
+                    encoded_value.extend(Self::encode_value(object[field].clone(), typ)?);
                 }
             }
+            _ => unreachable!("value should have already been checked to match abi type"),
         }
         Ok(encoded_value)
     }
