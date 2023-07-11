@@ -21,7 +21,11 @@ export class TxDao {
     /**
      * The sender's Aztec address.
      */
-    public readonly origin: AztecAddress,
+    public readonly from: AztecAddress,
+    /**
+     * The contract address involved in the transaction. Undefined if the transaction is for deployinig a new contract.
+     */
+    public readonly to: AztecAddress | undefined,
     /**
      * The address of the contract deployed by the transaction. Undefined if the transaction does not deploy a new contract.
      */
@@ -49,7 +53,9 @@ export class TxDao {
     /** The block number in which the transaction was included. */
     blockNumber?: number | undefined;
     /** The sender's Aztec address. */
-    origin: AztecAddress;
+    from: AztecAddress;
+    /** The contract address involved in the transaction. Undefined if the transaction is for deployinig a new contract. */
+    to: AztecAddress | undefined;
     /** The address of the contract deployed by the transaction. Undefined if the transaction does not deploy a new contract. */
     contractAddress: AztecAddress | undefined;
     /** Description of any error encountered during the transaction. */
@@ -61,7 +67,8 @@ export class TxDao {
       args.txHash,
       args.blockHash,
       args.blockNumber,
-      args.origin,
+      args.from,
+      args.to,
       args.contractAddress,
       args.error,
       args.contractBytecode,

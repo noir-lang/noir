@@ -26,7 +26,7 @@ import { Contract } from '@aztec/aztec.js';
 const contract = new Contract(contractAddress, contractAbi, aztecRpcServer);
 const tx = contract.methods
     .transfer(amount, recipientAddress))
-    .send({ origin: senderAddress });
+    .send({ from: senderAddress });
 await tx.isMined();
 console.log(`Transferred ${amount} to ${recipientAddress}!`);
 ```

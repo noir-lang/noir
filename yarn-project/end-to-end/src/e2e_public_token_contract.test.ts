@@ -65,7 +65,7 @@ describe('e2e_public_token_contract', () => {
 
     const PK = await aztecRpcServer.getAccountPublicKey(recipient);
 
-    const tx = deployedContract.methods.mint(mintAmount, pointToPublicKey(PK)).send({ origin: recipient });
+    const tx = deployedContract.methods.mint(mintAmount, pointToPublicKey(PK)).send({ from: recipient });
 
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();
@@ -86,7 +86,7 @@ describe('e2e_public_token_contract', () => {
 
     // Assemble two mint txs sequentially (no parallel calls to circuits!) and send them simultaneously
     const methods = times(3, () => deployedContract.methods.mint(mintAmount, pointToPublicKey(PK)));
-    for (const method of methods) await method.simulate({ origin: recipient });
+    for (const method of methods) await method.simulate({ from: recipient });
     const txs = await Promise.all(methods.map(method => method.send()));
 
     // Check that all txs got mined in the same block

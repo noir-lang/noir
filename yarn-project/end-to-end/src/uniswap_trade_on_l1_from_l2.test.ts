@@ -197,12 +197,12 @@ describe('uniswap_trade_on_l1_from_l2', () => {
         uniswapPortalAddress,
         ethAccount.toField(),
       )
-      .send({ origin: ownerAddress });
+      .send({ from: ownerAddress });
     await withdrawTx.isMined(0, 0.1);
     const withdrawReceipt = await withdrawTx.getReceipt();
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);
 
-    // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
+    // check weth balance of owner on L2 (we first briedged `wethAmountToBridge` into L2 and now withdrew it!)
     await wethCrossChainHarness.expectBalanceOnL2(ownerAddress, initialBalance - transferAmount);
 
     // 5. Consume L2 to L1 message by calling uniswapPortal.swap()

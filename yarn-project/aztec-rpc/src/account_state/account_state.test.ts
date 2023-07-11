@@ -97,7 +97,7 @@ describe('Account State', () => {
     expect(txs).toEqual([
       expect.objectContaining({
         blockNumber: 1,
-        origin: ownerAddress,
+        from: ownerAddress,
       }),
     ]);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledTimes(1);
@@ -125,15 +125,15 @@ describe('Account State', () => {
     expect(txs).toEqual([
       expect.objectContaining({
         blockNumber: 2,
-        origin: ownerAddress,
+        from: ownerAddress,
       }),
       expect.objectContaining({
         blockNumber: 5,
-        origin: ownerAddress,
+        from: ownerAddress,
       }),
       expect.objectContaining({
         blockNumber: 5,
-        origin: ownerAddress,
+        from: ownerAddress,
       }),
     ]);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledTimes(1);

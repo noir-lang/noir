@@ -425,12 +425,15 @@ export class AccountState {
         const { newContractData } = blockContext.block.getTx(txIndex);
         const isContractDeployment = !newContractData[0].contractAddress.isZero();
         const noteSpendingInfo = noteSpendingInfoDaos[j];
-        const contractAddress = isContractDeployment ? noteSpendingInfo.contractAddress : undefined;
+        const [to, contractAddress] = isContractDeployment
+          ? [undefined, noteSpendingInfo.contractAddress]
+          : [noteSpendingInfo.contractAddress, undefined];
         txDaos.push({
           txHash,
           blockHash: blockContext.getBlockHash(),
           blockNumber: blockContext.block.number,
-          origin: this.address,
+          from: this.address,
+          to,
           contractAddress,
           error: '',
         });

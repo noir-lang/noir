@@ -82,7 +82,7 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, TxRequest<NCT> con
 
 template <typename NCT> std::ostream& operator<<(std::ostream& os, TxRequest<NCT> const& tx_request)
 {
-    return os << "origin: " << tx_request.origin << "\n"
+    return os << "from: " << tx_request.origin << "\n"
               << "function_data: " << tx_request.function_data << "\n"
               << "args_hash: " << tx_request.args_hash << "\n"
               << "tx_context: " << tx_request.tx_context << "\n";

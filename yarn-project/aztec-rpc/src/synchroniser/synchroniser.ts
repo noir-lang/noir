@@ -221,9 +221,9 @@ export class Synchroniser {
       throw new Error(`Transaction ${txHash} not found in RPC database`);
     }
 
-    const account = this.getAccount(tx.origin);
+    const account = this.getAccount(tx.from);
     if (!account) {
-      throw new Error(`Unauthorised account: ${tx.origin}`);
+      throw new Error(`Unauthorised account: ${tx.from}`);
     }
 
     return tx;

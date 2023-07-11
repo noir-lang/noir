@@ -131,7 +131,7 @@ describe('archiver integration with l1 to l2 messages', () => {
         pointToPublicKey(await aztecRpcServer.getAccountPublicKey(ownerAddress)),
         pointToPublicKey(await aztecRpcServer.getAccountPublicKey(receiver)),
       )
-      .send({ origin: accounts[0] });
+      .send({ from: accounts[0] });
 
     expect((await archiver.getPendingL1ToL2Messages(10)).length).toEqual(0);
     expect(() => archiver.getConfirmedL1ToL2Message(Fr.ZERO)).toThrow();

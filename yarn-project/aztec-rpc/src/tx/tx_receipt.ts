@@ -12,7 +12,7 @@ export enum TxStatus {
 
 /**
  * Represents a transaction receipt in the Aztec network.
- * Contains essential information about the transaction including its status, origin, and associated addresses.
+ * Contains essential information about the transaction including its status, sender, receiver, and associated addresses.
  */
 export interface TxReceipt {
   /**
@@ -29,8 +29,13 @@ export interface TxReceipt {
   blockNumber?: number;
   /**
    * The sender's address.
+   * TODO: From and to are the same since we went full AA. We should unify these.
    */
-  origin?: AztecAddress;
+  from?: AztecAddress;
+  /**
+   * The contract address for the transaction.
+   */
+  to?: AztecAddress;
   /**
    * The deployed contract's address.
    */

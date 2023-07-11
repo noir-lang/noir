@@ -170,7 +170,8 @@ export class AztecRPCServer implements AztecRPC {
     await this.db.addTx(
       TxDao.from({
         txHash: await tx.getTxHash(),
-        origin: account.getAddress(),
+        from: account.getAddress(),
+        to: account.getAddress(),
         contractAddress: deployedContractAddress,
       }),
     );
@@ -221,7 +222,8 @@ export class AztecRPCServer implements AztecRPC {
       txHash: txHash,
       blockHash: localTx?.blockHash,
       blockNumber: localTx?.blockNumber,
-      origin: localTx?.origin,
+      from: localTx?.from,
+      to: localTx?.to,
       contractAddress: localTx?.contractAddress,
       error: '',
     };
@@ -244,7 +246,7 @@ export class AztecRPCServer implements AztecRPC {
     // if the transaction mined it will be removed from the pending pool and there is a race condition here as the synchroniser will not have the tx as mined yet, so it will appear dropped
     // until the synchroniser picks this up
 
-    const accountState = this.synchroniser.getAccount(localTx.origin);
+    const accountState = this.synchroniser.getAccount(localTx.from);
     if (accountState && !(await accountState?.isSynchronised())) {
       // there is a pending L2 block, which means the transaction will not be in the tx pool but may be awaiting mine on L1
       return {

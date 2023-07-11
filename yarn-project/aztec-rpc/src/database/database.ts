@@ -38,7 +38,7 @@ export interface GetOptions {
  */
 export interface Database extends ContractDatabase {
   getTx(txHash: TxHash): Promise<TxDao | undefined>;
-  getTxsByAddress(origin: AztecAddress): Promise<TxDao[]>;
+  getTxsByAddress(from: AztecAddress): Promise<TxDao[]>;
   addTx(tx: TxDao): Promise<void>;
   addTxs(txs: TxDao[]): Promise<void>;
 
