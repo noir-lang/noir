@@ -5,6 +5,10 @@ fn main(x: Field)  {
 
     // TODO(#1615) Nargo currently only supports resolving one foreign call
     // oracle_print_wrapper(x);
+
+    // let slice = get_number_sequence_wrapper(12);
+    // assert(slice.len() == 12);
+    get_number_sequence_wrapper(20);
 }
 
 #[oracle(oracle_print_impl)]
@@ -19,5 +23,22 @@ unconstrained fn oracle_print_array(_arr : [Field; 2]) -> Field {}
 
 unconstrained fn oracle_print_array_wrapper(arr: [Field; 2]) {
     oracle_print_array(arr);
+}
+
+#[oracle(get_number_sequence)]
+unconstrained fn get_number_sequence(_size: Field) -> [Field] {}
+
+#[oracle(get_reverse_number_sequence)]
+unconstrained fn get_reverse_number_sequence(_size: Field) -> [Field] {}
+
+unconstrained fn get_number_sequence_wrapper(size: Field) {
+    let slice = get_number_sequence(size);
+    assert(slice[19] == 19);
+
+    let reversed_slice = get_reverse_number_sequence(size);
+    // Regression test that we have not overwritten memory
+    assert(slice[19] == 19);
+    assert(reversed_slice[0] == 19);
+    assert(reversed_slice[19] == 0);
 }
 

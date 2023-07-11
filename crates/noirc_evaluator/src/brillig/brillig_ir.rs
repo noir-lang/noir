@@ -129,10 +129,25 @@ impl BrilligContext {
         size_register: RegisterIndex,
     ) {
         debug_show::allocate_array_instruction(pointer_register, size_register);
+        self.set_array_pointer(pointer_register);
+        self.update_stack_pointer(size_register);
+    }
+
+    pub(crate) fn set_array_pointer(&mut self, pointer_register: RegisterIndex) {
+        debug_show::mov_instruction(pointer_register, ReservedRegisters::stack_pointer());
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
             source: ReservedRegisters::stack_pointer(),
         });
+    }
+
+    pub(crate) fn update_stack_pointer(&mut self, size_register: RegisterIndex) {
+        debug_show::binary_instruction(
+            ReservedRegisters::stack_pointer(),
+            size_register,
+            ReservedRegisters::stack_pointer(),
+            BinaryIntOp::Add,
+        );
         self.push_opcode(BrilligOpcode::BinaryIntOp {
             destination: ReservedRegisters::stack_pointer(),
             op: BinaryIntOp::Add,
@@ -777,12 +792,12 @@ mod tests {
     fn test_brillig_ir_foreign_call_return_vector() {
         // pseudo-noir:
         //
-        // #[oracle(make_number_sequence)]
-        // unconstrained fn make_number_sequence(size: u32) -> Vec<u32> {
+        // #[oracle(get_number_sequence)]
+        // unconstrained fn get_number_sequence(size: u32) -> Vec<u32> {
         // }
         //
         // unconstrained fn main() -> Vec<u32> {
-        //   let the_sequence = make_number_sequence(12);
+        //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
         let mut context = BrilligContext::new(vec![], vec![]);
