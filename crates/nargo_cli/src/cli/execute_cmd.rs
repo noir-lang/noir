@@ -63,8 +63,6 @@ fn execute_with_path<B: Backend>(
     let (inputs_map, _) =
         read_inputs_from_file(program_dir, prover_name.as_str(), Format::Toml, &abi)?;
 
-    // Note that we're executing an unoptimized circuit here. This is fine for calculating a return value.
-    // This is not good for generating witnesses.
     let solved_witness = execute_program(backend, circuit, &abi, &inputs_map)?;
 
     let public_abi = abi.public_abi();
