@@ -13,6 +13,7 @@ import {
   ContractDeployer,
   EthAddress,
   Point,
+  SchnorrAuthProvider,
   TxStatus,
   Wallet,
   createAztecRPCServer,
@@ -28,7 +29,6 @@ import { NonNativeTokenContractAbi, SchnorrAccountContractAbi } from '@aztec/noi
 import { randomBytes } from 'crypto';
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
-import { SchnorrAuthProvider } from './auth.js';
 import { MNEMONIC, localAnvil } from './fixtures.js';
 import every from 'lodash.every';
 import zipWith from 'lodash.zipwith';

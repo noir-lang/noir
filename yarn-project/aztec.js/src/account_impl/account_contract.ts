@@ -8,7 +8,7 @@ import partition from 'lodash.partition';
 import { generateFunctionSelector } from '../index.js';
 import { AccountImplementation } from './index.js';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { TxAuthProvider } from '../auth/index.js';
+import { EcdsaAuthProvider, SchnorrAuthProvider } from '../auth/index.js';
 
 /**
  * Account backed by an account contract
@@ -17,7 +17,7 @@ export class AccountContract implements AccountImplementation {
   constructor(
     private address: AztecAddress,
     private pubKey: PublicKey,
-    private authProvider: TxAuthProvider,
+    private authProvider: EcdsaAuthProvider | SchnorrAuthProvider,
     private partialContractAddress: PartialContractAddress,
     private contractAbi: ContractAbi,
     private wasm: CircuitsWasm,
