@@ -1,6 +1,8 @@
 name: Test
 
-on: [push, pull_request]
+on:
+  pull_request:
+  merge_group:
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
@@ -10,22 +12,22 @@ concurrency:
 jobs:
   test:
     name: Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu
+            runner: ubuntu-large
             target: x86_64-linux
-          - os: macos-latest
-            target: x86_64-darwin
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - uses: cachix/install-nix-action@v20
+      - uses: cachix/install-nix-action@v22
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
@@ -58,4 +60,4 @@ jobs:
       - name: Export cache from nix store
         if: steps.nix-store-cache.outputs.cache-hit != 'true'
         run: |
-          nix copy --to "file:///tmp/nix-cache?compression=zstd&parallel-compression=true" .#cargo-artifacts
+          nix copy --to "file:///tmp/nix-cache?compression=zstd&parallel-compression=true" .#native-cargo-artifacts

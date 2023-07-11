@@ -44,6 +44,9 @@ pub(crate) struct DominatorTree {
     /// After dominator tree computation has complete, this will contain a node for every
     /// reachable block, and no nodes for unreachable blocks.
     nodes: HashMap<BasicBlockId, DominatorTreeNode>,
+
+    /// Subsequent calls to `dominates` are cached to speed up access
+    cache: HashMap<(BasicBlockId, BasicBlockId), bool>,
 }
 
 /// Methods for querying the dominator tree.
@@ -83,7 +86,21 @@ impl DominatorTree {
     /// This function panics if either of the blocks are unreachable.
     ///
     /// An instruction is considered to dominate itself.
-    pub(crate) fn dominates(&self, block_a_id: BasicBlockId, mut block_b_id: BasicBlockId) -> bool {
+    pub(crate) fn dominates(&mut self, block_a_id: BasicBlockId, block_b_id: BasicBlockId) -> bool {
+        if let Some(res) = self.cache.get(&(block_a_id, block_b_id)) {
+            return *res;
+        }
+
+        let result = self.dominates_helper(block_a_id, block_b_id);
+        self.cache.insert((block_a_id, block_b_id), result);
+        result
+    }
+
+    pub(crate) fn dominates_helper(
+        &self,
+        block_a_id: BasicBlockId,
+        mut block_b_id: BasicBlockId,
+    ) -> bool {
         // Walk up the dominator tree from "b" until we encounter or pass "a". Doing the
         // comparison on the reverse post-order may allows to test whether we have passed "a"
         // without waiting until we reach the root of the tree.
@@ -104,7 +121,7 @@ impl DominatorTree {
     /// Allocate and compute a dominator tree from a pre-computed control flow graph and
     /// post-order counterpart.
     pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
-        let mut dom_tree = DominatorTree { nodes: HashMap::new() };
+        let mut dom_tree = DominatorTree { nodes: HashMap::new(), cache: HashMap::new() };
         dom_tree.compute_dominator_tree(cfg, post_order);
         dom_tree
     }
@@ -230,8 +247,12 @@ mod tests {
 
     use crate::ssa_refactor::{
         ir::{
-            basic_block::BasicBlockId, dom::DominatorTree, function::Function,
-            instruction::TerminatorInstruction, map::Id, types::Type,
+            basic_block::BasicBlockId,
+            dom::DominatorTree,
+            function::{Function, RuntimeType},
+            instruction::TerminatorInstruction,
+            map::Id,
+            types::Type,
         },
         ssa_builder::FunctionBuilder,
     };
@@ -245,7 +266,7 @@ mod tests {
             block0_id,
             TerminatorInstruction::Return { return_values: vec![] },
         );
-        let dom_tree = DominatorTree::with_function(&func);
+        let mut dom_tree = DominatorTree::with_function(&func);
         assert!(dom_tree.dominates(block0_id, block0_id));
     }
 
@@ -263,7 +284,7 @@ mod tests {
         //     return ()
         // }
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
 
         let cond = builder.add_parameter(Type::unsigned(1));
         let block1_id = builder.insert_block();
@@ -304,7 +325,7 @@ mod tests {
     // unreachable, performing this query indicates an internal compiler error.
     #[test]
     fn unreachable_node_asserts() {
-        let (dt, b0, _b1, b2, b3) = unreachable_node_setup();
+        let (mut dt, b0, _b1, b2, b3) = unreachable_node_setup();
 
         assert!(dt.dominates(b0, b0));
         assert!(dt.dominates(b0, b2));
@@ -322,42 +343,42 @@ mod tests {
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b0_b1() {
-        let (dt, b0, b1, _b2, _b3) = unreachable_node_setup();
+        let (mut dt, b0, b1, _b2, _b3) = unreachable_node_setup();
         dt.dominates(b0, b1);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b1_b0() {
-        let (dt, b0, b1, _b2, _b3) = unreachable_node_setup();
+        let (mut dt, b0, b1, _b2, _b3) = unreachable_node_setup();
         dt.dominates(b1, b0);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b1_b1() {
-        let (dt, _b0, b1, _b2, _b3) = unreachable_node_setup();
+        let (mut dt, _b0, b1, _b2, _b3) = unreachable_node_setup();
         dt.dominates(b1, b1);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b1_b2() {
-        let (dt, _b0, b1, b2, _b3) = unreachable_node_setup();
+        let (mut dt, _b0, b1, b2, _b3) = unreachable_node_setup();
         dt.dominates(b1, b2);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b1_b3() {
-        let (dt, _b0, b1, _b2, b3) = unreachable_node_setup();
+        let (mut dt, _b0, b1, _b2, b3) = unreachable_node_setup();
         dt.dominates(b1, b3);
     }
 
     #[test]
     #[should_panic]
     fn unreachable_node_panic_b3_b1() {
-        let (dt, _b0, b1, b2, _b3) = unreachable_node_setup();
+        let (mut dt, _b0, b1, b2, _b3) = unreachable_node_setup();
         dt.dominates(b2, b1);
     }
 
@@ -372,7 +393,7 @@ mod tests {
         //     jump block1()
         // }
         let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
         let block1_id = builder.insert_block();
         let block2_id = builder.insert_block();
 
@@ -386,7 +407,7 @@ mod tests {
         let func = ssa.main();
         let block0_id = func.entry_block();
 
-        let dt = DominatorTree::with_function(func);
+        let mut dt = DominatorTree::with_function(func);
 
         // Expected dominance tree:
         // block0 {

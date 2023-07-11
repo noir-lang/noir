@@ -51,6 +51,8 @@ impl Statement {
         last_statement_in_block: bool,
         emit_error: &mut dyn FnMut(ParserError),
     ) -> Statement {
+        let missing_semicolon =
+            ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
         match self {
             Statement::Let(_)
             | Statement::Constrain(_)
@@ -59,10 +61,7 @@ impl Statement {
             | Statement::Error => {
                 // To match rust, statements always require a semicolon, even at the end of a block
                 if semi.is_none() {
-                    emit_error(ParserError::with_reason(
-                        ParserErrorReason::MissingSeparatingSemi,
-                        span,
-                    ));
+                    emit_error(missing_semicolon);
                 }
                 self
             }
@@ -85,10 +84,7 @@ impl Statement {
                     // for unneeded expressions like { 1 + 2; 3 }
                     (_, Some(_), false) => Statement::Expression(expr),
                     (_, None, false) => {
-                        emit_error(ParserError::with_reason(
-                            ParserErrorReason::MissingSeparatingSemi,
-                            span,
-                        ));
+                        emit_error(missing_semicolon);
                         Statement::Expression(expr)
                     }
 
@@ -242,6 +238,61 @@ pub enum PathKind {
     Plain,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct UseTree {
+    pub prefix: Path,
+    pub kind: UseTreeKind,
+}
+
+impl Display for UseTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.prefix)?;
+
+        match &self.kind {
+            UseTreeKind::Path(name, alias) => {
+                write!(f, "{name}")?;
+
+                while let Some(alias) = alias {
+                    write!(f, " as {}", alias)?;
+                }
+
+                Ok(())
+            }
+            UseTreeKind::List(trees) => {
+                write!(f, "::{{")?;
+                let tree = vecmap(trees, ToString::to_string).join(", ");
+                write!(f, "{tree}}}")
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum UseTreeKind {
+    Path(Ident, Option<Ident>),
+    List(Vec<UseTree>),
+}
+
+impl UseTree {
+    pub fn desugar(self, root: Option<Path>) -> Vec<ImportStatement> {
+        let prefix = if let Some(mut root) = root {
+            root.segments.extend(self.prefix.segments);
+            root
+        } else {
+            self.prefix
+        };
+
+        match self.kind {
+            UseTreeKind::Path(name, alias) => {
+                vec![ImportStatement { path: prefix.join(name), alias }]
+            }
+            UseTreeKind::List(trees) => {
+                trees.into_iter().flat_map(|tree| tree.desugar(Some(prefix.clone()))).collect()
+            }
+        }
+    }
+}
+
 // Note: Path deliberately doesn't implement Recoverable.
 // No matter which default value we could give in Recoverable::error,
 // it would most likely cause further errors during name resolution
@@ -252,6 +303,15 @@ pub struct Path {
 }
 
 impl Path {
+    pub fn pop(&mut self) -> Ident {
+        self.segments.pop().unwrap()
+    }
+
+    fn join(mut self, ident: Ident) -> Path {
+        self.segments.push(ident);
+        self
+    }
+
     /// Construct a PathKind::Plain from this single
     pub fn from_single(name: String, span: Span) -> Path {
         let segment = Ident::from(Spanned::from(span, name));
@@ -343,6 +403,7 @@ pub enum LValue {
     Ident(Ident),
     MemberAccess { object: Box<LValue>, field_name: Ident },
     Index { array: Box<LValue>, index: Expression },
+    Dereference(Box<LValue>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -385,6 +446,12 @@ impl LValue {
                 collection: array.as_expression(span),
                 index: index.clone(),
             })),
+            LValue::Dereference(lvalue) => {
+                ExpressionKind::Prefix(Box::new(crate::PrefixExpression {
+                    operator: crate::UnaryOp::Dereference,
+                    rhs: lvalue.as_expression(span),
+                }))
+            }
         };
         Expression::new(kind, span)
     }
@@ -427,6 +494,7 @@ impl Display for LValue {
             LValue::Ident(ident) => ident.fmt(f),
             LValue::MemberAccess { object, field_name } => write!(f, "{object}.{field_name}"),
             LValue::Index { array, index } => write!(f, "{array}[{index}]"),
+            LValue::Dereference(lvalue) => write!(f, "*{lvalue}"),
         }
     }
 }

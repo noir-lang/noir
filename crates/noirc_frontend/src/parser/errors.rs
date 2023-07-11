@@ -11,8 +11,6 @@ use super::labels::ParsingRuleLabel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
-    #[error("Arrays must have at least one element")]
-    ZeroSizedArray,
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
     #[error("Expected a ; separating these two statements")]
@@ -21,6 +19,8 @@ pub enum ParserErrorReason {
     ConstrainDeprecated,
     #[error("Expression is invalid in an array-length type: '{0}'. Only unsigned integer constants, globals, generics, +, -, *, /, and % may be used in this context.")]
     InvalidArrayLengthExpression(Expression),
+    #[error("Early 'return' is unsupported")]
+    EarlyReturn,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

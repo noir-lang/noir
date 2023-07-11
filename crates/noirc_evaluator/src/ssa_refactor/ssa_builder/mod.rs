@@ -1,3 +1,5 @@
+use std::{borrow::Cow, rc::Rc};
+
 use acvm::FieldElement;
 
 use crate::ssa_refactor::ir::{
@@ -11,7 +13,10 @@ use crate::ssa_refactor::ir::{
 use super::{
     ir::{
         basic_block::BasicBlock,
+        dfg::InsertInstructionResult,
+        function::RuntimeType,
         instruction::{InstructionId, Intrinsic},
+        types::CompositeType,
     },
     ssa_gen::Ssa,
 };
@@ -34,8 +39,13 @@ impl FunctionBuilder {
     ///
     /// This creates the new function internally so there is no need to call .new_function()
     /// right after constructing a new FunctionBuilder.
-    pub(crate) fn new(function_name: String, function_id: FunctionId) -> Self {
-        let new_function = Function::new(function_name, function_id);
+    pub(crate) fn new(
+        function_name: String,
+        function_id: FunctionId,
+        runtime: RuntimeType,
+    ) -> Self {
+        let mut new_function = Function::new(function_name, function_id);
+        new_function.set_runtime(runtime);
         let current_block = new_function.entry_block();
 
         Self { current_function: new_function, current_block, finished_functions: Vec::new() }
@@ -46,12 +56,28 @@ impl FunctionBuilder {
     /// A FunctionBuilder can always only work on one function at a time, so care
     /// should be taken not to finish a function that is still in progress by calling
     /// new_function before the current function is finished.
-    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
-        let new_function = Function::new(name, function_id);
+    fn new_function_with_type(
+        &mut self,
+        name: String,
+        function_id: FunctionId,
+        runtime_type: RuntimeType,
+    ) {
+        let mut new_function = Function::new(name, function_id);
+        new_function.set_runtime(runtime_type);
         self.current_block = new_function.entry_block();
 
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         self.finished_functions.push(old_function);
+    }
+
+    /// Finish the current function and create a new ACIR function.
+    pub(crate) fn new_function(&mut self, name: String, function_id: FunctionId) {
+        self.new_function_with_type(name, function_id, RuntimeType::Acir);
+    }
+
+    /// Finish the current function and create a new unconstrained function.
+    pub(crate) fn new_brillig_function(&mut self, name: String, function_id: FunctionId) {
+        self.new_function_with_type(name, function_id, RuntimeType::Brillig);
     }
 
     /// Consume the FunctionBuilder returning all the functions it has generated.
@@ -81,6 +107,15 @@ impl FunctionBuilder {
         self.numeric_constant(value.into(), Type::field())
     }
 
+    /// Insert an array constant into the current function with the given element values.
+    pub(crate) fn array_constant(
+        &mut self,
+        elements: im::Vector<ValueId>,
+        element_types: Rc<CompositeType>,
+    ) -> ValueId {
+        self.current_function.dfg.make_array(elements, element_types)
+    }
+
     /// Returns the type of the given value.
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
         self.current_function.dfg.type_of_value(value)
@@ -108,10 +143,12 @@ impl FunctionBuilder {
         &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> &[ValueId] {
-        let id = self.current_function.dfg.make_instruction(instruction, ctrl_typevars);
-        self.current_function.dfg.insert_instruction_in_block(self.current_block, id);
-        self.current_function.dfg.instruction_results(id)
+    ) -> InsertInstructionResult {
+        self.current_function.dfg.insert_instruction_and_results(
+            instruction,
+            self.current_block,
+            ctrl_typevars,
+        )
     }
 
     /// Switch to inserting instructions in the given block.
@@ -129,8 +166,8 @@ impl FunctionBuilder {
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
-    pub(crate) fn insert_allocate(&mut self, size_to_allocate: u32) -> ValueId {
-        self.insert_instruction(Instruction::Allocate { size: size_to_allocate }, None)[0]
+    pub(crate) fn insert_allocate(&mut self) -> ValueId {
+        self.insert_instruction(Instruction::Allocate, None).first()
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given offset
@@ -140,14 +177,8 @@ impl FunctionBuilder {
     /// 'offset' is in units of FieldElements here. So loading the fourth FieldElement stored in
     /// an array will have an offset of 3.
     /// Returns the element that was loaded.
-    pub(crate) fn insert_load(
-        &mut self,
-        mut address: ValueId,
-        offset: ValueId,
-        type_to_load: Type,
-    ) -> ValueId {
-        address = self.insert_binary(address, BinaryOp::Add, offset);
-        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load]))[0]
+    pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
+        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element
@@ -166,19 +197,31 @@ impl FunctionBuilder {
         rhs: ValueId,
     ) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        self.insert_instruction(instruction, None)[0]
+        self.insert_instruction(instruction, None).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
     pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.insert_instruction(Instruction::Not(rhs), None)[0]
+        self.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None)[0]
+        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+    }
+
+    /// Insert a truncate instruction at the end of the current block.
+    /// Returns the result of the truncate instruction.
+    pub(crate) fn insert_truncate(
+        &mut self,
+        value: ValueId,
+        bit_size: u32,
+        max_bit_size: u32,
+    ) -> ValueId {
+        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
+            .first()
     }
 
     /// Insert a constrain instruction at the end of the current block.
@@ -186,15 +229,36 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::Constrain(boolean), None);
     }
 
-    /// Insert a call instruction a the end of the current block and return
+    /// Insert a call instruction at the end of the current block and return
     /// the results of the call.
     pub(crate) fn insert_call(
         &mut self,
         func: ValueId,
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
-    ) -> &[ValueId] {
-        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types))
+    ) -> Cow<[ValueId]> {
+        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    }
+
+    /// Insert an instruction to extract an element from an array
+    pub(crate) fn insert_array_get(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        element_type: Type,
+    ) -> ValueId {
+        let element_type = Some(vec![element_type]);
+        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+    }
+
+    /// Insert an instruction to create a new array with the given index replaced with a new value
+    pub(crate) fn insert_array_set(
+        &mut self,
+        array: ValueId,
+        index: ValueId,
+        value: ValueId,
+    ) -> ValueId {
+        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
     }
 
     /// Terminates the current block with the given terminator instruction
@@ -238,6 +302,12 @@ impl FunctionBuilder {
         self.current_function.dfg.import_function(function)
     }
 
+    /// Returns a ValueId pointing to the given oracle/foreign function or imports the oracle
+    /// into the current function if it was not already, and returns that ID.
+    pub(crate) fn import_foreign_function(&mut self, function: &str) -> ValueId {
+        self.current_function.dfg.import_foreign_function(function)
+    }
+
     /// Retrieve a value reference to the given intrinsic operation.
     /// Returns None if there is no intrinsic matching the given name.
     pub(crate) fn import_intrinsic(&mut self, name: &str) -> Option<ValueId> {
@@ -276,5 +346,48 @@ impl std::ops::Index<BasicBlockId> for FunctionBuilder {
 
     fn index(&self, id: BasicBlockId) -> &Self::Output {
         &self.current_function.dfg[id]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use acvm::FieldElement;
+
+    use crate::ssa_refactor::ir::{
+        function::RuntimeType,
+        instruction::{Endian, Intrinsic},
+        map::Id,
+        types::Type,
+        value::Value,
+    };
+
+    use super::FunctionBuilder;
+
+    #[test]
+    fn insert_constant_call() {
+        // `bits` should be an array of constants [1, 1, 1, 0...]:
+        // let x = 7;
+        // let bits = x.to_le_bits(8);
+        let func_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
+        let one = builder.numeric_constant(FieldElement::one(), Type::bool());
+        let zero = builder.numeric_constant(FieldElement::zero(), Type::bool());
+
+        let to_bits_id = builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
+        let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
+        let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
+        let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), 8)];
+        let call_result = builder.insert_call(to_bits_id, vec![input, length], result_types)[0];
+
+        let array = match &builder.current_function.dfg[call_result] {
+            Value::Array { array, .. } => array,
+            _ => panic!(),
+        };
+        assert_eq!(array[0], one);
+        assert_eq!(array[1], one);
+        assert_eq!(array[2], one);
+        assert_eq!(array[3], zero);
     }
 }

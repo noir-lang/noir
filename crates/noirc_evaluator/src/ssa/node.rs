@@ -506,6 +506,36 @@ impl Instruction {
             }
         }
     }
+
+    pub(crate) fn get_location(&self) -> Option<Location> {
+        match &self.operation {
+            Operation::Binary(bin) => match bin.operator {
+                BinaryOp::Udiv(location)
+                | BinaryOp::Sdiv(location)
+                | BinaryOp::Urem(location)
+                | BinaryOp::Srem(location)
+                | BinaryOp::Div(location)
+                | BinaryOp::Shr(location) => Some(location),
+                _ => None,
+            },
+            Operation::Call { location, .. } => Some(*location),
+            Operation::Load { location, .. }
+            | Operation::Store { location, .. }
+            | Operation::Constrain(_, location) => *location,
+            Operation::Cast(_)
+            | Operation::Truncate { .. }
+            | Operation::Not(_)
+            | Operation::Jne(_, _)
+            | Operation::Jeq(_, _)
+            | Operation::Jmp(_)
+            | Operation::Phi { .. }
+            | Operation::Return(_)
+            | Operation::Result { .. }
+            | Operation::Cond { .. }
+            | Operation::Intrinsic(_, _)
+            | Operation::Nop => None,
+        }
+    }
 }
 
 //adapted from LLVM IR
@@ -892,7 +922,10 @@ impl Binary {
                 } else if l_is_zero {
                     return Ok(l_eval); //TODO what is the correct result?
                 } else if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
-                    return Ok(NodeEval::Const(lhs - rhs * (lhs / rhs), res_type));
+                    let lhs = res_type.field_to_type(lhs).to_u128();
+                    let rhs = res_type.field_to_type(rhs).to_u128();
+                    let result = lhs - rhs * (lhs / rhs);
+                    return Ok(NodeEval::Const(FieldElement::from(result), res_type));
                 }
             }
             BinaryOp::Srem(loc) => {

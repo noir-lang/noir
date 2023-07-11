@@ -58,7 +58,7 @@ pub(super) fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<()
         }
     }
     if let Operation::Binary(binary) = &ins.operation {
-        if binary.operator == BinaryOp::Xor {
+        if binary.operator == BinaryOp::Xor && ins.res_type.bits() < 128 {
             let max = FieldElement::from(2_u128.pow(ins.res_type.bits()) - 1);
             if NodeEval::from_id(ctx, binary.rhs).into_const_value() == Some(max) {
                 ins.operation = Operation::Not(binary.lhs);
@@ -79,11 +79,15 @@ fn evaluate_intrinsic(
     block_id: BlockId,
 ) -> Result<Vec<NodeId>, RuntimeErrorKind> {
     match op {
-        builtin::Opcode::ToBits(_) => {
+        builtin::Opcode::ToBits(endian) => {
             let bit_count = args[1].to_u128() as u32;
             let mut result = Vec::new();
             let mut bits = args[0].bits();
             bits.reverse();
+            bits.resize(bit_count as usize, false);
+            if endian == builtin::Endian::Big {
+                bits.reverse();
+            }
 
             if let ObjectType::ArrayPointer(a) = res_type {
                 for i in 0..bit_count {
@@ -505,6 +509,22 @@ fn cse_block_with_anchor(
                 Operation::Nop => {
                     if new_list.is_empty() {
                         new_list.push(*ins_id);
+                    }
+                }
+                Operation::Constrain(condition, location) => {
+                    if let Some(similar) = anchor.find_similar_instruction(&operator) {
+                        assert_ne!(similar, ins.id);
+                        *modified = true;
+                        let similar_ins = ctx
+                            .try_get_mut_instruction(similar)
+                            .expect("Similar instructions are instructions");
+                        if location.is_some() && similar_ins.get_location().is_none() {
+                            similar_ins.operation = Operation::Constrain(*condition, *location);
+                        }
+                        new_mark = Mark::ReplaceWith(similar);
+                    } else {
+                        new_list.push(*ins_id);
+                        anchor.push_front(&ins.operation, *ins_id);
                     }
                 }
                 _ => {

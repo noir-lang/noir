@@ -9,7 +9,8 @@ use iter_extended::vecmap;
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
-        function::{Function, FunctionId},
+        dfg::InsertInstructionResult,
+        function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -72,16 +73,17 @@ struct PerFunctionContext<'function> {
     /// argument values.
     values: HashMap<ValueId, ValueId>,
 
-    /// Maps BasicBlockIds in the function being inlined to the new BasicBlockIds to use in the
-    /// function being inlined into.
+    /// Maps blocks in the source function to blocks in the function being inlined into, where
+    /// each mapping is from the start of a source block to an inlined block in which the
+    /// analogous program point occurs.
+    ///
+    /// Note that the starts of multiple source blocks can map into a single inlined block.
+    /// Conversely the whole of a source block is not guaranteed to map into a single inlined
+    /// block.
     blocks: HashMap<BasicBlockId, BasicBlockId>,
 
     /// Maps InstructionIds from the function being inlined to the function being inlined into.
     instructions: HashMap<InstructionId, InstructionId>,
-
-    /// The TerminatorInstruction::Return in the source_function will be mapped to a jmp to
-    /// this block in the destination function instead.
-    return_destination: BasicBlockId,
 
     /// True if we're currently working on the main function.
     inlining_main: bool,
@@ -95,7 +97,7 @@ impl InlineContext {
     /// that could not be inlined calling it.
     fn new(ssa: &Ssa) -> InlineContext {
         let main_name = ssa.main().name().to_owned();
-        let builder = FunctionBuilder::new(main_name, ssa.next_id.next());
+        let builder = FunctionBuilder::new(main_name, ssa.next_id.next(), RuntimeType::Acir);
         Self { builder, recursion_level: 0, failed_to_inline_a_call: false }
     }
 
@@ -124,7 +126,12 @@ impl InlineContext {
 
     /// Inlines a function into the current function and returns the translated return values
     /// of the inlined function.
-    fn inline_function(&mut self, ssa: &Ssa, id: FunctionId, arguments: &[ValueId]) -> &[ValueId] {
+    fn inline_function(
+        &mut self,
+        ssa: &Ssa,
+        id: FunctionId,
+        arguments: &[ValueId],
+    ) -> Vec<ValueId> {
         self.recursion_level += 1;
 
         if self.recursion_level > RECURSION_LIMIT {
@@ -143,9 +150,9 @@ impl InlineContext {
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
 
-        context.inline_blocks(ssa);
-        let return_destination = context.return_destination;
-        self.builder.block_parameters(return_destination)
+        let return_values = context.inline_blocks(ssa);
+        self.recursion_level -= 1;
+        return_values
     }
 
     /// Finish inlining and return the new Ssa struct with the inlined version of main.
@@ -175,10 +182,7 @@ impl<'function> PerFunctionContext<'function> {
     /// for containing the mapping between parameters in the source_function and
     /// the arguments of the destination function.
     fn new(context: &'function mut InlineContext, source_function: &'function Function) -> Self {
-        // Create the block to return to but don't insert its parameters until we
-        // have the types of the actual return values later.
         Self {
-            return_destination: context.builder.insert_block(),
             context,
             source_function,
             blocks: HashMap::new(),
@@ -206,18 +210,26 @@ impl<'function> PerFunctionContext<'function> {
                 unreachable!("All Value::Params should already be known from previous calls to translate_block. Unknown value {id} = {value:?}")
             }
             Value::NumericConstant { constant, typ } => {
-                let value = self.source_function.dfg[*constant].value();
-                self.context.builder.numeric_constant(value, *typ)
+                self.context.builder.numeric_constant(*constant, typ.clone())
             }
             Value::Function(function) => self.context.builder.import_function(*function),
             Value::Intrinsic(intrinsic) => self.context.builder.import_intrinsic_id(*intrinsic),
+            Value::ForeignFunction(function) => {
+                self.context.builder.import_foreign_function(function)
+            }
+            Value::Array { array, element_type } => {
+                let elements = array.iter().map(|value| self.translate_value(*value)).collect();
+                self.context.builder.array_constant(elements, element_type.clone())
+            }
         };
 
         self.values.insert(id, new_value);
         new_value
     }
 
-    /// Translate a block id from the source function to one of the target function.
+    /// Translates the program point representing the start of the given `source_block` to the
+    /// inlined block in which the analogous program point occurs. (Once inlined, the source
+    /// block's analogous program region may span multiple inlined blocks.)
     ///
     /// If the block isn't already known, this will insert a new block into the target function
     /// with the same parameter types as the source block.
@@ -256,6 +268,9 @@ impl<'function> PerFunctionContext<'function> {
         id = self.translate_value(id);
         match self.context.builder[id] {
             Value::Function(id) => Some(id),
+            // We don't set failed_to_inline_a_call for intrinsics since those
+            // don't correspond to actual functions in the SSA program that would
+            // need to be removed afterward.
             Value::Intrinsic(_) => None,
             _ => {
                 self.context.failed_to_inline_a_call = true;
@@ -265,30 +280,79 @@ impl<'function> PerFunctionContext<'function> {
     }
 
     /// Inline all reachable blocks within the source_function into the destination function.
-    fn inline_blocks(&mut self, ssa: &Ssa) {
+    fn inline_blocks(&mut self, ssa: &Ssa) -> Vec<ValueId> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = vec![self.source_function.entry_block()];
 
+        // This Vec will contain each block with a Return instruction along with the
+        // returned values of that block.
+        let mut function_returns = vec![];
+
         while let Some(source_block_id) = block_queue.pop() {
+            if seen_blocks.contains(&source_block_id) {
+                continue;
+            }
             let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
             self.context.builder.switch_to_block(translated_block_id);
 
             seen_blocks.insert(source_block_id);
-            self.inline_block(ssa, source_block_id);
-            self.handle_terminator_instruction(source_block_id, &mut block_queue);
+            self.inline_block_instructions(ssa, source_block_id);
+
+            if let Some((block, values)) =
+                self.handle_terminator_instruction(source_block_id, &mut block_queue)
+            {
+                function_returns.push((block, values));
+            }
         }
 
-        self.context.builder.switch_to_block(self.return_destination);
+        self.handle_function_returns(function_returns)
+    }
+
+    /// Handle inlining a function's possibly multiple return instructions.
+    /// If there is only 1 return we can just continue inserting into that block.
+    /// If there are multiple, we'll need to create a join block to jump to with each value.
+    fn handle_function_returns(
+        &mut self,
+        mut returns: Vec<(BasicBlockId, Vec<ValueId>)>,
+    ) -> Vec<ValueId> {
+        // Clippy complains if this were written as an if statement
+        match returns.len() {
+            1 => {
+                let (return_block, return_values) = returns.remove(0);
+                self.context.builder.switch_to_block(return_block);
+                return_values
+            }
+            n if n > 1 => {
+                // If there is more than 1 return instruction we'll need to create a single block we
+                // can return to and continue inserting in afterwards.
+                let return_block = self.context.builder.insert_block();
+
+                for (block, return_values) in returns {
+                    self.context.builder.switch_to_block(block);
+                    self.context.builder.terminate_with_jmp(return_block, return_values);
+                }
+
+                self.context.builder.switch_to_block(return_block);
+                self.context.builder.block_parameters(return_block).to_vec()
+            }
+            _ => unreachable!("Inlined function had no return values"),
+        }
     }
 
     /// Inline each instruction in the given block into the function being inlined into.
     /// This may recurse if it finds another function to inline if a call instruction is within this block.
-    fn inline_block(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
+    fn inline_block_instructions(&mut self, ssa: &Ssa, block_id: BasicBlockId) {
         let block = &self.source_function.dfg[block_id];
         for id in block.instructions() {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
-                    Some(function) => self.inline_function(ssa, *id, function, arguments),
+                    Some(function) => match ssa.functions[&function].runtime() {
+                        RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
+                        RuntimeType::Brillig => {
+                            self.context.failed_to_inline_a_call = true;
+                            self.push_instruction(*id);
+                        }
+                    },
                     None => self.push_instruction(*id),
                 },
                 _ => self.push_instruction(*id),
@@ -305,7 +369,9 @@ impl<'function> PerFunctionContext<'function> {
         arguments: &[ValueId],
     ) {
         let old_results = self.source_function.dfg.instruction_results(call_id);
-        let new_results = self.context.inline_function(ssa, function, arguments);
+        let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
+        let new_results = self.context.inline_function(ssa, function, &arguments);
+        let new_results = InsertInstructionResult::Results(&new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
     }
 
@@ -314,13 +380,14 @@ impl<'function> PerFunctionContext<'function> {
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
         let results = self.source_function.dfg.instruction_results(id);
+        let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
-            .then(|| vecmap(results, |result| self.source_function.dfg.type_of_value(*result)));
+            .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
 
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
-        Self::insert_new_instruction_results(&mut self.values, results, new_results);
+        Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
 
     /// Modify the values HashMap to remember the mapping between an instruction result's previous
@@ -328,62 +395,97 @@ impl<'function> PerFunctionContext<'function> {
     fn insert_new_instruction_results(
         values: &mut HashMap<ValueId, ValueId>,
         old_results: &[ValueId],
-        new_results: &[ValueId],
+        new_results: InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            values.insert(*old_result, *new_result);
+
+        match new_results {
+            InsertInstructionResult::SimplifiedTo(new_result) => {
+                values.insert(old_results[0], new_result);
+            }
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => {
+                for (old_result, new_result) in old_results.iter().zip(new_results) {
+                    values.insert(*old_result, new_result);
+                }
+            }
+            InsertInstructionResult::Results(new_results) => {
+                for (old_result, new_result) in old_results.iter().zip(new_results) {
+                    values.insert(*old_result, *new_result);
+                }
+            }
+            InsertInstructionResult::InstructionRemoved => (),
         }
     }
 
     /// Handle the given terminator instruction from the given source function block.
     /// This will push any new blocks to the destination function as needed, add them
     /// to the block queue, and set the terminator instruction for the current block.
+    ///
+    /// If the terminator instruction was a Return, this will return the block this instruction
+    /// was in as well as the values that were returned.
     fn handle_terminator_instruction(
         &mut self,
         block_id: BasicBlockId,
         block_queue: &mut Vec<BasicBlockId>,
-    ) {
-        match self.source_function.dfg[block_id].terminator() {
-            Some(TerminatorInstruction::Jmp { destination, arguments }) => {
+    ) -> Option<(BasicBlockId, Vec<ValueId>)> {
+        match self.source_function.dfg[block_id].unwrap_terminator() {
+            TerminatorInstruction::Jmp { destination, arguments } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
                 self.context.builder.terminate_with_jmp(destination, arguments);
+                None
             }
-            Some(TerminatorInstruction::JmpIf {
-                condition,
-                then_destination,
-                else_destination,
-            }) => {
+            TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.translate_value(*condition);
-                let then_block = self.translate_block(*then_destination, block_queue);
-                let else_block = self.translate_block(*else_destination, block_queue);
-                self.context.builder.terminate_with_jmpif(condition, then_block, else_block);
-            }
-            Some(TerminatorInstruction::Return { return_values }) => {
-                let return_values = vecmap(return_values, |value| self.translate_value(*value));
 
-                if self.inlining_main {
-                    self.context.builder.terminate_with_return(return_values);
-                } else {
-                    for value in &return_values {
-                        // Add the block parameters for the return block here since we don't do
-                        // it when inserting the block in PerFunctionContext::new
-                        let typ = self.context.builder.current_function.dfg.type_of_value(*value);
-                        self.context.builder.add_block_parameter(self.return_destination, typ);
+                // See if the value of the condition is known, and if so only inline the reachable
+                // branch. This lets us inline some recursive functions without recurring forever.
+                let dfg = &mut self.context.builder.current_function.dfg;
+                match dfg.get_numeric_constant(condition) {
+                    Some(constant) => {
+                        let next_block =
+                            if constant.is_zero() { *else_destination } else { *then_destination };
+                        let next_block = self.translate_block(next_block, block_queue);
+                        self.context.builder.terminate_with_jmp(next_block, vec![]);
                     }
-                    self.context.builder.terminate_with_jmp(self.return_destination, return_values);
+                    None => {
+                        let then_block = self.translate_block(*then_destination, block_queue);
+                        let else_block = self.translate_block(*else_destination, block_queue);
+                        self.context
+                            .builder
+                            .terminate_with_jmpif(condition, then_block, else_block);
+                    }
                 }
+                None
             }
-            None => unreachable!("Block has no terminator instruction"),
+            TerminatorInstruction::Return { return_values } => {
+                let return_values = vecmap(return_values, |value| self.translate_value(*value));
+                if self.inlining_main {
+                    self.context.builder.terminate_with_return(return_values.clone());
+                }
+                // Note that `translate_block` would take us back to the point at which the
+                // inlining of this source block began. Since additional blocks may have been
+                // inlined since, we are interested in the block representing the current program
+                // point, obtained via `current_block`.
+                let block_id = self.context.builder.current_block();
+                Some((block_id, return_values))
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use acvm::FieldElement;
+
     use crate::ssa_refactor::{
-        ir::{map::Id, types::Type},
+        ir::{
+            basic_block::BasicBlockId,
+            function::RuntimeType,
+            instruction::{BinaryOp, Intrinsic, TerminatorInstruction},
+            map::Id,
+            types::Type,
+        },
         ssa_builder::FunctionBuilder,
     };
 
@@ -399,7 +501,7 @@ mod test {
         //     return 72
         // }
         let foo_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("foo".into(), foo_id);
+        let mut builder = FunctionBuilder::new("foo".into(), foo_id, RuntimeType::Acir);
 
         let bar_id = Id::test_new(1);
         let bar = builder.import_function(bar_id);
@@ -416,5 +518,241 @@ mod test {
 
         let inlined = ssa.inline_functions();
         assert_eq!(inlined.functions.len(), 1);
+    }
+
+    #[test]
+    fn complex_inlining() {
+        // This SSA is from issue #1327 which previously failed to inline properly
+        //
+        // fn main f0 {
+        //   b0(v0: Field):
+        //     v7 = call f2(f1)
+        //     v13 = call f3(v7)
+        //     v16 = call v13(v0)
+        //     return v16
+        // }
+        // fn square f1 {
+        //   b0(v0: Field):
+        //     v2 = mul v0, v0
+        //     return v2
+        // }
+        // fn id1 f2 {
+        //   b0(v0: function):
+        //     return v0
+        // }
+        // fn id2 f3 {
+        //   b0(v0: function):
+        //     return v0
+        // }
+        let main_id = Id::test_new(0);
+        let square_id = Id::test_new(1);
+        let id1_id = Id::test_new(2);
+        let id2_id = Id::test_new(3);
+
+        // Compiling main
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+        let main_v0 = builder.add_parameter(Type::field());
+
+        let main_f1 = builder.import_function(square_id);
+        let main_f2 = builder.import_function(id1_id);
+        let main_f3 = builder.import_function(id2_id);
+
+        let main_v7 = builder.insert_call(main_f2, vec![main_f1], vec![Type::Function])[0];
+        let main_v13 = builder.insert_call(main_f3, vec![main_v7], vec![Type::Function])[0];
+        let main_v16 = builder.insert_call(main_v13, vec![main_v0], vec![Type::field()])[0];
+        builder.terminate_with_return(vec![main_v16]);
+
+        // Compiling square f1
+        builder.new_function("square".into(), square_id);
+        let square_v0 = builder.add_parameter(Type::field());
+        let square_v2 = builder.insert_binary(square_v0, BinaryOp::Mul, square_v0);
+        builder.terminate_with_return(vec![square_v2]);
+
+        // Compiling id1 f2
+        builder.new_function("id1".into(), id1_id);
+        let id1_v0 = builder.add_parameter(Type::Function);
+        builder.terminate_with_return(vec![id1_v0]);
+
+        // Compiling id2 f3
+        builder.new_function("id2".into(), id2_id);
+        let id2_v0 = builder.add_parameter(Type::Function);
+        builder.terminate_with_return(vec![id2_v0]);
+
+        // Done, now we test that we can successfully inline all functions.
+        let ssa = builder.finish();
+        assert_eq!(ssa.functions.len(), 4);
+
+        let inlined = ssa.inline_functions();
+        assert_eq!(inlined.functions.len(), 1);
+    }
+
+    #[test]
+    fn recursive_functions() {
+        // fn main f0 {
+        //   b0():
+        //     v0 = call factorial(Field 5)
+        //     return v0
+        // }
+        // fn factorial f1 {
+        //   b0(v0: Field):
+        //     v1 = lt v0, Field 1
+        //     jmpif v1, then: b1, else: b2
+        //   b1():
+        //     return Field 1
+        //   b2():
+        //     v2 = sub v0, Field 1
+        //     v3 = call factorial(v2)
+        //     v4 = mul v0, v3
+        //     return v4
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        let factorial_id = Id::test_new(1);
+        let factorial = builder.import_function(factorial_id);
+
+        let five = builder.field_constant(5u128);
+        let results = builder.insert_call(factorial, vec![five], vec![Type::field()]).to_vec();
+        builder.terminate_with_return(results);
+
+        builder.new_function("factorial".into(), factorial_id);
+        let b1 = builder.insert_block();
+        let b2 = builder.insert_block();
+
+        let one = builder.field_constant(1u128);
+
+        let v0 = builder.add_parameter(Type::field());
+        let v1 = builder.insert_binary(v0, BinaryOp::Lt, one);
+        builder.terminate_with_jmpif(v1, b1, b2);
+
+        builder.switch_to_block(b1);
+        builder.terminate_with_return(vec![one]);
+
+        builder.switch_to_block(b2);
+        let factorial_id = builder.import_function(factorial_id);
+        let v2 = builder.insert_binary(v0, BinaryOp::Sub, one);
+        let v3 = builder.insert_call(factorial_id, vec![v2], vec![Type::field()])[0];
+        let v4 = builder.insert_binary(v0, BinaryOp::Mul, v3);
+        builder.terminate_with_return(vec![v4]);
+
+        let ssa = builder.finish();
+        assert_eq!(ssa.functions.len(), 2);
+
+        // Expected SSA:
+        //
+        // fn main f2 {
+        //   b0():
+        //     jmp b1()
+        //   b1():
+        //     jmp b2()
+        //   b2():
+        //     jmp b3()
+        //   b3():
+        //     jmp b4()
+        //   b4():
+        //     jmp b5()
+        //   b5():
+        //     jmp b6()
+        //   b6():
+        //     return Field 120
+        // }
+        let inlined = ssa.inline_functions();
+        assert_eq!(inlined.functions.len(), 1);
+
+        let main = inlined.main();
+        let b6_id: BasicBlockId = Id::test_new(6);
+        let b6 = &main.dfg[b6_id];
+
+        match b6.terminator() {
+            Some(TerminatorInstruction::Return { return_values }) => {
+                assert_eq!(return_values.len(), 1);
+                let value = main
+                    .dfg
+                    .get_numeric_constant(return_values[0])
+                    .expect("Expected a constant for the return value")
+                    .to_u128();
+                assert_eq!(value, 120);
+            }
+            other => unreachable!("Unexpected terminator {other:?}"),
+        }
+    }
+
+    #[test]
+    fn displaced_return_mapping() {
+        // This test is designed specifically to catch a regression in which the ids of blocks
+        // terminated by returns are badly tracked. As a result, the continuation of a source
+        // block after a call instruction could but inlined into a block that's already been
+        // terminated, producing an incorrect order and orphaning successors.
+
+        // fn main f0 {
+        //   b0(v0: u1):
+        //     v2 = call f1(v0)
+        //     call println(v2)
+        //     return
+        // }
+        // fn inner1 f1 {
+        //   b0(v0: u1):
+        //     v2 = call f2(v0)
+        //     return v2
+        // }
+        // fn inner2 f2 {
+        //   b0(v0: u1):
+        //     jmpif v0 then: b1, else: b2
+        //   b1():
+        //     jmp b3(Field 1)
+        //   b3(v3: Field):
+        //     return v3
+        //   b2():
+        //     jmp b3(Field 2)
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        let main_cond = builder.add_parameter(Type::bool());
+        let inner1_id = Id::test_new(1);
+        let inner1 = builder.import_function(inner1_id);
+        let main_v2 = builder.insert_call(inner1, vec![main_cond], vec![Type::field()])[0];
+        let println = builder.import_intrinsic_id(Intrinsic::Println);
+        builder.insert_call(println, vec![main_v2], vec![]);
+        builder.terminate_with_return(vec![]);
+
+        builder.new_function("inner1".into(), inner1_id);
+        let inner1_cond = builder.add_parameter(Type::bool());
+        let inner2_id = Id::test_new(2);
+        let inner2 = builder.import_function(inner2_id);
+        let inner1_v2 = builder.insert_call(inner2, vec![inner1_cond], vec![Type::field()])[0];
+        builder.terminate_with_return(vec![inner1_v2]);
+
+        builder.new_function("inner2".into(), inner2_id);
+        let inner2_cond = builder.add_parameter(Type::bool());
+        let then_block = builder.insert_block();
+        let else_block = builder.insert_block();
+        let join_block = builder.insert_block();
+        builder.terminate_with_jmpif(inner2_cond, then_block, else_block);
+        builder.switch_to_block(then_block);
+        let one = builder.numeric_constant(FieldElement::one(), Type::field());
+        builder.terminate_with_jmp(join_block, vec![one]);
+        builder.switch_to_block(else_block);
+        let two = builder.numeric_constant(FieldElement::from(2_u128), Type::field());
+        builder.terminate_with_jmp(join_block, vec![two]);
+        let join_param = builder.add_block_parameter(join_block, Type::field());
+        builder.switch_to_block(join_block);
+        builder.terminate_with_return(vec![join_param]);
+
+        let ssa = builder.finish().inline_functions();
+        // Expected result:
+        // fn main f3 {
+        //   b0(v0: u1):
+        //     jmpif v0 then: b1, else: b2
+        //   b1():
+        //     jmp b3(Field 1)
+        //   b3(v3: Field):
+        //     call println(v3)
+        //     return
+        //   b2():
+        //     jmp b3(Field 2)
+        // }
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 4);
     }
 }
