@@ -18,5 +18,19 @@ mod compat;
 #[builtin(println)]
 fn println<T>(_input : T) {}
 
+#[oracle(println)]
+unconstrained fn println_oracle<T, A>(_input: T) {}
+
+#[oracle(println)]
+unconstrained fn println_format_oracle<T, A>(_msg: T, _args: [A]) {}
+
+unconstrained fn println_new<T>(input: T) {
+    println_oracle(input);
+}
+
+unconstrained fn println_format<T, A>(msg: T, args: [A]) {
+    println_format_oracle(msg, args);
+}
+
 #[foreign(recursive_aggregation)]
 fn verify_proof(_verification_key : [Field], _proof : [Field], _public_inputs : [Field], _key_hash : Field, _input_aggregation_object : [Field]) -> [Field] {}
