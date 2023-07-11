@@ -73,11 +73,7 @@ fn execute_foreign_call(foreign_call: &ForeignCallWaitInfo) -> ForeignCallResult
         "get_reverse_number_sequence" => {
             let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
 
-            let mut sequence = Vec::new();
-            for i in (0..sequence_length).rev() {
-                sequence.push(Value::from(i));
-            }
-            sequence.into()
+            vecmap(0..sequence_length).rev(), |i| Value::from(i)).into()
         }
         _ => panic!("unexpected foreign call type"),
     }
