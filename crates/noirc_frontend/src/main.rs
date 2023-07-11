@@ -7,7 +7,7 @@
 //! perform optimizations, convert to ACIR and eventually prove/verify the program.
 use std::path::PathBuf;
 
-use fm::{FileManager, FileType};
+use fm::FileManager;
 use hir::{def_map::CrateDefMap, Context};
 use noirc_frontend::graph::{CrateGraph, CrateType};
 use noirc_frontend::hir::{self, def_map::ModuleDefId};
@@ -19,7 +19,7 @@ fn main() {
     //
     // Add root file to file manager
     let dir_path: PathBuf = PathBuf::from("example_project/lib.nr");
-    let root_file_id = fm.add_file(&dir_path, FileType::Root).unwrap();
+    let root_file_id = fm.add_file(&dir_path).unwrap();
 
     // CrateGraph
     let mut crate_graph = CrateGraph::default();
@@ -27,7 +27,7 @@ fn main() {
     let crate_id = crate_graph.add_crate_root(CrateType::Library, root_file_id);
 
     // initiate context with file manager and crate graph
-    let mut context = Context::new(fm, crate_graph, acvm::Language::R1CS);
+    let mut context = Context::new(fm, crate_graph);
 
     // Now create the CrateDefMap
     // This is preamble for analysis
@@ -36,7 +36,7 @@ fn main() {
     let mut errors = vec![];
     CrateDefMap::collect_defs(crate_id, &mut context, &mut errors);
     assert_eq!(errors, vec![]);
-    let def_map = context.def_map(crate_id).unwrap();
+    let def_map = context.def_map(&crate_id).unwrap();
 
     // Get root module
     let root = def_map.root();

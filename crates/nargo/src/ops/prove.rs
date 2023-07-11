@@ -1,16 +1,13 @@
-use acvm::acir::circuit::Circuit;
+use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::ProofSystemCompiler;
-use noirc_abi::WitnessMap;
 
-use crate::NargoError;
-
-pub fn prove_execution(
-    backend: &impl ProofSystemCompiler,
+pub fn prove_execution<B: ProofSystemCompiler>(
+    backend: &B,
+    common_reference_string: &[u8],
     circuit: &Circuit,
     solved_witness: WitnessMap,
     proving_key: &[u8],
-) -> Result<Vec<u8>, NargoError> {
-    let proof = backend.prove_with_pk(circuit, solved_witness, proving_key);
-
-    Ok(proof)
+) -> Result<Vec<u8>, B::Error> {
+    // TODO(#1569): update from not just accepting `false` once we get nargo to interop with dynamic backend
+    backend.prove_with_pk(common_reference_string, circuit, solved_witness, proving_key, false)
 }

@@ -1,3 +1,4 @@
+use crate::program::{deserialize_circuit, serialize_circuit};
 use acvm::acir::circuit::Circuit;
 use noirc_abi::Abi;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,7 @@ pub enum ContractFunctionType {
     Unconstrained,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct CompiledContract {
     /// The name of the contract.
     pub name: String,
@@ -33,14 +35,17 @@ pub struct CompiledContract {
 /// A contract function unlike a regular Noir program
 /// however can have additional properties.
 /// One of these being a function type.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ContractFunction {
     pub name: String,
 
     pub function_type: ContractFunctionType,
 
+    pub is_internal: bool,
+
     pub abi: Abi,
 
+    #[serde(serialize_with = "serialize_circuit", deserialize_with = "deserialize_circuit")]
     pub bytecode: Circuit,
 }
 

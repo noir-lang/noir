@@ -1,5 +1,6 @@
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
+use crate::hir_def::expr::HirIdent;
 use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
@@ -81,15 +82,13 @@ impl<'interner> TypeChecker<'interner> {
                 });
 
                 if let Type::Struct(struct_type, generics) = struct_type {
-                    let mut pattern_fields = fields.clone();
-                    pattern_fields.sort_by_key(|(ident, _)| ident.clone());
                     let struct_type = struct_type.borrow();
 
-                    for (field_name, field_pattern) in pattern_fields {
+                    for (field_name, field_pattern) in fields {
                         if let Some((type_field, _)) =
                             struct_type.get_field(&field_name.0.contents, generics)
                         {
-                            self.bind_pattern(&field_pattern, type_field);
+                            self.bind_pattern(field_pattern, type_field);
                         }
                     }
                 }
@@ -125,8 +124,12 @@ impl<'interner> TypeChecker<'interner> {
                 let typ = if ident.id == DefinitionId::dummy_id() {
                     Type::Error
                 } else {
+                    // Do we need to store TypeBindings here?
+                    let typ = self.interner.id_type(ident.id).instantiate(self.interner).0;
+                    let typ = typ.follow_bindings();
+
                     let definition = self.interner.definition(ident.id);
-                    if !definition.mutable {
+                    if !definition.mutable && !matches!(typ, Type::MutableReference(_)) {
                         self.errors.push(TypeCheckError::Unstructured {
                             msg: format!(
                                 "Variable {} must be mutable to be assigned to",
@@ -135,62 +138,62 @@ impl<'interner> TypeChecker<'interner> {
                             span: ident.location.span,
                         });
                     }
-                    // Do we need to store TypeBindings here?
-                    self.interner.id_type(ident.id).instantiate(self.interner).0
+
+                    typ
                 };
 
                 (typ.clone(), HirLValue::Ident(ident, typ))
             }
             HirLValue::MemberAccess { object, field_name, .. } => {
-                let (result, object) = self.check_lvalue(*object, assign_span);
-                let object = Box::new(object);
+                let (lhs_type, object) = self.check_lvalue(*object, assign_span);
+                let mut object = Box::new(object);
+                let span = field_name.span();
 
-                let mut error = |typ| {
-                    self.errors.push(TypeCheckError::Unstructured {
-                        msg: format!("Type {typ} has no member named {field_name}"),
-                        span: field_name.span(),
-                    });
-                    (Type::Error, None)
-                };
+                let object_ref = &mut object;
 
-                let (typ, field_index) = match result {
-                    Type::Struct(def, args) => {
-                        match def.borrow().get_field(&field_name.0.contents, &args) {
-                            Some((field, index)) => (field, Some(index)),
-                            None => error(Type::Struct(def.clone(), args)),
-                        }
-                    }
-                    Type::Error => (Type::Error, None),
-                    other => error(other),
-                };
+                let (typ, field_index) = self
+                    .check_field_access(
+                        &lhs_type,
+                        &field_name.0.contents,
+                        span,
+                        move |_, _, element_type| {
+                            // We must create a temporary value first to move out of object_ref before
+                            // we eventually reassign to it.
+                            let id = DefinitionId::dummy_id();
+                            let location = Location::new(span, fm::FileId::dummy());
+                            let tmp_value =
+                                HirLValue::Ident(HirIdent { location, id }, Type::Error);
 
+                            let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
+                            *object_ref = Box::new(HirLValue::Dereference { lvalue, element_type });
+                        },
+                    )
+                    .unwrap_or((Type::Error, 0));
+
+                let field_index = Some(field_index);
                 (typ.clone(), HirLValue::MemberAccess { object, field_name, field_index, typ })
             }
             HirLValue::Index { array, index, .. } => {
                 let index_type = self.check_expression(&index);
                 let expr_span = self.interner.expr_span(&index);
 
-                self.unify(&index_type, &Type::comp_time(Some(expr_span)), expr_span, || {
-                    TypeCheckError::TypeMismatch {
-                        expected_typ: "comptime Field".to_owned(),
+                index_type.unify(
+                    &Type::polymorphic_integer(self.interner),
+                    expr_span,
+                    &mut self.errors,
+                    || TypeCheckError::TypeMismatch {
+                        expected_typ: "an integer".to_owned(),
                         expr_typ: index_type.to_string(),
                         expr_span,
-                    }
-                });
-                //TODO replace the above by the below in order to activate dynamic arrays
-                // index_type.make_subtype_of(&Type::field(Some(expr_span)), expr_span, || {
-                //     TypeCheckError::TypeMismatch {
-                //         expected_typ: "Field".to_owned(),
-                //         expr_typ: index_type.to_string(),
-                //         expr_span,
-                //     }
-                // });
+                    },
+                );
 
                 let (result, array) = self.check_lvalue(*array, assign_span);
                 let array = Box::new(array);
 
                 let typ = match result {
                     Type::Array(_, elem_type) => *elem_type,
+                    Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     other => {
                         // TODO: Need a better span here
@@ -204,6 +207,22 @@ impl<'interner> TypeChecker<'interner> {
                 };
 
                 (typ.clone(), HirLValue::Index { array, index, typ })
+            }
+            HirLValue::Dereference { lvalue, element_type: _ } => {
+                let (reference_type, lvalue) = self.check_lvalue(*lvalue, assign_span);
+                let lvalue = Box::new(lvalue);
+
+                let element_type = Type::type_variable(self.interner.next_type_variable_id());
+                let expected_type = Type::MutableReference(Box::new(element_type.clone()));
+                reference_type.unify(&expected_type, assign_span, &mut self.errors, || {
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: expected_type.to_string(),
+                        expr_typ: reference_type.to_string(),
+                        expr_span: assign_span,
+                    }
+                });
+
+                (element_type.clone(), HirLValue::Dereference { lvalue, element_type })
             }
         }
     }

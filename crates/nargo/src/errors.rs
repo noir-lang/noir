@@ -1,4 +1,4 @@
-use acvm::OpcodeResolutionError;
+use acvm::pwg::OpcodeResolutionError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

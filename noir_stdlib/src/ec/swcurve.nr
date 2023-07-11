@@ -71,12 +71,12 @@ mod affine {
         // Curve constructor
         fn new(a: Field, b: Field, gen: Point) -> Curve {
             // Check curve coefficients
-            constrain 4*a*a*a + 27*b*b != 0;
+            assert(4*a*a*a + 27*b*b != 0);
             
 	    let curve = Curve { a, b, gen };
 
             // gen should be on the curve
-            constrain curve.contains(curve.gen);
+            assert(curve.contains(curve.gen));
 
             curve
         }
@@ -164,7 +164,7 @@ mod affine {
         // where g(x) = x^3 + a*x + b. swu_map(c,z,.) then maps a Field element to a point on curve c.
         fn swu_map(self, z: Field, u: Field) -> Point {
             // Check whether curve is admissible
-            constrain self.a*self.b != 0;
+            assert(self.a*self.b != 0);
             
             let Curve {a, b, gen: _gen} = self;
             
@@ -248,12 +248,12 @@ mod curvegroup {
         // Curve constructor
         fn new(a: Field, b: Field, gen: Point) -> Curve {
             // Check curve coefficients
-            constrain 4*a*a*a + 27*b*b != 0;
+            assert(4*a*a*a + 27*b*b != 0);
             
 	    let curve = Curve { a, b, gen };
 
             // gen should be on the curve
-            constrain curve.contains(curve.gen);
+            assert(curve.contains(curve.gen));
 
             curve
         }
@@ -344,11 +344,18 @@ mod curvegroup {
 
         // Scalar multiplication (p + ... + p n times)
         fn mul(self, n: Field, p: Point) -> Point {
-            let n_as_bits = crate::ec::to_bits(n); // N_BITS-bit representation
+            let N_BITS = crate::field::modulus_num_bits();
+
+            // TODO: temporary workaround until issue 1354 is solved
+            let mut n_as_bits: [u1; 254] = [0; 254];
+            let tmp = n.to_le_bits(N_BITS as u32);
+            for i in 0..254 {
+               n_as_bits[i] = tmp[i]; 
+            }
 
             self.bit_mul(n_as_bits, p)
         }
-        
+
         // Multi-scalar multiplication (n[0]*p[0] + ... + n[N]*p[N], where * denotes scalar multiplication)
         fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
