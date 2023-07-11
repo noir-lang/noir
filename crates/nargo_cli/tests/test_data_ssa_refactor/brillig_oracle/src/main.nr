@@ -11,6 +11,7 @@ fn main(x: Field)  {
     get_number_sequence_wrapper(20);
 }
 
+// TODO(#1911)
 #[oracle(oracle_print_impl)]
 unconstrained fn oracle_print(_x : Field) -> Field {}
 
@@ -18,6 +19,7 @@ unconstrained fn oracle_print_wrapper(x: Field) {
     oracle_print(x);
 }
 
+// TODO(#1911)
 #[oracle(oracle_print_array_impl)]
 unconstrained fn oracle_print_array(_arr : [Field; 2]) -> Field {}
 
@@ -25,9 +27,12 @@ unconstrained fn oracle_print_array_wrapper(arr: [Field; 2]) {
     oracle_print_array(arr);
 }
 
+// TODO(#1911): This function does not need to be an oracle but acts 
+// as a useful test while we finalize code generation for slices in Brillig
 #[oracle(get_number_sequence)]
 unconstrained fn get_number_sequence(_size: Field) -> [Field] {}
 
+// TODO(#1911)
 #[oracle(get_reverse_number_sequence)]
 unconstrained fn get_reverse_number_sequence(_size: Field) -> [Field] {}
 
