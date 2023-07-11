@@ -3,9 +3,6 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use acvm::acir::circuit::{Opcode, OpcodeLabel};
-use acvm::compiler::CircuitSimplifier;
-use acvm::Language;
 use clap::Args;
 use fm::FileId;
 use noirc_abi::FunctionSignature;
@@ -23,7 +20,6 @@ mod contract;
 mod program;
 
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
-use iter_extended::vecmap;
 pub use program::CompiledProgram;
 
 #[derive(Args, Clone, Debug, Serialize, Deserialize)]
@@ -72,11 +68,9 @@ pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 pub fn compile_file(
     context: &mut Context,
     root_file: PathBuf,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
     create_local_crate(context, root_file, CrateType::Binary);
-    compile_main(context, np_language, is_opcode_supported, &CompileOptions::default())
+    compile_main(context, &CompileOptions::default())
 }
 
 /// Adds the File with the local crate root to the file system
@@ -195,8 +189,6 @@ pub fn compute_function_signature(context: &Context) -> Option<FunctionSignature
 /// On error this returns the non-empty list of warnings and errors.
 pub fn compile_main(
     context: &mut Context,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
     options: &CompileOptions,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
     let warnings = check_crate(context, options.deny_warnings, options.experimental_ssa)?;
@@ -212,8 +204,7 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program =
-        compile_no_check(context, options, main, np_language, is_opcode_supported)?;
+    let compiled_program = compile_no_check(context, options, main)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main:");
@@ -226,8 +217,6 @@ pub fn compile_main(
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
 pub fn compile_contracts(
     context: &mut Context,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
     options: &CompileOptions,
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
     let warnings = check_crate(context, options.deny_warnings, options.experimental_ssa)?;
@@ -237,7 +226,7 @@ pub fn compile_contracts(
     let mut errors = warnings;
 
     for contract in contracts {
-        match compile_contract(context, contract, np_language, is_opcode_supported, options) {
+        match compile_contract(context, contract, options) {
             Ok(contract) => compiled_contracts.push(contract),
             Err(mut more_errors) => errors.append(&mut more_errors),
         }
@@ -275,21 +264,13 @@ fn has_errors(errors: &[FileDiagnostic], deny_warnings: bool) -> bool {
 fn compile_contract(
     context: &Context,
     contract: Contract,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
     options: &CompileOptions,
 ) -> Result<CompiledContract, Vec<FileDiagnostic>> {
     let mut functions = Vec::new();
     let mut errs = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(
-            context,
-            options,
-            *function_id,
-            np_language,
-            is_opcode_supported,
-        ) {
+        let function = match compile_no_check(context, options, *function_id) {
             Ok(function) => function,
             Err(err) => {
                 errs.push(err);
@@ -328,33 +309,14 @@ pub fn compile_no_check(
     context: &Context,
     options: &CompileOptions,
     main_function: FuncId,
-    np_language: Language,
-    is_opcode_supported: &impl Fn(&Opcode) -> bool,
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, mut debug, abi) = if options.experimental_ssa {
+    let (circuit, debug, abi) = if options.experimental_ssa {
         experimental_create_circuit(program, options.show_ssa, options.show_output)?
     } else {
         create_circuit(program, options.show_ssa, options.show_output)?
     };
 
-    let abi_len = abi.field_count();
-
-    let simplifier = CircuitSimplifier::new(abi_len);
-    let (optimized_circuit, opcode_ids) =
-        acvm::compiler::compile(circuit, np_language, is_opcode_supported, &simplifier).map_err(
-            |_| FileDiagnostic {
-                file_id: FileId::dummy(),
-                diagnostic: CustomDiagnostic::from_message("produced an acvm compile error"),
-            },
-        )?;
-    let opcode_ids = vecmap(opcode_ids, |id| match id {
-        OpcodeLabel::Unresolved => {
-            unreachable!("Compiled circuit opcodes must resolve to some index")
-        }
-        OpcodeLabel::Resolved(index) => index as usize,
-    });
-    debug.update_acir(opcode_ids);
-    Ok(CompiledProgram { circuit: optimized_circuit, debug, abi })
+    Ok(CompiledProgram { circuit, debug, abi })
 }

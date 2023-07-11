@@ -79,6 +79,7 @@ impl Context {
             location,
         ) {
             InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
             InsertInstructionResult::Results(new_results) => new_results.to_vec(),
             InsertInstructionResult::InstructionRemoved => vec![],
         };

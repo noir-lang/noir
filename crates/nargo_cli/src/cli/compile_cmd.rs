@@ -1,5 +1,10 @@
-use acvm::Backend;
+use acvm::{
+    acir::circuit::{Circuit, OpcodeLabel},
+    compiler::{CircuitSimplifier, CompileError},
+    Backend,
+};
 use iter_extended::try_vecmap;
+use iter_extended::vecmap;
 use nargo::artifacts::contract::PreprocessedContract;
 use noirc_driver::{
     compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
@@ -57,12 +62,7 @@ pub(crate) fn run<B: Backend>(
     if args.contracts {
         let mut context = resolve_root_manifest(&config.program_dir)?;
 
-        let result = compile_contracts(
-            &mut context,
-            backend.np_language(),
-            &|op| backend.supports_opcode(op),
-            &args.compile_options,
-        );
+        let result = compile_contracts(&mut context, &args.compile_options);
         let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
 
         // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
@@ -71,22 +71,24 @@ pub(crate) fn run<B: Backend>(
         // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
         let preprocessed_contracts: Result<Vec<PreprocessedContract>, CliError<B>> =
             try_vecmap(contracts, |contract| {
-                let preprocessed_contract_functions = try_vecmap(contract.functions, |func| {
-                    common_reference_string = update_common_reference_string(
-                        backend,
-                        &common_reference_string,
-                        &func.bytecode,
-                    )
-                    .map_err(CliError::CommonReferenceStringError)?;
+                let preprocessed_contract_functions =
+                    try_vecmap(contract.functions, |mut func| {
+                        func.bytecode = optimize_circuit(backend, func.bytecode).unwrap().0;
+                        common_reference_string = update_common_reference_string(
+                            backend,
+                            &common_reference_string,
+                            &func.bytecode,
+                        )
+                        .map_err(CliError::CommonReferenceStringError)?;
 
-                    preprocess_contract_function(
-                        backend,
-                        args.include_keys,
-                        &common_reference_string,
-                        func,
-                    )
-                    .map_err(CliError::ProofSystemCompilerError)
-                })?;
+                        preprocess_contract_function(
+                            backend,
+                            args.include_keys,
+                            &common_reference_string,
+                            func,
+                        )
+                        .map_err(CliError::ProofSystemCompilerError)
+                    })?;
 
                 Ok(PreprocessedContract {
                     name: contract.name,
@@ -124,18 +126,39 @@ pub(crate) fn compile_circuit<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<(CompiledProgram, Context), CliError<B>> {
     let mut context = resolve_root_manifest(program_dir)?;
-    let result = compile_main(
-        &mut context,
+    let result = compile_main(&mut context, compile_options);
+    let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
+
+    // Apply backend specific optimizations.
+    let optimised = optimize_circuit(backend, program.circuit).unwrap();
+
+    program.circuit = optimised.0;
+    let opcode_labels = optimised.1;
+    let opcode_ids = vecmap(opcode_labels, |label| match label {
+        OpcodeLabel::Unresolved => {
+            unreachable!("Compiled circuit opcodes must resolve to some index")
+        }
+        OpcodeLabel::Resolved(index) => index as usize,
+    });
+    program.debug.update_acir(opcode_ids);
+
+    Ok((program, context))
+}
+
+pub(super) fn optimize_circuit<B: Backend>(
+    backend: &B,
+    circuit: Circuit,
+    //context: &Context,
+) -> Result<(Circuit, Vec<OpcodeLabel>), CompileError> {
+    // Note that this makes the `CircuitSimplifier` a noop.
+    // The `CircuitSimplifier` should be reworked to not rely on values being inserted during ACIR gen.
+    let simplifier = CircuitSimplifier::new(0);
+    acvm::compiler::compile(
+        circuit,
         backend.np_language(),
-        &|op| backend.supports_opcode(op),
-        compile_options,
-    );
-    let result: Result<CompiledProgram, CliError<B>> =
-        report_errors(result, &context, compile_options.deny_warnings).map_err(Into::into);
-    match result {
-        Ok(program) => Ok((program, context)),
-        Err(err) => Err(err),
-    }
+        |opcode| backend.supports_opcode(opcode),
+        &simplifier,
+    )
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
