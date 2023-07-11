@@ -72,11 +72,19 @@ impl GeneratedAcir {
         (conf, out_expr)
     }
 
-    /// Returns an expression which represents a*b
-    /// If one has multiplicative term and the other is of degree one or more,
-    /// the function creates intermediate variables accordindly
+    /// Returns a new [`Expression`] with the value `a * b`.
+    ///
+    /// If one has a multiplicative term and the other is of degree one or more,
+    /// the function creates intermediate variables accordingly as `Expression`s are limited to degree 2.
     fn mul_with_witness(&mut self, a: &Expression, b: &Expression) -> Expression {
         let a_arith;
+        let b_arith;
+
+        // We can only multiply `a` and `b` directly if the degree of `a * b` is 2 or less,
+        // otherwise the product will not fit in an `Expression`. We can reduce degree 2 expressions
+        // to degree 1 by using an intermediate variable to hold the result.
+
+        // If we need to reduce `a`'s degree for `a * b` to be degree 2 then create an intermediate variable.
         let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
             let a_witness = self.get_or_create_witness(a);
             a_arith = Expression::from(a_witness);
@@ -84,9 +92,11 @@ impl GeneratedAcir {
         } else {
             a
         };
-        let b_arith;
+
+        // Do the same for `b`.
         let b_arith = if !b.mul_terms.is_empty() && !a.is_const() {
             if a == b {
+                // Reuse `a`'s intermediate variable if possible.
                 a_arith
             } else {
                 let b_witness = self.get_or_create_witness(a);
