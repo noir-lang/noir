@@ -1,7 +1,7 @@
 #pragma once
+#include <barretenberg/common/log.hpp>
 #include <fstream>
 #include <vector>
-#include <barretenberg/common/log.hpp>
 
 inline std::vector<uint8_t> read_file(const std::string& filename)
 {

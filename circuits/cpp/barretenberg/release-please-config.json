@@ -4,7 +4,6 @@
   "bump-patch-for-minor-pre-major": true,
   "prerelease": true,
   "group-pull-request-title-pattern": "chore(barretenberg): Release ${version}",
-  "release-as": "0.3.0",
     "packages": {
         ".": {
             "release-type": "simple",

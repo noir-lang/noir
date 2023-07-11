@@ -2,11 +2,11 @@
 #include "exec_pipe.hpp"
 #include "file_io.hpp"
 #include "vinfo.hpp"
+#include <barretenberg/ecc/curves/bn254/g1.hpp>
+#include <barretenberg/srs/io.hpp>
 #include <filesystem>
 #include <fstream>
 #include <ios>
-#include <barretenberg/ecc/curves/bn254/g1.hpp>
-#include <barretenberg/srs/io.hpp>
 
 inline std::vector<uint8_t> download_g1_data(size_t num_points)
 {
