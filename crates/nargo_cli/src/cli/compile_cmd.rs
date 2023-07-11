@@ -131,7 +131,10 @@ pub(crate) fn compile_circuit<B: Backend>(
     Ok(program)
 }
 
-fn optimize_circuit<B: Backend>(backend: &B, circuit: Circuit) -> Result<Circuit, CliError<B>> {
+pub(super) fn optimize_circuit<B: Backend>(
+    backend: &B,
+    circuit: Circuit,
+) -> Result<Circuit, CliError<B>> {
     // Note that this makes the `CircuitSimplifier` a noop.
     // The `CircuitSimplifier` should be reworked to not rely on values being inserted during ACIR gen.
     let simplifier = CircuitSimplifier::new(0);
