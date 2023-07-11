@@ -32,19 +32,7 @@ cd ..
 # Pick native toolchain file.
 ARCH=$(uname -m)
 if [ "$OS" == "macos" ]; then
-  if [ "$(which brew)" != "" ]; then
-    export BREW_PREFIX=$(brew --prefix)
-
-    # Ensure we have toolchain.
-    if [ ! "$?" -eq 0 ] || [ ! -f "$BREW_PREFIX/opt/llvm/bin/clang++" ]; then
-      echo "Default clang not sufficient. Install homebrew, and then: brew install llvm libomp clang-format"
-      exit 1
-    fi
-
-    PRESET=homebrew
-  else
-    PRESET=default
-  fi
+  PRESET=default
 else
   if [ "$(which clang++-15)" != "" ]; then
     PRESET=clang15
