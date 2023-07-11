@@ -1,7 +1,7 @@
 use super::{parse_str_to_field, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::FieldElement;
-use iter_extended::{try_btree_map, try_vecmap, vecmap};
+use iter_extended::{try_btree_map, try_vecmap};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -68,12 +68,8 @@ enum TomlTypes {
     Integer(u64),
     // Simple boolean flag
     Bool(bool),
-    // Array of regular integers
-    ArrayNum(Vec<u64>),
-    // Array of hexadecimal integers
-    ArrayString(Vec<String>),
-    // Array of booleans
-    ArrayBool(Vec<bool>),
+    // Array of TomlTypes
+    Array(Vec<TomlTypes>),
     // Struct of TomlTypes
     Table(BTreeMap<String, TomlTypes>),
 }
@@ -90,17 +86,11 @@ impl TomlTypes {
             }
             (InputValue::Field(f), AbiType::Boolean) => TomlTypes::Bool(f.is_one()),
 
-            (InputValue::Vec(v), AbiType::Array { typ, .. }) => match typ.as_ref() {
-                AbiType::Field | AbiType::Integer { .. } => {
-                    let array = v.iter().map(|i| format!("0x{}", i.to_hex())).collect();
-                    TomlTypes::ArrayString(array)
-                }
-                AbiType::Boolean => {
-                    let array = v.iter().map(|i| i.is_one()).collect();
-                    TomlTypes::ArrayBool(array)
-                }
-                _ => return Err(InputParserError::AbiTypeMismatch(abi_type.clone())),
-            },
+            (InputValue::Vec(vector), AbiType::Array { typ, .. }) => {
+                let array =
+                    try_vecmap(vector, |value| TomlTypes::try_from_input_value(value, typ))?;
+                TomlTypes::Array(array)
+            }
 
             (InputValue::String(s), AbiType::String { .. }) => TomlTypes::String(s.to_string()),
 
@@ -142,32 +132,9 @@ impl InputValue {
 
             (TomlTypes::Bool(boolean), AbiType::Boolean) => InputValue::Field(boolean.into()),
 
-            (TomlTypes::ArrayNum(arr_num), AbiType::Array { typ, .. })
-                if matches!(
-                    typ.as_ref(),
-                    AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
-                ) =>
-            {
+            (TomlTypes::Array(array), AbiType::Array { typ, .. }) => {
                 let array_elements =
-                    vecmap(arr_num, |elem_num| FieldElement::from(i128::from(elem_num)));
-
-                InputValue::Vec(array_elements)
-            }
-            (TomlTypes::ArrayString(arr_str), AbiType::Array { typ, .. })
-                if matches!(
-                    typ.as_ref(),
-                    AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
-                ) =>
-            {
-                let array_elements = try_vecmap(arr_str, |elem_str| parse_str_to_field(&elem_str))?;
-
-                InputValue::Vec(array_elements)
-            }
-            (TomlTypes::ArrayBool(arr_bool), AbiType::Array { typ, .. })
-                if matches!(typ.as_ref(), AbiType::Boolean) =>
-            {
-                let array_elements = vecmap(arr_bool, FieldElement::from);
-
+                    try_vecmap(array, |value| InputValue::try_from_toml(value, typ, arg_name))?;
                 InputValue::Vec(array_elements)
             }
 

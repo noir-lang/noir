@@ -1,7 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
-use noirc_driver::CompileOptions;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use color_eyre::eyre;
 
@@ -83,43 +82,6 @@ pub fn start_cli() -> eyre::Result<()> {
     }?;
 
     Ok(())
-}
-
-// helper function which tests noir programs by trying to generate a proof and verify it without reading/writing to the filesystem
-pub fn prove_and_verify(program_dir: &Path, experimental_ssa: bool) -> bool {
-    use compile_cmd::compile_circuit;
-
-    let backend = crate::backends::ConcreteBackend::default();
-
-    let compile_options = CompileOptions {
-        show_ssa: false,
-        print_acir: false,
-        deny_warnings: false,
-        show_output: false,
-        experimental_ssa,
-    };
-
-    let (program, driver) =
-        compile_circuit(&backend, program_dir, &compile_options).expect("Compile should succeed");
-
-    // Parse the initial witness values from Prover.toml
-    let (inputs_map, _) = fs::inputs::read_inputs_from_file(
-        program_dir,
-        crate::constants::PROVER_INPUT_FILE,
-        noirc_abi::input_parser::Format::Toml,
-        &program.abi,
-    )
-    .expect("Should read inputs");
-
-    execute_cmd::execute_program(
-        &backend,
-        program.circuit,
-        &program.abi,
-        &inputs_map,
-        &program.debug,
-        &driver,
-    )
-    .is_ok()
 }
 
 // FIXME: I not sure that this is the right place for this tests.
