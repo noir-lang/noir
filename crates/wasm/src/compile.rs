@@ -91,25 +91,13 @@ pub fn compile(args: JsValue) -> JsValue {
 
     check_crate(&mut context, false, false).expect("Crate check failed");
 
-    let optimize_acir = |circuit: Circuit| {
-        // For now we default to plonk width = 3, though we can add it as a parameter
-        let language = acvm::Language::PLONKCSat { width: 3 };
-        #[allow(deprecated)]
-        let opcode_supported = acvm::pwg::default_is_opcode_supported(language);
-        let simplifier = CircuitSimplifier::new(0);
-        acvm::compiler::compile(circuit, language, &opcode_supported, &simplifier)
-            .expect("Circuit optimization failed")
-    };
-
     if options.contracts {
         let compiled_contracts = compile_contracts(&mut context, &options.compile_options)
             .expect("Contract compilation failed")
             .0;
 
-        let optimized_contracts: Vec<CompiledContract> = compiled_contracts
-            .into_iter()
-            .map(|contract| optimize_contract(contract, &optimize_acir))
-            .collect();
+        let optimized_contracts: Vec<CompiledContract> =
+            compiled_contracts.into_iter().map(|contract| optimize_contract(contract)).collect();
 
         // TODO: optimize circuits
         <JsValue as JsValueSerdeExt>::from_serde(&optimized_contracts).unwrap()
@@ -118,26 +106,33 @@ pub fn compile(args: JsValue) -> JsValue {
         let mut compiled_program =
             compile_no_check(&context, &options.compile_options, main).expect("Compilation failed");
 
-        compiled_program.circuit = optimize_acir(compiled_program.circuit);
+        compiled_program.circuit = optimize_circuit(compiled_program.circuit);
 
         // TODO: optimize circuit
         <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
     }
 }
 
-fn optimize_contract(
-    contract: CompiledContract,
-    acir_optimizer: &impl Fn(Circuit) -> Circuit,
-) -> CompiledContract {
+fn optimize_contract(contract: CompiledContract) -> CompiledContract {
     CompiledContract {
         name: contract.name,
         functions: contract
             .functions
             .into_iter()
             .map(|mut func| {
-                func.bytecode = acir_optimizer(func.bytecode);
+                func.bytecode = optimize_circuit(func.bytecode);
                 func
             })
             .collect(),
     }
+}
+
+fn optimize_circuit(circuit: Circuit) -> Circuit {
+    // For now we default to plonk width = 3, though we can add it as a parameter
+    let language = acvm::Language::PLONKCSat { width: 3 };
+    #[allow(deprecated)]
+    let opcode_supported = acvm::pwg::default_is_opcode_supported(language);
+    let simplifier = CircuitSimplifier::new(0);
+    acvm::compiler::compile(circuit, language, &opcode_supported, &simplifier)
+        .expect("Circuit optimization failed")
 }

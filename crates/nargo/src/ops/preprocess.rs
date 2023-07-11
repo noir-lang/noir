@@ -69,14 +69,16 @@ pub fn optimize_circuit(
     backend: &impl ProofSystemCompiler,
     circuit: Circuit,
 ) -> Result<Circuit, NargoError> {
-    let simplifier = CircuitSimplifier::new(circuit.current_witness_index);
+    // Note that this makes the `CircuitSimplifier` a noop.
+    // The `CircuitSimplifier` should be reworked to not rely on values being inserted during ACIR gen.
+    let simplifier = CircuitSimplifier::new(0);
     let optimized_circuit = acvm::compiler::compile(
         circuit,
         backend.np_language(),
         |opcode| backend.supports_opcode(opcode),
         &simplifier,
     )
-    .unwrap();
+    .map_err(|_| NargoError::CompilationError)?;
 
     Ok(optimized_circuit)
 }
