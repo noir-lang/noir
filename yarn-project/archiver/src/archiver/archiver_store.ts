@@ -5,6 +5,7 @@ import {
   ContractData,
   L1ToL2Message,
   L2BlockL2Logs,
+  LogType,
 } from '@aztec/types';
 import { Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -31,18 +32,12 @@ export interface ArchiverDataStore {
   getL2Blocks(from: number, take: number): Promise<L2Block[]>;
 
   /**
-   * Append new encrypted logs to the store's list.
-   * @param data - The encrypted logs to be added to the store.
+   * Append new logs to the store's list.
+   * @param data - The logs to be added to the store.
+   * @param logType - The type of the logs to be added to the store.
    * @returns True if the operation is successful.
    */
-  addEncryptedLogs(data: L2BlockL2Logs[]): Promise<boolean>;
-
-  /**
-   * Append new unencrypted logs to the store's list.
-   * @param data - The unencrypted logs to be added to the store.
-   * @returns True if the operation is successful.
-   */
-  addUnencryptedLogs(data: L2BlockL2Logs[]): Promise<boolean>;
+  addLogs(data: L2BlockL2Logs[], logType: LogType): Promise<boolean>;
 
   /**
    * Append new pending L1 to L2 messages to the store.
@@ -81,20 +76,13 @@ export interface ArchiverDataStore {
   getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message>;
 
   /**
-   * Gets the `take` amount of encrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first `encryptedLogs` to be returned.
-   * @param take - The number of encrypted logs to return.
-   * @returns The requested encrypted logs.
+   * Gets the `take` amount of logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first logs to be returned.
+   * @param take - The number of logs to return.
+   * @param logType - Specifies whether to return encrypted or unencrypted logs.
+   * @returns The requested logs.
    */
-  getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
-
-  /**
-   * Gets the `take` amount of unencrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first `unencryptedLogs` to be returned.
-   * @param take - The number of unencrypted logs to return.
-   * @returns The requested unencrypted logs.
-   */
-  getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
+  getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]>;
 
   /**
    * Store new Contract Public Data from an L2 block to the store's list.
@@ -197,22 +185,13 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Append new encrypted logs data to the store's list.
-   * @param data - The encrypted logs to be added to the store.
-   * @returns True if the operation is successful (always in this implementation).
+   * Append new logs to the store's list.
+   * @param data - The logs to be added to the store.
+   * @param logType - The type of the logs to be added to the store.
+   * @returns True if the operation is successful.
    */
-  public addEncryptedLogs(data: L2BlockL2Logs[]): Promise<boolean> {
-    this.encryptedLogs.push(...data);
-    return Promise.resolve(true);
-  }
-
-  /**
-   * Append new unencrypted logs data to the store's list.
-   * @param data - The unencrypted logs to be added to the store.
-   * @returns True if the operation is successful (always in this implementation).
-   */
-  public addUnencryptedLogs(data: L2BlockL2Logs[]): Promise<boolean> {
-    this.unencryptedLogs.push(...data);
+  addLogs(data: L2BlockL2Logs[], logType: LogType): Promise<boolean> {
+    logType === LogType.ENCRYPTED ? this.encryptedLogs.push(...data) : this.unencryptedLogs.push(...data);
     return Promise.resolve(true);
   }
 
@@ -310,39 +289,23 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Gets the `take` amount of encrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first encrypted logs to be returned.
-   * @param take - The number of encrypted logs to return.
-   * @returns The requested encrypted logs.
+   * Gets the `take` amount of logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first logs to be returned.
+   * @param take - The number of logs to return.
+   * @param logType - Specifies whether to return encrypted or unencrypted logs.
+   * @returns The requested logs.
    */
-  public getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
+  getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]> {
     if (from < INITIAL_L2_BLOCK_NUM) {
       throw new Error(`Invalid block range ${from}`);
     }
-    if (from > this.encryptedLogs.length) {
+    const logs = logType === LogType.ENCRYPTED ? this.encryptedLogs : this.unencryptedLogs;
+    if (from > logs.length) {
       return Promise.resolve([]);
     }
     const startIndex = from - INITIAL_L2_BLOCK_NUM;
     const endIndex = from + take;
-    return Promise.resolve(this.encryptedLogs.slice(startIndex, endIndex));
-  }
-
-  /**
-   * Gets the 'take' amount of unencrypted logs starting from 'from'.
-   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
-   * @param take - The number of unencrypted logs to return.
-   * @returns The requested unencrypted logs.
-   */
-  public getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
-    if (from < INITIAL_L2_BLOCK_NUM) {
-      throw new Error(`Invalid block range ${from}`);
-    }
-    if (from > this.unencryptedLogs.length) {
-      return Promise.resolve([]);
-    }
-    const startIndex = from - INITIAL_L2_BLOCK_NUM;
-    const endIndex = from + take;
-    return Promise.resolve(this.unencryptedLogs.slice(startIndex, endIndex));
+    return Promise.resolve(logs.slice(startIndex, endIndex));
   }
 
   /**

@@ -1,10 +1,19 @@
-import { AztecAddress, Fr, KernelCircuitPublicInputs, Proof, PublicCallRequest } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  Fr,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+  KernelCircuitPublicInputs,
+  Proof,
+  PublicCallRequest,
+} from '@aztec/circuits.js';
 
+import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { arrayNonEmptyLength } from '@aztec/foundation/collection';
+import { BufferReader, numToUInt32BE } from '@aztec/foundation/serialize';
 import { EncodedContractFunction } from './contract_data.js';
 import { TxL2Logs } from './logs/tx_l2_logs.js';
-import { TxHash } from './tx_hash.js';
 import { PartialContractAddress } from './partial_contract_address.js';
+import { TxHash } from './tx_hash.js';
 
 /**
  * The interface of an L2 transaction.
@@ -55,6 +64,40 @@ export class Tx {
           ${kernelPublicCallStackSize}, got ${enqueuedPublicFunctionCalls?.length})`,
       );
     }
+  }
+
+  /**
+   * Deserializes the Tx object from a Buffer.
+   * @param buffer - Buffer or BufferReader object to deserialize.
+   * @returns An instance of Tx.
+   */
+  static fromBuffer(buffer: Buffer | BufferReader): Tx {
+    const reader = BufferReader.asReader(buffer);
+    return new Tx(
+      reader.readObject(KernelCircuitPublicInputs),
+      reader.readObject(Proof),
+      reader.readObject(TxL2Logs),
+      reader.readObject(TxL2Logs),
+      reader.readArray(reader.readNumber(), EncodedContractFunction),
+      reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, PublicCallRequest),
+    );
+  }
+
+  /**
+   * Serializes the Tx object into a Buffer.
+   * @returns Buffer representation of the Tx object.
+   */
+  toBuffer() {
+    return serializeToBuffer([
+      this.data,
+      this.proof,
+      this.encryptedLogs,
+      this.unencryptedLogs,
+      // number of new contract public functions is not constant so we need to include it in the serialization
+      numToUInt32BE(this.newContractPublicFunctions.length),
+      this.newContractPublicFunctions,
+      this.enqueuedPublicFunctionCalls,
+    ]);
   }
 
   /**

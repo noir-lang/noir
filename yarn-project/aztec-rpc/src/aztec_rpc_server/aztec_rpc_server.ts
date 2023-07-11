@@ -11,6 +11,7 @@ import {
   ContractPublicData,
   ExecutionRequest,
   L2BlockL2Logs,
+  LogType,
   PartialContractAddress,
   Tx,
   TxExecutionRequest,
@@ -298,7 +299,7 @@ export class AztecRPCServer implements AztecRPC {
    * @returns The requested unencrypted logs.
    */
   public async getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
-    return await this.node.getUnencryptedLogs(from, take);
+    return await this.node.getLogs(from, take, LogType.UNENCRYPTED);
   }
 
   /**
@@ -399,8 +400,8 @@ export class AztecRPCServer implements AztecRPC {
     const [version, chainId] = await Promise.all([this.node.getVersion(), this.node.getChainId()]);
 
     return {
-      version: Number(version.value),
-      chainId: Number(chainId.value),
+      version,
+      chainId,
     };
   }
 }

@@ -3,7 +3,7 @@ import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus,
 import { DebugLogger } from '@aztec/foundation/log';
 import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
 
-import { L2BlockL2Logs } from '@aztec/types';
+import { L2BlockL2Logs, LogType } from '@aztec/types';
 import times from 'lodash.times';
 import { expectAztecStorageSlot, pointToPublicKey, setup } from './utils.js';
 
@@ -34,7 +34,7 @@ describe('e2e_public_token_contract', () => {
 
   const expectLogsFromLastBlockToBe = async (logMessages: string[]) => {
     const l2BlockNum = await aztecNode.getBlockHeight();
-    const unencryptedLogs = await aztecNode.getUnencryptedLogs(l2BlockNum, 1);
+    const unencryptedLogs = await aztecNode.getLogs(l2BlockNum, 1, LogType.UNENCRYPTED);
     const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs);
     const asciiLogs = unrolledLogs.map(log => log.toString('ascii'));
 

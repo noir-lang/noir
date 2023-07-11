@@ -3,76 +3,34 @@ import {
   AztecAddress,
   CONTRACT_TREE_HEIGHT,
   Fr,
-  KernelCircuitPublicInputs,
   L1_TO_L2_MSG_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
-  Proof,
-  PublicCallRequest,
 } from '@aztec/circuits.js';
+import { Logger, createLogger } from '@aztec/foundation/log';
 import { SiblingPath } from '@aztec/merkle-tree';
 import {
   ContractData,
   ContractPublicData,
-  EncodedContractFunction,
   L1ToL2Message,
   L1ToL2MessageAndIndex,
   L2Block,
   L2BlockL2Logs,
+  LogType,
   MerkleTreeId,
   Tx,
   TxHash,
-  TxL2Logs,
 } from '@aztec/types';
-
-/**
- * Serialises a transaction to JSON representation.
- * @param tx - The transaction to serialise.
- * @returns The serialsied transaction.
- */
-export function txToJson(tx: Tx) {
-  return {
-    data: tx.data?.toBuffer().toString('hex'),
-    encryptedLogs: tx.encryptedLogs?.toBuffer().toString('hex'),
-    unencryptedLogs: tx.unencryptedLogs?.toBuffer().toString('hex'),
-    proof: tx.proof?.toBuffer().toString('hex'),
-    newContractPublicFunctions: tx.newContractPublicFunctions?.map(f => f.toBuffer().toString('hex')) ?? [],
-    enqueuedPublicFunctions: tx.enqueuedPublicFunctionCalls?.map(f => f.toBuffer().toString('hex')) ?? [],
-  };
-}
-
-/**
- * Deserialises a transaction from JSON.
- * @param json - The JSON representation of the transaction.
- * @returns The deserialised transaction.
- */
-export function txFromJson(json: any) {
-  const publicInputs = KernelCircuitPublicInputs.fromBuffer(Buffer.from(json.data, 'hex'));
-  const encryptedLogs = TxL2Logs.fromBuffer(Buffer.from(json.encryptedLogs, 'hex'));
-  const unencryptedLogs = TxL2Logs.fromBuffer(Buffer.from(json.unencryptedLogs, 'hex'));
-  const proof = Buffer.from(json.proof, 'hex');
-  const newContractPublicFunctions = json.newContractPublicFunctions?.length
-    ? json.newContractPublicFunctions.map((x: string) => EncodedContractFunction.fromBuffer(Buffer.from(x, 'hex')))
-    : [];
-  const enqueuedPublicFunctions = json.enqueuedPublicFunctions?.length
-    ? json.enqueuedPublicFunctions.map((x: string) => PublicCallRequest.fromBuffer(Buffer.from(x, 'hex')))
-    : [];
-  return new Tx(
-    publicInputs,
-    Proof.fromBuffer(proof),
-    encryptedLogs,
-    unencryptedLogs,
-    newContractPublicFunctions,
-    enqueuedPublicFunctions,
-  );
-}
 
 /**
  * A Http client based implementation of Aztec Node.
  */
 export class HttpNode implements AztecNode {
   private baseUrl: string;
-  constructor(baseUrl: string) {
+  private log: Logger;
+
+  constructor(baseUrl: string, log = createLogger('aztec:http-node')) {
     this.baseUrl = baseUrl.toString().replace(/\/$/, '');
+    this.log = log;
   }
   /**
    * Method to determine if the node is ready to accept transactions.
@@ -120,7 +78,7 @@ export class HttpNode implements AztecNode {
    * Method to fetch the version of the rollup the node is connected to.
    * @returns The rollup version.
    */
-  public async getVersion(): Promise<Fr> {
+  public async getVersion(): Promise<number> {
     const url = new URL(`${this.baseUrl}/get-version`);
     const response = await fetch(url.toString());
     const respJson = await response.json();
@@ -131,7 +89,7 @@ export class HttpNode implements AztecNode {
    * Method to fetch the chain id of the base-layer for the rollup.
    * @returns The chain id.
    */
-  public async getChainId(): Promise<Fr> {
+  public async getChainId(): Promise<number> {
     const url = new URL(`${this.baseUrl}/get-chain-id`);
     const response = await fetch(url.toString());
     const respJson = await response.json();
@@ -148,55 +106,39 @@ export class HttpNode implements AztecNode {
     const url = new URL(`${this.baseUrl}/contract-data`);
     url.searchParams.append('address', contractAddress.toString());
     const response = await (await fetch(url.toString())).json();
+    if (!response || !response.contractData) {
+      return undefined;
+    }
     const contract = response.contractData as string;
     return Promise.resolve(ContractPublicData.fromBuffer(Buffer.from(contract, 'hex')));
   }
 
   /**
-   * Gets the `take` amount of encrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first encrypted logs to be returned.
-   * @param take - The number of encrypted logs to return.
-   * @returns The requested encrypted logs.
+   * Gets the `take` amount of logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first logs to be returned.
+   * @param take - The number of logs to return.
+   * @param logType - Specifies whether to return encrypted or unencrypted logs.
+   * @returns The requested logs.
    */
-  public async getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
-    const url = new URL(`${this.baseUrl}/get-encrypted-logs`);
-    url.searchParams.append('from', from.toString());
-    if (take !== undefined) {
-      url.searchParams.append('take', take.toString());
-    }
-    const response = await (await fetch(url.toString())).json();
-    const encryptedLogs = response.encryptedLogs as string[];
+  public async getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]> {
+    const url = new URL(`${this.baseUrl}/get-logs`);
 
-    if (!encryptedLogs) {
+    url.searchParams.append('from', from.toString());
+    url.searchParams.append('take', take.toString());
+    url.searchParams.append('logType', logType.toString());
+
+    const response = await (await fetch(url.toString())).json();
+    const logs = response.logs as string[];
+
+    if (!logs) {
       return Promise.resolve([]);
     }
-    return Promise.resolve(encryptedLogs.map(x => L2BlockL2Logs.fromBuffer(Buffer.from(x, 'hex'))));
-  }
-
-  /**
-   * Gets the `take` amount of unencrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
-   * @param take - The number of unencrypted logs to return.
-   * @returns The requested unencrypted logs.
-   */
-  public async getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
-    const url = new URL(`${this.baseUrl}/get-unencrypted-logs`);
-    url.searchParams.append('from', from.toString());
-    if (take !== undefined) {
-      url.searchParams.append('take', take.toString());
-    }
-    const response = await (await fetch(url.toString())).json();
-    const unencryptedLogs = response.unencryptedLogs as string[];
-
-    if (!unencryptedLogs) {
-      return Promise.resolve([]);
-    }
-    return Promise.resolve(unencryptedLogs.map(x => L2BlockL2Logs.fromBuffer(Buffer.from(x, 'hex'))));
+    return Promise.resolve(logs.map(x => L2BlockL2Logs.fromBuffer(Buffer.from(x, 'hex'))));
   }
 
   /**
    * Lookup the L2 contract info for this contract.
-   * Contains the ethereum portal address .
+   * Contains the ethereum portal address.
    * @param contractAddress - The contract data address.
    * @returns The contract's address & portal address.
    */
@@ -204,6 +146,9 @@ export class HttpNode implements AztecNode {
     const url = new URL(`${this.baseUrl}/contract-info`);
     url.searchParams.append('address', contractAddress.toString());
     const response = await (await fetch(url.toString())).json();
+    if (!response || !response.contractInfo) {
+      return undefined;
+    }
     const contract = response.contractInfo as string;
     return Promise.resolve(ContractData.fromBuffer(Buffer.from(contract, 'hex')));
   }
@@ -214,10 +159,9 @@ export class HttpNode implements AztecNode {
    */
   async sendTx(tx: Tx): Promise<void> {
     const url = new URL(`${this.baseUrl}/tx`);
-    const json = txToJson(tx);
     const init: RequestInit = {};
     init['method'] = 'POST';
-    init['body'] = JSON.stringify(json);
+    init['body'] = tx.toBuffer();
     await fetch(url, init);
   }
 
@@ -237,8 +181,14 @@ export class HttpNode implements AztecNode {
   async getPendingTxByHash(txHash: TxHash): Promise<Tx | undefined> {
     const url = new URL(`${this.baseUrl}/get-pending-tx`);
     url.searchParams.append('hash', txHash.toString());
-    const response = await (await fetch(url.toString())).json();
-    return Promise.resolve(txFromJson(response));
+    const response = await fetch(url.toString());
+    if (response.status === 404) {
+      this.log(`Tx ${txHash.toString()} not found`);
+      return undefined;
+    }
+    const txBuffer = Buffer.from(await (await fetch(url.toString())).arrayBuffer());
+    const tx = Tx.fromBuffer(txBuffer);
+    return Promise.resolve(tx);
   }
 
   /**
@@ -250,6 +200,9 @@ export class HttpNode implements AztecNode {
     const url = new URL(`${this.baseUrl}/contract-index`);
     url.searchParams.append('leaf', leafValue.toString('hex'));
     const response = await (await fetch(url.toString())).json();
+    if (!response || !response.index) {
+      return undefined;
+    }
     const index = response.index as string;
     return Promise.resolve(BigInt(index));
   }
@@ -276,6 +229,9 @@ export class HttpNode implements AztecNode {
     const url = new URL(`${this.baseUrl}/commitment-index`);
     url.searchParams.append('leaf', leafValue.toString('hex'));
     const response = await (await fetch(url.toString())).json();
+    if (!response || !response.index) {
+      return undefined;
+    }
     const index = response.index as string;
     return Promise.resolve(BigInt(index));
   }
@@ -333,6 +289,9 @@ export class HttpNode implements AztecNode {
     url.searchParams.append('address', contract.toString());
     url.searchParams.append('slot', slot.toString());
     const response = await (await fetch(url.toString())).json();
+    if (!response || !response.value) {
+      return undefined;
+    }
     const value = response.value as string;
     return Promise.resolve(Buffer.from(value, 'hex'));
   }
@@ -345,7 +304,11 @@ export class HttpNode implements AztecNode {
     const url = new URL(`${this.baseUrl}/tree-roots`);
     const response = await (await fetch(url.toString())).json();
 
-    const extractRoot = (treeId: MerkleTreeId) => Fr.fromBuffer(Buffer.from(response.roots[`${treeId}`], 'hex'));
+    const extractRoot = (treeId: MerkleTreeId) => {
+      // Buffer.from(...) returns an empty buffer when a hex string is prefixed with "0x"
+      const rootHexString = response.roots[treeId].replace(/^0x/, '');
+      return Fr.fromBuffer(Buffer.from(rootHexString, 'hex'));
+    };
 
     return {
       [MerkleTreeId.CONTRACT_TREE]: extractRoot(MerkleTreeId.CONTRACT_TREE),

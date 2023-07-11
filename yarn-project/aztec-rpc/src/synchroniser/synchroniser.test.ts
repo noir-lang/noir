@@ -61,8 +61,7 @@ describe('Synchroniser', () => {
   it('sets tree roots from latest block', async () => {
     const block = L2Block.random(1, 4);
     aztecNode.getBlocks.mockResolvedValue([L2Block.fromFields(omit(block, 'newEncryptedLogs', 'newUnencryptedLogs'))]);
-    aztecNode.getEncryptedLogs.mockResolvedValue([block.newEncryptedLogs!]);
-    aztecNode.getUnencryptedLogs.mockResolvedValue([block.newUnencryptedLogs!]);
+    aztecNode.getLogs.mockResolvedValueOnce([block.newEncryptedLogs!]).mockResolvedValue([block.newUnencryptedLogs!]);
 
     await synchroniser.work();
 
@@ -84,8 +83,7 @@ describe('Synchroniser', () => {
     aztecNode.getBlocks.mockResolvedValueOnce([
       L2Block.fromFields(omit(block1, 'newEncryptedLogs', 'newUnencryptedLogs')),
     ]);
-    aztecNode.getEncryptedLogs.mockResolvedValue([block1.newEncryptedLogs!]);
-    aztecNode.getUnencryptedLogs.mockResolvedValue([block1.newUnencryptedLogs!]);
+    aztecNode.getLogs.mockResolvedValue([block1.newEncryptedLogs!]).mockResolvedValue([block1.newUnencryptedLogs!]);
 
     await synchroniser.work();
     const roots1 = database.getTreeRoots();

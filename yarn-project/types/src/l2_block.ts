@@ -17,7 +17,7 @@ import { L2Tx } from './l2_tx.js';
 import { PublicDataWrite } from './public_data_write.js';
 import { sha256, sha256ToField } from '@aztec/foundation/crypto';
 import { L2BlockL2Logs } from './logs/l2_block_l2_logs.js';
-import { TxL2Logs } from './index.js';
+import { LogType, TxL2Logs } from './index.js';
 
 /**
  * The data that makes up the rollup proof, with encoder decoder functions.
@@ -151,10 +151,10 @@ export class L2Block {
     }
 
     if (newEncryptedLogs) {
-      this.attachLogs(newEncryptedLogs, 'newEncryptedLogs');
+      this.attachLogs(newEncryptedLogs, LogType.ENCRYPTED);
     }
     if (newUnencryptedLogs) {
-      this.attachLogs(newUnencryptedLogs, 'newUnencryptedLogs');
+      this.attachLogs(newUnencryptedLogs, LogType.UNENCRYPTED);
     }
   }
 
@@ -488,20 +488,22 @@ export class L2Block {
    * @param logType - The type of logs to be attached.
    * @remarks Here, because we can have L2 blocks without logs and those logs can be attached later.
    */
-  attachLogs(logs: L2BlockL2Logs, logType: 'newEncryptedLogs' | 'newUnencryptedLogs') {
-    if (this[logType]) {
-      throw new Error(`L2 block already has ${logType} attached.`);
+  attachLogs(logs: L2BlockL2Logs, logType: LogType) {
+    const logFieldName = logType === LogType.ENCRYPTED ? 'newEncryptedLogs' : 'newUnencryptedLogs';
+
+    if (this[logFieldName]) {
+      throw new Error(`L2 block already has ${logFieldName} attached.`);
     }
 
     const numTxs = this.newCommitments.length / MAX_NEW_COMMITMENTS_PER_TX;
 
     if (numTxs !== logs.txLogs.length) {
       throw new Error(
-        `Number of txLogs within ${logType} does not match number of transactions. Expected: ${numTxs} Got: ${logs.txLogs.length}`,
+        `Number of txLogs within ${logFieldName} does not match number of transactions. Expected: ${numTxs} Got: ${logs.txLogs.length}`,
       );
     }
 
-    this[logType] = logs;
+    this[logFieldName] = logs;
   }
 
   /**

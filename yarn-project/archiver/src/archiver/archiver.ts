@@ -3,7 +3,7 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { INITIAL_L2_BLOCK_NUM, L1ToL2Message, L1ToL2MessageSource, L2BlockL2Logs } from '@aztec/types';
+import { INITIAL_L2_BLOCK_NUM, L1ToL2Message, L1ToL2MessageSource, L2BlockL2Logs, LogType } from '@aztec/types';
 import {
   ContractData,
   ContractPublicData,
@@ -204,13 +204,13 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     const encryptedLogs = retrievedBlocks.retrievedData.map(block => {
       return block.newEncryptedLogs!;
     });
-    await this.store.addEncryptedLogs(encryptedLogs);
+    await this.store.addLogs(encryptedLogs, LogType.ENCRYPTED);
 
     // store unencrypted logs from L2 Blocks that we have retrieved
     const unencryptedLogs = retrievedBlocks.retrievedData.map(block => {
       return block.newUnencryptedLogs!;
     });
-    await this.store.addUnencryptedLogs(unencryptedLogs);
+    await this.store.addLogs(unencryptedLogs, LogType.UNENCRYPTED);
 
     // store contracts for which we have retrieved L2 blocks
     const lastKnownL2BlockNum = retrievedBlocks.retrievedData[retrievedBlocks.retrievedData.length - 1].number;
@@ -316,23 +316,14 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   }
 
   /**
-   * Gets the `take` amount of encrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first encrypted logs to be returned.
-   * @param take - The number of encrypted logs to return.
-   * @returns The requested encrypted logs.
+   * Gets the `take` amount of logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first logs to be returned.
+   * @param take - The number of logs to return.
+   * @param logType - Specifies whether to return encrypted or unencrypted logs.
+   * @returns The requested logs.
    */
-  public getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
-    return this.store.getEncryptedLogs(from, take);
-  }
-
-  /**
-   * Gets the `take` amount of unencrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
-   * @param take - The number of unencrypted logs to return.
-   * @returns The requested unencrypted logs.
-   */
-  public getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
-    return this.store.getUnencryptedLogs(from, take);
+  public getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]> {
+    return this.store.getLogs(from, take, logType);
   }
 
   /**

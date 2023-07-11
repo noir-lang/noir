@@ -29,14 +29,23 @@ import {
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { ContractData, L2Block, L2BlockL2Logs, MerkleTreeId, PublicDataWrite, Tx, TxL2Logs } from '@aztec/types';
+import {
+  ContractData,
+  L2Block,
+  L2BlockL2Logs,
+  MerkleTreeId,
+  mockTx,
+  PublicDataWrite,
+  Tx,
+  TxL2Logs,
+  makeEmptyLogs,
+} from '@aztec/types';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
 import { default as memdown, type MemDown } from 'memdown';
-import { makeEmptyLogs, makeTx } from '../mocks/tx.js';
 import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { EmptyRollupProver } from '../prover/empty.js';
 import { RollupProver } from '../prover/index.js';
@@ -288,7 +297,7 @@ describe('sequencer/solo_block_builder', () => {
     };
 
     const makeBloatedProcessedTx = async (seed = 0x1) => {
-      const tx = makeTx(seed);
+      const tx = mockTx(seed);
       const kernelOutput = KernelCircuitPublicInputs.empty();
       kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
       kernelOutput.end.publicDataUpdateRequests = makeTuple(

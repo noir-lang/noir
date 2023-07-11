@@ -28,9 +28,8 @@ import {
   getVerificationKeys,
   makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricTreeRoots,
   makeProcessedTx,
-  makeTx,
 } from '@aztec/sequencer-client';
-import { L2Actor, L2Block } from '@aztec/types';
+import { L2Actor, L2Block, mockTx } from '@aztec/types';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { default as levelup } from 'levelup';
@@ -158,7 +157,7 @@ describe('L1Publisher integration', () => {
   };
 
   const makeBloatedProcessedTx = async (seed = 0x1) => {
-    const tx = makeTx(seed);
+    const tx = mockTx(seed);
     const kernelOutput = KernelCircuitPublicInputs.empty();
     kernelOutput.constants.txContext.chainId = fr(config.chainId);
     kernelOutput.constants.txContext.version = fr(config.version);

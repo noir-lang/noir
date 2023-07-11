@@ -9,6 +9,7 @@ import {
   L2BlockL2Logs,
   TxHash,
   Tx,
+  LogType,
 } from '@aztec/types';
 import { SiblingPath } from '@aztec/merkle-tree';
 import { Fr } from '@aztec/foundation/fields';
@@ -41,13 +42,13 @@ export interface AztecNode {
    * Method to fetch the version of the rollup the node is connected to.
    * @returns The rollup version.
    */
-  getVersion(): Promise<Fr>;
+  getVersion(): Promise<number>;
 
   /**
    * Method to fetch the chain id of the base-layer for the rollup.
    * @returns The chain id.
    */
-  getChainId(): Promise<Fr>;
+  getChainId(): Promise<number>;
 
   /**
    * Lookup the L2 contract data for this contract.
@@ -66,20 +67,13 @@ export interface AztecNode {
   getContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined>;
 
   /**
-   * Gets the `take` amount of encrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first encrypted logs to be returned.
-   * @param take - The number of encrypted logs to return.
-   * @returns The requested encrypted logs.
+   * Gets the `take` amount of logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first logs to be returned.
+   * @param take - The number of logs to return.
+   * @param logType - Specifies whether to return encrypted or unencrypted logs.
+   * @returns The requested logs.
    */
-  getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
-
-  /**
-   * Gets the `take` amount of unencrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
-   * @param take - The number of unencrypted logs to return.
-   * @returns The requested unencrypted logs.
-   */
-  getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
+  getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]>;
 
   /**
    * Method to submit a transaction to the p2p pool.

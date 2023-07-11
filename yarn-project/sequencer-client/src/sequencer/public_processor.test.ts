@@ -30,6 +30,7 @@ import {
   EncodedContractFunction,
   ExecutionRequest,
   FunctionL2Logs,
+  mockTx,
   Tx,
   TxL2Logs,
 } from '@aztec/types';
@@ -37,7 +38,6 @@ import { MerkleTreeOperations, TreeInfo } from '@aztec/world-state';
 import { MockProxy, mock } from 'jest-mock-extended';
 import pick from 'lodash.pick';
 import times from 'lodash.times';
-import { makeTx } from '../index.js';
 import { PublicProver } from '../prover/index.js';
 import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
@@ -83,7 +83,7 @@ describe('public_processor', () => {
     });
 
     it('skips txs without public execution requests', async function () {
-      const tx = makeTx();
+      const tx = mockTx();
       tx.data.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Fr.zero);
       const hash = await tx.getTxHash();
       const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
@@ -97,7 +97,7 @@ describe('public_processor', () => {
     it('returns failed txs without aborting entire operation', async function () {
       publicExecutor.execute.mockRejectedValue(new Error(`Failed`));
 
-      const tx = makeTx();
+      const tx = mockTx();
       const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
 
       expect(processed).toEqual([]);

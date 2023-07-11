@@ -1,24 +1,18 @@
 import { L2BlockL2Logs } from './l2_block_l2_logs.js';
+import { LogType } from './log_type.js';
 
 /**
  * Interface of classes allowing for the retrieval of encrypted logs.
  */
 export interface L2LogsSource {
   /**
-   * Gets the `take` amount of encrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first `encryptedLogs` to be returned.
-   * @param take - The number of `encryptedLogs` to return.
-   * @returns The requested `encryptedLogs`.
+   * Gets the `take` amount of logs starting from `from`.
+   * @param from - Number of the L2 block to which corresponds the first logs to be returned.
+   * @param take - The number of logs to return.
+   * @param logType - Specifies whether to return encrypted or unencrypted logs.
+   * @returns The requested logs.
    */
-  getEncryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
-
-  /**
-   * Gets the `take` amount of unencrypted logs starting from `from`.
-   * @param from - Number of the L2 block to which corresponds the first `unencryptedLogs` to be returned.
-   * @param take - The number of `unencryptedLogs` to return.
-   * @returns The requested `unencryptedLogs`.
-   */
-  getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
+  getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]>;
 
   /**
    * Starts the encrypted logs source.
