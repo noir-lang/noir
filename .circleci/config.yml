@@ -712,7 +712,7 @@ jobs:
           working_directory: aztec-sandbox
           command: |
             deploy_ecr aztec-sandbox
-            deploy_dockerhub aztec-sandbox master
+            deploy_dockerhub aztec-sandbox
 
 
 # Repeatable config for defining the workflow below.
