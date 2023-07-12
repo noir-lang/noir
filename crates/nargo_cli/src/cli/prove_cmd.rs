@@ -105,12 +105,12 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         None => {
             let (program, context) =
                 compile_circuit(backend, program_dir.as_ref(), compile_options)?;
-            let debug = program.debug.clone();
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
-            let program = preprocess_program(backend, true, &common_reference_string, program)
-                .map_err(CliError::ProofSystemCompilerError)?;
+            let (program, debug) =
+                preprocess_program(backend, true, &common_reference_string, program)
+                    .map_err(CliError::ProofSystemCompilerError)?;
             (common_reference_string, program, Some((debug, context)))
         }
     };

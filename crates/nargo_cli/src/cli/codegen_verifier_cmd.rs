@@ -56,7 +56,7 @@ pub(crate) fn run<B: Backend>(
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
-            let program = preprocess_program(backend, true, &common_reference_string, program)
+            let (program, _) = preprocess_program(backend, true, &common_reference_string, program)
                 .map_err(CliError::ProofSystemCompilerError)?;
             (common_reference_string, program)
         }

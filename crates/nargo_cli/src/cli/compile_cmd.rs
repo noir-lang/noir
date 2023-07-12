@@ -106,7 +106,7 @@ pub(crate) fn run<B: Backend>(
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
 
-        let preprocessed_program =
+        let (preprocessed_program, _) =
             preprocess_program(backend, args.include_keys, &common_reference_string, program)
                 .map_err(CliError::ProofSystemCompilerError)?;
         save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
