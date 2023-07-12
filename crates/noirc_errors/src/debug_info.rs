@@ -16,9 +16,18 @@ impl DebugInfo {
         DebugInfo { locations }
     }
 
-    pub fn update_acir(&mut self, opcode_idx: Vec<usize>) {
+    /// Updates the locations map when the circuit is modified
+    ///
+    /// When the circuit is generated, the indices are 0,1,..,n
+    /// When the circuit is modified, the opcodes are eventually
+    /// mixed, removed, or with new ones. For instance 5,2,6,n+1,0,12,..
+    /// Since new opcodes (n+1 in the ex) don't have a location
+    /// we use the indice of the old opcode that they replace.
+    /// This is the case during fallback or width 'optimization'
+    /// opcode_indices is this list of mixed indices
+    pub fn update_acir(&mut self, opcode_indices: Vec<usize>) {
         let mut new_locations = HashMap::new();
-        for (i, idx) in opcode_idx.iter().enumerate() {
+        for (i, idx) in opcode_indices.iter().enumerate() {
             if self.locations.contains_key(idx) {
                 new_locations.insert(i, self.locations[idx]);
             }
@@ -28,12 +37,5 @@ impl DebugInfo {
 
     pub fn opcode_location(&self, idx: usize) -> Option<&Location> {
         self.locations.get(&idx)
-        // if let Some((start, end, file_id)) = self.locations.get(&idx) {
-
-        //     let span = Span::exclusive(*start,*end);
-        //     let f = FileId::new(*file_id);
-        //     return Some(Location::new(span, f));
-        // }
-        // None
     }
 }

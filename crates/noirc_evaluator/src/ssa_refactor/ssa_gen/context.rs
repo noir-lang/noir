@@ -323,9 +323,9 @@ impl<'a> FunctionContext<'a> {
         let loop_end = self.builder.insert_block();
 
         // pre-loop
-        let result_alloc = self.builder.insert_allocate();
+        let result_alloc = self.builder.set_location(location).insert_allocate();
         let true_value = self.builder.numeric_constant(1u128, Type::bool());
-        self.builder.set_location(location).insert_store(result_alloc, true_value);
+        self.builder.insert_store(result_alloc, true_value);
         let zero = self.builder.field_constant(0u128);
         self.builder.terminate_with_jmp(loop_start, vec![zero]);
 
@@ -346,7 +346,6 @@ impl<'a> FunctionContext<'a> {
         self.builder.insert_store(result_alloc, v5);
         let one = self.builder.field_constant(1u128);
         let v6 = self.builder.insert_binary(i, BinaryOp::Add, one);
-        //insert_binary_with_source_location(i, BinaryOp::Add, one, Some(location));
         self.builder.terminate_with_jmp(loop_start, vec![v6]);
 
         // loop end

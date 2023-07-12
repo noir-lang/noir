@@ -1,20 +1,10 @@
 // Tests a very simple program.
 // 
 // The features being tested is brillig calls
-use dep::std;
-fn main(x: u32) -> pub [u32; 2] {
-    assert(sha(x as u8) != 0);
+fn main(x: u32)  {
     assert(entry_point(x) == 2);
     swap_entry_point(x, x + 1);
     assert(deep_entry_point(x) == 4);
-    [x,x+1]
-}
-
-
-unconstrained fn sha(x : u8) -> u8 {
-  //  std::hash::sha256([x])[0]
-   // std::sha256::digest([x])[0]
-   1
 }
 
 unconstrained fn inner(x : u32) -> u32 {

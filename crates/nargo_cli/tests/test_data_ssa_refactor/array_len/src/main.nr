@@ -12,7 +12,6 @@ fn nested_call(b: [Field]) -> Field {
     len_plus_1(b)
 }
 
-
 fn main(len3: [u8; 3], len4: [Field; 4]) {
     assert(len_plus_1(len3) == 4);
     assert(len_plus_1(len4) == 5);

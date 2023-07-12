@@ -71,6 +71,10 @@ pub(crate) struct DataFlowGraph {
     /// material effect on the SSA itself.
     replaced_value_ids: HashMap<ValueId, ValueId>,
 
+    /// Source location of each instruction for debugging and issuing errors.
+    ///
+    /// Instructions inserted by internal SSA passes that don't correspond to user code
+    /// may not have a corresponding location.
     locations: HashMap<InstructionId, Location>,
 }
 
