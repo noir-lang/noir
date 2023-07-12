@@ -6,7 +6,7 @@ use crate::brillig::brillig_gen::brillig_directive;
 
 use super::errors::AcirGenError;
 use acvm::acir::{
-    brillig_vm::Opcode as BrilligOpcode,
+    brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
         directives::{LogInfo, QuotientDirective},

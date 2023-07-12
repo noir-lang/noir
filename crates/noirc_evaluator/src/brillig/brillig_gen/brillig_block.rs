@@ -11,9 +11,8 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, HeapArray, RegisterIndex, RegisterOrMemory,
-};
+use acvm::acir::brillig::{BinaryFieldOp, BinaryIntOp, HeapArray, RegisterIndex, RegisterOrMemory};
+use acvm::brillig_vm::brillig::HeapVector;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
@@ -214,6 +213,18 @@ impl<'block> BrilligBlock<'block> {
                         &input_registers,
                         &output_registers,
                     );
+
+                    for output_register in output_registers {
+                        if let RegisterOrMemory::HeapVector(HeapVector { size, .. }) =
+                            output_register
+                        {
+                            // Update the stack pointer so that we do not overwrite
+                            // dynamic memory returned from other external calls
+                            self.brillig_context.update_stack_pointer(size);
+                        }
+                        // Single values and allocation of fixed sized arrays has already been handled
+                        // inside of `allocate_external_call_result`
+                    }
                 }
                 Value::Function(func_id) => {
                     let function_arguments: Vec<RegisterIndex> =
@@ -485,6 +496,16 @@ impl<'block> BrilligBlock<'block> {
                 let array_size_in_memory = compute_size_of_type(&typ);
                 self.brillig_context.allocate_fixed_length_array(pointer, array_size_in_memory);
                 RegisterOrMemory::HeapArray(HeapArray { pointer, size: array_size_in_memory })
+            }
+            Type::Slice(_) => {
+                let pointer =
+                    self.function_context.get_or_create_register(self.brillig_context, result);
+                let array_size_register = self.brillig_context.allocate_register();
+                // Set the pointer to the current stack frame
+                // The stack pointer will then be update by the caller of this method
+                // once the external call is resolved and the array size is known
+                self.brillig_context.set_array_pointer(pointer);
+                RegisterOrMemory::HeapVector(HeapVector { pointer, size: array_size_register })
             }
             _ => {
                 unreachable!("ICE: unsupported return type for black box call {typ:?}")

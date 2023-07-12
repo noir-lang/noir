@@ -65,9 +65,13 @@ pub(crate) fn run<B: Backend>(
     let verification_key = preprocessed_program
         .verification_key
         .expect("Verification key should exist as `true` is passed to `preprocess_program`");
-    let smart_contract_string =
-        codegen_verifier(backend, &common_reference_string, &verification_key)
-            .map_err(CliError::SmartContractError)?;
+    let smart_contract_string = codegen_verifier(
+        backend,
+        &common_reference_string,
+        &preprocessed_program.bytecode,
+        &verification_key,
+    )
+    .map_err(CliError::SmartContractError)?;
 
     write_cached_common_reference_string(&common_reference_string);
 
