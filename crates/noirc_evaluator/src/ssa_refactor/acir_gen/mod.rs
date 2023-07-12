@@ -236,7 +236,7 @@ impl Context {
         allow_log_ops: bool,
     ) {
         let instruction = &dfg[instruction_id];
-
+        self.acir_context.set_location(dfg.get_location(&instruction_id));
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self
@@ -343,6 +343,7 @@ impl Context {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
         }
+        self.acir_context.set_location(None);
     }
 
     fn gen_brillig_for(&self, func: &Function, brillig: &Brillig) -> Vec<Opcode> {

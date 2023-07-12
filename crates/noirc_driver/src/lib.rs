@@ -312,11 +312,11 @@ pub fn compile_no_check(
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, abi) = if options.experimental_ssa {
+    let (circuit, debug, abi) = if options.experimental_ssa {
         experimental_create_circuit(program, options.show_ssa, options.show_output)?
     } else {
         create_circuit(program, options.show_ssa, options.show_output)?
     };
 
-    Ok(CompiledProgram { circuit, abi })
+    Ok(CompiledProgram { circuit, debug, abi })
 }

@@ -726,6 +726,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3362992a0d9f1dd7c3d0e89e0ab2bb540b7a95fea8cd798090e758fda2899b5e"
 dependencies = [
  "codespan-reporting",
+ "serde",
 ]
 
 [[package]]
@@ -745,6 +746,7 @@ version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
 dependencies = [
+ "serde",
  "termcolor",
  "unicode-width",
 ]
@@ -1253,6 +1255,7 @@ dependencies = [
  "cfg-if",
  "codespan-reporting",
  "rust-embed",
+ "serde",
  "tempfile",
  "wasm-bindgen",
 ]
@@ -1994,6 +1997,7 @@ dependencies = [
  "iter-extended",
  "noirc_abi",
  "noirc_driver",
+ "noirc_errors",
  "rustc_version",
  "serde",
  "thiserror",
@@ -2015,6 +2019,7 @@ dependencies = [
  "color-eyre",
  "const_format",
  "dirs",
+ "fm",
  "hex",
  "iter-extended",
  "nargo",
@@ -2106,6 +2111,7 @@ dependencies = [
  "codespan",
  "codespan-reporting",
  "fm",
+ "serde",
 ]
 
 [[package]]

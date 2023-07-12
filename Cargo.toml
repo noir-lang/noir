@@ -40,7 +40,7 @@ noir_wasm = { path = "crates/wasm" }
 
 cfg-if = "1.0.0"
 clap = { version = "4.1.4", features = ["derive"] }
-codespan = "0.11.1"
+codespan = {version = "0.11.1", features = ["serialization"]}
 codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
