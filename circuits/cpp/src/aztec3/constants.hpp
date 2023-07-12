@@ -70,14 +70,14 @@ constexpr size_t KERNELS_PER_ROLLUP = 2;
 // TREES RELATED CONSTANTS
 constexpr size_t VK_TREE_HEIGHT = 3;
 constexpr size_t FUNCTION_TREE_HEIGHT = 4;
-constexpr size_t CONTRACT_TREE_HEIGHT = 16;
-constexpr size_t PRIVATE_DATA_TREE_HEIGHT = 32;
+constexpr size_t CONTRACT_TREE_HEIGHT = 8;
+constexpr size_t PRIVATE_DATA_TREE_HEIGHT = 16;
 constexpr size_t PUBLIC_DATA_TREE_HEIGHT = 254;
 constexpr size_t NULLIFIER_TREE_HEIGHT = 16;
-constexpr size_t L1_TO_L2_MSG_TREE_HEIGHT = 16;
-constexpr size_t PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT = 16;
-constexpr size_t CONTRACT_TREE_ROOTS_TREE_HEIGHT = 16;
-constexpr size_t L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT = 16;
+constexpr size_t L1_TO_L2_MSG_TREE_HEIGHT = 8;
+constexpr size_t PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT = 8;
+constexpr size_t CONTRACT_TREE_ROOTS_TREE_HEIGHT = 8;
+constexpr size_t L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT = 8;
 constexpr size_t ROLLUP_VK_TREE_HEIGHT = 8;  // TODO: update
 
 

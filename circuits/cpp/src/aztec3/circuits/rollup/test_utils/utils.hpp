@@ -30,13 +30,13 @@ using AppendOnlyTreeSnapshot = aztec3::circuits::abis::AppendOnlyTreeSnapshot<NT
 
 using NullifierLeafPreimage = aztec3::circuits::abis::NullifierLeafPreimage<NT>;
 
-// Tree Aliases
-using MemoryStore = stdlib::merkle_tree::MemoryStore;
-using MerkleTree = stdlib::merkle_tree::MerkleTree<MemoryStore>;
+// Nullifier Tree Alias
+using MerkleTree = stdlib::merkle_tree::MemoryTree;
 using NullifierTree = stdlib::merkle_tree::NullifierMemoryTree;
 using NullifierLeaf = stdlib::merkle_tree::nullifier_leaf;
-
 using KernelData = aztec3::circuits::abis::PreviousKernelData<NT>;
+using MemoryStore = stdlib::merkle_tree::MemoryStore;
+using SparseTree = stdlib::merkle_tree::MerkleTree<MemoryStore>;
 
 using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::PreviousRollupData;
@@ -49,11 +49,11 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
                                                  MerkleTree& private_data_tree,
                                                  MerkleTree& contract_tree,
-                                                 MerkleTree& public_data_tree,
+                                                 SparseTree& public_data_tree,
                                                  MerkleTree& l1_to_l2_msg_tree);
 
 
-template <size_t N> std::array<fr, N> get_sibling_path(MerkleTree& tree, uint256_t leafIndex)
+template <size_t N> std::array<fr, N> get_sibling_path(SparseTree& tree, uint256_t leafIndex)
 {
     std::array<fr, N> siblingPath;
     auto path = tree.get_hash_path(leafIndex);

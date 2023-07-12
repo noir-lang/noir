@@ -82,8 +82,7 @@ get_random_reads(NT::fr const& contract_address, int const num_read_requests)
     // set -> vector without collisions
     std::vector<NT::uint32> rr_leaf_indices(rr_leaf_indices_set.begin(), rr_leaf_indices_set.end());
 
-    MemoryStore private_data_tree_store;
-    MerkleTree private_data_tree = MerkleTree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+    MerkleTree private_data_tree = MerkleTree(PRIVATE_DATA_TREE_HEIGHT);
 
     // add the commitments to the private data tree for each read request
     // add them at their corresponding index in the tree
