@@ -35,8 +35,9 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirImpl, NoirStruct, Path,
-    PathKind, Pattern, Recoverable, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirStruct, NoirTrait,
+    Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem, TraitItem,
+    TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -78,6 +79,8 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Module(m) => program.push_module_decl(m),
                     TopLevelStatement::Import(i) => program.push_import(i),
                     TopLevelStatement::Struct(s) => program.push_type(s),
+                    TopLevelStatement::Trait(t) => program.push_trait(t),
+                    TopLevelStatement::TraitImpl(t) => program.push_trait_impl(t),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
                     TopLevelStatement::Global(c) => program.push_global(c),
@@ -90,6 +93,7 @@ fn module() -> impl NoirParser<ParsedModule> {
 
 /// top_level_statement: function_definition
 ///                    | struct_definition
+///                    | trait_definition
 ///                    | implementation
 ///                    | submodule
 ///                    | module_declaration
@@ -101,6 +105,8 @@ fn top_level_statement(
     choice((
         function_definition(false).map(TopLevelStatement::Function),
         struct_definition(),
+        trait_definition(),
+        trait_implementation(),
         implementation(),
         submodule(module_parser.clone()),
         contract(module_parser),
@@ -158,38 +164,32 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(generics())
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
+        .then(where_clause())
         .then(block(expression()))
-        .map(
-            |(
-                (
-                    (
-                        (((attribute, (is_unconstrained, is_open, is_internal)), name), generics),
-                        parameters,
-                    ),
-                    ((return_distinctness, return_visibility), return_type),
-                ),
+        .map(|(((args, ret), where_clause), body)| {
+            let ((((attribute, modifiers), name), generics), parameters) = args;
+
+            FunctionDefinition {
+                span: name.0.span(),
+                name,
+                attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                is_unconstrained: modifiers.0,
+                is_open: modifiers.1,
+                is_internal: modifiers.2,
+                generics,
+                parameters,
                 body,
-            )| {
-                FunctionDefinition {
-                    span: name.0.span(),
-                    name,
-                    attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-                    is_open,
-                    is_internal,
-                    is_unconstrained,
-                    generics,
-                    parameters,
-                    body,
-                    return_type,
-                    return_visibility,
-                    return_distinctness,
-                }
-                .into()
-            },
-        )
+                where_clause,
+                return_type: ret.1,
+                return_visibility: ret.0 .1,
+                return_distinctness: ret.0 .0,
+            }
+            .into()
+        })
 }
 
-/// function_modifiers:  'open internal' | 'internal' | 'unconstrained' | 'open' | %empty
+/// function_modifiers: 'unconstrained'? 'open'? 'internal'? 
+///
 /// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, bool, bool)> {
     keyword(Keyword::Unconstrained)
@@ -345,6 +345,80 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)>
         })
 }
 
+fn trait_definition() -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Trait)
+        .ignore_then(ident())
+        .then(generics())
+        .then_ignore(just(Token::LeftBrace))
+        .then(trait_body())
+        .then_ignore(just(Token::RightBrace))
+        .validate(|((name, generics), items), span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
+            TopLevelStatement::Trait(NoirTrait { name, generics, items })
+        })
+}
+
+fn trait_body() -> impl NoirParser<Vec<TraitItem>> {
+    trait_function_declaration()
+        .or(trait_type_declaration())
+        .separated_by(just(Token::Semicolon))
+        .allow_trailing()
+}
+
+/// trait_function_declaration: 'fn' ident generics '(' declaration_parameters ')' function_return_type
+fn trait_function_declaration() -> impl NoirParser<TraitItem> {
+    keyword(Keyword::Fn)
+        .ignore_then(ident())
+        .then(generics())
+        .then(parenthesized(function_declaration_parameters()))
+        .then(function_return_type().map(|(_, typ)| typ))
+        .then(where_clause())
+        .map(|((((name, generics), parameters), return_type), where_clause)| TraitItem::Function {
+            name,
+            generics,
+            parameters,
+            return_type,
+            where_clause,
+        })
+}
+
+/// Function declaration parameters differ from other parameters in that parameter
+/// patterns are not allowed in declarations. All parameters must be identifiers.
+fn function_declaration_parameters() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
+    let typ = parse_type().recover_via(parameter_recovery());
+    let typ = just(Token::Colon).ignore_then(typ);
+
+    let parameter = ident().recover_via(parameter_name_recovery()).then(typ);
+
+    let parameter = parameter.or(self_parameter().validate(|param, span, emit| {
+        match param.0 {
+            Pattern::Identifier(ident) => (ident, param.1),
+            other => {
+                emit(ParserError::with_reason(
+                    ParserErrorReason::PatternInTraitFunctionParameter,
+                    span,
+                ));
+                // into_ident panics on tuple or struct patterns but should be fine to call here
+                // since the `self` parser can only parse `self`, `mut self` or `&mut self`.
+                (other.into_ident(), param.1)
+            }
+        }
+    }));
+
+    parameter
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .labelled(ParsingRuleLabel::Parameter)
+}
+
+/// trait_type_declaration: 'type' ident generics
+fn trait_type_declaration() -> impl NoirParser<TraitItem> {
+    keyword(Keyword::Type).ignore_then(ident()).map(|name| TraitItem::Type { name })
+}
+
+/// Parses a non-trait implementation, adding a set of methods to a type.
+///
+/// implementation: 'impl' generics type '{' function_definition ... '}'
 fn implementation() -> impl NoirParser<TopLevelStatement> {
     keyword(Keyword::Impl)
         .ignore_then(generics())
@@ -353,8 +427,71 @@ fn implementation() -> impl NoirParser<TopLevelStatement> {
         .then(function_definition(true).repeated())
         .then_ignore(just(Token::RightBrace))
         .map(|((generics, (object_type, type_span)), methods)| {
-            TopLevelStatement::Impl(NoirImpl { generics, object_type, type_span, methods })
+            TopLevelStatement::Impl(TypeImpl { generics, object_type, type_span, methods })
         })
+}
+
+/// Parses a trait implementation, implementing a particular trait for a type.
+/// This has a similar syntax to `implementation`, but the `for type` clause is required,
+/// and an optional `where` clause is also useable.
+///
+/// trait_implementation: 'impl' generics ident generic_args for type '{' trait_implementation_body '}'
+fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
+    keyword(Keyword::Impl)
+        .ignore_then(generics())
+        .then(ident())
+        .then(generic_type_args(parse_type()))
+        .then_ignore(keyword(Keyword::For))
+        .then(parse_type().map_with_span(|typ, span| (typ, span)))
+        .then(where_clause())
+        .then_ignore(just(Token::LeftBrace))
+        .then(trait_implementation_body())
+        .then_ignore(just(Token::RightBrace))
+        .validate(|args, span, emit| {
+            let ((other_args, where_clause), items) = args;
+            let (((impl_generics, trait_name), trait_generics), (object_type, object_type_span)) =
+                other_args;
+
+            emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
+            TopLevelStatement::TraitImpl(TraitImpl {
+                impl_generics,
+                trait_name,
+                trait_generics,
+                object_type,
+                object_type_span,
+                items,
+                where_clause,
+            })
+        })
+}
+
+fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
+    let function = function_definition(true).map(TraitImplItem::Function);
+
+    let alias = keyword(Keyword::Type)
+        .ignore_then(ident())
+        .then_ignore(just(Token::Assign))
+        .then(parse_type())
+        .then_ignore(just(Token::Semicolon))
+        .map(|(name, alias)| TraitImplItem::Type { name, alias });
+
+    function.or(alias).repeated()
+}
+
+fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
+    let constraints = parse_type()
+        .then_ignore(just(Token::Colon))
+        .then(ident())
+        .then(generic_type_args(parse_type()))
+        .validate(|((typ, trait_name), trait_generics), span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
+            TraitConstraint { typ, trait_name, trait_generics }
+        });
+
+    keyword(Keyword::Where)
+        .ignore_then(constraints.repeated())
+        .or_not()
+        .map(|option| option.unwrap_or_default())
 }
 
 fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
