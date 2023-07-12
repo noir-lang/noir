@@ -188,7 +188,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         })
 }
 
-/// function_modifiers: 'unconstrained'? 'open'? 'internal'? 
+/// function_modifiers: 'unconstrained'? 'open'? 'internal'?
 ///
 /// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, bool, bool)> {
