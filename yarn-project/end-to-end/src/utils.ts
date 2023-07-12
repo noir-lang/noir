@@ -12,7 +12,6 @@ import {
   Contract,
   ContractDeployer,
   EthAddress,
-  Point,
   SchnorrAuthProvider,
   TxStatus,
   Wallet,
@@ -181,20 +180,6 @@ export async function deployL2Contracts(wallet: Wallet, abis: ContractAbi[]) {
 export function getLogger() {
   const describeBlockName = expect.getState().currentTestName?.split(' ')[0];
   return createDebugLogger('aztec:' + describeBlockName);
-}
-
-/**
- * Converts a point to a public key.
- * @param point - the point to convert to
- * @returns two big ints x,y representing the public key
- */
-export function pointToPublicKey(point: Point) {
-  const x = point.x.toBigInt();
-  const y = point.y.toBigInt();
-  return {
-    x,
-    y,
-  };
 }
 
 /**

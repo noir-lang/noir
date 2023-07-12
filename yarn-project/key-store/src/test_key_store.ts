@@ -19,6 +19,13 @@ export class TestKeyStore implements KeyStore {
    */
   public addAccount(privKey: Buffer): PublicKey {
     const keyPair = ConstantKeyPair.fromPrivateKey(this.curve, privKey);
+
+    // check if private key has already been used
+    const account = this.accounts.find(a => a.getPublicKey().equals(keyPair.getPublicKey()));
+    if (account) {
+      return account.getPublicKey();
+    }
+
     this.accounts.push(keyPair);
     return keyPair.getPublicKey();
   }

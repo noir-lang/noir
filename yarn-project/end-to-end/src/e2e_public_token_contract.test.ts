@@ -5,7 +5,7 @@ import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
 
 import { L2BlockL2Logs, LogType } from '@aztec/types';
 import times from 'lodash.times';
-import { expectAztecStorageSlot, pointToPublicKey, setup } from './utils.js';
+import { expectAztecStorageSlot, setup } from './utils.js';
 
 describe('e2e_public_token_contract', () => {
   let aztecNode: AztecNodeService;
@@ -65,7 +65,7 @@ describe('e2e_public_token_contract', () => {
 
     const PK = await aztecRpcServer.getAccountPublicKey(recipient);
 
-    const tx = deployedContract.methods.mint(mintAmount, pointToPublicKey(PK)).send({ from: recipient });
+    const tx = deployedContract.methods.mint(mintAmount, PK.toBigInts()).send({ from: recipient });
 
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();
@@ -85,7 +85,7 @@ describe('e2e_public_token_contract', () => {
     const { contract: deployedContract } = await deployContract();
 
     // Assemble two mint txs sequentially (no parallel calls to circuits!) and send them simultaneously
-    const methods = times(3, () => deployedContract.methods.mint(mintAmount, pointToPublicKey(PK)));
+    const methods = times(3, () => deployedContract.methods.mint(mintAmount, PK.toBigInts()));
     for (const method of methods) await method.simulate({ from: recipient });
     const txs = await Promise.all(methods.map(method => method.send()));
 

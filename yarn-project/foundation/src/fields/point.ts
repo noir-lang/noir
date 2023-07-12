@@ -87,6 +87,19 @@ export class Point {
   }
 
   /**
+   * Returns the contents of the point as BigInts.
+   * @returns The point as BigInts
+   */
+  toBigInts() {
+    const x = this.x.toBigInt();
+    const y = this.y.toBigInt();
+    return {
+      x,
+      y,
+    };
+  }
+
+  /**
    * Converts the Point instance to a Buffer representaion of the coordinates.
    * The outputs buffer length will be 64, the length of both coordinates not represented as fields.
    * @returns A Buffer representation of the Point instance.

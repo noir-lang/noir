@@ -1,9 +1,9 @@
 import { secp256k1 } from '@noble/curves/secp256k1';
+import { EcdsaSignature } from '@aztec/circuits.js/barretenberg';
+
 import { AztecAddress } from '../index.js';
 import { AuthPayload } from './index.js';
-
 import { EntrypointPayload } from '../account_impl/account_contract.js';
-import { EcdsaSignature } from '@aztec/circuits.js/barretenberg';
 
 /**
  * An ecdsa implementation of auth provider.

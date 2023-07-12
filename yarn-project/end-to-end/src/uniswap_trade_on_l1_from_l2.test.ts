@@ -3,7 +3,7 @@ import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus,
 import { deployL1Contract } from '@aztec/ethereum';
 
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { delay, deployAndInitializeNonNativeL2TokenContracts, pointToPublicKey, setup } from './utils.js';
+import { delay, deployAndInitializeNonNativeL2TokenContracts, setup } from './utils.js';
 import { CrossChainTestHarness } from './cross_chain/test_harness.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { getContract, parseEther } from 'viem';
@@ -58,7 +58,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
     [ownerAddress, receiver] = accounts;
     const ownerPubPoint = await aztecRpcServer.getAccountPublicKey(ownerAddress);
-    ownerPub = pointToPublicKey(ownerPubPoint);
+    ownerPub = ownerPubPoint.toBigInts();
 
     logger('Deploying DAI Portal, initializing and deploying l2 contract...');
     const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(

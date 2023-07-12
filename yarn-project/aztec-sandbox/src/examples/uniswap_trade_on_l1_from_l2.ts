@@ -6,7 +6,6 @@ import {
   createAccounts,
   createAztecRpcClient,
   getL1ContractAddresses,
-  pointToPublicKey,
   AztecAddress,
   EthAddress,
   Fr,
@@ -24,7 +23,7 @@ import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 /**
  * Type representation of a Public key's coordinates.
  */
-type PublicKey = {
+type BigIntPublicKey = {
   /** Public key X coord */
   x: bigint;
   /** Public key Y coord */
@@ -72,7 +71,7 @@ let wallet: Wallet;
  * Deploys all l1 / l2 contracts
  * @param ownerPub - Public key of deployer.
  */
-async function deployAllContracts(ownerPub: PublicKey) {
+async function deployAllContracts(ownerPub: BigIntPublicKey) {
   const l1ContractsAddresses = await getL1ContractAddresses(aztecRpcUrl);
   logger('Deploying DAI Portal, initializing and deploying l2 contract...');
   const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(
@@ -146,7 +145,7 @@ async function deployAllContracts(ownerPub: PublicKey) {
 
 const getL2BalanceOf = async (aztecRpcClient: AztecRPC, owner: AztecAddress, l2Contract: any) => {
   const ownerPublicKey = await aztecRpcClient.getAccountPublicKey(owner);
-  const [balance] = await l2Contract.methods.getBalance(pointToPublicKey(ownerPublicKey)).view({ from: owner });
+  const [balance] = await l2Contract.methods.getBalance(ownerPublicKey.toBigInts()).view({ from: owner });
   return balance;
 };
 
@@ -170,8 +169,8 @@ const transferWethOnL2 = async (
   const transferTx = wethL2Contract.methods
     .transfer(
       transferAmount,
-      pointToPublicKey(await aztecRpcClient.getAccountPublicKey(ownerAddress)),
-      pointToPublicKey(await aztecRpcClient.getAccountPublicKey(receiver)),
+      (await aztecRpcClient.getAccountPublicKey(ownerAddress)).toBigInts(),
+      (await aztecRpcClient.getAccountPublicKey(receiver)).toBigInts(),
     )
     .send({ from: ownerAddress });
   await transferTx.isMined(0, 0.5);
@@ -186,10 +185,10 @@ const transferWethOnL2 = async (
 async function main() {
   logger('Running L1/L2 messaging test on HTTP interface.');
 
-  wallet = await createAccounts(aztecRpcClient, privateKey!, 2);
+  wallet = await createAccounts(aztecRpcClient, privateKey!, Fr.random(), 2);
   const accounts = await wallet.getAccounts();
   const [owner, receiver] = accounts;
-  const ownerPub = pointToPublicKey(await aztecRpcClient.getAccountPublicKey(owner));
+  const ownerPub = (await aztecRpcClient.getAccountPublicKey(owner)).toBigInts();
 
   const result = await deployAllContracts(ownerPub);
   const {

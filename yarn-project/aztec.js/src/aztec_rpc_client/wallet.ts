@@ -33,6 +33,9 @@ export abstract class BaseWallet implements Wallet {
   getAccountPublicKey(address: AztecAddress): Promise<Point> {
     return this.rpc.getAccountPublicKey(address);
   }
+  getAccountAddress(publicKey: Point): Promise<AztecAddress> {
+    return this.rpc.getAccountAddress(publicKey);
+  }
   addContracts(contracts: DeployedContract[]): Promise<void> {
     return this.rpc.addContracts(contracts);
   }
