@@ -1,4 +1,4 @@
-use acvm::{acir::circuit::Circuit, compiler::CircuitSimplifier, Backend};
+use acvm::{acir::circuit::Circuit, Backend};
 use iter_extended::try_vecmap;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use noirc_driver::{
@@ -135,16 +135,11 @@ pub(super) fn optimize_circuit<B: Backend>(
     backend: &B,
     circuit: Circuit,
 ) -> Result<Circuit, CliError<B>> {
-    // Note that this makes the `CircuitSimplifier` a noop.
-    // The `CircuitSimplifier` should be reworked to not rely on values being inserted during ACIR gen.
-    let simplifier = CircuitSimplifier::new(0);
-    let optimized_circuit = acvm::compiler::compile(
-        circuit,
-        backend.np_language(),
-        |opcode| backend.supports_opcode(opcode),
-        &simplifier,
-    )
-    .map_err(|_| NargoError::CompilationError)?;
+    let (optimized_circuit, _): (Circuit, Vec<acvm::acir::circuit::OpcodeLabel>) =
+        acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
+            backend.supports_opcode(opcode)
+        })
+        .map_err(|_| NargoError::CompilationError)?;
 
     Ok(optimized_circuit)
 }
