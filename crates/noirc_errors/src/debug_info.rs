@@ -20,7 +20,7 @@ impl DebugInfo {
     /// When the circuit is modified, the opcodes are eventually
     /// mixed, removed, or with new ones. For instance 5,2,6,n+1,0,12,..
     /// Since new opcodes (n+1 in the ex) don't have a location
-    /// we use the indice of the old opcode that they replace.
+    /// we use the index of the old opcode that they replace.
     /// This is the case during fallback or width 'optimization'
     /// opcode_indices is this list of mixed indices
     pub fn update_acir(&mut self, opcode_indices: Vec<usize>) {
