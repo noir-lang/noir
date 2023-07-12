@@ -738,9 +738,17 @@ fn array_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<U
 }
 
 fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
-    recursive(|expr| expression_with_precedence(Precedence::lowest_type_precedence(), expr, true))
-        .labelled(ParsingRuleLabel::TypeExpression)
-        .try_map(UnresolvedTypeExpression::from_expr)
+    recursive(|expr| {
+        expression_with_precedence(
+            Precedence::lowest_type_precedence(),
+            nothing(),
+            expr,
+            true,
+            false,
+        )
+    })
+    .labelled(ParsingRuleLabel::TypeExpression)
+    .try_map(UnresolvedTypeExpression::from_expr)
 }
 
 fn tuple_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -774,8 +782,23 @@ where
 }
 
 fn expression() -> impl ExprParser {
-    recursive(|expr| expression_with_precedence(Precedence::Lowest, expr, false))
-        .labelled(ParsingRuleLabel::Expression)
+    recursive(|expr| {
+        expression_with_precedence(
+            Precedence::Lowest,
+            expr,
+            expression_no_constructors(),
+            false,
+            true,
+        )
+    })
+    .labelled(ParsingRuleLabel::Expression)
+}
+
+fn expression_no_constructors() -> impl ExprParser {
+    recursive(|expr| {
+        expression_with_precedence(Precedence::Lowest, expr.clone(), expr, false, false)
+    })
+    .labelled(ParsingRuleLabel::Expression)
 }
 
 fn return_statement<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -793,27 +816,40 @@ where
 // An expression is a single term followed by 0 or more (OP subexpression)*
 // where OP is an operator at the given precedence level and subexpression
 // is an expression at the current precedence level plus one.
-fn expression_with_precedence<'a, P>(
+fn expression_with_precedence<'a, P, P2>(
     precedence: Precedence,
     expr_parser: P,
+    expr_no_constructors: P2,
     // True if we should only parse the restricted subset of operators valid within type expressions
     is_type_expression: bool,
+    // True if we should also parse constructors `Foo { field1: value1, ... }` as an expression.
+    // This is disabled when parsing the condition of an if statement due to a parsing conflict
+    // with `then` bodies containing only a single variable.
+    allow_constructors: bool,
 ) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
+    P2: ExprParser + 'a,
 {
     if precedence == Precedence::Highest {
         if is_type_expression {
             type_expression_term(expr_parser).boxed().labelled(ParsingRuleLabel::Term)
         } else {
-            term(expr_parser).boxed().labelled(ParsingRuleLabel::Term)
+            term(expr_parser, expr_no_constructors, allow_constructors)
+                .boxed()
+                .labelled(ParsingRuleLabel::Term)
         }
     } else {
         let next_precedence =
             if is_type_expression { precedence.next_type_precedence() } else { precedence.next() };
 
-        let next_expr =
-            expression_with_precedence(next_precedence, expr_parser, is_type_expression);
+        let next_expr = expression_with_precedence(
+            next_precedence,
+            expr_parser,
+            expr_no_constructors,
+            is_type_expression,
+            allow_constructors,
+        );
 
         next_expr
             .clone()
@@ -850,9 +886,14 @@ fn operator_with_precedence(precedence: Precedence) -> impl NoirParser<Spanned<B
         })
 }
 
-fn term<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+fn term<'a, P, P2>(
+    expr_parser: P,
+    expr_no_constructors: P2,
+    allow_constructors: bool,
+) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
+    P2: ExprParser + 'a,
 {
     recursive(move |term_parser| {
         choice((
@@ -865,7 +906,7 @@ where
         // right-unary operators like a[0] or a.f bind more tightly than left-unary
         // operators like  - or !, so that !a[0] is parsed as !(a[0]). This is a bit
         // awkward for casts so -a as i32 actually binds as -(a as i32).
-        .or(atom_or_right_unary(expr_parser))
+        .or(atom_or_right_unary(expr_parser, expr_no_constructors, allow_constructors))
     })
 }
 
@@ -880,9 +921,14 @@ where
     })
 }
 
-fn atom_or_right_unary<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+fn atom_or_right_unary<'a, P, P2>(
+    expr_parser: P,
+    expr_no_constructors: P2,
+    allow_constructors: bool,
+) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
+    P2: ExprParser + 'a,
 {
     enum UnaryRhs {
         Call(Vec<Expression>),
@@ -915,17 +961,27 @@ where
 
     let rhs = choice((call_rhs, array_rhs, cast_rhs, member_rhs));
 
-    foldl_with_span(atom(expr_parser), rhs, |lhs, rhs, span| match rhs {
-        UnaryRhs::Call(args) => Expression::call(lhs, args, span),
-        UnaryRhs::ArrayIndex(index) => Expression::index(lhs, index, span),
-        UnaryRhs::Cast(r#type) => Expression::cast(lhs, r#type, span),
-        UnaryRhs::MemberAccess(field) => Expression::member_access_or_method_call(lhs, field, span),
-    })
+    foldl_with_span(
+        atom(expr_parser, expr_no_constructors, allow_constructors),
+        rhs,
+        |lhs, rhs, span| match rhs {
+            UnaryRhs::Call(args) => Expression::call(lhs, args, span),
+            UnaryRhs::ArrayIndex(index) => Expression::index(lhs, index, span),
+            UnaryRhs::Cast(r#type) => Expression::cast(lhs, r#type, span),
+            UnaryRhs::MemberAccess(field) => {
+                Expression::member_access_or_method_call(lhs, field, span)
+            }
+        },
+    )
 }
 
-fn if_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
+fn if_expr<'a, P1, P2>(
+    expr_parser: P1,
+    expr_no_constructors: P2,
+) -> impl NoirParser<ExpressionKind> + 'a
 where
-    P: ExprParser + 'a,
+    P1: ExprParser + 'a,
+    P2: ExprParser + 'a,
 {
     recursive(|if_parser| {
         let if_block = block_expr(expr_parser.clone());
@@ -940,7 +996,7 @@ where
             }));
 
         keyword(Keyword::If)
-            .ignore_then(expr_parser)
+            .ignore_then(expr_no_constructors)
             .then(if_block)
             .then(keyword(Keyword::Else).ignore_then(else_block).or_not())
             .map(|((condition, consequence), alternative)| {
@@ -961,29 +1017,33 @@ fn lambda<'a>(
         })
 }
 
-fn for_expr<'a, P>(expr_parser: P) -> impl NoirParser<ExpressionKind> + 'a
+fn for_expr<'a, P, P2>(
+    expr_parser: P,
+    expr_no_constructors: P2,
+) -> impl NoirParser<ExpressionKind> + 'a
 where
     P: ExprParser + 'a,
+    P2: ExprParser + 'a,
 {
     keyword(Keyword::For)
         .ignore_then(ident())
         .then_ignore(keyword(Keyword::In))
-        .then(for_range(expr_parser.clone()))
+        .then(for_range(expr_no_constructors))
         .then(block_expr(expr_parser))
         .map_with_span(|((identifier, range), block), span| range.into_for(identifier, block, span))
 }
 
 /// The 'range' of a for loop. Either an actual range `start .. end` or an array expression.
-fn for_range<P>(expr_parser: P) -> impl NoirParser<ForRange>
+fn for_range<P>(expr_no_constructors: P) -> impl NoirParser<ForRange>
 where
     P: ExprParser,
 {
-    expr_parser
+    expr_no_constructors
         .clone()
         .then_ignore(just(Token::DoubleDot))
-        .then(expr_parser.clone())
+        .then(expr_no_constructors.clone())
         .map(|(start, end)| ForRange::Range(start, end))
-        .or(expr_parser.map(ForRange::Array))
+        .or(expr_no_constructors.map(ForRange::Array))
 }
 
 fn array_expr<P>(expr_parser: P) -> impl NoirParser<ExpressionKind>
@@ -1057,15 +1117,27 @@ where
         .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference, rhs))
 }
 
-fn atom<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
+/// Atoms are parameterized on whether constructor expressions are allowed or not.
+/// Certain constructs like `if` and `for` disallow constructor expressions when a
+/// block may be expected.
+fn atom<'a, P, P2>(
+    expr_parser: P,
+    expr_no_constructors: P2,
+    allow_constructors: bool,
+) -> impl NoirParser<Expression> + 'a
 where
     P: ExprParser + 'a,
+    P2: ExprParser + 'a,
 {
     choice((
-        if_expr(expr_parser.clone()),
-        for_expr(expr_parser.clone()),
+        if_expr(expr_parser.clone(), expr_no_constructors.clone()),
+        for_expr(expr_parser.clone(), expr_no_constructors),
         array_expr(expr_parser.clone()),
-        constructor(expr_parser.clone()),
+        if allow_constructors {
+            constructor(expr_parser.clone()).boxed()
+        } else {
+            nothing().boxed()
+        },
         lambda(expr_parser.clone()),
         block(expr_parser.clone()).map(ExpressionKind::Block),
         variable(),
@@ -1111,7 +1183,6 @@ fn field_name() -> impl NoirParser<Ident> {
 fn constructor(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
     let args = constructor_field(expr_parser)
         .separated_by(just(Token::Comma))
-        .at_least(1)
         .allow_trailing()
         .delimited_by(just(Token::LeftBrace), just(Token::RightBrace));
 
@@ -1140,7 +1211,9 @@ fn literal() -> impl NoirParser<ExpressionKind> {
     })
 }
 
-fn literal_or_collection(expr_parser: impl ExprParser) -> impl NoirParser<ExpressionKind> {
+fn literal_or_collection<'a>(
+    expr_parser: impl ExprParser + 'a,
+) -> impl NoirParser<ExpressionKind> + 'a {
     choice((literal(), constructor(expr_parser.clone()), array_expr(expr_parser)))
 }
 
@@ -1252,10 +1325,13 @@ mod test {
     #[test]
     fn parse_cast() {
         parse_all(
-            atom_or_right_unary(expression()),
+            atom_or_right_unary(expression(), expression_no_constructors(), true),
             vec!["x as u8", "0 as Field", "(x + 3) as [Field; 8]"],
         );
-        parse_all_failing(atom_or_right_unary(expression()), vec!["x as pub u8"]);
+        parse_all_failing(
+            atom_or_right_unary(expression(), expression_no_constructors(), true),
+            vec!["x as pub u8"],
+        );
     }
 
     #[test]
@@ -1267,7 +1343,7 @@ mod test {
             "baz[bar]",
             "foo.bar[3] as Field .baz as i32 [7]",
         ];
-        parse_all(atom_or_right_unary(expression()), valid);
+        parse_all(atom_or_right_unary(expression(), expression_no_constructors(), true), valid);
     }
 
     fn expr_to_array(expr: ExpressionKind) -> ArrayLiteral {
@@ -1440,12 +1516,12 @@ mod test {
     #[test]
     fn parse_for_loop() {
         parse_all(
-            for_expr(expression()),
+            for_expr(expression(), expression_no_constructors()),
             vec!["for i in x+y..z {}", "for i in 0..100 { foo; bar }"],
         );
 
         parse_all_failing(
-            for_expr(expression()),
+            for_expr(expression(), expression_no_constructors()),
             vec![
                 "for 1 in x+y..z {}",  // Cannot have a literal as the loop identifier
                 "for i in 0...100 {}", // Only '..' is supported, there are no inclusive ranges yet
@@ -1476,8 +1552,14 @@ mod test {
 
     #[test]
     fn parse_parenthesized_expression() {
-        parse_all(atom(expression()), vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"]);
-        parse_all_failing(atom(expression()), vec!["(x+a", "((x+a)", "(,)"]);
+        parse_all(
+            atom(expression(), expression_no_constructors(), true),
+            vec!["(0)", "(x+a)", "({(({{({(nested)})}}))})"],
+        );
+        parse_all_failing(
+            atom(expression(), expression_no_constructors(), true),
+            vec!["(x+a", "((x+a)", "(,)"],
+        );
     }
 
     #[test]
@@ -1488,12 +1570,12 @@ mod test {
     #[test]
     fn parse_if_expr() {
         parse_all(
-            if_expr(expression()),
+            if_expr(expression(), expression_no_constructors()),
             vec!["if x + a {  } else {  }", "if x {}", "if x {} else if y {} else {}"],
         );
 
         parse_all_failing(
-            if_expr(expression()),
+            if_expr(expression(), expression_no_constructors()),
             vec!["if (x / a) + 1 {} else", "if foo then 1 else 2", "if true { 1 }else 3"],
         );
     }
@@ -1586,8 +1668,14 @@ mod test {
 
     #[test]
     fn parse_unary() {
-        parse_all(term(expression()), vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"]);
-        parse_all_failing(term(expression()), vec!["+hello", "/hello"]);
+        parse_all(
+            term(expression(), expression_no_constructors(), true),
+            vec!["!hello", "-hello", "--hello", "-!hello", "!-hello"],
+        );
+        parse_all_failing(
+            term(expression(), expression_no_constructors(), true),
+            vec!["+hello", "/hello"],
+        );
     }
 
     #[test]
