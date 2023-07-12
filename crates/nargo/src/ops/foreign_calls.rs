@@ -74,15 +74,11 @@ impl ForeignCall {
         // Fetch the abi type from the foreign call input
         let (abi_type, input_values) = fetch_abi_type(foreign_call_inputs)?;
 
-        let input_values_as_fields = input_values
-            .into_iter()
-            .flat_map(|values| vecmap(values, |value| value.to_field()))
-            .collect::<Vec<_>>();
-        let decoded_value = decode_value(&mut input_values_as_fields.into_iter(), &abi_type)
-            .map_err(|err| ForeignCallError::AbiError(err))?;
+        let mut input_values_as_fields =
+            input_values.iter().flat_map(|values| vecmap(values, |value| value.to_field()));
+        let decoded_value = decode_value(&mut input_values_as_fields, &abi_type)?;
 
-        let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)
-            .map_err(|err| ForeignCallError::InputParserError(err))?;
+        let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)?;
         let output_string = serde_json::to_string_pretty(&json_value)
             .map_err(|err| ForeignCallError::InputParserError(err.into()))?;
 
@@ -104,10 +100,8 @@ impl ForeignCall {
         // This currently only works for arrays of single values
         for input_value in input_values_as_fields {
             let value_to_decode = vec![input_value];
-            let decoded_value = decode_value(&mut value_to_decode.into_iter(), &abi_type)
-                .map_err(|err| ForeignCallError::AbiError(err))?;
-            let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)
-                .map_err(|err| ForeignCallError::InputParserError(err))?;
+            let decoded_value = decode_value(&mut value_to_decode.into_iter(), &abi_type)?;
+            let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)?;
             let output_string = serde_json::to_string_pretty(&json_value)
                 .map_err(|err| ForeignCallError::InputParserError(err.into()))?;
             output_strings.push(output_string);
