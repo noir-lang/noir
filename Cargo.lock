@@ -1973,8 +1973,10 @@ dependencies = [
  "iter-extended",
  "noirc_abi",
  "noirc_driver",
+ "regex",
  "rustc_version",
  "serde",
+ "serde_json",
  "thiserror",
  "toml",
 ]
@@ -2117,6 +2119,7 @@ dependencies = [
  "noirc_errors",
  "rustc-hash",
  "serde",
+ "serde_json",
  "small-ord-set",
  "smol_str",
  "strum",

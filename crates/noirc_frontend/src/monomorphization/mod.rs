@@ -745,13 +745,63 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::ExprId,
     ) -> ast::Expression {
         let func = Box::new(self.expr(call.func));
-        let arguments = vecmap(&call.arguments, |id| self.expr(*id));
+        let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
+        let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let return_type = self.interner.id_type(id);
         let return_type = Self::convert_type(&return_type);
         let location = call.location;
 
+        if let ast::Expression::Ident(ident) = func.as_ref() {
+            if let Definition::Oracle(name) = &ident.definition {
+                match name.as_str() {
+                    "println" => {
+                        self.append_abi_arg(&hir_arguments[0], &mut arguments, false);
+                    }
+                    "println_format" => {
+                        // The first arugment represents the format string while the second argument
+                        // contains an array of arguments to be formatted.
+                        // Arrays can only have elements of the same type, thus we only need the `AbiType` of one element of the second type.
+                        // The caller who executes this foreign call will then be responsible for handling formatting according
+                        // to the string supplied in the first argument.
+                        self.append_abi_arg(&hir_arguments[1], &mut arguments, true);
+                    }
+                    _ => (),
+                }
+            }
+        }
+
         self.try_evaluate_call(&func, &call.arguments, &return_type)
             .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
+    }
+
+    fn append_abi_arg(
+        &self,
+        hir_argument: &HirExpression,
+        arguments: &mut Vec<ast::Expression>,
+        is_format_call: bool,
+    ) {
+        match hir_argument {
+            HirExpression::Ident(ident) => {
+                let typ = self.interner.id_type(ident.id);
+                let typ = if is_format_call {
+                    match typ {
+                        Type::Array(_, element_type) => element_type.follow_bindings(),
+                        _ => {
+                            unreachable!("ICE: argument supplied to a format call must be an array")
+                        }
+                    }
+                } else {
+                    typ.follow_bindings()
+                };
+
+                let abi_type = typ.as_abi_type();
+                let abi_as_string =
+                    serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
+
+                arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+            }
+            _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
+        }
     }
 
     /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
