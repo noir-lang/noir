@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
-//use noirc_errors::Span;
-use serde::{Deserialize, Serialize};
-//use fm::FileId;
 use crate::Location;
+use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct DebugInfo {

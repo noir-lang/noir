@@ -1,4 +1,3 @@
-
 // Tests a very simple program.
 // 
 // The features being tested is modulo operations on brillig

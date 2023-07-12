@@ -1,11 +1,11 @@
 use acvm::{
     acir::circuit::{Circuit, OpcodeLabel},
-    compiler::{CircuitSimplifier, CompileError},
+    compiler::CircuitSimplifier,
     Backend,
 };
 use iter_extended::try_vecmap;
 use iter_extended::vecmap;
-use nargo::artifacts::contract::PreprocessedContract;
+use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use noirc_driver::{
     compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
 };
@@ -73,7 +73,7 @@ pub(crate) fn run<B: Backend>(
             try_vecmap(contracts, |contract| {
                 let preprocessed_contract_functions =
                     try_vecmap(contract.functions, |mut func| {
-                        func.bytecode = optimize_circuit(backend, func.bytecode).unwrap().0;
+                        func.bytecode = optimize_circuit(backend, func.bytecode)?.0;
                         common_reference_string = update_common_reference_string(
                             backend,
                             &common_reference_string,
@@ -148,17 +148,19 @@ pub(crate) fn compile_circuit<B: Backend>(
 pub(super) fn optimize_circuit<B: Backend>(
     backend: &B,
     circuit: Circuit,
-    //context: &Context,
-) -> Result<(Circuit, Vec<OpcodeLabel>), CompileError> {
+) -> Result<(Circuit, Vec<OpcodeLabel>), CliError<B>> {
     // Note that this makes the `CircuitSimplifier` a noop.
     // The `CircuitSimplifier` should be reworked to not rely on values being inserted during ACIR gen.
     let simplifier = CircuitSimplifier::new(0);
-    acvm::compiler::compile(
+    let result = acvm::compiler::compile(
         circuit,
         backend.np_language(),
         |opcode| backend.supports_opcode(opcode),
         &simplifier,
     )
+    .map_err(|_| NargoError::CompilationError)?;
+
+    Ok(result)
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>

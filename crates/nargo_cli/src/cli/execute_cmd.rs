@@ -7,8 +7,8 @@ use clap::Args;
 use nargo::NargoError;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
-use noirc_driver::{CompileOptions, CompiledProgram, ErrorsAndWarnings};
-use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic, FileDiagnostic};
+use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic};
 use noirc_frontend::hir::Context;
 
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
@@ -68,7 +68,8 @@ fn execute_with_path<B: Backend>(
     let (inputs_map, _) =
         read_inputs_from_file(program_dir, prover_name.as_str(), Format::Toml, &abi)?;
 
-    let solved_witness = execute_program(backend, circuit, &abi, &inputs_map, &debug, &context)?;
+    let solved_witness =
+        execute_program(backend, circuit, &abi, &inputs_map, Some((debug, context)))?;
     let public_abi = abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 
@@ -100,15 +101,16 @@ fn report_unsatisfied_constraint_error(
 ) {
     if let Some(opcode_index) = opcode_idx {
         if let Some(loc) = debug.opcode_location(opcode_index) {
-            let errs_warnings: ErrorsAndWarnings = vec![FileDiagnostic {
-                file_id: loc.file,
-                diagnostic: CustomDiagnostic::simple_error(
+            noirc_errors::reporter::report(
+                &context.file_manager,
+                &CustomDiagnostic::simple_error(
                     "Unsatisfied constraint".to_string(),
-                    "happening on this line".to_string(),
+                    "Constraint failed".to_string(),
                     loc.span,
                 ),
-            }];
-            noirc_errors::reporter::report_all(&context.file_manager, &errs_warnings, false);
+                Some(loc.file),
+                false,
+            );
         }
     }
 }
@@ -118,30 +120,19 @@ pub(crate) fn execute_program<B: Backend>(
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
-    debug: &DebugInfo,
-    context: &Context,
+    debug_data: Option<(DebugInfo, Context)>,
 ) -> Result<WitnessMap, CliError<B>> {
     let initial_witness = abi.encode(inputs_map, None)?;
-
     let solved_witness_err = nargo::ops::execute_circuit(backend, circuit, initial_witness);
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {
-            let opcode_idx = extract_unsatisfied_constraint_from_nargo_error(&err);
-            report_unsatisfied_constraint_error(opcode_idx, debug, context);
+            if let Some((debug, context)) = debug_data {
+                let opcode_idx = extract_unsatisfied_constraint_from_nargo_error(&err);
+                report_unsatisfied_constraint_error(opcode_idx, &debug, &context);
+            }
+
             Err(crate::errors::CliError::NargoError(err))
         }
     }
-}
-
-pub(crate) fn execute_program_without_debug<B: Backend>(
-    backend: &B,
-    circuit: Circuit,
-    abi: &Abi,
-    inputs_map: &InputMap,
-) -> Result<WitnessMap, CliError<B>> {
-    let initial_witness = abi.encode(inputs_map, None)?;
-
-    let solved_witness = nargo::ops::execute_circuit(backend, circuit, initial_witness)?;
-    Ok(solved_witness)
 }
