@@ -28,9 +28,10 @@ impl PackageManifest {
     }
 }
 
+/// Configuration of a workspace in a manifest.
+/// Indicates that `[workspace]` was present and the members were specified as well.
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct WorkspaceConfig {
-    #[serde(default = "Vec::default")]
     pub members: Vec<String>,
 }
 
