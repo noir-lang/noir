@@ -1,4 +1,4 @@
-use acvm::{acir::circuit::Circuit, compiler::CircuitSimplifier};
+use acvm::acir::circuit::Circuit;
 use gloo_utils::format::JsValueSerdeExt;
 use log::debug;
 use noirc_driver::{
@@ -97,7 +97,7 @@ pub fn compile(args: JsValue) -> JsValue {
             .0;
 
         let optimized_contracts: Vec<CompiledContract> =
-            compiled_contracts.into_iter().map(|contract| optimize_contract(contract)).collect();
+            compiled_contracts.into_iter().map(optimize_contract).collect();
 
         <JsValue as JsValueSerdeExt>::from_serde(&optimized_contracts).unwrap()
     } else {
@@ -130,7 +130,7 @@ fn optimize_circuit(circuit: Circuit) -> Circuit {
     let language = acvm::Language::PLONKCSat { width: 3 };
     #[allow(deprecated)]
     let opcode_supported = acvm::pwg::default_is_opcode_supported(language);
-    let simplifier = CircuitSimplifier::new(0);
-    acvm::compiler::compile(circuit, language, &opcode_supported, &simplifier)
+    acvm::compiler::compile(circuit, language, opcode_supported)
         .expect("Circuit optimization failed")
+        .0
 }

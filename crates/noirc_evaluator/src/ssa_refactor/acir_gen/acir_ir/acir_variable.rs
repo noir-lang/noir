@@ -4,7 +4,7 @@ use crate::ssa_refactor::acir_gen::AcirValue;
 use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::{
-    brillig_vm::Opcode as BrilligOpcode,
+    brillig::Opcode as BrilligOpcode,
     circuit::brillig::{BrilligInputs, BrilligOutputs},
 };
 

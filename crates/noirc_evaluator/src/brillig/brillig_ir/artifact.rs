@@ -1,4 +1,4 @@
-use acvm::acir::brillig_vm::{Opcode as BrilligOpcode, RegisterIndex};
+use acvm::acir::brillig::{Opcode as BrilligOpcode, RegisterIndex};
 use std::collections::HashMap;
 
 use crate::brillig::brillig_ir::ReservedRegisters;

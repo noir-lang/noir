@@ -25,7 +25,7 @@ use super::{
     ssa_gen::Ssa,
 };
 use acvm::{
-    acir::{brillig_vm::Opcode, native_types::Expression},
+    acir::{brillig::Opcode, native_types::Expression},
     FieldElement,
 };
 use iter_extended::vecmap;

@@ -1,4 +1,4 @@
-use acvm::acir::brillig_vm::RegisterIndex;
+use acvm::acir::brillig::RegisterIndex;
 
 use super::ReservedRegisters;
 

@@ -1,4 +1,4 @@
-use acvm::acir::brillig_vm::{ForeignCallResult, Value};
+use acvm::acir::brillig::{ForeignCallResult, Value};
 use acvm::pwg::{ACVMStatus, ForeignCallWaitInfo, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};

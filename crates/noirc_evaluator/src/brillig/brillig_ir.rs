@@ -13,7 +13,7 @@ use self::{
     registers::BrilligRegistersContext,
 };
 use acvm::{
-    acir::brillig_vm::{
+    acir::brillig::{
         BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, Opcode as BrilligOpcode,
         RegisterIndex, RegisterOrMemory, Value,
     },
@@ -781,14 +781,43 @@ pub(crate) enum BrilligBinaryOp {
 mod tests {
     use std::vec;
 
-    use acvm::acir::brillig_vm::{
+    use acvm::acir::brillig::{
         BinaryIntOp, ForeignCallOutput, ForeignCallResult, HeapVector, RegisterIndex,
-        RegisterOrMemory, Registers, VMStatus, Value, VM,
+        RegisterOrMemory, Value,
     };
+    use acvm::brillig_vm::{Registers, VMStatus, VM};
+    use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
     use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
 
     use super::{BrilligBinaryOp, BrilligOpcode, ReservedRegisters};
+
+    struct DummyBlackBoxSolver;
+
+    impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
+        fn schnorr_verify(
+            &self,
+            _public_key_x: &FieldElement,
+            _public_key_y: &FieldElement,
+            _signature: &[u8],
+            _message: &[u8],
+        ) -> Result<bool, BlackBoxResolutionError> {
+            Ok(true)
+        }
+        fn pedersen(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((2_u128.into(), 3_u128.into()))
+        }
+        fn fixed_base_scalar_mul(
+            &self,
+            _input: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((4_u128.into(), 5_u128.into()))
+        }
+    }
 
     /// Test a Brillig foreign call returning a vector
     #[test]
@@ -854,6 +883,7 @@ mod tests {
             vec![],
             bytecode,
             vec![ForeignCallResult { values: vec![ForeignCallOutput::Array(number_sequence)] }],
+            &DummyBlackBoxSolver,
         );
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished);

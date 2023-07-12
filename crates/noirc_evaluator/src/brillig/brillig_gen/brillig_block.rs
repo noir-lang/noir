@@ -11,9 +11,8 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, HeapArray, HeapVector, RegisterIndex, RegisterOrMemory,
-};
+use acvm::acir::brillig::{BinaryFieldOp, BinaryIntOp, HeapArray, RegisterIndex, RegisterOrMemory};
+use acvm::brillig_vm::brillig::HeapVector;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
