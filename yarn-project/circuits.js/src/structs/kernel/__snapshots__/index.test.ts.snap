@@ -273,7 +273,7 @@ vk_path: [ 0x1000 0x1001 0x1002 ]
 
 exports[`structs/kernel serializes and prints private_kernel_inputs_init 1`] = `
 "tx_request:
-from: 0x1
+origin: 0x1
 function_data: function_selector: 257
 is_private: 1
 is_constructor: 1

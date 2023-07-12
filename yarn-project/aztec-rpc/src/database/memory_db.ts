@@ -55,11 +55,11 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   /**
    * Retrieve all transactions associated with a given AztecAddress.
    *
-   * @param from - The sender's address.
+   * @param origin - The sender's address.
    * @returns A Promise resolving to an array of TxDao objects associated with the sender.
    */
-  public getTxsByAddress(from: AztecAddress) {
-    return Promise.resolve(this.txTable.filter(tx => tx.from.equals(from)));
+  public getTxsByAddress(origin: AztecAddress) {
+    return Promise.resolve(this.txTable.filter(tx => tx.origin.equals(origin)));
   }
 
   /**

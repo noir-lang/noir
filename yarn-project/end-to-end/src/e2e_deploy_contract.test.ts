@@ -33,8 +33,7 @@ describe('e2e_deploy_contract', () => {
     const receipt = await tx.getReceipt();
     expect(receipt).toEqual(
       expect.objectContaining({
-        from: accounts[0],
-        to: accounts[0],
+        origin: accounts[0],
         status: TxStatus.PENDING,
         error: '',
       }),

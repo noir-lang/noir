@@ -91,7 +91,7 @@ describe('e2e_zk_token_contract', () => {
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(1);
     await expectUnencryptedLogsFromLastBlockToBe(['Balance set in constructor']);
 
-    const tx = deployedContract.methods.mint(mintAmount, ownerPublicKey).send({ from: owner });
+    const tx = deployedContract.methods.mint(mintAmount, ownerPublicKey).send({ origin: owner });
 
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();
@@ -125,7 +125,7 @@ describe('e2e_zk_token_contract', () => {
         (await aztecRpcServer.getAccountPublicKey(owner)).toBigInts(),
         (await aztecRpcServer.getAccountPublicKey(receiver)).toBigInts(),
       )
-      .send({ from: accounts[0] });
+      .send({ origin: accounts[0] });
 
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();

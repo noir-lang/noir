@@ -65,7 +65,7 @@ async function main() {
 
   // Mint more tokens
   logger(`Minting ${SECONDARY_AMOUNT} more coins`);
-  const mintTx = zkContract.methods.mint(SECONDARY_AMOUNT, ownerPubKeyPoint.toBigInts()).send({ from: ownerAddress });
+  const mintTx = zkContract.methods.mint(SECONDARY_AMOUNT, ownerPubKeyPoint.toBigInts()).send({ origin: ownerAddress });
   await mintTx.isMined(0, 0.5);
   const balanceAfterMint = await getBalance(zkContract, ownerPubKeyPoint, ownerAddress);
   logger(`Owner's balance is now: ${balanceAfterMint}`);
@@ -74,7 +74,7 @@ async function main() {
   logger(`Transferring ${SECONDARY_AMOUNT} tokens from owner to another account.`);
   const transferTx = zkContract.methods
     .transfer(SECONDARY_AMOUNT, ownerPubKeyPoint.toBigInts(), address2PubKeyPoint.toBigInts())
-    .send({ from: ownerAddress });
+    .send({ origin: ownerAddress });
   await transferTx.isMined(0, 0.5);
   const balanceAfterTransfer = await getBalance(zkContract, ownerPubKeyPoint, ownerAddress);
   const receiverBalance = await getBalance(zkContract, address2PubKeyPoint, address2);

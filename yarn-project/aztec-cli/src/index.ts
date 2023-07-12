@@ -272,9 +272,9 @@ async function main() {
       const client = createAztecRpcClient(options.rpcUrl);
       const wallet = await getAccountWallet(client, Buffer.from(options.privateKey, 'hex'), accountCreationSalt);
       const contract = new Contract(contractAddress, contractAbi, wallet);
-      const from = (await wallet.getAccounts()).find(addr => addr.equals(wallet.getAddress()));
+      const origin = (await wallet.getAccounts()).find(addr => addr.equals(wallet.getAddress()));
       const tx = contract.methods[functionName](...functionArgs).send({
-        from,
+        origin,
       });
       await tx.isMined();
       log('\nTX has been mined');
