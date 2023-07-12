@@ -66,12 +66,27 @@ pub(crate) fn resolve_root_manifest(
     dir_path: &std::path::Path,
 ) -> Result<Context, DependencyResolutionError> {
     let mut context = Context::default();
-    let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
 
     let manifest_path = super::find_package_manifest(dir_path)?;
     let manifest = super::manifest::parse(&manifest_path)?;
 
-    let crate_id = create_local_crate(&mut context, entry_path, crate_type);
+    let crate_id = if manifest.workspace.members.is_empty() {
+        let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
+        create_local_crate(&mut context, entry_path, crate_type)
+    } else {
+        let members = manifest.workspace.members.clone();
+        let root = members.last().unwrap();
+
+        let (entry_path, crate_type) = super::lib_or_bin(root)?;
+        let root = create_local_crate(&mut context, entry_path, crate_type);
+
+        for member in members {
+            let (entry_path, crate_type) = super::lib_or_bin(member)?;
+            dbg!(create_non_local_crate(&mut context, entry_path, crate_type));
+        }
+
+        root
+    };
 
     let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
     resolve_manifest(&mut context, crate_id, manifest, pkg_root)?;

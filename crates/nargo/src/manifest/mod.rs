@@ -30,7 +30,8 @@ impl PackageManifest {
 
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct WorkspaceConfig {
-    pub members: Option<Vec<String>>,
+    #[serde(default = "Vec::default")]
+    pub members: Vec<String>,
 }
 
 #[allow(dead_code)]
