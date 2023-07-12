@@ -21,10 +21,9 @@ unconstrained fn get_number_sequence_wrapper(size: Field) {
     }
 
     let reversed_slice = get_reverse_number_sequence(size);
-    assert(reversed_slice[19] == 0);
     // Regression test that we have not overwritten memory
-    // for i in 0..19 as u32 {
-        // assert(slice[i] == reversed_slice[19 - i]);
-    // }
+    for i in 0..19 as u32 {
+        assert(slice[i] == reversed_slice[19 - i]);
+    }
 }
 
