@@ -32,7 +32,7 @@ Witness generation phase is not multithreaded, and an interesting 512k circuit c
 To install the package globally for running as a terminal application:
 
 ```
-npm install -g @aztec/bb.js@alpha
+npm install -g @aztec/bb.js
 ```
 
 This will install `bb.js` into your path.
@@ -68,13 +68,13 @@ Commands:
 To install as a package to be used as a library:
 
 ```
-npm install @aztec/bb.js@alpha
+npm install @aztec/bb.js
 ```
 
 or with yarn
 
 ```
-yarn add @aztec/bb.js@alpha
+yarn add @aztec/bb.js
 ```
 
 ### Usage

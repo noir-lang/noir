@@ -30,7 +30,7 @@
     "test-debug": "NODE_OPTIONS='--loader ts-node/esm' NODE_NO_WARNINGS=1 node --inspect-brk=0.0.0.0 --experimental-vm-modules $(yarn bin jest) --no-cache --passWithNoTests --runInBand",
     "simple_test": "NODE_OPTIONS='--loader ts-node/esm' NODE_NO_WARNINGS=1 node ./src/examples/simple.rawtest.ts",
     "prepack": "yarn build",
-    "deploy": "npm publish --tag alpha --access public"
+    "deploy": "npm publish --access public"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
