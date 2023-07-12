@@ -109,7 +109,7 @@ pub(crate) fn convert_black_box_call(
                     output: *result_array,
                 });
             } else {
-                unreachable!("ICE: Pedersen expects one array argument, a domain separator and one array result")
+                unreachable!("ICE: Pedersen expects one array argument, a register for the domain separator, and one array result")
             }
         }
         BlackBoxFunc::SchnorrVerify => {
