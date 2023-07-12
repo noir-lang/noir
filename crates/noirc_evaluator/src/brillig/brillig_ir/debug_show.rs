@@ -1,7 +1,7 @@
 ///! This module contains functions for producing a higher level view disassembler of Brillig.
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
-use acvm::acir::brillig_vm::{
+use acvm::acir::brillig::{
     BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, RegisterIndex, RegisterOrMemory,
     Value,
 };
@@ -315,6 +315,22 @@ pub(crate) fn black_box_op_instruction(op: BlackBoxOp) {
                 hashed_msg,
                 public_key_x,
                 public_key_y,
+                signature,
+                result
+            );
+        }
+        BlackBoxOp::FixedBaseScalarMul { input, result } => {
+            debug_println!("  FIXED_BASE_SCALAR_MUL {} -> {}", input, result);
+        }
+        BlackBoxOp::Pedersen { inputs, domain_separator, output } => {
+            debug_println!("  PEDERSEN {} {} -> {}", inputs, domain_separator, output);
+        }
+        BlackBoxOp::SchnorrVerify { public_key_x, public_key_y, message, signature, result } => {
+            debug_println!(
+                "  SCHNORR_VERIFY {} {} {} {} -> {}",
+                public_key_x,
+                public_key_y,
+                message,
                 signature,
                 result
             );

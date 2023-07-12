@@ -1,5 +1,5 @@
 use acvm::{
-    acir::brillig_vm::{ForeignCallResult, Value},
+    acir::brillig::{ForeignCallResult, Value},
     pwg::ForeignCallWaitInfo,
 };
 use iter_extended::vecmap;

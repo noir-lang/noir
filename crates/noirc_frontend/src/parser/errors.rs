@@ -21,6 +21,10 @@ pub enum ParserErrorReason {
     InvalidArrayLengthExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
+    #[error("Patterns aren't allowed in a trait's function declarations")]
+    PatternInTraitFunctionParameter,
+    #[error("Traits are an experimental feature that are not yet in a working state")]
+    TraitsAreExperimental,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
