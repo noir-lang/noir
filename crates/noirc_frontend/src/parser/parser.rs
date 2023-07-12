@@ -1737,12 +1737,7 @@ mod test {
         ];
         parse_all(expression(), cases);
 
-        // TODO: Constructor expressions with no fields are currently
-        // disallowed, they conflict with block syntax in some cases. Namely:
-        // if a + b {}
-        // for i in 0..a { }
-        // https://github.com/noir-lang/noir/issues/152
-        parse_with(expression(), "Foo {}").unwrap_err();
+        parse_with(expression(), "Foo { a + b }").unwrap_err();
     }
 
     // Semicolons are:
