@@ -173,9 +173,9 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
                 span: name.0.span(),
                 name,
                 attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
-                is_open: modifiers.0,
-                is_internal: modifiers.1,
-                is_unconstrained: modifiers.2,
+                is_unconstrained: modifiers.0,
+                is_open: modifiers.1,
+                is_internal: modifiers.2,
                 generics,
                 parameters,
                 body,
@@ -188,7 +188,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         })
 }
 
-/// function_modifiers: 'internal'? 'unconstrained'? 'open'?
+/// function_modifiers: 'unconstrained'? 'open'? 'internal'? 
 ///
 /// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, bool, bool)> {
