@@ -6,7 +6,11 @@ pub use self::errors::InvalidPackageError;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PackageManifest {
+    #[serde(default = "WorkspaceConfig::default")]
+    pub workspace: WorkspaceConfig,
+    #[serde(default = "PackageMetadata::default")]
     pub package: PackageMetadata,
+    #[serde(default = "BTreeMap::default")]
     pub dependencies: BTreeMap<String, Dependency>,
 }
 
@@ -24,8 +28,13 @@ impl PackageManifest {
     }
 }
 
+#[derive(Default, Debug, Deserialize, Clone)]
+pub struct WorkspaceConfig {
+    pub members: Option<Vec<String>>,
+}
+
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
     // Note: a package name is not needed unless there is a registry
     authors: Vec<String>,
@@ -60,6 +69,16 @@ fn parse_standard_toml() {
         rand = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
         cool = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
         hello = {path = "./noir_driver"}
+    "#;
+
+    assert!(PackageManifest::from_toml_str(src).is_ok());
+}
+
+#[test]
+fn parse_workspace_toml() {
+    let src = r#"
+        [workspace]
+        members = ["indexmap", "libgcc"]
     "#;
 
     assert!(PackageManifest::from_toml_str(src).is_ok());
