@@ -77,8 +77,8 @@ pub(crate) fn resolve_root_manifest(
         let members = manifest.workspace.members.clone();
         let root = dir_path.join(members.last().unwrap());
 
-        let (entry_path, crate_type) = super::lib_or_bin(root)?;
-        let root = create_local_crate(&mut context, entry_path, crate_type);
+        let (entry_path, _crate_type) = super::lib_or_bin(root)?;
+        let root = create_local_crate(&mut context, entry_path, CrateType::Workspace);
 
         for member in members {
             let path: PathBuf = dir_path.join(member);

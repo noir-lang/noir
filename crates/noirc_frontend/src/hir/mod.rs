@@ -95,7 +95,7 @@ impl Context {
             .collect()
     }
 
-    pub fn get_all_workspace_test_functions_in_crate_matching(&self, pattern: &str) -> Vec<FuncId> {
+    pub fn get_all_test_functions_in_workspace_matching(&self, pattern: &str) -> Vec<FuncId> {
         let mut tests = Vec::new();
 
         for crate_id in self.crate_graph.iter_keys() {
