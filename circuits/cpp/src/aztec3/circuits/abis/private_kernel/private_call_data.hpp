@@ -2,7 +2,7 @@
 
 #include "call_context_reconciliation_data.hpp"
 #include "../call_stack_item.hpp"
-#include "../membership_witness.hpp"
+#include "../read_request_membership_witness.hpp"
 #include "../types.hpp"
 
 #include "aztec3/constants.hpp"
@@ -37,7 +37,7 @@ template <typename NCT> struct PrivateCallData {
     MembershipWitness<NCT, FUNCTION_TREE_HEIGHT> function_leaf_membership_witness{};
     MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness{};
 
-    std::array<MembershipWitness<NCT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+    std::array<ReadRequestMembershipWitness<NCT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
         read_request_membership_witnesses{};
 
     fr portal_contract_address = 0;  // an ETH address
@@ -77,7 +77,7 @@ template <typename NCT> struct PrivateCallData {
             to_circuit_type(function_leaf_membership_witness),
             to_circuit_type(contract_leaf_membership_witness),
 
-            aztec3::utils::types::to_ct<Builder, MembershipWitness<CT, PRIVATE_DATA_TREE_HEIGHT>>(
+            aztec3::utils::types::to_ct<Builder, ReadRequestMembershipWitness<CT, PRIVATE_DATA_TREE_HEIGHT>>(
                 builder, read_request_membership_witnesses),
 
             to_ct(portal_contract_address),

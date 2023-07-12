@@ -5,10 +5,10 @@
 #include "aztec3/circuits/abis/contract_deployment_data.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
-#include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
+#include "aztec3/circuits/abis/read_request_membership_witness.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/array.hpp"
@@ -20,9 +20,9 @@ using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::ContractLeafPreimage;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
-using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::PreviousKernelData;
+using aztec3::circuits::abis::ReadRequestMembershipWitness;
 
 using aztec3::utils::array_push;
 using aztec3::utils::is_array_empty;
@@ -69,7 +69,7 @@ void common_validate_call_stack(DummyBuilder& builder, PrivateCallData<NT> const
 void common_validate_read_requests(DummyBuilder& builder,
                                    NT::fr const& storage_contract_address,
                                    std::array<fr, READ_REQUESTS_LENGTH> const& read_requests,
-                                   std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>,
+                                   std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>,
                                               READ_REQUESTS_LENGTH> const& read_request_membership_witnesses,
                                    NT::fr const& historic_private_data_tree_root)
 {
@@ -77,7 +77,6 @@ void common_validate_read_requests(DummyBuilder& builder,
     // for every request in all kernel iterations
     for (size_t rr_idx = 0; rr_idx < aztec3::READ_REQUESTS_LENGTH; rr_idx++) {
         const auto& read_request = read_requests[rr_idx];
-
         // the read request comes un-siloed from the app circuit so we must silo it here
         // so that it matches the private data tree leaf that we are membership checking
         const auto leaf = silo_commitment<NT>(storage_contract_address, read_request);
@@ -88,9 +87,7 @@ void common_validate_read_requests(DummyBuilder& builder,
         // We determine if it is a transient read depending on the leaf index from the membership witness
         // Note that the Merkle membership proof would be null and void in case of an transient read
         // but we use the leaf index as a placeholder to detect a transient read.
-        const auto is_transient_read = (witness.leaf_index == NT::fr(-1));
-
-        if (read_request != 0 && !is_transient_read) {
+        if (read_request != 0 && !witness.is_transient) {
             const auto& root_for_read_request =
                 root_from_sibling_path<NT>(leaf, witness.leaf_index, witness.sibling_path);
             builder.do_assert(
@@ -109,6 +106,22 @@ void common_validate_read_requests(DummyBuilder& builder,
                        "\n\t* got root by siloing read_request (compressing with storage_contract_address to get leaf) "
                        "and merkle-hashing to a root using membership witness"),
                 CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
+        }
+        if (witness.is_transient) {
+            // TODO(https://github.com/AztecProtocol/aztec-packages/issues/906):
+            // kernel must ensure that transient reads are either matched to a
+            // commitment or forwarded to the next iteration to handle it.
+            builder.do_assert(
+                false,
+                format("kernel could not match read_request[",
+                       rr_idx,
+                       "] with a commitment and does not yet support forwarding read requests.",
+                       "\n\tread_request:      ",
+                       read_request,
+                       "\n\tsiloed-rr* (leaf): ",
+                       leaf,
+                       "\n\t* got leaf by siloing read_request (compressing with storage_contract_address)"),
+                CircuitErrorCode::PRIVATE_KERNEL__TRANSIENT_READ_REQUEST_NO_MATCH);
         }
     }
 }

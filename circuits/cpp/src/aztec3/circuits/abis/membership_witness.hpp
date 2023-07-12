@@ -13,7 +13,7 @@ template <typename NCT, unsigned int N> struct MembershipWitness {
     using fr = typename NCT::fr;
     using boolean = typename NCT::boolean;
 
-    fr leaf_index;
+    fr leaf_index = 0;
     std::array<fr, N> sibling_path{};
 
     MSGPACK_FIELDS(leaf_index, sibling_path);

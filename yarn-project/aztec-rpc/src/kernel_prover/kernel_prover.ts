@@ -6,11 +6,11 @@ import {
   KernelCircuitPublicInputs,
   MembershipWitness,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
-  PRIVATE_DATA_TREE_HEIGHT,
   PreviousKernelData,
   PrivateCallData,
   PrivateCallStackItem,
   READ_REQUESTS_LENGTH,
+  ReadRequestMembershipWitness,
   TxRequest,
   VK_TREE_HEIGHT,
   VerificationKey,
@@ -97,27 +97,29 @@ export class KernelProver {
           .map(() => PrivateCallStackItem.empty()),
       );
 
-      // TODO(dbanks12): https://github.com/AztecProtocol/aztec-packages/issues/779
-      // What if app circuit outputs different #read-requests vs what the RPC client
-      // gets from the simulator? And confirm same number of readRequests as indices.
-      const readRequestMembershipWitnesses = [];
-      for (let rr = 0; rr < currentExecution.readRequestCommitmentIndices.length; rr++) {
+      // Start with the partially filled in read request witnesses from the simulator
+      // and fill the non-transient ones in with sibling paths via oracle.
+      const readRequestMembershipWitnesses = currentExecution.readRequestPartialWitnesses;
+      for (let rr = 0; rr < readRequestMembershipWitnesses.length; rr++) {
         if (currentExecution.callStackItem.publicInputs.readRequests[rr] == Fr.zero()) {
-          // TODO(dbanks12): is this needed?
-          // if rr is 0 somehow, that means it we have reached the last
-          // rr for this private call / kernel iteration
-          break;
+          throw new Error(
+            'Number of read requests output from Noir circuit does not match number of read request commitment indices output from simulator.',
+          );
         }
-        const leafIndex = currentExecution.readRequestCommitmentIndices[rr];
-        const membershipWitness = await this.oracle.getNoteMembershipWitness(leafIndex);
-        readRequestMembershipWitnesses.push(membershipWitness);
+        const rrWitness = readRequestMembershipWitnesses[rr];
+        if (!rrWitness.isTransient) {
+          // Non-transient reads must contain full membership witness with sibling path from commitment to root.
+          // Get regular membership witness to fill in sibling path in the read request witness.
+          const membershipWitness = await this.oracle.getNoteMembershipWitness(rrWitness.leafIndex);
+          rrWitness.siblingPath = membershipWitness.siblingPath;
+        }
       }
 
       // fill in witnesses for remaining/empty read requests
       readRequestMembershipWitnesses.push(
         ...Array(READ_REQUESTS_LENGTH - readRequestMembershipWitnesses.length)
           .fill(0)
-          .map(() => MembershipWitness.empty(PRIVATE_DATA_TREE_HEIGHT, BigInt(0))),
+          .map(() => ReadRequestMembershipWitness.empty(BigInt(0))),
       );
 
       const privateCallData = await this.createPrivateCallData(
@@ -127,8 +129,8 @@ export class KernelProver {
       );
 
       if (firstIteration) {
-        // TODO(dbanks12): remove historic root from app circuit public inputs and
-        // add it to PrivateCallData: https://github.com/AztecProtocol/aztec-packages/issues/778
+        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/778): remove historic root
+        // from app circuit public inputs and add it to PrivateCallData
         privateCallData.callStackItem.publicInputs.historicPrivateDataTreeRoot = await this.oracle.getPrivateDataRoot();
 
         output = await this.proofCreator.createProofInit(txRequest, privateCallData);
@@ -159,7 +161,7 @@ export class KernelProver {
       assertLength<Fr, typeof VK_TREE_HEIGHT>(previousVkMembershipWitness.siblingPath, VK_TREE_HEIGHT),
     );
 
-    //TODO(jeanmon): Temporary milestone where we only feed new commitments of the output
+    // TODO(jeanmon): Temporary milestone where we only feed new commitments of the output
     // of ordering circuit into the final output. Longer-term goal is to output the ordering circuit output.
     const orderedOutput = await this.proofCreator.createProofOrdering(previousKernelData);
     output.publicInputs.end.newCommitments = orderedOutput.publicInputs.end.newCommitments;
@@ -173,7 +175,7 @@ export class KernelProver {
 
   private async createPrivateCallData(
     { callStackItem, vk }: ExecutionResult,
-    readRequestMembershipWitnesses: MembershipWitness<typeof PRIVATE_DATA_TREE_HEIGHT>[],
+    readRequestMembershipWitnesses: ReadRequestMembershipWitness[],
     privateCallStackPreimages: PrivateCallStackItem[],
   ) {
     const { contractAddress, functionData, publicInputs } = callStackItem;

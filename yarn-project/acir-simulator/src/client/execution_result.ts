@@ -1,4 +1,4 @@
-import { PrivateCallStackItem, PublicCallRequest } from '@aztec/circuits.js';
+import { PrivateCallStackItem, PublicCallRequest, ReadRequestMembershipWitness } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { FunctionL2Logs } from '@aztec/types';
 import { ACVMField } from '../acvm/index.js';
@@ -49,8 +49,8 @@ export interface ExecutionResult {
   // Needed for the verifier (kernel)
   /** The call stack item. */
   callStackItem: PrivateCallStackItem;
-  /** The indices (in private data tree) for commitments corresponding to read requests. */
-  readRequestCommitmentIndices: bigint[];
+  /** The partially filled-in read request membership witnesses for commitments being read. */
+  readRequestPartialWitnesses: ReadRequestMembershipWitness[];
   // Needed for the user
   /** The preimages of the executed function. */
   preimages: ExecutionPreimages;

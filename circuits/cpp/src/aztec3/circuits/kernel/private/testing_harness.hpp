@@ -8,6 +8,7 @@
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_init.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_inner.hpp"
+#include "aztec3/circuits/abis/read_request_membership_witness.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/circuits/kernel/private/common.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
@@ -23,9 +24,9 @@ using aztec3::circuits::compute_empty_sibling_path;
 using aztec3::circuits::abis::ContractDeploymentData;
 using aztec3::circuits::abis::FunctionLeafPreimage;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
-using aztec3::circuits::abis::MembershipWitness;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
+using aztec3::circuits::abis::ReadRequestMembershipWitness;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInit;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
@@ -81,7 +82,7 @@ inline const auto& get_empty_contract_siblings()
  * @return std::tuple<read_requests, read_request_memberships_witnesses, historic_private_data_tree_root>
  */
 std::tuple<std::array<NT::fr, READ_REQUESTS_LENGTH>,
-           std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>,
+           std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>,
            NT::fr>
 get_random_reads(NT::fr const& contract_address, int num_read_requests);
 

@@ -1,5 +1,6 @@
 #include "testing_harness.hpp"
 
+#include "aztec3/circuits/abis/read_request_membership_witness.hpp"
 #include "aztec3/circuits/apps/test_apps/basic_contract_deployment/basic_contract_deployment.hpp"
 #include "aztec3/circuits/apps/test_apps/escrow/deposit.hpp"
 #include "aztec3/circuits/kernel/private/init.hpp"
@@ -395,7 +396,7 @@ TEST_F(native_private_kernel_init_tests, native_read_request_root_mismatch)
     private_inputs.private_call.call_stack_item.public_inputs.historic_private_data_tree_root = root;
     auto [read_requests1, read_request_membership_witnesses1, _root] = get_random_reads(contract_address, 2);
     std::array<NT::fr, READ_REQUESTS_LENGTH> bad_requests{};
-    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> bad_witnesses;
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> bad_witnesses;
     // note we are using read_requests0 for some and read_requests1 for others
     bad_requests[0] = read_requests0[0];
     bad_requests[1] = read_requests0[1];
@@ -429,7 +430,7 @@ TEST_F(native_private_kernel_init_tests, native_no_read_requests_works)
 
     // empty requests
     std::array<fr, READ_REQUESTS_LENGTH> const read_requests{};
-    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> const
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> const
         read_request_membership_witnesses{};
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
@@ -542,7 +543,9 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_works)
 // https://github.com/AztecProtocol/aztec-packages/issues/786
 
 
-TEST_F(native_private_kernel_init_tests, native_one_transient_read_requests_works)
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/906): re-enable once kernel supports forwarding/matching
+// of transient reads.
+TEST_F(native_private_kernel_init_tests, skip_native_one_transient_read_requests_works)
 {
     // one transient read request should work
 
@@ -556,8 +559,9 @@ TEST_F(native_private_kernel_init_tests, native_one_transient_read_requests_work
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
 
     // Make the read request transient
-    read_request_membership_witnesses[0].leaf_index = NT::fr(-1);
+    read_request_membership_witnesses[0].leaf_index = NT::fr(0);
     read_request_membership_witnesses[0].sibling_path = std::array<fr, PRIVATE_DATA_TREE_HEIGHT>{};
+    read_request_membership_witnesses[0].is_transient = true;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyBuilder builder = DummyBuilder("native_private_kernel_init_tests__native_one_transient_read_requests_works");
@@ -572,7 +576,9 @@ TEST_F(native_private_kernel_init_tests, native_one_transient_read_requests_work
     ASSERT_FALSE(builder.failed());
 }
 
-TEST_F(native_private_kernel_init_tests, native_max_read_requests_one_transient_works)
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/906): re-enable once kernel supports forwarding/matching
+// of transient reads.
+TEST_F(native_private_kernel_init_tests, skip_native_max_read_requests_one_transient_works)
 {
     // max read requests with one transient should work
 
@@ -587,8 +593,9 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_one_transient_
     private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
 
     // Make the read request at position 1 transient
-    read_request_membership_witnesses[1].leaf_index = NT::fr(-1);
+    read_request_membership_witnesses[1].leaf_index = NT::fr(0);
     read_request_membership_witnesses[1].sibling_path = std::array<fr, PRIVATE_DATA_TREE_HEIGHT>{};
+    read_request_membership_witnesses[1].is_transient = true;
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyBuilder builder =
@@ -602,6 +609,34 @@ TEST_F(native_private_kernel_init_tests, native_max_read_requests_one_transient_
         info("failure: ", failure);
     }
     ASSERT_FALSE(builder.failed());
+}
+
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/906): remove/rework once kernel supports
+// forwarding/matching of transient reads.
+TEST_F(native_private_kernel_init_tests, native_expect_error_transient_read_request_no_match)
+{
+    // read request without match should fail
+    auto private_inputs = do_private_call_get_kernel_inputs_init(false, deposit, standard_test_args());
+
+    auto const& contract_address =
+        private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
+
+    auto [read_requests, read_request_membership_witnesses, root] = get_random_reads(contract_address, 1);
+    private_inputs.private_call.call_stack_item.public_inputs.historic_private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
+
+    // Make the read request transient
+    read_request_membership_witnesses[0].leaf_index = NT::fr(0);
+    read_request_membership_witnesses[0].sibling_path = std::array<fr, PRIVATE_DATA_TREE_HEIGHT>{};
+    read_request_membership_witnesses[0].is_transient = true;
+    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
+
+    DummyBuilder builder =
+        DummyBuilder("native_private_kernel_init_tests__native_expect_error_transient_read_request_no_match");
+    auto const& public_inputs = native_private_kernel_circuit_initial(builder, private_inputs);
+
+    ASSERT(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__TRANSIENT_READ_REQUEST_NO_MATCH);
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel

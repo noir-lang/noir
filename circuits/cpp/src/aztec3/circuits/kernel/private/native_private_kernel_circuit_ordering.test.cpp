@@ -35,12 +35,12 @@ TEST_F(native_private_kernel_ordering_tests, native_one_read_request_choping_com
 
     std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
     std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
-    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
         read_request_membership_witnesses{};
 
     new_commitments[0] = fr(1282);
     read_requests[0] = fr(1282);
-    read_request_membership_witnesses[0].leaf_index = fr(-1);
+    read_request_membership_witnesses[0].is_transient = true;
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
 
@@ -63,7 +63,7 @@ TEST_F(native_private_kernel_ordering_tests, native_read_requests_choping_commit
 
     std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
     std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
-    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
         read_request_membership_witnesses{};
 
     new_commitments[0] = fr(1285);
@@ -74,8 +74,8 @@ TEST_F(native_private_kernel_ordering_tests, native_read_requests_choping_commit
 
     read_requests[0] = fr(1283);
     read_requests[1] = fr(1284);
-    read_request_membership_witnesses[0].leaf_index = fr(-1);
-    read_request_membership_witnesses[1].leaf_index = fr(-1);
+    read_request_membership_witnesses[0].is_transient = true;
+    read_request_membership_witnesses[1].is_transient = true;
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
 
@@ -100,7 +100,7 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
 
     std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
     std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
-    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
         read_request_membership_witnesses{};
 
     new_commitments[0] = fr(1285);
@@ -113,10 +113,10 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
     read_requests[1] = fr(1282);
     read_requests[2] = fr(1283);
     read_requests[3] = fr(1286);
-    read_request_membership_witnesses[0].leaf_index = fr(-1);
-    read_request_membership_witnesses[1].leaf_index = fr(-1);
-    read_request_membership_witnesses[2].leaf_index = fr(-1);
-    read_request_membership_witnesses[3].leaf_index = fr(-1);
+    read_request_membership_witnesses[0].is_transient = true;
+    read_request_membership_witnesses[1].is_transient = true;
+    read_request_membership_witnesses[2].is_transient = true;
+    read_request_membership_witnesses[3].is_transient = true;
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
 

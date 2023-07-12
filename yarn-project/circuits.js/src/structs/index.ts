@@ -27,6 +27,7 @@ export * from './call_stack_item.js';
 export * from './function_leaf_preimage.js';
 export * from './aggregation_object.js';
 export * from './membership_witness.js';
+export * from './read_request_membership_witness.js';
 export * from './generators.js';
 export * from './public_call_request.js';
 export * from '@aztec/foundation/eth-address';

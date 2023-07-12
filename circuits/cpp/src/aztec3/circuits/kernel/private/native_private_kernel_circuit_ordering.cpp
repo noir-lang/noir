@@ -24,14 +24,14 @@ using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 // Relevant task: https://github.com/AztecProtocol/aztec-packages/issues/892
 void chop_pending_commitments(DummyBuilder& builder,
                               std::array<NT::fr, READ_REQUESTS_LENGTH> const& read_requests,
-                              std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> const&
-                                  read_request_membership_witnesses,
+                              std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>,
+                                         READ_REQUESTS_LENGTH> const& read_request_membership_witnesses,
                               std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_TX>& new_commitments)
 {
     // chop commitments from the previous call(s)
     for (size_t i = 0; i < READ_REQUESTS_LENGTH; i++) {
         const auto& read_request = read_requests[i];
-        const auto is_transient_read = (read_request_membership_witnesses[i].leaf_index == NT::fr(-1));
+        const auto is_transient_read = read_request_membership_witnesses[i].is_transient;
 
         if (is_transient_read) {
             size_t match_pos = MAX_NEW_COMMITMENTS_PER_TX;
@@ -59,7 +59,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_ordering(
     DummyBuilder& builder,
     PreviousKernelData<NT> const& previous_kernel,
     std::array<NT::fr, READ_REQUESTS_LENGTH> const& read_requests,
-    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> const&
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> const&
         read_request_membership_witnesses)
 {
     // We'll be pushing data to this during execution of this circuit.
@@ -88,7 +88,7 @@ CircuitResult<KernelCircuitPublicInputs<NT>> native_private_kernel_circuit_order
     // TODO(JEANMON): this is a temporary milestone. At a later stage, we will pass "real" read_requests and
     // membership_witnesses
     std::array<fr, READ_REQUESTS_LENGTH> const read_requests{};
-    std::array<MembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> const
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH> const
         read_request_membership_witnesses{};
 
     auto const& public_inputs = native_private_kernel_circuit_ordering(
