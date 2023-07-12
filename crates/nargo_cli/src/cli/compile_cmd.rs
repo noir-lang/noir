@@ -1,3 +1,4 @@
+use acvm::acir::circuit::OpcodeLabel;
 use acvm::{acir::circuit::Circuit, Backend};
 use iter_extended::try_vecmap;
 use iter_extended::vecmap;
@@ -144,12 +145,11 @@ pub(crate) fn compile_circuit<B: Backend>(
 pub(super) fn optimize_circuit<B: Backend>(
     backend: &B,
     circuit: Circuit,
-) -> Result<Circuit, CliError<B>> {
-    let (optimized_circuit, _): (Circuit, Vec<acvm::acir::circuit::OpcodeLabel>) =
-        acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
-            backend.supports_opcode(opcode)
-        })
-        .map_err(|_| NargoError::CompilationError)?;
+) -> Result<(Circuit, Vec<OpcodeLabel>), CliError<B>> {
+    let result = acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
+        backend.supports_opcode(opcode)
+    })
+    .map_err(|_| NargoError::CompilationError)?;
 
     Ok(result)
 }
