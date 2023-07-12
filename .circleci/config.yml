@@ -610,12 +610,6 @@ jobs:
             deploy_ecr circuits.js
             deploy_npm circuits.js
       - run:
-          name: "merkle-tree"
-          working_directory: merkle-tree
-          command: |
-            deploy_ecr merkle-tree
-            deploy_npm merkle-tree
-      - run:
           name: "noir-contracts"
           working_directory: noir-contracts
           command: |
@@ -639,54 +633,6 @@ jobs:
           command: |
             deploy_ecr types
             deploy_npm types
-      - run:
-          name: "acir-simulator"
-          working_directory: acir-simulator
-          command: |
-            deploy_ecr acir-simulator
-            deploy_npm acir-simulator
-      - run:
-          name: "archiver"
-          working_directory: archiver
-          command: |
-            deploy_ecr archiver
-            deploy_npm archiver
-      - run:
-          name: "p2p"
-          working_directory: p2p
-          command: |
-            deploy_ecr p2p
-            deploy_npm p2p
-      - run:
-          name: "world-state"
-          working_directory: world-state
-          command: |
-            deploy_ecr world-state
-            deploy_npm world-state
-      - run:
-          name: "sequencer-client"
-          working_directory: sequencer-client
-          command: |
-            deploy_ecr sequencer-client
-            deploy_npm sequencer-client
-      - run:
-          name: "aztec-node"
-          working_directory: aztec-node
-          command: |
-            deploy_ecr aztec-node
-            deploy_npm aztec-node
-      - run:
-          name: "key-store"
-          working_directory: key-store
-          command: |
-            deploy_ecr key-store
-            deploy_npm key-store
-      - run:
-          name: "aztec-rpc"
-          working_directory: aztec-rpc
-          command: |
-            deploy_ecr aztec-rpc
-            deploy_npm aztec-rpc
       - run:
           name: "aztec.js"
           working_directory: aztec.js
