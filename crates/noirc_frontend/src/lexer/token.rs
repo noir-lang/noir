@@ -444,7 +444,6 @@ pub enum Keyword {
     Type,
     Unconstrained,
     Use,
-    Vec,
     Where,
     While,
 }
@@ -483,7 +482,6 @@ impl fmt::Display for Keyword {
             Keyword::Type => write!(f, "type"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
             Keyword::Use => write!(f, "use"),
-            Keyword::Vec => write!(f, "Vec"),
             Keyword::Where => write!(f, "where"),
             Keyword::While => write!(f, "while"),
         }
@@ -525,7 +523,6 @@ impl Keyword {
             "type" => Keyword::Type,
             "unconstrained" => Keyword::Unconstrained,
             "use" => Keyword::Use,
-            "Vec" => Keyword::Vec,
             "where" => Keyword::Where,
             "while" => Keyword::While,
 

@@ -2,10 +2,9 @@ fn main(mut x: Field) {
     add1(&mut x);
     assert(x == 3);
 
-    // https://github.com/noir-lang/noir/issues/1899
-    // let mut s = S { y: x };
-    // s.add2();
-    // assert(s.y == 5);
+    let mut s = S { y: x };
+    s.add2();
+    assert(s.y == 5);
 
     // Test that normal mutable variables are still copied
     let mut a = 0;

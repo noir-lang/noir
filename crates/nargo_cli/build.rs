@@ -95,23 +95,18 @@ fn generate_tests(test_file: &mut File, experimental_ssa: bool) {
 fn prove_and_verify_{test_sub_dir}_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
-    let verified = std::panic::catch_unwind(|| {{
-        nargo_cli::cli::prove_and_verify(&test_program_dir, {experimental_ssa})
-    }});
-
-    let r = match verified {{
-        Ok(result) => result,
-        Err(_) => {{
-            panic!(
-                "\n\n\nPanic occurred while running test {test_name} (ignore the following panic)"
-            );
-        }}
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute");
+    if {experimental_ssa} {{
+        cmd.arg("--experimental-ssa");
     }};
+    
 
     if {should_fail} {{
-        assert!(!r, "{test_name} should not succeed");
+        cmd.assert().failure();
     }} else {{
-        assert!(r, "verification fail for {test_name}");
+        cmd.assert().success();
     }}
 }}
             "#,

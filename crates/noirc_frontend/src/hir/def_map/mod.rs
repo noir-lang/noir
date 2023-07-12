@@ -93,7 +93,8 @@ impl CrateDefMap {
                 .to_str()
                 .expect("expected std path to be convertible to str");
             assert_eq!(path_as_str, "std/lib");
-            ast.module_decls.retain(|ident| ident.0.contents != "slice");
+            ast.module_decls
+                .retain(|ident| ident.0.contents != "slice" && ident.0.contents != "collections");
         }
 
         // Allocate a default Module for the root, giving it a ModuleId
