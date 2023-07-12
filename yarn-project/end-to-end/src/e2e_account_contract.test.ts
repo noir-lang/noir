@@ -2,28 +2,26 @@ import { AztecNodeService } from '@aztec/aztec-node';
 import {
   AccountContract,
   AccountWallet,
-  AztecRPCServer,
   Contract,
   ContractDeployer,
   EcdsaAuthProvider,
   Fr,
   SchnorrAuthProvider,
-  TxStatus,
   Wallet,
   generatePublicKey,
-  getContractDeploymentInfo,
 } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { DebugLogger } from '@aztec/foundation/log';
 import { ChildAbi, EcdsaAccountContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
-
 import { Ecdsa, Schnorr } from '@aztec/circuits.js/barretenberg';
-import { PublicKey } from '@aztec/key-store';
-import { privateKey2 } from './fixtures.js';
-import { setup } from './utils.js';
-import { CircuitsWasm, Point } from '@aztec/circuits.js';
+import { CircuitsWasm, getContractDeploymentInfo, Point } from '@aztec/circuits.js';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { randomBytes } from 'crypto';
+import { AztecRPCServer } from '@aztec/aztec-rpc';
+import { PublicKey, TxStatus } from '@aztec/types';
+
+import { privateKey2 } from './fixtures.js';
+import { setup } from './utils.js';
 
 describe('e2e_account_contract', () => {
   let aztecNode: AztecNodeService;

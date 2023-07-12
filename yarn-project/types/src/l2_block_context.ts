@@ -1,7 +1,7 @@
 import { MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
 
 import { L2Block } from './l2_block.js';
-import { TxHash } from './tx_hash.js';
+import { TxHash } from './tx/tx_hash.js';
 import { keccak } from '@aztec/foundation/crypto';
 
 /**

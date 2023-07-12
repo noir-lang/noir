@@ -9,14 +9,13 @@ import {
 } from '@aztec/circuits.js';
 import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 import { Curve } from '@aztec/circuits.js/barretenberg';
-import { FunctionAbi } from '@aztec/foundation/abi';
+import { FunctionAbi, decodeReturnValues } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { Coordinate, Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
 import { FunctionL2Logs, NotePreimage, NoteSpendingInfo } from '@aztec/types';
-import { decodeReturnValues } from '../abi_coder/decoder.js';
 import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
 import {
   ZERO_ACVM_FIELD,

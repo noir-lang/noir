@@ -162,11 +162,10 @@
       "^yarn-project/aztec.js/"
     ],
     "dependencies": [
-      "aztec-rpc",
       "circuits.js",
       "foundation",
-      "key-store",
-      "noir-contracts"
+      "noir-contracts",
+      "types"
     ]
   },
   "circuits.js": {
@@ -190,6 +189,7 @@
     ],
     "dependencies": [
       "aztec-node",
+      "aztec-rpc",
       "aztec.js",
       "circuits.js",
       "ethereum",
@@ -362,8 +362,7 @@
     ],
     "dependencies": [
       "circuits.js",
-      "foundation",
-      "l1-artifacts"
+      "foundation"
     ]
   },
   "world-state": {

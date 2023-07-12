@@ -714,7 +714,6 @@ jobs:
             deploy_ecr aztec-sandbox
             deploy_dockerhub aztec-sandbox
 
-
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /^v.*/
 defaults: &defaults

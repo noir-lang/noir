@@ -7,19 +7,16 @@
   },
   "references": [
     {
-      "path": "../aztec-rpc"
-    },
-    {
       "path": "../circuits.js"
     },
     {
       "path": "../foundation"
     },
     {
-      "path": "../key-store"
+      "path": "../noir-contracts"
     },
     {
-      "path": "../noir-contracts"
+      "path": "../types"
     }
   ],
   "include": ["src"]

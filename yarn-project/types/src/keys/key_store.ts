@@ -1,7 +1,6 @@
-import { Point } from '@aztec/foundation/fields';
+import { PublicKey } from '@aztec/circuits.js';
 
-/** Represents a user public key. */
-export type PublicKey = Point;
+export { PublicKey } from '@aztec/circuits.js';
 
 /**
  * Represents a secure storage for managing keys.

@@ -1,4 +1,4 @@
-import { mockTx } from './mocks.js';
+import { mockTx } from '../mocks.js';
 import { Tx } from './tx.js';
 
 describe('Tx', () => {

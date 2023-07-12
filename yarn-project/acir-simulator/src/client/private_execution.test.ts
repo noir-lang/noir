@@ -12,7 +12,7 @@ import {
 } from '@aztec/circuits.js';
 import { computeContractAddressFromPartial, computeSecretMessageHash, siloCommitment } from '@aztec/circuits.js/abis';
 import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
-import { FunctionAbi } from '@aztec/foundation/abi';
+import { FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -30,7 +30,7 @@ import { PackedArguments, TxExecutionRequest } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import { default as memdown, type MemDown } from 'memdown';
-import { encodeArguments } from '../abi_coder/index.js';
+
 import { buildL1ToL2Message } from '../test/utils.js';
 import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
 import { DBOracle } from './db_oracle.js';

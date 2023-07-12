@@ -9,15 +9,14 @@ import {
   ContractDeployer,
   Fr,
   Point,
-  TxHash,
   createAccounts,
   createAztecRpcClient,
   getAccountWallet,
 } from '@aztec/aztec.js';
-import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { StructType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
-import { ContractData, L2BlockL2Logs } from '@aztec/types';
+import { JsonStringify } from '@aztec/foundation/json-rpc';
+import { ContractData, TxHash, L2BlockL2Logs } from '@aztec/types';
 
 import { encodeArgs, parseStructString } from './cli_encoder.js';
 import { deployAztecContracts, getContractAbi, getTxSender, prepTx } from './utils.js';

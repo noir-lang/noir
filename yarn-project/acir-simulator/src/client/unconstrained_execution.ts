@@ -1,9 +1,9 @@
 import { CallContext, FunctionData } from '@aztec/circuits.js';
-import { FunctionAbi } from '@aztec/foundation/abi';
+import { decodeReturnValues, FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Coordinate, Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { decodeReturnValues } from '../abi_coder/decoder.js';
+
 import { extractReturnWitness, frToAztecAddress } from '../acvm/deserialize.js';
 import { ACVMField, ZERO_ACVM_FIELD, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';

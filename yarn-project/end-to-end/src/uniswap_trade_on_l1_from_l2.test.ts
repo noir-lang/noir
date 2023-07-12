@@ -1,15 +1,17 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, Fr, TxStatus, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, Contract, ContractDeployer, Fr, Wallet } from '@aztec/aztec.js';
 import { deployL1Contract } from '@aztec/ethereum';
-
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { delay, deployAndInitializeNonNativeL2TokenContracts, setup } from './utils.js';
-import { CrossChainTestHarness } from './cross_chain/test_harness.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { getContract, parseEther } from 'viem';
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { UniswapContractAbi } from '@aztec/noir-contracts/examples';
+import { AztecRPCServer } from '@aztec/aztec-rpc';
+import { TxStatus } from '@aztec/types';
+
+import { CrossChainTestHarness } from './cross_chain/test_harness.js';
+import { delay, deployAndInitializeNonNativeL2TokenContracts, setup } from './utils.js';
 
 // PSA: this works on a fork of mainnet but with the default anvil chain id. Start it with the command:
 // anvil --fork-url https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c --fork-block-number 17514288 --chain-id 31337

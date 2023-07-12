@@ -1,6 +1,7 @@
 import { AztecNode } from '@aztec/aztec-node';
 import { AztecAddress, CircuitsWasm, MembershipWitness, VK_TREE_HEIGHT } from '@aztec/circuits.js';
-import { ContractDatabase } from '../contract_database/index.js';
+import { ContractDatabase } from '@aztec/types';
+
 import { ContractTree } from '../contract_tree/index.js';
 
 /**

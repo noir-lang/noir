@@ -1,8 +1,11 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer, ContractDeployer, Fr, TxStatus } from '@aztec/aztec.js';
+import { ContractDeployer, Fr } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
+import { AztecRPCServer } from '@aztec/aztec-rpc';
+import { TxStatus } from '@aztec/types';
 import times from 'lodash.times';
+
 import { setup } from './utils.js';
 
 describe('e2e_block_building', () => {

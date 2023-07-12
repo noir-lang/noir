@@ -1,8 +1,10 @@
-import { AztecRPC, TxStatus, getContractDeploymentInfo } from '@aztec/aztec-rpc';
-import { CircuitsWasm, Fr } from '@aztec/circuits.js';
+import { CircuitsWasm, Fr, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { AztecRPC, TxStatus } from '@aztec/types';
 import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { Schnorr } from '@aztec/circuits.js/barretenberg';
+
 import { AccountWallet, Wallet } from '../aztec_rpc_client/wallet.js';
 import {
   AccountCollection,
@@ -11,7 +13,6 @@ import {
   SchnorrAuthProvider,
   generatePublicKey,
 } from '../index.js';
-import { Schnorr } from '@aztec/circuits.js/barretenberg';
 
 /**
  * Creates an Aztec Account.

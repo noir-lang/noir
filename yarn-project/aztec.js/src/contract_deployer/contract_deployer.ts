@@ -1,7 +1,8 @@
-import { AztecRPC, Point } from '@aztec/aztec-rpc';
+import { Point } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
+import { AztecRPC, PublicKey } from '@aztec/types';
+
 import { DeployMethod } from './deploy_method.js';
-import { PublicKey } from '@aztec/key-store';
 
 /**
  * A class for deploying contract.

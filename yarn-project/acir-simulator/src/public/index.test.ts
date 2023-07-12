@@ -10,7 +10,7 @@ import {
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
-import { FunctionAbi } from '@aztec/foundation/abi';
+import { FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 import {
   ChildAbi,
   NonNativeTokenContractAbi,
@@ -18,15 +18,15 @@ import {
   PublicTokenContractAbi,
   TestContractAbi,
 } from '@aztec/noir-contracts/examples';
+import { toBigInt } from '@aztec/foundation/serialize';
+import { keccak } from '@aztec/foundation/crypto';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as memdown, type MemDown } from 'memdown';
-import { encodeArguments } from '../abi_coder/encoder.js';
+
 import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution } from './execution.js';
 import { PublicExecutor } from './executor.js';
-import { toBigInt } from '@aztec/foundation/serialize';
-import { keccak } from '@aztec/foundation/crypto';
 import { buildL1ToL2Message } from '../test/utils.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;

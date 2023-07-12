@@ -1,13 +1,11 @@
-import { encodeArguments } from '@aztec/acir-simulator';
-import { AztecAddress, CircuitsWasm, Fr, FunctionData, TxContext } from '@aztec/circuits.js';
+import partition from 'lodash.partition';
+import { AztecAddress, CircuitsWasm, Fr, FunctionData, PartialContractAddress, TxContext } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
-import { PublicKey } from '@aztec/key-store';
-import { ExecutionRequest, PackedArguments, PartialContractAddress, TxExecutionRequest } from '@aztec/types';
-import partition from 'lodash.partition';
-import { generateFunctionSelector } from '../index.js';
+import { ExecutionRequest, PackedArguments, PublicKey, TxExecutionRequest } from '@aztec/types';
+import { ContractAbi, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
+
 import { AccountImplementation } from './index.js';
-import { ContractAbi } from '@aztec/foundation/abi';
 import { EcdsaAuthProvider, SchnorrAuthProvider } from '../auth/index.js';
 
 /**

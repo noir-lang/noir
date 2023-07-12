@@ -1,11 +1,11 @@
-import { AztecAddress, DeployedContract, EthAddress, NodeInfo, Tx, TxHash, TxReceipt } from '@aztec/aztec-rpc';
 import { MockProxy, mock } from 'jest-mock-extended';
-
+import { DeployedContract, NodeInfo, Tx, TxHash, TxReceipt } from '@aztec/types';
 import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { TxExecutionRequest } from '@aztec/types';
 import { Wallet } from '../aztec_rpc_client/wallet.js';
 import { Contract } from './contract.js';
+import { AztecAddress, EthAddress } from '@aztec/circuits.js';
 
 describe('Contract Class', () => {
   let wallet: MockProxy<Wallet>;

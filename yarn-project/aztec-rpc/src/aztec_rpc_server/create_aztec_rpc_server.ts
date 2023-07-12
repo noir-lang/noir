@@ -1,8 +1,10 @@
 import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { KeyStore, TestKeyStore } from '@aztec/key-store';
-import { Database, MemoryDB } from '../database/index.js';
+import { TestKeyStore } from '@aztec/key-store';
+import { KeyStore } from '@aztec/types';
+
 import { AztecRPCServer } from './aztec_rpc_server.js';
+import { Database, MemoryDB } from '../database/index.js';
 
 /**
  * Optional information for creating an AztecRPCServer.

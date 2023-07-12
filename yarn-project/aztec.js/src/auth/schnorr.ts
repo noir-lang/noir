@@ -1,5 +1,6 @@
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
-import { AuthPayload, AztecAddress, EntrypointPayload } from '@aztec/aztec.js';
+
+import { AuthPayload, AztecAddress, EntrypointPayload } from '../index.js';
 
 /**
  * Implementation of a schnorr signature provider

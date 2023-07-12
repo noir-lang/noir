@@ -7,10 +7,10 @@ import { Fr } from '@aztec/foundation/fields';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { ExecutionRequest } from '@aztec/types';
 import { mock } from 'jest-mock-extended';
-import { encodeArguments } from '../abi_coder/index.js';
 import { NoirPoint, toPublicKey } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
+import { encodeArguments } from '@aztec/foundation/abi';
 
 describe('Unconstrained Execution test suite', () => {
   let bbWasm: CircuitsWasm;

@@ -1,7 +1,19 @@
-import { AztecAddress, AztecRPC, DeployedContract, Fr, NodeInfo, Point, Tx, TxHash, TxReceipt } from '@aztec/aztec-rpc';
-import { TxContext } from '@aztec/circuits.js';
+import { AztecAddress, Fr, Point, TxContext } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { ContractData, ContractPublicData, ExecutionRequest, L2BlockL2Logs, TxExecutionRequest } from '@aztec/types';
+import {
+  AztecRPC,
+  ContractData,
+  ContractPublicData,
+  DeployedContract,
+  ExecutionRequest,
+  L2BlockL2Logs,
+  NodeInfo,
+  Tx,
+  TxExecutionRequest,
+  TxHash,
+  TxReceipt,
+} from '@aztec/types';
+
 import { AccountImplementation } from '../account_impl/index.js';
 
 /**

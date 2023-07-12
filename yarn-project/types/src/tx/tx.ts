@@ -3,16 +3,16 @@ import {
   Fr,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   KernelCircuitPublicInputs,
+  PartialContractAddress,
   Proof,
   PublicCallRequest,
 } from '@aztec/circuits.js';
-
 import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { arrayNonEmptyLength } from '@aztec/foundation/collection';
 import { BufferReader, numToUInt32BE } from '@aztec/foundation/serialize';
-import { EncodedContractFunction } from './contract_data.js';
-import { TxL2Logs } from './logs/tx_l2_logs.js';
-import { PartialContractAddress } from './partial_contract_address.js';
+
+import { EncodedContractFunction } from '../contract_data.js';
+import { TxL2Logs } from '../logs/tx_l2_logs.js';
 import { TxHash } from './tx_hash.js';
 
 /**

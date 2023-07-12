@@ -1,6 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { ContractDao } from './contract_dao.js';
-import { ContractDatabase } from './contract_database.js';
+import { ContractDao, ContractDatabase } from '@aztec/types';
 
 /**
  * The MemoryContractDatabase class serves as an in-memory implementation of the ContractDatabase interface.

@@ -1,8 +1,9 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, Contract, ContractDeployer, TxStatus, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, Contract, ContractDeployer, Wallet } from '@aztec/aztec.js';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { DebugLogger } from '@aztec/foundation/log';
-import { L2BlockL2Logs, LogType } from '@aztec/types';
+import { L2BlockL2Logs, LogType, TxStatus } from '@aztec/types';
+import { AztecRPCServer } from '@aztec/aztec-rpc';
 
 import { setup } from './utils.js';
 

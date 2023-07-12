@@ -1,9 +1,9 @@
-import { AztecRPC, Tx, TxHash, TxReceipt } from '@aztec/aztec-rpc';
-import { AztecAddress, EthAddress, Fr, Point } from '@aztec/circuits.js';
-import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
-import { PublicKey } from '@aztec/key-store';
 import { randomBytes } from 'crypto';
 import { MockProxy, mock } from 'jest-mock-extended';
+import { AztecAddress, EthAddress, Fr, Point } from '@aztec/circuits.js';
+import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
+import { AztecRPC, Tx, TxHash, TxReceipt, PublicKey } from '@aztec/types';
+
 import { ContractDeployer } from './contract_deployer.js';
 
 describe.skip('Contract Deployer', () => {

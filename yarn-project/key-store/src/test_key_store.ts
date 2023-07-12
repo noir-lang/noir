@@ -1,7 +1,7 @@
 import { Curve } from '@aztec/circuits.js/barretenberg';
-import { ConstantKeyPair, KeyPair } from './key_pair.js';
-import { KeyStore, PublicKey } from './key_store.js';
+import { ConstantKeyPair } from './key_pair.js';
 import { Point } from '@aztec/circuits.js';
+import { KeyPair, KeyStore, PublicKey } from '@aztec/types';
 
 /**
  * TestKeyStore is an implementation of the KeyStore interface, used for managing key pairs in a testing environment.

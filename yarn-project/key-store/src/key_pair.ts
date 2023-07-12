@@ -1,15 +1,7 @@
 import { Curve } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
-
-/**
- * Represents a cryptographic public-private key pair.
- * Provides functionality to generate, access, and sign messages using the key pair.
- */
-export interface KeyPair {
-  getPublicKey(): Point;
-  getPrivateKey(): Promise<Buffer>;
-}
+import { KeyPair } from '@aztec/types';
 
 /**
  * The ConstantKeyPair class is an implementation of the KeyPair interface, which allows generation and management of a constant public and private key pair. It provides methods for creating a random instance of the key pair, retrieving the public key, getting the private key. This class ensures the persistence and consistency of the generated keys, making it suitable for cryptographic operations where constant key pairs are required.

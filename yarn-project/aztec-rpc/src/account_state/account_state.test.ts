@@ -2,8 +2,17 @@ import { AztecNode } from '@aztec/aztec-node';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress, CircuitsWasm, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { ConstantKeyPair, KeyPair, KeyStore } from '@aztec/key-store';
-import { FunctionL2Logs, L2Block, L2BlockContext, L2BlockL2Logs, NoteSpendingInfo, TxL2Logs } from '@aztec/types';
+import { ConstantKeyPair } from '@aztec/key-store';
+import {
+  FunctionL2Logs,
+  KeyPair,
+  KeyStore,
+  L2Block,
+  L2BlockContext,
+  L2BlockL2Logs,
+  NoteSpendingInfo,
+  TxL2Logs,
+} from '@aztec/types';
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Database, MemoryDB } from '../database/index.js';

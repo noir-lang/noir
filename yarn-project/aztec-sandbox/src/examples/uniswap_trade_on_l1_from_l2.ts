@@ -1,8 +1,6 @@
 import {
-  AztecRPC,
   Contract,
   ContractDeployer,
-  TxStatus,
   createAccounts,
   createAztecRpcClient,
   getL1ContractAddresses,
@@ -19,6 +17,7 @@ import { mnemonicToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 import { delay, deployAndInitializeNonNativeL2TokenContracts, deployL1Contract } from './util.js';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
+import { AztecRPC, TxStatus } from '@aztec/types';
 
 /**
  * Type representation of a Public key's coordinates.

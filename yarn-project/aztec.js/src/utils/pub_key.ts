@@ -1,4 +1,5 @@
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+
 import { Point } from '../index.js';
 
 /**

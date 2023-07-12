@@ -1,12 +1,20 @@
 import { CommitmentDataOracleInputs, DBOracle, MessageLoadOracleInputs } from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, CircuitsWasm, EthAddress, Fr, Point, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
-import { KeyPair } from '@aztec/key-store';
+import {
+  AztecAddress,
+  CircuitsWasm,
+  EthAddress,
+  Fr,
+  PartialContractAddress,
+  Point,
+  PrivateHistoricTreeRoots,
+} from '@aztec/circuits.js';
 import { FunctionAbi } from '@aztec/foundation/abi';
+import { siloCommitment } from '@aztec/circuits.js/abis';
+import { KeyPair, MerkleTreeId } from '@aztec/types';
+
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database } from '../database/index.js';
-import { siloCommitment } from '@aztec/circuits.js/abis';
-import { MerkleTreeId, PartialContractAddress } from '@aztec/types';
 
 /**
  * A data oracle that provides information needed for simulating a transaction.

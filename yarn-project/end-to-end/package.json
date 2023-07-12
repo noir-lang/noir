@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@aztec/aztec-node": "workspace:^",
+    "@aztec/aztec-rpc": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
     "@aztec/ethereum": "workspace:^",
