@@ -52,18 +52,19 @@ jobs:
         cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
         cmake --build --preset default --target bb
 
-        ./scripts/install-wasi-sdk.sh
-
-        cmake --preset wasm
-        cmake --build --preset wasm
-    
-    - name: Copy Barretenberg.wasm to Root directory
-      run: cp cpp/build-wasm/bin/barretenberg.wasm ./
-      
+    - name: Install WASI-SDK
+      run: |
+          cd cpp
+          
+          ./scripts/install-wasi-sdk.sh
+  
     - name: Compile Typescript
       run: |
         cd ts
         yarn install && yarn && yarn build
+
+    - name: Tar and GZip barretenberg.wasm
+      run: tar -cvzf barretenberg.wasm.tar.gz cpp/build-wasm/bin/barretenberg.wasm
         
     - name: Setup Node.js
       uses: actions/setup-node@v2
@@ -86,7 +87,7 @@ jobs:
       with:
           name: release-linux-wasm
           path: |
-            barretenberg.wasm
+            barretenberg.wasm.tar.gz
             bb-ubuntu.tar.gz
           
   build-mac:
@@ -144,6 +145,6 @@ jobs:
           tag_name: ${{ needs.release-please.outputs.tag-name }}
           prerelease: true
           files: |
-            barretenberg.wasm
+            barretenberg.wasm.tar.gz
             bb-ubuntu.tar.gz
             bb-mac.tar.gz
