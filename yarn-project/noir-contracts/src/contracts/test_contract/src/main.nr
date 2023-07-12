@@ -11,7 +11,8 @@ contract Test {
 
     use dep::aztec::oracle::{
         create_l2_to_l1_message::create_l2_to_l1_message,
-        create_nullifier::create_nullifier
+        create_nullifier::create_nullifier,
+        get_public_key::get_public_key
     };
 
     fn constructor(
@@ -19,6 +20,16 @@ contract Test {
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         Context::new(inputs, 0).finish()
+    }
+
+    fn getPublicKey(
+        inputs: PrivateContextInputs,
+        address: Field,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        let mut context = Context::new(inputs, abi::hash_args([address]));
+        let pub_key = get_public_key(address);
+        context.return_values = context.return_values.push_array([pub_key.x, pub_key.y]);
+        context.finish()
     }
 
     // Purely exists for testing

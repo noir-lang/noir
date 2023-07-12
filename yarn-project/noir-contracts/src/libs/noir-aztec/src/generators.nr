@@ -6,3 +6,4 @@ global Nullifier = 5;
 global SINGLETON_INITIALISATION = 6;
 global MessageSecret = 20;
 global FUNCTION_ARGS = 44;
+global ContractAddress = 15;

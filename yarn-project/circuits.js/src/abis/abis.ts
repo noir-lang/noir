@@ -170,7 +170,7 @@ export function hashConstructor(
 /**
  * Computes a contract address.
  * @param wasm - A module providing low-level wasm access.
- * @param deployerAddr - The address of the contract deployer.
+ * @param deployerPubKey - The pubkey of the contract deployer.
  * @param contractAddrSalt - The salt used as 1 one of the inputs of the contract address computation.
  * @param fnTreeRoot - The function tree root of the contract being deployed.
  * @param constructorHash - The hash of the constructor.
@@ -215,6 +215,25 @@ export function computePartialContractAddress(
     32,
   );
   return Fr.fromBuffer(result);
+}
+
+/**
+ * Computes a contract address from its partial address and the pubkey.
+ * @param wasm - A module providing low-level wasm access.
+ * @param partial - The salt used as 1 one of the inputs of the contract address computation.
+ * @param fnTreeRoot - The function tree root of the contract being deployed.
+ * @param constructorHash - The hash of the constructor.
+ * @returns The partially constructed contract address.
+ */
+export function computeContractAddressFromPartial(wasm: IWasmModule, pubKey: Point, partialAddress: Fr): AztecAddress {
+  wasm.call('pedersen__init');
+  const result = inputBuffersToOutputBuffer(
+    wasm,
+    'abis__compute_contract_address_from_partial',
+    [pubKey.toFieldsBuffer(), partialAddress.toBuffer()],
+    32,
+  );
+  return new AztecAddress(result);
 }
 
 /**

@@ -1,10 +1,11 @@
-import { TxHash } from '@aztec/types';
+import { PartialContractAddress, TxHash } from '@aztec/types';
 import { ContractDatabase } from '../contract_database/index.js';
 import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
 import { TxDao } from './tx_dao.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { MerkleTreeId } from '@aztec/types';
+import { PublicKey } from '@aztec/key-store';
 
 /**
  * Options for selecting items from the database.
@@ -49,4 +50,7 @@ export interface Database extends ContractDatabase {
 
   getTreeRoots(): Record<MerkleTreeId, Fr>;
   setTreeRoots(roots: Record<MerkleTreeId, Fr>): Promise<void>;
+
+  addPublicKey(address: AztecAddress, publicKey: PublicKey, partialAddress: PartialContractAddress): Promise<void>;
+  getPublicKey(address: AztecAddress): Promise<[Point, PartialContractAddress] | undefined>;
 }

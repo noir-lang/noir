@@ -3,6 +3,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { CommitmentsDB } from '../index.js';
+import { PartialContractAddress } from '@aztec/types';
 
 /**
  * The format that noir contracts use to get notes.
@@ -57,6 +58,7 @@ export interface CommitmentDataOracleInputs {
  * The database oracle interface.
  */
 export interface DBOracle extends CommitmentsDB {
+  getPublicKey(address: AztecAddress): Promise<[Point, PartialContractAddress]>;
   getSecretKey(contractAddress: AztecAddress, pubKey: Point): Promise<Buffer>;
   getNotes(
     contractAddress: AztecAddress,

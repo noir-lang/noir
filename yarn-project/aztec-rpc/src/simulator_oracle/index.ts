@@ -6,7 +6,7 @@ import { FunctionAbi } from '@aztec/foundation/abi';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database } from '../database/index.js';
 import { siloCommitment } from '@aztec/circuits.js/abis';
-import { MerkleTreeId } from '@aztec/types';
+import { MerkleTreeId, PartialContractAddress } from '@aztec/types';
 
 /**
  * A data oracle that provides information needed for simulating a transaction.
@@ -16,7 +16,6 @@ export class SimulatorOracle implements DBOracle {
     private contractDataOracle: ContractDataOracle,
     private db: Database,
     private keyPair: KeyPair,
-    private address: AztecAddress,
     private node: AztecNode,
   ) {}
 
@@ -38,6 +37,17 @@ export class SimulatorOracle implements DBOracle {
       );
     }
     return this.keyPair.getPrivateKey();
+  }
+
+  /**
+   * Retrieve the public key associated to a given address.
+   * @param address - Address to fetch the pubkey for.
+   * @returns A public key and the corresponding partial contract address, such that the hash of the two resolves to the input address.
+   */
+  async getPublicKey(address: AztecAddress): Promise<[Point, PartialContractAddress]> {
+    const result = await this.db.getPublicKey(address);
+    if (!result) throw new Error(`Unknown public key for address ${address.toString()}`);
+    return result;
   }
 
   /**

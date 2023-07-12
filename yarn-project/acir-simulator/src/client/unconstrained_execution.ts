@@ -4,7 +4,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Coordinate, Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { decodeReturnValues } from '../abi_coder/decoder.js';
-import { extractReturnWitness } from '../acvm/deserialize.js';
+import { extractReturnWitness, frToAztecAddress } from '../acvm/deserialize.js';
 import { ACVMField, ZERO_ACVM_FIELD, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { oracleDebugCallToFormattedStr } from './debug.js';
@@ -49,7 +49,11 @@ export class UnconstrainedFunctionExecution {
             ),
           ),
         ),
-
+      getPublicKey: async ([acvmAddress]) => {
+        const address = frToAztecAddress(fromACVMField(acvmAddress));
+        const [pubKey, partialContractAddress] = await this.context.db.getPublicKey(address);
+        return [pubKey.x.toBigInt(), pubKey.y.toBigInt(), partialContractAddress].map(toACVMField);
+      },
       getNotes: ([slot], sortBy, sortOrder, [limit], [offset], [returnSize]) =>
         this.context.getNotes(this.contractAddress, slot, sortBy, sortOrder, limit, offset, returnSize),
       getRandomField: () => Promise.resolve(toACVMField(Fr.random())),

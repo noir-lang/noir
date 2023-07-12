@@ -79,6 +79,16 @@ export class AztecRPCServer implements AztecRPC {
     abi = SchnorrAccountContractAbi,
   ) {
     const pubKey = this.keyStore.addAccount(privKey);
+    // TODO(#1007): ECDSA contract breaks this check, since the ecdsa public key does not match the one derived from the keystore.
+    // Once we decouple the ecdsa contract signing and encryption keys, we can re-enable this check.
+    // const wasm = await CircuitsWasm.get();
+    // const expectedAddress = computeContractAddressFromPartial(wasm, pubKey, partialContractAddress);
+    // if (!expectedAddress.equals(address)) {
+    //   throw new Error(
+    //     `Address cannot be derived from pubkey and partial address (received ${address.toString()}, derived ${expectedAddress.toString()})`,
+    //   );
+    // }
+    await this.db.addPublicKey(address, pubKey, partialContractAddress);
     await this.#initAccountState(pubKey, address, partialContractAddress, abi);
     return address;
   }

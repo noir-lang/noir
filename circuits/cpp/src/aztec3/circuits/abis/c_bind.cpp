@@ -321,6 +321,33 @@ WASM_EXPORT void abis__compute_contract_address(uint8_t const* point_data_buf,
 }
 
 /**
+ * @brief Compute a contract address from its partial contract address
+ * This is a WASM-export that can be called from Typescript.
+ *
+ * @details Computes a contract address by hashing the deployers public key along with the previously computed partial
+ * address Return the serialized results in the `output` buffer.
+ *
+ * @param point_data_buf point data struct as a buffer of bytes
+ * @param partial_address_data_buf partial contract address
+ * @param output buffer that will contain the output. The serialized contract address.
+ */
+WASM_EXPORT void abis__compute_contract_address_from_partial(uint8_t const* point_data_buf,
+                                                             uint8_t const* partial_address_data_buf,
+                                                             uint8_t* output)
+{
+    Point<NT> deployer_public_key;
+    NT::fr partial_address;
+
+    read(point_data_buf, deployer_public_key);
+    read(partial_address_data_buf, partial_address);
+
+    NT::fr const contract_address =
+        aztec3::circuits::compute_contract_address_from_partial(deployer_public_key, partial_address);
+
+    NT::fr::serialize_to_buffer(contract_address, output);
+}
+
+/**
  * @brief Compute a partial contract address
  * This is a WASM-export that can be called from Typescript.
  *

@@ -1,4 +1,4 @@
-import { TxHash } from '@aztec/types';
+import { PartialContractAddress, TxHash } from '@aztec/types';
 import { MemoryContractDatabase } from '../contract_database/index.js';
 import { Database, GetOptions } from './database.js';
 import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
@@ -6,6 +6,7 @@ import { TxDao } from './tx_dao.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { MerkleTreeId } from '@aztec/types';
+import { PublicKey } from '@aztec/key-store';
 
 const sortNotes = (notes: NoteSpendingInfoDao[], sortBy: number[], sortOrder: number[]) => {
   const sortNotesLevel = (a: Fr[], b: Fr[], level = 0): number => {
@@ -36,6 +37,7 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   private txTable: TxDao[] = [];
   private noteSpendingInfoTable: NoteSpendingInfoDao[] = [];
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
+  private publicKeys: Map<bigint, [PublicKey, PartialContractAddress]> = new Map();
 
   /**
    * Retrieve a transaction from the MemoryDB using its transaction hash.
@@ -195,5 +197,14 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   public setTreeRoots(roots: Record<MerkleTreeId, Fr>) {
     this.treeRoots = roots;
     return Promise.resolve();
+  }
+
+  addPublicKey(address: AztecAddress, publicKey: Point, partialAddress: PartialContractAddress): Promise<void> {
+    this.publicKeys.set(address.toBigInt(), [publicKey, partialAddress]);
+    return Promise.resolve();
+  }
+
+  getPublicKey(address: AztecAddress): Promise<[Point, Fr] | undefined> {
+    return Promise.resolve(this.publicKeys.get(address.toBigInt()));
   }
 }

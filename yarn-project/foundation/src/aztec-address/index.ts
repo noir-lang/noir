@@ -105,6 +105,14 @@ export class AztecAddress {
   }
 
   /**
+   * Returns this address as a bigint. Useful for creating maps indexed by addresses.
+   * @returns A bigint with the same value as the address.
+   */
+  toBigInt() {
+    return toBigIntBE(this.buffer);
+  }
+
+  /**
    * Determines if this AztecAddress instance is equal to the given AztecAddress instance.
    * Equality is based on the content of their respective buffers.
    *

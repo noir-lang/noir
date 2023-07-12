@@ -489,7 +489,6 @@ export class AccountState {
       contractDataOracle ?? new ContractDataOracle(this.db, this.node),
       this.db,
       keyPair,
-      this.address,
       this.node,
     );
     return new AcirSimulator(simulatorOracle);

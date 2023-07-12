@@ -38,6 +38,7 @@ type ORACLE_NAMES =
   | 'getL1ToL2Message'
   | 'emitEncryptedLog'
   | 'emitUnencryptedLog'
+  | 'getPublicKey'
   | 'debugLog';
 
 /**
