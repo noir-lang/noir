@@ -6,7 +6,7 @@ use crate::messaging::l1_to_l2_message_getter_data::make_l1_to_l2_message_getter
 
 global L1_TO_L2_MESSAGE_LEN = 8; 
 
-global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 18; // 8 fields + 8 deep hash path + 1 root + 1 index
+global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 26; // 8 fields + 16 fields for sibling path + 1 root + 1 index
 
 struct L1ToL2Message {
     sender: Field,

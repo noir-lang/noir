@@ -174,6 +174,7 @@
     "projectDir": "yarn-project/circuits.js",
     "dockerfile": "circuits.js/Dockerfile",
     "rebuildPatterns": [
+      "^circuits/",
       "^yarn-project/circuits.js/"
     ],
     "dependencies": [

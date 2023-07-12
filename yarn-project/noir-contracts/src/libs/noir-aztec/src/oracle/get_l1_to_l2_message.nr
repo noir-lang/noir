@@ -1,5 +1,5 @@
 
-global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 18; // 8 fields + 8 deep hash path + 1 root + 1 index
+global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 26; // 8 fields + 16 fields for sibling path + 1 root + 1 index
 
 // Checks if a msg is within the l1ToL2Msg tree
 #[oracle(getL1ToL2Message)]

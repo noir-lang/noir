@@ -32,10 +32,10 @@ using Aggregator = aztec3::circuits::recursion::Aggregator;
 using AggregationObject = utils::types::NativeTypes::AggregationObject;
 using AppendOnlySnapshot = abis::AppendOnlyTreeSnapshot<NT>;
 
-// Nullifier Tree Alias
-using MerkleTree = stdlib::merkle_tree::MemoryTree;
+// Tree Aliases
+using MemoryStore = stdlib::merkle_tree::MemoryStore;
+using MerkleTree = stdlib::merkle_tree::MerkleTree<MemoryStore>;
 using NullifierTree = stdlib::merkle_tree::NullifierMemoryTree;
 using NullifierLeafPreimage = abis::NullifierLeafPreimage<NT>;
-using SparseTree = stdlib::merkle_tree::MerkleTree<stdlib::merkle_tree::MemoryStore>;
 
 }  // namespace aztec3::circuits::rollup::native_base_rollup
