@@ -79,7 +79,7 @@ fn parse_standard_toml() {
 fn parse_workspace_toml() {
     let src = r#"
         [workspace]
-        members = ["indexmap", "libgcc"]
+        members = ["a", "b"]
     "#;
 
     assert!(PackageManifest::from_toml_str(src).is_ok());
