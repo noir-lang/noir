@@ -1997,6 +1997,7 @@ dependencies = [
  "iter-extended",
  "noirc_abi",
  "noirc_driver",
+ "noirc_errors",
  "rustc_version",
  "serde",
  "thiserror",
