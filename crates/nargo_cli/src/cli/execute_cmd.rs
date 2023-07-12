@@ -86,7 +86,7 @@ fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Op
         acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { opcode_label } => {
             match opcode_label {
                 OpcodeLabel::Unresolved => {
-                    unreachable!("Cannot resolve index for unsatisifed constraint")
+                    unreachable!("Cannot resolve index for unsatisfied constraint")
                 }
                 OpcodeLabel::Resolved(opcode_index) => Some(*opcode_index as usize),
             }
