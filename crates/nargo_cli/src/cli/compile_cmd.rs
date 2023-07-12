@@ -127,7 +127,8 @@ pub(crate) fn compile_circuit<B: Backend>(
     let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
 
     // Apply backend specific optimizations.
-    let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit).unwrap();
+    let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit)
+        .expect("Backend does not support an opcode that is in the IR");
 
     program.circuit = optimized_circuit;
     let opcode_ids = vecmap(opcode_labels, |label| match label {
