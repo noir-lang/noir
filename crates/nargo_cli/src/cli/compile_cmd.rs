@@ -127,10 +127,9 @@ pub(crate) fn compile_circuit<B: Backend>(
     let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
 
     // Apply backend specific optimizations.
-    let optimised = optimize_circuit(backend, program.circuit).unwrap();
+    let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit).unwrap();
 
-    program.circuit = optimised.0;
-    let opcode_labels = optimised.1;
+    program.circuit = optimized_circuit;
     let opcode_ids = vecmap(opcode_labels, |label| match label {
         OpcodeLabel::Unresolved => {
             unreachable!("Compiled circuit opcodes must resolve to some index")
