@@ -75,14 +75,15 @@ pub(crate) fn resolve_root_manifest(
         create_local_crate(&mut context, entry_path, crate_type)
     } else {
         let members = manifest.workspace.members.clone();
-        let root = members.last().unwrap();
+        let root = dir_path.join(members.last().unwrap());
 
         let (entry_path, crate_type) = super::lib_or_bin(root)?;
         let root = create_local_crate(&mut context, entry_path, crate_type);
 
         for member in members {
-            let (entry_path, crate_type) = super::lib_or_bin(member)?;
-            dbg!(create_non_local_crate(&mut context, entry_path, crate_type));
+            let path: PathBuf = dir_path.join(member);
+            let (entry_path, crate_type) = super::lib_or_bin(path)?;
+            create_non_local_crate(&mut context, entry_path, crate_type);
         }
 
         root
