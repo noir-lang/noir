@@ -24,7 +24,7 @@ jobs:
 
   build-linux:
     name: Build on Linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     steps:
