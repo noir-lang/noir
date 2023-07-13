@@ -77,13 +77,19 @@ impl Ssa {
             reachable_function_ids.insert(func.id());
             for (_, value) in func.dfg.values_iter() {
                 // All reachable functions appear as literals after defunctionalization of the SSA
-                if let Value::Function(function_id) = value {
-                    if !reachable_function_ids.contains(function_id)
-                        && !reachability_queue.contains(function_id)
-                    {
-                        reachability_queue.push(*function_id);
-                    }
+                let function_id = match value {
+                    Value::Function(function_id) => function_id,
+                    _ => continue,
+                };
+
+                // If the function is already reachable or enqueued, skip it.
+                if reachable_function_ids.contains(function_id)
+                    || reachability_queue.contains(function_id)
+                {
+                    continue;
                 }
+
+                reachability_queue.push(*function_id);
             }
         }
 
