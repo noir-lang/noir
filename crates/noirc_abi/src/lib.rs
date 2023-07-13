@@ -117,15 +117,6 @@ pub enum Sign {
 }
 
 impl AbiType {
-    pub fn num_elements(&self) -> usize {
-        match self {
-            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
-            AbiType::Array { length, typ: _ } => *length as usize,
-            AbiType::Struct { fields, .. } => fields.len(),
-            AbiType::String { length } => *length as usize,
-        }
-    }
-
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
         match self {

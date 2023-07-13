@@ -133,7 +133,6 @@ impl<'block> BrilligBlock<'block> {
     fn convert_block_params(&mut self, block: &BasicBlock, dfg: &DataFlowGraph) {
         for param_id in block.parameters() {
             let value = &dfg[*param_id];
-            dbg!(value.clone());
             let param_type = match value {
                 Value::Param { typ, .. } => typ,
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
@@ -472,7 +471,10 @@ impl<'block> BrilligBlock<'block> {
         let typ = dfg[value_id].get_type();
         match typ {
             Type::Numeric(_) => RegisterOrMemory::RegisterIndex(register_index),
-            Type::Array(..) => RegisterOrMemory::HeapArray(HeapArray { pointer: register_index, size: compute_size_of_type(&typ) }),
+            Type::Array(..) => RegisterOrMemory::HeapArray(HeapArray {
+                pointer: register_index,
+                size: compute_size_of_type(&typ),
+            }),
             _ => {
                 unreachable!("type not supported for conversion into brillig register")
             }

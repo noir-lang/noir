@@ -387,7 +387,7 @@ impl<'interner> Monomorphizer<'interner> {
             return ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                 contents: array_contents,
                 element_type,
-            }))
+            }));
         }
         match element_type {
             ast::Type::Field
@@ -438,7 +438,7 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
     ) -> ast::Expression {
         if self.interner.enable_slices {
-            return ast::Expression::Index(ast::Index { collection, index, element_type, location })
+            return ast::Expression::Index(ast::Index { collection, index, element_type, location });
         }
         match element_type {
             ast::Type::Field
@@ -675,7 +675,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let length = length.evaluate_to_u64().unwrap_or(0);
                 let element = self.convert_type(element.as_ref());
                 if self.interner.enable_slices {
-                    return ast::Type::Array(length, Box::new(element))
+                    return ast::Type::Array(length, Box::new(element));
                 }
                 self.aos_to_soa_type(length, element)
             }
@@ -991,7 +991,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> ast::Expression {
         if self.interner.enable_slices {
             let lvalue = ast::LValue::Index { array: lvalue, index, element_type: typ, location };
-            return ast::Expression::Assign(ast::Assign { lvalue, expression })
+            return ast::Expression::Assign(ast::Assign { lvalue, expression });
         }
         match typ {
             ast::Type::Tuple(fields) => {

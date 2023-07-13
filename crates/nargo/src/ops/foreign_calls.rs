@@ -72,8 +72,10 @@ impl ForeignCall {
 
     fn execute_println(foreign_call_inputs: &[Vec<Value>]) -> Result<(), ForeignCallError> {
         // Fetch the abi type from the foreign call input
+        // The remaining input values should hold what is to be printed
         let (abi_type, input_values) = fetch_abi_type(foreign_call_inputs)?;
 
+        // We must use a flat map here as each value in a struct will be in a separate input value
         let mut input_values_as_fields =
             input_values.iter().flat_map(|values| vecmap(values, |value| value.to_field()));
         let decoded_value = decode_value(&mut input_values_as_fields, &abi_type)?;
@@ -91,19 +93,19 @@ impl ForeignCall {
         let (message_as_values, input_and_abi_values) =
             foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
         // Fetch the abi type from the foreign call input
+        // The remaining input values should hold what is to be printed
         let (abi_type, input_values) = fetch_abi_type(input_and_abi_values)?;
-        dbg!(input_values.clone());
-        dbg!(abi_type.clone());
-        let input_values_as_fields = vecmap(input_values[0].iter(), |value| value.to_field());
-        dbg!(input_values_as_fields.clone());
-        let mut output_strings = Vec::new();
 
-        // This currently only works for arrays of single values
-        for input_value in input_values_as_fields {
-            let value_to_decode = vec![input_value];
-            let decoded_value = decode_value(&mut value_to_decode.into_iter(), &abi_type)?;
+        // Fetch the abi field count from the type to account for nested structs
+        let type_size = abi_type.field_count();
+        let input_values_chunks = input_values[0].chunks(type_size as usize);
+
+        let mut output_strings = Vec::new();
+        for input_values in input_values_chunks {
+            let input_values_as_fields = vecmap(input_values, |value| value.to_field());
+            let decoded_value = decode_value(&mut input_values_as_fields.into_iter(), &abi_type)?;
             let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)?;
-            let output_string = serde_json::to_string_pretty(&json_value)
+            let output_string = serde_json::to_string(&json_value)
                 .map_err(|err| ForeignCallError::InputParserError(err.into()))?;
             output_strings.push(output_string);
         }
