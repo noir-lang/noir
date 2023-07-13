@@ -36,7 +36,6 @@ jobs:
       - name: Output results
         run: |
           ls -R ./pkg
-          ls -R ./result
 
       # Todo: Enable wasm testing by injecting wasm into noir-wasm-testing
       - name: Checkout noir-wasm-testing
@@ -47,7 +46,8 @@ jobs:
 
       - name: Inject built wasm into noir-wasm-testing
         run: |
-          cp -r ./crates/wasm/result ./noir-wasm-testing/@noir-lang_noir_wasm
+          cp -r ./pkg ./noir-wasm-testing/@noir-lang_noir_wasm
+          ls -R ./noir-wasm-testing
           jq '.dependencies["@noir-lang/noir_wasm"] = "file:./node_modules/@noir-lang/noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
 
