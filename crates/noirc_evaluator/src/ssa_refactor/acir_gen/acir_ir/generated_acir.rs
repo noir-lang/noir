@@ -662,6 +662,7 @@ impl GeneratedAcir {
         if num_bits >= FieldElement::max_num_bits() {
             return Err(AcirGenError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
+                location: self.current_location,
             });
         };
 
