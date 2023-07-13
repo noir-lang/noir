@@ -1,3 +1,4 @@
+use base64::Engine as _;
 use acvm::acir::circuit::Circuit;
 
 use noirc_errors::debug_info::DebugInfo;
@@ -17,15 +18,16 @@ where
 {
     let mut circuit_bytes: Vec<u8> = Vec::new();
     circuit.write(&mut circuit_bytes).unwrap();
-
-    circuit_bytes.serialize(s)
+    let encoded_b64 = base64::engine::general_purpose::URL_SAFE.encode(circuit_bytes);
+    s.serialize_str(&encoded_b64)
 }
 
 pub(crate) fn deserialize_circuit<'de, D>(deserializer: D) -> Result<Circuit, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let circuit_bytes = Vec::<u8>::deserialize(deserializer)?;
+    let bytecode_b64: String = serde::Deserialize::deserialize(deserializer)?;
+    let circuit_bytes = base64::engine::general_purpose::URL_SAFE.decode(bytecode_b64).unwrap();
     let circuit = Circuit::read(&*circuit_bytes).unwrap();
     Ok(circuit)
 }
