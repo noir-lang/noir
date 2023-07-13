@@ -218,8 +218,9 @@ d2 = ["", "", ""]
 pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     deny_warnings: bool,
-    enable_slices: bool,
+    experimental_ssa: bool,
 ) -> Result<(), ReportedErrors> {
-    let result = check_crate(context, deny_warnings, enable_slices).map(|warnings| ((), warnings));
+    let result =
+        check_crate(context, deny_warnings, experimental_ssa).map(|warnings| ((), warnings));
     super::compile_cmd::report_errors(result, context, deny_warnings)
 }

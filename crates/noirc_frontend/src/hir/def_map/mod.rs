@@ -86,7 +86,7 @@ impl CrateDefMap {
         // The last crate represents the stdlib crate.
         // After resolving the manifest of the local crate the stdlib is added to the manifest and propagated to all crates
         // thus being the last crate.
-        if !context.def_interner.enable_slices && context.crate_graph.is_last_crate(crate_id) {
+        if !context.def_interner.experimental_ssa && context.crate_graph.is_last_crate(crate_id) {
             let path_as_str = context
                 .file_manager
                 .path(root_file_id)

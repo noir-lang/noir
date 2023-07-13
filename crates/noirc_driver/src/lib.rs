@@ -152,7 +152,7 @@ pub fn propagate_dep(
 pub fn check_crate(
     context: &mut Context,
     deny_warnings: bool,
-    enable_slices: bool,
+    experimental_ssa: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
     // Add the stdlib before we check the crate
     // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
@@ -163,7 +163,7 @@ pub fn check_crate(
     let std_crate = create_non_local_crate(context, path_to_std_lib_file, CrateType::Library);
     propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
 
-    context.def_interner.enable_slices = enable_slices;
+    context.def_interner.experimental_ssa = experimental_ssa;
 
     let mut errors = vec![];
     match context.crate_graph.crate_type(LOCAL_CRATE) {

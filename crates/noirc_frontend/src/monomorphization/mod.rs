@@ -383,7 +383,7 @@ impl<'interner> Monomorphizer<'interner> {
         array_contents: Vec<ast::Expression>,
         element_type: ast::Type,
     ) -> ast::Expression {
-        if self.interner.enable_slices {
+        if self.interner.experimental_ssa {
             return ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                 contents: array_contents,
                 element_type,
@@ -437,8 +437,13 @@ impl<'interner> Monomorphizer<'interner> {
         element_type: ast::Type,
         location: Location,
     ) -> ast::Expression {
-        if self.interner.enable_slices {
-            return ast::Expression::Index(ast::Index { collection, index, element_type, location });
+        if self.interner.experimental_ssa {
+            return ast::Expression::Index(ast::Index {
+                collection,
+                index,
+                element_type,
+                location,
+            });
         }
         match element_type {
             ast::Type::Field
@@ -674,7 +679,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Array(length, element) => {
                 let length = length.evaluate_to_u64().unwrap_or(0);
                 let element = self.convert_type(element.as_ref());
-                if self.interner.enable_slices {
+                if self.interner.experimental_ssa {
                     return ast::Type::Array(length, Box::new(element));
                 }
                 self.aos_to_soa_type(length, element)
@@ -735,8 +740,8 @@ impl<'interner> Monomorphizer<'interner> {
     /// Converts arrays of structs (AOS) into structs of arrays (SOA).
     /// This is required since our SSA pass does not support arrays of structs.
     fn aos_to_soa_type(&self, length: u64, element: ast::Type) -> ast::Type {
-        if self.interner.enable_slices {
-            return ast::Type::Array(length, Box::new(element))
+        if self.interner.experimental_ssa {
+            return ast::Type::Array(length, Box::new(element));
         }
         match element {
             ast::Type::Field
@@ -986,7 +991,7 @@ impl<'interner> Monomorphizer<'interner> {
         typ: ast::Type,
         location: Location,
     ) -> ast::Expression {
-        if self.interner.enable_slices {
+        if self.interner.experimental_ssa {
             let lvalue = ast::LValue::Index { array: lvalue, index, element_type: typ, location };
             return ast::Expression::Assign(ast::Assign { lvalue, expression });
         }
