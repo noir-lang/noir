@@ -6,7 +6,7 @@ import {
   CircuitsWasm,
   ConstantBaseRollupData,
   GlobalVariables,
-  L1_TO_L2_MSG_ROOTS_TREE_HEIGHT,
+  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   MembershipWitness,
   MergeRollupInputs,
@@ -518,7 +518,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     return this.getMembershipWitnessFor(
       tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.l1ToL2MessagesTreeRoot,
       MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
-      L1_TO_L2_MSG_ROOTS_TREE_HEIGHT,
+      L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
     );
   }
 

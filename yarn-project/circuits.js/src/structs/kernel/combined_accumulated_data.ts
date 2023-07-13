@@ -12,7 +12,7 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   NUM_FIELDS_PER_SHA256,
-} from '../constants.js';
+} from '../../cbind/constants.gen.js';
 import { FunctionData } from '../function_data.js';
 import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 import { assertMemberLength, makeTuple } from '../../index.js';

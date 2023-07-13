@@ -1,13 +1,12 @@
 import { Tuple, BufferReader } from '@aztec/foundation/serialize';
 import { privateKernelDummyPreviousKernel } from '../../cbind/circuits.gen.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
-import { VK_TREE_HEIGHT } from '../constants.js';
 import { Fr } from '../index.js';
 import { Proof, makeEmptyProof } from '../proof.js';
 import { UInt32 } from '../shared.js';
 import { VerificationKey } from '../verification_key.js';
 import { KernelCircuitPublicInputs } from './public_inputs.js';
-import { CircuitsWasm, assertMemberLength, makeTuple } from '../../index.js';
+import { CircuitsWasm, VK_TREE_HEIGHT, assertMemberLength, makeTuple } from '../../index.js';
 
 /**
  * Data of the previous kernel iteration in the chain of kernels.

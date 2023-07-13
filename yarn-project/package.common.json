@@ -9,8 +9,8 @@
     "formatting:fix": "run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests"
   },
-  "engines":{
-    "node":">=18"
+  "engines": {
+    "node": ">=18"
   },
   "files": ["dest", "src", "!*.test.*"],
   "types": "./dest/index.d.ts",

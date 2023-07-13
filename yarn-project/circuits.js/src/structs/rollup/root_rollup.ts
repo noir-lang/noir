@@ -3,11 +3,11 @@ import { serializeToBuffer } from '../../utils/serialize.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
-  L1_TO_L2_MSG_ROOTS_TREE_HEIGHT,
+  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
-} from '../constants.js';
+} from '../../cbind/constants.gen.js';
 import { PreviousRollupData } from './previous_rollup_data.js';
 import { AggregationObject } from '../aggregation_object.js';
 import { Fr } from '@aztec/foundation/fields';
@@ -57,7 +57,7 @@ export class RootRollupInputs {
     assertMemberLength(this, 'newHistoricPrivateDataTreeRootSiblingPath', PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
     assertMemberLength(this, 'newHistoricContractDataTreeRootSiblingPath', CONTRACT_TREE_ROOTS_TREE_HEIGHT);
     assertMemberLength(this, 'newL1ToL2MessageTreeRootSiblingPath', L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH);
-    assertMemberLength(this, 'newHistoricL1ToL2MessageTreeRootSiblingPath', L1_TO_L2_MSG_ROOTS_TREE_HEIGHT);
+    assertMemberLength(this, 'newHistoricL1ToL2MessageTreeRootSiblingPath', L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
     assertMemberLength(this, 'newL1ToL2Messages', NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
   }
 

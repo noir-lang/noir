@@ -4,7 +4,7 @@ import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   CircuitsWasm,
   Fr,
-  L1_TO_L2_MSG_ROOTS_TREE_HEIGHT,
+  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MSG_TREE_HEIGHT,
   NULLIFIER_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
@@ -111,7 +111,7 @@ export class MerkleTrees implements MerkleTreeDb {
       this.db,
       hasher,
       `${MerkleTreeId[MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE]}`,
-      L1_TO_L2_MSG_ROOTS_TREE_HEIGHT,
+      L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
     );
     this.trees = [
       contractTree,

@@ -38,7 +38,7 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_CALL,
   KernelCircuitPublicInputs,
-  L1_TO_L2_MSG_ROOTS_TREE_HEIGHT,
+  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MembershipWitness,
   MergeRollupInputs,
@@ -799,7 +799,7 @@ export function makeRootRollupInputs(seed = 0, blockNumber: number | undefined =
     makeTuple(CONTRACT_TREE_ROOTS_TREE_HEIGHT, fr, 0x2100),
     makeTuple(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP, fr, 0x2100),
     makeTuple(L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH, fr, 0x2100),
-    makeTuple(L1_TO_L2_MSG_ROOTS_TREE_HEIGHT, fr, 0x2100),
+    makeTuple(L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT, fr, 0x2100),
     makeAppendOnlyTreeSnapshot(seed + 0x2200),
     makeAppendOnlyTreeSnapshot(seed + 0x2300),
   );
@@ -909,8 +909,8 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
     ];
   const historicL1ToL2MsgTreeRootMembershipWitnesses: BaseRollupInputs['historicL1ToL2MsgTreeRootMembershipWitnesses'] =
     [
-      makeMembershipWitness(L1_TO_L2_MSG_ROOTS_TREE_HEIGHT, seed + 0xa000),
-      makeMembershipWitness(L1_TO_L2_MSG_ROOTS_TREE_HEIGHT, seed + 0xb000),
+      makeMembershipWitness(L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT, seed + 0xa000),
+      makeMembershipWitness(L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT, seed + 0xb000),
     ];
 
   const constants = makeConstantBaseRollupData(0x100);

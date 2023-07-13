@@ -51,6 +51,7 @@ yarn install --immutable
 # We do not need to build individual packages, yarn build will build the root tsconfig.json
 yarn build
 yarn --cwd circuits.js remake-bindings
+yarn --cwd circuits.js remake-constants
 cd ..
 
 echo

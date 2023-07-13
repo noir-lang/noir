@@ -3,8 +3,8 @@ import { assertMemberLength, range } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Tuple } from '@aztec/foundation/serialize';
-import { MAX_NEW_COMMITMENTS_PER_CALL, PRIVATE_DATA_TREE_HEIGHT } from './constants.js';
 import { MembershipWitness } from './membership_witness.js';
+import { MAX_NEW_COMMITMENTS_PER_CALL, PRIVATE_DATA_TREE_HEIGHT } from '../cbind/constants.gen.js';
 
 /**
  * A ReadRequestMembershipWitness is similar to a MembershipWitness but includes

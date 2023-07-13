@@ -2,25 +2,25 @@ import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 import { assertItemsLength, assertMemberLength, FieldsOf } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
-import {
-  CONTRACT_TREE_HEIGHT,
-  CONTRACT_TREE_ROOTS_TREE_HEIGHT,
-  MAX_NEW_COMMITMENTS_PER_TX,
-  MAX_NEW_CONTRACTS_PER_TX,
-  MAX_NEW_NULLIFIERS_PER_TX,
-  MAX_PUBLIC_DATA_READS_PER_TX,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  L1_TO_L2_MSG_ROOTS_TREE_HEIGHT,
-  NULLIFIER_TREE_HEIGHT,
-  PRIVATE_DATA_TREE_HEIGHT,
-  PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
-  PUBLIC_DATA_TREE_HEIGHT,
-} from '../constants.js';
 import { PreviousKernelData } from '../kernel/previous_kernel_data.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { UInt32 } from '../shared.js';
 import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 import { GlobalVariables } from '../global_variables.js';
+import {
+  CONTRACT_TREE_HEIGHT,
+  CONTRACT_TREE_ROOTS_TREE_HEIGHT,
+  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
+  MAX_NEW_COMMITMENTS_PER_TX,
+  MAX_NEW_CONTRACTS_PER_TX,
+  MAX_NEW_NULLIFIERS_PER_TX,
+  MAX_PUBLIC_DATA_READS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  NULLIFIER_TREE_HEIGHT,
+  PRIVATE_DATA_TREE_HEIGHT,
+  PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
+  PUBLIC_DATA_TREE_HEIGHT,
+} from '../../cbind/constants.gen.js';
 
 /**
  * Class containing the data of a preimage of a single leaf in the nullifier tree.
@@ -221,8 +221,8 @@ export class BaseRollupInputs {
      * Membership witnesses of L1-to-L2 message tree roots referred by each of the 2 kernels.
      */
     public historicL1ToL2MsgTreeRootMembershipWitnesses: [
-      MembershipWitness<typeof L1_TO_L2_MSG_ROOTS_TREE_HEIGHT>,
-      MembershipWitness<typeof L1_TO_L2_MSG_ROOTS_TREE_HEIGHT>,
+      MembershipWitness<typeof L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>,
+      MembershipWitness<typeof L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>,
     ],
 
     /**

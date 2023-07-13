@@ -305,7 +305,11 @@ export class CbindCompiler {
       }
       const typeName = capitalize(camelCase(type));
       if (!this.typeInfos[typeName]) {
-        throw new Error('Unexpected type: ' + typeName + JSON.stringify(Object.keys(this.typeInfos)));
+        throw new Error(
+          'Unexpected type: ' +
+            typeName +
+            '. This is likely due to returning a struct without a MSGPACK_FIELDS macro, and without a msgpack_schema method.',
+        );
       }
       return this.typeInfos[typeName];
     } else if (typeof type === 'object') {

@@ -4,7 +4,7 @@ import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import { computeFunctionTreeRoot } from '../abis/abis.js';
 import { privateKernelDummyPreviousKernel } from '../cbind/circuits.gen.js';
 import { computeFunctionTree } from './private_kernel.js';
-import { FUNCTION_TREE_HEIGHT } from '../structs/index.js';
+import { FUNCTION_TREE_HEIGHT } from '../cbind/constants.gen.js';
 
 describe('kernel/private_kernel', () => {
   let wasm: CircuitsWasm;

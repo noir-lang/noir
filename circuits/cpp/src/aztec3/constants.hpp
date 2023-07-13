@@ -1,6 +1,8 @@
 #pragma once
 #include <stddef.h>
 
+// NOTE: When modifying names of constants or enums do the changes in `src/aztec3/circuits/abis/packers.hpp` as well
+
 namespace aztec3 {
 
 /**
@@ -14,7 +16,6 @@ constexpr size_t log2(size_t input)
     return (input < 2) ? 0 : 1 + log2(input / 2);
 }
 
-// Note: must be kept in sync with ts/structs/constants.ts
 constexpr size_t ARGS_LENGTH = 16;
 constexpr size_t RETURN_VALUES_LENGTH = 4;
 constexpr size_t READ_REQUESTS_LENGTH = 4;
@@ -95,6 +96,7 @@ constexpr size_t L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH = L1_TO_L2_MSG_TREE_HE
 
 // MISC CONSTANTS
 constexpr size_t FUNCTION_SELECTOR_NUM_BYTES = 4;  // must be <= 31
+constexpr size_t MAPPING_SLOT_PEDERSEN_SEPARATOR = 4;
 // sha256 hash is stored in two fields to accommodate all 256-bits of the hash
 constexpr size_t NUM_FIELDS_PER_SHA256 = 2;
 
@@ -111,6 +113,7 @@ constexpr size_t NUM_FIELDS_PER_SHA256 = 2;
  * | HIGH      | 16 < n ≤ 44                   | 40 < hash_index ≤ 44 |
  * +-----------+-------------------------------+----------------------+
  *
+ * Note: When modifying, modify `GeneratorIndexPacker` in packer.hpp accordingly.
  */
 enum GeneratorIndex {
     /**
@@ -156,6 +159,7 @@ enum GeneratorIndex {
     FUNCTION_ARGS,                  // Size ≤ 40
 };
 
+// Note: When modifying, modify `StorageSlotGeneratorIndexPacker` in packer.hpp accordingly.
 enum StorageSlotGeneratorIndex {
     BASE_SLOT,
     MAPPING_SLOT,
@@ -164,6 +168,7 @@ enum StorageSlotGeneratorIndex {
 
 // Enumerate the hash_sub_indices which are used for committing to private state note preimages.
 // Start from 1.
+// Note: When modifying, modify `PrivateStateNoteGeneratorIndexPacker` in packer.hpp accordingly.
 enum PrivateStateNoteGeneratorIndex {
     VALUE = 1,
     OWNER,
@@ -174,6 +179,7 @@ enum PrivateStateNoteGeneratorIndex {
     IS_DUMMY,
 };
 
+// Note: When modifying, modify `PrivateStateTypePacker` in packer.hpp accordingly.
 enum PrivateStateType { PARTITIONED = 1, WHOLE };
 
 }  // namespace aztec3

@@ -11,7 +11,7 @@ import {
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   READ_REQUESTS_LENGTH,
   RETURN_VALUES_LENGTH,
-} from './constants.js';
+} from '../cbind/constants.gen.js';
 import { ContractDeploymentData } from './tx_context.js';
 
 /**

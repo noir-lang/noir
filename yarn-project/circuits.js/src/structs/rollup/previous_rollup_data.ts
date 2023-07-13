@@ -1,10 +1,10 @@
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { BaseOrMergeRollupPublicInputs } from './base_or_merge_rollup_public_inputs.js';
-import { ROLLUP_VK_TREE_HEIGHT } from '../constants.js';
 import { UInt32 } from '../shared.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { VerificationKey } from '../verification_key.js';
 import { Proof } from '../proof.js';
+import { ROLLUP_VK_TREE_HEIGHT } from '../../cbind/constants.gen.js';
 
 /**
  * Represents the data of a previous merge or base rollup circuit.

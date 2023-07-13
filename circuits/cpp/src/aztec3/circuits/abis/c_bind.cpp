@@ -17,6 +17,7 @@
 
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/packers.hpp"
 #include "aztec3/circuits/abis/point.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_init.hpp"
 #include "aztec3/circuits/abis/tx_request.hpp"
@@ -33,10 +34,14 @@ using aztec3::circuits::compute_constructor_hash;
 using aztec3::circuits::compute_contract_address;
 using aztec3::circuits::compute_partial_contract_address;
 using aztec3::circuits::abis::CallStackItem;
+using aztec3::circuits::abis::ConstantsPacker;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::FunctionLeafPreimage;
+using aztec3::circuits::abis::GeneratorIndexPacker;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::Point;
+using aztec3::circuits::abis::PrivateStateNoteGeneratorIndexPacker;
+using aztec3::circuits::abis::PrivateStateTypePacker;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using NT = aztec3::utils::types::NativeTypes;
@@ -572,3 +577,13 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_function_leaf_preimage(ui
 {
     return as_string_output<aztec3::circuits::abis::FunctionLeafPreimage<NT>>(function_leaf_preimage_buf, size);
 }
+
+
+// When we return a packer from packers.hpp, we call its msgpack_pack method (as that is what is used
+// internally in msgpack) and thus can get a JSON-like object of all our constants in Typescript. We explicitly do not
+// want a schema here as our ConstantsPacker is not meant to be used in a Typescript function. (if it were, it would
+// need to implement msgpack_schema, but as we handle it specially not much value).
+CBIND_NOSCHEMA(get_circuit_constants, [] { return ConstantsPacker{}; });
+CBIND_NOSCHEMA(get_circuit_generator_index, [] { return GeneratorIndexPacker{}; });
+CBIND_NOSCHEMA(get_circuit_private_state_note_generator_index, [] { return PrivateStateNoteGeneratorIndexPacker{}; });
+CBIND_NOSCHEMA(get_circuit_private_state_type, [] { return PrivateStateTypePacker{}; });

@@ -3,15 +3,15 @@ import { Tuple } from '@aztec/foundation/serialize';
 import { assertMemberLength } from '../../utils/jsUtils.js';
 import { serializeToBuffer } from '../../utils/serialize.js';
 import { PublicCallStackItem } from '../call_stack_item.js';
-import {
-  MAX_PUBLIC_DATA_READS_PER_TX,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-  PUBLIC_DATA_TREE_HEIGHT,
-} from '../constants.js';
 import { MembershipWitness } from '../membership_witness.js';
 import { Proof } from '../proof.js';
 import { PreviousKernelData } from './previous_kernel_data.js';
+import {
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+  MAX_PUBLIC_DATA_READS_PER_TX,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  PUBLIC_DATA_TREE_HEIGHT,
+} from '../../cbind/constants.gen.js';
 
 /**
  * Inputs to the public kernel circuit.
