@@ -1,12 +1,17 @@
 pub(crate) mod brillig_gen;
 pub(crate) mod brillig_ir;
 
+use im::HashSet;
+
 use self::{
     brillig_gen::{brillig_fn::FunctionContext, convert_ssa_function},
     brillig_ir::artifact::{BrilligArtifact, Label},
 };
 use crate::ssa_refactor::{
-    ir::function::{Function, FunctionId, RuntimeType},
+    ir::{
+        function::{Function, FunctionId, RuntimeType},
+        value::Value,
+    },
     ssa_gen::Ssa,
 };
 use std::collections::HashMap;
@@ -46,15 +51,46 @@ impl std::ops::Index<FunctionId> for Brillig {
 }
 
 impl Ssa {
-    /// Generate compilation artifacts for brillig functions
+    /// Compile to brillig brillig functions and ACIR functions reachable from them
     pub(crate) fn to_brillig(&self) -> Brillig {
-        // Collect all of the brillig functions
-        let brillig_functions =
-            self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig);
+        // Collect all the function ids that are reachable from brillig
+        // That means all the functions marked as brillig and ACIR functions called by them
+        let mut reachable_function_ids: HashSet<FunctionId> = HashSet::new();
+
+        // Initialize the queue with all the functions marked as brillig
+        let mut reachability_queue: Vec<FunctionId> = self
+            .functions
+            .iter()
+            .filter_map(
+                |(id, func)| {
+                    if func.runtime() == RuntimeType::Brillig {
+                        Some(*id)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .collect();
+
+        while !reachability_queue.is_empty() {
+            let func = &self.functions[&reachability_queue.pop().unwrap()];
+            reachable_function_ids.insert(func.id());
+            for (_, value) in func.dfg.values_iter() {
+                // All reachable functions appear as literals after defunctionalization of the SSA
+                if let Value::Function(function_id) = value {
+                    if !reachable_function_ids.contains(function_id)
+                        && !reachability_queue.contains(function_id)
+                    {
+                        reachability_queue.push(*function_id);
+                    }
+                }
+            }
+        }
 
         let mut brillig = Brillig::default();
-        for brillig_function in brillig_functions {
-            brillig.compile(brillig_function);
+        for brillig_function_id in reachable_function_ids {
+            let func = &self.functions[&brillig_function_id];
+            brillig.compile(func);
         }
 
         brillig
