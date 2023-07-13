@@ -735,9 +735,9 @@ impl<'interner> Monomorphizer<'interner> {
     /// Converts arrays of structs (AOS) into structs of arrays (SOA).
     /// This is required since our SSA pass does not support arrays of structs.
     fn aos_to_soa_type(&self, length: u64, element: ast::Type) -> ast::Type {
-        // if self.interner.enable_slices {
-        //     return ast::Type::Array(length, Box::new(element))
-        // }
+        if self.interner.enable_slices {
+            return ast::Type::Array(length, Box::new(element))
+        }
         match element {
             ast::Type::Field
             | ast::Type::Integer(_, _)
@@ -802,10 +802,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let typ = self.interner.id_type(ident.id);
                 let typ = if is_format_call {
                     match typ {
-                        Type::Array(_, element_type) => {
-                            let typ = element_type.follow_bindings();
-                            typ
-                        }
+                        Type::Array(_, element_type) => element_type.follow_bindings(),
                         _ => {
                             unreachable!("ICE: argument supplied to a format call must be an array")
                         }
