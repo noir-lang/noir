@@ -6,12 +6,29 @@ pub use self::errors::InvalidPackageError;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PackageManifest {
-    #[serde(default = "WorkspaceConfig::default")]
-    pub workspace: WorkspaceConfig,
-    #[serde(default = "PackageMetadata::default")]
     pub package: PackageMetadata,
-    #[serde(default = "BTreeMap::default")]
     pub dependencies: BTreeMap<String, Dependency>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum Manifest {
+    Package(PackageManifest),
+    Workspace(Workspace),
+}
+
+impl Manifest {
+    pub fn from_toml_str(toml_as_string: &str) -> Result<Self, InvalidPackageError> {
+        let manifest = toml::from_str(toml_as_string)?;
+        Ok(manifest)
+    }
+
+    pub fn to_package(self) -> Option<PackageManifest> {
+        match self {
+            Self::Package(v) => Some(v),
+            _ => None,
+        }
+    }
 }
 
 impl PackageManifest {
@@ -21,15 +38,16 @@ impl PackageManifest {
     pub fn has_local_dependency(&self) -> bool {
         self.dependencies.values().any(|dep| matches!(dep, Dependency::Path { .. }))
     }
-
-    pub fn from_toml_str(toml_as_string: &str) -> Result<Self, InvalidPackageError> {
-        let manifest = toml::from_str::<PackageManifest>(toml_as_string)?;
-        Ok(manifest)
-    }
 }
 
 /// Configuration of a workspace in a manifest.
 /// Indicates that `[workspace]` was present and the members were specified as well.
+#[derive(Debug, Deserialize, Clone)]
+pub struct Workspace {
+    #[serde(rename = "workspace")]
+    pub config: WorkspaceConfig,
+}
+
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct WorkspaceConfig {
     pub members: Vec<String>,
@@ -73,7 +91,7 @@ fn parse_standard_toml() {
         hello = {path = "./noir_driver"}
     "#;
 
-    assert!(PackageManifest::from_toml_str(src).is_ok());
+    assert!(Manifest::from_toml_str(src).is_ok());
 }
 
 #[test]
@@ -83,5 +101,5 @@ fn parse_workspace_toml() {
         members = ["a", "b"]
     "#;
 
-    assert!(PackageManifest::from_toml_str(src).is_ok());
+    assert!(Manifest::from_toml_str(src).is_ok());
 }

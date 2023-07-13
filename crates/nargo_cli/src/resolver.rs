@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nargo::manifest::{Dependency, PackageManifest};
+use nargo::manifest::{Dependency, Manifest, PackageManifest};
 use noirc_driver::{add_dep, create_local_crate, create_non_local_crate};
 use noirc_frontend::{
     graph::{CrateId, CrateType},
@@ -70,27 +70,28 @@ pub(crate) fn resolve_root_manifest(
     let manifest_path = super::find_package_manifest(dir_path)?;
     let manifest = super::manifest::parse(&manifest_path)?;
 
-    let crate_id = if manifest.workspace.members.is_empty() {
-        let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
-        create_local_crate(&mut context, entry_path, crate_type)
-    } else {
-        let members = manifest.workspace.members.clone();
-        let root = dir_path.join(members.last().unwrap());
+    match manifest {
+        Manifest::Package(package) => {
+            let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
+            let crate_id = create_local_crate(&mut context, entry_path, crate_type);
 
-        let (entry_path, _crate_type) = super::lib_or_bin(root)?;
-        let root = create_local_crate(&mut context, entry_path, CrateType::Workspace);
-
-        for member in members {
-            let path: PathBuf = dir_path.join(member);
-            let (entry_path, crate_type) = super::lib_or_bin(path)?;
-            create_non_local_crate(&mut context, entry_path, crate_type);
+            let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
+            resolve_manifest(&mut context, crate_id, package, pkg_root)?;
         }
+        Manifest::Workspace(workspace) => {
+            let members = workspace.config.members;
+            let root = dir_path.join(members.last().unwrap());
 
-        root
+            let (entry_path, _crate_type) = super::lib_or_bin(root)?;
+            let _local = create_local_crate(&mut context, entry_path, CrateType::Workspace);
+
+            for member in members {
+                let path: PathBuf = dir_path.join(member);
+                let (entry_path, crate_type) = super::lib_or_bin(path)?;
+                create_non_local_crate(&mut context, entry_path, crate_type);
+            }
+        }
     };
-
-    let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
-    resolve_manifest(&mut context, crate_id, manifest, pkg_root)?;
 
     Ok(context)
 }
@@ -154,7 +155,7 @@ fn cache_dep(
     ) -> Result<CachedDep, DependencyResolutionError> {
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
         let manifest_path = super::find_package_manifest(dir_path)?;
-        let manifest = super::manifest::parse(manifest_path)?;
+        let manifest = super::manifest::parse(manifest_path)?.to_package().unwrap();
         Ok(CachedDep { entry_path, crate_type, manifest, remote })
     }
 
