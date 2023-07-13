@@ -55,7 +55,9 @@ pub struct Workspace {
 #[derive(Default, Debug, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct WorkspaceConfig {
+    /// List of members in this workspace.
     pub members: Vec<String>,
+    /// Specifies the default crate to interact with in the context (similarly to how we have nargo as the default crate in this repository).
     pub default_member: Option<String>,
 }
 
