@@ -471,9 +471,10 @@ impl<'block> BrilligBlock<'block> {
         let typ = dfg[value_id].get_type();
         match typ {
             Type::Numeric(_) => RegisterOrMemory::RegisterIndex(register_index),
-            Type::Array(_, size) => {
-                RegisterOrMemory::HeapArray(HeapArray { pointer: register_index, size })
-            }
+            Type::Array(..) => RegisterOrMemory::HeapArray(HeapArray {
+                pointer: register_index,
+                size: compute_size_of_type(&typ),
+            }),
             _ => {
                 unreachable!("type not supported for conversion into brillig register")
             }
