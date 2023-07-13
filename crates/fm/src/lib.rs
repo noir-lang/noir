@@ -60,7 +60,7 @@ impl FileManager {
         // Unwrap as we ensure that all file_id's map to a corresponding file in the file map
         self.file_map.get_file(file_id).unwrap()
     }
-    pub fn path(&mut self, file_id: FileId) -> &Path {
+    pub fn path(&self, file_id: FileId) -> &Path {
         // Unwrap as we ensure that all file_ids are created by the file manager
         // So all file_ids will points to a corresponding path
         self.id_to_path.get(&file_id).unwrap().0.as_path()
