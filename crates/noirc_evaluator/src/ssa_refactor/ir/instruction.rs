@@ -779,7 +779,7 @@ impl Binary {
             BinaryOp::Add => lhs + rhs,
             BinaryOp::Sub => lhs - rhs,
             BinaryOp::Mul => lhs * rhs,
-            BinaryOp::Div => lhs / rhs,
+            BinaryOp::Div => self.eval_constant_division(lhs, rhs, &operand_type)?,
             BinaryOp::Eq => {
                 operand_type = Type::bool();
                 (lhs == rhs).into()
@@ -832,6 +832,22 @@ impl Binary {
             | BinaryOp::Lt) => panic!(
                 "eval_constant_u128_operations invalid for {op:?} use eval_constants instead"
             ),
+        }
+    }
+
+    fn eval_constant_division(
+        &self,
+        lhs: FieldElement,
+        rhs: FieldElement,
+        operand_type: &Type,
+    ) -> Option<FieldElement> {
+        match operand_type {
+            Type::Numeric(NumericType::NativeField) => Some(lhs / rhs),
+            Type::Numeric(_other) => match (lhs.try_into_u128(), rhs.try_into_u128()) {
+                (Some(lhs), Some(rhs)) => Some((lhs / rhs).into()),
+                _ => None,
+            },
+            other => unreachable!("Unexpected type {other} in division"),
         }
     }
 }
