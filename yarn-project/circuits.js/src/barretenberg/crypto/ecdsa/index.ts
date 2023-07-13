@@ -1,10 +1,7 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
-import { EcdsaSignature } from './signature.js';
 import { CircuitsWasm } from '../../../index.js';
 import { Signer } from '../index.js';
-import { secp256k1 } from '@noble/curves/secp256k1';
-import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { numToUInt32BE } from '@aztec/foundation/serialize';
+import { EcdsaSignature } from './signature.js';
 
 export * from './signature.js';
 
@@ -45,18 +42,10 @@ export class Ecdsa implements Signer {
     this.wasm.writeMemory(mem, msg);
     this.wasm.call('ecdsa__construct_signature', mem, msg.length, 0, 32, 64, 96);
 
-    // TODO(#913): Understand why this doesn't work
-    // const sig = new EcdsaSignature(
-    //   Buffer.from(this.wasm.getMemorySlice(32, 64)),
-    //   Buffer.from(this.wasm.getMemorySlice(64, 96)),
-    //   Buffer.from(this.wasm.getMemorySlice(96, 97)),
-    // );
-
-    const signature = secp256k1.sign(msg, privateKey);
     return new EcdsaSignature(
-      toBufferBE(signature.r, 32),
-      toBufferBE(signature.s, 32),
-      numToUInt32BE(signature.recovery!).subarray(3, 4),
+      Buffer.from(this.wasm.getMemorySlice(32, 64)),
+      Buffer.from(this.wasm.getMemorySlice(64, 96)),
+      Buffer.from(this.wasm.getMemorySlice(96, 97)),
     );
   }
 
