@@ -134,17 +134,8 @@ fn on_code_lens_request(
     _state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
-<<<<<<< HEAD
-    async move {
-        let actual_path = params.text_document.uri.to_file_path().unwrap();
-        let mut driver = create_driver_at_path(actual_path);
-=======
-    let file_path = &params.text_document.uri.to_file_path().unwrap();
-
-    let mut context = Context::default();
-
-    let crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
->>>>>>> origin/master
+    let actual_path = params.text_document.uri.to_file_path().unwrap();
+    let mut driver = create_driver_at_path(actual_path);
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
@@ -266,18 +257,8 @@ fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-<<<<<<< HEAD
     let actual_path = params.text_document.uri.to_file_path().unwrap();
     let mut driver = create_driver_at_path(actual_path.clone());
-=======
-    let file_path = &params.text_document.uri.to_file_path().unwrap();
-
-    let mut context = Context::default();
-
-    create_local_crate(&mut context, file_path, CrateType::Binary);
-
-    let mut diagnostics = Vec::new();
->>>>>>> origin/master
 
     let file_diagnostics = match check_crate(&mut context, false, false) {
         Ok(warnings) => warnings,
