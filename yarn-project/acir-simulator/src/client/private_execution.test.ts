@@ -670,7 +670,7 @@ describe('Private Execution test suite', () => {
 
       // Generate a partial address, pubkey, and resulting address
       const partialAddress = Fr.random();
-      const pubKey = new Point(new Coordinate([Fr.random(), Fr.ZERO]), new Coordinate([Fr.random(), Fr.ZERO]));
+      const pubKey = new Point(Coordinate.fromField(new Fr(0x1234)), Coordinate.fromField(new Fr(0x5678)));
       const wasm = await CircuitsWasm.get();
       const address = computeContractAddressFromPartial(wasm, pubKey, partialAddress);
       const args = [address];
