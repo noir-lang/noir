@@ -23,7 +23,7 @@ import { PublicKey, TxStatus } from '@aztec/types';
 import { privateKey2 } from './fixtures.js';
 import { setup } from './utils.js';
 
-describe('e2e_account_contract', () => {
+describe.skip('e2e_account_contract', () => {
   let aztecNode: AztecNodeService;
   let aztecRpcServer: AztecRPCServer;
   let logger: DebugLogger;

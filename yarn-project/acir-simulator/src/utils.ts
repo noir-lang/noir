@@ -41,7 +41,7 @@ export function toPublicKey(privateKey: Buffer, grumpkin: Grumpkin): NoirPoint {
   const buf = grumpkin.mul(Grumpkin.generator, privateKey);
   const point = Point.fromBuffer(buf);
   return {
-    x: point.x.toBigInt(),
-    y: point.y.toBigInt(),
+    x: point.x.value,
+    y: point.y.value,
   };
 }

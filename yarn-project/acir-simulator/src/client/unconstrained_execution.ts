@@ -43,7 +43,7 @@ export class UnconstrainedFunctionExecution {
       getPublicKey: async ([acvmAddress]) => {
         const address = frToAztecAddress(fromACVMField(acvmAddress));
         const [pubKey, partialContractAddress] = await this.context.db.getPublicKey(address);
-        return [pubKey.x.toBigInt(), pubKey.y.toBigInt(), partialContractAddress].map(toACVMField);
+        return [pubKey.x, pubKey.y, partialContractAddress].map(toACVMField);
       },
       getNotes: ([slot], sortBy, sortOrder, [limit], [offset], [returnSize]) =>
         this.context.getNotes(this.contractAddress, slot, sortBy, sortOrder, limit, offset, returnSize),

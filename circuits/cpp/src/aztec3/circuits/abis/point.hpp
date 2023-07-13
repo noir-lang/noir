@@ -17,8 +17,8 @@ template <typename NCT> struct Point {
     using fr = typename NCT::fr;
     using boolean = typename NCT::boolean;
 
-    Coordinate<NCT> x;
-    Coordinate<NCT> y;
+    fr x;
+    fr y;
 
     // for serialization, update with new fields
     MSGPACK_FIELDS(x, y);
@@ -28,10 +28,9 @@ template <typename NCT> struct Point {
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));
 
-        Point<CircuitTypes<Builder>> point = {
-            x.to_circuit_type(builder),
-            y.to_circuit_type(builder),
-        };
+        auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
+
+        Point<CircuitTypes<Builder>> point = { to_ct(x), to_ct(y) };
 
         return point;
     };
@@ -40,9 +39,9 @@ template <typename NCT> struct Point {
     {
         static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
 
-        auto to_native_type = []<typename T>(T& e) { return e.template to_native_type<Builder>(); };
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
-        Point<NativeTypes> point = { to_native_type(x), to_native_type(y) };
+        Point<NativeTypes> point = { to_nt(x), to_nt(y) };
 
         return point;
     };

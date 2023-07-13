@@ -130,7 +130,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     const NT::fr acir_hash = 12341234;
 
     const NT::fr msg_sender_private_key = 123456789;
-    const Point<NT> msg_sender_pub_key = { .x = { 123456789, 123456789 }, .y = { 123456789, 123456789 } };
+    const Point<NT> msg_sender_pub_key = { .x = 123456789, .y = 123456789 };
 
     FunctionData<NT> const function_data{
         .function_selector = 1,  // TODO(suyash): deduce this from the contract, somehow.

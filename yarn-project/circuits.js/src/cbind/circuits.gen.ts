@@ -17,7 +17,6 @@ import {
   CombinedAccumulatedData,
   PrivateHistoricTreeRoots,
   CombinedHistoricTreeRoots,
-  Coordinate,
   Point,
   ContractDeploymentData,
   TxContext,
@@ -574,29 +573,9 @@ export function fromCombinedHistoricTreeRoots(o: CombinedHistoricTreeRoots): Msg
   };
 }
 
-interface MsgpackCoordinate {
-  fields: Tuple<Buffer, 2>;
-}
-
-export function toCoordinate(o: MsgpackCoordinate): Coordinate {
-  if (o.fields === undefined) {
-    throw new Error('Expected fields in Coordinate deserialization');
-  }
-  return new Coordinate(mapTuple(o.fields, (v: Buffer) => Fr.fromBuffer(v)));
-}
-
-export function fromCoordinate(o: Coordinate): MsgpackCoordinate {
-  if (o.fields === undefined) {
-    throw new Error('Expected fields in Coordinate serialization');
-  }
-  return {
-    fields: mapTuple(o.fields, (v: Fr) => v.toBuffer()),
-  };
-}
-
 interface MsgpackPoint {
-  x: MsgpackCoordinate;
-  y: MsgpackCoordinate;
+  x: Buffer;
+  y: Buffer;
 }
 
 export function toPoint(o: MsgpackPoint): Point {
@@ -606,7 +585,7 @@ export function toPoint(o: MsgpackPoint): Point {
   if (o.y === undefined) {
     throw new Error('Expected y in Point deserialization');
   }
-  return new Point(toCoordinate(o.x), toCoordinate(o.y));
+  return new Point(Fr.fromBuffer(o.x), Fr.fromBuffer(o.y));
 }
 
 export function fromPoint(o: Point): MsgpackPoint {
@@ -617,8 +596,8 @@ export function fromPoint(o: Point): MsgpackPoint {
     throw new Error('Expected y in Point serialization');
   }
   return {
-    x: fromCoordinate(o.x),
-    y: fromCoordinate(o.y),
+    x: o.x.toBuffer(),
+    y: o.y.toBuffer(),
   };
 }
 

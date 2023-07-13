@@ -53,7 +53,7 @@ template <typename NCT> typename NCT::fr compute_partial_contract_address(typena
 {
     using fr = typename NCT::fr;
     std::vector<fr> const inputs = {
-        fr(0), fr(0), fr(0), fr(0), contract_address_salt, function_tree_root, constructor_hash,
+        fr(0), fr(0), contract_address_salt, function_tree_root, constructor_hash,
     };
     return NCT::hash(inputs, aztec3::GeneratorIndex::PARTIAL_CONTRACT_ADDRESS);
 }
@@ -65,7 +65,9 @@ typename NCT::address compute_contract_address_from_partial(Point<NCT> const& po
     using address = typename NCT::address;
 
     std::vector<fr> const inputs = {
-        point.x.fields[0], point.x.fields[1], point.y.fields[0], point.y.fields[1], partial_address,
+        point.x,
+        point.y,
+        partial_address,
     };
     return address(NCT::hash(inputs, aztec3::GeneratorIndex::CONTRACT_ADDRESS));
 }

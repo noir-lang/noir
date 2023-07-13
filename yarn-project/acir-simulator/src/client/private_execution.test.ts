@@ -17,7 +17,7 @@ import { asyncMap } from '@aztec/foundation/async-map';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Coordinate, Fr, Point } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
@@ -670,14 +670,14 @@ describe('Private Execution test suite', () => {
 
       // Generate a partial address, pubkey, and resulting address
       const partialAddress = Fr.random();
-      const pubKey = new Point(Coordinate.fromField(new Fr(0x1234)), Coordinate.fromField(new Fr(0x5678)));
+      const pubKey = Point.random();
       const wasm = await CircuitsWasm.get();
       const address = computeContractAddressFromPartial(wasm, pubKey, partialAddress);
       const args = [address];
 
       oracle.getPublicKey.mockResolvedValue([pubKey, partialAddress]);
       const result = await runSimulator({ origin: AztecAddress.random(), abi, args });
-      expect(result.returnValues).toEqual([pubKey.x.toBigInt(), pubKey.y.toBigInt()]);
+      expect(result.returnValues).toEqual([pubKey.x.value, pubKey.y.value]);
     });
   });
 });

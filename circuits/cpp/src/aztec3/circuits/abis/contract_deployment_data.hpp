@@ -94,14 +94,8 @@ template <typename NCT> struct ContractDeploymentData {
     fr hash() const
     {
         std::vector<fr> const inputs = {
-            deployer_public_key.x.fields[0],
-            deployer_public_key.x.fields[1],
-            deployer_public_key.y.fields[0],
-            deployer_public_key.y.fields[1],
-            constructor_vk_hash,
-            function_tree_root,
-            contract_address_salt,
-            portal_contract_address.to_field(),
+            deployer_public_key.x, deployer_public_key.y, constructor_vk_hash,
+            function_tree_root,    contract_address_salt, portal_contract_address.to_field(),
         };
 
         return NCT::compress(inputs, GeneratorIndex::CONTRACT_DEPLOYMENT_DATA);

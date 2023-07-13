@@ -1,5 +1,5 @@
 import { BufferReader } from '../serialize/buffer_reader.js';
-import { Coordinate } from './coordinate.js';
+import { Fr } from './fields.js';
 
 /**
  * Represents a Point on an elliptic curve with x and y coordinates.
@@ -7,7 +7,7 @@ import { Coordinate } from './coordinate.js';
  * converting instances to various output formats, and checking the equality of points.
  */
 export class Point {
-  static ZERO = new Point(Coordinate.ZERO, Coordinate.ZERO);
+  static ZERO = new Point(Fr.ZERO, Fr.ZERO);
 
   /** Used to differentiate this class from AztecAddress */
   public readonly kind = 'point';
@@ -16,11 +16,11 @@ export class Point {
     /**
      * The point's x coordinate
      */
-    public readonly x: Coordinate,
+    public readonly x: Fr,
     /**
      * The point's y coordinate
      */
-    public readonly y: Coordinate,
+    public readonly y: Fr,
   ) {}
 
   /**
@@ -30,7 +30,7 @@ export class Point {
    */
   static random() {
     // TODO is this a random point on the curve?
-    return new Point(Coordinate.random(), Coordinate.random());
+    return new Point(Fr.random(), Fr.random());
   }
 
   /**
@@ -42,17 +42,7 @@ export class Point {
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new this(Coordinate.fromBuffer(reader.readBytes(32)), Coordinate.fromBuffer(reader.readBytes(32)));
-  }
-
-  /**
-   * Creates a point instance from its x and y coordinates.
-   * @param x - X coordinate.
-   * @param y - Y coordinate.
-   * @returns A Point instance.
-   */
-  static fromCoordinates(x: Coordinate, y: Coordinate) {
-    return new this(x, y);
+    return new this(Fr.fromBuffer(reader.readBytes(32)), Fr.fromBuffer(reader.readBytes(32)));
   }
 
   /**
@@ -68,22 +58,11 @@ export class Point {
   }
 
   /**
-   * Convert the Point instance to a Buffer representation of fields
-   * The output buffer's length will be (128 bytes).
-   * This method is useful for serialization and deserialization of the Point object.
-   *
-   * @returns A Buffer representation of the Point instance.
-   */
-  toFieldsBuffer() {
-    return Buffer.concat([this.x.toFieldsBuffer(), this.y.toFieldsBuffer()]);
-  }
-
-  /**
-   * Returns the contents of the point as an array of 4 fields.
-   * @returns The point as an array of 4 fields
+   * Returns the contents of the point as an array of 2 fields.
+   * @returns The point as an array of 2 fields
    */
   toFields() {
-    return this.x.toFields().concat(this.y.toFields());
+    return [this.x, this.y];
   }
 
   /**
@@ -91,11 +70,9 @@ export class Point {
    * @returns The point as BigInts
    */
   toBigInts() {
-    const x = this.x.toBigInt();
-    const y = this.y.toBigInt();
     return {
-      x,
-      y,
+      x: this.x.value,
+      y: this.y.value,
     };
   }
 

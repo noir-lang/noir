@@ -187,7 +187,7 @@ export function computeContractAddress(
   const result = inputBuffersToOutputBuffer(
     wasm,
     'abis__compute_contract_address',
-    [deployerPubKey.toFieldsBuffer(), contractAddrSalt.toBuffer(), fnTreeRoot.toBuffer(), constructorHash.toBuffer()],
+    [deployerPubKey.toBuffer(), contractAddrSalt.toBuffer(), fnTreeRoot.toBuffer(), constructorHash.toBuffer()],
     32,
   );
   return new AztecAddress(result);
@@ -230,7 +230,7 @@ export function computeContractAddressFromPartial(wasm: IWasmModule, pubKey: Poi
   const result = inputBuffersToOutputBuffer(
     wasm,
     'abis__compute_contract_address_from_partial',
-    [pubKey.toFieldsBuffer(), partialAddress.toBuffer()],
+    [pubKey.toBuffer(), partialAddress.toBuffer()],
     32,
   );
   return new AztecAddress(result);
