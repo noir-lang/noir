@@ -1,3 +1,7 @@
+use crate::note::{
+    note_header::NoteHeader,
+    note_interface::NoteInterface,
+};
 use crate::utils::arr_copy_slice;
 
 #[oracle(notifyCreatedNote)]
@@ -58,22 +62,22 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
 
 fn get_note<Note, N>(
     storage_slot: Field,
-    deserialise: fn ([Field; N]) -> Note,
-    dummy: fn () -> Note,
+    note_interface: NoteInterface<Note, N>,
 ) -> Note {
     let fields = get_note_oracle(storage_slot);
     let has_note = fields[0] == 1;
     if (has_note) {
+        let deserialise = note_interface.deserialise;
         deserialise(arr_copy_slice(fields, [0; N], 1))
     } else {
+        let dummy = note_interface.dummy;
         dummy()
     }
 }
 
 fn get_notes<Note, N, S, NS>(
     storage_slot: Field,
-    deserialise: fn ([Field; N]) -> Note,
-    dummy: fn () -> Note,
+    note_interface: NoteInterface<Note, N>,
     sort_by: [u8; N],
     sort_order: [u8; N],
     limit: u32,
@@ -83,11 +87,16 @@ fn get_notes<Note, N, S, NS>(
 ) -> [Note; S] {
     let fields = get_notes_oracle_wrapper(storage_slot, sort_by, sort_order, limit, offset, zero_fields);
     let num_notes = fields[0] as u32;
+    let contract_address = fields[1];
+    let deserialise = note_interface.deserialise;
+    let set_header = note_interface.set_header;
+    let header = NoteHeader { contract_address, storage_slot };
     for i in 0..notes.len() {
         if i as u32 < num_notes {
-            let read_offset: comptime Field = 1 + i * N;
+            let read_offset: comptime Field = 2 + i * N;
             let preimage = arr_copy_slice(fields, [0; N], read_offset);
-            let note = deserialise(preimage);
+            let mut note = deserialise(preimage);
+            note = set_header(note, header);
             notes[i] = note;
         };
     };

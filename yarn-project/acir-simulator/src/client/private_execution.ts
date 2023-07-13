@@ -70,16 +70,7 @@ export class PrivateFunctionExecution {
       packArguments: async args => {
         return toACVMField(await this.context.packedArgsCache.pack(args.map(fromACVMField)));
       },
-      getSecretKey: async ([ownerX], [ownerY]) =>
-        toACVMField(
-          await this.context.db.getSecretKey(
-            this.contractAddress,
-            Point.fromCoordinates(
-              Coordinate.fromField(fromACVMField(ownerX)),
-              Coordinate.fromField(fromACVMField(ownerY)),
-            ),
-          ),
-        ),
+      getSecretKey: ([ownerX], [ownerY]) => this.context.getSecretKey(this.contractAddress, ownerX, ownerY),
       getPublicKey: async ([acvmAddress]) => {
         const address = frToAztecAddress(fromACVMField(acvmAddress));
         const [pubKey, partialContractAddress] = await this.context.db.getPublicKey(address);

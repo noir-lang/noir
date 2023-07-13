@@ -1,6 +1,6 @@
 import { PrivateHistoricTreeRoots, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Coordinate, Fr, Point } from '@aztec/foundation/fields';
 import {
   ACVMField,
   fromACVMField,
@@ -68,6 +68,22 @@ export class ClientTxExecutionContext {
   }
 
   /**
+   * For getting secret key.
+   * @param contractAddress - The contract address.
+   * @param ownerX - The x coordinate of the owner's public key.
+   * @param ownerY - The y coordinate of the owner's public key.
+   * @returns The secret key of the owner.
+   */
+  public async getSecretKey(contractAddress: AztecAddress, ownerX: ACVMField, ownerY: ACVMField) {
+    return toACVMField(
+      await this.db.getSecretKey(
+        contractAddress,
+        Point.fromCoordinates(Coordinate.fromField(fromACVMField(ownerX)), Coordinate.fromField(fromACVMField(ownerY))),
+      ),
+    );
+  }
+
+  /**
    * Gets some notes for a contract address and storage slot.
    * Returns a flattened array containing real-note-count and note preimages.
    *
@@ -105,7 +121,7 @@ export class ClientTxExecutionContext {
     limit: ACVMField,
     offset: ACVMField,
     returnSize: ACVMField,
-  ) {
+  ): Promise<ACVMField[]> {
     const { pendingCount, pendingPreimages } = this.getPendingNotes(
       contractAddress,
       storageSlot,
@@ -134,8 +150,8 @@ export class ClientTxExecutionContext {
     // By default they will be flagged as non-transient.
     this.readRequestPartialWitnesses.push(...dbNotes.map(note => ReadRequestMembershipWitness.empty(note.index)));
 
-    const paddedZeros = Array(+returnSize - 1 - preimages.length).fill(toACVMField(Fr.ZERO));
-    return [toACVMField(pendingCount + dbCount), ...preimages, ...paddedZeros];
+    const paddedZeros = Array(+returnSize - 2 - preimages.length).fill(toACVMField(Fr.ZERO));
+    return [toACVMField(pendingCount + dbCount), toACVMField(contractAddress), ...preimages, ...paddedZeros];
   }
 
   /**

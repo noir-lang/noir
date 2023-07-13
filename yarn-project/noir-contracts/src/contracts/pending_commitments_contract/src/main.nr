@@ -10,8 +10,13 @@ contract PendingCommitments {
         balance_utils,
         value_note::{
             value_note::ValueNote,
+            value_note::ValueNoteInterface,
             filter::get_2_notes,
         }
+    };
+    use dep::custom_notes::{
+        constants::MAX_NOTE_FIELDS_SIZE,
+        utils::compute_note_hash_and_nullifier,
     };
 
     use crate::storage::Storage;
@@ -224,4 +229,9 @@ contract PendingCommitments {
     //    getAndCheckFnSelector: Field,
     //) -> distinct pub abi::PrivateCircuitPublicInputs {
     //}
+
+    /// ABI stev type "unconstrained"
+    fn stev(contract_address: Field, storage_slot: Field, preimage: [Field; MAX_NOTE_FIELDS_SIZE]) -> pub [Field; 2] {
+        compute_note_hash_and_nullifier(contract_address, storage_slot, ValueNoteInterface, preimage)
+    }
 }

@@ -1,7 +1,6 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, Logger, createDebugLogger } from '@aztec/foundation/log';
-import { MAPPING_SLOT_PEDERSEN_SEPARATOR } from '@aztec/circuits.js';
 import {
   AccountCollection,
   AccountContract,
@@ -258,14 +257,13 @@ export function delay(ms: number): Promise<void> {
 export async function calculateAztecStorageSlot(slot: bigint, key: Fr): Promise<Fr> {
   const wasm = await CircuitsWasm.get();
   const mappingStorageSlot = new Fr(slot); // this value is manually set in the Noir contract
-  const mappingStorageSlotSeparator = new Fr(BigInt(MAPPING_SLOT_PEDERSEN_SEPARATOR)); // The pedersen domain separator for storage slot calculations.
 
   // Based on `at` function in
   // aztec3-packages/yarn-project/noir-contracts/src/contracts/noir-aztec/src/state_vars/map.nr
   const storageSlot = Fr.fromBuffer(
     pedersenPlookupCommitInputs(
       wasm,
-      [mappingStorageSlotSeparator, mappingStorageSlot, key].map(f => f.toBuffer()),
+      [mappingStorageSlot, key].map(f => f.toBuffer()),
     ),
   );
 

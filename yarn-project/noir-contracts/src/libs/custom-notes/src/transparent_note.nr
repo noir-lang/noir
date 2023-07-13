@@ -51,7 +51,7 @@ impl TransparentNote {
     }
 
     fn compute_secret_hash(secret: Field) -> Field {
-        pedersen([dep::aztec::generators::MessageSecret, secret])[0]
+        pedersen([dep::aztec::generators::L1_TO_L2_MESSAGE_SECRET, secret])[0]
     }
 
     fn knows_secret(self, secret: Field) {

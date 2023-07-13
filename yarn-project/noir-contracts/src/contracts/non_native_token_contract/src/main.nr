@@ -19,9 +19,16 @@ contract NonNativeToken {
     // Libs
     use dep::token_utils::{
         balance_utils,
-        value_note::utils::{send_note, spend_notes},
+        value_note::{
+            utils::{send_note, spend_notes},
+            value_note::{VALUE_NOTE_LEN},
+            value_note::ValueNoteInterface,
+        },
     };
-    use dep::custom_notes::transparent_note::TransparentNote;
+    use dep::custom_notes::{
+        transparent_note::TransparentNote,
+        utils::compute_note_hash_and_nullifier,
+    };
 
     use crate::storage::Storage;
     use crate::hash::{get_mint_content_hash, get_withdraw_content_hash};
@@ -60,7 +67,7 @@ contract NonNativeToken {
         let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner.x, owner.y]));
 
         let balance = storage.balances.at(owner.x);
-        context = send_note(context, inputs, balance, initial_supply, owner);
+        context = send_note(context, balance, initial_supply, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -95,7 +102,7 @@ contract NonNativeToken {
         context = updated_context;
 
         let balance = storage.balances.at(owner.x);
-        context = send_note(context, inputs, balance, amount, owner);
+        context = send_note(context, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -120,7 +127,7 @@ contract NonNativeToken {
         ]));
 
         let sender_balance = storage.balances.at(sender.x);
-        context = spend_notes(context, inputs, sender_balance, amount, sender);
+        context = spend_notes(context, sender_balance, amount, sender);
 
         let content = get_withdraw_content_hash(amount, recipient, callerOnL1);
         context = context.message_portal(content);
@@ -209,10 +216,10 @@ contract NonNativeToken {
 
         // Gets the set of sender's notes and picks 2 of those.
         let sender_balance = storage.balances.at(sender.x);
-        context = spend_notes(context, inputs, sender_balance, amount, sender);
+        context = spend_notes(context, sender_balance, amount, sender);
 
         let balance = storage.balances.at(recipient.x);
-        context = send_note(context, inputs, balance, amount, recipient);
+        context = send_note(context, balance, amount, recipient);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -264,7 +271,7 @@ contract NonNativeToken {
 
         // Mint the tokens
         let balance = storage.balances.at(owner.x);
-        context = send_note(context, inputs, balance, amount, owner);
+        context = send_note(context, balance, amount, owner);
 
         context.finish()
     }
@@ -282,7 +289,7 @@ contract NonNativeToken {
 
         // Remove user balance
         let sender_balance = storage.balances.at(owner.x);
-        context = spend_notes(context, inputs, sender_balance, amount, owner);
+        context = spend_notes(context, sender_balance, amount, owner);
 
         // enqueue a public function to perform the public state update.
         let thisAddress = inputs.call_context.storage_contract_address;
@@ -317,5 +324,10 @@ contract NonNativeToken {
         let owner_balance = storage.balances.at(owner.x);
         
         balance_utils::get_balance(owner_balance.storage_slot)
+    }
+
+    /// ABI stev type "unconstrained"
+    fn stev(contract_address: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> pub [Field; 2] {
+        compute_note_hash_and_nullifier(contract_address, storage_slot, ValueNoteInterface, preimage)
     }
 }

@@ -72,6 +72,18 @@ Fr {
 }
 `;
 
+exports[`abis wasm bindings computes siloed commitment 1`] = `
+Fr {
+  "value": 4300635537850003871451650912699252898033249035618622792407744400807361159458n,
+}
+`;
+
+exports[`abis wasm bindings computes siloed nullifier 1`] = `
+Fr {
+  "value": 4957445512951137590281746823314455197982530036508465893793736233926551006579n,
+}
+`;
+
 exports[`abis wasm bindings hashes a tx request 1`] = `
 {
   "data": [

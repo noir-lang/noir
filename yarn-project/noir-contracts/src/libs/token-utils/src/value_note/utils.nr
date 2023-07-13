@@ -1,4 +1,3 @@
-use dep::aztec::abi::PrivateContextInputs;
 use dep::aztec::context::Context;
 use dep::aztec::log::emit_encrypted_log;
 use dep::aztec::note::note_getter_options::NoteGetterOptions;
@@ -11,7 +10,6 @@ use crate::value_note::{
 
 fn spend_notes(
     mut context: Context,
-    inputs: PrivateContextInputs,
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     amount: Field,
     owner: Point,
@@ -46,7 +44,7 @@ fn spend_notes(
     };
     context = emit_encrypted_log(
         context,
-        inputs.call_context.storage_contract_address,
+        context.inputs.call_context.storage_contract_address,
         balance.storage_slot,
         owner,
         encrypted_data,
@@ -57,7 +55,6 @@ fn spend_notes(
 
 fn send_note(
     mut context: Context,
-    inputs: PrivateContextInputs,
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     amount: Field,
     recipient: Point,
@@ -71,7 +68,7 @@ fn send_note(
     // Emit the newly created encrypted note preimages via oracle calls.
     context = emit_encrypted_log(
         context,
-        inputs.call_context.storage_contract_address,
+        context.inputs.call_context.storage_contract_address,
         balance.storage_slot,
         recipient,
         note.serialise(),

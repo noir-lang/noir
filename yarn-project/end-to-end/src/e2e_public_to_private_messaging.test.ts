@@ -93,5 +93,5 @@ describe('e2e_public_to_private_messaging', () => {
     await crossChainTestHarness.unshieldTokensOnL2(shieldAmount);
     await crossChainTestHarness.expectPublicBalanceOnL2(ownerAddress, bridgeAmount, publicBalanceSlot);
     await crossChainTestHarness.expectBalanceOnL2(ownerAddress, initialBalance - transferAmount);
-  }, 120_000);
+  }, 200_000);
 });

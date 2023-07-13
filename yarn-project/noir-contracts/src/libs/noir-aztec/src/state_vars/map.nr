@@ -1,5 +1,3 @@
-use crate::generators;
-
 struct Map<V> {
     storage_slot: Field,
     state_var_constructor: fn (Field) -> V,
@@ -12,7 +10,6 @@ impl<V> Map<V> {
 
     fn at(self, key: Field) -> V {
         let derived_storage_slot = dep::std::hash::pedersen([
-            generators::MAPPING_SLORAGE_SLOT, 
             self.storage_slot, 
             key,
         ])[0];

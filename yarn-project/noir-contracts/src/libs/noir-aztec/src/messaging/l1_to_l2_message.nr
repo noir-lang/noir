@@ -58,7 +58,7 @@ impl L1ToL2Message {
     }
 
     fn validate_message_secret(self: Self) {
-        let recomputed_hash = dep::std::hash::pedersen([generators::MessageSecret, self.secret])[0];
+        let recomputed_hash = dep::std::hash::pedersen([generators::L1_TO_L2_MESSAGE_SECRET, self.secret])[0];
         assert(self.secret_hash == recomputed_hash);
     }
 
@@ -104,6 +104,6 @@ impl L1ToL2Message {
     // The nullifier of a l1 to l2 message is the hash of the message salted with the secret and tree index
     fn compute_nullifier(self: Self) -> Field {
         let message_hash = self.message_hash();
-        dep::std::hash::pedersen([generators::Nullifier, message_hash, self.secret, self.tree_index])[0]
+        dep::std::hash::pedersen([generators::NULLIFIER, message_hash, self.secret, self.tree_index])[0]
     }
 }

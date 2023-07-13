@@ -4,9 +4,16 @@ contract ZkToken {
     // Libs
     use dep::token_utils::{
         balance_utils,
-        value_note::utils::{send_note, spend_notes},
+        value_note::{
+            value_note::ValueNoteInterface,
+            utils::{send_note, spend_notes},
+        },
     };
-    use dep::custom_notes::claim_note::ClaimNote;
+    use dep::custom_notes::{
+        claim_note::{ClaimNote, ClaimNoteInterface},
+        constants::MAX_NOTE_FIELDS_SIZE,
+        utils::compute_note_hash_and_nullifier,
+    };
 
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
@@ -35,7 +42,7 @@ contract ZkToken {
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner.x);
-        context = send_note(context, inputs, owner_balance, initial_supply, owner);
+        context = send_note(context, owner_balance, initial_supply, owner);
         context = emit_unencrypted_log(context, "Balance set in constructor");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
@@ -56,7 +63,7 @@ contract ZkToken {
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner.x);
-        context = send_note(context, inputs, owner_balance, amount, owner);
+        context = send_note(context, owner_balance, amount, owner);
         context = emit_unencrypted_log(context, "Coins minted");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
@@ -78,11 +85,11 @@ contract ZkToken {
 
         // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender.x);
-        context = spend_notes(context, inputs, sender_balance, amount, sender);
+        context = spend_notes(context, sender_balance, amount, sender);
 
         // Creates new note for the recipient.
         let recipient_balance = storage.balances.at(recipient.x);
-        context = send_note(context, inputs, recipient_balance, amount, recipient);
+        context = send_note(context, recipient_balance, amount, recipient);
         
         context = emit_unencrypted_log(context, "Coins transferred");
 
@@ -105,7 +112,7 @@ contract ZkToken {
         // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender.x);
         let total = amounts[0] + amounts[1];
-        context = spend_notes(context, inputs, sender_balance, total, sender);
+        context = spend_notes(context, sender_balance, total, sender);
 
         // Create claim notes.
         let claims = storage.claims;
@@ -139,7 +146,7 @@ contract ZkToken {
 
         // Send the value note.
         let balance = storage.balances.at(owner.x);
-        context = send_note(context, inputs, balance, amount, owner);
+        context = send_note(context, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
@@ -157,5 +164,14 @@ contract ZkToken {
 
         // Return the sum of all notes in the set.
         balance_utils::get_balance(owner_balance.storage_slot)
+    }
+
+    /// ABI stev type "unconstrained"
+    fn stev(contract_address: Field, storage_slot: Field, preimage: [Field; MAX_NOTE_FIELDS_SIZE]) -> pub [Field; 2] {
+        if (storage_slot == 2) {
+            compute_note_hash_and_nullifier(contract_address, storage_slot, ClaimNoteInterface, preimage)
+        } else {
+            compute_note_hash_and_nullifier(contract_address, storage_slot, ValueNoteInterface, preimage)
+        }
     }
 }

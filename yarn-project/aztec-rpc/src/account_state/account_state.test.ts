@@ -91,6 +91,9 @@ describe('Account State', () => {
       aztecNode,
       SchnorrAccountContractAbi,
     );
+
+    const computeSiloedNullifierSpy = jest.spyOn(accountState as any, 'computeSiloedNullifier');
+    computeSiloedNullifierSpy.mockResolvedValue(Fr.random());
   });
 
   afterEach(() => {

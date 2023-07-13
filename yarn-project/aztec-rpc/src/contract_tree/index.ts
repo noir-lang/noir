@@ -120,7 +120,7 @@ export class ContractTree {
   public getFunctionAbi(functionSelector: Buffer) {
     const abi = this.contract.functions.find(f => f.selector.equals(functionSelector));
     if (!abi) {
-      throw new Error(`Unknown function: ${functionSelector}.`);
+      throw new Error(`Unknown function: ${functionSelector.toString('hex')}.`);
     }
     return abi;
   }

@@ -93,7 +93,7 @@ typename NCT::fr silo_commitment(typename NCT::address contract_address, typenam
         commitment,
     };
 
-    return NCT::compress(inputs, aztec3::GeneratorIndex::OUTER_COMMITMENT);
+    return NCT::hash(inputs, aztec3::GeneratorIndex::OUTER_COMMITMENT);
 }
 
 template <typename NCT>

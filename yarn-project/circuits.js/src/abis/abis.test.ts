@@ -1,5 +1,5 @@
 import times from 'lodash.times';
-import { Fr, FunctionData, FunctionLeafPreimage, NewContractData } from '../index.js';
+import { AztecAddress, Fr, FunctionData, FunctionLeafPreimage, NewContractData } from '../index.js';
 import { makeAztecAddress, makeEthAddress, makePoint, makeTxRequest, makeVerificationKey } from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import {
@@ -12,6 +12,8 @@ import {
   hashConstructor,
   hashTxRequest,
   hashVK,
+  siloCommitment,
+  siloNullifier,
 } from './abis.js';
 
 describe('abis wasm bindings', () => {
@@ -81,6 +83,20 @@ describe('abis wasm bindings', () => {
     const treeRoot = new Fr(3n);
     const constructorHash = new Fr(4n);
     const res = computeContractAddress(wasm, deployerPubKey, contractAddrSalt, treeRoot, constructorHash);
+    expect(res).toMatchSnapshot();
+  });
+
+  it('computes siloed commitment', () => {
+    const contractAddress = new AztecAddress(new Fr(123n).toBuffer());
+    const innerCommitment = new Fr(456);
+    const res = siloCommitment(wasm, contractAddress, innerCommitment);
+    expect(res).toMatchSnapshot();
+  });
+
+  it('computes siloed nullifier', () => {
+    const contractAddress = new AztecAddress(new Fr(123n).toBuffer());
+    const innerNullifier = new Fr(456);
+    const res = siloNullifier(wasm, contractAddress, innerNullifier);
     expect(res).toMatchSnapshot();
   });
 

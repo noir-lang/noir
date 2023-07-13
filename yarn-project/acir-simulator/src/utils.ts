@@ -1,4 +1,3 @@
-import { MAPPING_SLOT_PEDERSEN_CONSTANT } from './client/simulator.js';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { CircuitsWasm } from '@aztec/circuits.js';
@@ -27,7 +26,7 @@ export function computeSlotForMapping(mappingSlot: Fr, owner: NoirPoint | Fr, bb
   return Fr.fromBuffer(
     pedersenPlookupCommitInputs(
       bbWasm,
-      [MAPPING_SLOT_PEDERSEN_CONSTANT, mappingSlot, ownerField].map(f => f.toBuffer()),
+      [mappingSlot, ownerField].map(f => f.toBuffer()),
     ),
   );
 }

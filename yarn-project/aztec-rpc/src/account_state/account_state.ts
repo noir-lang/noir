@@ -1,4 +1,9 @@
-import { AcirSimulator, collectEncryptedLogs, collectEnqueuedPublicFunctionCalls } from '@aztec/acir-simulator';
+import {
+  AcirSimulator,
+  collectEncryptedLogs,
+  collectEnqueuedPublicFunctionCalls,
+  collectUnencryptedLogs,
+} from '@aztec/acir-simulator';
 import { AztecNode } from '@aztec/aztec-node';
 import {
   CircuitsWasm,
@@ -6,6 +11,8 @@ import {
   PartialContractAddress,
   PrivateHistoricTreeRoots,
 } from '@aztec/circuits.js';
+import { siloNullifier } from '@aztec/circuits.js/abis';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, FunctionType, generateFunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -26,9 +33,6 @@ import {
   TxExecutionRequest,
   TxL2Logs,
 } from '@aztec/types';
-import { collectUnencryptedLogs } from '@aztec/acir-simulator';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database, NoteSpendingInfoDao, TxDao } from '../database/index.js';
 import { KernelOracle } from '../kernel_oracle/index.js';
@@ -360,7 +364,7 @@ export class AccountState {
               userPertainingTxIndices.add(indexOfTxInABlock);
               noteSpendingInfoDaos.push({
                 ...noteSpendingInfo,
-                nullifier: await this.computeNullifier(noteSpendingInfo),
+                nullifier: await this.computeSiloedNullifier(noteSpendingInfo),
                 index: BigInt(dataStartIndex + logIndexWithinBlock),
                 account: this.publicKey,
               });
@@ -393,18 +397,10 @@ export class AccountState {
    * @param noteSpendingInfo - An instance of NoteSpendingInfo containing transaction details.
    * @returns A Fr instance representing the computed nullifier.
    */
-  private async computeNullifier(noteSpendingInfo: NoteSpendingInfo) {
+  private async computeSiloedNullifier({ contractAddress, storageSlot, notePreimage }: NoteSpendingInfo) {
     const simulator = await this.getAcirSimulator();
-    // TODO In the future, we'll need to simulate an unconstrained fn associated with the contract ABI and slot
-    return Fr.fromBuffer(
-      simulator.computeSiloedNullifier(
-        noteSpendingInfo.contractAddress,
-        noteSpendingInfo.storageSlot,
-        noteSpendingInfo.notePreimage.items,
-        await this.keyStore.getAccountPrivateKey(this.publicKey),
-        await CircuitsWasm.get(),
-      ),
-    );
+    const nullifier = await simulator.computeNullifier(contractAddress, storageSlot, notePreimage.items);
+    return siloNullifier(await CircuitsWasm.get(), contractAddress, nullifier);
   }
 
   /**

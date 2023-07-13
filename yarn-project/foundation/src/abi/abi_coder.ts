@@ -10,8 +10,18 @@ import { ABIParameter, ABIType } from '@aztec/foundation/abi';
  * @param parameters - An array of ABIParameter objects, each containing the type information of a function parameter.
  * @returns A string representing the function signature.
  */
-export function generateFunctionSignature(name: string, parameters: ABIParameter[]) {
+export function computeFunctionSignature(name: string, parameters: ABIParameter[]) {
   return name === 'constructor' ? name : `${name}(${parameters.map(p => p.type.kind).join(',')})`;
+}
+
+/**
+ * Generate a function selector for a given function signature.
+ * @param signature - The signature of the function.
+ * @param size - Number of bytes of the return buffer.
+ * @returns A Buffer containing the n-byte function selector.
+ */
+export function computeFunctionSelector(signature: string, size: number) {
+  return keccak(Buffer.from(signature)).slice(0, size);
 }
 
 /**
@@ -23,7 +33,7 @@ export function generateFunctionSignature(name: string, parameters: ABIParameter
  * @returns A Buffer containing the 4-byte function selector.
  */
 export function generateFunctionSelector(name: string, parameters: ABIParameter[]) {
-  const signature = generateFunctionSignature(name, parameters);
+  const signature = computeFunctionSignature(name, parameters);
   return keccak(Buffer.from(signature)).slice(0, 4);
 }
 

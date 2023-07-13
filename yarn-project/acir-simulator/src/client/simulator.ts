@@ -1,24 +1,18 @@
-import { pedersenCompressWithHashIndex, pedersenPlookupCommitInputs, Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { CallContext, CircuitsWasm, PrivateHistoricTreeRoots, TxContext } from '@aztec/circuits.js';
-import { FunctionAbi, FunctionType } from '@aztec/foundation/abi';
+import { CallContext, FunctionData, PrivateHistoricTreeRoots, TxContext } from '@aztec/circuits.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
+import { ArrayType, FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { ExecutionRequest, TxExecutionRequest } from '@aztec/types';
+import { PackedArgsCache } from '../packed_args_cache.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { DBOracle } from './db_oracle.js';
+import { ExecutionResult } from './execution_result.js';
+import { computeNoteHashAndNullifierSelector, computeNoteHashAndNullifierSignature } from './function_selectors.js';
 import { PrivateFunctionExecution } from './private_execution.js';
 import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
-import { ExecutionResult } from './execution_result.js';
-import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { PackedArgsCache } from '../packed_args_cache.js';
-
-export const NOTE_PEDERSEN_CONSTANT = new Fr(2n);
-export const MAPPING_SLOT_PEDERSEN_CONSTANT = new Fr(4n);
-export const NULLIFIER_PEDERSEN_CONSTANT = new Fr(5n);
-export const MESSAGE_SECRET_PEDERSEN_CONSTANT = new Fr(29n);
-
-const OUTER_NULLIFIER_GENERATOR_INDEX = 7;
 
 /**
  * The ACIR simulator.
@@ -125,59 +119,68 @@ export class AcirSimulator {
     return execution.run();
   }
 
-  // TODO Should be run as unconstrained function
   /**
-   * Computes the hash of a note.
-   * @param storageSlot - The storage slot.
-   * @param notePreimage - The note preimage.
-   * @param bbWasm - The WASM instance.
-   * @returns The note hash.
-   */
-  public computeNoteHash(storageSlot: Fr, notePreimage: Fr[], bbWasm: CircuitsWasm) {
-    // TODO: Remove index for inner note hash.
-    const innerNoteHash = pedersenPlookupCommitInputs(bbWasm, [
-      NOTE_PEDERSEN_CONSTANT.toBuffer(),
-      ...notePreimage.map(x => x.toBuffer()),
-    ]);
-    return pedersenPlookupCommitInputs(bbWasm, [storageSlot.toBuffer(), innerNoteHash]);
-  }
-
-  // TODO Should be run as unconstrained function
-  /**
-   * Computes the nullifier of a note.
-   * @param storageSlot - The storage slot.
-   * @param notePreimage - The note preimage.
-   * @param privateKey - The private key of the owner.
-   * @param bbWasm - The WASM instance.
-   * @returns The nullifier.
-   */
-  public computeNullifier(storageSlot: Fr, notePreimage: Fr[], privateKey: Buffer, bbWasm: CircuitsWasm) {
-    const noteHash = this.computeNoteHash(storageSlot, notePreimage, bbWasm);
-    return pedersenPlookupCommitInputs(bbWasm, [noteHash, privateKey]);
-  }
-
-  // TODO Should be run as unconstrained function
-  /**
-   * Computes a nullifier siloed to a contract.
+   * Computes the inner nullifier of a note.
    * @param contractAddress - The address of the contract.
    * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
-   * @param privateKey - The private key of the owner.
-   * @param bbWasm - The WASM instance.
-   * @returns The siloed nullifier.
+   * @returns The nullifier.
    */
-  public computeSiloedNullifier(
-    contractAddress: AztecAddress,
-    storageSlot: Fr,
-    notePreimage: Fr[],
-    privateKey: Buffer,
-    bbWasm: CircuitsWasm,
-  ) {
-    const nullifier = this.computeNullifier(storageSlot, notePreimage, privateKey, bbWasm);
-    return pedersenCompressWithHashIndex(
-      bbWasm,
-      [contractAddress.toBuffer(), nullifier],
-      OUTER_NULLIFIER_GENERATOR_INDEX,
+  public async computeNoteHashAndNullifier(contractAddress: AztecAddress, storageSlot: Fr, notePreimage: Fr[]) {
+    const abi = await this.db.getFunctionABI(contractAddress, computeNoteHashAndNullifierSelector);
+    if (!abi) {
+      throw new Error(
+        `Please define an unconstrained function "${computeNoteHashAndNullifierSignature}" in the noir contract.`,
+      );
+    }
+
+    const preimageLen = (abi.parameters[2].type as ArrayType).length;
+    const extendedPreimage = notePreimage.concat(Array(preimageLen - notePreimage.length).fill(Fr.ZERO));
+
+    const execRequest: ExecutionRequest = {
+      from: AztecAddress.ZERO,
+      to: AztecAddress.ZERO,
+      functionData: FunctionData.empty(),
+      args: encodeArguments(abi, [contractAddress, storageSlot, extendedPreimage]),
+    };
+
+    const [result] = await this.runUnconstrained(
+      execRequest,
+      abi,
+      AztecAddress.ZERO,
+      EthAddress.ZERO,
+      PrivateHistoricTreeRoots.empty(),
     );
+
+    return {
+      noteHash: new Fr(result[0]),
+      nullifier: new Fr(result[1]),
+    };
+  }
+
+  /**
+   * Computes the inner note hash of a note, which contains storage slot and the custom note hash.
+   * @param contractAddress - The address of the contract.
+   * @param storageSlot - The storage slot.
+   * @param notePreimage - The note preimage.
+   * @param abi - The ABI of the function `compute_note_hash`.
+   * @returns The note hash.
+   */
+  public async computeNoteHash(contractAddress: AztecAddress, storageSlot: Fr, notePreimage: Fr[]) {
+    const { noteHash } = await this.computeNoteHashAndNullifier(contractAddress, storageSlot, notePreimage);
+    return noteHash;
+  }
+
+  /**
+   * Computes the inner note hash of a note, which contains storage slot and the custom note hash.
+   * @param contractAddress - The address of the contract.
+   * @param storageSlot - The storage slot.
+   * @param notePreimage - The note preimage.
+   * @param abi - The ABI of the function `compute_note_hash`.
+   * @returns The note hash.
+   */
+  public async computeNullifier(contractAddress: AztecAddress, storageSlot: Fr, notePreimage: Fr[]) {
+    const { nullifier } = await this.computeNoteHashAndNullifier(contractAddress, storageSlot, notePreimage);
+    return nullifier;
   }
 }

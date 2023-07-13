@@ -32,7 +32,7 @@ impl<Note, N> Singleton<Note, N> {
     fn compute_initialisation_nullifier(self) -> Field {
         let storage_slot = self.storage_slot;
         dep::std::hash::pedersen([
-            generators::SINGLETON_INITIALISATION,
+            generators::INITIALISATION_NULLIFIER,
             storage_slot,
         ])[0]
     }
