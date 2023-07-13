@@ -188,7 +188,7 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         })
 }
 
-/// function_modifiers: 'unconstrained'? 'open'? 'internal'? 
+/// function_modifiers: 'unconstrained'? 'open'? 'internal'?
 ///
 /// returns (is_unconstrained, is_open, is_internal) for whether each keyword was present
 fn function_modifiers() -> impl NoirParser<(bool, bool, bool)> {
@@ -1529,7 +1529,14 @@ mod test {
 
     #[test]
     fn parse_block() {
-        parse_with(block(expression()), "{ [0,1,2,3,4] }").unwrap();
+        parse_all(
+            block(expression()),
+            vec![
+                "{ [0,1,2,3,4] }",
+                // Regression for #1310: this should be parsed as a block and not a function call
+                "{ if true { 1 } else { 2 } (3, 4) }",
+            ],
+        );
 
         parse_all_failing(
             block(expression()),
