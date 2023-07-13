@@ -19,4 +19,5 @@ toml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+noirc_errors.workspace = true
 regex = "1.9.1"

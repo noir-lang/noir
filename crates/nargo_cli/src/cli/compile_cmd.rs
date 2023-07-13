@@ -1,5 +1,7 @@
+use acvm::acir::circuit::OpcodeLabel;
 use acvm::{acir::circuit::Circuit, Backend};
 use iter_extended::try_vecmap;
+use iter_extended::vecmap;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use noirc_driver::{
     compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
@@ -68,8 +70,7 @@ pub(crate) fn run<B: Backend>(
             try_vecmap(contracts, |contract| {
                 let preprocessed_contract_functions =
                     try_vecmap(contract.functions, |mut func| {
-                        func.bytecode = optimize_circuit(backend, func.bytecode)?;
-
+                        func.bytecode = optimize_circuit(backend, func.bytecode)?.0;
                         common_reference_string = update_common_reference_string(
                             backend,
                             &common_reference_string,
@@ -100,13 +101,12 @@ pub(crate) fn run<B: Backend>(
             );
         }
     } else {
-        let program = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
-
+        let (program, _) = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
 
-        let preprocessed_program =
+        let (preprocessed_program, _) =
             preprocess_program(backend, args.include_keys, &common_reference_string, program)
                 .map_err(CliError::ProofSystemCompilerError)?;
         save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
@@ -121,27 +121,37 @@ pub(crate) fn compile_circuit<B: Backend>(
     backend: &B,
     program_dir: &Path,
     compile_options: &CompileOptions,
-) -> Result<CompiledProgram, CliError<B>> {
+) -> Result<(CompiledProgram, Context), CliError<B>> {
     let mut context = resolve_root_manifest(program_dir)?;
     let result = compile_main(&mut context, compile_options);
     let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
 
     // Apply backend specific optimizations.
-    program.circuit = optimize_circuit(backend, program.circuit).unwrap();
-    Ok(program)
+    let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit)
+        .expect("Backend does not support an opcode that is in the IR");
+
+    program.circuit = optimized_circuit;
+    let opcode_ids = vecmap(opcode_labels, |label| match label {
+        OpcodeLabel::Unresolved => {
+            unreachable!("Compiled circuit opcodes must resolve to some index")
+        }
+        OpcodeLabel::Resolved(index) => index as usize,
+    });
+    program.debug.update_acir(opcode_ids);
+
+    Ok((program, context))
 }
 
 pub(super) fn optimize_circuit<B: Backend>(
     backend: &B,
     circuit: Circuit,
-) -> Result<Circuit, CliError<B>> {
-    let (optimized_circuit, _): (Circuit, Vec<acvm::acir::circuit::OpcodeLabel>) =
-        acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
-            backend.supports_opcode(opcode)
-        })
-        .map_err(|_| NargoError::CompilationError)?;
+) -> Result<(Circuit, Vec<OpcodeLabel>), CliError<B>> {
+    let result = acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
+        backend.supports_opcode(opcode)
+    })
+    .map_err(|_| NargoError::CompilationError)?;
 
-    Ok(optimized_circuit)
+    Ok(result)
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>

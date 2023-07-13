@@ -236,7 +236,7 @@ impl Context {
         allow_log_ops: bool,
     ) {
         let instruction = &dfg[instruction_id];
-
+        self.acir_context.set_location(dfg.get_location(&instruction_id));
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self
@@ -343,6 +343,7 @@ impl Context {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
         }
+        self.acir_context.set_location(None);
     }
 
     fn gen_brillig_for(&self, func: &Function, brillig: &Brillig) -> Vec<Opcode> {
@@ -356,7 +357,7 @@ impl Context {
         while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
             let artifact = &brillig
                 .find_by_function_label(unresolved_fn_label.clone())
-                .expect("Cannot find linked fn {unresolved_fn_label}");
+                .unwrap_or_else(|| panic!("Cannot find linked fn {unresolved_fn_label}"));
             entry_point.link_with(artifact);
         }
         // Generate the final bytecode

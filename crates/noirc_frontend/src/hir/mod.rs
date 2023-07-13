@@ -95,6 +95,16 @@ impl Context {
             .collect()
     }
 
+    pub fn get_all_test_functions_in_workspace_matching(&self, pattern: &str) -> Vec<FuncId> {
+        let mut tests = Vec::new();
+
+        for crate_id in self.crate_graph.iter_keys() {
+            tests.extend(self.get_all_test_functions_in_crate_matching(&crate_id, pattern));
+        }
+
+        tests
+    }
+
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain
     pub fn get_all_contracts(&self, crate_id: &CrateId) -> Vec<Contract> {
         self.def_map(crate_id)
