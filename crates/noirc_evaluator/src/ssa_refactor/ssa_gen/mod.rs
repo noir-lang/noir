@@ -362,6 +362,7 @@ impl<'a> FunctionContext<'a> {
     /// Generate SSA for a function call. Note that calls to built-in functions
     /// and intrinsics are also represented by the function call instruction.
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
+        // dbg!(call.clone());
         let function = self.codegen_non_tuple_expression(&call.func);
         let arguments = call
             .arguments

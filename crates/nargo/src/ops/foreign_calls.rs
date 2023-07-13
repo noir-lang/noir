@@ -92,9 +92,10 @@ impl ForeignCall {
             foreign_call_inputs.split_first().ok_or(ForeignCallError::MissingForeignCallInputs)?;
         // Fetch the abi type from the foreign call input
         let (abi_type, input_values) = fetch_abi_type(input_and_abi_values)?;
-
+        dbg!(input_values.clone());
+        dbg!(abi_type.clone());
         let input_values_as_fields = vecmap(input_values[0].iter(), |value| value.to_field());
-
+        dbg!(input_values_as_fields.clone());
         let mut output_strings = Vec::new();
 
         // This currently only works for arrays of single values
