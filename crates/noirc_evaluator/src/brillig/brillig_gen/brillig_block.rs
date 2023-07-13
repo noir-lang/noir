@@ -438,7 +438,6 @@ impl<'block> BrilligBlock<'block> {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
-                dbg!(value.clone());
                 self.function_context.get_or_create_register(self.brillig_context, value_id)
             }
             Value::NumericConstant { constant, .. } => {
