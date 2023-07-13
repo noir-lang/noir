@@ -53,8 +53,10 @@ pub struct Workspace {
 }
 
 #[derive(Default, Debug, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct WorkspaceConfig {
     pub members: Vec<String>,
+    pub default_member: Option<String>,
 }
 
 #[allow(dead_code)]
@@ -103,6 +105,17 @@ fn parse_workspace_toml() {
     let src = r#"
         [workspace]
         members = ["a", "b"]
+    "#;
+
+    assert!(Manifest::from_toml_str(src).is_ok());
+}
+
+#[test]
+fn parse_workspace_default_member_toml() {
+    let src = r#"
+        [workspace]
+        members = ["a", "b"]
+        default-member = "a"
     "#;
 
     assert!(Manifest::from_toml_str(src).is_ok());
