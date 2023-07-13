@@ -10,6 +10,31 @@ pub struct PackageManifest {
     pub dependencies: BTreeMap<String, Dependency>,
 }
 
+/// Contains all the information about a package, as loaded from a `Nargo.toml`.
+/// Represents a manifest, which can be either a package manifest or a workspace manifest.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum Manifest {
+    /// Represents a package manifest.
+    Package(PackageManifest),
+    /// Represents a workspace manifest.
+    Workspace(Workspace),
+}
+
+impl Manifest {
+    pub fn from_toml_str(toml_as_string: &str) -> Result<Self, InvalidPackageError> {
+        let manifest = toml::from_str(toml_as_string)?;
+        Ok(manifest)
+    }
+
+    pub fn to_package(self) -> Option<PackageManifest> {
+        match self {
+            Self::Package(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
 impl PackageManifest {
     /// Returns whether the package has a local dependency.
     // Local paths are usually relative and are discouraged when sharing libraries
@@ -17,15 +42,23 @@ impl PackageManifest {
     pub fn has_local_dependency(&self) -> bool {
         self.dependencies.values().any(|dep| matches!(dep, Dependency::Path { .. }))
     }
+}
 
-    pub fn from_toml_str(toml_as_string: &str) -> Result<Self, InvalidPackageError> {
-        let manifest = toml::from_str::<PackageManifest>(toml_as_string)?;
-        Ok(manifest)
-    }
+/// Configuration of a workspace in a manifest.
+/// Indicates that `[workspace]` was present and the members were specified as well.
+#[derive(Debug, Deserialize, Clone)]
+pub struct Workspace {
+    #[serde(rename = "workspace")]
+    pub config: WorkspaceConfig,
+}
+
+#[derive(Default, Debug, Deserialize, Clone)]
+pub struct WorkspaceConfig {
+    pub members: Vec<String>,
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
     // Note: a package name is not needed unless there is a registry
     authors: Vec<String>,
@@ -62,5 +95,15 @@ fn parse_standard_toml() {
         hello = {path = "./noir_driver"}
     "#;
 
-    assert!(PackageManifest::from_toml_str(src).is_ok());
+    assert!(Manifest::from_toml_str(src).is_ok());
+}
+
+#[test]
+fn parse_workspace_toml() {
+    let src = r#"
+        [workspace]
+        members = ["a", "b"]
+    "#;
+
+    assert!(Manifest::from_toml_str(src).is_ok());
 }
