@@ -56,5 +56,8 @@
     "src",
     "!*.test.*"
   ],
-  "types": "./dest/index.d.ts"
+  "types": "./dest/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  }
 }

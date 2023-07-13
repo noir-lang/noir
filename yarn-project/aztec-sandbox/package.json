@@ -55,5 +55,8 @@
     },
     "testRegex": "./src/.*\\.test\\.ts$",
     "rootDir": "./src"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
