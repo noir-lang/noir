@@ -843,6 +843,7 @@ impl Binary {
     ) -> Option<FieldElement> {
         match operand_type {
             Type::Numeric(NumericType::NativeField) => Some(lhs / rhs),
+            // For integer types we cannot do field division, see #1923
             Type::Numeric(_other) => match (lhs.try_into_u128(), rhs.try_into_u128()) {
                 (Some(lhs), Some(rhs)) => Some((lhs / rhs).into()),
                 _ => None,
