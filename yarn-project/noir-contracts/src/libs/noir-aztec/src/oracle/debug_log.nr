@@ -7,6 +7,8 @@ fn debug_log_oracle<T, N>(_msg: T, _num_args: Field) -> Field {}
 fn debug_log_format_oracle<T, N>(_msg: T, _args: [Field; N], _num_args: Field) -> Field {}
 #[oracle(debugLog)]
 fn debug_log_field_oracle(_field: Field) -> Field {}
+#[oracle(debugLog)]
+fn debug_log_array_oracle<T, N>(_arbitrary_array: [T;N]) -> Field {}
 
 /// NOTE: call this with a str<N> msg of length > 1
 /// Example:
@@ -29,4 +31,10 @@ unconstrained fn debug_log_format<T, N>(msg: T, args: [Field; N]) {
 /// `debug_log_field(my_field);`
 unconstrained fn debug_log_field(field: Field) {
     assert(debug_log_field_oracle(field) == 0);
+}
+
+/// Example:
+/// `debug_log_array(my_array);`
+unconstrained fn debug_log_array<T, N>(arbitrary_array: [T; N]) {
+    assert(debug_log_array_oracle(arbitrary_array) == 0);
 }

@@ -48,14 +48,14 @@ function applyStringFormatting(formatStr: string, args: ACVMField[]): string {
 /**
  * Convert an array of ACVMFields from ACVM to a formatted string.
  *
- * @param parameters - either one parameter representing a simple field, or two parameters when
+ * @param parameters - either one parameter representing a simple field or array, or two parameters when
  * It's a message without args or three parameters when it's a message with arguments.
  *
  * @returns formatted string
  */
 export function oracleDebugCallToFormattedStr(parameters: ForeignCallInput[]): string {
   if (parameters.length === 1) {
-    return `${parameters[0][0]}`;
+    return processFieldOrArray(parameters[0]);
   }
 
   let formatArgs: string[] = [];
@@ -67,4 +67,42 @@ export function oracleDebugCallToFormattedStr(parameters: ForeignCallInput[]): s
   const formattedMsg = applyStringFormatting(acvmFieldMessageToString(parameters[0]), formatArgs);
 
   return formattedMsg;
+}
+
+/**
+ * Processes a field or an array and returns a string representation.
+ * @param fieldOrArray - The field or array to be processed.
+ * @returns Returns the processed string representation of the field or array.
+ */
+function processFieldOrArray(fieldOrArray: string[]) {
+  if (fieldOrArray.length === 1) {
+    return `${fieldOrArray[0]}`;
+  }
+
+  // Check if all the elements start with 63 zero bytes
+  // --> if yes, we have an array of bytes and we print as decimal values
+  if (onlyBytes(fieldOrArray)) {
+    const decimalArray = fieldOrArray.map(element => parseInt(element, 16));
+    return '[' + decimalArray.join(', ') + ']';
+  }
+
+  return '[' + fieldOrArray.join(', ') + ']';
+}
+
+/**
+ * Checks if all elements in the array are valid byte representations.
+ * @param array - The array to be checked.
+ * @returns Returns `true` if all elements are valid byte representations, `false` otherwise.
+ * @throws Throws an error if any element has an invalid length.
+ */
+function onlyBytes(array: string[]): boolean {
+  for (const element of array) {
+    if (element.length != 66) {
+      throw new Error('Invalid element length. Expected 66 chars, got ' + element.length + ' chars.');
+    }
+    if (!element.startsWith('0x00000000000000000000000000000000000000000000000000000000000000')) {
+      return false;
+    }
+  }
+  return true;
 }
