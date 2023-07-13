@@ -1,9 +1,9 @@
+mod lib_hacky;
+use std::env;
+
 use std::{
-    collections::HashMap,
-    fs,
     future::Future,
     ops::{self, ControlFlow},
-    path::{Path, PathBuf},
     pin::Pin,
     task::{self, Poll},
 };
@@ -30,7 +30,7 @@ const TEST_COMMAND: &str = "nargo.test";
 const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
-struct LspState {
+pub struct LspState {
     client: ClientSocket,
 }
 
@@ -46,6 +46,35 @@ pub struct NargoLspService {
 
 impl NargoLspService {
     pub fn new(client: &ClientSocket) -> Self {
+        // Using conditional running with lib_hacky to prevent non-hacky code from being identified as dead code
+        // Secondarily, provides a runtime way to stress the non-hacky code.
+        if env::var("NOIR_LSP_NO_HACK").is_err() {
+            let state = LspState::new(client);
+            let mut router = Router::new(state);
+            router
+                .request::<request::Initialize, _>(lib_hacky::on_initialize)
+                .request::<request::Shutdown, _>(lib_hacky::on_shutdown)
+                .request::<request::CodeLensRequest, _>(lib_hacky::on_code_lens_request)
+                .notification::<notification::Initialized>(lib_hacky::on_initialized)
+                .notification::<notification::DidChangeConfiguration>(
+                    lib_hacky::on_did_change_configuration,
+                )
+                .notification::<notification::DidOpenTextDocument>(
+                    lib_hacky::on_did_open_text_document,
+                )
+                .notification::<notification::DidChangeTextDocument>(
+                    lib_hacky::on_did_change_text_document,
+                )
+                .notification::<notification::DidCloseTextDocument>(
+                    lib_hacky::on_did_close_text_document,
+                )
+                .notification::<notification::DidSaveTextDocument>(
+                    lib_hacky::on_did_save_text_document,
+                )
+                .notification::<notification::Exit>(lib_hacky::on_exit);
+            return Self { router };
+        }
+
         let state = LspState::new(client);
         let mut router = Router::new(state);
         router
@@ -134,8 +163,11 @@ fn on_code_lens_request(
     _state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
-    let actual_path = params.text_document.uri.to_file_path().unwrap();
-    let mut driver = create_driver_at_path(actual_path);
+    let file_path = &params.text_document.uri.to_file_path().unwrap();
+
+    let mut context = Context::default();
+
+    let crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
@@ -214,76 +246,31 @@ fn on_did_close_text_document(
     ControlFlow::Continue(())
 }
 
-/// Find the nearest parent file with given names.
-fn find_nearest_parent_file(path: &Path, filenames: &[&str]) -> Option<PathBuf> {
-    let mut current_path = path;
-
-    while let Some(parent_path) = current_path.parent() {
-        for filename in filenames {
-            let mut possible_file_path = parent_path.to_path_buf();
-            possible_file_path.push(filename);
-            if possible_file_path.is_file() {
-                return Some(possible_file_path);
-            }
-        }
-        current_path = parent_path;
-    }
-
-    None
-}
-
-fn read_dependencies(
-    nargo_toml_path: &Path,
-) -> Result<HashMap<String, String>, Box<dyn std::error::Error>> {
-    let content: String = fs::read_to_string(nargo_toml_path)?;
-    let value: toml::Value = toml::from_str(&content)?;
-
-    let mut dependencies = HashMap::new();
-
-    if let Some(toml::Value::Table(table)) = value.get("dependencies") {
-        for (key, value) in table {
-            if let toml::Value::Table(inner_table) = value {
-                if let Some(toml::Value::String(path)) = inner_table.get("path") {
-                    dependencies.insert(key.clone(), path.clone());
-                }
-            }
-        }
-    }
-
-    Ok(dependencies)
-}
-
 fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let actual_path = params.text_document.uri.to_file_path().unwrap();
-    let mut driver = create_driver_at_path(actual_path.clone());
+    let file_path = &params.text_document.uri.to_file_path().unwrap();
+
+    let mut context = Context::default();
+
+    create_local_crate(&mut context, file_path, CrateType::Binary);
+
+    let mut diagnostics = Vec::new();
 
     let file_diagnostics = match check_crate(&mut context, false, false) {
         Ok(warnings) => warnings,
         Err(errors_and_warnings) => errors_and_warnings,
     };
-    let mut diagnostics = Vec::new();
 
     if !file_diagnostics.is_empty() {
         let fm = &context.file_manager;
         let files = fm.as_simple_files();
 
         for FileDiagnostic { file_id, diagnostic } in file_diagnostics {
-            // TODO(AD): HACK, undo these total hacks once we have a proper approach
-            if file_id.as_usize() == 0 {
-                // main.nr case
-                if actual_path.file_name().unwrap().to_str() != Some("main.nr")
-                    && actual_path.file_name().unwrap().to_str() != Some("lib.nr")
-                {
-                    continue;
-                }
-            } else if fm.path(file_id).file_name().unwrap().to_str().unwrap()
-                != actual_path.file_name().unwrap().to_str().unwrap().replace(".nr", "")
-            {
-                // every other file case
-                continue; // TODO(AD): HACK, we list all errors, filter by hacky final path component
+            // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
+            if file_id.as_usize() != 0 {
+                continue;
             }
 
             let mut range = Range::default();
@@ -315,37 +302,6 @@ fn on_did_save_text_document(
     });
 
     ControlFlow::Continue(())
-}
-
-fn create_driver_at_path(actual_path: PathBuf) -> Driver {
-    // TODO: Requiring `Language` and `is_opcode_supported` to construct a driver makes for some real stinky code
-    // The driver should not require knowledge of the backend; instead should be implemented as an independent pass (in nargo?)
-    let mut driver = Driver::new(&Language::R1CS, Box::new(|_op| false));
-
-    let mut file_path: PathBuf = actual_path;
-    // TODO better naming/unhacking
-    if let Some(new_path) = find_nearest_parent_file(&file_path, &["lib.nr", "main.nr"]) {
-        file_path = new_path; // TODO unhack
-    }
-    let nargo_toml_path = find_nearest_parent_file(&file_path, &["Nargo.toml"]);
-
-    driver.create_local_crate(file_path, CrateType::Binary);
-
-    // TODO(AD): undo hacky dependency resolution
-    if let Some(nargo_toml_path) = nargo_toml_path {
-        let dependencies = read_dependencies(&nargo_toml_path);
-        if let Ok(dependencies) = dependencies {
-            for (crate_name, dependency_path) in dependencies.iter() {
-                let path_to_lib = nargo_toml_path
-                    .parent()
-                    .unwrap() // TODO
-                    .join(PathBuf::from(&dependency_path).join("src").join("lib.nr"));
-                let library_crate = driver.create_non_local_crate(path_to_lib, CrateType::Library);
-                driver.propagate_dep(library_crate, &CrateName::new(crate_name).unwrap());
-            }
-        }
-    }
-    driver
 }
 
 fn on_exit(_state: &mut LspState, _params: ()) -> ControlFlow<Result<(), async_lsp::Error>> {
