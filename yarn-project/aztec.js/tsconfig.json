@@ -13,9 +13,6 @@
       "path": "../foundation"
     },
     {
-      "path": "../noir-contracts"
-    },
-    {
       "path": "../types"
     }
   ],

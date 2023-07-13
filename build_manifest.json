@@ -119,7 +119,8 @@
     "dependencies": [
       "aztec.js",
       "ethereum",
-      "foundation"
+      "foundation",
+      "noir-contracts"
     ]
   },
   "aztec-rpc": {
@@ -164,7 +165,6 @@
     "dependencies": [
       "circuits.js",
       "foundation",
-      "noir-contracts",
       "types"
     ]
   },

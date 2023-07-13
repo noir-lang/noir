@@ -14,6 +14,9 @@
     },
     {
       "path": "../foundation"
+    },
+    {
+      "path": "../noir-contracts"
     }
   ],
   "include": ["src"],

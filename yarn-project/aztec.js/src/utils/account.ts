@@ -1,8 +1,8 @@
 import { CircuitsWasm, Fr, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { ContractAbi } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecRPC, TxStatus } from '@aztec/types';
-import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
 
 import { AccountWallet, Wallet } from '../aztec_rpc_client/wallet.js';
@@ -20,21 +20,21 @@ import {
  */
 export async function createAccounts(
   aztecRpcClient: AztecRPC,
+  accountContractAbi: ContractAbi,
   privateKey?: Buffer,
   salt = Fr.random(),
   numberOfAccounts = 1,
   logger = createDebugLogger('aztec:aztec.js:accounts'),
 ): Promise<Wallet> {
-  const accountAbi = SchnorrAccountContractAbi;
   const accountImpls = new AccountCollection();
   const wasm = await CircuitsWasm.get();
   for (let i = 0; i < numberOfAccounts; ++i) {
     // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key
     const privKey = i == 0 && privateKey ? privateKey : randomBytes(32);
     const publicKey = await generatePublicKey(privKey);
-    const deploymentInfo = await getContractDeploymentInfo(accountAbi, [], salt, publicKey);
-    await aztecRpcClient.addAccount(privKey, deploymentInfo.address, deploymentInfo.partialAddress, accountAbi);
-    const contractDeployer = new ContractDeployer(accountAbi, aztecRpcClient, publicKey);
+    const deploymentInfo = await getContractDeploymentInfo(accountContractAbi, [], salt, publicKey);
+    await aztecRpcClient.addAccount(privKey, deploymentInfo.address, deploymentInfo.partialAddress, accountContractAbi);
+    const contractDeployer = new ContractDeployer(accountContractAbi, aztecRpcClient, publicKey);
     const tx = contractDeployer.deploy().send({ contractAddressSalt: salt });
     await tx.isMined(0, 0.5);
     const receipt = await tx.getReceipt();
@@ -55,7 +55,7 @@ export async function createAccounts(
         publicKey,
         new SchnorrAuthProvider(await Schnorr.new(), privKey),
         deploymentInfo.partialAddress,
-        accountAbi,
+        accountContractAbi,
         wasm,
       ),
     );
@@ -69,12 +69,17 @@ export async function createAccounts(
  * @param numberOfAccounts - The number of accounts to fetch.
  * @returns An AccountWallet implementation that includes all the accounts found.
  */
-export async function getAccountWallet(aztecRpcClient: AztecRPC, privateKey: Buffer, salt: Fr) {
+export async function getAccountWallet(
+  aztecRpcClient: AztecRPC,
+  accountContractAbi: ContractAbi,
+  privateKey: Buffer,
+  salt: Fr,
+) {
   const wasm = await CircuitsWasm.get();
   const accountCollection = new AccountCollection();
   const publicKey = await generatePublicKey(privateKey);
   const address = await aztecRpcClient.getAccountAddress(publicKey);
-  const deploymentInfo = await getContractDeploymentInfo(SchnorrAccountContractAbi, [], salt, publicKey);
+  const deploymentInfo = await getContractDeploymentInfo(accountContractAbi, [], salt, publicKey);
 
   accountCollection.registerAccount(
     address,
@@ -83,7 +88,7 @@ export async function getAccountWallet(aztecRpcClient: AztecRPC, privateKey: Buf
       publicKey,
       new SchnorrAuthProvider(await Schnorr.new(), privateKey),
       deploymentInfo.partialAddress,
-      SchnorrAccountContractAbi,
+      accountContractAbi,
       wasm,
     ),
   );
