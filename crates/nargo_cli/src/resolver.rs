@@ -41,6 +41,14 @@ pub(crate) enum DependencyResolutionError {
     /// Dependency is not a valid crate
     #[error(transparent)]
     MalformedDependency(#[from] InvalidPackageError),
+
+    /// Workspace does not contain packages
+    #[error("manifest path `{}` contains no packages", path.display())]
+    EmptyWorkspace { path: PathBuf },
+
+    /// Use workspace as a dependency is not currently supported
+    #[error("use workspace as a dependency is not currently supported")]
+    WorkspaceDependency,
 }
 
 #[derive(Debug, Clone)]
@@ -80,7 +88,12 @@ pub(crate) fn resolve_root_manifest(
         }
         Manifest::Workspace(workspace) => {
             let members = workspace.config.members;
-            let root = dir_path.join(members.last().unwrap());
+            let root = match members.last() {
+                Some(member) => dir_path.join(member),
+                None => {
+                    return Err(DependencyResolutionError::EmptyWorkspace { path: manifest_path })
+                }
+            };
 
             let (entry_path, _crate_type) = super::lib_or_bin(root)?;
             let _local = create_local_crate(&mut context, entry_path, CrateType::Workspace);
@@ -155,7 +168,9 @@ fn cache_dep(
     ) -> Result<CachedDep, DependencyResolutionError> {
         let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
         let manifest_path = super::find_package_manifest(dir_path)?;
-        let manifest = super::manifest::parse(manifest_path)?.to_package().unwrap();
+        let manifest = super::manifest::parse(manifest_path)?
+            .to_package()
+            .ok_or(DependencyResolutionError::WorkspaceDependency)?;
         Ok(CachedDep { entry_path, crate_type, manifest, remote })
     }
 

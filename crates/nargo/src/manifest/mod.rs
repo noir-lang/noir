@@ -10,10 +10,14 @@ pub struct PackageManifest {
     pub dependencies: BTreeMap<String, Dependency>,
 }
 
+/// Contains all the information about a package, as loaded from a `Nargo.toml`.
+/// Represents a manifest, which can be either a package manifest or a workspace manifest.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum Manifest {
+    /// Represents a package manifest.
     Package(PackageManifest),
+    /// Represents a workspace manifest.
     Workspace(Workspace),
 }
 
