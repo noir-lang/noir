@@ -71,7 +71,9 @@ impl Ssa {
             .collect();
 
         while !reachability_queue.is_empty() {
-            let func = &self.functions[&reachability_queue.pop().unwrap()];
+            let func = &self.functions[&reachability_queue
+                .pop()
+                .expect("Queue should have already been checked for emptiness")];
             reachable_function_ids.insert(func.id());
             for (_, value) in func.dfg.values_iter() {
                 // All reachable functions appear as literals after defunctionalization of the SSA
