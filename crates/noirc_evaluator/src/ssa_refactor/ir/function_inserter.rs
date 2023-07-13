@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use iter_extended::vecmap;
+use noirc_errors::Location;
 
 use super::{
     basic_block::BasicBlockId,
@@ -55,13 +56,16 @@ impl<'f> FunctionInserter<'f> {
         self.values.insert(key, value);
     }
 
-    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> Instruction {
-        self.function.dfg[id].clone().map_values(|id| self.resolve(id))
+    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, Option<Location>) {
+        (
+            self.function.dfg[id].clone().map_values(|id| self.resolve(id)),
+            self.function.dfg.get_location(&id),
+        )
     }
 
     pub(crate) fn push_instruction(&mut self, id: InstructionId, block: BasicBlockId) {
-        let instruction = self.map_instruction(id);
-        self.push_instruction_value(instruction, id, block);
+        let (instruction, location) = self.map_instruction(id);
+        self.push_instruction_value(instruction, id, block, location);
     }
 
     pub(crate) fn push_instruction_value(
@@ -69,6 +73,7 @@ impl<'f> FunctionInserter<'f> {
         instruction: Instruction,
         id: InstructionId,
         block: BasicBlockId,
+        location: Option<Location>,
     ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));
@@ -77,8 +82,12 @@ impl<'f> FunctionInserter<'f> {
             .requires_ctrl_typevars()
             .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
 
-        let new_results =
-            self.function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars);
+        let new_results = self.function.dfg.insert_instruction_and_results(
+            instruction,
+            block,
+            ctrl_typevars,
+            location,
+        );
 
         Self::insert_new_instruction_results(&mut self.values, &results, &new_results);
         new_results
@@ -96,6 +105,11 @@ impl<'f> FunctionInserter<'f> {
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
                 values.insert(old_results[0], *new_result);
+            }
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => {
+                for (old_result, new_result) in old_results.iter().zip(new_results) {
+                    values.insert(*old_result, *new_result);
+                }
             }
             InsertInstructionResult::Results(new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(*new_results) {

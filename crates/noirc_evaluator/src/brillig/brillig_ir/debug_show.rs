@@ -1,7 +1,10 @@
 ///! This module contains functions for producing a higher level view disassembler of Brillig.
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterOrMemory, Value};
+use acvm::acir::brillig::{
+    BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, RegisterIndex, RegisterOrMemory,
+    Value,
+};
 
 /// Controls whether debug traces are enabled
 const ENABLE_DEBUG_TRACE: bool = true;
@@ -27,9 +30,23 @@ impl DebugToString for RegisterIndex {
     fn debug_to_string(&self) -> String {
         if *self == ReservedRegisters::stack_pointer() {
             "Stack".into()
+        } else if *self == ReservedRegisters::previous_stack_pointer() {
+            "PrevStack".into()
         } else {
             format!("R{}", self.to_usize())
         }
+    }
+}
+
+impl DebugToString for HeapArray {
+    fn debug_to_string(&self) -> String {
+        format!("{}[0..{}]", self.pointer.debug_to_string(), self.size)
+    }
+}
+
+impl DebugToString for HeapVector {
+    fn debug_to_string(&self) -> String {
+        format!("{}[0..{}]", self.pointer.debug_to_string(), self.size.debug_to_string())
     }
 }
 
@@ -100,12 +117,8 @@ impl DebugToString for RegisterOrMemory {
     fn debug_to_string(&self) -> String {
         match self {
             RegisterOrMemory::RegisterIndex(index) => index.debug_to_string(),
-            RegisterOrMemory::HeapArray(index, size) => {
-                format!("{}[0..{}]", index.debug_to_string(), size)
-            }
-            RegisterOrMemory::HeapVector(index, size_register) => {
-                format!("{}[0..*{}]", index.debug_to_string(), size_register.debug_to_string())
-            }
+            RegisterOrMemory::HeapArray(heap_array) => heap_array.debug_to_string(),
+            RegisterOrMemory::HeapVector(vector) => vector.debug_to_string(),
         }
     }
 }
@@ -203,6 +216,11 @@ pub(crate) fn allocate_array_instruction(
     debug_println!("  ALLOCATE_ARRAY {} SIZE {}", pointer_register, size_register);
 }
 
+/// Debug function for allocate_instruction
+pub(crate) fn allocate_instruction(pointer_register: RegisterIndex) {
+    debug_println!("  ALLOCATE {} ", pointer_register);
+}
+
 /// Debug function for array_get
 pub(crate) fn array_get(array_ptr: RegisterIndex, index: RegisterIndex, result: RegisterIndex) {
     debug_println!("  ARRAY_GET {}[{}] -> {}", array_ptr, index, result);
@@ -252,6 +270,72 @@ pub(crate) fn cast_instruction(
     target_bit_size: u32,
 ) {
     debug_println!("  CAST {} FROM {} TO {} BITS", destination, source, target_bit_size);
+}
+
+/// Debug function for black_box_op
+pub(crate) fn black_box_op_instruction(op: BlackBoxOp) {
+    match op {
+        BlackBoxOp::Sha256 { message, output } => {
+            debug_println!("  SHA256 {} -> {}", message, output);
+        }
+        BlackBoxOp::Keccak256 { message, output } => {
+            debug_println!("  KECCAK256 {} -> {}", message, output);
+        }
+        BlackBoxOp::Blake2s { message, output } => {
+            debug_println!("  BLAKE2S {} -> {}", message, output);
+        }
+        BlackBoxOp::HashToField128Security { message, output } => {
+            debug_println!("  HASH_TO_FIELD_128_SECURITY {} -> {}", message, output);
+        }
+        BlackBoxOp::EcdsaSecp256k1 {
+            hashed_msg,
+            public_key_x,
+            public_key_y,
+            signature,
+            result,
+        } => {
+            debug_println!(
+                "  ECDSA_SECP256K1 {} {} {} {} -> {}",
+                hashed_msg,
+                public_key_x,
+                public_key_y,
+                signature,
+                result
+            );
+        }
+        BlackBoxOp::EcdsaSecp256r1 {
+            hashed_msg,
+            public_key_x,
+            public_key_y,
+            signature,
+            result,
+        } => {
+            debug_println!(
+                "  ECDSA_SECP256R1 {} {} {} {} -> {}",
+                hashed_msg,
+                public_key_x,
+                public_key_y,
+                signature,
+                result
+            );
+        }
+        BlackBoxOp::FixedBaseScalarMul { input, result } => {
+            debug_println!("  FIXED_BASE_SCALAR_MUL {} -> {}", input, result);
+        }
+        BlackBoxOp::Pedersen { inputs, domain_separator, output } => {
+            debug_println!("  PEDERSEN {} {} -> {}", inputs, domain_separator, output);
+        }
+        BlackBoxOp::SchnorrVerify { public_key_x, public_key_y, message, signature, result } => {
+            debug_println!(
+                "  SCHNORR_VERIFY {} {} {} {} -> {}",
+                public_key_x,
+                public_key_y,
+                message,
+                signature,
+                result
+            );
+        }
+    }
 }
 
 /// Debug function for cast_instruction

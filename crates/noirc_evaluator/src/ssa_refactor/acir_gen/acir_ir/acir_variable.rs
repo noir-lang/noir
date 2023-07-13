@@ -4,7 +4,7 @@ use crate::ssa_refactor::acir_gen::AcirValue;
 use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::{
-    brillig_vm::Opcode as BrilligOpcode,
+    brillig::Opcode as BrilligOpcode,
     circuit::brillig::{BrilligInputs, BrilligOutputs},
 };
 
@@ -17,6 +17,7 @@ use acvm::{
     FieldElement,
 };
 use iter_extended::vecmap;
+use noirc_errors::Location;
 use std::collections::HashMap;
 use std::{borrow::Cow, hash::Hash};
 
@@ -121,6 +122,10 @@ impl AcirContext {
         let var_data = AcirVarData::Witness(var_index);
 
         self.add_data(var_data)
+    }
+
+    pub(crate) fn set_location(&mut self, location: Option<Location>) {
+        self.acir_ir.current_location = location;
     }
 
     /// True if the given AcirVar refers to a constant one value
@@ -590,11 +595,11 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
-        predicate: Option<AcirVar>,
+        predicate: AcirVar,
     ) -> Result<AcirVar, AcirGenError> {
         // Flip the result of calling more than equal method to
         // compute less than.
-        let comparison = self.more_than_eq_var(lhs, rhs, bit_size, predicate)?;
+        let comparison = self.more_than_eq_var(lhs, rhs, bit_size, Some(predicate))?;
 
         let one = self.add_constant(FieldElement::one());
         self.sub_var(one, comparison) // comparison_negated

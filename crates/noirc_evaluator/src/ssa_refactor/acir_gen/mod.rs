@@ -25,7 +25,7 @@ use super::{
     ssa_gen::Ssa,
 };
 use acvm::{
-    acir::{brillig_vm::Opcode, native_types::Expression},
+    acir::{brillig::Opcode, native_types::Expression},
     FieldElement,
 };
 use iter_extended::vecmap;
@@ -37,7 +37,6 @@ mod acir_ir;
 
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
-#[derive(Default)]
 struct Context {
     /// Maps SSA values to `AcirVar`.
     ///
@@ -49,7 +48,7 @@ struct Context {
 
     /// The `AcirVar` that describes the condition belonging to the most recently invoked
     /// `SideEffectsEnabled` instruction.
-    current_side_effects_enabled_var: Option<AcirVar>,
+    current_side_effects_enabled_var: AcirVar,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext,
@@ -84,7 +83,7 @@ impl Ssa {
         abi_distinctness: AbiDistinctness,
         allow_log_ops: bool,
     ) -> GeneratedAcir {
-        let context = Context::default();
+        let context = Context::new();
         let mut generated_acir = context.convert_ssa(self, brillig, allow_log_ops);
 
         match abi_distinctness {
@@ -110,6 +109,13 @@ impl Ssa {
 }
 
 impl Context {
+    fn new() -> Context {
+        let mut acir_context = AcirContext::default();
+        let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
+
+        Context { ssa_values: HashMap::new(), current_side_effects_enabled_var, acir_context }
+    }
+
     /// Converts SSA into ACIR
     fn convert_ssa(self, ssa: Ssa, brillig: Brillig, allow_log_ops: bool) -> GeneratedAcir {
         let main_func = ssa.main();
@@ -148,9 +154,8 @@ impl Context {
             self.create_value_from_type(&typ, &mut |this, _| this.acir_context.add_variable())
         });
 
-        let outputs: Vec<AcirType> = vecmap(self.get_return_values(main_func), |result_id| {
-            dfg.type_of_value(result_id).into()
-        });
+        let outputs: Vec<AcirType> =
+            vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
 
         let code = self.gen_brillig_for(main_func, &brillig);
 
@@ -231,7 +236,7 @@ impl Context {
         allow_log_ops: bool,
     ) {
         let instruction = &dfg[instruction_id];
-
+        self.acir_context.set_location(dfg.get_location(&instruction_id));
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self
@@ -267,7 +272,8 @@ impl Context {
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
-                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var,code, inputs, outputs);
+                                let output_values = self.acir_context.brillig(Some(self.current_side_effects_enabled_var), code, inputs, outputs);
+
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
 
@@ -319,7 +325,7 @@ impl Context {
             }
             Instruction::EnableSideEffects { condition } => {
                 let acir_var = self.convert_numeric_value(*condition, dfg);
-                self.current_side_effects_enabled_var = Some(acir_var);
+                self.current_side_effects_enabled_var = acir_var;
             }
             Instruction::ArrayGet { array, index } => {
                 self.handle_array_operation(instruction_id, *array, *index, None, dfg);
@@ -337,6 +343,7 @@ impl Context {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
         }
+        self.acir_context.set_location(None);
     }
 
     fn gen_brillig_for(&self, func: &Function, brillig: &Brillig) -> Vec<Opcode> {
@@ -350,8 +357,8 @@ impl Context {
         while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {
             let artifact = &brillig
                 .find_by_function_label(unresolved_fn_label.clone())
-                .expect("Cannot find linked fn {unresolved_fn_label}");
-            entry_point.link_with(unresolved_fn_label, artifact);
+                .unwrap_or_else(|| panic!("Cannot find linked fn {unresolved_fn_label}"));
+            entry_point.link_with(artifact);
         }
         // Generate the final bytecode
         entry_point.finish()
@@ -377,11 +384,9 @@ impl Context {
 
         if index >= array.len() {
             // Ignore the error if side effects are disabled.
-            if let Some(var) = self.current_side_effects_enabled_var {
-                if self.acir_context.is_constant_one(&var) {
-                    // TODO: Can we save a source Location for this error?
-                    panic!("Index {} is out of bounds for array of length {}", index, array.len());
-                }
+            if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var) {
+                // TODO: Can we save a source Location for this error?
+                panic!("Index {} is out of bounds for array of length {}", index, array.len());
             }
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
             let value = self.create_default_value(&result_type);
@@ -421,22 +426,6 @@ impl Context {
         let result_ids = dfg.instruction_results(instruction);
         let typ = dfg.type_of_value(result_ids[0]).into();
         self.define_result(dfg, instruction, AcirValue::Var(result, typ));
-    }
-
-    /// Finds the return values of a given function
-    fn get_return_values(&self, func: &Function) -> Vec<ValueId> {
-        let blocks = func.reachable_blocks();
-        let mut function_return_values = None;
-        for block in blocks {
-            let terminator = func.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
-                function_return_values = Some(return_values);
-                break;
-            }
-        }
-        function_return_values
-            .expect("Expected a return instruction, as block is finished construction")
-            .clone()
     }
 
     /// Converts an SSA terminator's return values into their ACIR representations
@@ -595,6 +584,9 @@ impl Context {
             (_, Type::Array(..)) | (Type::Array(..), _) => {
                 unreachable!("Arrays are invalid in binary operations")
             }
+            (_, Type::Slice(..)) | (Type::Slice(..), _) => {
+                unreachable!("Arrays are invalid in binary operations")
+            }
             // If either side is a Field constant then, we coerce into the type
             // of the other operand
             (Type::Numeric(NumericType::NativeField), typ)
@@ -749,6 +741,7 @@ impl Context {
 
                 Self::convert_vars_to_values(out_vars, dfg, result_ids)
             }
+            _ => todo!("expected a black box function"),
         }
     }
 
@@ -757,6 +750,10 @@ impl Context {
     fn array_element_type(dfg: &DataFlowGraph, value: ValueId) -> AcirType {
         match dfg.type_of_value(value) {
             Type::Array(elements, _) => {
+                assert_eq!(elements.len(), 1);
+                (&elements[0]).into()
+            }
+            Type::Slice(elements) => {
                 assert_eq!(elements.len(), 1);
                 (&elements[0]).into()
             }
@@ -786,7 +783,7 @@ impl Context {
     }
 
     /// Convert a Vec<AcirVar> into a Vec<AcirValue> using the given result ids.
-    /// If the type of a result id is an array, several acirvars are collected into
+    /// If the type of a result id is an array, several acir vars are collected into
     /// a single AcirValue::Array of the same length.
     fn convert_vars_to_values(
         vars: Vec<AcirVar>,
@@ -874,7 +871,7 @@ mod tests {
 
         let ssa = builder.finish();
 
-        let context = Context::default();
+        let context = Context::new();
         let acir = context.convert_ssa(ssa, Brillig::default(), false);
 
         let expected_opcodes =

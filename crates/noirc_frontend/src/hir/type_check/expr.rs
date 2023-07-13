@@ -42,7 +42,10 @@ impl<'interner> TypeChecker<'interner> {
                     HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
                         let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
 
-                        let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
+                        let first_elem_type = elem_types
+                            .get(0)
+                            .cloned()
+                            .unwrap_or_else(|| self.interner.next_type_variable());
 
                         let arr_type = Type::Array(
                             Box::new(Type::Constant(arr.len() as u64)),
@@ -320,6 +323,7 @@ impl<'interner> TypeChecker<'interner> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
+            Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
                 let span = self.interner.expr_span(&index_expr.collection);
@@ -520,8 +524,8 @@ impl<'interner> TypeChecker<'interner> {
                 operator: crate::UnaryOp::Dereference,
                 rhs: old_lhs,
             }));
-            this.interner.push_expr_type(access_lhs, lhs_type);
-            this.interner.push_expr_type(&old_lhs, element);
+            this.interner.push_expr_type(&old_lhs, lhs_type);
+            this.interner.push_expr_type(access_lhs, element);
         };
 
         match self.check_field_access(&lhs_type, &access.rhs.0.contents, span, dereference_lhs) {
@@ -935,7 +939,7 @@ impl<'interner> TypeChecker<'interner> {
                 Type::MutableReference(Box::new(rhs_type.follow_bindings()))
             }
             crate::UnaryOp::Dereference => {
-                let element_type = Type::type_variable(self.interner.next_type_variable_id());
+                let element_type = self.interner.next_type_variable();
                 unify(Type::MutableReference(Box::new(element_type.clone())));
                 element_type
             }

@@ -11,8 +11,6 @@ use super::labels::ParsingRuleLabel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
-    #[error("Arrays must have at least one element")]
-    ZeroSizedArray,
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
     #[error("Expected a ; separating these two statements")]
@@ -23,6 +21,10 @@ pub enum ParserErrorReason {
     InvalidArrayLengthExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
+    #[error("Patterns aren't allowed in a trait's function declarations")]
+    PatternInTraitFunctionParameter,
+    #[error("Traits are an experimental feature that are not yet in a working state")]
+    TraitsAreExperimental,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

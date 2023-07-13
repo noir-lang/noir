@@ -114,11 +114,9 @@ fn permutation_layer(
 #[cfg(test)]
 mod test {
     use acvm::{
-        acir::{circuit::opcodes::FunctionInput, native_types::Witness, native_types::WitnessMap},
-        pwg::{
-            solve, Blocks, OpcodeResolution, OpcodeResolutionError, PartialWitnessGeneratorStatus,
-        },
-        FieldElement, PartialWitnessGenerator,
+        acir::native_types::WitnessMap,
+        pwg::{ACVMStatus, ACVM},
+        BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement,
     };
 
     use crate::{
@@ -128,33 +126,27 @@ mod test {
     use rand::prelude::*;
 
     struct MockBackend {}
-    impl PartialWitnessGenerator for MockBackend {
+    impl BlackBoxFunctionSolver for MockBackend {
         fn schnorr_verify(
             &self,
-            _initial_witness: &mut WitnessMap,
-            _public_key_x: &FunctionInput,
-            _public_key_y: &FunctionInput,
-            _signature: &[FunctionInput],
-            _message: &[FunctionInput],
-            _output: &Witness,
-        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            _public_key_x: &FieldElement,
+            _public_key_y: &FieldElement,
+            _signature: &[u8],
+            _message: &[u8],
+        ) -> Result<bool, BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
         fn pedersen(
             &self,
-            _initial_witness: &mut WitnessMap,
-            _inputs: &[FunctionInput],
+            _inputs: &[FieldElement],
             _domain_separator: u32,
-            _outputs: &[Witness],
-        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
         fn fixed_base_scalar_mul(
             &self,
-            _initial_witness: &mut WitnessMap,
-            _input: &FunctionInput,
-            _outputs: &[Witness],
-        ) -> Result<OpcodeResolution, OpcodeResolutionError> {
+            _input: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             panic!("Path not trodden by this test")
         }
     }
@@ -170,12 +162,12 @@ mod test {
             let mut input = Vec::new();
             let mut a_val = Vec::new();
             let mut b_wit = Vec::new();
-            let mut solved_witness = WitnessMap::new();
+            let mut initial_witness = WitnessMap::new();
             for i in 0..n {
                 let w = eval.add_witness_to_cs();
                 input.push(w.into());
                 a_val.push(FieldElement::from(rng.next_u32() as i128));
-                solved_witness.insert(w, a_val[i]);
+                initial_witness.insert(w, a_val[i]);
             }
 
             let mut output = Vec::new();
@@ -196,15 +188,15 @@ mod test {
             }
             // initialize bits
             for i in 0..w.len() {
-                solved_witness.insert(w[i], FieldElement::from(c[i] as i128));
+                initial_witness.insert(w[i], FieldElement::from(c[i] as i128));
             }
             // compute the network output by solving the constraints
             let backend = MockBackend {};
-            let mut blocks = Blocks::default();
-            let solver_status =
-                solve(&backend, &mut solved_witness, &mut blocks, eval.opcodes.clone())
-                    .expect("Could not solve permutation constraints");
-            assert_eq!(solver_status, PartialWitnessGeneratorStatus::Solved, "Incomplete solution");
+            let mut acvm = ACVM::new(backend, eval.opcodes.clone(), initial_witness);
+            let solver_status = acvm.solve();
+            assert_eq!(solver_status, ACVMStatus::Solved, "Incomplete solution");
+            let solved_witness = acvm.finalize();
+
             let mut b_val = Vec::new();
             for i in 0..output.len() {
                 b_val.push(solved_witness[&b_wit[i]]);

@@ -5,10 +5,9 @@ use std::{
     ops::{self, ControlFlow},
     path::{Path, PathBuf},
     pin::Pin,
-    task::{Context, Poll},
+    task::{self, Poll},
 };
 
-use acvm::Language;
 use async_lsp::{
     router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LanguageClient,
     LspService, ResponseError,
@@ -21,9 +20,9 @@ use lsp_types::{
     InitializeParams, InitializeResult, InitializedParams, Position, PublishDiagnosticsParams,
     Range, ServerCapabilities, TextDocumentSyncOptions,
 };
-use noirc_driver::Driver;
+use noirc_driver::{check_crate, create_local_crate};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
-use noirc_frontend::graph::{CrateName, CrateType};
+use noirc_frontend::{graph::CrateType, hir::Context};
 use serde_json::Value as JsonValue;
 use tower::Service;
 
@@ -31,7 +30,6 @@ const TEST_COMMAND: &str = "nargo.test";
 const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
-#[derive(Debug)]
 struct LspState {
     client: ClientSocket,
 }
@@ -72,7 +70,7 @@ impl Service<AnyRequest> for NargoLspService {
     type Error = ResponseError;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, cx: &mut task::Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.router.poll_ready(cx)
     }
 
@@ -136,43 +134,52 @@ fn on_code_lens_request(
     _state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
+<<<<<<< HEAD
     async move {
         let actual_path = params.text_document.uri.to_file_path().unwrap();
         let mut driver = create_driver_at_path(actual_path);
+=======
+    let file_path = &params.text_document.uri.to_file_path().unwrap();
 
-        // We ignore the warnings and errors produced by compilation for producing codelenses
-        // because we can still get the test functions even if compilation fails
-        let _ = driver.check_crate(false);
+    let mut context = Context::default();
 
-        let fm = driver.file_manager();
-        let files = fm.as_simple_files();
-        let tests = driver.get_all_test_functions_in_crate_matching("");
+    let crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
+>>>>>>> origin/master
 
-        let mut lenses: Vec<CodeLens> = vec![];
-        for func_id in tests {
-            let location = driver.function_meta(&func_id).name.location;
-            let file_id = location.file;
-            // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
-            if file_id.as_usize() != 0 {
-                continue;
-            }
+    // We ignore the warnings and errors produced by compilation for producing codelenses
+    // because we can still get the test functions even if compilation fails
+    let _ = check_crate(&mut context, false, false);
 
-            let func_name = driver.function_name(func_id);
+    let fm = &context.file_manager;
+    let files = fm.as_simple_files();
+    let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
 
-            let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
-                .unwrap_or_default();
-
-            let command = Command {
-                title: TEST_CODELENS_TITLE.into(),
-                command: TEST_COMMAND.into(),
-                arguments: Some(vec![func_name.into()]),
-            };
-
-            let lens = CodeLens { range, command: command.into(), data: None };
-
-            lenses.push(lens);
+    let mut lenses: Vec<CodeLens> = vec![];
+    for func_id in tests {
+        let location = context.function_meta(&func_id).name.location;
+        let file_id = location.file;
+        // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
+        if file_id.as_usize() != 0 {
+            continue;
         }
 
+        let func_name = context.function_name(&func_id);
+
+        let range =
+            byte_span_to_range(files, file_id.as_usize(), location.span.into()).unwrap_or_default();
+
+        let command = Command {
+            title: TEST_CODELENS_TITLE.into(),
+            command: TEST_COMMAND.into(),
+            arguments: Some(vec![func_name.into()]),
+        };
+
+        let lens = CodeLens { range, command: command.into(), data: None };
+
+        lenses.push(lens);
+    }
+
+    async move {
         if lenses.is_empty() {
             Ok(None)
         } else {
@@ -259,17 +266,27 @@ fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
+<<<<<<< HEAD
     let actual_path = params.text_document.uri.to_file_path().unwrap();
     let mut driver = create_driver_at_path(actual_path.clone());
+=======
+    let file_path = &params.text_document.uri.to_file_path().unwrap();
 
-    let file_diagnostics = match driver.check_crate(false) {
+    let mut context = Context::default();
+
+    create_local_crate(&mut context, file_path, CrateType::Binary);
+
+    let mut diagnostics = Vec::new();
+>>>>>>> origin/master
+
+    let file_diagnostics = match check_crate(&mut context, false, false) {
         Ok(warnings) => warnings,
         Err(errors_and_warnings) => errors_and_warnings,
     };
     let mut diagnostics = Vec::new();
 
     if !file_diagnostics.is_empty() {
-        let fm = driver.file_manager();
+        let fm = &context.file_manager;
         let files = fm.as_simple_files();
 
         for FileDiagnostic { file_id, diagnostic } in file_diagnostics {

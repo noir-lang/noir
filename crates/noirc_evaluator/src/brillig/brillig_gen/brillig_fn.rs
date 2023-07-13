@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acvm::acir::brillig_vm::RegisterIndex;
+use acvm::acir::brillig::RegisterIndex;
 
 use crate::{
     brillig::brillig_ir::{
@@ -9,7 +9,6 @@ use crate::{
     },
     ssa_refactor::ir::{
         function::{Function, FunctionId},
-        instruction::TerminatorInstruction,
         types::Type,
         value::ValueId,
     },
@@ -61,7 +60,7 @@ impl FunctionContext {
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
                 match typ {
-                    Type::Numeric(_) => BrilligParameter::Register,
+                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
                     Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
                     _ => unimplemented!("Unsupported function parameter type {typ:?}"),
                 }
@@ -71,22 +70,12 @@ impl FunctionContext {
 
     /// Collects the return values of a given function
     pub(crate) fn return_values(func: &Function) -> Vec<BrilligParameter> {
-        let blocks = func.reachable_blocks();
-        let mut function_return_values = None;
-        for block in blocks {
-            let terminator = func.dfg[block].terminator();
-            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
-                function_return_values = Some(return_values);
-                break;
-            }
-        }
-        function_return_values
-            .expect("Expected a return instruction, as block is finished construction")
+        func.returns()
             .iter()
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
                 match typ {
-                    Type::Numeric(_) => BrilligParameter::Register,
+                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
                     Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
                     _ => unimplemented!("Unsupported return value type {typ:?}"),
                 }

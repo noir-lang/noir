@@ -15,16 +15,6 @@ use std::{
 
 pub const FILE_EXTENSION: &str = "nr";
 
-// XXX: Create a trait for file io
-/// An enum to differentiate between the root file
-/// which the compiler starts at, and the others.
-/// This is so that submodules of the root, can live alongside the
-/// root file as files.
-pub enum FileType {
-    Root,
-    Normal,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VirtualPath(PathBuf);
 
@@ -37,14 +27,14 @@ pub struct FileManager {
 
 impl FileManager {
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
-    pub fn add_file(&mut self, path_to_file: &Path, file_type: FileType) -> Option<FileId> {
+    pub fn add_file(&mut self, path_to_file: &Path) -> Option<FileId> {
         // Handle both relative file paths and std/lib virtual paths.
         let base = Path::new(".").canonicalize().expect("Base path canonicalize failed");
         let res = path_to_file.canonicalize().unwrap_or_else(|_| path_to_file.to_path_buf());
         let resolved_path = res.strip_prefix(base).unwrap_or(&res);
 
         // Check that the resolved path already exists in the file map, if it is, we return it.
-        let path_to_file = virtualize_path(resolved_path, file_type);
+        let path_to_file = virtualize_path(resolved_path);
         if let Some(file_id) = self.path_to_id.get(&path_to_file) {
             return Some(*file_id);
         }
@@ -79,12 +69,16 @@ impl FileManager {
     pub fn resolve_path(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
         let mut candidate_files = Vec::new();
 
-        let dir = self.path(anchor).to_path_buf();
+        let anchor_path = self.path(anchor).to_path_buf();
+        let anchor_dir = anchor_path.parent().unwrap();
 
-        candidate_files.push(dir.join(format!("{mod_name}.{FILE_EXTENSION}")));
+        // First we attempt to look at `base/anchor/mod_name.nr` (child of the anchor)
+        candidate_files.push(anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}")));
+        // If not found, we attempt to look at `base/mod_name.nr` (sibling of the anchor)
+        candidate_files.push(anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}")));
 
         for candidate in candidate_files.iter() {
-            if let Some(file_id) = self.add_file(candidate, FileType::Normal) {
+            if let Some(file_id) = self.add_file(candidate) {
                 return Ok(file_id);
             }
         }
@@ -94,23 +88,13 @@ impl FileManager {
 }
 
 /// Takes a path to a noir file. This will panic on paths to directories
-/// Returns
-/// For Normal filetypes, given "src/mod.nr" this method returns "src/mod"
-/// For Root filetypes, given "src/mod.nr" this method returns "src"
-fn virtualize_path(path: &Path, file_type: FileType) -> VirtualPath {
-    let mut path = path.to_path_buf();
-    let path = match file_type {
-        FileType::Root => {
-            path.pop();
-            path
-        }
-        FileType::Normal => {
-            let base = path.parent().unwrap();
-            let path_no_ext: PathBuf =
-                path.file_stem().expect("ice: this should have been the path to a file").into();
-            base.join(path_no_ext)
-        }
-    };
+/// Returns the file path with the extension removed
+fn virtualize_path(path: &Path) -> VirtualPath {
+    let path = path.to_path_buf();
+    let base = path.parent().unwrap();
+    let path_no_ext: PathBuf =
+        path.file_stem().expect("ice: this should have been the path to a file").into();
+    let path = base.join(path_no_ext);
     VirtualPath(path)
 }
 #[cfg(test)]
@@ -132,7 +116,7 @@ mod tests {
 
         let mut fm = FileManager::default();
 
-        let file_id = fm.add_file(&file_path, FileType::Root).unwrap();
+        let file_id = fm.add_file(&file_path).unwrap();
 
         let _foo_file_path = dummy_file_path(&dir, "foo.nr");
         fm.resolve_path(file_id, "foo").unwrap();
@@ -144,7 +128,7 @@ mod tests {
 
         let mut fm = FileManager::default();
 
-        let file_id = fm.add_file(&file_path, FileType::Normal).unwrap();
+        let file_id = fm.add_file(&file_path).unwrap();
 
         assert!(fm.path(file_id).ends_with("foo"));
     }
@@ -157,14 +141,13 @@ mod tests {
         // we now have dir/lib.nr
         let file_path = dummy_file_path(&dir, "lib.nr");
 
-        let file_id = fm.add_file(&file_path, FileType::Root).unwrap();
+        let file_id = fm.add_file(&file_path).unwrap();
 
         // Create a sub directory
         // we now have:
         // - dir/lib.nr
         // - dir/sub_dir
         let sub_dir = TempDir::new_in(&dir).unwrap();
-        std::fs::create_dir_all(sub_dir.path()).unwrap();
         let sub_dir_name = sub_dir.path().file_name().unwrap().to_str().unwrap();
 
         // Add foo.nr to the subdirectory
@@ -205,8 +188,8 @@ mod tests {
         let second_file_path = dummy_file_path(&sub_sub_dir, "./../../lib.nr");
 
         // Add both files to the file manager
-        let file_id = fm.add_file(&file_path, FileType::Root).unwrap();
-        let second_file_id = fm.add_file(&second_file_path, FileType::Root).unwrap();
+        let file_id = fm.add_file(&file_path).unwrap();
+        let second_file_id = fm.add_file(&second_file_path).unwrap();
 
         assert_eq!(file_id, second_file_id);
     }

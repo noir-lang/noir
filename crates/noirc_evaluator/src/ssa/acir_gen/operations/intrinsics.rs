@@ -92,6 +92,7 @@ pub(crate) fn evaluate(
                 }
                 BlackBoxFunc::SchnorrVerify
                 | BlackBoxFunc::EcdsaSecp256k1
+                | BlackBoxFunc::EcdsaSecp256r1
                 | BlackBoxFunc::HashToField128Security => {
                     prepare_outputs(&mut acir_gen.memory, instruction_id, 1, ctx, evaluator)
                 }
@@ -130,13 +131,13 @@ pub(crate) fn evaluate(
                         ctx.get_as_constant(args[1]).expect("domain separator to be comptime");
                     BlackBoxFuncCall::Pedersen {
                         inputs: resolve_array(&args[0], acir_gen, ctx, evaluator),
-                        outputs: outputs.to_vec(),
+                        outputs: (outputs[0], outputs[1]),
                         domain_separator: separator.to_u128() as u32,
                     }
                 }
                 BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
                     input: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
-                    outputs: outputs.to_vec(),
+                    outputs: (outputs[0], outputs[1]),
                 },
                 BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
                     public_key_x: resolve_variable(&args[0], acir_gen, ctx, evaluator).unwrap(),
@@ -146,6 +147,13 @@ pub(crate) fn evaluate(
                     output: outputs[0],
                 },
                 BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
+                    public_key_x: resolve_array(&args[0], acir_gen, ctx, evaluator),
+                    public_key_y: resolve_array(&args[1], acir_gen, ctx, evaluator),
+                    signature: resolve_array(&args[2], acir_gen, ctx, evaluator),
+                    hashed_message: resolve_array(&args[3], acir_gen, ctx, evaluator),
+                    output: outputs[0],
+                },
+                BlackBoxFunc::EcdsaSecp256r1 => BlackBoxFuncCall::EcdsaSecp256r1 {
                     public_key_x: resolve_array(&args[0], acir_gen, ctx, evaluator),
                     public_key_y: resolve_array(&args[1], acir_gen, ctx, evaluator),
                     signature: resolve_array(&args[2], acir_gen, ctx, evaluator),

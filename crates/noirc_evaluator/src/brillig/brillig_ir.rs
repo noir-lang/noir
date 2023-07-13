@@ -13,8 +13,9 @@ use self::{
     registers::BrilligRegistersContext,
 };
 use acvm::{
-    acir::brillig_vm::{
-        BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, RegisterOrMemory, Value,
+    acir::brillig::{
+        BinaryFieldOp, BinaryIntOp, BlackBoxOp, HeapArray, HeapVector, Opcode as BrilligOpcode,
+        RegisterIndex, RegisterOrMemory, Value,
     },
     FieldElement,
 };
@@ -39,6 +40,8 @@ pub(crate) const BRILLIG_MEMORY_ADDRESSING_BIT_SIZE: u32 = 64;
 pub(crate) enum ReservedRegisters {
     /// This register stores the stack pointer. Allocations must be done after this pointer.
     StackPointer = 0,
+    /// This register stores the previous stack pointer. The registers of the caller are stored here.
+    PreviousStackPointer = 1,
 }
 
 impl ReservedRegisters {
@@ -46,7 +49,7 @@ impl ReservedRegisters {
     ///
     /// This is used to offset the general registers
     /// which should not overwrite the special register
-    const NUM_RESERVED_REGISTERS: usize = 1;
+    const NUM_RESERVED_REGISTERS: usize = 2;
 
     /// Returns the length of the reserved registers
     pub(crate) fn len() -> usize {
@@ -56,6 +59,11 @@ impl ReservedRegisters {
     /// Returns the stack pointer register. This will get used to allocate memory in runtime.
     pub(crate) fn stack_pointer() -> RegisterIndex {
         RegisterIndex::from(ReservedRegisters::StackPointer as usize)
+    }
+
+    /// Returns the previous stack pointer register. This will be used to restore the registers after a fn call.
+    pub(crate) fn previous_stack_pointer() -> RegisterIndex {
+        RegisterIndex::from(ReservedRegisters::PreviousStackPointer as usize)
     }
 
     /// Returns a user defined (non-reserved) register index.
@@ -121,6 +129,42 @@ impl BrilligContext {
         size_register: RegisterIndex,
     ) {
         debug_show::allocate_array_instruction(pointer_register, size_register);
+        self.set_array_pointer(pointer_register);
+        self.update_stack_pointer(size_register);
+    }
+
+    pub(crate) fn set_array_pointer(&mut self, pointer_register: RegisterIndex) {
+        debug_show::mov_instruction(pointer_register, ReservedRegisters::stack_pointer());
+        self.push_opcode(BrilligOpcode::Mov {
+            destination: pointer_register,
+            source: ReservedRegisters::stack_pointer(),
+        });
+    }
+
+    pub(crate) fn update_stack_pointer(&mut self, size_register: RegisterIndex) {
+        debug_show::binary_instruction(
+            ReservedRegisters::stack_pointer(),
+            size_register,
+            ReservedRegisters::stack_pointer(),
+            BrilligBinaryOp::Integer {
+                op: BinaryIntOp::Add,
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            },
+        );
+        self.push_opcode(BrilligOpcode::BinaryIntOp {
+            destination: ReservedRegisters::stack_pointer(),
+            op: BinaryIntOp::Add,
+            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            lhs: ReservedRegisters::stack_pointer(),
+            rhs: size_register,
+        });
+    }
+
+    /// Allocates a single value and stores the
+    /// pointer to the array in `pointer_register`
+    pub(crate) fn allocate_instruction(&mut self, pointer_register: RegisterIndex) {
+        debug_show::allocate_instruction(pointer_register);
+        let size_register = self.make_constant(1_u128.into());
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
             source: ReservedRegisters::stack_pointer(),
@@ -617,12 +661,21 @@ impl BrilligContext {
         //
         // Note that here it is important that the stack pointer register is at register 0,
         // as after the first register save we add to the pointer.
-        let used_registers: Vec<_> = self.registers.used_registers_iter().collect();
+        let mut used_registers: Vec<_> = self.registers.used_registers_iter().collect();
+
+        // Also dump the previous stack pointer
+        used_registers.push(ReservedRegisters::previous_stack_pointer());
         for register in used_registers.iter() {
             self.store_instruction(ReservedRegisters::stack_pointer(), *register);
             // Add one to our stack pointer
             self.usize_op(ReservedRegisters::stack_pointer(), BinaryIntOp::Add, 1);
         }
+
+        // Store the location of our registers in the previous stack pointer
+        self.mov_instruction(
+            ReservedRegisters::previous_stack_pointer(),
+            ReservedRegisters::stack_pointer(),
+        );
         used_registers
     }
 
@@ -631,10 +684,13 @@ impl BrilligContext {
         // Load all of the used registers that we saved.
         // We do all the reverse operations of save_all_used_registers.
         // Iterate our registers in reverse
+        let iterator_register = self.allocate_register();
+        self.mov_instruction(iterator_register, ReservedRegisters::previous_stack_pointer());
+
         for register in used_registers.iter().rev() {
             // Subtract one from our stack pointer
-            self.usize_op(ReservedRegisters::stack_pointer(), BinaryIntOp::Sub, 1);
-            self.load_instruction(*register, ReservedRegisters::stack_pointer());
+            self.usize_op(iterator_register, BinaryIntOp::Sub, 1);
+            self.load_instruction(*register, iterator_register);
         }
     }
 
@@ -697,6 +753,18 @@ impl BrilligContext {
         // so we do our instructions in reverse order.
         self.load_all_saved_registers(saved_registers);
     }
+
+    /// Utility method to transform a HeapArray to a HeapVector by making a runtime constant with the size.
+    pub(crate) fn array_to_vector(&mut self, array: &HeapArray) -> HeapVector {
+        let size_register = self.make_constant(array.size.into());
+        HeapVector { size: size_register, pointer: array.pointer }
+    }
+
+    /// Issues a blackbox operation.
+    pub(crate) fn black_box_op_instruction(&mut self, op: BlackBoxOp) {
+        debug_show::black_box_op_instruction(op);
+        self.push_opcode(BrilligOpcode::BlackBox(op));
+    }
 }
 
 /// Type to encapsulate the binary operation types in Brillig
@@ -713,26 +781,55 @@ pub(crate) enum BrilligBinaryOp {
 mod tests {
     use std::vec;
 
-    use acvm::acir::brillig_vm::{
-        BinaryIntOp, ForeignCallOutput, ForeignCallResult, RegisterIndex, RegisterOrMemory,
-        Registers, VMStatus, Value, VM,
+    use acvm::acir::brillig::{
+        BinaryIntOp, ForeignCallOutput, ForeignCallResult, HeapVector, RegisterIndex,
+        RegisterOrMemory, Value,
     };
+    use acvm::brillig_vm::{Registers, VMStatus, VM};
+    use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
     use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
 
     use super::{BrilligBinaryOp, BrilligOpcode, ReservedRegisters};
+
+    struct DummyBlackBoxSolver;
+
+    impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
+        fn schnorr_verify(
+            &self,
+            _public_key_x: &FieldElement,
+            _public_key_y: &FieldElement,
+            _signature: &[u8],
+            _message: &[u8],
+        ) -> Result<bool, BlackBoxResolutionError> {
+            Ok(true)
+        }
+        fn pedersen(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((2_u128.into(), 3_u128.into()))
+        }
+        fn fixed_base_scalar_mul(
+            &self,
+            _input: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Ok((4_u128.into(), 5_u128.into()))
+        }
+    }
 
     /// Test a Brillig foreign call returning a vector
     #[test]
     fn test_brillig_ir_foreign_call_return_vector() {
         // pseudo-noir:
         //
-        // #[oracle(make_number_sequence)]
-        // unconstrained fn make_number_sequence(size: u32) -> Vec<u32> {
+        // #[oracle(get_number_sequence)]
+        // unconstrained fn get_number_sequence(size: u32) -> Vec<u32> {
         // }
         //
         // unconstrained fn main() -> Vec<u32> {
-        //   let the_sequence = make_number_sequence(12);
+        //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
         let mut context = BrilligContext::new(vec![], vec![]);
@@ -749,7 +846,7 @@ mod tests {
         context.foreign_call_instruction(
             "make_number_sequence".into(),
             &[RegisterOrMemory::RegisterIndex(r_input_size)],
-            &[RegisterOrMemory::HeapVector(r_stack, r_output_size)],
+            &[RegisterOrMemory::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
         );
         // push stack frame by r_returned_size
         context.binary_instruction(
@@ -786,6 +883,7 @@ mod tests {
             vec![],
             bytecode,
             vec![ForeignCallResult { values: vec![ForeignCallOutput::Array(number_sequence)] }],
+            &DummyBlackBoxSolver,
         );
         let status = vm.process_opcodes();
         assert_eq!(status, VMStatus::Finished);

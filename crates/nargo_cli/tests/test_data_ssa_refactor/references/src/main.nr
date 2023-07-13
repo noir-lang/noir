@@ -1,5 +1,4 @@
-fn main() {
-    let mut x = 2;
+fn main(mut x: Field) {
     add1(&mut x);
     assert(x == 3);
 

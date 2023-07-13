@@ -325,8 +325,11 @@ impl<'a> Resolver<'a> {
         match typ {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
-                let resolved_size = self.resolve_array_size(size, new_variables);
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
+                if self.interner.enable_slices && size.is_none() {
+                    return Type::Slice(elem);
+                }
+                let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::Array(Box::new(resolved_size), elem)
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
@@ -347,20 +350,6 @@ impl<'a> Resolver<'a> {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
-            }
-            UnresolvedType::Vec(mut args, span) => {
-                let arg = if args.len() != 1 {
-                    self.push_err(ResolverError::IncorrectGenericCount {
-                        span,
-                        struct_type: "Vec".into(),
-                        actual: args.len(),
-                        expected: 1,
-                    });
-                    Type::Error
-                } else {
-                    self.resolve_type_inner(args.remove(0), new_variables)
-                };
-                Type::Vec(Box::new(arg))
             }
             UnresolvedType::MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
@@ -663,6 +652,7 @@ impl<'a> Resolver<'a> {
             kind: func.kind,
             attributes,
             contract_function_type: self.handle_function_type(func),
+            is_internal: self.handle_is_function_internal(func),
             is_unconstrained: func.def.is_unconstrained,
             location,
             typ,
@@ -705,6 +695,19 @@ impl<'a> Resolver<'a> {
             }
         } else {
             Some(ContractFunctionType::Secret)
+        }
+    }
+
+    fn handle_is_function_internal(&mut self, func: &NoirFunction) -> Option<bool> {
+        if self.in_contract() {
+            Some(func.def.is_internal)
+        } else {
+            if func.def.is_internal {
+                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction {
+                    span: func.name_ident().span(),
+                });
+            }
+            None
         }
     }
 
@@ -762,6 +765,10 @@ impl<'a> Resolver<'a> {
                 }
             }
 
+            Type::Slice(typ) => {
+                Self::find_numeric_generics_in_type(typ, found);
+            }
+
             Type::Tuple(fields) => {
                 for field in fields {
                     Self::find_numeric_generics_in_type(field, found);
@@ -784,7 +791,6 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            Type::Vec(element) => Self::find_numeric_generics_in_type(element, found),
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
         }
     }
