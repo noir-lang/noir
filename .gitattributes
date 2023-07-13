@@ -1,3 +1,5 @@
+*.nr linguist-language=Rust
+
 .yarn/releases/** binary
 .yarn/plugins/** binary
 yarn.lock -diff
