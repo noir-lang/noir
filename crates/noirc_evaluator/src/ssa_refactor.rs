@@ -35,7 +35,7 @@ pub(crate) fn optimize_into_acir(
 ) -> GeneratedAcir {
     let abi_distinctness = program.return_distinctness;
     let mut ssa = ssa_gen::generate_ssa(program)
-        .print(true, "Initial SSA:")
+        .print(print_ssa_passes, "Initial SSA:")
         .defunctionalize()
         .print(print_ssa_passes, "After Defunctionalization:");
 
