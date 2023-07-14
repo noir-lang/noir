@@ -1,14 +1,6 @@
 use dep::std::slice;
 use dep::std;
 
-#[oracle(oracle_print_impl)]
-unconstrained fn oracle_print(_x : Field) -> Field {}
-
-unconstrained fn oracle_print_wrapper(x: Field) {
-    oracle_print(x);
-}
-
-
 unconstrained fn main(x: Field, y: Field) {
     // Mark it as mut so the compiler doesn't simplify the following operations
     // But don't reuse the mut slice variable until this is fixed https://github.com/noir-lang/noir/issues/1931
