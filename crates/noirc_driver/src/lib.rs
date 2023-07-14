@@ -166,7 +166,15 @@ pub fn check_crate(
     context.def_interner.enable_slices = enable_slices;
 
     let mut errors = vec![];
-    CrateDefMap::collect_defs(LOCAL_CRATE, context, &mut errors);
+    match context.crate_graph.crate_type(LOCAL_CRATE) {
+        CrateType::Workspace => {
+            let keys: Vec<_> = context.crate_graph.iter_keys().collect(); // avoid borrow checker
+            for crate_id in keys {
+                CrateDefMap::collect_defs(crate_id, context, &mut errors);
+            }
+        }
+        _ => CrateDefMap::collect_defs(LOCAL_CRATE, context, &mut errors),
+    }
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)

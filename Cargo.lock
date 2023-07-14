@@ -2055,6 +2055,7 @@ dependencies = [
  "noirc_frontend",
  "serde_json",
  "tokio",
+ "toml",
  "tower",
 ]
 

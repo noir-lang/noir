@@ -124,6 +124,10 @@ impl AcirContext {
         self.add_data(var_data)
     }
 
+    pub(crate) fn get_location(&mut self) -> Option<Location> {
+        self.acir_ir.current_location
+    }
+
     pub(crate) fn set_location(&mut self, location: Option<Location>) {
         self.acir_ir.current_location = location;
     }
@@ -271,7 +275,11 @@ impl AcirContext {
                 Ok(())
             } else {
                 // Constraint is always false - this program is unprovable
-                Err(AcirGenError::BadConstantEquality { lhs: *lhs_const, rhs: *rhs_const })
+                Err(AcirGenError::BadConstantEquality {
+                    lhs: *lhs_const,
+                    rhs: *rhs_const,
+                    location: self.get_location(),
+                })
             }
         } else {
             self.acir_ir.assert_is_zero(
