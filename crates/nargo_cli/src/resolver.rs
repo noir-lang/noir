@@ -165,7 +165,7 @@ fn crate_name(name: Option<CrateName>) -> String {
 
 fn resolve_workspace_manifest(
     context: &mut Context,
-    local_package: Option<String>,
+    mut local_package: Option<String>,
     manifest_path: PathBuf,
     dir_path: &Path,
     workspace: WorkspaceConfig,
@@ -195,6 +195,10 @@ fn resolve_workspace_manifest(
 
                 if packages.insert(name.clone(), member_path).is_some() {
                     return Err(DependencyResolutionError::PackageCollision(crate_name(name)));
+                }
+
+                if local_package.is_none() && workspace.default_member.as_ref() == Some(member) {
+                    local_package = name.as_ref().map(CrateName::as_string);
                 }
             }
             Manifest::Workspace(_) => {
