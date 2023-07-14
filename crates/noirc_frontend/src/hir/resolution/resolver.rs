@@ -20,6 +20,7 @@ use crate::hir_def::expr::{
 use crate::token::Attribute;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use regex::Regex;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
@@ -882,7 +883,27 @@ impl<'a> Resolver<'a> {
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
-                Literal::Str(str) => HirLiteral::Str(str),
+                Literal::Str(string) => {
+                    dbg!(string.clone());
+                    let re = Regex::new(r"\{([a-zA-Z0-9]+)\}").unwrap();
+                    if !re.is_match(&string) {
+                        HirLiteral::Str(string)
+                    } else {
+                        let mut fmt_str_idents = Vec::new();
+                        for field in re.find_iter(&string) {
+                            let matched_str = field.as_str();
+                            let ident_name = matched_str[1..(matched_str.len() - 1)].to_owned();
+                            dbg!(ident_name.clone());
+                            let scope = self.scopes.get_mut_scope();
+                            // TODO: switch this away from an expect to an actual resolver error
+                            let old_value = scope.find(&ident_name).expect("ICE: variable undeclared");
+                            old_value.num_times_used += 1;
+                            fmt_str_idents.push(old_value.ident);
+                        }
+                        dbg!(fmt_str_idents);
+                        HirLiteral::FmtStr(string, fmt_str_idents)
+                    }
+                }
             }),
             ExpressionKind::Variable(path) => {
                 // If the Path is being used as an Expression, then it is referring to a global from a separate module

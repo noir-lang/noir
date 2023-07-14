@@ -24,12 +24,19 @@ unconstrained fn println_oracle<T, A>(_input: T) -> Field {}
 #[oracle(println_format)]
 unconstrained fn println_format_oracle<T, A, N>(_msg: T, _args: [A; N]) -> Field {}
 
+#[oracle(format)]
+unconstrained fn format_oracle<T>(_format_string: T) -> Field {}
+
 unconstrained fn println_new<T>(input: T) {
     println_oracle(input);
 }
 
 unconstrained fn println_format<T, A, N>(msg: T, args: [A; N]) {
     println_format_oracle(msg, args);
+}
+
+unconstrained fn format<T>(format_string: T) {
+    format_oracle(format_string);
 }
 
 #[foreign(recursive_aggregation)]

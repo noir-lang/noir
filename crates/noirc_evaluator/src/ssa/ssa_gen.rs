@@ -631,6 +631,7 @@ impl IrGenerator {
                     .ssa_gen_expression(&Expression::Literal(Literal::Array(string_arr_literal)))?;
                 Ok(new_value)
             }
+            Literal::FmtStr(..) => unreachable!("format strings not supported in the old SSA"),
             Literal::Bool(b) => {
                 if *b {
                     Ok(Value::Node(self.context.one()))

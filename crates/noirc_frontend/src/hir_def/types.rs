@@ -37,6 +37,9 @@ pub enum Type {
     /// is either a type variable of some kind or a Type::Constant.
     String(Box<Type>),
 
+    // TODO: possibly add this and expose FmtStr's to the user
+    // FmtString(Box<Type>),
+
     /// The unit type `()`.
     Unit,
 

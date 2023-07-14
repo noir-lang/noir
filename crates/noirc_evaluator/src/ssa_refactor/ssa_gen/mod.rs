@@ -131,6 +131,12 @@ impl<'a> FunctionContext<'a> {
                 });
                 self.codegen_array(elements, vec![Type::char()])
             }
+            ast::Literal::FmtStr(string, types) => {
+                let elements = vecmap(string.as_bytes(), |byte| {
+                    self.builder.numeric_constant(*byte as u128, Type::field()).into()
+                });
+                self.codegen_array(elements, vec![Type::char()])
+            }
         }
     }
 
@@ -368,7 +374,19 @@ impl<'a> FunctionContext<'a> {
         let arguments = call
             .arguments
             .iter()
-            .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
+            .flat_map(|argument| {
+
+                let value_list = self.codegen_expression(argument).into_value_list(self);
+                // for value in value_list.clone() {
+                //     // dbg!()
+                // }
+                // dbg!(value_list.clone());
+                // for value in value_list.clone() {
+                //     let x = &self.builder.current_function.dfg[value];
+                //     dbg!(x.clone());
+                // }
+                value_list
+            })
             .collect();
 
         self.insert_call(function, arguments, &call.return_type, call.location)

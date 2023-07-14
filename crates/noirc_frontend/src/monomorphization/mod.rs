@@ -260,6 +260,12 @@ impl<'interner> Monomorphizer<'interner> {
         match self.interner.expression(&expr) {
             HirExpression::Ident(ident) => self.ident(ident, expr),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
+            HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
+                // let idents = vecmap(idents, )
+                // let typ = self.convert_type(&self.interner.id_type(ident.id));
+                let types = vecmap(idents, |ident| self.convert_type(&self.interner.id_type(ident.id)));
+                Literal(FmtStr(contents, types))
+            }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let typ = self.convert_type(&self.interner.id_type(expr));
@@ -797,11 +803,12 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn append_abi_arg(
-        &self,
+        &mut self,
         hir_argument: &HirExpression,
         arguments: &mut Vec<ast::Expression>,
         is_format_call: bool,
     ) {
+        dbg!(hir_argument.clone());
         match hir_argument {
             HirExpression::Ident(ident) => {
                 let typ = self.interner.id_type(ident.id);
@@ -815,6 +822,11 @@ impl<'interner> Monomorphizer<'interner> {
                 } else {
                     typ.follow_bindings()
                 };
+                dbg!(typ.clone());
+                // let def_info = self.interner.definition(ident.id);
+                // dbg!(def_info.clone());
+                // let x = self.lookup_local(ident.id);
+                // dbg!(x);
 
                 let abi_type = typ.as_abi_type();
                 let abi_as_string =

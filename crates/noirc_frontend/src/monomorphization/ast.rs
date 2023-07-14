@@ -83,6 +83,7 @@ pub enum Literal {
     Integer(FieldElement, Type),
     Bool(bool),
     Str(String),
+    FmtStr(String, Vec<Type>),
 }
 
 #[derive(Debug, Clone)]

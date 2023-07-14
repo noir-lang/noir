@@ -86,6 +86,11 @@ impl<'interner> TypeChecker<'interner> {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
                     }
+                    HirLiteral::FmtStr(string, _) => {
+                        dbg!("got into format string");
+                        let len = Type::Constant(string.len() as u64);
+                        Type::String(Box::new(len))
+                    }
                 }
             }
             HirExpression::Infix(infix_expr) => {

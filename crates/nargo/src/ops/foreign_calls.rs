@@ -127,7 +127,8 @@ impl ForeignCall {
 fn fetch_abi_type(
     foreign_call_inputs: &[Vec<Value>],
 ) -> Result<(AbiType, &[Vec<Value>]), ForeignCallError> {
-    // Fetch the abi from the last input. We will now be left with
+    // Fetch the abi from the last input. The abi is included by the compiler 
+    // and we will now be left with only user specifed inputs
     let (abi_type_as_values, input_values) =
         foreign_call_inputs.split_last().ok_or(ForeignCallError::MissingForeignCallInputs)?;
     let abi_type_as_fields = vecmap(abi_type_as_values, |value| value.to_field());
