@@ -14,7 +14,7 @@ contract SchnorrAccount {
     use dep::aztec::types::vec::BoundedVec;
     use dep::aztec::types::point::Point;
     use dep::aztec::oracle::debug_log::debug_log_format;
-    use dep::aztec::generators;
+    use dep::aztec::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;
 
     fn entrypoint(
         inputs: pub PrivateContextInputs,
@@ -55,7 +55,7 @@ contract SchnorrAccount {
         assert(verification == true);
 
         // Verify public key against address
-        let reproduced_address = dep::std::hash::pedersen_with_separator([x, y, partial_address], generators::ContractAddress)[0];
+        let reproduced_address = dep::std::hash::pedersen_with_separator([x, y, partial_address], GENERATOR_INDEX__CONTRACT_ADDRESS)[0];
         assert(reproduced_address == inputs.call_context.storage_contract_address);
 
         // Execute calls

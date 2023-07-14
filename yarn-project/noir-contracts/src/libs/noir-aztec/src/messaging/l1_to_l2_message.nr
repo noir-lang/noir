@@ -1,7 +1,8 @@
-use crate::generators;
 use crate::types::point::Point;
 use crate::messaging::l1_to_l2_message_getter_data::L1ToL2MessageGetterData;
 use crate::messaging::l1_to_l2_message_getter_data::make_l1_to_l2_message_getter_data;
+use crate::constants_gen::GENERATOR_INDEX__NULLIFIER;
+use crate::constants_gen::GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET;
 
 
 global L1_TO_L2_MESSAGE_LEN = 8; 
@@ -58,7 +59,7 @@ impl L1ToL2Message {
     }
 
     fn validate_message_secret(self: Self) {
-        let recomputed_hash = dep::std::hash::pedersen([generators::L1_TO_L2_MESSAGE_SECRET, self.secret])[0];
+        let recomputed_hash = dep::std::hash::pedersen([GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET, self.secret])[0];
         assert(self.secret_hash == recomputed_hash);
     }
 
@@ -104,6 +105,6 @@ impl L1ToL2Message {
     // The nullifier of a l1 to l2 message is the hash of the message salted with the secret and tree index
     fn compute_nullifier(self: Self) -> Field {
         let message_hash = self.message_hash();
-        dep::std::hash::pedersen([generators::NULLIFIER, message_hash, self.secret, self.tree_index])[0]
+        dep::std::hash::pedersen([GENERATOR_INDEX__NULLIFIER, message_hash, self.secret, self.tree_index])[0]
     }
 }

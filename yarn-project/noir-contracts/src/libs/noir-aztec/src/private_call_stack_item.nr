@@ -1,4 +1,3 @@
-use crate::abi;
 use crate::abi::CallContext;
 use crate::abi::hash_args;
 use crate::abi::ContractDeploymentData;
@@ -7,6 +6,7 @@ use crate::abi::PrivateCircuitPublicInputs;
 use crate::abi::CommitmentTreesRoots;
 use crate::types::vec::BoundedVec;
 use crate::utils::arr_copy_slice;
+use crate::constants_gen;
 
 use crate::oracle::call_private_function::call_private_function_internal;
 use crate::oracle::arguments;
@@ -71,15 +71,15 @@ impl PrivateCallStackItem {
                 },
                 // TODO handle the offsets as a variable incremented during extraction?
                 args_hash: fields[10],
-                return_values: arr_copy_slice(fields, [0; abi::MAX_RETURN_VALUES], 11),
-                read_requests: arr_copy_slice(fields, [0; abi::MAX_READ_REQUESTS], 15),
-                new_commitments: arr_copy_slice(fields, [0; abi::MAX_NEW_COMMITMENTS], 19),
-                new_nullifiers: arr_copy_slice(fields, [0; abi::MAX_NEW_NULLIFIERS], 23),
-                private_call_stack: arr_copy_slice(fields, [0; abi::MAX_PRIVATE_CALL_STACK], 27),
-                public_call_stack: arr_copy_slice(fields, [0; abi::MAX_PUBLIC_CALL_STACK], 31),
-                new_l2_to_l1_msgs: arr_copy_slice(fields, [0; abi::MAX_L2_TO_L1_MSGS], 35),
-                encrypted_logs_hash: arr_copy_slice(fields, [0; abi::LOGS_HASH_SIZE], 37),
-                unencrypted_logs_hash: arr_copy_slice(fields, [0; abi::LOGS_HASH_SIZE], 39),
+                return_values: arr_copy_slice(fields, [0; constants_gen::RETURN_VALUES_LENGTH], 11),
+                read_requests: arr_copy_slice(fields, [0; constants_gen::READ_REQUESTS_LENGTH], 15),
+                new_commitments: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_COMMITMENTS_PER_CALL], 19),
+                new_nullifiers: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_NULLIFIERS_PER_CALL], 23),
+                private_call_stack: arr_copy_slice(fields, [0; constants_gen::MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL], 27),
+                public_call_stack: arr_copy_slice(fields, [0; constants_gen::MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL], 31),
+                new_l2_to_l1_msgs: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_L2_TO_L1_MSGS_PER_CALL], 35),
+                encrypted_logs_hash: arr_copy_slice(fields, [0; constants_gen::NUM_FIELDS_PER_SHA256], 37),
+                unencrypted_logs_hash: arr_copy_slice(fields, [0; constants_gen::NUM_FIELDS_PER_SHA256], 39),
                 encrypted_log_preimages_length: fields[41],
                 unencrypted_log_preimages_length: fields[42],
                 commitment_trees_roots: CommitmentTreesRoots {

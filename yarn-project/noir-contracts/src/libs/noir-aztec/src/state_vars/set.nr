@@ -1,5 +1,4 @@
 use crate::context::Context;
-use crate::generators;
 use crate::note::lifecycle::{create_note, destroy_note};
 use crate::note::{
     note_getter::{get_notes, ensure_note_exists},

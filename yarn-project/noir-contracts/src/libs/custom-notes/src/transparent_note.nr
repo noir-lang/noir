@@ -6,6 +6,8 @@ use dep::aztec::oracle::{
     create_l2_to_l1_message::create_l2_to_l1_message,
     get_commitment::get_commitment
 };
+use dep::aztec::constants_gen::GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET;
+
 
 // Transparent note represents a note that is created in the clear (public execution), 
 // but can only be spent by those that know the preimage of the "secretHash"
@@ -51,7 +53,7 @@ impl TransparentNote {
     }
 
     fn compute_secret_hash(secret: Field) -> Field {
-        pedersen([dep::aztec::generators::L1_TO_L2_MESSAGE_SECRET, secret])[0]
+        pedersen([GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET, secret])[0]
     }
 
     fn knows_secret(self, secret: Field) {

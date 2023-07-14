@@ -1,10 +1,10 @@
 use crate::context::Context;
-use crate::generators;
 use crate::oracle;
 use crate::note::lifecycle::create_note;
 use crate::note::lifecycle::destroy_note;
 use crate::note::note_getter::get_note;
 use crate::note::note_interface::NoteInterface;
+use crate::constants_gen::GENERATOR_INDEX__INITIALISATION_NULLIFIER;
 
 struct Singleton<Note, N> {
     storage_slot: Field,
@@ -32,7 +32,7 @@ impl<Note, N> Singleton<Note, N> {
     fn compute_initialisation_nullifier(self) -> Field {
         let storage_slot = self.storage_slot;
         dep::std::hash::pedersen([
-            generators::INITIALISATION_NULLIFIER,
+            GENERATOR_INDEX__INITIALISATION_NULLIFIER,
             storage_slot,
         ])[0]
     }

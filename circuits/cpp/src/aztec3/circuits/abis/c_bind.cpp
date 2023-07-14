@@ -42,6 +42,7 @@ using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::Point;
 using aztec3::circuits::abis::PrivateStateNoteGeneratorIndexPacker;
 using aztec3::circuits::abis::PrivateStateTypePacker;
+using aztec3::circuits::abis::StorageSlotGeneratorIndexPacker;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using NT = aztec3::utils::types::NativeTypes;
@@ -586,4 +587,5 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_function_leaf_preimage(ui
 CBIND_NOSCHEMA(get_circuit_constants, [] { return ConstantsPacker{}; });
 CBIND_NOSCHEMA(get_circuit_generator_index, [] { return GeneratorIndexPacker{}; });
 CBIND_NOSCHEMA(get_circuit_private_state_note_generator_index, [] { return PrivateStateNoteGeneratorIndexPacker{}; });
+CBIND_NOSCHEMA(get_circuit_storage_slot_generator_index, [] { return StorageSlotGeneratorIndexPacker{}; });
 CBIND_NOSCHEMA(get_circuit_private_state_type, [] { return PrivateStateTypePacker{}; });

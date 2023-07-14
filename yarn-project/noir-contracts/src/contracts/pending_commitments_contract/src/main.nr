@@ -21,6 +21,7 @@ contract PendingCommitments {
 
     use crate::storage::Storage;
 
+    use dep::aztec::constants_gen::ARGS_LENGTH;
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::context::Context;
@@ -197,7 +198,7 @@ contract PendingCommitments {
         let mut context = Context::new(inputs, abi::hash_args([amount, owner.x, owner.y, createFnSelector, getAndCheckFnSelector]));
 
         // args for nested calls
-        let mut args = [0; abi::MAX_ARGS];
+        let mut args = [0; ARGS_LENGTH];
         args[0] = amount;
         args[1] = owner.x;
         args[2] = owner.y;
