@@ -86,6 +86,7 @@ pub fn create_circuit(
         opcodes,
         public_parameters: PublicInputs(public_parameters),
         return_values: PublicInputs(return_values.iter().copied().collect()),
+        inputs: param_witnesses.values().flatten().copied().collect(),
     };
 
     let (parameters, return_type) = program.main_function_signature;

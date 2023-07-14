@@ -76,8 +76,9 @@ pub fn experimental_create_circuit(
     let public_parameters =
         PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
-
-    let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
+    let inputs = abi.parameter_witness();
+    let circuit =
+        Circuit { current_witness_index, opcodes, public_parameters, return_values, inputs };
 
     Ok((circuit, abi))
 }

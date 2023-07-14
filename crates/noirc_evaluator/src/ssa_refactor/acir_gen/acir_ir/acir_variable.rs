@@ -856,13 +856,12 @@ impl AcirContext {
         let outputs_var = vecmap(&outputs_witness, |witness_index| {
             self.add_data(AcirVarData::Witness(*witness_index))
         });
+        // Enforce the outputs to be a permutation of the inputs
+        self.acir_ir.permutation(&inputs_expr, &output_expr);
         // Enforce the outputs to be sorted
         for i in 0..(outputs_var.len() - 1) {
             self.less_than_constrain(outputs_var[i], outputs_var[i + 1], bit_size, None)?;
         }
-        // Enforce the outputs to be a permutation of the inputs
-        self.acir_ir.permutation(&inputs_expr, &output_expr);
-
         Ok(outputs_var)
     }
 

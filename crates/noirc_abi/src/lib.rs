@@ -170,6 +170,10 @@ impl Abi {
         self.parameters.iter().map(|x| &x.name).collect()
     }
 
+    pub fn parameter_witness(&self) -> Vec<Witness> {
+        self.param_witnesses.values().flatten().copied().collect()
+    }
+
     pub fn num_parameters(&self) -> usize {
         self.parameters.len()
     }
