@@ -12,11 +12,20 @@ unconstrained fn oracle_print_wrapper(x: Field) {
 unconstrained fn main(x: Field, y: Field) {
     // Mark it as mut so the compiler doesn't simplify the following operations
     // But don't reuse the mut slice variable until this is fixed https://github.com/noir-lang/noir/issues/1931
-    let mut slice: [Field] = [x, y];
+    let slice: [Field] = [y, x];
     assert(slice.len() == 2);
 
-    let pushed_back_slice = slice.push_back(1);
+    let mut pushed_back_slice = slice.push_back(7);
     assert(pushed_back_slice.len() == 3);
+    assert(pushed_back_slice[0] == y);
+    assert(pushed_back_slice[1] == x);
+    assert(pushed_back_slice[2] == 7);
+
+    // Array set on slice target
+    pushed_back_slice[0] = x;
+    pushed_back_slice[1] = y;
+    pushed_back_slice[2] = 1;
+
     assert(pushed_back_slice[0] == x);
     assert(pushed_back_slice[1] == y);
     assert(pushed_back_slice[2] == 1);

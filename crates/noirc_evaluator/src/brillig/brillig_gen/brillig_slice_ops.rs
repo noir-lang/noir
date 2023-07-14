@@ -42,6 +42,7 @@ pub(crate) fn slice_push_front_operation(
         destination_copy_pointer,
         source_vector.size,
     );
+    brillig_context.deallocate_register(destination_copy_pointer);
 
     // Then we write the item to insert at index 0
     let zero = brillig_context.make_constant(0_u128.into());
@@ -69,6 +70,7 @@ pub(crate) fn slice_pop_front_operation(
         target_vector.pointer,
         source_vector.size,
     );
+    brillig_context.deallocate_register(source_copy_pointer);
 
     let zero = brillig_context.make_constant(0_u128.into());
     brillig_context.array_get(source_vector.pointer, zero, removed_item);
@@ -139,6 +141,10 @@ pub(crate) fn slice_insert_operation(
         item_count,
     );
 
+    brillig_context.deallocate_register(source_pointer_at_index);
+    brillig_context.deallocate_register(target_pointer_after_index);
+    brillig_context.deallocate_register(item_count);
+
     // Write the item to insert at the index
     brillig_context.array_set(target_vector.pointer, index, item);
 }
@@ -187,6 +193,10 @@ pub(crate) fn slice_remove_operation(
         target_pointer_at_index,
         item_count,
     );
+
+    brillig_context.deallocate_register(source_pointer_after_index);
+    brillig_context.deallocate_register(target_pointer_at_index);
+    brillig_context.deallocate_register(item_count);
 
     // Get the item at the index
     brillig_context.array_get(source_vector.pointer, index, removed_item);

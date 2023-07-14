@@ -89,6 +89,7 @@ impl FunctionContext {
         self.create_variable(brillig_context, value, dfg)
     }
 
+    /// Creates a variable that fits in a single register and returns the register.
     pub(crate) fn create_register_variable(
         &mut self,
         brillig_context: &mut BrilligContext,
@@ -120,6 +121,7 @@ impl FunctionContext {
         }
     }
 
+    /// Collects the registers that a given variable is stored in.
     pub(crate) fn extract_registers(&self, variable: RegisterOrMemory) -> Vec<RegisterIndex> {
         match variable {
             RegisterOrMemory::RegisterIndex(register_index) => vec![register_index],

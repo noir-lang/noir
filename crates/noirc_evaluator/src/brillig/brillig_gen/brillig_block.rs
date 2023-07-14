@@ -17,7 +17,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use super::brillig_black_box::convert_black_box_call;
-use super::brillig_fn::{compute_size_of_composite_type, compute_size_of_type, FunctionContext};
+use super::brillig_fn::{compute_size_of_composite_type, FunctionContext};
 use super::brillig_slice_ops::{
     slice_insert_operation, slice_pop_back_operation, slice_pop_front_operation,
     slice_push_front_operation, slice_remove_operation,
@@ -123,7 +123,7 @@ impl<'block> BrilligBlock<'block> {
                         dfg,
                     );
                     let source = self.convert_ssa_value(*src, dfg);
-                    self.pass_value(source, destination);
+                    self.pass_variable(source, destination);
                 }
                 self.brillig_context
                     .jump_instruction(self.create_block_label_for_current_function(*destination));
@@ -141,7 +141,8 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
-    fn pass_value(&mut self, source: RegisterOrMemory, destination: RegisterOrMemory) {
+    /// Passes an arbitrary variable from the registers of the source to the registers of the destination
+    fn pass_variable(&mut self, source: RegisterOrMemory, destination: RegisterOrMemory) {
         match (source, destination) {
             (
                 RegisterOrMemory::RegisterIndex(source_register),
@@ -355,7 +356,7 @@ impl<'block> BrilligBlock<'block> {
                     | Intrinsic::SliceInsert
                     | Intrinsic::SliceRemove,
                 ) => {
-                    self.slice_intrinsic_call_operation(
+                    self.convert_ssa_slice_intrinsic_call(
                         dfg,
                         &dfg[*func],
                         instruction_id,
@@ -409,37 +410,79 @@ impl<'block> BrilligBlock<'block> {
                 let index_register = self.convert_ssa_register_value(*index, dfg);
                 self.brillig_context.array_get(array_pointer, index_register, destination_register);
             }
-            // Array set operation in SSA returns a new array that is a copy of the parameter array
-            // With a specific value changed.
             Instruction::ArraySet { array, index, value } => {
+                let source_variable = self.convert_ssa_value(*array, dfg);
+                let index_register = self.convert_ssa_register_value(*index, dfg);
+                let value_register = self.convert_ssa_register_value(*value, dfg);
+
                 let result_ids = dfg.instruction_results(instruction_id);
                 let destination_variable =
                     self.function_context.create_variable(self.brillig_context, result_ids[0], dfg);
-                let destination = self.function_context.extract_heap_array(destination_variable);
 
-                // First issue a array copy to the destination
-                let array_size = compute_size_of_type(&dfg.type_of_value(*array));
-                self.brillig_context.allocate_fixed_length_array(destination.pointer, array_size);
-                let source_variable = self.convert_ssa_value(*array, dfg);
-                let source_array = self.function_context.extract_heap_array(source_variable);
-
-                let size_register = self.brillig_context.make_constant(array_size.into());
-                self.brillig_context.copy_array_instruction(
-                    source_array.pointer,
-                    destination.pointer,
-                    size_register,
+                self.convert_ssa_array_set(
+                    source_variable,
+                    destination_variable,
+                    index_register,
+                    value_register,
                 );
-
-                // Then set the value in the newly created array
-                let index_register = self.convert_ssa_register_value(*index, dfg);
-                let value_register = self.convert_ssa_register_value(*value, dfg);
-                self.brillig_context.array_set(destination.pointer, index_register, value_register);
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
     }
 
-    fn slice_intrinsic_call_operation(
+    /// Array set operation in SSA returns a new array or slice that is a copy of the parameter array or slice
+    /// With a specific value changed.
+    fn convert_ssa_array_set(
+        &mut self,
+        source_variable: RegisterOrMemory,
+        destination_variable: RegisterOrMemory,
+        index_register: RegisterIndex,
+        value_register: RegisterIndex,
+    ) {
+        let destination_pointer = match destination_variable {
+            RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => pointer,
+            RegisterOrMemory::HeapVector(HeapVector { pointer, .. }) => pointer,
+            _ => unreachable!("ICE: array set returns non-array"),
+        };
+
+        // First issue a array copy to the destination
+        let (source_pointer, source_size_as_register) = match source_variable {
+            RegisterOrMemory::HeapArray(HeapArray { size, pointer }) => {
+                let source_size_register = self.brillig_context.allocate_register();
+                self.brillig_context.const_instruction(source_size_register, size.into());
+                (pointer, source_size_register)
+            }
+            RegisterOrMemory::HeapVector(HeapVector { size, pointer }) => {
+                let source_size_register = self.brillig_context.allocate_register();
+                self.brillig_context.mov_instruction(source_size_register, size);
+                (pointer, source_size_register)
+            }
+            _ => unreachable!("ICE: array set on non-array"),
+        };
+
+        self.brillig_context
+            .allocate_array_instruction(destination_pointer, source_size_as_register);
+
+        self.brillig_context.copy_array_instruction(
+            source_pointer,
+            destination_pointer,
+            source_size_as_register,
+        );
+
+        if let RegisterOrMemory::HeapVector(HeapVector { size: target_size, .. }) =
+            destination_variable
+        {
+            self.brillig_context.mov_instruction(target_size, source_size_as_register);
+        }
+
+        // Then set the value in the newly created array
+        self.brillig_context.array_set(destination_pointer, index_register, value_register);
+
+        self.brillig_context.deallocate_register(source_size_as_register);
+    }
+
+    /// Convert the SSA slice operations to brillig slice operations
+    fn convert_ssa_slice_intrinsic_call(
         &mut self,
         dfg: &DataFlowGraph,
         intrinsic: &Value,
@@ -703,6 +746,7 @@ impl<'block> BrilligBlock<'block> {
         variable
     }
 
+    /// Converts an SSA `ValueId` into a `RegisterIndex`. Initializes if necessary.
     fn convert_ssa_register_value(
         &mut self,
         value_id: ValueId,

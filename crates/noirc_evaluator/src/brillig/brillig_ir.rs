@@ -494,6 +494,7 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Load { destination, source_pointer });
     }
 
+    /// Loads a variable stored previously
     pub(crate) fn load_variable_instruction(
         &mut self,
         destination: RegisterOrMemory,
@@ -547,6 +548,7 @@ impl BrilligContext {
         }
     }
 
+    /// Stores a variable by saving its registers to memory
     pub(crate) fn store_variable_instruction(
         &mut self,
         variable_pointer: RegisterIndex,
