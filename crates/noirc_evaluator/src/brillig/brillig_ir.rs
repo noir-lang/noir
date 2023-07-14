@@ -792,14 +792,25 @@ impl BrilligContext {
         constant: usize,
     ) {
         let const_register = self.make_constant(Value::from(constant));
+        self.memory_op(operand, const_register, destination, op);
+        // Mark as no longer used for this purpose, frees for reuse
+        self.deallocate_register(const_register);
+    }
+
+    /// Utility method to perform a binary instruction with a memory address
+    pub(crate) fn memory_op(
+        &mut self,
+        lhs: RegisterIndex,
+        rhs: RegisterIndex,
+        destination: RegisterIndex,
+        op: BinaryIntOp,
+    ) {
         self.binary_instruction(
-            operand,
-            const_register,
+            lhs,
+            rhs,
             destination,
             BrilligBinaryOp::Integer { op, bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE },
         );
-        // Mark as no longer used for this purpose, frees for reuse
-        self.deallocate_register(const_register);
     }
 
     // Used before a call instruction.
