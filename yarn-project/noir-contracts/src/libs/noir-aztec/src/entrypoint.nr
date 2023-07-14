@@ -1,5 +1,8 @@
 use crate::abi;
 use crate::types::vec::BoundedVec;
+use crate::context::Context;
+use crate::private_call_stack_item::PrivateCallStackItem;
+use crate::public_call_stack_item::PublicCallStackItem;    
 
 global ACCOUNT_MAX_PRIVATE_CALLS: comptime Field = 1;
 global ACCOUNT_MAX_PUBLIC_CALLS: comptime Field = 1;
@@ -82,6 +85,29 @@ impl EntrypointPayload {
     }
 
     bytes
+  }
+
+  // Executes all private and public calls 
+  fn execute_calls(self, mut context: Context) -> Context {
+    for i in 0..ACCOUNT_MAX_PRIVATE_CALLS {
+        let target_address = self.flattened_targets[i];
+        if target_address != 0 {
+            let function_selector = self.flattened_selectors[i];
+            let args_hash = self.flattened_args_hashes[i];
+            let (_callStackItem, updated_context) = PrivateCallStackItem::call_with_packed_args(target_address, function_selector, args_hash, context);
+            context = updated_context;
+        }
+    }
+    for i in ACCOUNT_MAX_PRIVATE_CALLS..ACCOUNT_MAX_CALLS {
+        let target_address = self.flattened_targets[i];
+        if target_address != 0 {
+            let function_selector = self.flattened_selectors[i];
+            let args_hash = self.flattened_args_hashes[i];
+            let (_callStackItem, updated_context) = PublicCallStackItem::call_with_packed_args(target_address, function_selector, args_hash, context);
+            context = updated_context;
+        }
+    }
+    context
   }
 
   // TODO: This function returns all zeroes. Figure out why!

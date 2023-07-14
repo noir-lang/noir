@@ -35,6 +35,10 @@ unconstrained fn notify_nullified_note<N>(
 #[oracle(getNote)]
 fn get_note_oracle<S>(_storage_slot: Field) -> [Field; S] {}
 
+unconstrained fn get_note_oracle_wrapper<S>(storage_slot: Field) -> [Field; S] {
+    get_note_oracle(storage_slot)
+}
+
 #[oracle(getNotes)]
 fn get_notes_oracle<N, S>(
     _storage_slot: Field,
@@ -58,13 +62,11 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     get_notes_oracle(storage_slot, sort_by, sort_order, limit, offset, return_size, fields)
 }
 
-// TODO: The following functions should all be unconstrained.
-
 fn get_note<Note, N>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
 ) -> Note {
-    let fields = get_note_oracle(storage_slot);
+    let fields: [Field; N] = get_note_oracle_wrapper(storage_slot);
     let has_note = fields[0] == 1;
     if (has_note) {
         let deserialise = note_interface.deserialise;

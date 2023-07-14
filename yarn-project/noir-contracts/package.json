@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@aztec/foundation": "workspace:^",
+    "lodash.omit": "^4.5.0",
     "tslib": "^2.4.0"
   },
   "devDependencies": {
@@ -43,6 +44,7 @@
     "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.5.0",
     "@types/lodash.camelcase": "^4.3.7",
+    "@types/lodash.omit": "^4.5.7",
     "@types/lodash.snakecase": "^4.1.7",
     "@types/lodash.upperfirst": "^4.3.7",
     "@types/node": "^18.7.23",

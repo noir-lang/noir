@@ -1,5 +1,8 @@
-// Since we support account abstraction user accounts are represented by a contract. This contract is one such example
-// where the user is authenticated with an ECDSA signature.
+mod storage;
+mod ecdsa_public_key_note;
+
+// Account contract that uses ECDSA signatures for authentication on the same curve as Ethereum.
+// The signing key is stored in an immutable private note and should be different from the signing key.
 contract EcdsaAccount {
     use dep::std;
     use dep::aztec::entrypoint;
@@ -13,100 +16,54 @@ contract EcdsaAccount {
     use dep::aztec::types::vec::BoundedVec;
     use dep::aztec::types::point::Point;
 
-    // A function which has to be implemented by every account abstraction contract.
-    fn entrypoint(
+    use crate::storage::Storage;
+    use crate::ecdsa_public_key_note::EcdsaPublicKeyNote;
+
+    // All calls made by this account will be routed through this entrypoint
+    fn entrypoint(  
         inputs: pub PrivateContextInputs,
         payload: pub EntrypointPayload, // contains a set of arguments, selectors, targets and a nonce
-        owner: pub [u8;64], // x and y coordinates concatenated
-        signature: pub [Field;3],
-        partialContractAddress: pub Field,
+        signature: pub [u8;64],
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        // 75 = ENTRYPOINT_PAYLOAD_SIZE + 64 + 3 + 1
-        let mut args: BoundedVec<Field, 75> = BoundedVec::new(0);
-        args = args.push_array(payload.serialize());
-        for byte in owner {
-            args = args.push(byte as Field);
-        }
-        args = args.push_array(signature);
-        args = args.push(partialContractAddress);
         
+        // Initialise context
+        // 71 = ENTRYPOINT_PAYLOAD_SIZE(7) + 64
+        let mut args: BoundedVec<Field, 71> = BoundedVec::new(0);
+        args = args.push_array(payload.serialize());
+        for byte in signature { args = args.push(byte as Field); }
         let mut context = Context::new(inputs, abi::hash_args(args.storage));
 
-        // Decompress signature from 3 fields to 64 bytes
-        let mut decompressed_signature: [u8;64] = [0;64];
+        // Load public key from storage
+        let storage = Storage::init();
+        let (context_1, public_key) = storage.public_key.get_note(context);
+        context = context_1;
 
-        let signature_part_0 = signature[0].to_be_bytes(32);
-        for i in 0..31 {
-            decompressed_signature[i] = signature_part_0[i + 1];
-        }
-        let signature_part_1 = signature[1].to_be_bytes(32);
-        for i in 0..31 {
-            decompressed_signature[i + 31] = signature_part_1[i + 1];
-        }
-        let signature_part_2 = signature[2].to_be_bytes(32);
-        for i in 0..2 {
-            decompressed_signature[i + 62] = signature_part_2[i + 1];
-        }
-
-        let mut x: [u8; 32] = [0;32];
-        let mut y: [u8; 32] = [0;32];
-        for i in 0..32 {
-          x[i] = owner[i];
-          y[i] = owner[i + 32];
-        }
-
-        // Verify payload signature using ethereum's signing scheme
+        // Verify payload signature using Ethereum's signing scheme
         let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
         let challenge: [u8; 32] = std::hash::sha256(payload_bytes);
-
-        let verification = std::ecdsa_secp256k1::verify_signature(x, y, decompressed_signature, challenge);
+        let verification = std::ecdsa_secp256k1::verify_signature(public_key.x, public_key.y, signature, challenge);
         assert(verification == true);
 
-        // TODO: When we can use pedersen with non-zero generators, get this working
-        //let reproduced_address = dep::std::hash::pedersen([owner, partialContractAddress])[0];
-        //constrain reproduced_address == inputs.call_context.storage_contract_address;
-
-        // Call private functions
-        for i in 0..entrypoint::ACCOUNT_MAX_PRIVATE_CALLS {
-            let target_address = payload.flattened_targets[i];
-            if target_address != 0 {
-                let function_selector = payload.flattened_selectors[i];
-                let args_hash = payload.flattened_args_hashes[i];
-                let (_callStackItem, updated_context) = PrivateCallStackItem::call_with_packed_args(target_address, function_selector, args_hash, context);
-                context = updated_context;
-            }
-        }
-
-        // Call public functions
-        for i in entrypoint::ACCOUNT_MAX_PRIVATE_CALLS..entrypoint::ACCOUNT_MAX_CALLS {
-            let target_address = payload.flattened_targets[i];
-            if target_address != 0 {
-                let function_selector = payload.flattened_selectors[i];
-                let args_hash = payload.flattened_args_hashes[i];
-                let (_callStackItem, updated_context) = PublicCallStackItem::call_with_packed_args(target_address, function_selector, args_hash, context);
-                context = updated_context;
-            }
-        }
-
-        // // Create args_hash manually since we exceed the MAX_ARGS in PrivateFunctionContext.
-        // // Alternatively, we could make PrivateFunctionContext generic on the args size.
-        // // ENTRYPOINT_PAYLOAD_SIZE + size_of(signature) = 21 + 64 = 85
-        // let mut args: BoundedVec<Field, 85> = BoundedVec::new(0);
-        // args = args.push_array(payload.flattened_args);
-        // args = args.push_array(payload.flattened_selectors);
-        // args = args.push(payload.nonce);
-        // for byte in signature {
-        //     args = args.push(byte as Field);
-        // }
-        // TODO(#499): Use hash index
-        // let args_hash = dep::std::hash::pedersen(args.storage)[0];
+        context = payload.execute_calls(context);
         context.finish()
     }
 
+    // Creates a new account out of an ECDSA public key to use for signature verification
     fn constructor(
-        inputs: PrivateContextInputs,
+        inputs: pub PrivateContextInputs,
+        signing_pub_key_x: pub [u8;32],
+        signing_pub_key_y: pub [u8;32],
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        Context::new(inputs, 0).finish()
+        let storage = Storage::init();
+        
+        let mut args: BoundedVec<Field, 64> = BoundedVec::new(0);
+        for byte in signing_pub_key_x { args = args.push(byte as Field); }
+        for byte in signing_pub_key_y { args = args.push(byte as Field); }
+        let mut context = Context::new(inputs, abi::hash_args(args.storage));
+        
+        let pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, inputs.call_context.storage_contract_address);
+        context = storage.public_key.initialise(context, pub_key_note);
+        
+        context.finish()
     }
 }

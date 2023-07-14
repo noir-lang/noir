@@ -11,3 +11,16 @@ export type ExecutionRequest = {
   /** The encoded args */
   args: Fr[];
 };
+
+/**
+ * Creates an empty execution request.
+ * @returns an empty execution request.
+ */
+export function emptyExecutionRequest() {
+  return {
+    from: AztecAddress.ZERO,
+    to: AztecAddress.ZERO,
+    functionData: FunctionData.empty(),
+    args: [],
+  };
+}

@@ -5,9 +5,34 @@ import upperFirst from 'lodash.upperfirst';
 import mockedKeys from './mockedKeys.json' assert { type: 'json' };
 import { ABIParameter, ABIType, FunctionType } from '@aztec/foundation/abi';
 import { createLogger } from '@aztec/foundation/log';
+import { join as pathJoin } from 'path';
+import omit from 'lodash.omit';
 
 const STATEMENT_TYPES = ['type', 'params', 'return'] as const;
 const log = createLogger('aztec:noir-contracts');
+
+const PROJECT_CONTRACTS = [
+  { name: 'SchnorrAccount', target: '../aztec.js/src/abis/', exclude: ['bytecode', 'verificationKey'] },
+  { name: 'EcdsaAccount', target: '../aztec.js/src/abis/', exclude: ['bytecode', 'verificationKey'] },
+];
+
+/**
+ * Writes the contract to a specific project folder, if needed.
+ * @param abi - The Abi to write.
+ */
+function writeToProject(abi: any) {
+  for (const projectContract of PROJECT_CONTRACTS) {
+    if (abi.name === projectContract.name) {
+      const toWrite = {
+        ...abi,
+        functions: abi.functions.map((f: any) => omit(f, projectContract.exclude)),
+      };
+      const targetFilename = pathJoin(projectContract.target, `${snakeCase(abi.name)}_contract.json`);
+      writeFileSync(targetFilename, JSON.stringify(toWrite, null, 2) + '\n');
+      log(`Written ${targetFilename}`);
+    }
+  }
+}
 
 /**
  * Creates an Aztec function entry.
@@ -89,6 +114,7 @@ const main = () => {
 
   const exampleFile = `${examples}/${snakeCase(name)}_contract.json`;
   writeFileSync(exampleFile, JSON.stringify(abi, null, 2) + '\n');
+  writeToProject(abi);
   log(`Written ${exampleFile}`);
 };
 

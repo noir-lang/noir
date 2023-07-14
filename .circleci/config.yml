@@ -515,7 +515,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_account_contract.test.ts
+          command: cond_spot_run_tests end-to-end e2e_account_contracts.test.ts
 
   e2e-pending-commitments-contract:
     docker:

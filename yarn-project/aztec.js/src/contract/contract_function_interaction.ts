@@ -74,7 +74,7 @@ export class ContractFunctionInteraction {
    * @param options - optional arguments to be used in the creation of the transaction
    * @returns The resulting transaction
    */
-  public async simulate(options: SendMethodOptions): Promise<Tx> {
+  public async simulate(options: SendMethodOptions = {}): Promise<Tx> {
     const txRequest = this.txRequest ?? (await this.create(options));
     // TODO: Why do we need from separately, and cannot get it from txRequest.origin? When would they differ?
     this.tx = await this.wallet.simulateTx(txRequest, txRequest.origin);
@@ -83,6 +83,7 @@ export class ContractFunctionInteraction {
 
   protected getExecutionRequest(to: AztecAddress, from?: AztecAddress): ExecutionRequest {
     const flatArgs = encodeArguments(this.functionDao, this.args);
+    from = from ?? this.wallet.getAddress();
 
     const functionData = new FunctionData(
       generateFunctionSelector(this.functionDao.name, this.functionDao.parameters),
@@ -94,7 +95,7 @@ export class ContractFunctionInteraction {
       args: flatArgs,
       functionData,
       to,
-      from: from || AztecAddress.ZERO,
+      from,
     };
   }
 

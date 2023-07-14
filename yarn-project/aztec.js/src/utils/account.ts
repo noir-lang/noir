@@ -1,18 +1,12 @@
-import { CircuitsWasm, Fr, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { Fr, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecRPC, TxStatus } from '@aztec/types';
-import { Schnorr } from '@aztec/circuits.js/barretenberg';
 
 import { AccountWallet, Wallet } from '../aztec_rpc_client/wallet.js';
-import {
-  AccountCollection,
-  AccountContract,
-  ContractDeployer,
-  SchnorrAuthProvider,
-  generatePublicKey,
-} from '../index.js';
+import { AccountCollection, ContractDeployer, SingleKeyAccountContract, generatePublicKey } from '../index.js';
 
 /**
  * Creates an Aztec Account.
@@ -27,7 +21,7 @@ export async function createAccounts(
   logger = createDebugLogger('aztec:aztec.js:accounts'),
 ): Promise<Wallet> {
   const accountImpls = new AccountCollection();
-  const wasm = await CircuitsWasm.get();
+
   for (let i = 0; i < numberOfAccounts; ++i) {
     // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key
     const privKey = i == 0 && privateKey ? privateKey : randomBytes(32);
@@ -50,14 +44,7 @@ export async function createAccounts(
     logger(`Created account ${address.toString()} with public key ${publicKey.toString()}`);
     accountImpls.registerAccount(
       address,
-      new AccountContract(
-        address,
-        publicKey,
-        new SchnorrAuthProvider(await Schnorr.new(), privKey),
-        deploymentInfo.partialAddress,
-        accountContractAbi,
-        wasm,
-      ),
+      new SingleKeyAccountContract(address, deploymentInfo.partialAddress, privKey, await Schnorr.new()),
     );
   }
   return new AccountWallet(aztecRpcClient, accountImpls);
@@ -75,7 +62,6 @@ export async function getAccountWallet(
   privateKey: Buffer,
   salt: Fr,
 ) {
-  const wasm = await CircuitsWasm.get();
   const accountCollection = new AccountCollection();
   const publicKey = await generatePublicKey(privateKey);
   const address = await aztecRpcClient.getAccountAddress(publicKey);
@@ -83,14 +69,7 @@ export async function getAccountWallet(
 
   accountCollection.registerAccount(
     address,
-    new AccountContract(
-      address,
-      publicKey,
-      new SchnorrAuthProvider(await Schnorr.new(), privateKey),
-      deploymentInfo.partialAddress,
-      accountContractAbi,
-      wasm,
-    ),
+    new SingleKeyAccountContract(address, deploymentInfo.partialAddress, privateKey, await Schnorr.new()),
   );
   return new AccountWallet(aztecRpcClient, accountCollection);
 }

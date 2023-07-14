@@ -86,10 +86,8 @@ export class DeployMethod extends ContractFunctionInteraction {
    * @returns A Promise resolving to an object containing the signed transaction data and other relevant information.
    */
   public async create(options: DeployOptions = {}) {
-    const { portalContract, contractAddressSalt } = Object.assign(
-      { portalContract: EthAddress.ZERO, contractAddressSalt: Fr.random() },
-      options,
-    );
+    const portalContract = options.portalContract ?? EthAddress.ZERO;
+    const contractAddressSalt = options.contractAddressSalt ?? Fr.random();
 
     const { address, constructorHash, functionTreeRoot, partialAddress } = await getContractDeploymentInfo(
       this.abi,

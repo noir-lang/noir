@@ -17,8 +17,10 @@ for CONTRACT_NAME in "$@"; do
   echo "Copying output for $CONTRACT_NAME"
   NODE_OPTIONS=--no-warnings yarn ts-node --esm src/scripts/copy_output.ts $CONTRACT_NAME
   
-  echo "Formatting"
+  echo "Formatting examples contract folder"
   yarn run -T prettier -w ./src/examples/$CONTRACT_FOLDER.json
+  echo "Formatting additional folders"
+  yarn run -T prettier -w ../aztec.js/src/abis/*.json
   echo -e "Done\n"
   
 done

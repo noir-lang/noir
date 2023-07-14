@@ -16,5 +16,5 @@
       "path": "../types"
     }
   ],
-  "include": ["src"]
+  "include": ["src", "src/**/*.json"]
 }
