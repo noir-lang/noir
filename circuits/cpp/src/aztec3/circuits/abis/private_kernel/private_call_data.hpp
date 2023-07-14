@@ -37,7 +37,7 @@ template <typename NCT> struct PrivateCallData {
     MembershipWitness<NCT, FUNCTION_TREE_HEIGHT> function_leaf_membership_witness{};
     MembershipWitness<NCT, CONTRACT_TREE_HEIGHT> contract_leaf_membership_witness{};
 
-    std::array<ReadRequestMembershipWitness<NCT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+    std::array<ReadRequestMembershipWitness<NCT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>
         read_request_membership_witnesses{};
 
     fr portal_contract_address = 0;  // an ETH address

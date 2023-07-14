@@ -130,10 +130,10 @@ void update_end_values(DummyBuilder& builder,
     // We only initialized constants member of public_inputs so far. Therefore, there must not be any
     // new nullifiers or logs as part of public_inputs.
     ASSERT(is_array_empty(public_inputs.end.new_nullifiers));
-    ASSERT(public_inputs.end.encrypted_logs_hash[0] == fr(0));
-    ASSERT(public_inputs.end.encrypted_logs_hash[1] == fr(0));
-    ASSERT(public_inputs.end.unencrypted_logs_hash[0] == fr(0));
-    ASSERT(public_inputs.end.unencrypted_logs_hash[1] == fr(0));
+    ASSERT(is_array_empty(public_inputs.end.encrypted_logs_hash));
+    ASSERT(is_array_empty(public_inputs.end.unencrypted_logs_hash));
+    ASSERT(is_array_empty(public_inputs.end.read_requests));
+    ASSERT(is_array_empty(public_inputs.end.read_request_membership_witnesses));
     ASSERT(public_inputs.end.encrypted_log_preimages_length == fr(0));
     ASSERT(public_inputs.end.unencrypted_log_preimages_length == fr(0));
 

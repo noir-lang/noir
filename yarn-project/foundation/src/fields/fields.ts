@@ -16,7 +16,7 @@ export class Fr {
   /**
    * The numeric value of the field element as a bigint.
    */
-  public readonly value;
+  public readonly value: bigint;
 
   constructor(value: bigint | number) {
     this.value = BigInt(value);
@@ -92,6 +92,15 @@ export class Fr {
    */
   toString(padTo32 = false): `0x${string}` {
     return toHex(this.value, padTo32);
+  }
+
+  /**
+   * Retrieves the underlying bigint.
+   * This method mostly exists to match user expectations, as value is already public.
+   * @returns The underlying bigint.
+   */
+  public toBigInt(): bigint {
+    return this.value;
   }
 
   /**

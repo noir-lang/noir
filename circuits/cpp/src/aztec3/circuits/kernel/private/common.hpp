@@ -27,9 +27,9 @@ void common_validate_call_stack(DummyBuilder& builder, PrivateCallData<NT> const
 
 void common_validate_read_requests(DummyBuilder& builder,
                                    NT::fr const& storage_contract_address,
-                                   std::array<fr, READ_REQUESTS_LENGTH> const& read_requests,
+                                   std::array<fr, MAX_READ_REQUESTS_PER_CALL> const& read_requests,
                                    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>,
-                                              READ_REQUESTS_LENGTH> const& read_request_membership_witnesses,
+                                              MAX_READ_REQUESTS_PER_CALL> const& read_request_membership_witnesses,
                                    NT::fr const& historic_private_data_tree_root);
 
 void common_update_end_values(DummyBuilder& builder,

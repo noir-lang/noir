@@ -175,7 +175,7 @@ function classConverterExpr(typeInfo: TypeInfo, value: string): string {
     if (typeInfo.msgpackTypeName === 'number') {
       return `${value}`; // Should be a branded number alias
     }
-    return `${value}.toBuffer()`;
+    return `toBuffer(${value})`;
   } else if (typeInfo.arraySubtype) {
     const { typeName } = typeInfo.arraySubtype;
     const convFn = `(v: ${typeName}) => ${classConverterExpr(typeInfo.arraySubtype, 'v')}`;
@@ -510,7 +510,7 @@ import { IWasmModule } from '@aztec/foundation/wasm';
         outputs.push('\n');
       }
     }
-    outputs[0] += `import {${imports.join(', ')}} from './types.js';`;
+    outputs[0] += `import {toBuffer, ${imports.join(', ')}} from './types.js';`;
     outputs[0] += `import {Tuple, mapTuple} from '@aztec/foundation/serialize';`;
     outputs[0] += `import mapValues from 'lodash.mapvalues';`;
     for (const funcDecl of Object.values(this.funcDecls)) {

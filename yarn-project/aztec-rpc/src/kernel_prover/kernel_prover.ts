@@ -9,7 +9,7 @@ import {
   PreviousKernelData,
   PrivateCallData,
   PrivateCallStackItem,
-  READ_REQUESTS_LENGTH,
+  MAX_READ_REQUESTS_PER_CALL,
   ReadRequestMembershipWitness,
   TxRequest,
   VK_TREE_HEIGHT,
@@ -110,14 +110,14 @@ export class KernelProver {
         if (!rrWitness.isTransient) {
           // Non-transient reads must contain full membership witness with sibling path from commitment to root.
           // Get regular membership witness to fill in sibling path in the read request witness.
-          const membershipWitness = await this.oracle.getNoteMembershipWitness(rrWitness.leafIndex);
+          const membershipWitness = await this.oracle.getNoteMembershipWitness(rrWitness.leafIndex.toBigInt());
           rrWitness.siblingPath = membershipWitness.siblingPath;
         }
       }
 
       // fill in witnesses for remaining/empty read requests
       readRequestMembershipWitnesses.push(
-        ...Array(READ_REQUESTS_LENGTH - readRequestMembershipWitnesses.length)
+        ...Array(MAX_READ_REQUESTS_PER_CALL - readRequestMembershipWitnesses.length)
           .fill(0)
           .map(() => ReadRequestMembershipWitness.empty(BigInt(0))),
       );

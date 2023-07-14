@@ -3,11 +3,11 @@ use crate::note::note_getter_options::NoteGetterOptions;
 use crate::note::note_hash::compute_inner_note_hash;
 use crate::note::note_interface::NoteInterface;
 use crate::oracle;
-use crate::constants_gen::READ_REQUESTS_LENGTH;
+use crate::constants_gen::MAX_READ_REQUESTS_PER_CALL;
 
 // TODO: Remove these when nested array is supported.
 // EXTRA_DATA: [number_of_return_notes, contract_address]
-global GET_NOTE_ORACLE_RETURN_SIZE = 322; // READ_REQUESTS_LENGTH * MAX_NOTE_FIELDS_SIZE + EXTRA_DATA = 16 * 20 + 2
+global GET_NOTE_ORACLE_RETURN_SIZE = 322; // MAX_READ_REQUESTS_PER_CALL * MAX_NOTE_FIELDS_SIZE + EXTRA_DATA = 16 * 20 + 2
 global MAX_NOTES_PER_PAGE = 10;
 global VIEW_NOTE_ORACLE_RETURN_SIZE = 202; // MAX_NOTES_PER_PAGE * MAX_NOTE_FIELDS_SIZE + EXTRA_DATA = 10 * 20 + 2
 
@@ -72,14 +72,14 @@ fn get_notes_internal<Note, N, S, P>(
         sort_order[i] = sort_by[i].order;
     };
     let offset = options.offset;
-    let dummy_notes = [dummy(); READ_REQUESTS_LENGTH];
+    let dummy_notes = [dummy(); MAX_READ_REQUESTS_PER_CALL];
     let zero_fields = [0; GET_NOTE_ORACLE_RETURN_SIZE];
     let notes = oracle::notes::get_notes(
         storage_slot,
         note_interface,
         sort_by_indices,
         sort_order,
-        READ_REQUESTS_LENGTH as u32,
+        MAX_READ_REQUESTS_PER_CALL as u32,
         offset,
         dummy_notes,
         zero_fields,

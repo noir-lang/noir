@@ -8,7 +8,7 @@ import {
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   PrivateCircuitPublicInputs,
-  READ_REQUESTS_LENGTH,
+  MAX_READ_REQUESTS_PER_CALL,
   RETURN_VALUES_LENGTH,
 } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -123,7 +123,7 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
 
   const argsHash = witnessReader.readField();
   const returnValues = witnessReader.readFieldArray(RETURN_VALUES_LENGTH);
-  const readRequests = witnessReader.readFieldArray(READ_REQUESTS_LENGTH);
+  const readRequests = witnessReader.readFieldArray(MAX_READ_REQUESTS_PER_CALL);
   const newCommitments = witnessReader.readFieldArray(MAX_NEW_COMMITMENTS_PER_CALL);
   const newNullifiers = witnessReader.readFieldArray(MAX_NEW_NULLIFIERS_PER_CALL);
   const privateCallStack = witnessReader.readFieldArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL);

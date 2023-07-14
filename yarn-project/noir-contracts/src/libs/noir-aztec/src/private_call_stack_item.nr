@@ -72,7 +72,7 @@ impl PrivateCallStackItem {
                 // TODO handle the offsets as a variable incremented during extraction?
                 args_hash: fields[10],
                 return_values: arr_copy_slice(fields, [0; constants_gen::RETURN_VALUES_LENGTH], 11),
-                read_requests: arr_copy_slice(fields, [0; constants_gen::READ_REQUESTS_LENGTH], 15),
+                read_requests: arr_copy_slice(fields, [0; constants_gen::MAX_READ_REQUESTS_PER_CALL], 15),
                 new_commitments: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_COMMITMENTS_PER_CALL], 19),
                 new_nullifiers: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_NULLIFIERS_PER_CALL], 23),
                 private_call_stack: arr_copy_slice(fields, [0; constants_gen::MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL], 27),

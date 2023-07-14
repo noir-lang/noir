@@ -34,8 +34,8 @@ TEST_F(native_private_kernel_ordering_tests, native_one_read_request_choping_com
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
-    std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+    std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
     new_commitments[0] = fr(1282);
@@ -43,11 +43,14 @@ TEST_F(native_private_kernel_ordering_tests, native_one_read_request_choping_com
     read_request_membership_witnesses[0].is_transient = true;
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
+    private_inputs.previous_kernel.public_inputs.end.read_requests = read_requests;
+    private_inputs.previous_kernel.public_inputs.end.read_request_membership_witnesses =
+        read_request_membership_witnesses;
+
 
     DummyBuilder builder =
         DummyBuilder("native_private_kernel_ordering_tests__native_one_read_request_choping_commitment_works");
-    auto const& public_inputs = native_private_kernel_circuit_ordering(
-        builder, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
+    auto const& public_inputs = native_private_kernel_circuit_ordering(builder, private_inputs.previous_kernel);
 
     auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
@@ -62,8 +65,8 @@ TEST_F(native_private_kernel_ordering_tests, native_read_requests_choping_commit
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
-    std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+    std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
     new_commitments[0] = fr(1285);
@@ -78,11 +81,13 @@ TEST_F(native_private_kernel_ordering_tests, native_read_requests_choping_commit
     read_request_membership_witnesses[1].is_transient = true;
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
+    private_inputs.previous_kernel.public_inputs.end.read_requests = read_requests;
+    private_inputs.previous_kernel.public_inputs.end.read_request_membership_witnesses =
+        read_request_membership_witnesses;
 
     DummyBuilder builder =
         DummyBuilder("native_private_kernel_ordering_tests__native_read_requests_choping_commitment_works");
-    auto const& public_inputs = native_private_kernel_circuit_ordering(
-        builder, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
+    auto const& public_inputs = native_private_kernel_circuit_ordering(builder, private_inputs.previous_kernel);
 
     auto failure = builder.get_first_failure();
     if (failure.code != CircuitErrorCode::NO_ERROR) {
@@ -99,8 +104,8 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
     std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
-    std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
-    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, READ_REQUESTS_LENGTH>
+    std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
     new_commitments[0] = fr(1285);
@@ -119,10 +124,13 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
     read_request_membership_witnesses[3].is_transient = true;
 
     private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
+    private_inputs.previous_kernel.public_inputs.end.read_requests = read_requests;
+    private_inputs.previous_kernel.public_inputs.end.read_request_membership_witnesses =
+        read_request_membership_witnesses;
+
 
     DummyBuilder builder = DummyBuilder("native_private_kernel_ordering_tests__native_read_request_unknown_fails");
-    native_private_kernel_circuit_ordering(
-        builder, private_inputs.previous_kernel, read_requests, read_request_membership_witnesses);
+    native_private_kernel_circuit_ordering(builder, private_inputs.previous_kernel);
 
     auto failure = builder.get_first_failure();
     ASSERT_EQ(failure.code, CircuitErrorCode::PRIVATE_KERNEL__TRANSIENT_READ_REQUEST_NO_MATCH);

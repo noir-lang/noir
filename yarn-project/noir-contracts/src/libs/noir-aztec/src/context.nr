@@ -14,7 +14,7 @@ struct Context {
     args_hash : Field,
     return_values : BoundedVec<Field, constants_gen::RETURN_VALUES_LENGTH>,
 
-    read_requests: BoundedVec<Field, constants_gen::READ_REQUESTS_LENGTH>,
+    read_requests: BoundedVec<Field, constants_gen::MAX_READ_REQUESTS_PER_CALL>,
 
     new_commitments: BoundedVec<Field, constants_gen::MAX_NEW_COMMITMENTS_PER_CALL>,
     new_nullifiers: BoundedVec<Field, constants_gen::MAX_NEW_NULLIFIERS_PER_CALL>,

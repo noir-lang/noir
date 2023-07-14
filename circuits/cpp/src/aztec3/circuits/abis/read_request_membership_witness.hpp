@@ -22,6 +22,7 @@ template <typename NCT, unsigned int N> struct ReadRequestMembershipWitness {
     fr leaf_index = 0;
     std::array<fr, N> sibling_path{};
     boolean is_transient = false;  // whether or not the read request corresponds to a pending commitment
+                                   // In case we change the default to true, we have to adapt is_empty() method
     fr hint_to_commitment = 0;     // hint to point kernel to the commitment this rr corresponds to
 
     MSGPACK_FIELDS(leaf_index, sibling_path, is_transient, hint_to_commitment);
@@ -45,6 +46,40 @@ template <typename NCT, unsigned int N> struct ReadRequestMembershipWitness {
         };
 
         return witness;
+    }
+
+    template <typename Builder> ReadRequestMembershipWitness<NativeTypes, N> to_native_type() const
+    {
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
+
+        auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
+
+        ReadRequestMembershipWitness<NativeTypes, N> witness = {
+            to_nt(leaf_index), map(sibling_path, to_nt), to_nt(is_transient), to_nt(hint_to_commitment)
+        };
+
+        return witness;
+    }
+
+
+    void set_public()
+    {
+        static_assert(!(std::is_same<NativeTypes, NCT>::value));
+
+        leaf_index.set_public();
+        for (fr const& e : sibling_path) {
+            e.set_public();
+        }
+
+        fr(is_transient).set_public();
+        hint_to_commitment.set_public();
+    }
+
+    // Deliberately consider a transient read request membership witness as non-empty.
+    boolean is_empty() const
+    {
+        return aztec3::utils::is_empty(leaf_index) && is_array_empty(sibling_path) && !is_transient &&
+               aztec3::utils::is_empty(hint_to_commitment);
     }
 };
 

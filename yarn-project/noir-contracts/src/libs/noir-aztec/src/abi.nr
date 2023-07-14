@@ -1,5 +1,5 @@
 use crate::constants_gen::RETURN_VALUES_LENGTH;
-use crate::constants_gen::READ_REQUESTS_LENGTH;
+use crate::constants_gen::MAX_READ_REQUESTS_PER_CALL;
 use crate::constants_gen::MAX_NEW_COMMITMENTS_PER_CALL;
 use crate::constants_gen::MAX_NEW_NULLIFIERS_PER_CALL;
 use crate::constants_gen::MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL;
@@ -151,7 +151,7 @@ impl FunctionData {
 // CALL_CONTEXT_SIZE - 6
 // + ARGS_HASH - 1
 // + RETURN_VALUES_LENGTH - 4
-// + READ_REQUESTS_LENGTH - 4
+// + MAX_READ_REQUESTS_PER_CALL - 4
 // + MAX_NEW_COMMITMENTS_PER_CALL - 4
 // + MAX_NEW_NULLIFIERS_PER_CALL - 4
 // + MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL - 4
@@ -170,7 +170,7 @@ struct PrivateCircuitPublicInputs {
     call_context: CallContext,
     args_hash: Field,
     return_values: [Field; RETURN_VALUES_LENGTH],
-    read_requests: [Field; crate::abi::READ_REQUESTS_LENGTH],
+    read_requests: [Field; crate::abi::MAX_READ_REQUESTS_PER_CALL],
     new_commitments: [Field; MAX_NEW_COMMITMENTS_PER_CALL],
     new_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_CALL],
     private_call_stack: [Field; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],

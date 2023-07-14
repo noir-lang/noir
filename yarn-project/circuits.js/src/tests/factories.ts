@@ -45,6 +45,7 @@ import {
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+  MAX_READ_REQUESTS_PER_TX,
   MembershipWitness,
   MergeRollupInputs,
   NULLIFIER_TREE_HEIGHT,
@@ -73,7 +74,7 @@ import {
   PublicDataRead,
   PublicDataUpdateRequest,
   PublicKernelInputs,
-  READ_REQUESTS_LENGTH,
+  MAX_READ_REQUESTS_PER_CALL,
   RETURN_VALUES_LENGTH,
   ROLLUP_VK_TREE_HEIGHT,
   ReadRequestMembershipWitness,
@@ -203,6 +204,8 @@ export function makeEmptyAccumulatedData(seed = 1, full = false): CombinedAccumu
 
   return new CombinedAccumulatedData(
     makeAggregationObject(seed),
+    tupleGenerator(MAX_READ_REQUESTS_PER_TX, fr, seed + 0x80),
+    tupleGenerator(MAX_READ_REQUESTS_PER_TX, i => makeReadRequestMembershipWitness(i * 123), seed + 0x90),
     tupleGenerator(MAX_NEW_COMMITMENTS_PER_TX, fr, seed + 0x100),
     tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200),
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, Fr.zero), // private call stack must be empty
@@ -229,6 +232,8 @@ export function makeAccumulatedData(seed = 1, full = false): CombinedAccumulated
 
   return new CombinedAccumulatedData(
     makeAggregationObject(seed),
+    tupleGenerator(MAX_READ_REQUESTS_PER_TX, fr, seed + 0x80),
+    tupleGenerator(MAX_READ_REQUESTS_PER_TX, i => makeReadRequestMembershipWitness(i * 123), seed + 0x90),
     tupleGenerator(MAX_NEW_COMMITMENTS_PER_TX, fr, seed + 0x100),
     tupleGenerator(MAX_NEW_NULLIFIERS_PER_TX, fr, seed + 0x200),
     tupleGenerator(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, fr, seed + 0x300),
@@ -385,8 +390,8 @@ export function makeMembershipWitness<N extends number>(size: N, start: number):
  */
 export function makeReadRequestMembershipWitness(start: number): ReadRequestMembershipWitness {
   return new ReadRequestMembershipWitness(
-    BigInt(start),
-    makeTuple(PRIVATE_DATA_TREE_HEIGHT, fr, start),
+    new Fr(start),
+    makeTuple(PRIVATE_DATA_TREE_HEIGHT, fr, start + 1),
     false,
     new Fr(0),
   );
@@ -587,7 +592,7 @@ export function makePrivateCallData(seed = 1): PrivateCallData {
     vk: makeVerificationKey(),
     functionLeafMembershipWitness: makeMembershipWitness(FUNCTION_TREE_HEIGHT, seed + 0x30),
     contractLeafMembershipWitness: makeMembershipWitness(CONTRACT_TREE_HEIGHT, seed + 0x20),
-    readRequestMembershipWitnesses: range(READ_REQUESTS_LENGTH, seed + 0x70).map(x =>
+    readRequestMembershipWitnesses: range(MAX_READ_REQUESTS_PER_CALL, seed + 0x70).map(x =>
       makeReadRequestMembershipWitness(x),
     ),
     portalContractAddress: makeEthAddress(seed + 0x40),
@@ -625,7 +630,7 @@ export function makePrivateCircuitPublicInputs(seed = 0): PrivateCircuitPublicIn
     ),
     argsHash: fr(seed + 0x100),
     returnValues: makeTuple(RETURN_VALUES_LENGTH, fr, seed + 0x200),
-    readRequests: makeTuple(READ_REQUESTS_LENGTH, fr, seed + 0x300),
+    readRequests: makeTuple(MAX_READ_REQUESTS_PER_CALL, fr, seed + 0x300),
     newCommitments: makeTuple(MAX_NEW_COMMITMENTS_PER_CALL, fr, seed + 0x400),
     newNullifiers: makeTuple(MAX_NEW_NULLIFIERS_PER_CALL, fr, seed + 0x500),
     privateCallStack: makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL, fr, seed + 0x600),

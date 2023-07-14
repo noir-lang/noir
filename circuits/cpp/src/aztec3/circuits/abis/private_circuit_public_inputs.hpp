@@ -27,7 +27,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
     fr args_hash = 0;
     std::array<fr, RETURN_VALUES_LENGTH> return_values{};
 
-    std::array<fr, READ_REQUESTS_LENGTH> read_requests{};
+    std::array<fr, MAX_READ_REQUESTS_PER_CALL> read_requests{};
 
     std::array<fr, MAX_NEW_COMMITMENTS_PER_CALL> new_commitments{};
     std::array<fr, MAX_NEW_NULLIFIERS_PER_CALL> new_nullifiers{};
@@ -301,7 +301,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
     opt_fr args_hash;
     std::array<opt_fr, RETURN_VALUES_LENGTH> return_values;
 
-    std::array<opt_fr, READ_REQUESTS_LENGTH> read_requests;
+    std::array<opt_fr, MAX_READ_REQUESTS_PER_CALL> read_requests;
 
     std::array<opt_fr, MAX_NEW_COMMITMENTS_PER_CALL> new_commitments;
     std::array<opt_fr, MAX_NEW_NULLIFIERS_PER_CALL> new_nullifiers;
@@ -334,7 +334,7 @@ template <typename NCT> class OptionalPrivateCircuitPublicInputs {
         opt_fr const& args_hash,
         std::array<opt_fr, RETURN_VALUES_LENGTH> const& return_values,
 
-        std::array<opt_fr, READ_REQUESTS_LENGTH> const& read_requests,
+        std::array<opt_fr, MAX_READ_REQUESTS_PER_CALL> const& read_requests,
 
         std::array<opt_fr, MAX_NEW_COMMITMENTS_PER_CALL> const& new_commitments,
         std::array<opt_fr, MAX_NEW_NULLIFIERS_PER_CALL> const& new_nullifiers,

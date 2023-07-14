@@ -5,7 +5,8 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 
 import { setup } from './utils.js';
-import { CircuitError } from '@aztec/circuits.js';
+
+import { TxStatus } from '@aztec/types';
 
 describe('e2e_pending_commitments_contract', () => {
   let aztecNode: AztecNodeService;
@@ -47,19 +48,9 @@ describe('e2e_pending_commitments_contract', () => {
 
     const tx = deployedContract.methods.test_insert_then_read_flat(mintAmount, ownerPublicKey).send({ origin: owner });
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/906): remove code below and replace
-    // with `tx.isMined()` (etc) once kernel supports forwarding and matching of transient reads.
-    expect.assertions(2);
-    try {
-      await tx.isMined(0, 0.1);
-    } catch (error) {
-      expect(error).toBeInstanceOf(CircuitError);
-      expect(error).toHaveProperty('message', expect.stringContaining('kernel could not match read_request'));
-    }
-
-    //await tx.isMined(0, 0.1);
-    //const receipt = await tx.getReceipt();
-    //expect(receipt.status).toBe(TxStatus.MINED);
+    await tx.isMined(0, 0.1);
+    const receipt = await tx.getReceipt();
+    expect(receipt.status).toBe(TxStatus.MINED);
   }, 60_000);
 
   it('Noir function can "get" notes inserted in a previous function call in same TX', async () => {
@@ -79,19 +70,9 @@ describe('e2e_pending_commitments_contract', () => {
       )
       .send({ origin: owner });
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/906): remove code below and replace
-    // with `tx.isMined()` (etc) once kernel supports forwarding and matching of transient reads.
-    expect.assertions(2);
-    try {
-      await tx.isMined(0, 0.1);
-    } catch (error) {
-      expect(error).toBeInstanceOf(CircuitError);
-      expect(error).toHaveProperty('message', expect.stringContaining('kernel could not match read_request'));
-    }
-
-    //await tx.isMined(0, 0.1);
-    //const receipt = await tx.getReceipt();
-    //expect(receipt.status).toBe(TxStatus.MINED);
+    await tx.isMined(0, 0.1);
+    const receipt = await tx.getReceipt();
+    expect(receipt.status).toBe(TxStatus.MINED);
   }, 60_000);
 
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/836): test nullify & squash of pending notes

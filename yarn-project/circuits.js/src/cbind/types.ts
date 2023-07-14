@@ -1,6 +1,23 @@
 // Type mappings for cbinds
 // Can either export things directly or handle
 // naming differences with the 'as' syntax
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+
+/**
+ * Coerce a variety of types to a buffer.
+ * Makes msgpack output easier to manage as this can handle a few cases.
+ * @param bufferable - The value to coerce.
+ */
+export function toBuffer(bufferable: { toBuffer(): Buffer } | bigint | Buffer) {
+  if (typeof bufferable === 'bigint') {
+    return toBufferBE(bufferable, 32);
+  } else if (bufferable instanceof Buffer) {
+    return bufferable;
+  } else {
+    return bufferable.toBuffer();
+  }
+}
+
 export {
   AggregationObject as NativeAggregationState,
   AztecAddress as Address,
@@ -14,6 +31,7 @@ export {
   OptionallyRevealedData,
   PublicDataRead,
   PublicDataUpdateRequest,
+  ReadRequestMembershipWitness,
   CombinedAccumulatedData,
   PrivateHistoricTreeRoots,
   CombinedHistoricTreeRoots,

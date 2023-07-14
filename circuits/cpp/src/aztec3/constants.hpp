@@ -18,7 +18,6 @@ constexpr size_t log2(size_t input)
 
 constexpr size_t ARGS_LENGTH = 16;
 constexpr size_t RETURN_VALUES_LENGTH = 4;
-constexpr size_t READ_REQUESTS_LENGTH = 4;
 
 /**
  * Convention for constant array lengths are mainly divided in 2 classes:
@@ -48,6 +47,8 @@ constexpr size_t MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL = 4;
 constexpr size_t MAX_NEW_L2_TO_L1_MSGS_PER_CALL = 2;
 constexpr size_t MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL = 4;
 constexpr size_t MAX_PUBLIC_DATA_READS_PER_CALL = 4;
+constexpr size_t MAX_READ_REQUESTS_PER_CALL = 4;
+
 
 // "PER TRANSACTION" CONSTANTS
 constexpr size_t MAX_NEW_COMMITMENTS_PER_TX = MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL * MAX_NEW_COMMITMENTS_PER_CALL;
@@ -59,8 +60,10 @@ constexpr size_t MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX = 4;
 constexpr size_t MAX_PUBLIC_DATA_READS_PER_TX = 4;
 constexpr size_t MAX_NEW_CONTRACTS_PER_TX = 1;
 constexpr size_t MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX = 4;
+constexpr size_t MAX_READ_REQUESTS_PER_TX = MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL * MAX_READ_REQUESTS_PER_CALL;
 constexpr size_t NUM_ENCRYPTED_LOGS_HASHES_PER_TX = 1;
 constexpr size_t NUM_UNENCRYPTED_LOGS_HASHES_PER_TX = 1;
+
 
 // ROLLUP CONSTANTS
 constexpr size_t NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP = 16;

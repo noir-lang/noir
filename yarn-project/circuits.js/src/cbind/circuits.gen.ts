@@ -4,11 +4,13 @@ import { Buffer } from 'buffer';
 import { callCbind } from './cbind.js';
 import { IWasmModule } from '@aztec/foundation/wasm';
 import {
+  toBuffer,
   Address,
   Fr,
   Fq,
   G1AffineElement,
   NativeAggregationState,
+  ReadRequestMembershipWitness,
   NewContractData,
   FunctionData,
   OptionallyRevealedData,
@@ -60,8 +62,8 @@ export function fromG1AffineElement(o: G1AffineElement): MsgpackG1AffineElement 
     throw new Error('Expected y in G1AffineElement serialization');
   }
   return {
-    x: o.x.toBuffer(),
-    y: o.y.toBuffer(),
+    x: toBuffer(o.x),
+    y: toBuffer(o.y),
   };
 }
 
@@ -117,9 +119,58 @@ export function fromNativeAggregationState(o: NativeAggregationState): MsgpackNa
   return {
     P0: fromG1AffineElement(o.p0),
     P1: fromG1AffineElement(o.p1),
-    public_inputs: o.publicInputs.map((v: Fr) => v.toBuffer()),
+    public_inputs: o.publicInputs.map((v: Fr) => toBuffer(v)),
     proof_witness_indices: o.proofWitnessIndices.map((v: number) => v),
     has_data: o.hasData,
+  };
+}
+
+interface MsgpackReadRequestMembershipWitness {
+  leaf_index: Buffer;
+  sibling_path: Tuple<Buffer, 32>;
+  is_transient: boolean;
+  hint_to_commitment: Buffer;
+}
+
+export function toReadRequestMembershipWitness(o: MsgpackReadRequestMembershipWitness): ReadRequestMembershipWitness {
+  if (o.leaf_index === undefined) {
+    throw new Error('Expected leaf_index in ReadRequestMembershipWitness deserialization');
+  }
+  if (o.sibling_path === undefined) {
+    throw new Error('Expected sibling_path in ReadRequestMembershipWitness deserialization');
+  }
+  if (o.is_transient === undefined) {
+    throw new Error('Expected is_transient in ReadRequestMembershipWitness deserialization');
+  }
+  if (o.hint_to_commitment === undefined) {
+    throw new Error('Expected hint_to_commitment in ReadRequestMembershipWitness deserialization');
+  }
+  return new ReadRequestMembershipWitness(
+    Fr.fromBuffer(o.leaf_index),
+    mapTuple(o.sibling_path, (v: Buffer) => Fr.fromBuffer(v)),
+    o.is_transient,
+    Fr.fromBuffer(o.hint_to_commitment),
+  );
+}
+
+export function fromReadRequestMembershipWitness(o: ReadRequestMembershipWitness): MsgpackReadRequestMembershipWitness {
+  if (o.leafIndex === undefined) {
+    throw new Error('Expected leafIndex in ReadRequestMembershipWitness serialization');
+  }
+  if (o.siblingPath === undefined) {
+    throw new Error('Expected siblingPath in ReadRequestMembershipWitness serialization');
+  }
+  if (o.isTransient === undefined) {
+    throw new Error('Expected isTransient in ReadRequestMembershipWitness serialization');
+  }
+  if (o.hintToCommitment === undefined) {
+    throw new Error('Expected hintToCommitment in ReadRequestMembershipWitness serialization');
+  }
+  return {
+    leaf_index: toBuffer(o.leafIndex),
+    sibling_path: mapTuple(o.siblingPath, (v: Fr) => toBuffer(v)),
+    is_transient: o.isTransient,
+    hint_to_commitment: toBuffer(o.hintToCommitment),
   };
 }
 
@@ -157,9 +208,9 @@ export function fromNewContractData(o: NewContractData): MsgpackNewContractData 
     throw new Error('Expected functionTreeRoot in NewContractData serialization');
   }
   return {
-    contract_address: o.contractAddress.toBuffer(),
-    portal_contract_address: o.portalContractAddress.toBuffer(),
-    function_tree_root: o.functionTreeRoot.toBuffer(),
+    contract_address: toBuffer(o.contractAddress),
+    portal_contract_address: toBuffer(o.portalContractAddress),
+    function_tree_root: toBuffer(o.functionTreeRoot),
   };
 }
 
@@ -273,10 +324,10 @@ export function fromOptionallyRevealedData(o: OptionallyRevealedData): MsgpackOp
     throw new Error('Expected calledFromPublicL2 in OptionallyRevealedData serialization');
   }
   return {
-    call_stack_item_hash: o.callStackItemHash.toBuffer(),
+    call_stack_item_hash: toBuffer(o.callStackItemHash),
     function_data: fromFunctionData(o.functionData),
-    vk_hash: o.vkHash.toBuffer(),
-    portal_contract_address: o.portalContractAddress.toBuffer(),
+    vk_hash: toBuffer(o.vkHash),
+    portal_contract_address: toBuffer(o.portalContractAddress),
     pay_fee_from_l1: o.payFeeFromL1,
     pay_fee_from_public_l2: o.payFeeFromPublicL2,
     called_from_l1: o.calledFromL1,
@@ -318,9 +369,9 @@ export function fromPublicDataUpdateRequest(o: PublicDataUpdateRequest): Msgpack
     throw new Error('Expected newValue in PublicDataUpdateRequest serialization');
   }
   return {
-    leaf_index: o.leafIndex.toBuffer(),
-    old_value: o.oldValue.toBuffer(),
-    new_value: o.newValue.toBuffer(),
+    leaf_index: toBuffer(o.leafIndex),
+    old_value: toBuffer(o.oldValue),
+    new_value: toBuffer(o.newValue),
   };
 }
 
@@ -347,13 +398,15 @@ export function fromPublicDataRead(o: PublicDataRead): MsgpackPublicDataRead {
     throw new Error('Expected value in PublicDataRead serialization');
   }
   return {
-    leaf_index: o.leafIndex.toBuffer(),
-    value: o.value.toBuffer(),
+    leaf_index: toBuffer(o.leafIndex),
+    value: toBuffer(o.value),
   };
 }
 
 interface MsgpackCombinedAccumulatedData {
   aggregation_object: MsgpackNativeAggregationState;
+  read_requests: Tuple<Buffer, 16>;
+  read_request_membership_witnesses: Tuple<MsgpackReadRequestMembershipWitness, 16>;
   new_commitments: Tuple<Buffer, 16>;
   new_nullifiers: Tuple<Buffer, 16>;
   private_call_stack: Tuple<Buffer, 8>;
@@ -372,6 +425,12 @@ interface MsgpackCombinedAccumulatedData {
 export function toCombinedAccumulatedData(o: MsgpackCombinedAccumulatedData): CombinedAccumulatedData {
   if (o.aggregation_object === undefined) {
     throw new Error('Expected aggregation_object in CombinedAccumulatedData deserialization');
+  }
+  if (o.read_requests === undefined) {
+    throw new Error('Expected read_requests in CombinedAccumulatedData deserialization');
+  }
+  if (o.read_request_membership_witnesses === undefined) {
+    throw new Error('Expected read_request_membership_witnesses in CombinedAccumulatedData deserialization');
   }
   if (o.new_commitments === undefined) {
     throw new Error('Expected new_commitments in CombinedAccumulatedData deserialization');
@@ -414,6 +473,10 @@ export function toCombinedAccumulatedData(o: MsgpackCombinedAccumulatedData): Co
   }
   return new CombinedAccumulatedData(
     toNativeAggregationState(o.aggregation_object),
+    mapTuple(o.read_requests, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.read_request_membership_witnesses, (v: MsgpackReadRequestMembershipWitness) =>
+      toReadRequestMembershipWitness(v),
+    ),
     mapTuple(o.new_commitments, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.new_nullifiers, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.private_call_stack, (v: Buffer) => Fr.fromBuffer(v)),
@@ -433,6 +496,12 @@ export function toCombinedAccumulatedData(o: MsgpackCombinedAccumulatedData): Co
 export function fromCombinedAccumulatedData(o: CombinedAccumulatedData): MsgpackCombinedAccumulatedData {
   if (o.aggregationObject === undefined) {
     throw new Error('Expected aggregationObject in CombinedAccumulatedData serialization');
+  }
+  if (o.readRequests === undefined) {
+    throw new Error('Expected readRequests in CombinedAccumulatedData serialization');
+  }
+  if (o.readRequestMembershipWitnesses === undefined) {
+    throw new Error('Expected readRequestMembershipWitnesses in CombinedAccumulatedData serialization');
   }
   if (o.newCommitments === undefined) {
     throw new Error('Expected newCommitments in CombinedAccumulatedData serialization');
@@ -475,15 +544,19 @@ export function fromCombinedAccumulatedData(o: CombinedAccumulatedData): Msgpack
   }
   return {
     aggregation_object: fromNativeAggregationState(o.aggregationObject),
-    new_commitments: mapTuple(o.newCommitments, (v: Fr) => v.toBuffer()),
-    new_nullifiers: mapTuple(o.newNullifiers, (v: Fr) => v.toBuffer()),
-    private_call_stack: mapTuple(o.privateCallStack, (v: Fr) => v.toBuffer()),
-    public_call_stack: mapTuple(o.publicCallStack, (v: Fr) => v.toBuffer()),
-    new_l2_to_l1_msgs: mapTuple(o.newL2ToL1Msgs, (v: Fr) => v.toBuffer()),
-    encrypted_logs_hash: mapTuple(o.encryptedLogsHash, (v: Fr) => v.toBuffer()),
-    unencrypted_logs_hash: mapTuple(o.unencryptedLogsHash, (v: Fr) => v.toBuffer()),
-    encrypted_log_preimages_length: o.encryptedLogPreimagesLength.toBuffer(),
-    unencrypted_log_preimages_length: o.unencryptedLogPreimagesLength.toBuffer(),
+    read_requests: mapTuple(o.readRequests, (v: Fr) => toBuffer(v)),
+    read_request_membership_witnesses: mapTuple(o.readRequestMembershipWitnesses, (v: ReadRequestMembershipWitness) =>
+      fromReadRequestMembershipWitness(v),
+    ),
+    new_commitments: mapTuple(o.newCommitments, (v: Fr) => toBuffer(v)),
+    new_nullifiers: mapTuple(o.newNullifiers, (v: Fr) => toBuffer(v)),
+    private_call_stack: mapTuple(o.privateCallStack, (v: Fr) => toBuffer(v)),
+    public_call_stack: mapTuple(o.publicCallStack, (v: Fr) => toBuffer(v)),
+    new_l2_to_l1_msgs: mapTuple(o.newL2ToL1Msgs, (v: Fr) => toBuffer(v)),
+    encrypted_logs_hash: mapTuple(o.encryptedLogsHash, (v: Fr) => toBuffer(v)),
+    unencrypted_logs_hash: mapTuple(o.unencryptedLogsHash, (v: Fr) => toBuffer(v)),
+    encrypted_log_preimages_length: toBuffer(o.encryptedLogPreimagesLength),
+    unencrypted_log_preimages_length: toBuffer(o.unencryptedLogPreimagesLength),
     new_contracts: mapTuple(o.newContracts, (v: NewContractData) => fromNewContractData(v)),
     optionally_revealed_data: mapTuple(o.optionallyRevealedData, (v: OptionallyRevealedData) =>
       fromOptionallyRevealedData(v),
@@ -545,11 +618,11 @@ export function fromPrivateHistoricTreeRoots(o: PrivateHistoricTreeRoots): Msgpa
     throw new Error('Expected privateKernelVkTreeRoot in PrivateHistoricTreeRoots serialization');
   }
   return {
-    private_data_tree_root: o.privateDataTreeRoot.toBuffer(),
-    nullifier_tree_root: o.nullifierTreeRoot.toBuffer(),
-    contract_tree_root: o.contractTreeRoot.toBuffer(),
-    l1_to_l2_messages_tree_root: o.l1ToL2MessagesTreeRoot.toBuffer(),
-    private_kernel_vk_tree_root: o.privateKernelVkTreeRoot.toBuffer(),
+    private_data_tree_root: toBuffer(o.privateDataTreeRoot),
+    nullifier_tree_root: toBuffer(o.nullifierTreeRoot),
+    contract_tree_root: toBuffer(o.contractTreeRoot),
+    l1_to_l2_messages_tree_root: toBuffer(o.l1ToL2MessagesTreeRoot),
+    private_kernel_vk_tree_root: toBuffer(o.privateKernelVkTreeRoot),
   };
 }
 
@@ -596,8 +669,8 @@ export function fromPoint(o: Point): MsgpackPoint {
     throw new Error('Expected y in Point serialization');
   }
   return {
-    x: o.x.toBuffer(),
-    y: o.y.toBuffer(),
+    x: toBuffer(o.x),
+    y: toBuffer(o.y),
   };
 }
 
@@ -652,10 +725,10 @@ export function fromContractDeploymentData(o: ContractDeploymentData): MsgpackCo
   }
   return {
     deployer_public_key: fromPoint(o.deployerPublicKey),
-    constructor_vk_hash: o.constructorVkHash.toBuffer(),
-    function_tree_root: o.functionTreeRoot.toBuffer(),
-    contract_address_salt: o.contractAddressSalt.toBuffer(),
-    portal_contract_address: o.portalContractAddress.toBuffer(),
+    constructor_vk_hash: toBuffer(o.constructorVkHash),
+    function_tree_root: toBuffer(o.functionTreeRoot),
+    contract_address_salt: toBuffer(o.contractAddressSalt),
+    portal_contract_address: toBuffer(o.portalContractAddress),
   };
 }
 
@@ -721,8 +794,8 @@ export function fromTxContext(o: TxContext): MsgpackTxContext {
     is_rebate_payment_tx: o.isRebatePaymentTx,
     is_contract_deployment_tx: o.isContractDeploymentTx,
     contract_deployment_data: fromContractDeploymentData(o.contractDeploymentData),
-    chain_id: o.chainId.toBuffer(),
-    version: o.version.toBuffer(),
+    chain_id: toBuffer(o.chainId),
+    version: toBuffer(o.version),
   };
 }
 
@@ -915,7 +988,7 @@ export function fromPreviousKernelData(o: PreviousKernelData): MsgpackPreviousKe
     proof: o.proof.toMsgpackBuffer(),
     vk: fromVerificationKeyData(o.vk),
     vk_index: o.vkIndex,
-    vk_path: mapTuple(o.vkPath, (v: Fr) => v.toBuffer()),
+    vk_path: mapTuple(o.vkPath, (v: Fr) => toBuffer(v)),
   };
 }
 
@@ -1005,9 +1078,9 @@ export function fromCallContext(o: CallContext): MsgpackCallContext {
     throw new Error('Expected isContractDeployment in CallContext serialization');
   }
   return {
-    msg_sender: o.msgSender.toBuffer(),
-    storage_contract_address: o.storageContractAddress.toBuffer(),
-    portal_contract_address: o.portalContractAddress.toBuffer(),
+    msg_sender: toBuffer(o.msgSender),
+    storage_contract_address: toBuffer(o.storageContractAddress),
+    portal_contract_address: toBuffer(o.portalContractAddress),
     is_delegate_call: o.isDelegateCall,
     is_static_call: o.isStaticCall,
     is_contract_deployment: o.isContractDeployment,
@@ -1048,9 +1121,9 @@ export function fromContractStorageUpdateRequest(o: ContractStorageUpdateRequest
     throw new Error('Expected newValue in ContractStorageUpdateRequest serialization');
   }
   return {
-    storage_slot: o.storageSlot.toBuffer(),
-    old_value: o.oldValue.toBuffer(),
-    new_value: o.newValue.toBuffer(),
+    storage_slot: toBuffer(o.storageSlot),
+    old_value: toBuffer(o.oldValue),
+    new_value: toBuffer(o.newValue),
   };
 }
 
@@ -1077,8 +1150,8 @@ export function fromContractStorageRead(o: ContractStorageRead): MsgpackContract
     throw new Error('Expected currentValue in ContractStorageRead serialization');
   }
   return {
-    storage_slot: o.storageSlot.toBuffer(),
-    current_value: o.currentValue.toBuffer(),
+    storage_slot: toBuffer(o.storageSlot),
+    current_value: toBuffer(o.currentValue),
   };
 }
 
@@ -1199,20 +1272,20 @@ export function fromPublicCircuitPublicInputs(o: PublicCircuitPublicInputs): Msg
   }
   return {
     call_context: fromCallContext(o.callContext),
-    args_hash: o.argsHash.toBuffer(),
-    return_values: mapTuple(o.returnValues, (v: Fr) => v.toBuffer()),
+    args_hash: toBuffer(o.argsHash),
+    return_values: mapTuple(o.returnValues, (v: Fr) => toBuffer(v)),
     contract_storage_update_requests: mapTuple(o.contractStorageUpdateRequests, (v: ContractStorageUpdateRequest) =>
       fromContractStorageUpdateRequest(v),
     ),
     contract_storage_reads: mapTuple(o.contractStorageReads, (v: ContractStorageRead) => fromContractStorageRead(v)),
-    public_call_stack: mapTuple(o.publicCallStack, (v: Fr) => v.toBuffer()),
-    new_commitments: mapTuple(o.newCommitments, (v: Fr) => v.toBuffer()),
-    new_nullifiers: mapTuple(o.newNullifiers, (v: Fr) => v.toBuffer()),
-    new_l2_to_l1_msgs: mapTuple(o.newL2ToL1Msgs, (v: Fr) => v.toBuffer()),
-    unencrypted_logs_hash: mapTuple(o.unencryptedLogsHash, (v: Fr) => v.toBuffer()),
-    unencrypted_log_preimages_length: o.unencryptedLogPreimagesLength.toBuffer(),
-    historic_public_data_tree_root: o.historicPublicDataTreeRoot.toBuffer(),
-    prover_address: o.proverAddress.toBuffer(),
+    public_call_stack: mapTuple(o.publicCallStack, (v: Fr) => toBuffer(v)),
+    new_commitments: mapTuple(o.newCommitments, (v: Fr) => toBuffer(v)),
+    new_nullifiers: mapTuple(o.newNullifiers, (v: Fr) => toBuffer(v)),
+    new_l2_to_l1_msgs: mapTuple(o.newL2ToL1Msgs, (v: Fr) => toBuffer(v)),
+    unencrypted_logs_hash: mapTuple(o.unencryptedLogsHash, (v: Fr) => toBuffer(v)),
+    unencrypted_log_preimages_length: toBuffer(o.unencryptedLogPreimagesLength),
+    historic_public_data_tree_root: toBuffer(o.historicPublicDataTreeRoot),
+    prover_address: toBuffer(o.proverAddress),
   };
 }
 
@@ -1258,7 +1331,7 @@ export function fromPublicCallStackItem(o: PublicCallStackItem): MsgpackPublicCa
     throw new Error('Expected isExecutionRequest in PublicCallStackItem serialization');
   }
   return {
-    contract_address: o.contractAddress.toBuffer(),
+    contract_address: toBuffer(o.contractAddress),
     function_data: fromFunctionData(o.functionData),
     public_inputs: fromPublicCircuitPublicInputs(o.publicInputs),
     is_execution_request: o.isExecutionRequest,
@@ -1320,8 +1393,8 @@ export function fromPublicCallData(o: PublicCallData): MsgpackPublicCallData {
       fromPublicCallStackItem(v),
     ),
     proof: o.proof.toMsgpackBuffer(),
-    portal_contract_address: o.portalContractAddress.toBuffer(),
-    bytecode_hash: o.bytecodeHash.toBuffer(),
+    portal_contract_address: toBuffer(o.portalContractAddress),
+    bytecode_hash: toBuffer(o.bytecodeHash),
   };
 }
 
@@ -1354,10 +1427,10 @@ export function fromPublicKernelInputs(o: PublicKernelInputs): MsgpackPublicKern
 }
 
 export function abisSiloCommitment(wasm: IWasmModule, arg0: Address, arg1: Fr): Fr {
-  return Fr.fromBuffer(callCbind(wasm, 'abis__silo_commitment', [arg0.toBuffer(), arg1.toBuffer()]));
+  return Fr.fromBuffer(callCbind(wasm, 'abis__silo_commitment', [toBuffer(arg0), toBuffer(arg1)]));
 }
 export function abisSiloNullifier(wasm: IWasmModule, arg0: Address, arg1: Fr): Fr {
-  return Fr.fromBuffer(callCbind(wasm, 'abis__silo_nullifier', [arg0.toBuffer(), arg1.toBuffer()]));
+  return Fr.fromBuffer(callCbind(wasm, 'abis__silo_nullifier', [toBuffer(arg0), toBuffer(arg1)]));
 }
 export function privateKernelDummyPreviousKernel(wasm: IWasmModule): PreviousKernelData {
   return toPreviousKernelData(callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));

@@ -6,7 +6,7 @@ import {
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   PrivateCallStackItem,
   PrivateCircuitPublicInputs,
-  READ_REQUESTS_LENGTH,
+  MAX_READ_REQUESTS_PER_CALL,
   ReadRequestMembershipWitness,
   TxRequest,
   VK_TREE_HEIGHT,
@@ -53,7 +53,7 @@ describe('Kernel Prover', () => {
       preimages: { newNotes: newNoteIndices.map(idx => notes[idx]), nullifiedNotes: [] },
       // TODO(dbanks12): should test kernel prover with non-transient reads.
       // This will be necessary once kernel actually checks (attempts to match) transient reads.
-      readRequestPartialWitnesses: Array.from({ length: READ_REQUESTS_LENGTH }, () =>
+      readRequestPartialWitnesses: Array.from({ length: MAX_READ_REQUESTS_PER_CALL }, () =>
         ReadRequestMembershipWitness.emptyTransient(),
       ),
       returnValues: [],
