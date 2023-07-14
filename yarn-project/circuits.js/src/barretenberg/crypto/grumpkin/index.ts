@@ -1,4 +1,5 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
+
 import { CircuitsWasm } from '../../../index.js';
 import { Curve } from '../index.js';
 

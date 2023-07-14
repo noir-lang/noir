@@ -1,5 +1,5 @@
-import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 import { uint8ArrayToNum } from '../utils/serialize.js';
+import { CircuitsWasm } from '../wasm/circuits_wasm.js';
 
 /**
  * Simplify e.g. 0x0003 into 0x3.

@@ -1,5 +1,6 @@
-import { ClassConverter } from './class_converter.js';
 import { Buffer } from 'buffer';
+
+import { ClassConverter } from './class_converter.js';
 
 /**
  * Recursively looks through an object for bigints and converts them to object format.

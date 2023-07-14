@@ -3,7 +3,6 @@ import { pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { toBigInt } from '@aztec/foundation/serialize';
-
 import { IWasmModule } from '@aztec/foundation/wasm';
 
 /**

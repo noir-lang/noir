@@ -1,5 +1,3 @@
-import { ACVMField, toACVMField } from './acvm.js';
-
 import {
   CallContext,
   ContractDeploymentData,
@@ -8,8 +6,10 @@ import {
   PrivateCircuitPublicInputs,
   PublicCallRequest,
 } from '@aztec/circuits.js';
-import { CommitmentDataOracleInputs, MessageLoadOracleInputs } from '../client/db_oracle.js';
 import { Fr } from '@aztec/foundation/fields';
+
+import { CommitmentDataOracleInputs, MessageLoadOracleInputs } from '../client/db_oracle.js';
+import { ACVMField, toACVMField } from './acvm.js';
 
 // Utilities to write TS classes to ACVM Field arrays
 // In the order that the ACVM expects them

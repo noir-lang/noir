@@ -1,4 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
+
 import { NotePreimage } from './note_preimage.js';
 
 describe('note_preimage', () => {

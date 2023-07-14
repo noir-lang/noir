@@ -1,14 +1,15 @@
 import { AztecNodeService } from '@aztec/aztec-node';
+import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Contract, ContractDeployer, Fr, Wallet } from '@aztec/aztec.js';
 import { deployL1Contract } from '@aztec/ethereum';
+import { DeployL1Contracts } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
-import { getContract, parseEther } from 'viem';
-import { DeployL1Contracts } from '@aztec/ethereum';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { UniswapContractAbi } from '@aztec/noir-contracts/examples';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { TxStatus } from '@aztec/types';
+
+import { getContract, parseEther } from 'viem';
 
 import { CrossChainTestHarness } from './cross_chain/test_harness.js';
 import { delay, deployAndInitializeNonNativeL2TokenContracts, setup } from './utils.js';

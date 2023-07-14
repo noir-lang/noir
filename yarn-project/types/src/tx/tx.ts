@@ -1,8 +1,8 @@
 import {
   AztecAddress,
   Fr,
-  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   KernelCircuitPublicInputs,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PartialContractAddress,
   Proof,
   PublicCallRequest,

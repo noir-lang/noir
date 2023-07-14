@@ -1,4 +1,3 @@
-import { serializeBufferArrayToVector } from './index.js';
 import {
   boolToByte,
   numToInt32BE,
@@ -7,6 +6,7 @@ import {
   serializeBufferToVector,
   serializeDate,
 } from './free_funcs.js';
+import { serializeBufferArrayToVector } from './index.js';
 
 /**
  * The Serializer class provides a convenient and efficient way to serialize various data types into binary format.

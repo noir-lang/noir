@@ -1,4 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+
 import { serializeToBuffer } from '../utils/serialize.js';
 import { FunctionData } from './function_data.js';
 import { PrivateCircuitPublicInputs } from './private_circuit_public_inputs.js';

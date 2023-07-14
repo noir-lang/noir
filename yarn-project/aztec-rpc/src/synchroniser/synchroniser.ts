@@ -2,8 +2,10 @@ import { AztecAddress, Fr, PublicKey } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InterruptableSleep } from '@aztec/foundation/sleep';
 import { AztecNode, KeyStore, L2BlockContext, LogType, MerkleTreeId } from '@aztec/types';
+
 import { Database, TxDao } from '../database/index.js';
 import { NoteProcessor } from '../note_processor/index.js';
+
 /**
  * The Synchroniser class manages the synchronization of note processors and interacts with the Aztec node
  * to obtain encrypted logs, blocks, and other necessary information for the accounts.

@@ -1,4 +1,5 @@
 import { Tx, TxHash } from '@aztec/types';
+
 import { P2PService } from './service.js';
 
 /**

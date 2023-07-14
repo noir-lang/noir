@@ -1,5 +1,6 @@
-import { TxSenderConfig } from './config.js';
-import { L1ProcessArgs as ProcessTxArgs, L1PublisherTxSender, MinimalTransactionReceipt } from './l1-publisher.js';
+import { createEthereumChain } from '@aztec/ethereum';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { ContractDeploymentEmitterAbi, RollupAbi } from '@aztec/l1-artifacts';
 import { ContractPublicData } from '@aztec/types';
 
 import {
@@ -14,11 +15,11 @@ import {
   getContract,
   http,
 } from 'viem';
-import { RollupAbi, ContractDeploymentEmitterAbi } from '@aztec/l1-artifacts';
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts';
 import * as chains from 'viem/chains';
-import { createDebugLogger } from '@aztec/foundation/log';
-import { createEthereumChain } from '@aztec/ethereum';
+
+import { TxSenderConfig } from './config.js';
+import { L1PublisherTxSender, MinimalTransactionReceipt, L1ProcessArgs as ProcessTxArgs } from './l1-publisher.js';
 
 /**
  * Pushes transactions to the L1 rollup contract using viem.

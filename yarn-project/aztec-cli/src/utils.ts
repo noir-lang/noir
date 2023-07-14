@@ -1,9 +1,11 @@
-import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
-import fs from 'fs';
-import { createEthereumChain, deployL1Contracts } from '@aztec/ethereum';
-import { DebugLogger, Logger } from '@aztec/foundation/log';
-import { ContractAbi } from '@aztec/foundation/abi';
 import { AztecAddress, AztecRPC } from '@aztec/aztec.js';
+import { createEthereumChain, deployL1Contracts } from '@aztec/ethereum';
+import { ContractAbi } from '@aztec/foundation/abi';
+import { DebugLogger, Logger } from '@aztec/foundation/log';
+
+import fs from 'fs';
+import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
+
 import { encodeArgs } from './cli_encoder.js';
 
 /**

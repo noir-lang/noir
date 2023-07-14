@@ -1,8 +1,9 @@
-import { createCipheriv, createDecipheriv } from 'browserify-cipher';
 import { Curve } from '@aztec/circuits.js/barretenberg';
-import { numToUInt8 } from '@aztec/foundation/serialize';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
+import { numToUInt8 } from '@aztec/foundation/serialize';
+
+import { createCipheriv, createDecipheriv } from 'browserify-cipher';
 
 /**
  * Derive an AES secret key using Elliptic Curve Diffie-Hellman (ECDH) and SHA-256.

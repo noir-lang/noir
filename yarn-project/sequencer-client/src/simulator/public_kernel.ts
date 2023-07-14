@@ -1,4 +1,5 @@
 import { PublicKernelInputs, PublicKernelPublicInputs, simulatePublicKernelCircuit } from '@aztec/circuits.js';
+
 import { PublicKernelCircuitSimulator } from './index.js';
 
 /**

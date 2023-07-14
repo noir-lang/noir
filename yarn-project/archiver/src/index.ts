@@ -1,9 +1,11 @@
+import { createLogger } from '@aztec/foundation/log';
+
 import { fileURLToPath } from 'url';
 import { createPublicClient, http } from 'viem';
 import { localhost } from 'viem/chains';
-import { Archiver, getConfigEnvVars } from './archiver/index.js';
+
 import { MemoryArchiverStore } from './archiver/archiver_store.js';
-import { createLogger } from '@aztec/foundation/log';
+import { Archiver, getConfigEnvVars } from './archiver/index.js';
 
 export * from './archiver/index.js';
 

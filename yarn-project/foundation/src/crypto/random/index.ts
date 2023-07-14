@@ -1,5 +1,5 @@
-import isNode from 'detect-node';
 import nodeCrypto from 'crypto';
+import isNode from 'detect-node';
 
 // limit of Crypto.getRandomValues()
 // https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues

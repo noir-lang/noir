@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-import nodePath from 'path';
-import fs from 'fs/promises';
-import fsExtra from 'fs-extra';
-import { Command } from 'commander';
-import { ContractCompiler } from './compile.js';
 import { createLogger } from '@aztec/foundation/log';
+
+import { Command } from 'commander';
+import fsExtra from 'fs-extra';
+import fs from 'fs/promises';
+import nodePath from 'path';
+
+import { ContractCompiler } from './compile.js';
 
 const program = new Command();
 const log = createLogger('noir-compiler-cli');

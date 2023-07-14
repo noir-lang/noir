@@ -1,6 +1,7 @@
+import { TextEncoder } from 'util';
+
 import { CircuitsWasm } from '../../../index.js';
 import { Ecdsa } from './index.js';
-import { TextEncoder } from 'util';
 
 describe('ecdsa', () => {
   let ecdsa!: Ecdsa;

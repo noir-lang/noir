@@ -1,5 +1,5 @@
 import { createDebugLogger } from '../../log/index.js';
-import { ClassConverter, StringClassConverterInput, JsonClassConverterInput } from '../class_converter.js';
+import { ClassConverter, JsonClassConverterInput, StringClassConverterInput } from '../class_converter.js';
 import { convertFromJsonObj, convertToJsonObj } from '../convert.js';
 import { assert, hasOwnProperty } from '../js_utils.js';
 

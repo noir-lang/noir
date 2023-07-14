@@ -1,8 +1,9 @@
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { CircuitsWasm } from '@aztec/circuits.js';
-import { Point } from '@aztec/foundation/fields';
-import { NoteSpendingInfo } from './note_spending_info.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
+import { Point } from '@aztec/foundation/fields';
+
+import { NoteSpendingInfo } from './note_spending_info.js';
 
 describe('note_spending_info', () => {
   let grumpkin: Grumpkin;

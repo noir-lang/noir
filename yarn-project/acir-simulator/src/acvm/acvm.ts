@@ -2,6 +2,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+
 import { ForeignCallInput, ForeignCallOutput, WitnessMap, executeCircuit } from 'acvm_js';
 
 /**

@@ -8,13 +8,13 @@ import {
   Point,
   PrivateHistoricTreeRoots,
 } from '@aztec/circuits.js';
-import { FunctionAbi } from '@aztec/foundation/abi';
 import { siloCommitment } from '@aztec/circuits.js/abis';
+import { FunctionAbi } from '@aztec/foundation/abi';
 import { KeyStore, MerkleTreeId } from '@aztec/types';
+import { DataCommitmentProvider, L1ToL2MessageProvider } from '@aztec/types';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database } from '../database/index.js';
-import { DataCommitmentProvider, L1ToL2MessageProvider } from '@aztec/types';
 
 /**
  * A data oracle that provides information needed for simulating a transaction.

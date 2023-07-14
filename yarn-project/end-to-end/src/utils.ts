@@ -6,29 +6,30 @@ import {
   AztecAddress,
   Contract,
   ContractDeployer,
+  DeployMethod,
   EthAddress,
+  SentTx,
   SingleKeyAccountContract,
   Wallet,
   generatePublicKey,
-  DeployMethod,
-  SentTx,
 } from '@aztec/aztec.js';
 import { CircuitsWasm, DeploymentInfo, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { Schnorr, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
+import { randomBytes } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, Logger, createDebugLogger } from '@aztec/foundation/log';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { NonNativeTokenContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
-import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
-import { mnemonicToAccount } from 'viem/accounts';
+import { TxStatus } from '@aztec/types';
+
 import every from 'lodash.every';
 import zipWith from 'lodash.zipwith';
+import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
+import { mnemonicToAccount } from 'viem/accounts';
 
-import { TxStatus } from '@aztec/types';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { MNEMONIC, localAnvil } from './fixtures.js';
 
 /**

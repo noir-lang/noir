@@ -5,12 +5,12 @@ import {
   CircuitsWasm,
   Fr,
   GlobalVariables,
+  KernelCircuitPublicInputs,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  KernelCircuitPublicInputs,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   Proof,
   PublicDataUpdateRequest,
@@ -29,23 +29,26 @@ import {
   makeRootRollupPublicInputs,
 } from '@aztec/circuits.js/factories';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { to2Fields } from '@aztec/foundation/serialize';
 import {
   ContractData,
   L2Block,
   L2BlockL2Logs,
   MerkleTreeId,
-  mockTx,
   PublicDataWrite,
   Tx,
   TxL2Logs,
   makeEmptyLogs,
+  mockTx,
 } from '@aztec/types';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
+
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import flatMap from 'lodash.flatmap';
 import times from 'lodash.times';
-import { default as memdown, type MemDown } from 'memdown';
+import { type MemDown, default as memdown } from 'memdown';
+
 import { VerificationKeys, getVerificationKeys } from '../mocks/verification_keys.js';
 import { EmptyRollupProver } from '../prover/empty.js';
 import { RollupProver } from '../prover/index.js';
@@ -58,7 +61,6 @@ import { getCombinedHistoricTreeRoots } from '../sequencer/utils.js';
 import { RollupSimulator } from '../simulator/index.js';
 import { WasmRollupCircuitSimulator } from '../simulator/rollup.js';
 import { SoloBlockBuilder } from './solo_block_builder.js';
-import { to2Fields } from '@aztec/foundation/serialize';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;
 

@@ -1,10 +1,10 @@
+import { FUNCTION_SELECTOR_NUM_BYTES } from '@aztec/circuits.js';
+import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { randomBytes } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { numToInt32BE } from '@aztec/foundation/serialize';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { serializeBufferArrayToVector } from '@aztec/foundation/serialize';
-import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
-import { FUNCTION_SELECTOR_NUM_BYTES } from '@aztec/circuits.js';
 
 export { BufferReader } from '@aztec/circuits.js/utils';
 

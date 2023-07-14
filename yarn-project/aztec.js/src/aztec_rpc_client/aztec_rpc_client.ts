@@ -5,9 +5,9 @@ import {
   ContractData,
   ContractDeploymentTx,
   ContractPublicData,
+  Tx,
   TxExecutionRequest,
   TxHash,
-  Tx,
 } from '@aztec/types';
 
 export const createAztecRpcClient = (url: string): AztecRPC =>

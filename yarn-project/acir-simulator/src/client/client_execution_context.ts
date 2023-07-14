@@ -1,6 +1,7 @@
 import { PrivateHistoricTreeRoots, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
+
 import {
   ACVMField,
   fromACVMField,

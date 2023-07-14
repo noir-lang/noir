@@ -1,17 +1,18 @@
 import { Fr } from '@aztec/foundation/fields';
-import { assertMemberLength, FieldsOf } from '../utils/jsUtils.js';
-import { serializeToBuffer } from '../utils/serialize.js';
-import { CallContext } from './call_context.js';
+
 import {
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
-  NUM_FIELDS_PER_SHA256,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_READ_REQUESTS_PER_CALL,
+  NUM_FIELDS_PER_SHA256,
   RETURN_VALUES_LENGTH,
 } from '../cbind/constants.gen.js';
+import { FieldsOf, assertMemberLength } from '../utils/jsUtils.js';
+import { serializeToBuffer } from '../utils/serialize.js';
+import { CallContext } from './call_context.js';
 import { ContractDeploymentData } from './tx_context.js';
 
 /**

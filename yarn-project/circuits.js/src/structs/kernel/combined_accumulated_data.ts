@@ -1,23 +1,29 @@
-import { serializeToBuffer } from '../../utils/serialize.js';
-import { AggregationObject } from '../aggregation_object.js';
+import { BufferReader, Tuple } from '@aztec/foundation/serialize';
+
 import {
-  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
-  MAX_READ_REQUESTS_PER_TX,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_CONTRACTS_PER_TX,
+  MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+  MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_OPTIONALLY_REVEALED_DATA_LENGTH_PER_TX,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+  MAX_READ_REQUESTS_PER_TX,
   NUM_FIELDS_PER_SHA256,
 } from '../../cbind/constants.gen.js';
-import { FunctionData } from '../function_data.js';
-import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 import { assertMemberLength, makeTuple } from '../../index.js';
-import { EthAddress, AztecAddress, Fr, ReadRequestMembershipWitness } from '../index.js';
+import { serializeToBuffer } from '../../utils/serialize.js';
+import {
+  AggregationObject,
+  AztecAddress,
+  EthAddress,
+  Fr,
+  FunctionData,
+  ReadRequestMembershipWitness,
+} from '../index.js';
 
 /**
  * The information assembled after the contract deployment was processed by the private kernel circuit.

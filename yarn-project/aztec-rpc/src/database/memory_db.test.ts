@@ -1,7 +1,8 @@
 import { AztecAddress, Fr } from '@aztec/circuits.js';
+import { NotePreimage } from '@aztec/types';
+
 import { MemoryDB } from './memory_db.js';
 import { NoteSpendingInfoDao, createRandomNoteSpendingInfoDao } from './note_spending_info_dao.js';
-import { NotePreimage } from '@aztec/types';
 
 describe('Memory DB', () => {
   let db: MemoryDB;

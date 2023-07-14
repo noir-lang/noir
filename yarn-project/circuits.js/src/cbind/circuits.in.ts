@@ -1,8 +1,9 @@
-import { getCbindSchema } from './cbind.js';
 import { writeFileSync } from 'fs';
-import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
+import { getCbindSchema } from './cbind.js';
 import { CbindCompiler } from './compiler.js';
 
 /**

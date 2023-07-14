@@ -1,4 +1,5 @@
 import camelCase from 'lodash.camelcase';
+
 import { USES_MSGPACK_BUFFER_METHODS } from './type_data.js';
 
 /**

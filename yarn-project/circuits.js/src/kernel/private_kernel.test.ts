@@ -1,10 +1,11 @@
 import times from 'lodash.times';
-import { fr } from '../tests/factories.js';
-import { CircuitsWasm } from '../wasm/circuits_wasm.js';
+
 import { computeFunctionTreeRoot } from '../abis/abis.js';
 import { privateKernelDummyPreviousKernel } from '../cbind/circuits.gen.js';
-import { computeFunctionTree } from './private_kernel.js';
 import { FUNCTION_TREE_HEIGHT } from '../cbind/constants.gen.js';
+import { fr } from '../tests/factories.js';
+import { CircuitsWasm } from '../wasm/circuits_wasm.js';
+import { computeFunctionTree } from './private_kernel.js';
 
 describe('kernel/private_kernel', () => {
   let wasm: CircuitsWasm;

@@ -1,4 +1,5 @@
 import { L2BlockSource } from '@aztec/types';
+
 import { LibP2PService, P2PClient, P2PConfig, TxPool } from '../index.js';
 import { DummyP2PService } from '../service/dummy_service.js';
 

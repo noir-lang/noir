@@ -1,6 +1,7 @@
+import { DeployL1Contracts } from '@aztec/ethereum';
+
 import Koa from 'koa';
 import Router from 'koa-router';
-import { DeployL1Contracts } from '@aztec/ethereum';
 
 /**
  * Creates a router for helper API endpoints of the Aztec RPC Server.

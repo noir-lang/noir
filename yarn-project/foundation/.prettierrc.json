@@ -2,5 +2,12 @@
   "singleQuote": true,
   "trailingComma": "all",
   "printWidth": 120,
-  "arrowParens": "avoid"
+  "arrowParens": "avoid",
+  "importOrder": [
+    "^@aztec/(.*)$",
+    "<THIRD_PARTY_MODULES>",
+    "^\\.\/|\\.\\.\/"
+  ],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true
 }

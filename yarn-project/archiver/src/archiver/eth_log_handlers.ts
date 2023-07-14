@@ -1,18 +1,19 @@
-import { Hex, Log, PublicClient, decodeFunctionData, getAbiItem, getAddress, hexToBytes } from 'viem';
-import { InboxAbi, RollupAbi, ContractDeploymentEmitterAbi } from '@aztec/l1-artifacts';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
+import { ContractDeploymentEmitterAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
-  L1ToL2Message,
-  L1Actor,
-  L2Actor,
-  L2Block,
-  ContractPublicData,
   BufferReader,
   ContractData,
+  ContractPublicData,
   EncodedContractFunction,
+  L1Actor,
+  L1ToL2Message,
+  L2Actor,
+  L2Block,
 } from '@aztec/types';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
+
+import { Hex, Log, PublicClient, decodeFunctionData, getAbiItem, getAddress, hexToBytes } from 'viem';
 
 /**
  * Processes newly received MessageAdded (L1 to L2) logs.

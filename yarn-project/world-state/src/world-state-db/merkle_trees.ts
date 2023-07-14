@@ -4,13 +4,16 @@ import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   CircuitsWasm,
   Fr,
-  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MSG_TREE_HEIGHT,
+  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   NULLIFIER_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
+import { SerialQueue } from '@aztec/foundation/fifo';
+import { createDebugLogger } from '@aztec/foundation/log';
+import { IWasmModule } from '@aztec/foundation/wasm';
 import {
   AppendOnlyTree,
   IndexedTree,
@@ -23,7 +26,11 @@ import {
   UpdateOnlyTree,
   newTree,
 } from '@aztec/merkle-tree';
+import { L2Block, MerkleTreeId, SiblingPath, merkleTreeIds } from '@aztec/types';
+
 import { default as levelup } from 'levelup';
+
+import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
 import {
   CurrentCommitmentTreeRoots,
   INITIAL_NULLIFIER_TREE_SIZE,
@@ -33,11 +40,6 @@ import {
   PublicTreeId,
   TreeInfo,
 } from './index.js';
-import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
-import { L2Block, MerkleTreeId, SiblingPath, merkleTreeIds } from '@aztec/types';
-import { SerialQueue } from '@aztec/foundation/fifo';
-import { createDebugLogger } from '@aztec/foundation/log';
-import { IWasmModule } from '@aztec/foundation/wasm';
 
 /**
  * A convenience class for managing multiple merkle trees.

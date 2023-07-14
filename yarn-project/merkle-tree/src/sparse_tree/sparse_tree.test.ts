@@ -1,18 +1,19 @@
-import { default as levelup } from 'levelup';
-import { treeTestSuite } from '../test/test_suite.js';
-import { SparseTree } from './sparse_tree.js';
-import { standardBasedTreeTestSuite } from '../test/standard_based_test_suite.js';
-import { createMemDown } from '../test/utils/create_mem_down.js';
-import { Pedersen } from '../pedersen.js';
-import { randomBytes } from 'crypto';
-import { INITIAL_LEAF } from '../index.js';
-import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
-import { newTree } from '../new_tree.js';
-import { loadTree } from '../load_tree.js';
+import { CircuitsWasm } from '@aztec/circuits.js';
 import { createLogger } from '@aztec/foundation/log';
 import { IWasmModule } from '@aztec/foundation/wasm';
-import { CircuitsWasm } from '@aztec/circuits.js';
 import { Hasher, SiblingPath } from '@aztec/types';
+
+import { randomBytes } from 'crypto';
+import { default as levelup } from 'levelup';
+
+import { INITIAL_LEAF, newTree } from '../index.js';
+import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
+import { loadTree } from '../load_tree.js';
+import { Pedersen } from '../pedersen.js';
+import { standardBasedTreeTestSuite } from '../test/standard_based_test_suite.js';
+import { treeTestSuite } from '../test/test_suite.js';
+import { createMemDown } from '../test/utils/create_mem_down.js';
+import { SparseTree } from './sparse_tree.js';
 
 const log = createLogger('aztec:sparse_tree_test');
 

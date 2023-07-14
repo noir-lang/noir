@@ -1,8 +1,9 @@
-import { serializeToBuffer } from '../utils/serialize.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { FieldsOf } from '../utils/jsUtils.js';
 import { BufferReader } from '@aztec/foundation/serialize';
+
+import { FieldsOf } from '../utils/jsUtils.js';
+import { serializeToBuffer } from '../utils/serialize.js';
 import { Fr } from './index.js';
 
 /**

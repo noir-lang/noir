@@ -29,10 +29,11 @@ import {
   ZkTokenContractAbi,
 } from '@aztec/noir-contracts/examples';
 import { PackedArguments, TxExecutionRequest } from '@aztec/types';
+
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
-import { default as memdown, type MemDown } from 'memdown';
+import { type MemDown, default as memdown } from 'memdown';
 
 import { buildL1ToL2Message } from '../test/utils.js';
 import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';

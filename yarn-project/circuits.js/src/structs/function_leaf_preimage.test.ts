@@ -1,4 +1,5 @@
 import { Fr } from '@aztec/foundation/fields';
+
 import { expectSerializeToMatchSnapshot } from '../tests/expectSerialize.js';
 import { FunctionLeafPreimage } from './function_leaf_preimage.js';
 

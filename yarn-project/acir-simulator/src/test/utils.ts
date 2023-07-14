@@ -1,7 +1,7 @@
-import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
-import { L1ToL2Message, L1Actor, L2Actor } from '@aztec/types';
-import { sha256ToField } from '@aztec/foundation/crypto';
 import { AztecAddress, CircuitsWasm, EthAddress, Fr } from '@aztec/circuits.js';
+import { computeSecretMessageHash } from '@aztec/circuits.js/abis';
+import { sha256ToField } from '@aztec/foundation/crypto';
+import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/types';
 
 /**
  * Test utility function to craft an L1 to L2 message.

@@ -1,8 +1,9 @@
 import { Buffer } from 'buffer';
 import { randomBytes } from 'crypto';
-import { createDebugLogger, DebugLogger } from '../../log/index.js';
-import { getEmptyWasiSdk } from './empty_wasi_sdk.js';
+
 import { MemoryFifo } from '../../fifo/index.js';
+import { DebugLogger, createDebugLogger } from '../../log/index.js';
+import { getEmptyWasiSdk } from './empty_wasi_sdk.js';
 
 /**
  * The base shape of a WASM module providing low level memory and synchronous call access.

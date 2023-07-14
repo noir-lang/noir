@@ -1,6 +1,7 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { ContractData, ContractPublicData, EncodedContractFunction } from './contract_data.js';
 import { EthAddress } from '@aztec/foundation/eth-address';
+
+import { ContractData, ContractPublicData, EncodedContractFunction } from './contract_data.js';
 
 describe('ContractData', () => {
   const aztecAddress = AztecAddress.random();

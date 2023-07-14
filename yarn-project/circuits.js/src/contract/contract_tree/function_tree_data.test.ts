@@ -1,5 +1,6 @@
-import { computeFunctionTreeData } from './function_tree_data.js';
 import { Fr } from '@aztec/foundation/fields';
+
+import { computeFunctionTreeData } from './function_tree_data.js';
 
 const getFr = (index: number) => Fr.fromBuffer(Buffer.alloc(32, index));
 const Tree = [

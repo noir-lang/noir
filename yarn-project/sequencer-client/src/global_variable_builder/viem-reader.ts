@@ -1,15 +1,17 @@
 import { createEthereumChain } from '@aztec/ethereum';
 import { RollupAbi } from '@aztec/l1-artifacts';
+
 import {
   GetContractReturnType,
-  PublicClient,
   HttpTransport,
+  PublicClient,
   createPublicClient,
-  http,
-  getContract,
   getAddress,
+  getContract,
+  http,
 } from 'viem';
 import * as chains from 'viem/chains';
+
 import { GlobalReaderConfig } from './config.js';
 import { L1GlobalReader } from './global_builder.js';
 

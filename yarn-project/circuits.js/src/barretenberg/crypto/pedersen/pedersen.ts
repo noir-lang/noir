@@ -1,6 +1,8 @@
-import { Buffer } from 'buffer';
-import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVector } from '../../serialize.js';
 import { IWasmModule } from '@aztec/foundation/wasm';
+
+import { Buffer } from 'buffer';
+
+import { deserializeArrayFromVector, deserializeField, serializeBufferArrayToVector } from '../../serialize.js';
 
 /**
  * Compresses two 32-byte hashes.

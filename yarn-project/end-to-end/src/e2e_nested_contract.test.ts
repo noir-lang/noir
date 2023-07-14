@@ -1,10 +1,10 @@
 import { AztecNodeService } from '@aztec/aztec-node';
+import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Contract, ContractDeployer, Fr, Wallet } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { DebugLogger } from '@aztec/foundation/log';
-import { ChildAbi, ParentAbi } from '@aztec/noir-contracts/examples';
 import { toBigInt } from '@aztec/foundation/serialize';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
+import { ChildAbi, ParentAbi } from '@aztec/noir-contracts/examples';
 import { TxStatus } from '@aztec/types';
 
 import { setup } from './utils.js';

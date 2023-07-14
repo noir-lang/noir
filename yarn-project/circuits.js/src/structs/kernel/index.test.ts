@@ -1,12 +1,12 @@
 import { expectSerializeToMatchSnapshot } from '../../tests/expectSerialize.js';
 import { makeSchnorrSignature } from '../../tests/factories.js';
 import {
-  makePreviousKernelData,
-  makePrivateKernelInputsInner,
-  makePrivateKernelInputsInit,
-  makeKernelPublicInputs,
-  makePublicKernelInputs,
   makeAccumulatedData,
+  makeKernelPublicInputs,
+  makePreviousKernelData,
+  makePrivateKernelInputsInit,
+  makePrivateKernelInputsInner,
+  makePublicKernelInputs,
 } from '../../tests/factories.js';
 
 describe('structs/kernel', () => {

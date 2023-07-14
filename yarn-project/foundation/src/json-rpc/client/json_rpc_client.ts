@@ -3,9 +3,10 @@
 //  This takes a {foo(): T} and makes {foo(): Promise<T>}
 //  while avoiding Promise of Promise.
 import { RemoteObject } from 'comlink';
+
 import { createDebugLogger } from '../../log/index.js';
 import { retry } from '../../retry/index.js';
-import { ClassConverter, StringClassConverterInput, JsonClassConverterInput } from '../class_converter.js';
+import { ClassConverter, JsonClassConverterInput, StringClassConverterInput } from '../class_converter.js';
 import { JsonStringify, convertFromJsonObj, convertToJsonObj } from '../convert.js';
 
 export { JsonStringify } from '../convert.js';

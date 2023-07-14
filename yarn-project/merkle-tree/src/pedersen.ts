@@ -1,10 +1,10 @@
-import { IWasmModule } from '@aztec/foundation/wasm';
 import {
   pedersenCompress,
   pedersenGetHash,
   pedersenGetHashTree,
   pedersenHashInputs,
 } from '@aztec/circuits.js/barretenberg';
+import { IWasmModule } from '@aztec/foundation/wasm';
 import { Hasher } from '@aztec/types';
 
 /**

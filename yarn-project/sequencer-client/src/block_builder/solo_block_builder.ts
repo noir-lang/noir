@@ -6,8 +6,8 @@ import {
   CircuitsWasm,
   ConstantBaseRollupData,
   GlobalVariables,
-  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
+  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   MembershipWitness,
   MergeRollupInputs,
   NULLIFIER_TREE_HEIGHT,
@@ -26,23 +26,24 @@ import {
   makeTuple,
 } from '@aztec/circuits.js';
 import { computeContractLeaf } from '@aztec/circuits.js/abis';
-import { MerkleTreeId, ContractData, L2Block, PublicDataWrite, TxL2Logs, L2BlockL2Logs } from '@aztec/types';
-import { MerkleTreeOperations } from '@aztec/world-state';
-import chunk from 'lodash.chunk';
-import flatMap from 'lodash.flatmap';
-import { VerificationKeys } from '../mocks/verification_keys.js';
-import { RollupProver } from '../prover/index.js';
-import { RollupSimulator } from '../simulator/index.js';
-
 import { toFriendlyJSON } from '@aztec/circuits.js/utils';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { assertLength } from '@aztec/foundation/serialize';
+import { ContractData, L2Block, L2BlockL2Logs, MerkleTreeId, PublicDataWrite, TxL2Logs } from '@aztec/types';
+import { MerkleTreeOperations } from '@aztec/world-state';
+
+import chunk from 'lodash.chunk';
+import flatMap from 'lodash.flatmap';
+
+import { VerificationKeys } from '../mocks/verification_keys.js';
+import { RollupProver } from '../prover/index.js';
 import { ProcessedTx } from '../sequencer/processed_tx.js';
+import { RollupSimulator } from '../simulator/index.js';
 import { BlockBuilder } from './index.js';
 import { AllowedTreeNames, OutputWithTreeSnapshot } from './types.js';
-import { padArrayEnd } from '@aztec/foundation/collection';
 
 const frToBigInt = (fr: Fr) => toBigIntBE(fr.toBuffer());
 const bigintToFr = (num: bigint) => new Fr(num);

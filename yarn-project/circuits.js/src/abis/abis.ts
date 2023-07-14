@@ -1,7 +1,9 @@
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { IWasmModule } from '@aztec/foundation/wasm';
+
 import { Buffer } from 'buffer';
 import chunk from 'lodash.chunk';
+
 import { abisSiloCommitment, abisSiloNullifier } from '../cbind/circuits.gen.js';
 import {
   AztecAddress,

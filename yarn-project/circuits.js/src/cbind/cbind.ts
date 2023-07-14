@@ -1,6 +1,8 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
-import { CircuitsWasm } from '../wasm/index.js';
+
 import { decode, encode } from '@msgpack/msgpack';
+
+import { CircuitsWasm } from '../wasm/index.js';
 
 /**
  * Recursively converts Uint8Arrays to Buffers in the input data structure.

@@ -1,7 +1,9 @@
-import { LevelUp, LevelUpChain } from 'levelup';
-import { MerkleTree } from './interfaces/merkle_tree.js';
 import { toBigIntLE, toBufferLE } from '@aztec/foundation/bigint-buffer';
 import { Hasher, SiblingPath } from '@aztec/types';
+
+import { LevelUp, LevelUpChain } from 'levelup';
+
+import { MerkleTree } from './interfaces/merkle_tree.js';
 
 const MAX_DEPTH = 254;
 

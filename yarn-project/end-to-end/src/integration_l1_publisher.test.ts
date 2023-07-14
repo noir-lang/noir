@@ -2,11 +2,11 @@ import { createMemDown, getConfigEnvVars } from '@aztec/aztec-node';
 import {
   AztecAddress,
   GlobalVariables,
+  KernelCircuitPublicInputs,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_L2_TO_L1_MSGS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
-  KernelCircuitPublicInputs,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   PublicDataUpdateRequest,
   makeTuple,
@@ -17,6 +17,7 @@ import { deployL1Contracts } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
+import { to2Fields } from '@aztec/foundation/serialize';
 import { DecoderHelperAbi, InboxAbi, OutboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
   EmptyRollupProver,
@@ -31,7 +32,7 @@ import {
 } from '@aztec/sequencer-client';
 import { L2Actor, L2Block, mockTx } from '@aztec/types';
 import { MerkleTreeOperations, MerkleTrees } from '@aztec/world-state';
-import { to2Fields } from '@aztec/foundation/serialize';
+
 import { beforeEach, describe, expect, it } from '@jest/globals';
 import { default as levelup } from 'levelup';
 import {

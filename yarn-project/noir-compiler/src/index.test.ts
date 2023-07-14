@@ -1,5 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+
 import { ContractCompiler } from './compile.js';
 
 const getCurentDirname = () => path.dirname(fileURLToPath(import.meta.url));

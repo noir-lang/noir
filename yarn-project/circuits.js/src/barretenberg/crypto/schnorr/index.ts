@@ -1,8 +1,9 @@
+import { numToUInt32BE } from '@aztec/foundation/serialize';
 import { IWasmModule } from '@aztec/foundation/wasm';
-import { SchnorrSignature } from './signature.js';
+
 import { CircuitsWasm } from '../../../index.js';
 import { Signer } from '../index.js';
-import { numToUInt32BE } from '@aztec/foundation/serialize';
+import { SchnorrSignature } from './signature.js';
 
 export * from './signature.js';
 

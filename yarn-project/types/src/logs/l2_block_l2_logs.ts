@@ -1,4 +1,5 @@
 import { BufferReader, serializeBufferToVector } from '@aztec/foundation/serialize';
+
 import { TxL2Logs } from './tx_l2_logs.js';
 
 /**

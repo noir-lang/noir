@@ -1,5 +1,6 @@
+import { createHash, randomBytes } from 'crypto';
+
 import { sha256 } from './index.js';
-import { randomBytes, createHash } from 'crypto';
 
 describe('sha256', () => {
   it('should correctly hash data using hash.js', () => {

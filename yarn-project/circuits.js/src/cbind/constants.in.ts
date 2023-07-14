@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { callCbind } from './cbind.js';
+
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';
+import { callCbind } from './cbind.js';
 
 /**
  * Convert the C++ constants to TypeScript and Noir.

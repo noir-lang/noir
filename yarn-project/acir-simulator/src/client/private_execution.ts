@@ -16,6 +16,7 @@ import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
 import { FunctionL2Logs, NotePreimage, NoteSpendingInfo } from '@aztec/types';
+
 import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
 import {
   ZERO_ACVM_FIELD,

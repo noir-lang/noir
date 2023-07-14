@@ -1,4 +1,5 @@
 import { Tuple } from '@aztec/foundation/serialize';
+
 export type { FieldsOf } from '@aztec/foundation/types';
 
 /**

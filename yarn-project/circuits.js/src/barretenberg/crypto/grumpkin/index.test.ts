@@ -1,7 +1,9 @@
-import { Grumpkin } from './index.js';
 import { randomBytes } from '@aztec/foundation/crypto';
+
 import createDebug from 'debug';
+
 import { CircuitsWasm } from '../../../index.js';
+import { Grumpkin } from './index.js';
 
 const debug = createDebug('bb:grumpkin_test');
 

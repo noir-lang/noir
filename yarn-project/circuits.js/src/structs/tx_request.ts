@@ -1,10 +1,12 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
+
 import { FieldsOf } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { FunctionData } from './function_data.js';
 import { TxContext } from './tx_context.js';
+
 /**
  * Transaction request.
  * @see cpp/src/aztec3/circuits/abis/tx_request.hpp.

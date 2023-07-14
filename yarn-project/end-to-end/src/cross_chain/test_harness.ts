@@ -1,14 +1,15 @@
 import { AztecNodeService } from '@aztec/aztec-node';
+import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { Contract, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
 import { AztecAddress, EthAddress, Fr, Point } from '@aztec/circuits.js';
 import { DeployL1Contracts } from '@aztec/ethereum';
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
+import { sha256ToField } from '@aztec/foundation/crypto';
 import { DebugLogger } from '@aztec/foundation/log';
 import { OutboxAbi } from '@aztec/l1-artifacts';
-import { sha256ToField } from '@aztec/foundation/crypto';
-import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { TxStatus } from '@aztec/types';
-import { PublicClient, HttpTransport, Chain, getContract } from 'viem';
+
+import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
 
 import { deployAndInitializeNonNativeL2TokenContracts, expectAztecStorageSlot } from '../utils.js';
 

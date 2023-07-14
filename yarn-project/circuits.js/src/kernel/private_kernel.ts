@@ -1,5 +1,7 @@
 import { BufferReader } from '@aztec/foundation/serialize';
+
 import { Buffer } from 'buffer';
+
 import {
   FUNCTION_TREE_HEIGHT,
   Fr,
@@ -11,6 +13,7 @@ import {
 import { handleCircuitOutput } from '../utils/call_wasm.js';
 import { serializeBufferArrayToVector, uint8ArrayToNum } from '../utils/serialize.js';
 import { CircuitsWasm } from '../wasm/index.js';
+
 export { privateKernelSimOrdering } from '../cbind/circuits.gen.js';
 
 /**

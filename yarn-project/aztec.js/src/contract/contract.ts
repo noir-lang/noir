@@ -1,9 +1,10 @@
 import { ContractAbi, FunctionAbi, generateFunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
+import { DeployedContract } from '@aztec/types';
+
 import { Wallet } from '../aztec_rpc_client/wallet.js';
 import { ContractFunctionInteraction } from './contract_function_interaction.js';
-import { DeployedContract } from '@aztec/types';
 
 /**
  * Type representing a contract method that returns a ContractFunctionInteraction instance

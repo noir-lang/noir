@@ -1,8 +1,9 @@
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { CircuitsWasm } from '@aztec/circuits.js';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
-import { decryptBuffer, deriveAESSecret, encryptBuffer } from './encrypt_buffer.js';
 import { Point } from '@aztec/foundation/fields';
+
+import { decryptBuffer, deriveAESSecret, encryptBuffer } from './encrypt_buffer.js';
 
 describe('encrypt buffer', () => {
   let grumpkin: Grumpkin;

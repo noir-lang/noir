@@ -1,6 +1,8 @@
 import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Proof } from '@aztec/circuits.js';
 import { makeKernelPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/factories';
+
 import times from 'lodash.times';
+
 import { EncodedContractFunction, FunctionL2Logs, TxL2Logs } from './index.js';
 import { Tx } from './tx/index.js';
 

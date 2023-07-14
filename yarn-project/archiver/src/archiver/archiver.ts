@@ -1,30 +1,31 @@
-import omit from 'lodash.omit';
+import { createEthereumChain } from '@aztec/ethereum';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { INITIAL_L2_BLOCK_NUM, L1ToL2Message, L1ToL2MessageSource, L2BlockL2Logs, LogType } from '@aztec/types';
 import {
   ContractData,
-  ContractPublicData,
   ContractDataSource,
+  ContractPublicData,
   EncodedContractFunction,
   L2Block,
   L2BlockSource,
   L2LogsSource,
 } from '@aztec/types';
-import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
-import { createEthereumChain } from '@aztec/ethereum';
-import { Fr } from '@aztec/foundation/fields';
 
+import omit from 'lodash.omit';
+import { Chain, HttpTransport, PublicClient, createPublicClient, http } from 'viem';
+
+import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
 import { ArchiverConfig } from './config.js';
 import {
   retrieveBlocks,
+  retrieveNewCancelledL1ToL2Messages,
   retrieveNewContractData,
   retrieveNewPendingL1ToL2Messages,
-  retrieveNewCancelledL1ToL2Messages,
 } from './data_retrieval.js';
-import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
 
 /**
  * Pulls L2 blocks in a non-blocking manner and provides interface for their retrieval.

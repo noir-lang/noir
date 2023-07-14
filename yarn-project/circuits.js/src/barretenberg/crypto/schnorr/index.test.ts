@@ -1,7 +1,8 @@
-import { Schnorr } from './index.js';
-import { TextEncoder } from 'util';
-import { CircuitsWasm } from '../../../index.js';
 import { randomBytes } from 'crypto';
+import { TextEncoder } from 'util';
+
+import { CircuitsWasm } from '../../../index.js';
+import { Schnorr } from './index.js';
 
 describe('schnorr', () => {
   let schnorr!: Schnorr;

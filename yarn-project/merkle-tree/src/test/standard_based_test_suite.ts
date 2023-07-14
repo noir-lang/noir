@@ -1,13 +1,15 @@
-import { default as levelup } from 'levelup';
-import { INITIAL_LEAF, Pedersen } from '../index.js';
-import { appendLeaves } from './utils/append_leaves.js';
-import { createMemDown } from './utils/create_mem_down.js';
+import { CircuitsWasm } from '@aztec/circuits.js';
+import { IWasmModule } from '@aztec/foundation/wasm';
+import { Hasher, SiblingPath } from '@aztec/types';
+
 import { randomBytes } from 'crypto';
+import { default as levelup } from 'levelup';
+
+import { INITIAL_LEAF, Pedersen } from '../index.js';
 import { AppendOnlyTree } from '../interfaces/append_only_tree.js';
 import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
-import { IWasmModule } from '@aztec/foundation/wasm';
-import { CircuitsWasm } from '@aztec/circuits.js';
-import { Hasher, SiblingPath } from '@aztec/types';
+import { appendLeaves } from './utils/append_leaves.js';
+import { createMemDown } from './utils/create_mem_down.js';
 
 const TEST_TREE_DEPTH = 2;
 

@@ -1,11 +1,12 @@
-import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecAddress } from '@aztec/circuits.js';
-import { BufferReader } from '@aztec/foundation/serialize';
-import { NotePreimage } from './note_preimage.js';
-import { serializeToBuffer } from '@aztec/circuits.js/utils';
-import { decryptBuffer, encryptBuffer } from './encrypt_buffer.js';
 import { Curve } from '@aztec/circuits.js/barretenberg';
+import { serializeToBuffer } from '@aztec/circuits.js/utils';
 import { randomBytes } from '@aztec/foundation/crypto';
+import { Fr, Point } from '@aztec/foundation/fields';
+import { BufferReader } from '@aztec/foundation/serialize';
+
+import { decryptBuffer, encryptBuffer } from './encrypt_buffer.js';
+import { NotePreimage } from './note_preimage.js';
 
 /**
  * A class which wraps the data required to compute a nullifier/to spend a note. Along with that this class contains

@@ -1,5 +1,6 @@
-import { Buffer } from 'buffer';
 import { IWasmModule } from '@aztec/foundation/wasm';
+
+import { Buffer } from 'buffer';
 
 /**
  * AES-128-CBC encryption/decryption.

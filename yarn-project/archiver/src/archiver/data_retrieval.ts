@@ -1,17 +1,19 @@
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
+import { ContractPublicData, L1ToL2Message, L2Block } from '@aztec/types';
+
 import { PublicClient } from 'viem';
+
 import {
   getContractDeploymentLogs,
+  getL1ToL2MessageCancelledLogs,
   getL2BlockProcessedLogs,
   getPendingL1ToL2MessageLogs,
-  getL1ToL2MessageCancelledLogs,
   processBlockLogs,
+  processCancelledL1ToL2MessagesLogs,
   processContractDeploymentLogs,
   processPendingL1ToL2MessageAddedLogs,
-  processCancelledL1ToL2MessagesLogs,
 } from './eth_log_handlers.js';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { ContractPublicData, L1ToL2Message, L2Block } from '@aztec/types';
-import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Data retrieved from logs

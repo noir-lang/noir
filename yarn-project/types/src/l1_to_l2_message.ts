@@ -1,7 +1,7 @@
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr } from '@aztec/foundation/fields';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * Interface of classes allowing for the retrieval of L1 to L2 messages.

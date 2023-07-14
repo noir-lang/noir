@@ -1,5 +1,5 @@
-import { deserializeBigInt, serializeBigInt } from '@aztec/foundation/serialize';
 import { assertMemberLength } from '@aztec/circuits.js';
+import { deserializeBigInt, serializeBigInt } from '@aztec/foundation/serialize';
 
 /**
  * A class representing hash of Aztec transaction.

@@ -1,5 +1,6 @@
-import { parentPort } from 'worker_threads';
 import EventEmitter from 'events';
+import { parentPort } from 'worker_threads';
+
 import { Listener } from '../interface/listener.js';
 import { NodeListenerSocket } from './node_listener_socket.js';
 

@@ -1,17 +1,18 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
+
 import {
   ContractCommitmentProvider,
+  ContractData,
+  ContractPublicData,
   DataCommitmentProvider,
   L1ToL2MessageProvider,
+  L2Block,
   L2BlockL2Logs,
   LogType,
   MerkleTreeId,
   Tx,
   TxHash,
-  L2Block,
-  ContractData,
-  ContractPublicData,
 } from '../index.js';
 
 /**

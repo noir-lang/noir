@@ -1,13 +1,13 @@
-import http from 'http';
-import { foundry } from 'viem/chains';
-import { http as httpViemTransport, createPublicClient, HDAccount } from 'viem';
-
-import { mnemonicToAccount } from 'viem/accounts';
+import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { createAztecRPCServer, getHttpRpcServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
+import { deployL1Contracts } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
-import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
-import { deployL1Contracts } from '@aztec/ethereum';
+
+import http from 'http';
+import { HDAccount, createPublicClient, http as httpViemTransport } from 'viem';
+import { mnemonicToAccount } from 'viem/accounts';
+import { foundry } from 'viem/chains';
 
 import { createApiRouter } from './routes.js';
 

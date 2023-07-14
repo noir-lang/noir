@@ -1,5 +1,6 @@
 import { AztecAddress, TxContext } from '@aztec/circuits.js';
 import { ExecutionRequest, TxExecutionRequest } from '@aztec/types';
+
 import { AccountImplementation } from './index.js';
 
 /**

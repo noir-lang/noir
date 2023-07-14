@@ -6,6 +6,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { ExecutionRequest, TxExecutionRequest } from '@aztec/types';
+
 import { PackedArgsCache } from '../packed_args_cache.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { DBOracle } from './db_oracle.js';

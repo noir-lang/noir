@@ -1,7 +1,9 @@
 import { Fr } from '@aztec/circuits.js';
 import { AztecNode, L2Block, MerkleTreeId } from '@aztec/types';
+
 import { MockProxy, mock } from 'jest-mock-extended';
 import omit from 'lodash.omit';
+
 import { Database, MemoryDB } from '../database/index.js';
 import { Synchroniser } from './synchroniser.js';
 

@@ -1,4 +1,5 @@
 import { BufferReader } from '@aztec/foundation/serialize';
+
 import { serializeToBuffer } from '../utils/serialize.js';
 
 /**

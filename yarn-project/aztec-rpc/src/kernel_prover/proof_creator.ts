@@ -130,7 +130,7 @@ export class KernelProofCreator {
     const proof = makeEmptyProof();
     this.log('Ordering Kernel Prover Ordering Completed!');
 
-    const publicInputs = <KernelCircuitPublicInputs>result;
+    const publicInputs = result as KernelCircuitPublicInputs;
 
     return {
       publicInputs,

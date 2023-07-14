@@ -1,4 +1,5 @@
 import { ForeignCallInput } from 'acvm_js';
+
 import { ACVMField } from '../acvm/index.js';
 
 /**

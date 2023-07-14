@@ -1,6 +1,7 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { mapTuple, numToUInt32BE } from '@aztec/foundation/serialize';
+
 import { computeCallStackItemHash } from '../abis/abis.js';
 import { SchnorrSignature } from '../barretenberg/index.js';
 import {
@@ -27,8 +28,8 @@ import {
   FunctionData,
   G1AffineElement,
   KernelCircuitPublicInputs,
-  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_CONTRACTS_PER_TX,

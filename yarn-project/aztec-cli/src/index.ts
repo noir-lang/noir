@@ -1,8 +1,4 @@
 #!/usr/bin/env -S node --no-warnings
-import { Command } from 'commander';
-import { mnemonicToAccount } from 'viem/accounts';
-import { createLogger } from '@aztec/foundation/log';
-import { createDebugLogger } from '@aztec/foundation/log';
 import {
   AztecAddress,
   Contract,
@@ -16,8 +12,13 @@ import {
 import { StructType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
-import { ContractData, TxHash, L2BlockL2Logs } from '@aztec/types';
+import { createLogger } from '@aztec/foundation/log';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { ContractData, L2BlockL2Logs, TxHash } from '@aztec/types';
+
+import { Command } from 'commander';
+import { mnemonicToAccount } from 'viem/accounts';
 
 import { encodeArgs, parseStructString } from './cli_encoder.js';
 import { deployAztecContracts, getContractAbi, getTxSender, prepTx } from './utils.js';

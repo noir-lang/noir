@@ -1,7 +1,8 @@
-import { WasmModule } from './wasm_module.js';
-import { fileURLToPath } from 'url';
 import { readFile } from 'fs/promises';
 import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+import { WasmModule } from './wasm_module.js';
 
 /**
  * Fetch a simple WASM.

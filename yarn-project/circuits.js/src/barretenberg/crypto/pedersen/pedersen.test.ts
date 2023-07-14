@@ -1,6 +1,8 @@
-import { Buffer } from 'buffer';
-import { pedersenGetHashTree } from './pedersen.js';
 import { CircuitsWasm } from '@aztec/circuits.js';
+
+import { Buffer } from 'buffer';
+
+import { pedersenGetHashTree } from './pedersen.js';
 
 describe('pedersen', () => {
   let barretenbergWasm!: CircuitsWasm;

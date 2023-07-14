@@ -1,7 +1,8 @@
 import { CircuitsWasm } from '@aztec/circuits.js';
-import { Aes128 } from './index.js';
 
-import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+
+import { Aes128 } from './index.js';
 
 describe('aes128', () => {
   let barretenberg!: CircuitsWasm;

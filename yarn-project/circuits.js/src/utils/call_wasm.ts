@@ -1,4 +1,5 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
+
 import { CircuitError } from '../index.js';
 import { uint8ArrayToNum } from './serialize.js';
 

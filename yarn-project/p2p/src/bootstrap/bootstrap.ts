@@ -1,14 +1,16 @@
-import { Libp2p, Libp2pOptions, ServiceFactoryMap, createLibp2p } from 'libp2p';
-import { tcp } from '@libp2p/tcp';
-import { noise } from '@chainsafe/libp2p-noise';
-import { mplex } from '@libp2p/mplex';
-import { kadDHT } from '@libp2p/kad-dht';
-import { createFromProtobuf } from '@libp2p/peer-id-factory';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { P2PConfig } from '../config.js';
+
+import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
-import { identifyService } from 'libp2p/identify';
 import type { ServiceMap } from '@libp2p/interface-libp2p';
+import { kadDHT } from '@libp2p/kad-dht';
+import { mplex } from '@libp2p/mplex';
+import { createFromProtobuf } from '@libp2p/peer-id-factory';
+import { tcp } from '@libp2p/tcp';
+import { Libp2p, Libp2pOptions, ServiceFactoryMap, createLibp2p } from 'libp2p';
+import { identifyService } from 'libp2p/identify';
+
+import { P2PConfig } from '../config.js';
 import { createLibP2PPeerId } from '../index.js';
 
 /**

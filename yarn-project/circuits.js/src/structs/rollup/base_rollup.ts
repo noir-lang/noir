@@ -1,12 +1,6 @@
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
-import { assertItemsLength, assertMemberLength, FieldsOf } from '../../utils/jsUtils.js';
-import { serializeToBuffer } from '../../utils/serialize.js';
-import { PreviousKernelData } from '../kernel/previous_kernel_data.js';
-import { MembershipWitness } from '../membership_witness.js';
-import { UInt32 } from '../shared.js';
-import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
-import { GlobalVariables } from '../global_variables.js';
+
 import {
   CONTRACT_TREE_HEIGHT,
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
@@ -21,6 +15,13 @@ import {
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../cbind/constants.gen.js';
+import { FieldsOf, assertItemsLength, assertMemberLength } from '../../utils/jsUtils.js';
+import { serializeToBuffer } from '../../utils/serialize.js';
+import { GlobalVariables } from '../global_variables.js';
+import { PreviousKernelData } from '../kernel/previous_kernel_data.js';
+import { MembershipWitness } from '../membership_witness.js';
+import { UInt32 } from '../shared.js';
+import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
 
 /**
  * Class containing the data of a preimage of a single leaf in the nullifier tree.

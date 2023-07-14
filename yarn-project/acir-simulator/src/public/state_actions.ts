@@ -1,6 +1,7 @@
 import { ContractStorageRead, ContractStorageUpdateRequest } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
+
 import { PublicStateDB } from './db.js';
 
 /**

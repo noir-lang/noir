@@ -1,9 +1,10 @@
 import { AztecNodeService } from '@aztec/aztec-node';
+import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { ContractDeployer, Fr } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
-import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { TxStatus } from '@aztec/types';
+
 import times from 'lodash.times';
 
 import { setup } from './utils.js';

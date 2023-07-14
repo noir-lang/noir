@@ -1,8 +1,8 @@
-import { TxHash } from '@aztec/types';
+import { PartialContractAddress } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
+import { TxHash } from '@aztec/types';
 import { MerkleTreeId, PublicKey } from '@aztec/types';
-import { PartialContractAddress } from '@aztec/circuits.js';
 
 import { MemoryContractDatabase } from '../contract_database/index.js';
 import { Database, GetOptions } from './database.js';

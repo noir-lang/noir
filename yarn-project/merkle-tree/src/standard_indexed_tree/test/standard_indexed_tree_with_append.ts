@@ -1,4 +1,5 @@
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
+
 import { LeafData, StandardIndexedTree } from '../../index.js';
 
 /**

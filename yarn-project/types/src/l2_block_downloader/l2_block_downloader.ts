@@ -1,7 +1,8 @@
-import { InterruptableSleep } from '@aztec/foundation/sleep';
 import { MemoryFifo, Semaphore } from '@aztec/foundation/fifo';
-import { L2BlockSource, L2Block, INITIAL_L2_BLOCK_NUM } from '../index.js';
 import { createLogger } from '@aztec/foundation/log';
+import { InterruptableSleep } from '@aztec/foundation/sleep';
+
+import { INITIAL_L2_BLOCK_NUM, L2Block, L2BlockSource } from '../index.js';
 
 const log = createLogger('aztec:l2_block_downloader');
 

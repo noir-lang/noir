@@ -2,6 +2,7 @@ import { Fr } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecNode, MerkleTreeId, Tx, TxHash } from '@aztec/types';
+
 import Koa, { Context, DefaultState } from 'koa';
 import Router from 'koa-router';
 import { PromiseReadable } from 'promise-readable';

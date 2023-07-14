@@ -1,10 +1,10 @@
-import { readFile } from 'fs/promises';
+import { numToUInt32BE } from '@aztec/foundation/serialize';
+import { IWasmModule, WasmModule } from '@aztec/foundation/wasm';
+
 import isNode from 'detect-node';
+import { readFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-
-import { IWasmModule, WasmModule } from '@aztec/foundation/wasm';
-import { numToUInt32BE } from '@aztec/foundation/serialize';
 
 import { Crs } from '../crs/index.js';
 

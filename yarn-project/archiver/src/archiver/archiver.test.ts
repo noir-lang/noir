@@ -1,4 +1,9 @@
-import { InboxAbi, RollupAbi, ContractDeploymentEmitterAbi } from '@aztec/l1-artifacts';
+import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { randomBytes } from '@aztec/foundation/crypto';
+import { EthAddress } from '@aztec/foundation/eth-address';
+import { Fr } from '@aztec/foundation/fields';
+import { sleep } from '@aztec/foundation/sleep';
+import { ContractDeploymentEmitterAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
   ContractData,
   ContractPublicData,
@@ -7,15 +12,12 @@ import {
   L2BlockL2Logs,
   LogType,
 } from '@aztec/types';
+
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Chain, HttpTransport, Log, PublicClient, Transaction, encodeFunctionData, toHex } from 'viem';
+
 import { Archiver } from './archiver.js';
-import { EthAddress } from '@aztec/foundation/eth-address';
-import { sleep } from '@aztec/foundation/sleep';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { ArchiverDataStore, MemoryArchiverStore } from './archiver_store.js';
-import { Fr } from '@aztec/foundation/fields';
 
 describe('Archiver', () => {
   const rollupAddress = '0x0000000000000000000000000000000000000000';

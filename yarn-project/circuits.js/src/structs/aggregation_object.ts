@@ -1,8 +1,10 @@
 import { Fq, Fr } from '@aztec/foundation/fields';
-import { serializeToBuffer } from '../utils/serialize.js';
-import times from 'lodash.times';
-import { Vector, UInt32 } from './shared.js';
 import { BufferReader } from '@aztec/foundation/serialize';
+
+import times from 'lodash.times';
+
+import { serializeToBuffer } from '../utils/serialize.js';
+import { UInt32, Vector } from './shared.js';
 import { G1AffineElement } from './verification_key.js';
 
 /**

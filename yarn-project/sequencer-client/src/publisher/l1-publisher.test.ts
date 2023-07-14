@@ -1,5 +1,6 @@
 import { L2Block } from '@aztec/types';
-import { mock, MockProxy } from 'jest-mock-extended';
+
+import { MockProxy, mock } from 'jest-mock-extended';
 
 import { sleep } from '../utils.js';
 import { L1Publisher, L1PublisherTxSender, MinimalTransactionReceipt } from './l1-publisher.js';

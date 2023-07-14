@@ -1,5 +1,5 @@
-import { Fr } from '@aztec/foundation/fields';
 import { Vector } from '@aztec/circuits.js';
+import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
 /**

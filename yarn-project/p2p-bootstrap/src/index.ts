@@ -1,6 +1,7 @@
-import 'dotenv/config';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { BootstrapNode, getP2PConfigEnvVars } from '@aztec/p2p';
+
+import 'dotenv/config';
 
 const logger = createDebugLogger('aztec:bootstrap_node');
 

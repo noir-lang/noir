@@ -1,12 +1,12 @@
 import { randomBytes } from '../crypto/index.js';
 import { Fr } from '../fields/fields.js';
 import {
-  serializeBufferToVector,
-  deserializeBufferFromVector,
-  deserializeUInt32,
-  deserializeField,
-  serializeBufferArrayToVector,
   deserializeArrayFromVector,
+  deserializeBufferFromVector,
+  deserializeField,
+  deserializeUInt32,
+  serializeBufferArrayToVector,
+  serializeBufferToVector,
 } from './index.js';
 
 describe('serialize', () => {

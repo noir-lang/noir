@@ -1,9 +1,9 @@
+import { createDebugLogger } from '@aztec/foundation/log';
+import { InterruptableSleep } from '@aztec/foundation/sleep';
 import { ContractPublicData, L2Block } from '@aztec/types';
 
 import { L2BlockReceiver } from '../receiver.js';
 import { PublisherConfig } from './config.js';
-import { InterruptableSleep } from '@aztec/foundation/sleep';
-import { createDebugLogger } from '@aztec/foundation/log';
 
 /**
  * Minimal information from a tx receipt returned by an L1PublisherTxSender.

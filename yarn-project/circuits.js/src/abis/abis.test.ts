@@ -1,4 +1,5 @@
 import times from 'lodash.times';
+
 import { AztecAddress, Fr, FunctionData, FunctionLeafPreimage, NewContractData } from '../index.js';
 import { makeAztecAddress, makeEthAddress, makePoint, makeTxRequest, makeVerificationKey } from '../tests/factories.js';
 import { CircuitsWasm } from '../wasm/circuits_wasm.js';

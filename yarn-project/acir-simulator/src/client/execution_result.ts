@@ -1,6 +1,7 @@
 import { PrivateCallStackItem, PublicCallRequest, ReadRequestMembershipWitness } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { FunctionL2Logs } from '@aztec/types';
+
 import { ACVMField } from '../acvm/index.js';
 
 /**

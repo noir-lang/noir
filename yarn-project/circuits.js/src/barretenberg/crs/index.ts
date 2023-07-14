@@ -1,6 +1,5 @@
-import { open } from 'fs/promises';
 import { existsSync } from 'fs';
-
+import { open } from 'fs/promises';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 

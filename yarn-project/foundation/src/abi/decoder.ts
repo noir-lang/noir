@@ -1,5 +1,5 @@
-import { Fr } from '@aztec/foundation/fields';
 import { ABIType, FunctionAbi } from '@aztec/foundation/abi';
+import { Fr } from '@aztec/foundation/fields';
 
 /**
  * The type of our decoded ABI.

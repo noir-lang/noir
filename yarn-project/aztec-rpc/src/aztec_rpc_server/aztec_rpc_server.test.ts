@@ -2,8 +2,10 @@ import { AztecAddress, CircuitsWasm, Fr } from '@aztec/circuits.js';
 import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { ConstantKeyPair, TestKeyStore } from '@aztec/key-store';
+
 import { randomBytes } from 'crypto';
 import { MockProxy, mock } from 'jest-mock-extended';
+
 import { MemoryDB } from '../database/memory_db.js';
 import { AztecRPCServer } from './aztec_rpc_server.js';
 import { AztecNode } from '@aztec/types';

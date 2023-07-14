@@ -4,8 +4,8 @@ import {
   CONTRACT_TREE_HEIGHT,
   Fr,
   KernelCircuitPublicInputs,
-  MembershipWitness,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
+  MembershipWitness,
   PreviousKernelData,
   PrivateCallData,
   PrivateCallStackItem,
@@ -17,6 +17,7 @@ import {
   makeEmptyProof,
 } from '@aztec/circuits.js';
 import { assertLength } from '@aztec/foundation/serialize';
+
 import { KernelProofCreator, ProofCreator, ProofOutput } from './proof_creator.js';
 import { ProvingDataOracle } from './proving_data_oracle.js';
 

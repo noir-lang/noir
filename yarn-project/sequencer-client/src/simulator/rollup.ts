@@ -7,6 +7,7 @@ import {
   RootRollupInputs,
   RootRollupPublicInputs,
 } from '@aztec/circuits.js';
+
 import { RollupSimulator } from './index.js';
 
 /**

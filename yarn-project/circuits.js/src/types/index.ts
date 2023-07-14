@@ -1,4 +1,5 @@
 import { FunctionAbi } from '@aztec/foundation/abi';
+
 import { AztecAddress, Fr, Point } from '../index.js';
 
 /** Represents a user public key. */

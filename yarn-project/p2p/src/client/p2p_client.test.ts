@@ -1,10 +1,11 @@
-import { expect, jest } from '@jest/globals';
 import { L2BlockSource, mockTx } from '@aztec/types';
 
-import { P2PClient } from './p2p_client.js';
+import { expect, jest } from '@jest/globals';
+
+import { P2PService } from '../index.js';
 import { TxPool } from '../tx_pool/index.js';
 import { MockBlockSource } from './mocks.js';
-import { P2PService } from '../index.js';
+import { P2PClient } from './p2p_client.js';
 
 /**
  * Mockify helper for testing purposes.

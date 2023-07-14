@@ -1,6 +1,7 @@
 import { Contract, ContractDeployer, EthAddress, Wallet } from '@aztec/aztec.js';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { NonNativeTokenContractAbi } from '@aztec/noir-contracts/examples';
+
 import type { Abi, Narrow } from 'abitype';
 import { Account, Chain, Hex, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
 

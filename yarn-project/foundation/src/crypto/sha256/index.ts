@@ -1,4 +1,5 @@
 import { default as hash } from 'hash.js';
+
 import { toBigIntBE, toBufferBE } from '../../bigint-buffer/index.js';
 import { Fr } from '../../fields/fields.js';
 

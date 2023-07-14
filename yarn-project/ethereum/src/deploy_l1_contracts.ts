@@ -1,19 +1,20 @@
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
 import {
-  RollupAbi,
-  RollupBytecode,
   ContractDeploymentEmitterAbi,
   ContractDeploymentEmitterBytecode,
-  RegistryAbi,
-  RegistryBytecode,
+  DecoderHelperAbi,
+  DecoderHelperBytecode,
   InboxAbi,
   InboxBytecode,
   OutboxAbi,
   OutboxBytecode,
-  DecoderHelperAbi,
-  DecoderHelperBytecode,
+  RegistryAbi,
+  RegistryBytecode,
+  RollupAbi,
+  RollupBytecode,
 } from '@aztec/l1-artifacts';
+
 import type { Abi, Narrow } from 'abitype';
 import {
   Account,

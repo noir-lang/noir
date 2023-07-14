@@ -1,7 +1,8 @@
-import { Secp256k1 } from './index.js';
 import { randomBytes } from '@aztec/foundation/crypto';
-import { Ecdsa } from '../ecdsa/index.js';
+
 import { CircuitsWasm } from '../../../index.js';
+import { Ecdsa } from '../ecdsa/index.js';
+import { Secp256k1 } from './index.js';
 
 describe('secp256k1', () => {
   let secp256k1!: Secp256k1;

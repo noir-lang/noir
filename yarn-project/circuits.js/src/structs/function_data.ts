@@ -1,4 +1,5 @@
-import { numToUInt32BE, deserializeUInt32, BufferReader } from '@aztec/foundation/serialize';
+import { BufferReader, deserializeUInt32, numToUInt32BE } from '@aztec/foundation/serialize';
+
 import { serializeToBuffer } from '../utils/serialize.js';
 
 const FUNCTION_SELECTOR_LENGTH = 4;

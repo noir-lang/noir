@@ -6,14 +6,14 @@ import {
   ContractStorageUpdateRequest,
   Fr,
   GlobalVariables,
-  MAX_PUBLIC_DATA_READS_PER_CALL,
-  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
   KernelCircuitPublicInputs,
-  MembershipWitness,
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+  MAX_PUBLIC_DATA_READS_PER_CALL,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
+  MembershipWitness,
   PreviousKernelData,
   Proof,
   PublicCallData,
@@ -30,6 +30,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { Tuple, mapTuple, to2Fields } from '@aztec/foundation/serialize';
 import { ContractDataSource, FunctionL2Logs, L1ToL2MessageSource, MerkleTreeId, Tx } from '@aztec/types';
 import { MerkleTreeOperations } from '@aztec/world-state';
+
 import { getVerificationKeys } from '../index.js';
 import { EmptyPublicProver } from '../prover/empty.js';
 import { PublicProver } from '../prover/index.js';

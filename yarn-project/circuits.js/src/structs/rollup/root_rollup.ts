@@ -1,18 +1,19 @@
-import { assertMemberLength, FieldsOf } from '../../utils/jsUtils.js';
-import { serializeToBuffer } from '../../utils/serialize.js';
-import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
+import { Fr } from '@aztec/foundation/fields';
+import { BufferReader } from '@aztec/foundation/serialize';
+
 import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
-  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
+  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
   PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
 } from '../../cbind/constants.gen.js';
-import { PreviousRollupData } from './previous_rollup_data.js';
+import { FieldsOf, assertMemberLength } from '../../utils/jsUtils.js';
+import { serializeToBuffer } from '../../utils/serialize.js';
 import { AggregationObject } from '../aggregation_object.js';
-import { Fr } from '@aztec/foundation/fields';
-import { BufferReader } from '@aztec/foundation/serialize';
 import { GlobalVariables } from '../global_variables.js';
+import { AppendOnlyTreeSnapshot } from './append_only_tree_snapshot.js';
+import { PreviousRollupData } from './previous_rollup_data.js';
 
 /**
  * Represents inputs of the root rollup circuit.

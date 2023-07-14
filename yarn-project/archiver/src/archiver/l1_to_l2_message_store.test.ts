@@ -1,6 +1,7 @@
 import { Fr } from '@aztec/foundation/fields';
-import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
 import { L1Actor, L1ToL2Message, L2Actor } from '@aztec/types';
+
+import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
 
 describe('l1_to_l2_message_store', () => {
   let store: L1ToL2MessageStore;

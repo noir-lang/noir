@@ -10,6 +10,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
 import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
 import {
+  AztecNode,
   ContractData,
   ContractDataSource,
   ContractPublicData,
@@ -21,10 +22,9 @@ import {
   L2LogsSource,
   LogType,
   MerkleTreeId,
+  SiblingPath,
   Tx,
   TxHash,
-  SiblingPath,
-  AztecNode,
 } from '@aztec/types';
 import {
   MerkleTrees,
@@ -32,8 +32,10 @@ import {
   WorldStateSynchroniser,
   computePublicDataTreeLeafIndex,
 } from '@aztec/world-state';
+
 import { default as levelup } from 'levelup';
 import { MemDown, default as memdown } from 'memdown';
+
 import { AztecNodeConfig } from './config.js';
 
 export const createMemDown = () => (memdown as any)() as MemDown<any, any>;

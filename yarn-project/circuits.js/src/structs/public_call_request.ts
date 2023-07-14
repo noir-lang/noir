@@ -1,4 +1,5 @@
 import { BufferReader } from '@aztec/foundation/serialize';
+
 import { computeVarArgsHash } from '../abis/abis.js';
 import { CircuitsWasm, FieldsOf } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';

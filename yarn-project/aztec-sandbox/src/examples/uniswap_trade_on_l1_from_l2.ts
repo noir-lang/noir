@@ -1,23 +1,25 @@
 import {
+  AztecAddress,
   Contract,
   ContractDeployer,
-  createAccounts,
-  createAztecRpcClient,
-  getL1ContractAddresses,
-  AztecAddress,
   EthAddress,
   Fr,
   Wallet,
   computeMessageSecretHash,
+  createAccounts,
+  createAztecRpcClient,
+  getL1ContractAddresses,
 } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { UniswapContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
+import { SchnorrAccountContractAbi, UniswapContractAbi } from '@aztec/noir-contracts/examples';
+import { AztecRPC, TxStatus } from '@aztec/types';
+
 import { createPublicClient, createWalletClient, getContract, http, parseEther } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
+
 import { delay, deployAndInitializeNonNativeL2TokenContracts, deployL1Contract } from './util.js';
-import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
-import { AztecRPC, TxStatus } from '@aztec/types';
 
 /**
  * Type representation of a Public key's coordinates.

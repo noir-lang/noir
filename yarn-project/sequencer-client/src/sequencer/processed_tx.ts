@@ -1,4 +1,4 @@
-import { KernelCircuitPublicInputs, Proof, CombinedHistoricTreeRoots, makeEmptyProof, Fr } from '@aztec/circuits.js';
+import { CombinedHistoricTreeRoots, Fr, KernelCircuitPublicInputs, Proof, makeEmptyProof } from '@aztec/circuits.js';
 import { Tx, TxHash, TxL2Logs } from '@aztec/types';
 
 /**

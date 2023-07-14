@@ -1,7 +1,8 @@
-import { DispatchMsg } from './create_dispatch_fn.js';
-import { TransportClient } from '../transport_client.js';
 import { EventEmitter } from 'events';
-import { isTransferDescriptor, TransferDescriptor } from '../interface/transferable.js';
+
+import { TransferDescriptor, isTransferDescriptor } from '../interface/transferable.js';
+import { TransportClient } from '../transport_client.js';
+import { DispatchMsg } from './create_dispatch_fn.js';
 
 /**
  * FilterOutAttributes type filters out all non-method properties of an object, leaving only the attributes

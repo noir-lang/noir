@@ -1,6 +1,8 @@
-import { LevelUp } from 'levelup';
-import { TreeBase } from './tree_base.js';
 import { Hasher } from '@aztec/types';
+
+import { LevelUp } from 'levelup';
+
+import { TreeBase } from './tree_base.js';
 
 /**
  * Creates a new tree.

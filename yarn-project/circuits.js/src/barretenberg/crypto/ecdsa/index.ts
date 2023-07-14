@@ -1,4 +1,5 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
+
 import { CircuitsWasm } from '../../../index.js';
 import { Signer } from '../index.js';
 import { EcdsaSignature } from './signature.js';

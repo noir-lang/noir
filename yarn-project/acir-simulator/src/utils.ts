@@ -1,6 +1,6 @@
-import { Fr, Point } from '@aztec/foundation/fields';
-import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { CircuitsWasm } from '@aztec/circuits.js';
+import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
+import { Fr, Point } from '@aztec/foundation/fields';
 
 /**
  * A point in the format that noir uses.

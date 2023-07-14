@@ -1,8 +1,9 @@
 import { jest } from '@jest/globals';
+
+import { randomBytes } from '../crypto/index.js';
 import { Fq, Fr } from '../fields/fields.js';
 import { BufferReader } from './buffer_reader.js';
 import { serializeBufferArrayToVector } from './free_funcs.js';
-import { randomBytes } from '../crypto/index.js';
 
 const ARRAY = Array.from(Array(32)).map((_, idx) => (idx % 2 === 0 ? 0 : 1));
 const BUFFER = Buffer.from(ARRAY);

@@ -1,10 +1,11 @@
+import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
+import { BufferReader, Tuple } from '@aztec/foundation/serialize';
+
+import { MAX_NEW_COMMITMENTS_PER_CALL, PRIVATE_DATA_TREE_HEIGHT } from '../cbind/constants.gen.js';
 import { assertMemberLength, makeTuple, range } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
-import { toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { BufferReader, Tuple } from '@aztec/foundation/serialize';
 import { MembershipWitness } from './membership_witness.js';
-import { MAX_NEW_COMMITMENTS_PER_CALL, PRIVATE_DATA_TREE_HEIGHT } from '../cbind/constants.gen.js';
 
 /**
  * A ReadRequestMembershipWitness is similar to a MembershipWitness but includes

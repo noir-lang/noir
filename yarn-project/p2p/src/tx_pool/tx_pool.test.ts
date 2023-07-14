@@ -1,4 +1,5 @@
 import { mockTx } from '@aztec/types';
+
 import { InMemoryTxPool } from './index.js';
 
 describe('In-Memory TX pool', () => {

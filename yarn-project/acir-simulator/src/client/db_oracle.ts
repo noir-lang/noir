@@ -1,8 +1,8 @@
+import { PartialContractAddress } from '@aztec/circuits.js';
+import { FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { FunctionAbi } from '@aztec/foundation/abi';
-import { PartialContractAddress } from '@aztec/circuits.js';
 
 import { CommitmentsDB } from '../index.js';
 

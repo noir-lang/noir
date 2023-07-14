@@ -1,10 +1,11 @@
+import { Fr } from '@aztec/foundation/fields';
 import {
   Tuple,
   assertLength,
   deserializeArrayFromVector,
   serializeBufferArrayToVector,
 } from '@aztec/foundation/serialize';
-import { Fr } from '@aztec/foundation/fields';
+
 import { Hasher } from './interfaces/index.js';
 
 /**

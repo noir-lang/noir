@@ -1,7 +1,8 @@
 import { randomBytes } from '@aztec/foundation/crypto';
-import { Signature } from '../index.js';
-import { BufferReader, mapTuple } from '@aztec/foundation/serialize';
 import { Fr } from '@aztec/foundation/fields';
+import { BufferReader, mapTuple } from '@aztec/foundation/serialize';
+
+import { Signature } from '../index.js';
 
 /**
  * Schnorr signature used for transactions.

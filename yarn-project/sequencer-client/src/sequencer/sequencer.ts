@@ -1,3 +1,4 @@
+import { GlobalVariables } from '@aztec/circuits.js';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
@@ -12,15 +13,16 @@ import {
   Tx,
 } from '@aztec/types';
 import { WorldStateStatus, WorldStateSynchroniser } from '@aztec/world-state';
+
 import times from 'lodash.times';
+
 import { BlockBuilder } from '../block_builder/index.js';
+import { GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 import { L1Publisher } from '../publisher/l1-publisher.js';
 import { ceilPowerOfTwo } from '../utils.js';
 import { SequencerConfig } from './config.js';
 import { ProcessedTx } from './processed_tx.js';
 import { PublicProcessorFactory } from './public_processor.js';
-import { GlobalVariables } from '@aztec/circuits.js';
-import { GlobalVariableBuilder } from '../global_variable_builder/global_builder.js';
 
 /**
  * Sequencer client
