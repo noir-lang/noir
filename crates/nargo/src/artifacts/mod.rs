@@ -15,10 +15,10 @@ fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    
+
     let mut circuit_bytes: Vec<u8> = Vec::new();
     circuit.write(&mut circuit_bytes).unwrap();
-    let encoded_b64 = base64::engine::general_purpose::URL_SAFE.encode(circuit_bytes);
+    let encoded_b64 = base64::encode(circuit_bytes);
     s.serialize_str(&encoded_b64)
 }
 
@@ -27,7 +27,7 @@ where
     D: Deserializer<'de>,
 {
     let bytecode_b64: String = serde::Deserialize::deserialize(deserializer)?;
-    let circuit_bytes = base64::engine::general_purpose::URL_SAFE.decode(bytecode_b64).unwrap();
+    let circuit_bytes = base64::decode(bytecode_b64).unwrap();
     let circuit = Circuit::read(&*circuit_bytes).unwrap();
     Ok(circuit)
 }
