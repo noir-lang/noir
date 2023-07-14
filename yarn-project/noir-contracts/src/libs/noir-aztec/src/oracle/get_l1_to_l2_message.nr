@@ -1,5 +1,5 @@
 
-global L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = 26; // 8 fields + 16 fields for sibling path + 1 root + 1 index
+use crate::constants_gen::L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH;
 
 // Checks if a msg is within the l1ToL2Msg tree
 #[oracle(getL1ToL2Message)]

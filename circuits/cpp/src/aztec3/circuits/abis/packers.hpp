@@ -62,7 +62,21 @@ struct ConstantsPacker {
                  L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
                  FUNCTION_SELECTOR_NUM_BYTES,
                  MAPPING_SLOT_PEDERSEN_SEPARATOR,
-                 NUM_FIELDS_PER_SHA256));  // <-- Add names of new constants here
+                 NUM_FIELDS_PER_SHA256,
+                 L1_TO_L2_MESSAGE_LENGTH,
+                 L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH,
+                 MAX_NOTE_FIELDS_LENGTH,
+                 GET_NOTE_ORACLE_RETURN_LENGTH,
+                 MAX_NOTES_PER_PAGE,
+                 VIEW_NOTE_ORACLE_RETURN_LENGTH,
+                 CALL_CONTEXT_LENGTH,
+                 COMMITMENT_TREES_ROOTS_LENGTH,
+                 FUNCTION_DATA_LENGTH,
+                 CONTRACT_DEPLOYMENT_DATA_LENGTH,
+                 PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
+                 CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH,
+                 CONTRACT_STORAGE_READ_LENGTH,
+                 PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH));  // <-- Add names of new constants here
     }
 };
 

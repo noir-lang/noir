@@ -1,1 +1,0 @@
-global MAX_NOTE_FIELDS_SIZE = 20;

@@ -4,12 +4,9 @@ use crate::note::note_hash::compute_inner_note_hash;
 use crate::note::note_interface::NoteInterface;
 use crate::oracle;
 use crate::constants_gen::MAX_READ_REQUESTS_PER_CALL;
-
-// TODO: Remove these when nested array is supported.
-// EXTRA_DATA: [number_of_return_notes, contract_address]
-global GET_NOTE_ORACLE_RETURN_SIZE = 322; // MAX_READ_REQUESTS_PER_CALL * MAX_NOTE_FIELDS_SIZE + EXTRA_DATA = 16 * 20 + 2
-global MAX_NOTES_PER_PAGE = 10;
-global VIEW_NOTE_ORACLE_RETURN_SIZE = 202; // MAX_NOTES_PER_PAGE * MAX_NOTE_FIELDS_SIZE + EXTRA_DATA = 10 * 20 + 2
+use crate::constants_gen::GET_NOTE_ORACLE_RETURN_LENGTH;
+use crate::constants_gen::MAX_NOTES_PER_PAGE;
+use crate::constants_gen::VIEW_NOTE_ORACLE_RETURN_LENGTH;
 
 fn ensure_note_exists<Note, N>(
     mut context: Context,
@@ -73,7 +70,7 @@ fn get_notes_internal<Note, N, S, P>(
     };
     let offset = options.offset;
     let dummy_notes = [dummy(); MAX_READ_REQUESTS_PER_CALL];
-    let zero_fields = [0; GET_NOTE_ORACLE_RETURN_SIZE];
+    let zero_fields = [0; GET_NOTE_ORACLE_RETURN_LENGTH];
     let notes = oracle::notes::get_notes(
         storage_slot,
         note_interface,
@@ -100,6 +97,6 @@ fn view_notes<Note, N>(
     let sort_by = [0; N];
     let sort_order = [0; N];
     let dummy_notes = [dummy(); MAX_NOTES_PER_PAGE];
-    let zero_fields = [0; VIEW_NOTE_ORACLE_RETURN_SIZE];
+    let zero_fields = [0; VIEW_NOTE_ORACLE_RETURN_LENGTH];
     oracle::notes::get_notes(storage_slot, note_interface, sort_by, sort_order, limit, offset, dummy_notes, zero_fields)
 }
