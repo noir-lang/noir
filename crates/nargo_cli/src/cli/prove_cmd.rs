@@ -51,7 +51,7 @@ pub(crate) struct ProveCommand {
     compile_options: CompileOptions,
 
     #[clap(long)]
-    package: Option<String>, // CrateName?
+    package: Option<String>,
 }
 
 pub(crate) fn run<B: Backend>(
