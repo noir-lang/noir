@@ -69,7 +69,7 @@ pub fn compile_file(
     context: &mut Context,
     root_file: PathBuf,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    create_local_crate(context, None, root_file, CrateType::Binary);
+    create_local_crate(context, root_file, CrateType::Binary);
     compile_main(context, &CompileOptions::default())
 }
 
@@ -81,14 +81,13 @@ pub fn compile_file(
 // Granted that this is the only place which relies on the local crate being first
 pub fn create_local_crate<P: AsRef<Path>>(
     context: &mut Context,
-    name: Option<CrateName>,
     root_file: P,
     crate_type: CrateType,
 ) -> CrateId {
     let dir_path = root_file.as_ref().to_path_buf();
     let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
 
-    let crate_id = context.crate_graph.add_crate_root(name, crate_type, root_file_id);
+    let crate_id = context.crate_graph.add_crate_root(crate_type, root_file_id);
 
     assert!(crate_id == LOCAL_CRATE);
 
@@ -110,7 +109,7 @@ pub fn create_non_local_crate<P: AsRef<Path>>(
 
     // You can add any crate type to the crate graph
     // but you cannot depend on Binaries
-    context.crate_graph.add_crate_root(None, crate_type, root_file_id)
+    context.crate_graph.add_crate_root(crate_type, root_file_id)
 }
 
 /// Adds a edge in the crate graph for two crates

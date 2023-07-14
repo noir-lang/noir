@@ -268,7 +268,7 @@ fn create_context_at_path(actual_path: PathBuf) -> (Context, CrateId) {
     }
     let nargo_toml_path = find_nearest_parent_file(&file_path, &["Nargo.toml"]);
 
-    let current_crate_id = create_local_crate(&mut context, None, file_path, CrateType::Binary);
+    let current_crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
 
     // TODO(AD): undo hacky dependency resolution
     if let Some(nargo_toml_path) = nargo_toml_path {

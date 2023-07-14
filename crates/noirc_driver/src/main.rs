@@ -13,7 +13,7 @@ fn main() {
     let mut context = Context::default();
 
     // Add local crate to dep graph
-    create_local_crate(&mut context, None, ROOT_DIR_MAIN, CrateType::Binary);
+    create_local_crate(&mut context, ROOT_DIR_MAIN, CrateType::Binary);
 
     // Add libraries into Driver
     let crate_id1 = create_non_local_crate(&mut context, EXTERNAL_DIR2, CrateType::Library);
