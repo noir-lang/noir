@@ -142,25 +142,15 @@ impl BrilligContext {
     }
 
     pub(crate) fn update_stack_pointer(&mut self, size_register: RegisterIndex) {
-        debug_show::binary_instruction(
+        self.memory_op(
             ReservedRegisters::stack_pointer(),
             size_register,
             ReservedRegisters::stack_pointer(),
-            BrilligBinaryOp::Integer {
-                op: BinaryIntOp::Add,
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            },
+            BinaryIntOp::Add,
         );
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: ReservedRegisters::stack_pointer(),
-            op: BinaryIntOp::Add,
-            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            lhs: ReservedRegisters::stack_pointer(),
-            rhs: size_register,
-        });
     }
 
-    /// Allocates a single value and stores the
+    /// Allocates a variable in memory and stores the
     /// pointer to the array in `pointer_register`
     pub(crate) fn allocate_variable_instruction(&mut self, pointer_register: RegisterIndex) {
         debug_show::allocate_instruction(pointer_register);
@@ -170,13 +160,12 @@ impl BrilligContext {
             destination: pointer_register,
             source: ReservedRegisters::stack_pointer(),
         });
-        self.push_opcode(BrilligOpcode::BinaryIntOp {
-            destination: ReservedRegisters::stack_pointer(),
-            op: BinaryIntOp::Add,
-            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            lhs: ReservedRegisters::stack_pointer(),
-            rhs: size_register,
-        });
+        self.memory_op(
+            ReservedRegisters::stack_pointer(),
+            size_register,
+            ReservedRegisters::stack_pointer(),
+            BinaryIntOp::Add,
+        );
     }
 
     /// Gets the value in the array at index `index` and stores it in `result`
@@ -245,14 +234,11 @@ impl BrilligContext {
 
         // Check if index < num_elements
         let index_less_than_array_len = self.allocate_register();
-        self.binary_instruction(
+        self.memory_op(
             index_register,
             num_elements_register,
             index_less_than_array_len,
-            BrilligBinaryOp::Integer {
-                op: BinaryIntOp::LessThan,
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            },
+            BinaryIntOp::LessThan,
         );
 
         let exit_loop_label = self.next_section_label();
@@ -266,16 +252,7 @@ impl BrilligContext {
         self.array_set(destination_pointer, index_register, value_register);
 
         // Increment the index register
-        let one_register = self.make_constant(1u128.into());
-        self.binary_instruction(
-            index_register,
-            one_register,
-            index_register,
-            BrilligBinaryOp::Integer {
-                op: BinaryIntOp::Add,
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            },
-        );
+        self.usize_op_in_place(index_register, BinaryIntOp::Add, 1);
 
         self.jump_instruction(loop_label);
 
@@ -284,7 +261,6 @@ impl BrilligContext {
         // Deallocate our temporary registers
         self.deallocate_register(index_less_than_array_len);
         self.deallocate_register(value_register);
-        self.deallocate_register(one_register);
         self.deallocate_register(index_register);
     }
 
@@ -889,9 +865,9 @@ mod tests {
     use acvm::brillig_vm::{Registers, VMStatus, VM};
     use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 
-    use crate::brillig::brillig_ir::{BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
+    use crate::brillig::brillig_ir::BrilligContext;
 
-    use super::{BrilligBinaryOp, BrilligOpcode, ReservedRegisters};
+    use super::{BrilligOpcode, ReservedRegisters};
 
     struct DummyBlackBoxSolver;
 
@@ -950,25 +926,9 @@ mod tests {
             &[RegisterOrMemory::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
         );
         // push stack frame by r_returned_size
-        context.binary_instruction(
-            r_stack,
-            r_output_size,
-            r_stack,
-            BrilligBinaryOp::Integer {
-                op: BinaryIntOp::Add,
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            },
-        );
+        context.memory_op(r_stack, r_output_size, r_stack, BinaryIntOp::Add);
         // check r_input_size == r_output_size
-        context.binary_instruction(
-            r_input_size,
-            r_output_size,
-            r_equality,
-            BrilligBinaryOp::Integer {
-                op: BinaryIntOp::Equals,
-                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            },
-        );
+        context.memory_op(r_input_size, r_output_size, r_equality, BinaryIntOp::Equals);
         // We push a JumpIf and Trap opcode directly as the constrain instruction
         // uses unresolved jumps which requires a block to be constructed in SSA and
         // we don't need this for Brillig IR tests

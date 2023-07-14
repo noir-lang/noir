@@ -1,9 +1,7 @@
 use crate::brillig::brillig_gen::brillig_slice_ops::{
     convert_array_or_vector_to_vector, slice_push_back_operation,
 };
-use crate::brillig::brillig_ir::{
-    BrilligBinaryOp, BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-};
+use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
 use crate::ssa_refactor::ir::function::FunctionId;
 use crate::ssa_refactor::ir::instruction::Intrinsic;
 use crate::ssa_refactor::ir::{
@@ -593,14 +591,11 @@ impl<'block> BrilligBlock<'block> {
                     // Store the item in memory
                     self.store_in_memory(iterator_register, *element_id, dfg);
                     // Increment the iterator by the size of the items
-                    self.brillig_context.binary_instruction(
+                    self.brillig_context.memory_op(
                         iterator_register,
                         size_of_item_register,
                         iterator_register,
-                        BrilligBinaryOp::Integer {
-                            op: BinaryIntOp::Add,
-                            bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-                        },
+                        BinaryIntOp::Add,
                     );
                 }
             }
