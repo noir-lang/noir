@@ -1,4 +1,3 @@
-
 use acvm::acir::circuit::Circuit;
 
 use base64::Engine;

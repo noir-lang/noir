@@ -4,8 +4,8 @@
 //! Should any projects require/desire a different artifact format, it's expected that they will write a transformer
 //! to generate them using these artifacts as a starting point.
 use acvm::acir::circuit::Circuit;
-use serde::{Deserializer, Serializer};
 use base64::Engine;
+use serde::{Deserializer, Serializer};
 
 pub mod contract;
 pub mod program;
@@ -15,7 +15,6 @@ fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-
     let mut circuit_bytes: Vec<u8> = Vec::new();
     circuit.write(&mut circuit_bytes).unwrap();
     let encoded_b64 = base64::engine::general_purpose::STANDARD.encode(circuit_bytes);
