@@ -1,10 +1,14 @@
-import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, EthAddress, FunctionData, PartialContractAddress } from '@aztec/circuits.js';
-import { ContractAbi, FunctionType, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
+import {
+  collectEncryptedLogs,
+  collectEnqueuedPublicFunctionCalls,
+  collectUnencryptedLogs,
+} from '@aztec/acir-simulator';
+import { AztecAddress, FunctionData, PartialContractAddress, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
+import { FunctionType, encodeArguments } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
 import {
+  AztecNode,
   AztecRPC,
   ContractDao,
   ContractData,
@@ -14,41 +18,24 @@ import {
   KeyStore,
   L2BlockL2Logs,
   LogType,
+  MerkleTreeId,
   NodeInfo,
-  PublicKey,
   Tx,
   TxExecutionRequest,
   TxHash,
+  TxL2Logs,
   TxReceipt,
   TxStatus,
+  getNewContractPublicFunctions,
+  toContractDao,
 } from '@aztec/types';
-
-import { AccountState } from '../account_state/account_state.js';
+import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database, TxDao } from '../database/index.js';
+import { KernelOracle } from '../kernel_oracle/index.js';
+import { KernelProver } from '../kernel_prover/kernel_prover.js';
+import { getAcirSimulator } from '../simulator/index.js';
 import { Synchroniser } from '../synchroniser/index.js';
 import { RpcServerConfig } from '../config/index.js';
-
-/**
- * Converts the given contract ABI into a ContractDao object that includes additional properties
- * such as the address, portal contract, and function selectors.
- *
- * @param abi - The contract ABI.
- * @param address - The AztecAddress representing the contract's address.
- * @param portalContract - The EthAddress representing the address of the associated portal contract.
- * @returns A ContractDao object containing the provided information along with generated function selectors.
- */
-export function toContractDao(abi: ContractAbi, address: AztecAddress, portalContract: EthAddress): ContractDao {
-  const functions = abi.functions.map(f => ({
-    ...f,
-    selector: generateFunctionSelector(f.name, f.parameters),
-  }));
-  return {
-    ...abi,
-    address,
-    functions,
-    portalContract,
-  };
-}
 
 /**
  * A remote Aztec RPC Client implementation.
@@ -67,9 +54,7 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   /**
-   * Starts the Aztec RPC server by initializing account states for each registered account and
-   * begins the synchronisation process between the Aztec node and the database.
-   * It logs the number of initial accounts that were started.
+   * Starts the Aztec RPC server by beginning the synchronisation process between the Aztec node and the database.
    *
    * @returns A promise that resolves when the server has started successfully.
    */
@@ -92,19 +77,12 @@ export class AztecRPCServer implements AztecRPC {
   /**
    * Registers an account backed by an account contract.
    *
-   * TODO: We should not be passing in the private key in plain, instead, we should ask the keystore for a public key, create the smart account with it, and register it here.
    * @param privKey - Private key of the corresponding user master public key.
    * @param address - Address of the account contract.
    * @param partialContractAddress - The partially computed address of the account contract.
-   * @param abi - Implementation of the account contract backed by this account.
    * @returns The address of the account contract.
    */
-  public async addAccount(
-    privKey: Buffer,
-    address: AztecAddress,
-    partialContractAddress: PartialContractAddress,
-    abi = SchnorrAccountContractAbi,
-  ) {
+  public async addAccount(privKey: Buffer, address: AztecAddress, partialContractAddress: PartialContractAddress) {
     const pubKey = this.keyStore.addAccount(privKey);
     // TODO(#1007): ECDSA contract breaks this check, since the ecdsa public key does not match the one derived from the keystore.
     // Once we decouple the ecdsa contract signing and encryption keys, we can re-enable this check.
@@ -116,7 +94,7 @@ export class AztecRPCServer implements AztecRPC {
     //   );
     // }
     await this.db.addPublicKey(address, pubKey, partialContractAddress);
-    await this.#initAccountState(pubKey, address, partialContractAddress, abi);
+    this.synchroniser.addAccount(pubKey, address, this.keyStore);
     return address;
   }
 
@@ -138,14 +116,13 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   /**
-   * Retrieves the list of Aztec addresses associated with the current accounts in the key store.
+   * Retrieves the list of Aztec addresses added to this rpc server
    * The addresses are returned as a promise that resolves to an array of AztecAddress objects.
    *
    * @returns A promise that resolves to an array of AztecAddress instances.
    */
   public async getAccounts(): Promise<AztecAddress[]> {
-    const accounts = this.synchroniser.getAccounts();
-    return await Promise.all(accounts.map(a => a.getAddress()));
+    return await this.db.getAccounts();
   }
 
   /**
@@ -155,22 +132,12 @@ export class AztecRPCServer implements AztecRPC {
    * @param address - The AztecAddress instance representing the account.
    * @returns A Promise resolving to the Point instance representing the public key.
    */
-  public getAccountPublicKey(address: AztecAddress): Promise<Point> {
-    const account = this.#ensureAccountAddress(address);
-    return Promise.resolve(account.getPublicKey());
-  }
-
-  /**
-   * Retrieve the address associated with a public key.
-   * Throws an error if the account is not found in the key store.
-   *
-   * @param publicKey - The Point instance representing the account public key.
-   * @returns A Promise resolving to the Aztec Address.
-   */
-  public getAccountAddress(publicKey: Point): Promise<AztecAddress> {
-    // const account = this.#ensureAccount(address);
-    const account = this.#ensureAccountPublicKey(publicKey);
-    return Promise.resolve(account.getAddress());
+  public async getAccountPublicKey(address: AztecAddress): Promise<Point> {
+    const result = await this.db.getPublicKey(address);
+    if (!result) {
+      throw new Error(`Unable to public key for address ${address.toString()}`);
+    }
+    return Promise.resolve(result[0]);
   }
 
   /**
@@ -203,9 +170,7 @@ export class AztecRPCServer implements AztecRPC {
    * @param optionalFromAddress - The address to simulate from
    * @returns A Tx ready to send to the p2p pool for execution.
    */
-  public async simulateTx(txRequest: TxExecutionRequest, optionalFromAddress?: AztecAddress) {
-    const account = this.#ensureAccountOrDefault(optionalFromAddress);
-
+  public async simulateTx(txRequest: TxExecutionRequest) {
     if (!txRequest.functionData.isPrivate) {
       throw new Error(`Public entrypoints are not allowed`);
     }
@@ -215,12 +180,12 @@ export class AztecRPCServer implements AztecRPC {
     const deployedContractAddress = txRequest.txContext.isContractDeploymentTx ? txRequest.origin : undefined;
     const newContract = deployedContractAddress ? await this.db.getContract(deployedContractAddress) : undefined;
 
-    const tx = await account.simulateAndProve(txRequest, newContract);
+    const tx = await this.#simulateAndProve(txRequest, newContract);
 
     await this.db.addTx(
       TxDao.from({
         txHash: await tx.getTxHash(),
-        origin: account.getAddress(),
+        origin: txRequest.origin,
         contractAddress: deployedContractAddress,
       }),
     );
@@ -251,10 +216,9 @@ export class AztecRPCServer implements AztecRPC {
    * @returns The result of the view function call, structured based on the function ABI.
    */
   public async viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress) {
-    const account = this.#ensureAccountOrDefault(from);
-    const txRequest = await this.#getExecutionRequest(account, functionName, args, to);
+    const txRequest = await this.#getExecutionRequest(functionName, args, to, from ?? AztecAddress.ZERO);
 
-    const executionResult = await account.simulateUnconstrained(txRequest);
+    const executionResult = await this.#simulateUnconstrained(txRequest);
 
     // TODO - Return typed result based on the function abi.
     return executionResult;
@@ -266,7 +230,7 @@ export class AztecRPCServer implements AztecRPC {
    * @returns A recipt of the transaction.
    */
   public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
-    const localTx = await this.synchroniser.getTxByHash(txHash);
+    const localTx = await this.#getTxByHash(txHash);
     const partialReceipt = {
       txHash: txHash,
       blockHash: localTx?.blockHash,
@@ -294,8 +258,8 @@ export class AztecRPCServer implements AztecRPC {
     // if the transaction mined it will be removed from the pending pool and there is a race condition here as the synchroniser will not have the tx as mined yet, so it will appear dropped
     // until the synchroniser picks this up
 
-    const accountState = this.synchroniser.getAccount(localTx.origin);
-    if (accountState && !(await accountState?.isSynchronised())) {
+    const isSynchronised = await this.synchroniser.isSynchronised();
+    if (!isSynchronised) {
       // there is a pending L2 block, which means the transaction will not be in the tx pool but may be awaiting mine on L1
       return {
         ...partialReceipt,
@@ -350,34 +314,11 @@ export class AztecRPCServer implements AztecRPC {
     return await this.node.getLogs(from, take, LogType.UNENCRYPTED);
   }
 
-  /**
-   * Initializes the account state for a given address.
-   * It retrieves the private key from the key store and adds the account to the synchroniser.
-   * This function is called for all existing accounts during the server start, or when a new account is added afterwards.
-   *
-   * @param pubKey - User's master public key.
-   * @param address - The address of the account to initialize.
-   * @param partialContractAddress - The partially computed account contract address.
-   * @param curve - The curve to be used for elliptic curve operations.
-   * @param signer - The signer to be used for transaction signing.
-   * @param abi - Implementation of the account contract backing the account.
-   */
-  async #initAccountState(
-    pubKey: PublicKey,
-    address: AztecAddress,
-    partialContractAddress: PartialContractAddress,
-    abi = SchnorrAccountContractAbi,
-  ) {
-    const account = await this.synchroniser.addAccount(pubKey, address, partialContractAddress, abi, this.keyStore);
-    this.log(`Added account ${address.toString()} with pubkey ${pubKey.toString()}`);
-    return account;
-  }
-
   async #getExecutionRequest(
-    account: AccountState,
     functionName: string,
     args: any[],
     to: AztecAddress,
+    from: AztecAddress,
   ): Promise<ExecutionRequest> {
     const contract = await this.db.getContract(to);
     if (!contract) {
@@ -399,63 +340,10 @@ export class AztecRPCServer implements AztecRPC {
 
     return {
       args: flatArgs,
-      from: account.getAddress(),
+      from,
       functionData,
       to,
     };
-  }
-
-  /**
-   * Retrieves an existing account or the default one if none is provided.
-   * Ensures that the given account address exists in the synchroniser, otherwise throws an error.
-   * If no account address is provided, it returns the first account from the synchroniser.
-   * Throws an error if there are no accounts available in the key store.
-   *
-   * @param account - (Optional) Address of the account to ensure its existence.
-   * @returns The ensured account instance.
-   */
-  #ensureAccountOrDefault(account?: AztecAddress) {
-    const address = account || this.synchroniser.getAccounts()[0]?.getAddress();
-    if (!address) {
-      throw new Error('No accounts available in the key store.');
-    }
-
-    return this.#ensureAccountAddress(address);
-  }
-
-  /**
-   * Ensures the given account address exists in the synchroniser.
-   * Retrieves the account state for the provided address and throws an error if the account is not found.
-   *
-   * @param account - The account address.
-   * @returns The account state associated with the given address.
-   * @throws If the account is unknown or not found in the synchroniser.
-   */
-  #ensureAccountAddress(account: AztecAddress) {
-    const accountState = this.synchroniser.getAccount(account);
-    if (!accountState) {
-      throw new Error(`Unknown account: ${account.toShortString()}.`);
-    }
-
-    return accountState;
-  }
-
-  /**
-   * Ensures the given account public key exists in the synchroniser.
-   * Retrieves the account state for the provided address and throws an error if the account is not found.
-   *
-   * @param account - The public key.
-   * @returns The account state associated with the given address.
-   * @throws If the account is unknown or not found in the synchroniser.
-   */
-  #ensureAccountPublicKey(account: Point) {
-    const accountState = this.synchroniser.getAccountByPublicKey(account);
-
-    if (!accountState) {
-      throw new Error(`Unknown account: ${account.toShortString()}.`);
-    }
-
-    return accountState;
   }
 
   /**
@@ -469,5 +357,165 @@ export class AztecRPCServer implements AztecRPC {
       version,
       chainId,
     };
+  }
+
+  /**
+   * Retrieve a transaction by its hash from the database.
+   *
+   * @param txHash - The hash of the transaction to be fetched.
+   * @returns A TxDao instance representing the retrieved transaction.
+   */
+  async #getTxByHash(txHash: TxHash): Promise<TxDao> {
+    const tx = await this.db.getTx(txHash);
+    if (!tx) {
+      throw new Error(`Transaction ${txHash} not found in RPC database`);
+    }
+    return tx;
+  }
+
+  /**
+   * Retrieves the simulation parameters required to run an ACIR simulation.
+   * This includes the contract address, function ABI, portal contract address, and historic tree roots.
+   * The function uses the given 'contractDataOracle' to fetch the necessary data from the node and user's database.
+   *
+   * @param execRequest - The transaction request object containing details of the contract call.
+   * @param contractDataOracle - An instance of ContractDataOracle used to fetch the necessary data.
+   * @returns An object containing the contract address, function ABI, portal contract address, and historic tree roots.
+   */
+  async #getSimulationParameters(
+    execRequest: ExecutionRequest | TxExecutionRequest,
+    contractDataOracle: ContractDataOracle,
+  ) {
+    const contractAddress = (execRequest as ExecutionRequest).to ?? (execRequest as TxExecutionRequest).origin;
+    const functionAbi = await contractDataOracle.getFunctionAbi(
+      contractAddress,
+      execRequest.functionData.functionSelectorBuffer,
+    );
+    const portalContract = await contractDataOracle.getPortalContractAddress(contractAddress);
+
+    const currentRoots = this.db.getTreeRoots();
+    const historicRoots = PrivateHistoricTreeRoots.from({
+      contractTreeRoot: currentRoots[MerkleTreeId.CONTRACT_TREE],
+      nullifierTreeRoot: currentRoots[MerkleTreeId.NULLIFIER_TREE],
+      privateDataTreeRoot: currentRoots[MerkleTreeId.PRIVATE_DATA_TREE],
+      l1ToL2MessagesTreeRoot: currentRoots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      privateKernelVkTreeRoot: Fr.ZERO,
+    });
+
+    return {
+      contractAddress,
+      functionAbi,
+      portalContract,
+      historicRoots,
+    };
+  }
+
+  /**
+   * Simulate the execution of a transaction request.
+   * This function computes the expected state changes resulting from the transaction
+   * without actually submitting it to the blockchain. The result will be used for creating the kernel proofs,
+   * as well as for estimating gas costs.
+   *
+   * @param txRequest - The transaction request object containing the necessary data for simulation.
+   * @param contractDataOracle - Optional parameter, an instance of ContractDataOracle class for retrieving contract data.
+   * @returns A promise that resolves to an object containing the simulation results, including expected output notes and any error messages.
+   */
+  async #simulate(txRequest: TxExecutionRequest, contractDataOracle?: ContractDataOracle) {
+    // TODO - Pause syncing while simulating.
+    if (!contractDataOracle) {
+      contractDataOracle = new ContractDataOracle(this.db, this.node);
+    }
+
+    const { contractAddress, functionAbi, portalContract, historicRoots } = await this.#getSimulationParameters(
+      txRequest,
+      contractDataOracle,
+    );
+
+    const simulator = getAcirSimulator(this.db, this.node, this.node, this.node, this.keyStore, contractDataOracle);
+
+    try {
+      this.log('Executing simulator...');
+      const result = await simulator.run(txRequest, functionAbi, contractAddress, portalContract, historicRoots);
+      this.log('Simulation completed!');
+
+      return result;
+    } catch (err: any) {
+      throw typeof err === 'string' ? new Error(err) : err; // Work around raw string being thrown
+    }
+  }
+
+  /**
+   * Simulate an unconstrained transaction on the given contract, without considering constraints set by ACIR.
+   * The simulation parameters are fetched using ContractDataOracle and executed using AcirSimulator.
+   * Returns the simulation result containing the outputs of the unconstrained function.
+   *
+   * @param execRequest - The transaction request object containing the target contract and function data.
+   * @param contractDataOracle - Optional instance of ContractDataOracle for fetching and caching contract information.
+   * @returns The simulation result containing the outputs of the unconstrained function.
+   */
+  async #simulateUnconstrained(execRequest: ExecutionRequest, contractDataOracle?: ContractDataOracle) {
+    if (!contractDataOracle) {
+      contractDataOracle = new ContractDataOracle(this.db, this.node);
+    }
+
+    const { contractAddress, functionAbi, portalContract, historicRoots } = await this.#getSimulationParameters(
+      execRequest,
+      contractDataOracle,
+    );
+
+    const simulator = getAcirSimulator(this.db, this.node, this.node, this.node, this.keyStore, contractDataOracle);
+
+    this.log('Executing unconstrained simulator...');
+    const result = await simulator.runUnconstrained(
+      execRequest,
+      functionAbi,
+      contractAddress,
+      portalContract,
+      historicRoots,
+    );
+    this.log('Unconstrained simulation completed!');
+
+    return result;
+  }
+
+  /**
+   * Simulate a transaction, generate a kernel proof, and create a private transaction object.
+   * The function takes in a transaction request and an ECDSA signature. It simulates the transaction,
+   * then generates a kernel proof using the simulation result. Finally, it creates a private
+   * transaction object with the generated proof and public inputs. If a new contract address is provided,
+   * the function will also include the new contract's public functions in the transaction object.
+   *
+   * @param txExecutionRequest - The transaction request to be simulated and proved.
+   * @param signature - The ECDSA signature for the transaction request.
+   * @param newContract - Optional. The address of a new contract to be included in the transaction object.
+   * @returns A private transaction object containing the proof, public inputs, and encrypted logs.
+   */
+  async #simulateAndProve(txExecutionRequest: TxExecutionRequest, newContract: ContractDao | undefined) {
+    // TODO - Pause syncing while simulating.
+
+    const contractDataOracle = new ContractDataOracle(this.db, this.node);
+
+    const kernelOracle = new KernelOracle(contractDataOracle, this.node);
+    const executionResult = await this.#simulate(txExecutionRequest, contractDataOracle);
+
+    const kernelProver = new KernelProver(kernelOracle);
+    this.log(`Executing kernel prover...`);
+    const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);
+    this.log('Proof completed!');
+
+    const newContractPublicFunctions = newContract ? getNewContractPublicFunctions(newContract) : [];
+
+    const encryptedLogs = new TxL2Logs(collectEncryptedLogs(executionResult));
+    const unencryptedLogs = new TxL2Logs(collectUnencryptedLogs(executionResult));
+    const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);
+
+    return new Tx(
+      publicInputs,
+      proof,
+      encryptedLogs,
+      unencryptedLogs,
+      newContractPublicFunctions,
+      enqueuedPublicFunctions,
+    );
   }
 }

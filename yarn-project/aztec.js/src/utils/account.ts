@@ -64,8 +64,8 @@ export async function getAccountWallet(
 ) {
   const accountCollection = new AccountCollection();
   const publicKey = await generatePublicKey(privateKey);
-  const address = await aztecRpcClient.getAccountAddress(publicKey);
   const deploymentInfo = await getContractDeploymentInfo(accountContractAbi, [], salt, publicKey);
+  const address = deploymentInfo.address;
 
   accountCollection.registerAccount(
     address,

@@ -1,4 +1,3 @@
-import { AztecNode } from '@aztec/aztec-node';
 import { AztecAddress, CircuitsWasm, Fr } from '@aztec/circuits.js';
 import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
@@ -7,6 +6,7 @@ import { randomBytes } from 'crypto';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { MemoryDB } from '../database/memory_db.js';
 import { AztecRPCServer } from './aztec_rpc_server.js';
+import { AztecNode } from '@aztec/types';
 import { RpcServerConfig } from '../index.js';
 
 describe('AztecRpcServer', function () {

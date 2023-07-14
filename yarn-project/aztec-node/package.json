@@ -35,7 +35,6 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
-    "@aztec/merkle-tree": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "@aztec/sequencer-client": "workspace:^",
     "@aztec/types": "workspace:^",

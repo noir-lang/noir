@@ -1,23 +1,24 @@
-import { CONTRACT_TREE_HEIGHT, L1_TO_L2_MSG_TREE_HEIGHT, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import {
-  ContractPublicData,
-  ContractData,
-  L2Block,
-  MerkleTreeId,
-  L1ToL2MessageAndIndex,
-  L2BlockL2Logs,
-  TxHash,
-  Tx,
-  LogType,
-} from '@aztec/types';
-import { SiblingPath } from '@aztec/merkle-tree';
 import { Fr } from '@aztec/foundation/fields';
+import {
+  ContractCommitmentProvider,
+  DataCommitmentProvider,
+  L1ToL2MessageProvider,
+  L2BlockL2Logs,
+  LogType,
+  MerkleTreeId,
+  Tx,
+  TxHash,
+  L2Block,
+  ContractData,
+  ContractPublicData,
+} from '../index.js';
 
 /**
  * The aztec node.
+ * We will probably implemement the additional interfaces by means other than Aztec Node as it's currently a privacy leak
  */
-export interface AztecNode {
+export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider, ContractCommitmentProvider {
   /**
    * Method to determine if the node is ready to accept transactions.
    * @returns - Flag indicating the readiness for tx submission.
@@ -93,49 +94,6 @@ export interface AztecNode {
    * @returns The pending tx if it exists.
    */
   getPendingTxByHash(txHash: TxHash): Promise<Tx | undefined>;
-
-  /**
-   * Find the index of the given contract.
-   * @param leafValue - The value to search for.
-   * @returns The index of the given leaf in the contracts tree or undefined if not found.
-   */
-  findContractIndex(leafValue: Buffer): Promise<bigint | undefined>;
-
-  /**
-   * Returns the sibling path for the given index in the contract tree.
-   * @param leafIndex - The index of the leaf for which the sibling path is required.
-   * @returns The sibling path for the leaf index.
-   */
-  getContractPath(leafIndex: bigint): Promise<SiblingPath<typeof CONTRACT_TREE_HEIGHT>>;
-
-  /**
-   * Find the index of the given commitment.
-   * @param leafValue - The value to search for.
-   * @returns The index of the given leaf of undefined if not found.
-   */
-  findCommitmentIndex(leafValue: Buffer): Promise<bigint | undefined>;
-
-  /**
-   * Returns the sibling path for the given index in the data tree.
-   * @param leafIndex - The index of the leaf for which the sibling path is required.
-   * @returns The sibling path for the leaf index.
-   */
-  getDataTreePath(leafIndex: bigint): Promise<SiblingPath<typeof PRIVATE_DATA_TREE_HEIGHT>>;
-
-  /**
-   * Gets a confirmed/consumed L1 to L2 message for the given message key (throws if not found).
-   * and its index in the merkle tree
-   * @param messageKey - The message key.
-   * @returns The map containing the message and index.
-   */
-  getL1ToL2MessageAndIndex(messageKey: Fr): Promise<L1ToL2MessageAndIndex>;
-
-  /**
-   * Returns the sibling path for a leaf in the committed l1 to l2 data tree.
-   * @param leafIndex - Index of the leaf in the tree.
-   * @returns The sibling path.
-   */
-  getL1ToL2MessagesTreePath(leafIndex: bigint): Promise<SiblingPath<typeof L1_TO_L2_MSG_TREE_HEIGHT>>;
 
   /**
    * Gets the storage value at the given contract slot. Our version of eth_getStorageAt.

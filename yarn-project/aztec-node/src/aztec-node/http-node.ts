@@ -1,4 +1,3 @@
-import { AztecNode } from '@aztec/aztec-node';
 import {
   AztecAddress,
   CONTRACT_TREE_HEIGHT,
@@ -7,8 +6,8 @@ import {
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { Logger, createLogger } from '@aztec/foundation/log';
-import { SiblingPath } from '@aztec/merkle-tree';
 import {
+  AztecNode,
   ContractData,
   ContractPublicData,
   L1ToL2Message,
@@ -17,6 +16,7 @@ import {
   L2BlockL2Logs,
   LogType,
   MerkleTreeId,
+  SiblingPath,
   Tx,
   TxHash,
 } from '@aztec/types';

@@ -1,4 +1,4 @@
-import { SiblingPath } from '../sibling_path/sibling_path.js';
+import { SiblingPath } from '@aztec/types';
 
 /**
  * Defines the interface for a source of sibling paths.

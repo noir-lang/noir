@@ -10,9 +10,6 @@
       "path": "../acir-simulator"
     },
     {
-      "path": "../aztec-node"
-    },
-    {
       "path": "../circuits.js"
     },
     {
@@ -20,9 +17,6 @@
     },
     {
       "path": "../key-store"
-    },
-    {
-      "path": "../noir-contracts"
     },
     {
       "path": "../types"

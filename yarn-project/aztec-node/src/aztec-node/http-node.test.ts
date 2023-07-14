@@ -1,6 +1,6 @@
 import { AztecAddress, CircuitsWasm, Fr } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation/crypto';
-import { Pedersen, SiblingPath } from '@aztec/merkle-tree';
+import { Pedersen } from '@aztec/merkle-tree';
 import {
   ContractData,
   ContractPublicData,
@@ -10,6 +10,7 @@ import {
   LogType,
   MerkleTreeId,
   mockTx,
+  SiblingPath,
   TxHash,
 } from '@aztec/types';
 import { jest } from '@jest/globals';

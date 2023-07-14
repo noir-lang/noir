@@ -1,4 +1,5 @@
-import { LowLeafWitnessData, SiblingPath } from '../index.js';
+import { SiblingPath } from '@aztec/types';
+import { LowLeafWitnessData } from '../index.js';
 import { AppendOnlyTree } from './append_only_tree.js';
 
 /**

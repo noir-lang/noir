@@ -1,6 +1,6 @@
 import { LevelUp } from 'levelup';
-import { Hasher } from './hasher.js';
 import { TreeBase, decodeMeta } from './tree_base.js';
+import { Hasher } from '@aztec/types';
 
 /**
  * Creates a new tree and sets its root, depth and size based on the meta data which are associated with the name.

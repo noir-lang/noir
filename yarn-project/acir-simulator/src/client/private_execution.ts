@@ -152,11 +152,12 @@ export class PrivateFunctionExecution {
       },
       emitEncryptedLog: ([acvmContractAddress], [acvmStorageSlot], [ownerX], [ownerY], acvmPreimage) => {
         const contractAddress = AztecAddress.fromBuffer(convertACVMFieldToBuffer(acvmContractAddress));
+        const ownerAddress = AztecAddress.ZERO; // TODO(#1021): Needs to be emitted
         const storageSlot = fromACVMField(acvmStorageSlot);
         const preimage = acvmPreimage.map(f => fromACVMField(f));
 
         const notePreimage = new NotePreimage(preimage);
-        const noteSpendingInfo = new NoteSpendingInfo(notePreimage, contractAddress, storageSlot);
+        const noteSpendingInfo = new NoteSpendingInfo(notePreimage, contractAddress, ownerAddress, storageSlot);
         const ownerPublicKey = new Point(fromACVMField(ownerX), fromACVMField(ownerY));
 
         const encryptedNotePreimage = noteSpendingInfo.toEncryptedBuffer(ownerPublicKey, this.curve);

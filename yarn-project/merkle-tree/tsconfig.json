@@ -11,6 +11,9 @@
     },
     {
       "path": "../foundation"
+    },
+    {
+      "path": "../types"
     }
   ],
   "include": ["src"]

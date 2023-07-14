@@ -45,7 +45,7 @@ async function createNewAccount(
   const salt = Fr.random();
   const publicKey = await generatePublicKey(privateKey);
   const { address, partialAddress } = await getContractDeploymentInfo(abi, args, salt, publicKey);
-  await aztecRpcServer.addAccount(privateKey, address, partialAddress, abi);
+  await aztecRpcServer.addAccount(privateKey, address, partialAddress);
   await deployContract(aztecRpcServer, publicKey, abi, args, salt);
   const wallet = new AccountWallet(aztecRpcServer, await createWallet(address, partialAddress, privateKey));
   return { wallet, address, partialAddress };

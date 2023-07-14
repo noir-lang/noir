@@ -23,7 +23,6 @@ import {
   makeSelector,
 } from '@aztec/circuits.js/factories';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { SiblingPath } from '@aztec/merkle-tree';
 import {
   ContractDataSource,
   ContractPublicData,
@@ -31,6 +30,7 @@ import {
   ExecutionRequest,
   FunctionL2Logs,
   mockTx,
+  SiblingPath,
   Tx,
   TxL2Logs,
 } from '@aztec/types';

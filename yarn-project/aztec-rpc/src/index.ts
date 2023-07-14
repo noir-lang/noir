@@ -1,6 +1,5 @@
 export * from './aztec_rpc_server/index.js';
 export * from './aztec_rpc_http/index.js';
-export * from './crypto/types.js';
 export * from './config/index.js';
 
 export { Tx, TxHash } from '@aztec/types';

@@ -1,9 +1,9 @@
-import { AztecNode } from '@aztec/aztec-node';
+import { AztecAddress, CircuitsWasm, MAX_NEW_COMMITMENTS_PER_TX, Fr } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { AztecAddress, CircuitsWasm, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair } from '@aztec/key-store';
 import {
+  AztecNode,
   FunctionL2Logs,
   KeyPair,
   KeyStore,
@@ -16,15 +16,16 @@ import {
 import { jest } from '@jest/globals';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { Database, MemoryDB } from '../database/index.js';
-import { AccountState } from './account_state.js';
-import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { NoteProcessor } from './note_processor.js';
 
-describe('Account State', () => {
+const TXS_PER_BLOCK = 4;
+
+describe('Note Processor', () => {
   let grumpkin: Grumpkin;
   let database: Database;
   let aztecNode: ReturnType<typeof mock<AztecNode>>;
   let addNoteSpendingInfoBatchSpy: any;
-  let accountState: AccountState;
+  let noteProcessor: NoteProcessor;
   let owner: KeyPair;
   let ownerAddress: AztecAddress;
   let keyStore: MockProxy<KeyStore>;
@@ -58,7 +59,10 @@ describe('Account State', () => {
     const encryptedLogsArr: L2BlockL2Logs[] = [];
     const ownedNoteSpendingInfos: NoteSpendingInfo[] = [];
     for (let i = 0; i < ownedData.length; ++i) {
-      const randomBlockContext = new L2BlockContext(L2Block.random(firstBlockNum + i));
+      const block = L2Block.random(firstBlockNum + i, TXS_PER_BLOCK);
+      block.startPrivateDataTreeSnapshot.nextAvailableLeafIndex =
+        (firstBlockNum - 1 + i) * TXS_PER_BLOCK * MAX_NEW_COMMITMENTS_PER_TX;
+      const randomBlockContext = new L2BlockContext(block);
       blockContexts.push(randomBlockContext);
       const { encryptedLogs, ownedNoteSpendingInfo } = createEncryptedLogsAndOwnedNoteSpendingInfo(ownedData[i]);
       encryptedLogsArr.push(encryptedLogs);
@@ -78,21 +82,11 @@ describe('Account State', () => {
     addNoteSpendingInfoBatchSpy = jest.spyOn(database, 'addNoteSpendingInfoBatch');
 
     ownerAddress = AztecAddress.random();
-    const partialAccountContractAddress = Fr.random();
     aztecNode = mock<AztecNode>();
     keyStore = mock<KeyStore>();
     keyStore.getAccountPrivateKey.mockResolvedValue(owner.getPrivateKey());
-    accountState = new AccountState(
-      owner.getPublicKey(),
-      keyStore,
-      ownerAddress,
-      partialAccountContractAddress,
-      database,
-      aztecNode,
-      SchnorrAccountContractAbi,
-    );
-
-    const computeSiloedNullifierSpy = jest.spyOn(accountState as any, 'computeSiloedNullifier');
+    noteProcessor = new NoteProcessor(owner.getPublicKey(), ownerAddress, keyStore, database, aztecNode);
+    const computeSiloedNullifierSpy = jest.spyOn(noteProcessor as any, 'computeSiloedNullifier');
     computeSiloedNullifierSpy.mockResolvedValue(Fr.random());
   });
 
@@ -103,9 +97,9 @@ describe('Account State', () => {
   it('should store a tx that belong to us', async () => {
     const firstBlockNum = 1;
     const { blockContexts, encryptedLogsArr, ownedNoteSpendingInfos } = mockData(firstBlockNum, [[2]]);
-    await accountState.process(blockContexts, encryptedLogsArr);
+    await noteProcessor.process(blockContexts, encryptedLogsArr);
 
-    const txs = await accountState.getTxs();
+    const txs = await database.getTxsByAddress(ownerAddress);
     expect(txs).toEqual([
       expect.objectContaining({
         blockNumber: 1,
@@ -131,9 +125,9 @@ describe('Account State', () => {
       [0, 2],
       [],
     ]);
-    await accountState.process(blockContexts, encryptedLogsArr);
+    await noteProcessor.process(blockContexts, encryptedLogsArr);
 
-    const txs = await accountState.getTxs();
+    const txs = await database.getTxsByAddress(ownerAddress);
     expect(txs).toEqual([
       expect.objectContaining({
         blockNumber: 2,
@@ -152,15 +146,15 @@ describe('Account State', () => {
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledWith([
       expect.objectContaining({
         ...ownedNoteSpendingInfos[0],
-        index: BigInt(MAX_NEW_COMMITMENTS_PER_TX + 1),
+        index: BigInt(TXS_PER_BLOCK * MAX_NEW_COMMITMENTS_PER_TX + 1),
       }),
       expect.objectContaining({
         ...ownedNoteSpendingInfos[1],
-        index: BigInt(MAX_NEW_COMMITMENTS_PER_TX * 4),
+        index: BigInt(TXS_PER_BLOCK * MAX_NEW_COMMITMENTS_PER_TX * 4),
       }),
       expect.objectContaining({
         ...ownedNoteSpendingInfos[2],
-        index: BigInt(MAX_NEW_COMMITMENTS_PER_TX * 4 + 2),
+        index: BigInt(TXS_PER_BLOCK * MAX_NEW_COMMITMENTS_PER_TX * 4 + 2),
       }),
     ]);
   });
@@ -168,9 +162,9 @@ describe('Account State', () => {
   it('should not store txs that do not belong to us', async () => {
     const firstBlockNum = 1;
     const { blockContexts, encryptedLogsArr } = mockData(firstBlockNum, [[], []]);
-    await accountState.process(blockContexts, encryptedLogsArr);
+    await noteProcessor.process(blockContexts, encryptedLogsArr);
 
-    const txs = await accountState.getTxs();
+    const txs = await database.getTxsByAddress(ownerAddress);
     expect(txs).toEqual([]);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledTimes(0);
   });

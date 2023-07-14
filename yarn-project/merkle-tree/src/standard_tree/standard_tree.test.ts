@@ -1,7 +1,6 @@
 import { CircuitsWasm } from '@aztec/circuits.js';
 import { IWasmModule } from '@aztec/foundation/wasm';
 import { default as levelup } from 'levelup';
-import { Hasher } from '../hasher.js';
 import { loadTree } from '../load_tree.js';
 import { newTree } from '../new_tree.js';
 import { standardBasedTreeTestSuite } from '../test/standard_based_test_suite.js';
@@ -11,6 +10,7 @@ import { StandardTree } from './standard_tree.js';
 import { createMemDown } from '../test/utils/create_mem_down.js';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { INITIAL_LEAF } from '../tree_base.js';
+import { Hasher } from '@aztec/types';
 
 const createDb = async (levelUp: levelup.LevelUp, hasher: Hasher, name: string, depth: number) => {
   return await newTree(StandardTree, levelUp, hasher, name, depth);

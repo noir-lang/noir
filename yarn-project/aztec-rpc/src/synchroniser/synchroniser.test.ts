@@ -1,25 +1,15 @@
-import { AztecNode } from '@aztec/aztec-node';
-import { AztecAddress, Fr } from '@aztec/circuits.js';
-import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { ConstantKeyPair } from '@aztec/key-store';
-import { KeyStore, L2Block, MerkleTreeId } from '@aztec/types';
+import { Fr } from '@aztec/circuits.js';
+import { AztecNode, L2Block, MerkleTreeId } from '@aztec/types';
 import { MockProxy, mock } from 'jest-mock-extended';
 import omit from 'lodash.omit';
 import { Database, MemoryDB } from '../database/index.js';
 import { Synchroniser } from './synchroniser.js';
-import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
 
 describe('Synchroniser', () => {
-  let grumpkin: Grumpkin;
   let aztecNode: MockProxy<AztecNode>;
   let database: Database;
   let synchroniser: TestSynchroniser;
   let roots: Record<MerkleTreeId, Fr>;
-  let keyStore: MockProxy<KeyStore>;
-
-  beforeAll(async () => {
-    grumpkin = await Grumpkin.new();
-  });
 
   beforeEach(() => {
     roots = {
@@ -36,17 +26,6 @@ describe('Synchroniser', () => {
     aztecNode = mock<AztecNode>();
     database = new MemoryDB();
     synchroniser = new TestSynchroniser(aztecNode, database);
-  });
-
-  it('should create account state', async () => {
-    const account = ConstantKeyPair.random(grumpkin);
-    const address = AztecAddress.random();
-
-    expect(synchroniser.getAccount(address)).toBeUndefined();
-
-    await synchroniser.addAccount(account.getPublicKey(), address, Fr.random(), SchnorrAccountContractAbi, keyStore);
-
-    expect(synchroniser.getAccount(address)!.getPublicKey()).toEqual(account.getPublicKey());
   });
 
   it('sets tree roots from aztec node on initial sync', async () => {

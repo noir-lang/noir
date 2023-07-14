@@ -1,11 +1,12 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
 import { default as levelup } from 'levelup';
-import { Hasher, Pedersen, SiblingPath } from '../index.js';
+import { Pedersen } from '../index.js';
 import { appendLeaves } from './utils/append_leaves.js';
 import { createMemDown } from './utils/create_mem_down.js';
 import { AppendOnlyTree } from '../interfaces/append_only_tree.js';
 import { UpdateOnlyTree } from '../interfaces/update_only_tree.js';
 import { CircuitsWasm } from '@aztec/circuits.js';
+import { Hasher, SiblingPath } from '@aztec/types';
 
 const expectSameTrees = async (
   tree1: AppendOnlyTree | UpdateOnlyTree,

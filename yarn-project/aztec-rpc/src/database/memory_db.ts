@@ -157,7 +157,7 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     const [remaining, removed] = this.noteSpendingInfoTable.reduce(
       (acc: [NoteSpendingInfoDao[], NoteSpendingInfoDao[]], noteSpendingInfo) => {
         const nullifier = noteSpendingInfo.nullifier.toString();
-        if (noteSpendingInfo.account.equals(account) && nullifierSet.has(nullifier)) {
+        if (noteSpendingInfo.publicKey.equals(account) && nullifierSet.has(nullifier)) {
           acc[1].push(noteSpendingInfo);
         } else {
           acc[0].push(noteSpendingInfo);
@@ -207,5 +207,10 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
 
   getPublicKey(address: AztecAddress): Promise<[Point, Fr] | undefined> {
     return Promise.resolve(this.publicKeys.get(address.toBigInt()));
+  }
+
+  getAccounts(): Promise<AztecAddress[]> {
+    const addresses = Array.from(this.publicKeys.keys());
+    return Promise.resolve(addresses.map(AztecAddress.fromBigInt));
   }
 }

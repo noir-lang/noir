@@ -1,27 +1,23 @@
-import { AztecNode } from '@aztec/aztec-node';
-import { Fr, PartialContractAddress, Point } from '@aztec/circuits.js';
-import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { AztecAddress, Fr, PublicKey } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InterruptableSleep } from '@aztec/foundation/sleep';
-import { KeyStore, L2BlockContext, LogType, MerkleTreeId, PublicKey, TxHash } from '@aztec/types';
-import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
-import { ContractAbi } from '@aztec/foundation/abi';
-
-import { AccountState } from '../account_state/index.js';
+import { AztecNode, KeyStore, L2BlockContext, LogType, MerkleTreeId } from '@aztec/types';
 import { Database, TxDao } from '../database/index.js';
+import { NoteProcessor } from '../note_processor/index.js';
 /**
- * The Synchroniser class manages the synchronization of account states and interacts with the Aztec node
+ * The Synchroniser class manages the synchronization of note processors and interacts with the Aztec node
  * to obtain encrypted logs, blocks, and other necessary information for the accounts.
  * It provides methods to start or stop the synchronization process, add new accounts, retrieve account
- * details, and fetch transactions by hash. The Synchroniser ensures that it maintains the account states
+ * details, and fetch transactions by hash. The Synchroniser ensures that it maintains the note processors
  * in sync with the blockchain while handling retries and errors gracefully.
  */
 export class Synchroniser {
   private runningPromise?: Promise<void>;
-  private accountStates: AccountState[] = [];
+  private noteProcessors: NoteProcessor[] = [];
   private interruptableSleep = new InterruptableSleep();
   private running = false;
   private initialSyncBlockHeight = 0;
+  private synchedToBlock = 0;
 
   constructor(
     private node: AztecNode,
@@ -31,7 +27,7 @@ export class Synchroniser {
 
   /**
    * Starts the synchronisation process by fetching encrypted logs and blocks from a specified position.
-   * Continuously processes the fetched data for all account states until stopped. If there is no data
+   * Continuously processes the fetched data for all note processors until stopped. If there is no data
    * available, it retries after a specified interval.
    *
    * @param from - The starting position for fetching encrypted logs and blocks.
@@ -60,6 +56,7 @@ export class Synchroniser {
       Promise.resolve(this.node.getTreeRoots()),
     ]);
     this.initialSyncBlockHeight = blockNumber;
+    this.synchedToBlock = this.initialSyncBlockHeight;
     await this.db.setTreeRoots(treeRoots);
   }
 
@@ -108,13 +105,16 @@ export class Synchroniser {
       await this.setTreeRootsFromBlock(latestBlock);
 
       this.log(
-        `Forwarding ${encryptedLogs.length} encrypted logs and blocks to ${this.accountStates.length} account states`,
+        `Forwarding ${encryptedLogs.length} encrypted logs and blocks to ${this.noteProcessors.length} note processors`,
       );
-      for (const accountState of this.accountStates) {
-        await accountState.process(blockContexts, encryptedLogs);
+      for (const noteProcessor of this.noteProcessors) {
+        await noteProcessor.process(blockContexts, encryptedLogs);
       }
 
+      await this.updateBlockInfoInBlockTxs(blockContexts);
+
       from += encryptedLogs.length;
+      this.synchedToBlock = latestBlock.block.number;
       return from;
     } catch (err) {
       this.log(err);
@@ -156,91 +156,72 @@ export class Synchroniser {
 
   /**
    * Add a new account to the Synchroniser with the specified private key.
-   * Creates an AccountState instance for the account and pushes it into the accountStates array.
-   * The method resolves immediately after pushing the new account state.
+   * Creates a NoteProcessor instance for the account and pushes it into the noteProcessors array.
+   * The method resolves immediately after pushing the new note processor.
    *
    * @param publicKey - The public key for the account.
-   * @param address - Address of the corresponding account contract.
-   * @param partialContractAddress - The partially computed account contract address.
-   * @param abi - Implementation of the account contract to backing the account.
+   * @param address - The address for the account.
    * @param keyStore - The key store.
    * @returns A promise that resolves once the account is added to the Synchroniser.
    */
-  public addAccount(
-    publicKey: PublicKey,
-    address: AztecAddress,
-    partialContractAddress: PartialContractAddress,
-    abi: ContractAbi = SchnorrAccountContractAbi,
-    keyStore: KeyStore,
-  ) {
-    // check if account exists
-    const account = this.getAccount(address);
-    if (account) {
-      return account;
+  public addAccount(publicKey: PublicKey, address: AztecAddress, keyStore: KeyStore) {
+    const processor = this.noteProcessors.find(x => x.publicKey.equals(publicKey));
+    if (processor) {
+      return;
     }
-    const accountState = new AccountState(
-      publicKey,
-      keyStore,
-      address,
-      partialContractAddress,
-      this.db,
-      this.node,
-      abi,
-    );
-    this.accountStates.push(accountState);
-    return Promise.resolve(accountState);
+    this.noteProcessors.push(new NoteProcessor(publicKey, address, keyStore, this.db, this.node));
   }
 
   /**
-   * Retrieve an account state by its AztecAddress from the list of managed account states.
-   * If no account state with the given address is found, returns undefined.
-   *
-   * @param account - The AztecAddress instance representing the account to search for.
-   * @returns The AccountState instance associated with the provided AztecAddress or undefined if not found.
+   * Returns true if the account specified by the given address is synched to the latest block
+   * @param account - The aztec address for which to query the sync status
+   * @returns True if the account is fully synched, false otherwise
    */
-  public getAccount(account: AztecAddress) {
-    return this.accountStates.find(as => as.getAddress().equals(account));
-  }
-
-  /**
-   * Retrieve an account state by its AztecAddress from the list of managed account states.
-   * If no account state with the given address is found, returns undefined.
-   *
-   * @param account - The AztecAddress instance representing the account to search for.
-   * @returns The AccountState instance associated with the provided AztecAddress or undefined if not found.
-   */
-  public getAccountByPublicKey(account: Point) {
-    return this.accountStates.find(as => as.getPublicKey().equals(account));
-  }
-
-  /**
-   * Retrieve a shallow copy of the array containing all account states.
-   * The returned array includes all AccountState instances added to the synchronizer.
-   *
-   * @returns An array of AccountState instances.
-   */
-  public getAccounts() {
-    return [...this.accountStates];
-  }
-
-  /**
-   * Retrieve a transaction by its hash from the database.
-   * Throws an error if the transaction is not found in the database or if the account associated with the transaction is unauthorized.
-   *
-   * @param txHash - The hash of the transaction to be fetched.
-   * @returns A TxDao instance representing the retrieved transaction.
-   */
-  public async getTxByHash(txHash: TxHash): Promise<TxDao> {
-    const tx = await this.db.getTx(txHash);
-    if (!tx) {
-      throw new Error(`Transaction ${txHash} not found in RPC database`);
+  public async isAccountSynchronised(account: AztecAddress) {
+    const result = await this.db.getPublicKey(account);
+    if (!result) {
+      return false;
     }
-
-    const account = this.getAccount(tx.origin);
-    if (!account) {
-      throw new Error(`Unauthorised account: ${tx.origin}`);
+    const publicKey = result[0];
+    const processor = this.noteProcessors.find(x => x.publicKey.equals(publicKey));
+    if (!processor) {
+      return false;
     }
+    return await processor.isSynchronised();
+  }
 
-    return tx;
+  /**
+   * Return true if the top level block synchronisation is up to date
+   * This indicates that blocks and transactions are synched even if notes are not
+   * @returns True if there are no outstanding blocks to be synched
+   */
+  public async isSynchronised() {
+    const latest = await this.node.getBlockHeight();
+    return latest <= this.synchedToBlock;
+  }
+
+  /**
+   * Updates the block information for all transactions in a given block context.
+   * The function retrieves transaction data objects from the database using their hashes,
+   * sets the block hash and block number to the corresponding values, and saves the updated
+   * transaction data back to the database. If a transaction is not found in the database,
+   * an informational message is logged.
+   *
+   * @param blockContexts - The L2BlockContext objects containing the block information and related data.
+   */
+  private async updateBlockInfoInBlockTxs(blockContexts: L2BlockContext[]) {
+    for (const blockContext of blockContexts) {
+      for (const txHash of blockContext.getTxHashes()) {
+        const txDao: TxDao | undefined = await this.db.getTx(txHash);
+        if (txDao !== undefined) {
+          txDao.blockHash = blockContext.getBlockHash();
+          txDao.blockNumber = blockContext.block.number;
+          await this.db.addTx(txDao);
+          this.log(`Updated tx with hash ${txHash.toString()} from block ${blockContext.block.number}`);
+        } else if (!txHash.isZero()) {
+          this.log(`Tx with hash ${txHash.toString()} from block ${blockContext.block.number} not found in db`);
+        }
+      }
+    }
   }
 }

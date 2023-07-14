@@ -1,5 +1,5 @@
 import { default as levelup } from 'levelup';
-import { Hasher, INITIAL_LEAF, MerkleTree, Pedersen, SiblingPath } from '../../index.js';
+import { INITIAL_LEAF, MerkleTree, Pedersen } from '../../index.js';
 import { treeTestSuite } from '../../test/test_suite.js';
 
 import { createMemDown } from '../../test/utils/create_mem_down.js';
@@ -9,6 +9,7 @@ import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { IWasmModule } from '@aztec/foundation/wasm';
 import { CircuitsWasm } from '@aztec/circuits.js';
 import { StandardIndexedTreeWithAppend } from './standard_indexed_tree_with_append.js';
+import { Hasher, SiblingPath } from '@aztec/types';
 
 const createDb = async (levelUp: levelup.LevelUp, hasher: Hasher, name: string, depth: number, prefilledSize = 1) => {
   return await newTree(StandardIndexedTreeWithAppend, levelUp, hasher, name, depth, prefilledSize);

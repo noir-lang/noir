@@ -22,13 +22,13 @@ import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, Logger, createDebugLogger } from '@aztec/foundation/log';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { NonNativeTokenContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
-import { randomBytes } from 'crypto';
-import every from 'lodash.every';
-import zipWith from 'lodash.zipwith';
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
+import every from 'lodash.every';
+import zipWith from 'lodash.zipwith';
 
 import { TxStatus } from '@aztec/types';
+import { randomBytes } from '@aztec/foundation/crypto';
 import { MNEMONIC, localAnvil } from './fixtures.js';
 
 /**
@@ -119,12 +119,7 @@ export async function setup(numberOfAccounts = 1): Promise<{
     const publicKey = await generatePublicKey(privateKey);
     const salt = Fr.random();
     const deploymentData = await getContractDeploymentInfo(SchnorrAccountContractAbi, [], salt, publicKey);
-    await aztecRpcServer.addAccount(
-      privateKey,
-      deploymentData.address,
-      deploymentData.partialAddress,
-      SchnorrAccountContractAbi,
-    );
+    await aztecRpcServer.addAccount(privateKey, deploymentData.address, deploymentData.partialAddress);
 
     const contractDeployer = new ContractDeployer(SchnorrAccountContractAbi, aztecRpcServer, publicKey);
     const deployMethod = contractDeployer.deploy();

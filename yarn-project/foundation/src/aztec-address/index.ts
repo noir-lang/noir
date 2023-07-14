@@ -66,6 +66,16 @@ export class AztecAddress {
   }
 
   /**
+   * Creates an AztecAddress from a bigint.
+   * The provided value must be within the range of a field.
+   * @param address - The bigint representation of the address.
+   * @returns An AztecAddress instance.
+   */
+  static fromBigInt(address: bigint) {
+    return new AztecAddress(toBufferBE(address, AztecAddress.SIZE_IN_BYTES));
+  }
+
+  /**
    * Converts the AztecAddress instance into a Buffer.
    * This method should be used when encoding the address for storage, transmission or serialization purposes.
    *

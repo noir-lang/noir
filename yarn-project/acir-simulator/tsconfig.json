@@ -13,13 +13,13 @@
       "path": "../foundation"
     },
     {
+      "path": "../types"
+    },
+    {
       "path": "../merkle-tree"
     },
     {
       "path": "../noir-contracts"
-    },
-    {
-      "path": "../types"
     }
   ],
   "include": ["src"]

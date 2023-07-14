@@ -53,4 +53,5 @@ export interface Database extends ContractDatabase {
 
   addPublicKey(address: AztecAddress, publicKey: PublicKey, partialAddress: PartialContractAddress): Promise<void>;
   getPublicKey(address: AztecAddress): Promise<[Point, PartialContractAddress] | undefined>;
+  getAccounts(): Promise<AztecAddress[]>;
 }

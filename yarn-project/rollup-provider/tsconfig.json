@@ -10,5 +10,5 @@
       "path": "../aztec-node"
     }
   ],
-  "include": ["src", "../aztec-node/src/aztec-node/http-node.ts"]
+  "include": ["src"]
 }

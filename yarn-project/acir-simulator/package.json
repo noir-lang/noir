@@ -32,8 +32,6 @@
   "dependencies": {
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
-    "@aztec/merkle-tree": "workspace:^",
-    "@aztec/noir-contracts": "workspace:^",
     "@aztec/types": "workspace:^",
     "acvm_js": "github:sirasistant/acvm-simulator-wasm#1e84f2b4ecf0d0a7aee37f3d8d568add711b9e93",
     "levelup": "^5.1.1",
@@ -41,6 +39,8 @@
     "tslib": "^2.4.0"
   },
   "devDependencies": {
+    "@aztec/merkle-tree": "workspace:^",
+    "@aztec/noir-contracts": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.5.0",

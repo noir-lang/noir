@@ -90,9 +90,9 @@
     "dependencies": [
       "circuits.js",
       "foundation",
+      "types",
       "merkle-tree",
-      "noir-contracts",
-      "types"
+      "noir-contracts"
     ]
   },
   "archiver": {
@@ -132,11 +132,9 @@
     ],
     "dependencies": [
       "acir-simulator",
-      "aztec-node",
       "circuits.js",
       "foundation",
       "key-store",
-      "noir-contracts",
       "types"
     ]
   },
@@ -197,8 +195,7 @@
       "l1-artifacts",
       "noir-contracts",
       "p2p",
-      "sequencer-client",
-      "world-state"
+      "types"
     ]
   },
   "ethereum": {
@@ -244,7 +241,8 @@
     ],
     "dependencies": [
       "circuits.js",
-      "foundation"
+      "foundation",
+      "types"
     ]
   },
   "noir-contracts": {
@@ -327,7 +325,6 @@
       "circuits.js",
       "foundation",
       "l1-artifacts",
-      "merkle-tree",
       "p2p",
       "sequencer-client",
       "types",

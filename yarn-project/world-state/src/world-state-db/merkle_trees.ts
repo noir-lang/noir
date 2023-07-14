@@ -17,7 +17,6 @@ import {
   LeafData,
   LowLeafWitnessData,
   Pedersen,
-  SiblingPath,
   SparseTree,
   StandardIndexedTree,
   StandardTree,
@@ -35,7 +34,7 @@ import {
   TreeInfo,
 } from './index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
-import { L2Block, MerkleTreeId, merkleTreeIds } from '@aztec/types';
+import { L2Block, MerkleTreeId, SiblingPath, merkleTreeIds } from '@aztec/types';
 import { SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { IWasmModule } from '@aztec/foundation/wasm';

@@ -131,7 +131,6 @@ __metadata:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"
-    "@aztec/merkle-tree": "workspace:^"
     "@aztec/p2p": "workspace:^"
     "@aztec/sequencer-client": "workspace:^"
     "@aztec/types": "workspace:^"
@@ -153,11 +152,9 @@ __metadata:
   resolution: "@aztec/aztec-rpc@workspace:aztec-rpc"
   dependencies:
     "@aztec/acir-simulator": "workspace:^"
-    "@aztec/aztec-node": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/key-store": "workspace:^"
-    "@aztec/noir-contracts": "workspace:^"
     "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
@@ -309,8 +306,7 @@ __metadata:
     "@aztec/l1-artifacts": "workspace:^"
     "@aztec/noir-contracts": "workspace:^"
     "@aztec/p2p": "workspace:^"
-    "@aztec/sequencer-client": "workspace:^"
-    "@aztec/world-state": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
@@ -439,6 +435,7 @@ __metadata:
   dependencies:
     "@aztec/circuits.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/types": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0

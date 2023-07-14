@@ -4,8 +4,8 @@ import {
   deserializeArrayFromVector,
   serializeBufferArrayToVector,
 } from '@aztec/foundation/serialize';
-import { Pedersen } from '../pedersen.js';
 import { Fr } from '@aztec/foundation/fields';
+import { Hasher } from './interfaces/index.js';
 
 /**
  * Contains functionality to compute and serialize/deserialize a sibling path.
@@ -24,15 +24,15 @@ export class SiblingPath<N extends number> {
    * Returns sibling path hashed up from the a element.
    * @param size - The number of elements in a given path.
    * @param zeroElement - Value of the zero element.
-   * @param pedersen - Implementation of a hasher interface using the Pedersen hash.
+   * @param hasher - Implementation of a hasher interface.
    * @returns A sibling path hashed up from a zero element.
    */
-  public static ZERO<N extends number>(size: N, zeroElement: Buffer, pedersen: Pedersen): SiblingPath<N> {
+  public static ZERO<N extends number>(size: N, zeroElement: Buffer, hasher: Hasher): SiblingPath<N> {
     const bufs: Buffer[] = [];
     let current = zeroElement;
     for (let i = 0; i < size; ++i) {
       bufs.push(current);
-      current = pedersen.compress(current, current);
+      current = hasher.compress(current, current);
     }
     return new SiblingPath(size, bufs);
   }

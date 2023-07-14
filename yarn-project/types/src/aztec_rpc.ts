@@ -59,7 +59,6 @@ export interface AztecRPC {
   ): Promise<AztecAddress>;
   getAccounts(): Promise<AztecAddress[]>;
   getAccountPublicKey(address: AztecAddress): Promise<Point>;
-  getAccountAddress(publicKey: Point): Promise<AztecAddress>;
   addContracts(contracts: DeployedContract[]): Promise<void>;
   /**
    * Is an L2 contract deployed at this address?
@@ -67,7 +66,7 @@ export interface AztecRPC {
    * @returns Whether the contract was deployed.
    */
   isContractDeployed(contract: AztecAddress): Promise<boolean>;
-  simulateTx(txRequest: TxExecutionRequest, optionalFromAddress?: AztecAddress): Promise<Tx>;
+  simulateTx(txRequest: TxExecutionRequest): Promise<Tx>;
   sendTx(tx: Tx): Promise<TxHash>;
   getTxReceipt(txHash: TxHash): Promise<TxReceipt>;
   getStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any>;

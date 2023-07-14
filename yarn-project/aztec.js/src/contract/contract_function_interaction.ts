@@ -76,8 +76,7 @@ export class ContractFunctionInteraction {
    */
   public async simulate(options: SendMethodOptions = {}): Promise<Tx> {
     const txRequest = this.txRequest ?? (await this.create(options));
-    // TODO: Why do we need from separately, and cannot get it from txRequest.origin? When would they differ?
-    this.tx = await this.wallet.simulateTx(txRequest, txRequest.origin);
+    this.tx = await this.wallet.simulateTx(txRequest);
     return this.tx;
   }
 
