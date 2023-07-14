@@ -83,7 +83,7 @@ pub fn compile(args: JsValue) -> JsValue {
     let mut context = Context::default();
 
     let path = PathBuf::from(&options.entry_point);
-    let crate_id = create_local_crate(&mut context, path, CrateType::Binary);
+    let crate_id = create_local_crate(&mut context, None, path, CrateType::Binary);
 
     for dependency in options.optional_dependencies_set {
         add_noir_lib(&mut context, dependency.as_str());

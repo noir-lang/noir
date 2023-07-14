@@ -24,7 +24,7 @@ fn main() {
     // CrateGraph
     let mut crate_graph = CrateGraph::default();
     // Initiate crate with root file
-    let crate_id = crate_graph.add_crate_root(CrateType::Library, root_file_id);
+    let crate_id = crate_graph.add_crate_root(None, CrateType::Library, root_file_id);
 
     // initiate context with file manager and crate graph
     let mut context = Context::new(fm, crate_graph);

@@ -68,6 +68,7 @@ pub enum CrateType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
+    pub name: Option<CrateName>,
     pub root_file_id: FileId,
     pub crate_type: CrateType,
     pub dependencies: Vec<Dependency>,
@@ -88,7 +89,12 @@ impl Dependency {
 }
 
 impl CrateGraph {
-    pub fn add_crate_root(&mut self, crate_type: CrateType, file_id: FileId) -> CrateId {
+    pub fn add_crate_root(
+        &mut self,
+        name: Option<CrateName>,
+        crate_type: CrateType,
+        file_id: FileId,
+    ) -> CrateId {
         let mut roots_with_file_id =
             self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
 
@@ -97,7 +103,7 @@ impl CrateGraph {
             return *file_id.0;
         }
 
-        let data = CrateData { root_file_id: file_id, crate_type, dependencies: Vec::new() };
+        let data = CrateData { name, root_file_id: file_id, crate_type, dependencies: Vec::new() };
         let crate_id = CrateId(self.arena.len());
         let prev = self.arena.insert(crate_id, data);
         assert!(prev.is_none());
@@ -221,9 +227,9 @@ mod tests {
         let file_ids = dummy_file_ids(3);
 
         let mut graph = CrateGraph::default();
-        let crate1 = graph.add_crate_root(CrateType::Library, file_ids[0]);
-        let crate2 = graph.add_crate_root(CrateType::Library, file_ids[1]);
-        let crate3 = graph.add_crate_root(CrateType::Library, file_ids[2]);
+        let crate1 = graph.add_crate_root(None, CrateType::Library, file_ids[0]);
+        let crate2 = graph.add_crate_root(None, CrateType::Library, file_ids[1]);
+        let crate3 = graph.add_crate_root(None, CrateType::Library, file_ids[2]);
 
         assert!(graph.add_dep(crate1, CrateName::new("crate2").unwrap(), crate2).is_ok());
         assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
@@ -237,9 +243,9 @@ mod tests {
         let file_id_1 = file_ids[1];
         let file_id_2 = file_ids[2];
         let mut graph = CrateGraph::default();
-        let crate1 = graph.add_crate_root(CrateType::Library, file_id_0);
-        let crate2 = graph.add_crate_root(CrateType::Library, file_id_1);
-        let crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
+        let crate1 = graph.add_crate_root(None, CrateType::Library, file_id_0);
+        let crate2 = graph.add_crate_root(None, CrateType::Library, file_id_1);
+        let crate3 = graph.add_crate_root(None, CrateType::Library, file_id_2);
         assert!(graph.add_dep(crate1, CrateName::new("crate2").unwrap(), crate2).is_ok());
         assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
     }
@@ -250,12 +256,12 @@ mod tests {
         let file_id_1 = file_ids[1];
         let file_id_2 = file_ids[2];
         let mut graph = CrateGraph::default();
-        let _crate1 = graph.add_crate_root(CrateType::Library, file_id_0);
-        let _crate2 = graph.add_crate_root(CrateType::Library, file_id_1);
+        let _crate1 = graph.add_crate_root(None, CrateType::Library, file_id_0);
+        let _crate2 = graph.add_crate_root(None, CrateType::Library, file_id_1);
 
         // Adding the same file, so the crate should be the same.
-        let crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
-        let crate3_2 = graph.add_crate_root(CrateType::Library, file_id_2);
+        let crate3 = graph.add_crate_root(None, CrateType::Library, file_id_2);
+        let crate3_2 = graph.add_crate_root(None, CrateType::Library, file_id_2);
         assert_eq!(crate3, crate3_2);
     }
 }

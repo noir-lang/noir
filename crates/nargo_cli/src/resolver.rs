@@ -3,10 +3,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use nargo::manifest::{Dependency, Manifest, PackageManifest};
+use nargo::manifest::{Dependency, Manifest, PackageManifest, WorkspaceConfig};
 use noirc_driver::{add_dep, create_local_crate, create_non_local_crate};
 use noirc_frontend::{
-    graph::{CrateId, CrateType},
+    graph::{CrateId, CrateName, CrateType},
     hir::Context,
 };
 use thiserror::Error;
@@ -49,6 +49,9 @@ pub(crate) enum DependencyResolutionError {
     /// Use workspace as a dependency is not currently supported
     #[error("use workspace as a dependency is not currently supported")]
     WorkspaceDependency,
+
+    #[error("{0}")]
+    Generic(&'static str),
 }
 
 #[derive(Debug, Clone)]
@@ -79,30 +82,22 @@ pub(crate) fn resolve_root_manifest(
     let manifest = super::manifest::parse(&manifest_path)?;
 
     match manifest {
-        Manifest::Package(package) => {
+        Manifest::Package(inner) => {
             let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
-            let crate_id = create_local_crate(&mut context, entry_path, crate_type);
+            let crate_name = inner
+                .package
+                .name
+                .map(|n| CrateName::new(&n))
+                .transpose()
+                .map_err(DependencyResolutionError::Generic)?;
+
+            let crate_id = create_local_crate(&mut context, crate_name, entry_path, crate_type);
 
             let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
-            resolve_manifest(&mut context, crate_id, package, pkg_root)?;
+            resolve_package_manifest(&mut context, crate_id, inner, pkg_root)?;
         }
         Manifest::Workspace(workspace) => {
-            let members = workspace.config.members;
-            let root = match members.last() {
-                Some(member) => dir_path.join(member),
-                None => {
-                    return Err(DependencyResolutionError::EmptyWorkspace { path: manifest_path })
-                }
-            };
-
-            let (entry_path, _crate_type) = super::lib_or_bin(root)?;
-            let _local = create_local_crate(&mut context, entry_path, CrateType::Workspace);
-
-            for member in members {
-                let path: PathBuf = dir_path.join(member);
-                let (entry_path, crate_type) = super::lib_or_bin(path)?;
-                create_non_local_crate(&mut context, entry_path, crate_type);
-            }
+            resolve_workspace_manifest(&mut context, dir_path, workspace.config)
         }
     };
 
@@ -115,7 +110,7 @@ pub(crate) fn resolve_root_manifest(
 // We do not need to add stdlib, as it's implicitly
 // imported. However, it may be helpful to have the stdlib imported by the
 // package manager.
-fn resolve_manifest(
+fn resolve_package_manifest(
     context: &mut Context,
     parent_crate: CrateId,
     manifest: PackageManifest,
@@ -147,8 +142,31 @@ fn resolve_manifest(
             return Err(DependencyResolutionError::RemoteDepWithLocalDep { dependency_path });
         }
         // TODO: Why did it create a new resolver?
-        resolve_manifest(context, crate_id, dep_meta.manifest, &dependency_path)?;
+        resolve_package_manifest(context, crate_id, dep_meta.manifest, &dependency_path)?;
     }
+    Ok(())
+}
+
+fn resolve_workspace_manifest(
+    context: &mut Context,
+    dir_path: PathBuf,
+    workspace: WorkspaceConfig,
+) -> Result<(), DependencyResolutionError> {
+    let members = workspace.members;
+    let root = match members.last() {
+        Some(member) => dir_path.join(member),
+        None => return Err(DependencyResolutionError::EmptyWorkspace { path: manifest_path }),
+    };
+
+    let (entry_path, _crate_type) = super::lib_or_bin(root)?;
+    let _local = create_local_crate(context, None, entry_path, CrateType::Workspace);
+
+    for member in members {
+        let path: PathBuf = dir_path.join(member);
+        let (entry_path, crate_type) = super::lib_or_bin(path)?;
+        create_non_local_crate(context, entry_path, crate_type);
+    }
+
     Ok(())
 }
 
