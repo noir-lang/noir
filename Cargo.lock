@@ -5,6 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.18.1"
+source = "git+https://github.com/noir-lang/acvm?branch=kh-bincode-artifact-from-0.18.1-cfa8a5f#cac3bc5d541d0b3df7fcb3446eb6c425d7974449"
 dependencies = [
  "acir_field",
  "bincode",
@@ -17,6 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.18.1"
+source = "git+https://github.com/noir-lang/acvm?branch=kh-bincode-artifact-from-0.18.1-cfa8a5f#cac3bc5d541d0b3df7fcb3446eb6c425d7974449"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -29,6 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.18.1"
+source = "git+https://github.com/noir-lang/acvm?branch=kh-bincode-artifact-from-0.18.1-cfa8a5f#cac3bc5d541d0b3df7fcb3446eb6c425d7974449"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -65,6 +68,7 @@ dependencies = [
 [[package]]
 name = "acvm_blackbox_solver"
 version = "0.18.1"
+source = "git+https://github.com/noir-lang/acvm?branch=kh-bincode-artifact-from-0.18.1-cfa8a5f#cac3bc5d541d0b3df7fcb3446eb6c425d7974449"
 dependencies = [
  "acir",
  "acir_field",
@@ -79,6 +83,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.18.1"
+source = "git+https://github.com/noir-lang/acvm?branch=kh-bincode-artifact-from-0.18.1-cfa8a5f#cac3bc5d541d0b3df7fcb3446eb6c425d7974449"
 dependencies = [
  "acir",
 ]
@@ -525,6 +530,7 @@ dependencies = [
 [[package]]
 name = "brillig"
 version = "0.18.1"
+source = "git+https://github.com/noir-lang/acvm?branch=kh-bincode-artifact-from-0.18.1-cfa8a5f#cac3bc5d541d0b3df7fcb3446eb6c425d7974449"
 dependencies = [
  "acir_field",
  "serde",
@@ -533,6 +539,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.18.1"
+source = "git+https://github.com/noir-lang/acvm?branch=kh-bincode-artifact-from-0.18.1-cfa8a5f#cac3bc5d541d0b3df7fcb3446eb6c425d7974449"
 dependencies = [
  "acir",
  "acir_field",

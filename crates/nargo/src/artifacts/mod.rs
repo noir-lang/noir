@@ -3,9 +3,9 @@
 //! These artifacts are intended to remain independent of any applications being built on top of Noir.
 //! Should any projects require/desire a different artifact format, it's expected that they will write a transformer
 //! to generate them using these artifacts as a starting point.
-use base64::Engine as _;
 use acvm::acir::circuit::Circuit;
 use serde::{Deserializer, Serializer};
+use base64::Engine;
 
 pub mod contract;
 pub mod program;
@@ -18,7 +18,7 @@ where
 
     let mut circuit_bytes: Vec<u8> = Vec::new();
     circuit.write(&mut circuit_bytes).unwrap();
-    let encoded_b64 = base64::encode(circuit_bytes);
+    let encoded_b64 = base64::engine::general_purpose::STANDARD.encode(circuit_bytes);
     s.serialize_str(&encoded_b64)
 }
 
@@ -27,7 +27,7 @@ where
     D: Deserializer<'de>,
 {
     let bytecode_b64: String = serde::Deserialize::deserialize(deserializer)?;
-    let circuit_bytes = base64::decode(bytecode_b64).unwrap();
+    let circuit_bytes = base64::engine::general_purpose::STANDARD.decode(bytecode_b64).unwrap();
     let circuit = Circuit::read(&*circuit_bytes).unwrap();
     Ok(circuit)
 }

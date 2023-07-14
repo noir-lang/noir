@@ -1,6 +1,7 @@
-use base64::Engine as _;
+
 use acvm::acir::circuit::Circuit;
 
+use base64::Engine;
 use noirc_errors::debug_info::DebugInfo;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -18,7 +19,8 @@ where
 {
     let mut circuit_bytes: Vec<u8> = Vec::new();
     circuit.write(&mut circuit_bytes).unwrap();
-    let encoded_b64 = base64::engine::general_purpose::URL_SAFE.encode(circuit_bytes);
+
+    let encoded_b64 = base64::engine::general_purpose::STANDARD.encode(circuit_bytes);
     s.serialize_str(&encoded_b64)
 }
 
@@ -27,7 +29,7 @@ where
     D: Deserializer<'de>,
 {
     let bytecode_b64: String = serde::Deserialize::deserialize(deserializer)?;
-    let circuit_bytes = base64::engine::general_purpose::URL_SAFE.decode(bytecode_b64).unwrap();
+    let circuit_bytes = base64::engine::general_purpose::STANDARD.decode(bytecode_b64).unwrap();
     let circuit = Circuit::read(&*circuit_bytes).unwrap();
     Ok(circuit)
 }
