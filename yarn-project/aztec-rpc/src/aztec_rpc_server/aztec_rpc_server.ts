@@ -26,6 +26,7 @@ import {
 import { AccountState } from '../account_state/account_state.js';
 import { Database, TxDao } from '../database/index.js';
 import { Synchroniser } from '../synchroniser/index.js';
+import { RpcServerConfig } from '../config/index.js';
 
 /**
  * Converts the given contract ABI into a ContractDao object that includes additional properties
@@ -59,6 +60,7 @@ export class AztecRPCServer implements AztecRPC {
     private keyStore: KeyStore,
     private node: AztecNode,
     private db: Database,
+    private config: RpcServerConfig,
     private log = createDebugLogger('aztec:rpc_server'),
   ) {
     this.synchroniser = new Synchroniser(node, db);
@@ -72,7 +74,7 @@ export class AztecRPCServer implements AztecRPC {
    * @returns A promise that resolves when the server has started successfully.
    */
   public async start() {
-    await this.synchroniser.start();
+    await this.synchroniser.start(1, 1, this.config.l2BlockPollingIntervalMS);
   }
 
   /**

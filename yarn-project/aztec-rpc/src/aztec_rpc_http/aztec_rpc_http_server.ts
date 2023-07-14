@@ -5,7 +5,7 @@ import { JsonRpcServer } from '@aztec/foundation/json-rpc';
 import { ContractData, ContractDeploymentTx, ContractPublicData, Tx, TxExecutionRequest, TxHash } from '@aztec/types';
 import { foundry } from 'viem/chains';
 
-import { EthAddress, createAztecRPCServer } from '../index.js';
+import { EthAddress, createAztecRPCServer, getConfigEnvVars } from '../index.js';
 
 export const localAnvil = foundry;
 
@@ -15,7 +15,8 @@ export const localAnvil = foundry;
  */
 export async function getHttpRpcServer(nodeConfig: AztecNodeConfig): Promise<JsonRpcServer> {
   const aztecNode = await AztecNodeService.createAndSync(nodeConfig);
-  const aztecRpcServer = await createAztecRPCServer(aztecNode);
+  const rpcServerConfig = getConfigEnvVars();
+  const aztecRpcServer = await createAztecRPCServer(aztecNode, rpcServerConfig);
   const generatedRpcServer = new JsonRpcServer(
     aztecRpcServer,
     {

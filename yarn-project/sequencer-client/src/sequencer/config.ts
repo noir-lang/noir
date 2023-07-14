@@ -5,7 +5,7 @@ export interface SequencerConfig {
   /**
    * The number of ms to wait between polling for pending txs.
    */
-  transactionPollingInterval?: number;
+  transactionPollingIntervalMS?: number;
   /**
    * The maximum number of txs to include in a block.
    */

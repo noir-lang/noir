@@ -26,7 +26,11 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
     private log = createDebugLogger('aztec:world_state'),
   ) {
     const config = getConfigEnvVars();
-    this.l2BlockDownloader = new L2BlockDownloader(l2BlockSource, config.l2QueueSize, config.checkInterval);
+    this.l2BlockDownloader = new L2BlockDownloader(
+      l2BlockSource,
+      config.l2QueueSize,
+      config.worldStateBlockCheckIntervalMS,
+    );
   }
 
   /**

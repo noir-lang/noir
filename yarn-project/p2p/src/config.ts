@@ -10,7 +10,7 @@ export interface P2PConfig {
   /**
    * The frequency in which to check.
    */
-  checkInterval: number;
+  p2pBlockCheckIntervalMS: number;
 
   /**
    * Size of queue of L2 blocks to store.
@@ -80,7 +80,7 @@ export interface P2PConfig {
 export function getP2PConfigEnvVars(): P2PConfig {
   const {
     P2P_ENABLED,
-    P2P_CHECK_INTERVAL,
+    P2P_BLOCK_CHECK_INTERVAL_MS,
     P2P_L2_BLOCK_QUEUE_SIZE,
     P2P_TCP_LISTEN_PORT,
     P2P_TCP_LISTEN_IP,
@@ -95,7 +95,7 @@ export function getP2PConfigEnvVars(): P2PConfig {
   } = process.env;
   const envVars: P2PConfig = {
     p2pEnabled: P2P_ENABLED === 'true',
-    checkInterval: P2P_CHECK_INTERVAL ? +P2P_CHECK_INTERVAL : 100,
+    p2pBlockCheckIntervalMS: P2P_BLOCK_CHECK_INTERVAL_MS ? +P2P_BLOCK_CHECK_INTERVAL_MS : 100,
     l2QueueSize: P2P_L2_BLOCK_QUEUE_SIZE ? +P2P_L2_BLOCK_QUEUE_SIZE : 1000,
     tcpListenPort: P2P_TCP_LISTEN_PORT ? +P2P_TCP_LISTEN_PORT : 0,
     tcpListenIp: P2P_TCP_LISTEN_IP ? P2P_TCP_LISTEN_IP : '0.0.0.0',

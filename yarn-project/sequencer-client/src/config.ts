@@ -19,8 +19,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
     VERSION,
     API_KEY,
     SEQ_REQUIRED_CONFS,
-    SEQ_RETRY_INTERVAL,
-    SEQ_TX_POLLING_INTERVAL,
+    SEQ_PUBLISH_RETRY_INTERVAL_MS,
+    SEQ_TX_POLLING_INTERVAL_MS,
     SEQ_MAX_TX_PER_BLOCK,
     SEQ_MIN_TX_PER_BLOCK,
     ROLLUP_CONTRACT_ADDRESS,
@@ -34,8 +34,8 @@ export function getConfigEnvVars(): SequencerClientConfig {
     version: VERSION ? +VERSION : 1, // 1 is our default version
     apiKey: API_KEY,
     requiredConfirmations: SEQ_REQUIRED_CONFS ? +SEQ_REQUIRED_CONFS : 1,
-    retryIntervalMs: SEQ_RETRY_INTERVAL ? +SEQ_RETRY_INTERVAL : 1_000,
-    transactionPollingInterval: SEQ_TX_POLLING_INTERVAL ? +SEQ_TX_POLLING_INTERVAL : 1_000,
+    l1BlockPublishRetryIntervalMS: SEQ_PUBLISH_RETRY_INTERVAL_MS ? +SEQ_PUBLISH_RETRY_INTERVAL_MS : 1_000,
+    transactionPollingIntervalMS: SEQ_TX_POLLING_INTERVAL_MS ? +SEQ_TX_POLLING_INTERVAL_MS : 1_000,
     rollupContract: ROLLUP_CONTRACT_ADDRESS ? EthAddress.fromString(ROLLUP_CONTRACT_ADDRESS) : EthAddress.ZERO,
     inboxContract: INBOX_CONTRACT_ADDRESS ? EthAddress.fromString(INBOX_CONTRACT_ADDRESS) : EthAddress.ZERO,
     contractDeploymentEmitterContract: CONTRACT_DEPLOYMENT_EMITTER_ADDRESS

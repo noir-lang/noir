@@ -143,7 +143,7 @@ describe('L1Publisher integration', () => {
       inboxContract: EthAddress.fromString(inboxAddress),
       contractDeploymentEmitterContract: EthAddress.fromString(contractDeploymentEmitterAddress),
       publisherPrivateKey: hexStringToBuffer(sequencerPK),
-      retryIntervalMs: 100,
+      l1BlockPublishRetryIntervalMS: 100,
     });
   }, 100_000);
 

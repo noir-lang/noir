@@ -24,7 +24,7 @@ describe('L1Publisher', () => {
     txSender.sendProcessTx.mockResolvedValueOnce(txHash);
     txSender.getTransactionReceipt.mockResolvedValueOnce(txReceipt);
 
-    publisher = new L1Publisher(txSender, { retryIntervalMs: 1 });
+    publisher = new L1Publisher(txSender, { l1BlockPublishRetryIntervalMS: 1 });
   });
 
   it('publishes l2 block to l1', async () => {

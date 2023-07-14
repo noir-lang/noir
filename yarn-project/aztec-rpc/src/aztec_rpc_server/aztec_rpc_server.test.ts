@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto';
 import { MockProxy, mock } from 'jest-mock-extended';
 import { MemoryDB } from '../database/memory_db.js';
 import { AztecRPCServer } from './aztec_rpc_server.js';
+import { RpcServerConfig } from '../index.js';
 
 describe('AztecRpcServer', function () {
   let wasm: CircuitsWasm;
@@ -19,7 +20,10 @@ describe('AztecRpcServer', function () {
     keyStore = new TestKeyStore(await Grumpkin.new());
     node = mock<AztecNode>();
     db = new MemoryDB();
-    rpcServer = new AztecRPCServer(keyStore, node, db);
+    const config: RpcServerConfig = {
+      l2BlockPollingIntervalMS: 100,
+    };
+    rpcServer = new AztecRPCServer(keyStore, node, db, config);
     wasm = await CircuitsWasm.get();
   });
 

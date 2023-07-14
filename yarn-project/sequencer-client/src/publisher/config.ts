@@ -32,5 +32,5 @@ export interface PublisherConfig {
   /**
    * The interval to wait between publish retries.
    */
-  retryIntervalMs: number;
+  l1BlockPublishRetryIntervalMS: number;
 }

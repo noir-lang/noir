@@ -1,5 +1,6 @@
 import { ArchiverConfig, getConfigEnvVars as getArchiverVars } from '@aztec/archiver';
 import { SequencerClientConfig, getConfigEnvVars as getSequencerVars } from '@aztec/sequencer-client';
+import { getConfigEnvVars as getWorldStateVars } from '@aztec/world-state';
 import { P2PConfig, getP2PConfigEnvVars } from '@aztec/p2p';
 
 /**
@@ -16,6 +17,7 @@ export function getConfigEnvVars(): AztecNodeConfig {
     ...getSequencerVars(),
     ...getArchiverVars(),
     ...getP2PConfigEnvVars(),
+    ...getWorldStateVars(),
   };
 
   return allEnvVars;

@@ -3,7 +3,12 @@ import { AztecAddress, ContractDeployer, Fr, SentTx } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId, exportLibP2PPeerIdToString } from '@aztec/p2p';
-import { AztecRPCServer, ConstantKeyPair, createAztecRPCServer } from '@aztec/aztec-rpc';
+import {
+  AztecRPCServer,
+  ConstantKeyPair,
+  createAztecRPCServer,
+  getConfigEnvVars as getRpcConfig,
+} from '@aztec/aztec-rpc';
 import { TxStatus } from '@aztec/types';
 import { CircuitsWasm } from '@aztec/circuits.js';
 import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
@@ -92,7 +97,7 @@ describe('e2e_p2p_network', () => {
       maxPeerCount: 100,
 
       // TODO: the following config options are not applicable to bootstrap nodes
-      checkInterval: 1000,
+      p2pBlockCheckIntervalMS: 1000,
       l2QueueSize: 1,
       transactionProtocol: '',
       bootstrapNodes: [''],
@@ -144,7 +149,8 @@ describe('e2e_p2p_network', () => {
     node: AztecNodeService,
     numTxs: number,
   ): Promise<NodeContext> => {
-    const aztecRpcServer = await createAztecRPCServer(node);
+    const rpcConfig = getRpcConfig();
+    const aztecRpcServer = await createAztecRPCServer(node, rpcConfig);
     const keyPair = ConstantKeyPair.random(await Grumpkin.new());
     const partialAddress = Fr.random();
     const address = computeContractAddressFromPartial(await CircuitsWasm.get(), keyPair.getPublicKey(), partialAddress);
