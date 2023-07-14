@@ -27,15 +27,15 @@ jobs:
         run: |
           nix build -L .#wasm
 
-      - name: Copy wasm build result
-        run: |
-          mkdir -p ./pkg
-          ls -la
-          cp -r -L ./result/* ./pkg
+      # - name: Copy wasm build result
+      #   run: |
+      #     mkdir -p ./pkg
+      #     ls -la
+      #     cp -r -L ./result/* ./pkg
 
-      - name: Output results
-        run: |
-          ls -R ./pkg
+      # - name: Output results
+      #   run: |
+      #     ls -R ./pkg
 
       # Todo: Enable wasm testing by injecting wasm into noir-wasm-testing
       - name: Checkout noir-wasm-testing
@@ -46,9 +46,9 @@ jobs:
 
       - name: Inject built wasm into noir-wasm-testing
         run: |
-          cp -r ./pkg ./noir-wasm-testing/@noir-lang_noir_wasm
+          cp -r -L ./result/* ./noir-wasm-testing/@noir-lang_noir_wasm
           ls -R ./noir-wasm-testing
-          jq '.dependencies["@noir-lang/noir_wasm"] = "file:./node_modules/@noir-lang/noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
+          jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
 
       - name: Log package information
