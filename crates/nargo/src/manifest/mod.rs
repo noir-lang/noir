@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::PathBuf};
 
 mod errors;
 pub use self::errors::InvalidPackageError;
@@ -56,9 +56,9 @@ pub struct Workspace {
 #[serde(rename_all = "kebab-case")]
 pub struct WorkspaceConfig {
     /// List of members in this workspace.
-    pub members: Vec<String>,
+    pub members: Vec<PathBuf>,
     /// Specifies the default crate to interact with in the context (similarly to how we have nargo as the default crate in this repository).
-    pub default_member: Option<String>,
+    pub default_member: Option<PathBuf>,
 }
 
 #[allow(dead_code)]
