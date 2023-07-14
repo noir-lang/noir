@@ -294,11 +294,6 @@ impl<'block> BrilligBlock<'block> {
                         })
                         .collect();
                     let result_ids = dfg.instruction_results(instruction_id);
-                    // TODO reconciliate argument types with the types of the function being called
-                    println!(
-                        "Types of the arguments are: {:?}",
-                        arguments.iter().map(|arg| dfg.type_of_value(*arg)).collect::<Vec<_>>()
-                    );
 
                     // Create label for the function that will be called
                     let label_of_function_to_call =
