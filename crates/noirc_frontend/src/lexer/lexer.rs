@@ -176,6 +176,9 @@ impl<'a> Lexer<'a> {
                 if self.peek_char_is('/') {
                     self.next_char();
                     return self.parse_comment();
+                } else if self.peek_char_is('*') {
+                    self.next_char();
+                    return self.parse_block_comment();
                 }
                 Ok(spanned_prev_token)
             }
@@ -335,6 +338,31 @@ impl<'a> Lexer<'a> {
         self.next_token()
     }
 
+    fn parse_block_comment(&mut self) -> SpannedTokenResult {
+        let mut depth = 1usize;
+
+        while let Some(ch) = self.next_char() {
+            match ch {
+                '/' if self.peek_char_is('*') => {
+                    self.next_char();
+                    depth += 1;
+                }
+                '*' if self.peek_char_is('/') => {
+                    self.next_char();
+                    depth -= 1;
+
+                    // This block comment is closed, so for a construction like "/* */ */"
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.next_token()
+    }
+
     /// Skips white space. They are not significant in the source language
     fn eat_whitespace(&mut self) {
         self.eat_while(None, |ch| ch.is_whitespace());
@@ -480,6 +508,49 @@ fn test_comment() {
     }
 }
 
+#[test]
+fn test_block_comment() {
+    let input = "
+    /* comment */
+    let x = 5
+    /* comment */
+    ";
+
+    let expected = vec![
+        Token::Keyword(Keyword::Let),
+        Token::Ident("x".to_string()),
+        Token::Assign,
+        Token::Int(FieldElement::from(5_i128)),
+    ];
+
+    let mut lexer = Lexer::new(input);
+    for token in expected.into_iter() {
+        let first_lexer_output = lexer.next_token().unwrap();
+        assert_eq!(first_lexer_output, token);
+    }
+}
+
+#[test]
+fn test_nested_block_comments() {
+    let input = "
+    /*   /* */  /** */  /*! */  */
+    let x = 5
+    /*   /* */  /** */  /*! */  */
+    ";
+
+    let expected = vec![
+        Token::Keyword(Keyword::Let),
+        Token::Ident("x".to_string()),
+        Token::Assign,
+        Token::Int(FieldElement::from(5_i128)),
+    ];
+
+    let mut lexer = Lexer::new(input);
+    for token in expected.into_iter() {
+        let first_lexer_output = lexer.next_token().unwrap();
+        assert_eq!(first_lexer_output, token);
+    }
+}
 #[test]
 fn test_eat_string_literal() {
     let input = "let _word = \"hello\"";
