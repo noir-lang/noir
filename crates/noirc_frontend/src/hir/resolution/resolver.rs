@@ -18,9 +18,9 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
-use regex::Regex;
 
 use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
@@ -752,6 +752,7 @@ impl<'a> Resolver<'a> {
             | Type::Integer(_, _, _)
             | Type::Bool(_)
             | Type::String(_)
+            | Type::FmtString(_, _) // TODO: I probably want to find numeric generics in type
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_)
@@ -884,8 +885,8 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(string) => {
-                    dbg!(string.clone());
-                    let re = Regex::new(r"\{([a-zA-Z0-9]+)\}").unwrap();
+                    // TODO: write resolver tests for this
+                    let re = Regex::new(r"\{([\S]+)\}").unwrap();
                     if !re.is_match(&string) {
                         HirLiteral::Str(string)
                     } else {
@@ -894,13 +895,26 @@ impl<'a> Resolver<'a> {
                             let matched_str = field.as_str();
                             let ident_name = matched_str[1..(matched_str.len() - 1)].to_owned();
                             dbg!(ident_name.clone());
-                            let scope = self.scopes.get_mut_scope();
+                            // let scope = self.scopes.get_mut_scope();
                             // TODO: switch this away from an expect to an actual resolver error
-                            let old_value = scope.find(&ident_name).expect("ICE: variable undeclared");
-                            old_value.num_times_used += 1;
-                            fmt_str_idents.push(old_value.ident);
+                            // let old_value = scope.find(&ident_name).expect("ICE: variable undeclared");
+                            let scope_tree = self.scopes.current_scope_tree();
+                            let variable = scope_tree.find(&ident_name);
+                            if let Some((old_value, _)) = variable {
+                                old_value.num_times_used += 1;
+                                fmt_str_idents.push(old_value.ident);
+                            } else if ident_name.parse::<usize>().is_ok() {
+                                self.errors.push(ResolverError::NumericConstantInFormatString {
+                                    name: ident_name,
+                                    span: expr.span,
+                                });
+                            } else {
+                                self.errors.push(ResolverError::VariableNotDeclared {
+                                    name: ident_name,
+                                    span: expr.span,
+                                });
+                            }
                         }
-                        dbg!(fmt_str_idents);
                         HirLiteral::FmtStr(string, fmt_str_idents)
                     }
                 }

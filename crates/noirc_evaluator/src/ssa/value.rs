@@ -102,6 +102,8 @@ impl Value {
             | Type::Bool
             | Type::Field
             | Type::MutableReference(_) => Value::Node(*iter.next().unwrap()),
+
+            Type::FmtString(_, _) => unreachable!("format strings are unsupported in the old ssa"),
         }
     }
 

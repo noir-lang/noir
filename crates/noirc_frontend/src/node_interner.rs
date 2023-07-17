@@ -218,11 +218,11 @@ impl DefinitionKind {
         matches!(self, DefinitionKind::Global(..))
     }
 
-    pub fn get_rhs(self) -> Option<ExprId> {
+    pub fn get_rhs(&self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id) => Some(id),
-            DefinitionKind::Local(id) => id,
+            DefinitionKind::Global(id) => Some(*id),
+            DefinitionKind::Local(id) => *id,
             DefinitionKind::GenericType(_) => None,
         }
     }
@@ -634,6 +634,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
-        | Type::Struct(_, _) => None,
+        | Type::Struct(_, _)
+        | Type::FmtString(_, _) => None,
     }
 }

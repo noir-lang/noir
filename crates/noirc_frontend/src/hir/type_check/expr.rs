@@ -86,10 +86,16 @@ impl<'interner> TypeChecker<'interner> {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
                     }
-                    HirLiteral::FmtStr(string, _) => {
-                        dbg!("got into format string");
+                    HirLiteral::FmtStr(string, idents) => {
                         let len = Type::Constant(string.len() as u64);
-                        Type::String(Box::new(len))
+
+                        let types = vecmap(idents.clone(), |ident| {
+                            let t = self.interner.id_type(ident.id);
+                            let (typ, bindings) = t.instantiate(self.interner);
+                            self.interner.store_instantiation_bindings(*expr_id, bindings);
+                            typ
+                        });
+                        Type::FmtString(Box::new(len), types)
                     }
                 }
             }

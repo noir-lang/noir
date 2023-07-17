@@ -3,7 +3,7 @@ use iter_extended::vecmap;
 use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
 
-use crate::{BinaryOpKind, Signedness};
+use crate::{node_interner::DefinitionId, BinaryOpKind, Signedness};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -61,6 +61,7 @@ pub struct FuncId(pub u32);
 pub struct Ident {
     pub location: Option<Location>,
     pub definition: Definition,
+    pub definition_id: Option<DefinitionId>,
     pub mutable: bool,
     pub name: String,
     pub typ: Type,
@@ -83,7 +84,7 @@ pub enum Literal {
     Integer(FieldElement, Type),
     Bool(bool),
     Str(String),
-    FmtStr(String, Vec<Type>),
+    FmtStr(String, Vec<Expression>),
 }
 
 #[derive(Debug, Clone)]
@@ -208,6 +209,7 @@ pub enum Type {
     Integer(Signedness, /*bits:*/ u32), // u32 = Integer(unsigned, 32)
     Bool,
     String(/*len:*/ u64), // String(4) = str[4]
+    FmtString(/*len:*/ u64, Vec<Type>),
     Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
@@ -315,6 +317,7 @@ impl std::fmt::Display for Type {
             },
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str[{len}]"),
+            Type::FmtString(len, _) => write!(f, "fmtstr[{len}]"), // TODO: expand this to incldue types
             Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);

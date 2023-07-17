@@ -131,11 +131,20 @@ impl<'a> FunctionContext<'a> {
                 });
                 self.codegen_array(elements, vec![Type::char()])
             }
-            ast::Literal::FmtStr(string, types) => {
-                let elements = vecmap(string.as_bytes(), |byte| {
-                    self.builder.numeric_constant(*byte as u128, Type::field()).into()
-                });
-                self.codegen_array(elements, vec![Type::char()])
+            ast::Literal::FmtStr(string, fields) => {
+                let fmt_str_tuple = &[
+                    &[
+                        Expression::Literal(ast::Literal::Str(string.clone())),
+                        Expression::Literal(ast::Literal::Integer(
+                            (fields.len() as u128).into(),
+                            ast::Type::Field,
+                        )),
+                    ],
+                    &fields[..],
+                ]
+                .concat();
+                let fmt_str_fields = self.codegen_tuple(fmt_str_tuple);
+                fmt_str_fields
             }
         }
     }
@@ -371,22 +380,10 @@ impl<'a> FunctionContext<'a> {
     /// and intrinsics are also represented by the function call instruction.
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
         let function = self.codegen_non_tuple_expression(&call.func);
-        let arguments = call
+        let arguments: Vec<ValueId> = call
             .arguments
             .iter()
-            .flat_map(|argument| {
-
-                let value_list = self.codegen_expression(argument).into_value_list(self);
-                // for value in value_list.clone() {
-                //     // dbg!()
-                // }
-                // dbg!(value_list.clone());
-                // for value in value_list.clone() {
-                //     let x = &self.builder.current_function.dfg[value];
-                //     dbg!(x.clone());
-                // }
-                value_list
-            })
+            .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
             .collect();
 
         self.insert_call(function, arguments, &call.return_type, call.location)

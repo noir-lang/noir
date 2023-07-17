@@ -261,10 +261,15 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Ident(ident) => self.ident(ident, expr),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
-                // let idents = vecmap(idents, )
-                // let typ = self.convert_type(&self.interner.id_type(ident.id));
-                let types = vecmap(idents, |ident| self.convert_type(&self.interner.id_type(ident.id)));
-                Literal(FmtStr(contents, types))
+                let fields = vecmap(idents.clone(), |ident| {
+                    let definition_info = self.interner.definition(ident.id);
+                    if let Some(expr_id) = definition_info.kind.get_rhs() {
+                        self.expr(expr_id)
+                    } else {
+                        panic!("ICE: format string field requires expression")
+                    }
+                });
+                Literal(FmtStr(contents, fields))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
@@ -419,7 +424,10 @@ impl<'interner> Monomorphizer<'interner> {
                 },
             )),
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
+            ast::Type::Array(_, _)
+            | ast::Type::String(_)
+            | ast::Type::Slice(_)
+            | ast::Type::FmtString(..) => {
                 unreachable!("Nested arrays, arrays of strings, and Vecs are not supported")
             }
         }
@@ -472,7 +480,10 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
+            ast::Type::Array(_, _)
+            | ast::Type::String(_)
+            | ast::Type::Slice(_)
+            | ast::Type::FmtString(..) => {
                 unreachable!("Nested arrays and arrays of strings or Vecs are not supported")
             }
         }
@@ -540,7 +551,14 @@ impl<'interner> Monomorphizer<'interner> {
 
             let definition = Definition::Local(id);
             let mutable = false;
-            ast::Expression::Ident(ast::Ident { definition, mutable, location: None, name, typ })
+            ast::Expression::Ident(ast::Ident {
+                definition,
+                mutable,
+                location: None,
+                definition_id: None,
+                name,
+                typ,
+            })
         });
 
         // Finally we can return the created Tuple from the new block
@@ -615,8 +633,15 @@ impl<'interner> Monomorphizer<'interner> {
             let name = i.to_string();
             let typ = self.convert_type(&field_type);
 
-            let new_rhs =
-                ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ });
+            // TODO: may be a cause of bugs
+            let new_rhs = ast::Expression::Ident(ast::Ident {
+                location,
+                mutable,
+                definition,
+                definition_id: None,
+                name,
+                typ,
+            });
 
             let new_rhs = ast::Expression::ExtractTupleField(Box::new(new_rhs), i);
             let new_expr = self.unpack_pattern(field_pattern, new_rhs, &field_type);
@@ -635,7 +660,14 @@ impl<'interner> Monomorphizer<'interner> {
         let definition = self.lookup_local(ident.id)?;
         let typ = self.convert_type(&self.interner.id_type(ident.id));
 
-        Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ })
+        Some(ast::Ident {
+            location: Some(ident.location),
+            mutable,
+            definition,
+            definition_id: Some(ident.id),
+            name,
+            typ,
+        })
     }
 
     fn ident(&mut self, ident: HirIdent, expr_id: node_interner::ExprId) -> ast::Expression {
@@ -649,7 +681,14 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
                 let typ = self.convert_type(&typ);
-                let ident = ast::Ident { location, mutable, definition, name, typ };
+                let ident = ast::Ident {
+                    location,
+                    mutable,
+                    definition,
+                    definition_id: Some(ident.id),
+                    name,
+                    typ,
+                };
                 ast::Expression::Ident(ident)
             }
             DefinitionKind::Global(expr_id) => self.expr(*expr_id),
@@ -680,6 +719,11 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
             HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
+            HirType::FmtString(size, fields) => {
+                let size = size.evaluate_to_u64().unwrap_or(0);
+                let fields = vecmap(fields, |typ| self.convert_type(typ));
+                ast::Type::FmtString(size, fields)
+            }
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(length, element) => {
@@ -761,7 +805,10 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(vecmap(elements, |typ| self.aos_to_soa_type(length, typ)))
             }
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
+            ast::Type::Array(_, _)
+            | ast::Type::String(_)
+            | ast::Type::Slice(_)
+            | ast::Type::FmtString(..) => {
                 unreachable!("Nested arrays and arrays of strings are not supported")
             }
         }
@@ -783,15 +830,7 @@ impl<'interner> Monomorphizer<'interner> {
             if let Definition::Oracle(name) = &ident.definition {
                 match name.as_str() {
                     "println" => {
-                        self.append_abi_arg(&hir_arguments[0], &mut arguments, false);
-                    }
-                    "println_format" => {
-                        // The first arugment represents the format string while the second argument
-                        // contains an array of arguments to be formatted.
-                        // Arrays can only have elements of the same type, thus we only need the `AbiType` of one element of the second type.
-                        // The caller who executes this foreign call will then be responsible for handling formatting according
-                        // to the string supplied in the first argument.
-                        self.append_abi_arg(&hir_arguments[1], &mut arguments, true);
+                        self.append_abi_arg(&hir_arguments[0], &mut arguments);
                     }
                     _ => (),
                 }
@@ -806,33 +845,32 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         hir_argument: &HirExpression,
         arguments: &mut Vec<ast::Expression>,
-        is_format_call: bool,
     ) {
-        dbg!(hir_argument.clone());
         match hir_argument {
             HirExpression::Ident(ident) => {
                 let typ = self.interner.id_type(ident.id);
-                let typ = if is_format_call {
-                    match typ {
-                        Type::Array(_, element_type) => element_type.follow_bindings(),
-                        _ => {
-                            unreachable!("ICE: argument supplied to a format call must be an array")
+                let typ: Type = typ.follow_bindings();
+                match &typ {
+                    Type::FmtString(_, element_types) => {
+                        for typ in element_types {
+                            let abi_type = typ.as_abi_type();
+                            let abi_as_string = serde_json::to_string(&abi_type)
+                                .expect("ICE: expected Abi type to serialize");
+
+                            arguments
+                                .push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
                         }
+                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(true)))
                     }
-                } else {
-                    typ.follow_bindings()
-                };
-                dbg!(typ.clone());
-                // let def_info = self.interner.definition(ident.id);
-                // dbg!(def_info.clone());
-                // let x = self.lookup_local(ident.id);
-                // dbg!(x);
+                    _ => {
+                        let abi_type = typ.as_abi_type();
+                        let abi_as_string = serde_json::to_string(&abi_type)
+                            .expect("ICE: expected Abi type to serialize");
 
-                let abi_type = typ.as_abi_type();
-                let abi_as_string =
-                    serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
-
-                arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+                        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(false)))
+                    }
+                }
             }
             _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
         }
@@ -1058,6 +1096,7 @@ impl<'interner> Monomorphizer<'interner> {
         let name = lambda_name.to_owned();
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
+            definition_id: None,
             mutable: false,
             location: None,
             name,
@@ -1087,6 +1126,10 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::String(length) => {
                 ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
             }
+            ast::Type::FmtString(length, fields) => ast::Expression::Literal(ast::Literal::FmtStr(
+                "\0".repeat(*length as usize),
+                vecmap(fields, |field| self.zeroed_value_of_type(field)),
+            )),
             ast::Type::Tuple(fields) => {
                 ast::Expression::Tuple(vecmap(fields, |field| self.zeroed_value_of_type(field)))
             }
@@ -1137,6 +1180,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
+            definition_id: None,
             mutable: false,
             location: None,
             name: lambda_name.to_owned(),

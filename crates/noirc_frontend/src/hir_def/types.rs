@@ -38,7 +38,8 @@ pub enum Type {
     String(Box<Type>),
 
     // TODO: possibly add this and expose FmtStr's to the user
-    // FmtString(Box<Type>),
+    // add more details on what this means
+    FmtString(Box<Type>, Vec<Type>),
 
     /// The unit type `()`.
     Unit,
@@ -573,6 +574,7 @@ impl Type {
             | Type::Integer(_, _, _)
             | Type::Bool(_)
             | Type::String(_)
+            | Type::FmtString(_, _)
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_)
@@ -654,6 +656,7 @@ impl std::fmt::Display for Type {
             }
             Type::Bool(comp_time) => write!(f, "{comp_time}bool"),
             Type::String(len) => write!(f, "str<{len}>"),
+            Type::FmtString(len, _) => write!(f, "fmtstr<{len}>"),
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::TypeVariable(id) => write!(f, "{}", id.borrow()),
@@ -1215,6 +1218,13 @@ impl Type {
                     .expect("Cannot have variable sized strings as a parameter to main");
                 AbiType::String { length: size }
             }
+            Type::FmtString(size, _) => {
+                // TODO: I think this is what I want to do but verify
+                let size = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized strings as a parameter to main");
+                AbiType::String { length: size }
+            }
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Constant(_) => unreachable!(),
@@ -1320,6 +1330,11 @@ impl Type {
                 let size = Box::new(size.substitute(type_bindings));
                 Type::String(size)
             }
+            Type::FmtString(size, fields) => {
+                let size = Box::new(size.substitute(type_bindings));
+                let fields = vecmap(fields, |field| field.substitute(type_bindings));
+                Type::FmtString(size, fields)
+            }
             Type::PolymorphicInteger(_, binding)
             | Type::NamedGeneric(binding, _)
             | Type::TypeVariable(binding) => substitute_binding(binding),
@@ -1367,6 +1382,11 @@ impl Type {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
             Type::Slice(element) => element.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
+            Type::FmtString(len, fields) => {
+                let len_occurs = len.occurs(target_id);
+                let field_occurs = fields.iter().any(|field| field.occurs(target_id));
+                len_occurs || field_occurs
+            }
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::PolymorphicInteger(_, binding)
@@ -1406,6 +1426,11 @@ impl Type {
             }
             Slice(elem) => Slice(Box::new(elem.follow_bindings())),
             String(size) => String(Box::new(size.follow_bindings())),
+            FmtString(size, args) => {
+                let size = Box::new(size.follow_bindings());
+                let args = vecmap(args, |arg| arg.follow_bindings());
+                FmtString(size, args)
+            }
             Struct(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 Struct(def.clone(), args)
