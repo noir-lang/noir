@@ -238,7 +238,7 @@ fn collect_impls(
                     }
                 }
             // Prohibit defining impls for primitive types if we're not in the stdlib
-            } else if typ != Type::Error && matches!(crate_id, CrateId::Crate(_)) {
+            } else if typ != Type::Error && !crate_id.is_stdlib() {
                 let span = *span;
                 let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
                 errors.push(error.into_file_diagnostic(unresolved.file_id));

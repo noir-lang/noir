@@ -18,6 +18,10 @@ impl CrateId {
     pub fn dummy_id() -> CrateId {
         CrateId::Crate(std::usize::MAX)
     }
+
+    pub fn is_stdlib(&self) -> bool {
+        matches!(self, CrateId::Stdlib(_))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
