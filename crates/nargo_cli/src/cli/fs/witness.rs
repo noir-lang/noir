@@ -29,8 +29,14 @@ fn serialize_witness_map(witnesses: WitnessMap) -> Result<Vec<u8>, FilesystemErr
 #[cfg(feature = "flat_witness")]
 fn serialize_witness_map(witnesses: WitnessMap) -> Result<Vec<u8>, FilesystemError> {
     let mut buf: Vec<u8> = Vec::new();
-    for (_, value) in witnesses {
+    let mut counter = 1;
+    for (index, value) in witnesses {
+        while counter < index.witness_index() {
+            buf.extend(vec![0; 32]);
+            counter += 1;
+        }
         buf.extend_from_slice(&value.to_be_bytes());
+        counter += 1;
     }
     Ok(buf)
 }

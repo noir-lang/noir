@@ -30,6 +30,7 @@ noirc_frontend.workspace = true
 noirc_abi.workspace = true
 noirc_errors.workspace = true
 acvm.workspace = true
+fm.workspace = true
 toml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -47,7 +48,7 @@ color-eyre = "0.6.2"
 tokio = { version = "1.0", features = ["io-std"] }
 
 # Backends
-acvm-backend-barretenberg = { version = "0.7.0", default-features = false }
+acvm-backend-barretenberg = { version = "0.8.0", default-features = false }
 
 [dev-dependencies]
 tempdir = "0.3.7"

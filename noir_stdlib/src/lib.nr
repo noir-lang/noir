@@ -12,6 +12,7 @@ mod sha512;
 mod field;
 mod ec;
 mod unsafe;
+mod collections;
 mod compat;
 
 #[builtin(println)]

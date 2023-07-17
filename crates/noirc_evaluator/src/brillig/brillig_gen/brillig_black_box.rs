@@ -1,5 +1,5 @@
 use acvm::acir::{
-    brillig_vm::{BlackBoxOp, HeapVector, RegisterOrMemory},
+    brillig::{BlackBoxOp, HeapVector, RegisterOrMemory},
     BlackBoxFunc,
 };
 
@@ -93,6 +93,57 @@ pub(crate) fn convert_black_box_call(
             } else {
                 unreachable!(
                     "ICE: EcdsaSecp256k1 expects four array arguments and one register result"
+                )
+            }
+        }
+        BlackBoxFunc::Pedersen => {
+            if let (
+                [RegisterOrMemory::HeapArray(message_array), RegisterOrMemory::RegisterIndex(domain_separator)],
+                [RegisterOrMemory::HeapArray(result_array)],
+            ) = (function_arguments, function_results)
+            {
+                let message_vector = brillig_context.array_to_vector(message_array);
+                brillig_context.black_box_op_instruction(BlackBoxOp::Pedersen {
+                    inputs: message_vector,
+                    domain_separator: *domain_separator,
+                    output: *result_array,
+                });
+            } else {
+                unreachable!("ICE: Pedersen expects one array argument, a register for the domain separator, and one array result")
+            }
+        }
+        BlackBoxFunc::SchnorrVerify => {
+            if let (
+                [RegisterOrMemory::RegisterIndex(public_key_x), RegisterOrMemory::RegisterIndex(public_key_y), RegisterOrMemory::HeapArray(signature), RegisterOrMemory::HeapArray(message_hash)],
+                [RegisterOrMemory::RegisterIndex(result_register)],
+            ) = (function_arguments, function_results)
+            {
+                let message_hash = brillig_context.array_to_vector(message_hash);
+                let signature = brillig_context.array_to_vector(signature);
+                brillig_context.black_box_op_instruction(BlackBoxOp::SchnorrVerify {
+                    public_key_x: *public_key_x,
+                    public_key_y: *public_key_y,
+                    message: message_hash,
+                    signature,
+                    result: *result_register,
+                });
+            } else {
+                unreachable!("ICE: Schnorr verify expects two registers for the public key, an array for signature, an array for the message hash and one result register")
+            }
+        }
+        BlackBoxFunc::FixedBaseScalarMul => {
+            if let (
+                [RegisterOrMemory::RegisterIndex(scalar)],
+                [RegisterOrMemory::HeapArray(result_array)],
+            ) = (function_arguments, function_results)
+            {
+                brillig_context.black_box_op_instruction(BlackBoxOp::FixedBaseScalarMul {
+                    input: *scalar,
+                    result: *result_array,
+                });
+            } else {
+                unreachable!(
+                    "ICE: FixedBaseScalarMul expects one register argument and one array result"
                 )
             }
         }

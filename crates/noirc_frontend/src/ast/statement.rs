@@ -424,6 +424,14 @@ impl Pattern {
             _ => panic!("only the identifier pattern can return a name"),
         }
     }
+
+    pub(crate) fn into_ident(self) -> Ident {
+        match self {
+            Pattern::Identifier(ident) => ident,
+            Pattern::Mutable(pattern, _) => pattern.into_ident(),
+            other => panic!("Pattern::into_ident called on {other} pattern with no identifier"),
+        }
+    }
 }
 
 impl Recoverable for Pattern {

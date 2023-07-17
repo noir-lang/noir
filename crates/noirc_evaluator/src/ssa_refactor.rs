@@ -7,8 +7,16 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
+use std::collections::BTreeSet;
+
 use crate::errors::RuntimeError;
-use acvm::acir::circuit::{Circuit, PublicInputs};
+use acvm::acir::{
+    circuit::{Circuit, PublicInputs},
+    native_types::Witness,
+};
+
+use noirc_errors::debug_info::DebugInfo;
+
 use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
@@ -29,7 +37,7 @@ pub(crate) fn optimize_into_acir(
     program: Program,
     allow_log_ops: bool,
     print_ssa_passes: bool,
-) -> GeneratedAcir {
+) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
     let mut ssa = ssa_gen::generate_ssa(program)
         .print(print_ssa_passes, "Initial SSA:")
@@ -65,21 +73,33 @@ pub fn experimental_create_circuit(
     program: Program,
     enable_logging: bool,
     show_output: bool,
-) -> Result<(Circuit, Abi), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
-    let GeneratedAcir { current_witness_index, opcodes, return_witnesses } =
-        optimize_into_acir(program, show_output, enable_logging);
+    let GeneratedAcir { current_witness_index, opcodes, return_witnesses, locations, .. } =
+        optimize_into_acir(program, show_output, enable_logging)?;
 
     let abi = gen_abi(func_sig, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
 
     let public_parameters =
         PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
+
+    let all_parameters: BTreeSet<Witness> =
+        abi.param_witnesses.values().flatten().copied().collect();
+    let private_parameters = all_parameters.difference(&public_parameters.0).copied().collect();
+
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
 
-    let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
+    let circuit = Circuit {
+        current_witness_index,
+        opcodes,
+        private_parameters,
+        public_parameters,
+        return_values,
+    };
+    let debug_info = DebugInfo::new(locations);
 
-    Ok((circuit, abi))
+    Ok((circuit, debug_info, abi))
 }
 
 impl Ssa {

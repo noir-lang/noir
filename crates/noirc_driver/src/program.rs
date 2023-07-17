@@ -1,5 +1,6 @@
 use acvm::acir::circuit::Circuit;
 
+use noirc_errors::debug_info::DebugInfo;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -7,6 +8,7 @@ pub struct CompiledProgram {
     #[serde(serialize_with = "serialize_circuit", deserialize_with = "deserialize_circuit")]
     pub circuit: Circuit,
     pub abi: noirc_abi::Abi,
+    pub debug: DebugInfo,
 }
 
 pub(crate) fn serialize_circuit<S>(circuit: &Circuit, s: S) -> Result<S::Ok, S::Error>

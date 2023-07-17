@@ -524,8 +524,8 @@ impl<'interner> TypeChecker<'interner> {
                 operator: crate::UnaryOp::Dereference,
                 rhs: old_lhs,
             }));
-            this.interner.push_expr_type(access_lhs, lhs_type);
-            this.interner.push_expr_type(&old_lhs, element);
+            this.interner.push_expr_type(&old_lhs, lhs_type);
+            this.interner.push_expr_type(access_lhs, element);
         };
 
         match self.check_field_access(&lhs_type, &access.rhs.0.contents, span, dereference_lhs) {
@@ -939,7 +939,7 @@ impl<'interner> TypeChecker<'interner> {
                 Type::MutableReference(Box::new(rhs_type.follow_bindings()))
             }
             crate::UnaryOp::Dereference => {
-                let element_type = Type::type_variable(self.interner.next_type_variable_id());
+                let element_type = self.interner.next_type_variable();
                 unify(Type::MutableReference(Box::new(element_type.clone())));
                 element_type
             }

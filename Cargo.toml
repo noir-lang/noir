@@ -24,7 +24,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.17.0"
+acvm = "0.19.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
@@ -40,7 +40,7 @@ noir_wasm = { path = "crates/wasm" }
 
 cfg-if = "1.0.0"
 clap = { version = "4.1.4", features = ["derive"] }
-codespan = "0.11.1"
+codespan = {version = "0.11.1", features = ["serialization"]}
 codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
 chumsky = { git = "https://github.com/jfecher/chumsky", rev = "ad9d312" }
@@ -57,6 +57,6 @@ wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 
 [patch.crates-io]
-acvm = { git = "https://github.com/noir-lang/acvm", rev = "9810b460dba878204e2ed3d4795b940883c2031b" }
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "bf8aa668d96b8f19301fb6af34a6a1e3172499d4" }
+acvm = { git = "https://github.com/noir-lang/acvm", rev = "cf9597e6469e065dd45872ea122051c2a68bc554" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "ad43d655735ab23423ba59b8725a738c936ad0bc" }
 async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09dbcc11046f7a188a80137f8d36484d86c78c78" }
