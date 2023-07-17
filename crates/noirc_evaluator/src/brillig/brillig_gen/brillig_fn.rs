@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use acvm::acir::brillig_vm::RegisterIndex;
+use acvm::acir::brillig::RegisterIndex;
 
 use crate::{
     brillig::brillig_ir::{

@@ -10,6 +10,7 @@ edition.workspace = true
 codespan-reporting.workspace = true
 cfg-if.workspace = true
 rust-embed = "6.6.0"
+serde.workspace = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen.workspace = true

@@ -4,6 +4,7 @@ use std::sync::{Mutex, RwLock};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
+use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
@@ -232,18 +233,19 @@ impl<'a> FunctionContext<'a> {
         mut lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         mut rhs: ValueId,
+        location: Location,
     ) -> Values {
         let op = convert_operator(operator);
 
         if op == BinaryOp::Eq && matches!(self.builder.type_of_value(lhs), Type::Array(..)) {
-            return self.insert_array_equality(lhs, operator, rhs);
+            return self.insert_array_equality(lhs, operator, rhs, location);
         }
 
         if operator_requires_swapped_operands(operator) {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
-        let mut result = self.builder.insert_binary(lhs, op, rhs);
+        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
 
         if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
             operator,
@@ -295,6 +297,7 @@ impl<'a> FunctionContext<'a> {
         lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         rhs: ValueId,
+        location: Location,
     ) -> Values {
         let lhs_type = self.builder.type_of_value(lhs);
         let rhs_type = self.builder.type_of_value(rhs);
@@ -320,7 +323,7 @@ impl<'a> FunctionContext<'a> {
         let loop_end = self.builder.insert_block();
 
         // pre-loop
-        let result_alloc = self.builder.insert_allocate();
+        let result_alloc = self.builder.set_location(location).insert_allocate();
         let true_value = self.builder.numeric_constant(1u128, Type::bool());
         self.builder.insert_store(result_alloc, true_value);
         let zero = self.builder.field_constant(0u128);
@@ -365,9 +368,11 @@ impl<'a> FunctionContext<'a> {
         function: ValueId,
         arguments: Vec<ValueId>,
         result_type: &ast::Type,
+        location: Location,
     ) -> Values {
         let result_types = Self::convert_type(result_type).flatten();
-        let results = self.builder.insert_call(function, arguments, result_types);
+        let results =
+            self.builder.set_location(location).insert_call(function, arguments, result_types);
 
         let mut i = 0;
         let reshaped_return_values = Self::map_type(result_type, |_| {
@@ -526,9 +531,9 @@ impl<'a> FunctionContext<'a> {
                 let variable = self.ident_lvalue(ident);
                 (variable.clone(), LValue::Ident(variable))
             }
-            ast::LValue::Index { array, index, element_type, location: _ } => {
+            ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
-                let element = self.codegen_array_index(old_array, index, element_type);
+                let element = self.codegen_array_index(old_array, index, element_type, *location);
                 (element, index_lvalue)
             }
             ast::LValue::MemberAccess { object, field_index: index } => {

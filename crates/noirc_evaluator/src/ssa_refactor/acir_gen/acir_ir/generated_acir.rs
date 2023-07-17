@@ -1,10 +1,12 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
+use std::collections::HashMap;
+
 use crate::brillig::brillig_gen::brillig_directive;
 
 use super::errors::AcirGenError;
 use acvm::acir::{
-    brillig_vm::Opcode as BrilligOpcode,
+    brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
         directives::{LogInfo, QuotientDirective},
@@ -18,6 +20,7 @@ use acvm::{
     FieldElement,
 };
 use iter_extended::vecmap;
+use noirc_errors::Location;
 use num_bigint::BigUint;
 
 #[derive(Debug, Default)]
@@ -36,6 +39,13 @@ pub(crate) struct GeneratedAcir {
     /// Note: This may contain repeated indices, which is necessary for later mapping into the
     /// abi's return type.
     pub(crate) return_witnesses: Vec<Witness>,
+
+    /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
+    pub(crate) locations: HashMap<usize, Location>,
+
+    /// Source code location of the current instruction being processed
+    /// None if we do not know the location
+    pub(crate) current_location: Option<Location>,
 }
 
 impl GeneratedAcir {
@@ -47,6 +57,9 @@ impl GeneratedAcir {
     /// Adds a new opcode into ACIR.
     fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
+        if let Some(location) = self.current_location {
+            self.locations.insert(self.opcodes.len() - 1, location);
+        }
     }
 
     /// Updates the witness index counter and returns
@@ -649,6 +662,7 @@ impl GeneratedAcir {
         if num_bits >= FieldElement::max_num_bits() {
             return Err(AcirGenError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
+                location: self.current_location,
             });
         };
 
@@ -781,19 +795,25 @@ impl GeneratedAcir {
     /// n.b. A sorting network is a predetermined set of switches,
     /// the control bits indicate the configuration of each switch: false for pass-through and true for cross-over
     pub(crate) fn permutation(&mut self, in_expr: &[Expression], out_expr: &[Expression]) {
-        let bits = Vec::new();
-        let (w, b) = self.permutation_layer(in_expr, &bits, true);
-        // Constrain the network output to out_expr
-        for (b, o) in b.iter().zip(out_expr) {
-            self.push_opcode(AcirOpcode::Arithmetic(b - o));
+        let mut bits_len = 0;
+        for i in 0..in_expr.len() {
+            bits_len += ((i + 1) as f32).log2().ceil() as u32;
         }
+
+        let bits = vecmap(0..bits_len, |_| self.next_witness_index());
         let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
         self.push_opcode(AcirOpcode::Directive(Directive::PermutationSort {
             inputs,
             tuple: 1,
-            bits: w,
+            bits: bits.clone(),
             sort_by: vec![0],
         }));
+        let (_, b) = self.permutation_layer(in_expr, &bits, false);
+
+        // Constrain the network output to out_expr
+        for (b, o) in b.iter().zip(out_expr) {
+            self.push_opcode(AcirOpcode::Arithmetic(b - o));
+        }
     }
 }
 

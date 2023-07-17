@@ -71,7 +71,10 @@ impl Context {
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries which will do nothing
-        if self.crate_graph[*crate_id].crate_type == CrateType::Binary {
+        if matches!(
+            self.crate_graph[*crate_id].crate_type,
+            CrateType::Binary | CrateType::Workspace
+        ) {
             // All Binaries should have a main function
             local_crate.main_function()
         } else {
@@ -93,6 +96,16 @@ impl Context {
             .get_all_test_functions(interner)
             .filter_map(|id| interner.function_name(&id).contains(pattern).then_some(id))
             .collect()
+    }
+
+    pub fn get_all_test_functions_in_workspace_matching(&self, pattern: &str) -> Vec<FuncId> {
+        let mut tests = Vec::new();
+
+        for crate_id in self.crate_graph.iter_keys() {
+            tests.extend(self.get_all_test_functions_in_crate_matching(&crate_id, pattern));
+        }
+
+        tests
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain

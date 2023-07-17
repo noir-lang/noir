@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
-use crate::{Ident, Path, Pattern, Recoverable, Statement, UnresolvedType};
+use crate::{Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -158,8 +158,17 @@ impl Expression {
     }
 
     pub fn call(lhs: Expression, arguments: Vec<Expression>, span: Span) -> Expression {
-        let func = Box::new(lhs);
-        let kind = ExpressionKind::Call(Box::new(CallExpression { func, arguments }));
+        // Need to check if lhs is an if expression since users can sequence if expressions
+        // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
+        // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
+        let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
+            ExpressionKind::Block(BlockExpression(vec![
+                Statement::Expression(lhs),
+                Statement::Expression(Expression::new(ExpressionKind::Tuple(arguments), span)),
+            ]))
+        } else {
+            ExpressionKind::Call(Box::new(CallExpression { func: Box::new(lhs), arguments }))
+        };
         Expression::new(kind, span)
     }
 }
@@ -337,6 +346,7 @@ pub struct FunctionDefinition {
     pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)>,
     pub body: BlockExpression,
     pub span: Span,
+    pub where_clause: Vec<TraitConstraint>,
     pub return_type: UnresolvedType,
     pub return_visibility: noirc_abi::AbiVisibility,
     pub return_distinctness: noirc_abi::AbiDistinctness,
