@@ -48,6 +48,7 @@ pub(crate) struct NargoConfig {
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
+    #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Execute(execute_cmd::ExecuteCommand),
