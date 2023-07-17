@@ -182,7 +182,7 @@ jobs:
           command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib-tests
       - *save_logs
 
-  acir-format-tests:
+  dsl-tests:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -191,7 +191,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 acir_format_tests
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 dsl_tests
       - *save_logs
 
   barretenberg-tests:
@@ -433,7 +433,7 @@ workflows:
       - wasm-linux-clang: *defaults
       - proof-system-tests: *bb_test
       - honk-tests: *bb_test
-      - acir-format-tests: *bb_test
+      - dsl-tests: *bb_test
       - barretenberg-tests: *bb_test
       - stdlib-tests: *bb_test
       - stdlib-recursion-turbo-tests: *bb_test

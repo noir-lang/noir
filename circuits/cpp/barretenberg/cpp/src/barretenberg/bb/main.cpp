@@ -1,11 +1,12 @@
 #include "barretenberg/bb/get_crs.hpp"
-#include "file_io.hpp"
 #include "get_bytecode.hpp"
+#include "get_witness.hpp"
 #include <barretenberg/common/container.hpp>
-#include <barretenberg/dsl/acir_format/acir_format.hpp>
+#include <barretenberg/dsl/acir_format/acir_to_constraint_buf.hpp>
 #include <barretenberg/dsl/acir_proofs/acir_composer.hpp>
 #include <barretenberg/srs/global_crs.hpp>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -25,23 +26,20 @@ void init()
 
 acir_format::WitnessVector get_witness(std::string const& witness_path)
 {
-    auto witness_data = read_file(witness_path);
-    // We need to prefix the number of fields to comply with serialization format.
-    // TODO: Make noir side output witness data prefixed.
-    return from_buffer<acir_format::WitnessVector>(
-        join({ to_buffer((uint32_t)witness_data.size() / 32), witness_data }));
+    auto witness_data = get_witness_data(witness_path);
+    return acir_format::witness_buf_to_witness_data(witness_data);
 }
 
-acir_format::acir_format get_contraint_system(std::string const& json_path)
+acir_format::acir_format get_constraint_system(std::string const& json_path)
 {
     auto bytecode = get_bytecode(json_path);
-    return from_buffer<acir_format::acir_format>(bytecode.data());
+    return acir_format::circuit_buf_to_acir_format(bytecode);
 }
 
 bool proveAndVerify(const std::string& jsonPath, const std::string& witnessPath, bool recursive)
 {
     auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
-    auto constraint_system = get_contraint_system(jsonPath);
+    auto constraint_system = get_constraint_system(jsonPath);
     auto witness = get_witness(witnessPath);
     auto proof = acir_composer->create_proof(srs::get_crs_factory(), constraint_system, witness, recursive);
     auto verified = acir_composer->verify_proof(proof, recursive);
@@ -52,7 +50,7 @@ bool proveAndVerify(const std::string& jsonPath, const std::string& witnessPath,
 void prove(const std::string& jsonPath, const std::string& witnessPath, bool recursive, const std::string& outputPath)
 {
     auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
-    auto constraint_system = get_contraint_system(jsonPath);
+    auto constraint_system = get_constraint_system(jsonPath);
     auto witness = get_witness(witnessPath);
     auto proof = acir_composer->create_proof(srs::get_crs_factory(), constraint_system, witness, recursive);
     write_file(outputPath, proof);
@@ -62,7 +60,7 @@ void prove(const std::string& jsonPath, const std::string& witnessPath, bool rec
 void gateCount(const std::string& jsonPath)
 {
     auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
-    auto constraint_system = get_contraint_system(jsonPath);
+    auto constraint_system = get_constraint_system(jsonPath);
     acir_composer->create_circuit(constraint_system);
     info("gates: ", acir_composer->get_total_circuit_size());
 }
@@ -80,7 +78,7 @@ bool verify(const std::string& proof_path, bool recursive, const std::string& vk
 void writeVk(const std::string& jsonPath, const std::string& outputPath)
 {
     auto acir_composer = new acir_proofs::AcirComposer(MAX_CIRCUIT_SIZE, verbose);
-    auto constraint_system = get_contraint_system(jsonPath);
+    auto constraint_system = get_constraint_system(jsonPath);
     acir_composer->init_proving_key(srs::get_crs_factory(), constraint_system);
     auto vk = acir_composer->init_verification_key();
     write_file(outputPath, to_buffer(*vk));
@@ -139,47 +137,52 @@ std::string getOption(std::vector<std::string>& args, const std::string& option,
 
 int main(int argc, char* argv[])
 {
-    std::vector<std::string> args(argv + 1, argv + argc);
-    verbose = flagPresent(args, "-v") || flagPresent(args, "--verbose");
+    try {
+        std::vector<std::string> args(argv + 1, argv + argc);
+        verbose = flagPresent(args, "-v") || flagPresent(args, "--verbose");
 
-    if (args.empty()) {
-        std::cerr << "No command provided.\n";
+        if (args.empty()) {
+            std::cerr << "No command provided.\n";
+            return 1;
+        }
+
+        std::string command = args[0];
+
+        std::string json_path = getOption(args, "-j", "./target/main.json");
+        std::string witness_path = getOption(args, "-w", "./target/witness.tr");
+        std::string proof_path = getOption(args, "-p", "./proofs/proof");
+        std::string vk_path = getOption(args, "-k", "./target/vk");
+        CRS_PATH = getOption(args, "-c", "./crs");
+        bool recursive = flagPresent(args, "-r") || flagPresent(args, "--recursive");
+        init();
+
+        if (command == "prove_and_verify") {
+            return proveAndVerify(json_path, witness_path, recursive) ? 0 : 1;
+        } else if (command == "prove") {
+            std::string output_path = getOption(args, "-o", "./proofs/proof");
+            prove(json_path, witness_path, recursive, output_path);
+        } else if (command == "gates") {
+            gateCount(json_path);
+        } else if (command == "verify") {
+            verify(proof_path, recursive, vk_path);
+        } else if (command == "contract") {
+            std::string output_path = getOption(args, "-o", "./target/contract.sol");
+            contract(output_path, vk_path);
+        } else if (command == "write_vk") {
+            std::string output_path = getOption(args, "-o", "./target/vk");
+            writeVk(json_path, output_path);
+        } else if (command == "proof_as_fields") {
+            std::string output_path = getOption(args, "-o", proof_path + "_fields.json");
+            proofAsFields(proof_path, vk_path, output_path);
+        } else if (command == "vk_as_fields") {
+            std::string output_path = getOption(args, "-o", vk_path + "_fields.json");
+            vkAsFields(vk_path, output_path);
+        } else {
+            std::cerr << "Unknown command: " << command << "\n";
+            return 1;
+        }
+    } catch (std::runtime_error const& err) {
+        std::cerr << err.what() << std::endl;
         return 1;
-    }
-
-    std::string command = args[0];
-
-    std::string json_path = getOption(args, "-j", "./target/main.json");
-    std::string witness_path = getOption(args, "-w", "./target/witness.tr");
-    std::string proof_path = getOption(args, "-p", "./proofs/proof");
-    std::string vk_path = getOption(args, "-k", "./target/vk");
-    CRS_PATH = getOption(args, "-c", "./crs");
-    bool recursive = flagPresent(args, "-r") || flagPresent(args, "--recursive");
-    init();
-
-    if (command == "prove_and_verify") {
-        return proveAndVerify(json_path, witness_path, recursive) ? 0 : 1;
-    } else if (command == "prove") {
-        std::string output_path = getOption(args, "-o", "./proofs/proof");
-        prove(json_path, witness_path, recursive, output_path);
-    } else if (command == "gates") {
-        gateCount(json_path);
-    } else if (command == "verify") {
-        verify(proof_path, recursive, vk_path);
-    } else if (command == "contract") {
-        std::string output_path = getOption(args, "-o", "./target/contract.sol");
-        contract(output_path, vk_path);
-    } else if (command == "write_vk") {
-        std::string output_path = getOption(args, "-o", "./target/vk");
-        writeVk(json_path, output_path);
-    } else if (command == "proof_as_fields") {
-        std::string output_path = getOption(args, "-o", proof_path + "_fields.json");
-        proofAsFields(proof_path, vk_path, output_path);
-    } else if (command == "vk_as_fields") {
-        std::string output_path = getOption(args, "-o", vk_path + "_fields.json");
-        vkAsFields(vk_path, output_path);
-    } else {
-        std::cerr << "Unknown command: " << command << "\n";
-        return -1;
     }
 }

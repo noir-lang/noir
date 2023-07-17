@@ -77,6 +77,7 @@ std::vector<uint8_t> AcirComposer::create_proof(
     if (!proving_key_) {
         vinfo("computing proving key...");
         proving_key_ = composer_.compute_proving_key(builder_);
+        vinfo("done.");
     }
 
     // We are done with the constraint system at this point, and we need the memory slab back.
@@ -101,7 +102,9 @@ std::vector<uint8_t> AcirComposer::create_proof(
 std::shared_ptr<proof_system::plonk::verification_key> AcirComposer::init_verification_key()
 {
     vinfo("computing verification key...");
-    return verification_key_ = composer_.compute_verification_key(builder_);
+    verification_key_ = composer_.compute_verification_key(builder_);
+    vinfo("done.");
+    return verification_key_;
 }
 
 void AcirComposer::load_verification_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
@@ -117,6 +120,7 @@ bool AcirComposer::verify_proof(std::vector<uint8_t> const& proof, bool is_recur
     if (!verification_key_) {
         vinfo("computing verification key...");
         verification_key_ = composer_.compute_verification_key(builder_);
+        vinfo("done.");
     }
 
     // Hack. Shouldn't need to do this. 2144 is size with no public inputs.

@@ -1,4 +1,5 @@
 #include "c_bind.hpp"
+#include "../acir_format/acir_to_constraint_buf.hpp"
 #include "acir_composer.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/common/net.hpp"
@@ -10,13 +11,9 @@
 #include <cstdint>
 #include <memory>
 
-WASM_EXPORT void acir_get_circuit_sizes(uint8_t const* constraint_system_buf,
-                                        uint32_t* exact,
-                                        uint32_t* total,
-                                        uint32_t* subgroup)
+WASM_EXPORT void acir_get_circuit_sizes(uint8_t const* acir_vec, uint32_t* exact, uint32_t* total, uint32_t* subgroup)
 {
-    auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
-    free_mem_slab_raw((void*)constraint_system_buf);
+    auto constraint_system = acir_format::circuit_buf_to_acir_format(from_buffer<std::vector<uint8_t>>(acir_vec));
     auto composer = acir_format::create_circuit(constraint_system, 1 << 19);
     *exact = htonl((uint32_t)composer.get_num_gates());
     *total = htonl((uint32_t)composer.get_total_circuit_size());
@@ -33,30 +30,23 @@ WASM_EXPORT void acir_delete_acir_composer(in_ptr acir_composer_ptr)
     delete reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
 }
 
-WASM_EXPORT void acir_init_proving_key(in_ptr acir_composer_ptr, uint8_t const* constraint_system_buf)
+WASM_EXPORT void acir_init_proving_key(in_ptr acir_composer_ptr, uint8_t const* acir_vec)
 {
     auto acir_composer = reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
-    auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
-
-    // The binder would normally free the the constraint_system_buf, but we need the memory now.
-    free_mem_slab_raw((void*)constraint_system_buf);
+    auto constraint_system = acir_format::circuit_buf_to_acir_format(from_buffer<std::vector<uint8_t>>(acir_vec));
 
     acir_composer->init_proving_key(barretenberg::srs::get_crs_factory(), constraint_system);
 }
 
 WASM_EXPORT void acir_create_proof(in_ptr acir_composer_ptr,
-                                   uint8_t const* constraint_system_buf,
-                                   uint8_t const* witness_buf,
+                                   uint8_t const* acir_vec,
+                                   uint8_t const* witness_vec,
                                    bool const* is_recursive,
                                    uint8_t** out)
 {
     auto acir_composer = reinterpret_cast<acir_proofs::AcirComposer*>(*acir_composer_ptr);
-    auto constraint_system = from_buffer<acir_format::acir_format>(constraint_system_buf);
-    auto witness = from_buffer<std::vector<fr, ContainerSlabAllocator<fr>>>(witness_buf);
-
-    // The binder would normally free the the constraint_system_buf, but we need the memory now.
-    free_mem_slab_raw((void*)constraint_system_buf);
-    free_mem_slab_raw((void*)witness_buf);
+    auto constraint_system = acir_format::circuit_buf_to_acir_format(from_buffer<std::vector<uint8_t>>(acir_vec));
+    auto witness = acir_format::witness_buf_to_witness_data(from_buffer<std::vector<uint8_t>>(witness_vec));
 
     auto proof_data =
         acir_composer->create_proof(barretenberg::srs::get_crs_factory(), constraint_system, witness, *is_recursive);

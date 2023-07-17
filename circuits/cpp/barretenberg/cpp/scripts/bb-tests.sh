@@ -25,6 +25,7 @@ TESTS=(
   join_split_example_proofs_notes_tests
   srs_tests
   transcript_tests
+  dsl_tests
 )
 TESTS_STR="${TESTS[@]}"
 
