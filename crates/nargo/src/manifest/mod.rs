@@ -64,6 +64,7 @@ pub struct WorkspaceConfig {
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
+    pub name: Option<String>,
     // Note: a package name is not needed unless there is a registry
     authors: Vec<String>,
     // If not compiler version is supplied, the latest is used

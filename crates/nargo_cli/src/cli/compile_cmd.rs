@@ -57,7 +57,7 @@ pub(crate) fn run<B: Backend>(
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
-        let mut context = resolve_root_manifest(&config.program_dir)?;
+        let mut context = resolve_root_manifest(&config.program_dir, None)?;
 
         let result = compile_contracts(&mut context, &args.compile_options);
         let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
@@ -101,7 +101,8 @@ pub(crate) fn run<B: Backend>(
             );
         }
     } else {
-        let (program, _) = compile_circuit(backend, &config.program_dir, &args.compile_options)?;
+        let (program, _) =
+            compile_circuit(backend, None, &config.program_dir, &args.compile_options)?;
         common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;
@@ -119,10 +120,11 @@ pub(crate) fn run<B: Backend>(
 
 pub(crate) fn compile_circuit<B: Backend>(
     backend: &B,
+    package: Option<String>,
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(CompiledProgram, Context), CliError<B>> {
-    let mut context = resolve_root_manifest(program_dir)?;
+    let mut context = resolve_root_manifest(program_dir, package)?;
     let result = compile_main(&mut context, compile_options);
     let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
 

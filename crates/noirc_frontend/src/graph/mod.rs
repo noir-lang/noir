@@ -21,7 +21,7 @@ impl CrateId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CrateName(SmolStr);
 
 impl CrateName {
