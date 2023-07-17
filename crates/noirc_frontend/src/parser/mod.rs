@@ -17,8 +17,8 @@ use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
     BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
-    MethodCallExpression, NoirFunction, NoirImpl, Path, PathKind, Pattern, Recoverable, Statement,
-    UnresolvedType, UseTree,
+    MethodCallExpression, NoirFunction, NoirTrait, Path, PathKind, Pattern, Recoverable, Statement,
+    TraitImpl, TypeImpl, UnresolvedType, UseTree,
 };
 
 use acvm::FieldElement;
@@ -40,7 +40,9 @@ pub(crate) enum TopLevelStatement {
     Module(Ident),
     Import(UseTree),
     Struct(NoirStruct),
-    Impl(NoirImpl),
+    Trait(NoirTrait),
+    TraitImpl(TraitImpl),
+    Impl(TypeImpl),
     SubModule(SubModule),
     Global(LetStatement),
     Error,
@@ -220,7 +222,9 @@ pub struct ParsedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<NoirFunction>,
     pub types: Vec<NoirStruct>,
-    pub impls: Vec<NoirImpl>,
+    pub traits: Vec<NoirTrait>,
+    pub trait_impls: Vec<TraitImpl>,
+    pub impls: Vec<TypeImpl>,
     pub globals: Vec<LetStatement>,
 
     /// Module declarations like `mod foo;`
@@ -248,7 +252,15 @@ impl ParsedModule {
         self.types.push(typ);
     }
 
-    fn push_impl(&mut self, r#impl: NoirImpl) {
+    fn push_trait(&mut self, noir_trait: NoirTrait) {
+        self.traits.push(noir_trait);
+    }
+
+    fn push_trait_impl(&mut self, trait_impl: TraitImpl) {
+        self.trait_impls.push(trait_impl);
+    }
+
+    fn push_impl(&mut self, r#impl: TypeImpl) {
         self.impls.push(r#impl);
     }
 
@@ -447,6 +459,8 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::Function(fun) => fun.fmt(f),
             TopLevelStatement::Module(m) => write!(f, "mod {m}"),
             TopLevelStatement::Import(tree) => write!(f, "use {tree}"),
+            TopLevelStatement::Trait(t) => t.fmt(f),
+            TopLevelStatement::TraitImpl(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),

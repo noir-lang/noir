@@ -9,6 +9,9 @@
 
 use crate::errors::RuntimeError;
 use acvm::acir::circuit::{Circuit, PublicInputs};
+
+use noirc_errors::debug_info::DebugInfo;
+
 use noirc_abi::Abi;
 
 use noirc_frontend::monomorphization::ast::Program;
@@ -29,7 +32,7 @@ pub(crate) fn optimize_into_acir(
     program: Program,
     allow_log_ops: bool,
     print_ssa_passes: bool,
-) -> GeneratedAcir {
+) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
     let mut ssa = ssa_gen::generate_ssa(program)
         .print(print_ssa_passes, "Initial SSA:")
@@ -65,10 +68,10 @@ pub fn experimental_create_circuit(
     program: Program,
     enable_logging: bool,
     show_output: bool,
-) -> Result<(Circuit, Abi), RuntimeError> {
+) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
-    let GeneratedAcir { current_witness_index, opcodes, return_witnesses } =
-        optimize_into_acir(program, show_output, enable_logging);
+    let GeneratedAcir { current_witness_index, opcodes, return_witnesses, locations, .. } =
+        optimize_into_acir(program, show_output, enable_logging)?;
 
     let abi = gen_abi(func_sig, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
@@ -78,8 +81,9 @@ pub fn experimental_create_circuit(
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
 
     let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
+    let debug_info = DebugInfo::new(locations);
 
-    Ok((circuit, abi))
+    Ok((circuit, debug_info, abi))
 }
 
 impl Ssa {

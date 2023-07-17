@@ -1,7 +1,8 @@
-use acvm::acir::brillig_vm::ForeignCallResult;
+use acvm::acir::brillig::{ForeignCallResult, Value};
 use acvm::pwg::{ACVMStatus, ForeignCallWaitInfo, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
+use iter_extended::vecmap;
 
 use crate::NargoError;
 
@@ -38,6 +39,7 @@ fn execute_foreign_call(foreign_call: &ForeignCallWaitInfo) -> ForeignCallResult
     // TODO(#1615): Nargo only supports "oracle_print_**_impl" functions  that print a singular value or an array and nothing else
     // This should be expanded in a general logging refactor
     match foreign_call.function.as_str() {
+        // TODO(#1910): Move to an enum and don't match directly on these strings
         "oracle_print_impl" => {
             let values = &foreign_call.inputs[0];
             println!("{:?}", values[0].to_field().to_hex());
@@ -56,6 +58,16 @@ fn execute_foreign_call(foreign_call: &ForeignCallWaitInfo) -> ForeignCallResult
             println!("{output_witnesses_string}");
 
             foreign_call.inputs[0][0].into()
+        }
+        "get_number_sequence" => {
+            let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
+
+            vecmap(0..sequence_length, Value::from).into()
+        }
+        "get_reverse_number_sequence" => {
+            let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
+
+            vecmap((0..sequence_length).rev(), Value::from).into()
         }
         _ => panic!("unexpected foreign call type"),
     }
