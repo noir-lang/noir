@@ -87,15 +87,22 @@ pub(crate) fn resolve_root_manifest(
             resolve_manifest(&mut context, crate_id, package, pkg_root)?;
         }
         Manifest::Workspace(workspace) => {
-            let members = workspace.config.members;
-            let root = match members.last() {
-                Some(member) => dir_path.join(member),
+            let config = workspace.config;
+            let members = config.members;
+
+            let maybe_local = config
+                .default_member
+                .or_else(|| members.last().cloned())
+                .map(|member| dir_path.join(member));
+
+            let default_member = match maybe_local {
+                Some(member) => member,
                 None => {
                     return Err(DependencyResolutionError::EmptyWorkspace { path: manifest_path })
                 }
             };
 
-            let (entry_path, _crate_type) = super::lib_or_bin(root)?;
+            let (entry_path, _crate_type) = super::lib_or_bin(default_member)?;
             let _local = create_local_crate(&mut context, entry_path, CrateType::Workspace);
 
             for member in members {
