@@ -15,6 +15,7 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildAbi, EcdsaAccountContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
 import { PublicKey } from '@aztec/types';
+
 import { randomBytes } from 'crypto';
 
 import { setup } from './utils.js';

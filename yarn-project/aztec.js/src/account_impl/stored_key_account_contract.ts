@@ -2,11 +2,12 @@ import { AztecAddress, CircuitsWasm, FunctionData, TxContext } from '@aztec/circ
 import { Signer } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
 import { ExecutionRequest, PackedArguments, TxExecutionRequest } from '@aztec/types';
+
 import partition from 'lodash.partition';
-import { buildPayload, hashPayload } from './entrypoint_payload.js';
-import { AccountImplementation } from './index.js';
 
 import EcdsaAccountContractAbi from '../abis/ecdsa_account_contract.json' assert { type: 'json' };
+import { buildPayload, hashPayload } from './entrypoint_payload.js';
+import { AccountImplementation } from './index.js';
 
 /**
  * Account contract implementation that keeps a signing public key in storage, and is retrieved on

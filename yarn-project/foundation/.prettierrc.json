@@ -3,11 +3,8 @@
   "trailingComma": "all",
   "printWidth": 120,
   "arrowParens": "avoid",
-  "importOrder": [
-    "^@aztec/(.*)$",
-    "<THIRD_PARTY_MODULES>",
-    "^\\.\/|\\.\\.\/"
-  ],
+  "importOrder": ["^@aztec/(.*)$", "<THIRD_PARTY_MODULES>", "^\\./|\\.\\./"],
   "importOrderSeparation": true,
-  "importOrderSortSpecifiers": true
+  "importOrderSortSpecifiers": true,
+  "importOrderParserPlugins": ["importAssertions", "typescript"]
 }

@@ -1,4 +1,5 @@
 import { Fr, L1_TO_L2_MSG_TREE_HEIGHT } from '@aztec/circuits.js';
+
 import { L1ToL2MessageAndIndex } from '../l1_to_l2_message.js';
 import { SiblingPath } from '../sibling_path.js';
 

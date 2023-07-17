@@ -1,8 +1,8 @@
 import { AztecAddress, CircuitsWasm, MembershipWitness, VK_TREE_HEIGHT } from '@aztec/circuits.js';
 import { ContractDatabase } from '@aztec/types';
+import { ContractCommitmentProvider } from '@aztec/types';
 
 import { ContractTree } from '../contract_tree/index.js';
-import { ContractCommitmentProvider } from '@aztec/types';
 
 /**
  * ContractDataOracle serves as a data manager and retriever for noir contracts.

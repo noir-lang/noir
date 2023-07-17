@@ -1,4 +1,5 @@
 import { PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
+
 import { SiblingPath } from '../sibling_path.js';
 
 /**

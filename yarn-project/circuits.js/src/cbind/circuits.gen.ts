@@ -8,7 +8,6 @@ import mapValues from 'lodash.mapvalues';
 
 import { callCbind } from './cbind.js';
 import {
-  toBuffer,
   Address,
   CallContext,
   CircuitError,
@@ -24,7 +23,6 @@ import {
   G1AffineElement,
   KernelCircuitPublicInputs,
   NativeAggregationState,
-  ReadRequestMembershipWitness,
   NewContractData,
   OptionallyRevealedData,
   Point,
@@ -37,9 +35,11 @@ import {
   PublicDataRead,
   PublicDataUpdateRequest,
   PublicKernelInputs,
+  ReadRequestMembershipWitness,
   TxContext,
   VerificationKeyData,
   isCircuitError,
+  toBuffer,
 } from './types.js';
 
 interface MsgpackG1AffineElement {

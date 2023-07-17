@@ -1,9 +1,7 @@
 #!/usr/bin/env node
-
 // Updates build manifest for a package based on a package.json
-
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { basename, dirname, resolve, join } from 'path';
+import { basename, dirname, join, resolve } from 'path';
 import { cwd } from 'process';
 
 // Update build_manifest.json with new dependencies

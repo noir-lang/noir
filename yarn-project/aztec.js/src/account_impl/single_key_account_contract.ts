@@ -2,12 +2,13 @@ import { AztecAddress, CircuitsWasm, FunctionData, PartialContractAddress, TxCon
 import { Signer } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
 import { ExecutionRequest, PackedArguments, TxExecutionRequest } from '@aztec/types';
+
 import partition from 'lodash.partition';
+
+import SchnorrAccountContractAbi from '../abis/schnorr_account_contract.json' assert { type: 'json' };
 import { generatePublicKey } from '../index.js';
 import { buildPayload, hashPayload } from './entrypoint_payload.js';
 import { AccountImplementation } from './index.js';
-
-import SchnorrAccountContractAbi from '../abis/schnorr_account_contract.json' assert { type: 'json' };
 
 /**
  * Account contract implementation that uses a single key for signing and encryption. This public key is not

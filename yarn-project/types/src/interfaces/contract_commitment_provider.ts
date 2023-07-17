@@ -1,4 +1,5 @@
 import { CONTRACT_TREE_HEIGHT } from '@aztec/circuits.js';
+
 import { SiblingPath } from '../sibling_path.js';
 
 /**

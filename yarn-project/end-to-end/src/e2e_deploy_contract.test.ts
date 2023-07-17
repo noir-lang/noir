@@ -1,12 +1,12 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, ContractDeployer, Fr } from '@aztec/aztec.js';
+import { getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/examples';
 import { TxStatus } from '@aztec/types';
 
 import { setup } from './utils.js';
-import { getContractDeploymentInfo } from '@aztec/circuits.js';
 
 describe('e2e_deploy_contract', () => {
   let aztecNode: AztecNodeService;

@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-
 // Updates a package.json in the yarn-project folder based on inherits directives
 // Run with --check to check for changes (exits with non-zero if any, useful for CI)
-
-import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'fs';
-import { resolve, dirname, join } from 'path';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs';
+import { dirname, join, resolve } from 'path';
 
 const sources = {};
 async function getSource(fullpath) {

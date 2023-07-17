@@ -4,6 +4,7 @@ import { JsonRpcServer } from '@aztec/foundation/json-rpc';
 import { ContractData, ContractDeploymentTx, ContractPublicData, Tx, TxExecutionRequest, TxHash } from '@aztec/types';
 
 import { foundry } from 'viem/chains';
+
 import { AztecRPCServer, EthAddress } from '../index.js';
 
 export const localAnvil = foundry;

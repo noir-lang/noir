@@ -1,11 +1,12 @@
 import { AztecAddress, CircuitsWasm } from '@aztec/circuits.js';
+import { siloNullifier } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecNode, KeyStore, L2BlockContext, L2BlockL2Logs, NoteSpendingInfo, PublicKey } from '@aztec/types';
+
 import { Database, NoteSpendingInfoDao, TxDao } from '../database/index.js';
 import { getAcirSimulator } from '../simulator/index.js';
-import { siloNullifier } from '@aztec/circuits.js/abis';
 
 /**
  * Contains all the decrypted data in this array so that we can later batch insert it all into the database.

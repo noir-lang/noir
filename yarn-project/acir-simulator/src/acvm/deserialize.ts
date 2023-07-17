@@ -6,9 +6,9 @@ import {
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+  MAX_READ_REQUESTS_PER_CALL,
   NUM_FIELDS_PER_SHA256,
   PrivateCircuitPublicInputs,
-  MAX_READ_REQUESTS_PER_CALL,
   RETURN_VALUES_LENGTH,
 } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';

@@ -2,6 +2,7 @@ import { ContractFunctionDao } from '@aztec/circuits.js';
 import { ContractAbi, FunctionType, generateFunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
+
 import { EncodedContractFunction } from './contract_data.js';
 
 /**

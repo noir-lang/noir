@@ -29,13 +29,14 @@ import {
   getNewContractPublicFunctions,
   toContractDao,
 } from '@aztec/types';
+
+import { RpcServerConfig } from '../config/index.js';
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
 import { Database, TxDao } from '../database/index.js';
 import { KernelOracle } from '../kernel_oracle/index.js';
 import { KernelProver } from '../kernel_prover/kernel_prover.js';
 import { getAcirSimulator } from '../simulator/index.js';
 import { Synchroniser } from '../synchroniser/index.js';
-import { RpcServerConfig } from '../config/index.js';
 
 /**
  * A remote Aztec RPC Client implementation.
