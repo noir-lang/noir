@@ -461,14 +461,17 @@ void validate_public_kernel_outputs_correctly_propagated(const KernelInput& inpu
     }
 }
 
-void validate_private_data_propagation(const PublicKernelInputs<NT>& inputs,
+void validate_private_data_propagation(DummyBuilder& builder,
+                                       const PublicKernelInputs<NT>& inputs,
                                        const KernelCircuitPublicInputs<NT>& public_inputs)
 {
-    ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.private_call_stack,
+    ASSERT_TRUE(source_arrays_are_in_target(builder,
+                                            inputs.previous_kernel.public_inputs.end.private_call_stack,
                                             std::array<NT::fr, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX>{},
                                             public_inputs.end.private_call_stack));
 
-    ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_contracts,
+    ASSERT_TRUE(source_arrays_are_in_target(builder,
+                                            inputs.previous_kernel.public_inputs.end.new_contracts,
                                             std::array<NewContractData<NT>, MAX_NEW_CONTRACTS_PER_TX>(),
                                             public_inputs.end.new_contracts));
 
@@ -878,7 +881,7 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
 
     // test that the prior set of private kernel public inputs were copied to the outputs
-    validate_private_data_propagation(inputs, public_inputs);
+    validate_private_data_propagation(dummyBuilder, inputs, public_inputs);
 
     validate_public_kernel_outputs_correctly_propagated(inputs, public_inputs);
     ASSERT_FALSE(dummyBuilder.failed());
@@ -1040,7 +1043,7 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
     auto public_inputs = native_public_kernel_circuit_public_previous_kernel(dummyBuilder, inputs);
 
     // test that the prior set of private kernel public inputs were copied to the outputs
-    validate_private_data_propagation(inputs, public_inputs);
+    validate_private_data_propagation(dummyBuilder, inputs, public_inputs);
 
     // this call should have been popped from the public call stack and the stack of call pre images pushed on
     for (size_t i = 0; i < MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL; i++) {
@@ -1090,7 +1093,8 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
     ASSERT_EQ(public_inputs.end.unencrypted_log_preimages_length,
               unencrypted_log_preimages_length + public_inputs_unencrypted_log_preimages_length);
 
-    ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.public_data_update_requests,
+    ASSERT_TRUE(source_arrays_are_in_target(dummyBuilder,
+                                            inputs.previous_kernel.public_inputs.end.public_data_update_requests,
                                             expected_new_writes,
                                             public_inputs.end.public_data_update_requests));
 
@@ -1098,7 +1102,8 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
         public_data_reads_from_contract_storage_reads(
             inputs.public_call.call_stack_item.public_inputs.contract_storage_reads, contract_address);
 
-    ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.public_data_reads,
+    ASSERT_TRUE(source_arrays_are_in_target(dummyBuilder,
+                                            inputs.previous_kernel.public_inputs.end.public_data_reads,
                                             expected_new_reads,
                                             public_inputs.end.public_data_reads));
 
@@ -1106,14 +1111,16 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
         new_commitments_as_siloed_commitments(inputs.public_call.call_stack_item.public_inputs.new_commitments,
                                               contract_address);
 
-    ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_commitments,
+    ASSERT_TRUE(source_arrays_are_in_target(dummyBuilder,
+                                            inputs.previous_kernel.public_inputs.end.new_commitments,
                                             expected_new_commitments,
                                             public_inputs.end.new_commitments));
 
     std::array<NT::fr, MAX_NEW_NULLIFIERS_PER_CALL> const expected_new_nullifiers = new_nullifiers_as_siloed_nullifiers(
         inputs.public_call.call_stack_item.public_inputs.new_nullifiers, contract_address);
 
-    ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_nullifiers,
+    ASSERT_TRUE(source_arrays_are_in_target(dummyBuilder,
+                                            inputs.previous_kernel.public_inputs.end.new_nullifiers,
                                             expected_new_nullifiers,
                                             public_inputs.end.new_nullifiers));
 
@@ -1128,7 +1135,8 @@ TEST(public_kernel_tests, circuit_outputs_should_be_correctly_populated_with_pre
                                      chain_id,
                                      version);
 
-    ASSERT_TRUE(source_arrays_are_in_target(inputs.previous_kernel.public_inputs.end.new_l2_to_l1_msgs,
+    ASSERT_TRUE(source_arrays_are_in_target(dummyBuilder,
+                                            inputs.previous_kernel.public_inputs.end.new_l2_to_l1_msgs,
                                             expected_new_messages,
                                             public_inputs.end.new_l2_to_l1_msgs));
 

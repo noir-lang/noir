@@ -240,7 +240,7 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_bad_request)
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT(builder.failed());
+    ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 }
@@ -267,7 +267,7 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_bad_leaf_index)
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT(builder.failed());
+    ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 }
@@ -294,7 +294,7 @@ TEST_F(native_private_kernel_inner_tests, native_read_request_bad_sibling_path)
 
     validate_no_new_deployed_contract(public_inputs);
 
-    ASSERT(builder.failed());
+    ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__READ_REQUEST_PRIVATE_DATA_ROOT_MISMATCH);
 }

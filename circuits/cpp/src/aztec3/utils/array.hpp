@@ -188,15 +188,18 @@ void push_array_to_array(Builder& builder, std::array<T, size_1> const& source, 
  * @param The `target` array
  * @return Whether the source arrays are indeed in the target
  */
-template <size_t size_1, size_t size_2, size_t size_3, typename T>
-bool source_arrays_are_in_target(std::array<T, size_1> const& source1,
+template <size_t size_1, size_t size_2, size_t size_3, typename T, typename Builder>
+bool source_arrays_are_in_target(Builder& builder,
+                                 std::array<T, size_1> const& source1,
                                  std::array<T, size_2> const& source2,
                                  std::array<T, size_3> const& target)
 {
     // Check if the `source` arrays are too large vs the size of the `target` array
     size_t const source1_size = array_length(source1);
     size_t const source2_size = array_length(source2);
-    ASSERT(source1_size + source2_size <= size_3);
+    builder.do_assert(source1_size + source2_size <= size_3,
+                      "source_arrays_are_in_target: source arrays are too large vs the size of the target",
+                      CircuitErrorCode::ARRAY_OVERFLOW);
 
     // first ensure that all non-empty items in the first source are in the target
     size_t target_index = 0;
