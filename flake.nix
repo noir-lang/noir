@@ -281,6 +281,7 @@
           toml2json
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
           wasm-bindgen-cli
+          jq
         ];
 
         shellHook = ''
