@@ -347,7 +347,7 @@ impl GeneratedAcir {
         )?;
 
         // Constrain r < rhs
-        self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_bit_size)?;
+        self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_rhs_bits)?;
 
         // a * predicate == (b * q + r) * predicate
         // => predicate * ( a - b * q - r) == 0
