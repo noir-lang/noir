@@ -48,8 +48,8 @@ pub(crate) struct NargoConfig {
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
+    #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
-    Build(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Execute(execute_cmd::ExecuteCommand),
     Prove(prove_cmd::ProveCommand),
@@ -73,7 +73,6 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
-        NargoCommand::Build(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
