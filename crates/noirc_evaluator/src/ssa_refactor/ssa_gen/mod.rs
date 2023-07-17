@@ -35,8 +35,12 @@ pub(crate) fn generate_ssa(program: Program) -> Ssa {
     // Queue the main function for compilation
     context.get_or_queue_function(main_id);
 
-    let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, RuntimeType::Acir, &context);
+    let mut function_context = FunctionContext::new(
+        main.name.clone(),
+        &main.parameters,
+        if main.unconstrained { RuntimeType::Brillig } else { RuntimeType::Acir },
+        &context,
+    );
     function_context.codegen_function_body(&main.body);
 
     // Main has now been compiled and any other functions referenced within have been added to the
@@ -95,7 +99,7 @@ impl<'a> FunctionContext<'a> {
     /// Codegen for identifiers
     fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
-            ast::Definition::Local(id) => self.lookup(*id).map(|value| value.eval(self).into()),
+            ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
             ast::Definition::Oracle(name) => self.builder.import_foreign_function(name).into(),
             ast::Definition::Builtin(name) | ast::Definition::LowLevel(name) => {
@@ -161,27 +165,46 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_unary(&mut self, unary: &ast::Unary) -> Values {
-        let rhs = self.codegen_non_tuple_expression(&unary.rhs);
+        let rhs = self.codegen_expression(&unary.rhs);
         match unary.operator {
-            noirc_frontend::UnaryOp::Not => self.builder.insert_not(rhs).into(),
+            noirc_frontend::UnaryOp::Not => {
+                let rhs = rhs.into_leaf().eval(self);
+                self.builder.insert_not(rhs).into()
+            }
             noirc_frontend::UnaryOp::Minus => {
+                let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
                 self.builder.insert_binary(zero, BinaryOp::Sub, rhs).into()
             }
+            noirc_frontend::UnaryOp::MutableReference => {
+                rhs.map(|rhs| {
+                    match rhs {
+                        value::Value::Normal(value) => {
+                            let alloc = self.builder.insert_allocate();
+                            self.builder.insert_store(alloc, value);
+                            Tree::Leaf(value::Value::Normal(alloc))
+                        }
+                        // NOTE: The `.into()` here converts the Value::Mutable into
+                        // a Value::Normal so it is no longer automatically dereferenced.
+                        value::Value::Mutable(reference, _) => reference.into(),
+                    }
+                })
+            }
+            noirc_frontend::UnaryOp::Dereference => self.dereference(&rhs, &unary.result_type),
         }
     }
 
     fn codegen_binary(&mut self, binary: &ast::Binary) -> Values {
         let lhs = self.codegen_non_tuple_expression(&binary.lhs);
         let rhs = self.codegen_non_tuple_expression(&binary.rhs);
-        self.insert_binary(lhs, binary.operator, rhs)
+        self.insert_binary(lhs, binary.operator, rhs, binary.location)
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
         let array = self.codegen_non_tuple_expression(&index.collection);
         let index_value = self.codegen_non_tuple_expression(&index.index);
-        self.codegen_array_index(array, index_value, &index.element_type)
+        self.codegen_array_index(array, index_value, &index.element_type, index.location)
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -195,11 +218,13 @@ impl<'a> FunctionContext<'a> {
         array: super::ir::value::ValueId,
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
+        location: Location,
     ) -> Values {
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size = self.builder.field_constant(type_size as u128);
-        let base_index = self.builder.insert_binary(index, BinaryOp::Mul, type_size);
+        let base_index =
+            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
         let mut field_index = 0u128;
         Self::map_type(element_type, |typ| {
@@ -339,14 +364,14 @@ impl<'a> FunctionContext<'a> {
     /// Generate SSA for a function call. Note that calls to built-in functions
     /// and intrinsics are also represented by the function call instruction.
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
+        let function = self.codegen_non_tuple_expression(&call.func);
         let arguments = call
             .arguments
             .iter()
             .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
             .collect();
 
-        let function = self.codegen_non_tuple_expression(&call.func);
-        self.insert_call(function, arguments, &call.return_type)
+        self.insert_call(function, arguments, &call.return_type, call.location)
     }
 
     /// Generate SSA for the given variable.
@@ -367,9 +392,9 @@ impl<'a> FunctionContext<'a> {
         Self::unit_value()
     }
 
-    fn codegen_constrain(&mut self, expr: &Expression, _location: Location) -> Values {
+    fn codegen_constrain(&mut self, expr: &Expression, location: Location) -> Values {
         let boolean = self.codegen_non_tuple_expression(expr);
-        self.builder.insert_constrain(boolean);
+        self.builder.set_location(location).insert_constrain(boolean);
         Self::unit_value()
     }
 

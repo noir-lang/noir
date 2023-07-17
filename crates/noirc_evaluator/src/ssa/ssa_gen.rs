@@ -208,6 +208,9 @@ impl IrGenerator {
                 self.context.new_instruction(op, rhs_type)
             }
             UnaryOp::Not => self.context.new_instruction(Operation::Not(rhs), rhs_type),
+            UnaryOp::MutableReference | UnaryOp::Dereference => {
+                unimplemented!("Mutable references are unimplemented in the old ssa backend")
+            }
         }
     }
 
@@ -248,6 +251,9 @@ impl IrGenerator {
                 let val = self.find_variable(ident_def).unwrap();
                 val.get_field_member(*field_index)
             }
+            LValue::Dereference { .. } => {
+                unreachable!("Mutable references are unsupported in the old ssa backend")
+            }
         }
     }
 
@@ -256,6 +262,7 @@ impl IrGenerator {
             LValue::Ident(ident) => &ident.definition,
             LValue::Index { array, .. } => Self::lvalue_ident_def(array.as_ref()),
             LValue::MemberAccess { object, .. } => Self::lvalue_ident_def(object.as_ref()),
+            LValue::Dereference { reference, .. } => Self::lvalue_ident_def(reference.as_ref()),
         }
     }
 
@@ -461,6 +468,9 @@ impl IrGenerator {
                 let val = self.find_variable(ident_def).unwrap();
                 let value = val.get_field_member(*field_index).clone();
                 self.assign_pattern(&value, rhs)?;
+            }
+            LValue::Dereference { .. } => {
+                unreachable!("Mutable references are unsupported in the old ssa backend")
             }
         }
         Ok(Value::dummy())

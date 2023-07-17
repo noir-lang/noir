@@ -91,7 +91,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
 ) -> Result<Option<PathBuf>, CliError<B>> {
     let common_reference_string = read_cached_common_reference_string();
 
-    let (common_reference_string, preprocessed_program) = match circuit_build_path {
+    let (common_reference_string, preprocessed_program, debug_data) = match circuit_build_path {
         Some(circuit_build_path) => {
             let program = read_program_from_file(circuit_build_path)?;
             let common_reference_string = update_common_reference_string(
@@ -100,16 +100,18 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
                 &program.bytecode,
             )
             .map_err(CliError::CommonReferenceStringError)?;
-            (common_reference_string, program)
+            (common_reference_string, program, None)
         }
         None => {
-            let program = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
+            let (program, context) =
+                compile_circuit(backend, program_dir.as_ref(), compile_options)?;
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
-            let program = preprocess_program(backend, &common_reference_string, program)
-                .map_err(CliError::ProofSystemCompilerError)?;
-            (common_reference_string, program)
+            let (program, debug) =
+                preprocess_program(backend, true, &common_reference_string, program)
+                    .map_err(CliError::ProofSystemCompilerError)?;
+            (common_reference_string, program, Some((debug, context)))
         }
     };
 
@@ -122,7 +124,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     let (inputs_map, _) =
         read_inputs_from_file(&program_dir, prover_name.as_str(), Format::Toml, &abi)?;
 
-    let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map)?;
+    let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map, debug_data)?;
 
     // Write public inputs into Verifier.toml
     let public_abi = abi.public_abi();
@@ -131,10 +133,14 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     write_inputs_to_file(
         &public_inputs,
         &return_value,
+        &public_abi,
         &program_dir,
         verifier_name.as_str(),
         Format::Toml,
     )?;
+
+    let proving_key =
+        proving_key.expect("Proving key should exist as `true` is passed to `preprocess_program`");
 
     let proof =
         prove_execution(backend, &common_reference_string, &bytecode, solved_witness, &proving_key)
@@ -142,6 +148,8 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
+        let verification_key = verification_key
+            .expect("Verification key should exist as `true` is passed to `preprocess_program`");
         let valid_proof = verify_proof(
             backend,
             &common_reference_string,

@@ -403,6 +403,7 @@ pub enum LValue {
     Ident(Ident),
     MemberAccess { object: Box<LValue>, field_name: Ident },
     Index { array: Box<LValue>, index: Expression },
+    Dereference(Box<LValue>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -421,6 +422,14 @@ impl Pattern {
         match self {
             Pattern::Identifier(name_ident) => name_ident,
             _ => panic!("only the identifier pattern can return a name"),
+        }
+    }
+
+    pub(crate) fn into_ident(self) -> Ident {
+        match self {
+            Pattern::Identifier(ident) => ident,
+            Pattern::Mutable(pattern, _) => pattern.into_ident(),
+            other => panic!("Pattern::into_ident called on {other} pattern with no identifier"),
         }
     }
 }
@@ -445,6 +454,12 @@ impl LValue {
                 collection: array.as_expression(span),
                 index: index.clone(),
             })),
+            LValue::Dereference(lvalue) => {
+                ExpressionKind::Prefix(Box::new(crate::PrefixExpression {
+                    operator: crate::UnaryOp::Dereference,
+                    rhs: lvalue.as_expression(span),
+                }))
+            }
         };
         Expression::new(kind, span)
     }
@@ -487,6 +502,7 @@ impl Display for LValue {
             LValue::Ident(ident) => ident.fmt(f),
             LValue::MemberAccess { object, field_name } => write!(f, "{object}.{field_name}"),
             LValue::Index { array, index } => write!(f, "{array}[{index}]"),
+            LValue::Dereference(lvalue) => write!(f, "*{lvalue}"),
         }
     }
 }

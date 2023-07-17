@@ -1,11 +1,20 @@
 use std::collections::HashMap;
 
-use acvm::acir::brillig_vm::RegisterIndex;
+use acvm::acir::brillig::RegisterIndex;
 
 use crate::{
-    brillig::brillig_ir::BrilligContext,
-    ssa_refactor::ir::{function::FunctionId, value::ValueId},
+    brillig::brillig_ir::{
+        artifact::{BrilligParameter, Label},
+        BrilligContext,
+    },
+    ssa_refactor::ir::{
+        function::{Function, FunctionId},
+        types::Type,
+        value::ValueId,
+    },
 };
+
+use super::brillig_block::compute_size_of_type;
 
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
@@ -37,5 +46,40 @@ impl FunctionContext {
         self.ssa_value_to_register.insert(value, register);
 
         register
+    }
+
+    /// Creates a function label from a given SSA function id.
+    pub(crate) fn function_id_to_function_label(function_id: FunctionId) -> Label {
+        function_id.to_string()
+    }
+
+    /// Collects the parameters of a given function
+    pub(crate) fn parameters(func: &Function) -> Vec<BrilligParameter> {
+        func.parameters()
+            .iter()
+            .map(|&value_id| {
+                let typ = func.dfg.type_of_value(value_id);
+                match typ {
+                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
+                    Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
+                    _ => unimplemented!("Unsupported function parameter type {typ:?}"),
+                }
+            })
+            .collect()
+    }
+
+    /// Collects the return values of a given function
+    pub(crate) fn return_values(func: &Function) -> Vec<BrilligParameter> {
+        func.returns()
+            .iter()
+            .map(|&value_id| {
+                let typ = func.dfg.type_of_value(value_id);
+                match typ {
+                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
+                    Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
+                    _ => unimplemented!("Unsupported return value type {typ:?}"),
+                }
+            })
+            .collect()
     }
 }

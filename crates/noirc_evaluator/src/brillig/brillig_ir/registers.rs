@@ -1,4 +1,4 @@
-use acvm::acir::brillig_vm::RegisterIndex;
+use acvm::acir::brillig::RegisterIndex;
 
 use super::ReservedRegisters;
 
@@ -34,6 +34,14 @@ impl BrilligRegistersContext {
             // If it couldn't yet be, expand the register space.
             self.next_free_register_index = index + 1;
         }
+    }
+
+    /// Lazily iterate over the used registers,
+    /// counting to next_free_register_index while excluding deallocated and reserved registers.
+    pub(crate) fn used_registers_iter(&self) -> impl Iterator<Item = RegisterIndex> + '_ {
+        (ReservedRegisters::NUM_RESERVED_REGISTERS..self.next_free_register_index)
+            .map(RegisterIndex::from)
+            .filter(|&index| !self.deallocated_registers.contains(&index))
     }
 
     /// Creates a new register.

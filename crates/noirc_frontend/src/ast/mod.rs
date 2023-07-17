@@ -8,6 +8,7 @@ mod expression;
 mod function;
 mod statement;
 mod structure;
+mod traits;
 
 pub use expression::*;
 pub use function::*;
@@ -15,6 +16,7 @@ pub use function::*;
 use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
+pub use traits::*;
 
 use crate::{
     parser::{ParserError, ParserErrorReason},
@@ -39,13 +41,8 @@ pub enum UnresolvedType {
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
-    /// A vector of some element type.
-    /// It is expected the length of the generics is 1 so the inner Vec is technically unnecessary,
-    /// but we keep them all around to verify generic count after parsing for better error messages.
-    ///
-    /// The Span here encompasses the entire type and is used to issue an error if exactly 1
-    /// generic argument is not given.
-    Vec(Vec<UnresolvedType>, Span),
+    /// &mut T
+    MutableReference(Box<UnresolvedType>),
 
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
@@ -112,10 +109,7 @@ impl std::fmt::Display for UnresolvedType {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {ret}", args.join(", "))
             }
-            Vec(args, _span) => {
-                let args = vecmap(args, ToString::to_string);
-                write!(f, "Vec<{}>", args.join(", "))
-            }
+            MutableReference(element) => write!(f, "&mut {element}"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),

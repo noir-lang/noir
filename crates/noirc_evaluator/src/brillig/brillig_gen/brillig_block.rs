@@ -1,6 +1,8 @@
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
+use crate::ssa_refactor::ir::function::FunctionId;
+use crate::ssa_refactor::ir::instruction::Intrinsic;
 use crate::ssa_refactor::ir::types::CompositeType;
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -9,10 +11,12 @@ use crate::ssa_refactor::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
-use acvm::acir::brillig_vm::{BinaryFieldOp, BinaryIntOp, RegisterIndex, RegisterValueOrArray};
+use acvm::acir::brillig::{BinaryFieldOp, BinaryIntOp, HeapArray, RegisterIndex, RegisterOrMemory};
+use acvm::brillig_vm::brillig::HeapVector;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
+use super::brillig_black_box::convert_black_box_call;
 use super::brillig_fn::FunctionContext;
 
 /// Generate the compilation artifacts for compiling a function into brillig bytecode.
@@ -39,7 +43,7 @@ impl<'block> BrilligBlock<'block> {
 
     fn convert_block(&mut self, dfg: &DataFlowGraph) {
         // Add a label for this block
-        let block_label = self.create_block_label(self.block_id);
+        let block_label = self.create_block_label_for_current_function(self.block_id);
         self.brillig_context.enter_context(block_label);
 
         // Convert the block parameters
@@ -57,9 +61,32 @@ impl<'block> BrilligBlock<'block> {
         self.convert_ssa_terminator(terminator_instruction, dfg);
     }
 
-    /// Creates a unique global label for a block
-    fn create_block_label(&self, block_id: BasicBlockId) -> String {
-        format!("{}-{}", self.function_context.function_id, block_id)
+    fn get_bit_size_from_ssa_type(typ: Type) -> u32 {
+        match typ {
+            Type::Numeric(num_type) => match num_type {
+                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => bit_size,
+                NumericType::NativeField => FieldElement::max_num_bits(),
+            },
+            _ => unreachable!("ICE bitwise not on a non numeric type"),
+        }
+    }
+
+    /// Creates a unique global label for a block.
+    ///
+    /// This uses the current functions's function ID and the block ID
+    /// Making the assumption that the block ID passed in belongs to this
+    /// function.
+    fn create_block_label_for_current_function(&self, block_id: BasicBlockId) -> String {
+        Self::create_block_label(self.function_context.function_id, block_id)
+    }
+    /// Creates a unique label for a block using the function Id and the block ID.
+    ///
+    /// We implicitly assume that the function ID and the block ID is enough
+    /// for us to create a unique label across functions and blocks.
+    ///
+    /// This is so that during linking there are no duplicates or labels being overwritten.
+    fn create_block_label(function_id: FunctionId, block_id: BasicBlockId) -> String {
+        format!("{}-{}", function_id, block_id)
     }
 
     /// Converts an SSA terminator instruction into the necessary opcodes.
@@ -74,9 +101,13 @@ impl<'block> BrilligBlock<'block> {
         match terminator_instruction {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.convert_ssa_value(*condition, dfg);
-                self.brillig_context
-                    .jump_if_instruction(condition, self.create_block_label(*then_destination));
-                self.brillig_context.jump_instruction(self.create_block_label(*else_destination));
+                self.brillig_context.jump_if_instruction(
+                    condition,
+                    self.create_block_label_for_current_function(*then_destination),
+                );
+                self.brillig_context.jump_instruction(
+                    self.create_block_label_for_current_function(*else_destination),
+                );
             }
             TerminatorInstruction::Jmp { destination, arguments } => {
                 let target = &dfg[*destination];
@@ -85,7 +116,8 @@ impl<'block> BrilligBlock<'block> {
                     let source = self.convert_ssa_value(*src, dfg);
                     self.brillig_context.mov_instruction(destination, source);
                 }
-                self.brillig_context.jump_instruction(self.create_block_label(*destination));
+                self.brillig_context
+                    .jump_instruction(self.create_block_label_for_current_function(*destination));
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_registers: Vec<_> = return_values
@@ -106,14 +138,11 @@ impl<'block> BrilligBlock<'block> {
                 _ => unreachable!("ICE: Only Param type values should appear in block parameters"),
             };
             match param_type {
-                Type::Numeric(_) => {
+                // Simple parameters and arrays are passed as already filled registers
+                // In the case of arrays, the values should already be in memory and the register should
+                // Be a valid pointer to the array.
+                Type::Numeric(_) | Type::Array(..) | Type::Reference => {
                     self.function_context.get_or_create_register(self.brillig_context, *param_id);
-                }
-                Type::Array(_, size) => {
-                    let pointer_register = self
-                        .function_context
-                        .get_or_create_register(self.brillig_context, *param_id);
-                    self.brillig_context.allocate_fixed_length_array(pointer_register, *size);
                 }
                 _ => {
                     todo!("ICE: Param type not supported")
@@ -139,38 +168,34 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.constrain_instruction(condition);
             }
             Instruction::Allocate => {
-                let value: crate::ssa_refactor::ir::map::Id<Value> =
-                    dfg.instruction_results(instruction_id)[0];
-                self.function_context.get_or_create_register(self.brillig_context, value);
+                let value = dfg.instruction_results(instruction_id)[0];
+                let address_register =
+                    self.function_context.get_or_create_register(self.brillig_context, value);
+                self.brillig_context.allocate_instruction(address_register);
             }
             Instruction::Store { address, value } => {
-                let target_register = self.convert_ssa_value(*address, dfg);
+                let address_register = self.convert_ssa_value(*address, dfg);
                 let source_register = self.convert_ssa_value(*value, dfg);
 
-                self.brillig_context.mov_instruction(target_register, source_register);
+                self.brillig_context.store_instruction(address_register, source_register);
             }
             Instruction::Load { address } => {
                 let target_register = self.function_context.get_or_create_register(
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
                 );
-                let source_register = self.convert_ssa_value(*address, dfg);
+                let address_register = self.convert_ssa_value(*address, dfg);
 
-                self.brillig_context.mov_instruction(target_register, source_register);
+                self.brillig_context.load_instruction(target_register, address_register);
             }
             Instruction::Not(value) => {
-                assert_eq!(
-                    dfg.type_of_value(*value),
-                    Type::bool(),
-                    "not operator can only be applied to boolean values"
-                );
                 let condition = self.convert_ssa_value(*value, dfg);
                 let result_ids = dfg.instruction_results(instruction_id);
                 let result_register = self
                     .function_context
                     .get_or_create_register(self.brillig_context, result_ids[0]);
-
-                self.brillig_context.not_instruction(condition, result_register);
+                let bit_size = Self::get_bit_size_from_ssa_type(dfg.type_of_value(*value));
+                self.brillig_context.not_instruction(condition, bit_size, result_register);
             }
             Instruction::Call { func, arguments } => match &dfg[*func] {
                 Value::ForeignFunction(func_name) => {
@@ -180,7 +205,7 @@ impl<'block> BrilligBlock<'block> {
                         self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
                     });
                     let output_registers = vecmap(result_ids, |value_id| {
-                        self.convert_ssa_value_to_register_value_or_array(*value_id, dfg)
+                        self.allocate_external_call_result(*value_id, dfg)
                     });
 
                     self.brillig_context.foreign_call_instruction(
@@ -188,9 +213,63 @@ impl<'block> BrilligBlock<'block> {
                         &input_registers,
                         &output_registers,
                     );
+
+                    for output_register in output_registers {
+                        if let RegisterOrMemory::HeapVector(HeapVector { size, .. }) =
+                            output_register
+                        {
+                            // Update the stack pointer so that we do not overwrite
+                            // dynamic memory returned from other external calls
+                            self.brillig_context.update_stack_pointer(size);
+                        }
+                        // Single values and allocation of fixed sized arrays has already been handled
+                        // inside of `allocate_external_call_result`
+                    }
+                }
+                Value::Function(func_id) => {
+                    let function_arguments: Vec<RegisterIndex> =
+                        vecmap(arguments, |arg| self.convert_ssa_value(*arg, dfg));
+                    let result_ids = dfg.instruction_results(instruction_id);
+
+                    // Create label for the function that will be called
+                    let label_of_function_to_call =
+                        FunctionContext::function_id_to_function_label(*func_id);
+
+                    let saved_registers =
+                        self.brillig_context.pre_call_save_registers_prep_args(&function_arguments);
+
+                    // Call instruction, which will interpret above registers 0..num args
+                    self.brillig_context.add_external_call_instruction(label_of_function_to_call);
+
+                    // Important: resolve after pre_call_save_registers_prep_args
+                    // This ensures we don't save the results to registers unnecessarily.
+                    let result_registers = vecmap(result_ids, |a| {
+                        self.function_context.get_or_create_register(self.brillig_context, *a)
+                    });
+                    assert!(
+                        !saved_registers.iter().any(|x| result_registers.contains(x)),
+                        "should not save registers used as function results"
+                    );
+                    self.brillig_context
+                        .post_call_prep_returns_load_registers(&result_registers, &saved_registers);
+                }
+                Value::Intrinsic(Intrinsic::BlackBox(bb_func)) => {
+                    let function_arguments = vecmap(arguments, |arg| {
+                        self.convert_ssa_value_to_register_value_or_array(*arg, dfg)
+                    });
+                    let function_results = dfg.instruction_results(instruction_id);
+                    let function_results = vecmap(function_results, |result| {
+                        self.allocate_external_call_result(*result, dfg)
+                    });
+                    convert_black_box_call(
+                        self.brillig_context,
+                        bb_func,
+                        &function_arguments,
+                        &function_results,
+                    );
                 }
                 _ => {
-                    unreachable!("only foreign function calls supported in unconstrained functions")
+                    unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
             },
             Instruction::Truncate { value, .. } => {
@@ -387,14 +466,50 @@ impl<'block> BrilligBlock<'block> {
         &mut self,
         value_id: ValueId,
         dfg: &DataFlowGraph,
-    ) -> RegisterValueOrArray {
+    ) -> RegisterOrMemory {
         let register_index = self.convert_ssa_value(value_id, dfg);
         let typ = dfg[value_id].get_type();
         match typ {
-            Type::Numeric(_) => RegisterValueOrArray::RegisterIndex(register_index),
-            Type::Array(_, size) => RegisterValueOrArray::HeapArray(register_index, size),
+            Type::Numeric(_) => RegisterOrMemory::RegisterIndex(register_index),
+            Type::Array(..) => RegisterOrMemory::HeapArray(HeapArray {
+                pointer: register_index,
+                size: compute_size_of_type(&typ),
+            }),
             _ => {
                 unreachable!("type not supported for conversion into brillig register")
+            }
+        }
+    }
+
+    fn allocate_external_call_result(
+        &mut self,
+        result: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> RegisterOrMemory {
+        let typ = dfg[result].get_type();
+        match typ {
+            Type::Numeric(_) => RegisterOrMemory::RegisterIndex(
+                self.function_context.get_or_create_register(self.brillig_context, result),
+            ),
+            Type::Array(..) => {
+                let pointer =
+                    self.function_context.get_or_create_register(self.brillig_context, result);
+                let array_size_in_memory = compute_size_of_type(&typ);
+                self.brillig_context.allocate_fixed_length_array(pointer, array_size_in_memory);
+                RegisterOrMemory::HeapArray(HeapArray { pointer, size: array_size_in_memory })
+            }
+            Type::Slice(_) => {
+                let pointer =
+                    self.function_context.get_or_create_register(self.brillig_context, result);
+                let array_size_register = self.brillig_context.allocate_register();
+                // Set the pointer to the current stack frame
+                // The stack pointer will then be update by the caller of this method
+                // once the external call is resolved and the array size is known
+                self.brillig_context.set_array_pointer(pointer);
+                RegisterOrMemory::HeapVector(HeapVector { pointer, size: array_size_register })
+            }
+            _ => {
+                unreachable!("ICE: unsupported return type for black box call {typ:?}")
             }
         }
     }
@@ -405,6 +520,18 @@ impl<'block> BrilligBlock<'block> {
 /// This probably should be explicitly casted in SSA to avoid having to coerce at this level.
 pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
     match (lhs_type, rhs_type) {
+        (_, Type::Function) | (Type::Function, _) => {
+            unreachable!("Functions are invalid in binary operations")
+        }
+        (_, Type::Reference) | (Type::Reference, _) => {
+            unreachable!("References are invalid in binary operations")
+        }
+        (_, Type::Array(..)) | (Type::Array(..), _) => {
+            unreachable!("Arrays are invalid in binary operations")
+        }
+        (_, Type::Slice(..)) | (Type::Slice(..), _) => {
+            unreachable!("Arrays are invalid in binary operations")
+        }
         // If either side is a Field constant then, we coerce into the type
         // of the other operand
         (Type::Numeric(NumericType::NativeField), typ)
@@ -417,12 +544,6 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
                 "lhs and rhs types in a binary operation are always the same"
             );
             Type::Numeric(lhs_type)
-        }
-        (lhs_type, rhs_type) => {
-            unreachable!(
-                "ICE: Binary operation between types {:?} and {:?} is not allowed",
-                lhs_type, rhs_type
-            )
         }
     }
 }
@@ -502,7 +623,7 @@ fn compute_size_of_composite_type(typ: &CompositeType) -> usize {
 
 /// Finds out the size of a given SSA type
 /// This is needed to store values in memory
-fn compute_size_of_type(typ: &Type) -> usize {
+pub(crate) fn compute_size_of_type(typ: &Type) -> usize {
     match typ {
         Type::Numeric(_) => 1,
         Type::Array(types, item_count) => compute_size_of_composite_type(types) * item_count,

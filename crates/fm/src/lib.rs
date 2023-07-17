@@ -15,16 +15,6 @@ use std::{
 
 pub const FILE_EXTENSION: &str = "nr";
 
-// XXX: Create a trait for file io
-/// An enum to differentiate between the root file
-/// which the compiler starts at, and the others.
-/// This is so that submodules of the root, can live alongside the
-/// root file as files.
-pub enum FileType {
-    Root,
-    Normal,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VirtualPath(PathBuf);
 
@@ -37,13 +27,22 @@ pub struct FileManager {
 
 impl FileManager {
     // XXX: Maybe use a AsRef<Path> here, for API ergonomics
-    pub fn add_file(&mut self, path_to_file: &Path, file_type: FileType) -> Option<FileId> {
-        let source = file_reader::read_file_to_string(path_to_file).ok()?;
+    pub fn add_file(&mut self, path_to_file: &Path) -> Option<FileId> {
+        // Handle both relative file paths and std/lib virtual paths.
+        let base = Path::new(".").canonicalize().expect("Base path canonicalize failed");
+        let res = path_to_file.canonicalize().unwrap_or_else(|_| path_to_file.to_path_buf());
+        let resolved_path = res.strip_prefix(base).unwrap_or(&res);
 
-        let file_id = self.file_map.add_file(path_to_file.to_path_buf().into(), source);
-        let path_to_file = virtualize_path(path_to_file, file_type);
+        // Check that the resolved path already exists in the file map, if it is, we return it.
+        let path_to_file = virtualize_path(resolved_path);
+        if let Some(file_id) = self.path_to_id.get(&path_to_file) {
+            return Some(*file_id);
+        }
+
+        // Otherwise we add the file
+        let source = file_reader::read_file_to_string(resolved_path).ok()?;
+        let file_id = self.file_map.add_file(resolved_path.to_path_buf().into(), source);
         self.register_path(file_id, path_to_file);
-
         Some(file_id)
     }
 
@@ -61,7 +60,7 @@ impl FileManager {
         // Unwrap as we ensure that all file_id's map to a corresponding file in the file map
         self.file_map.get_file(file_id).unwrap()
     }
-    fn path(&mut self, file_id: FileId) -> &Path {
+    pub fn path(&self, file_id: FileId) -> &Path {
         // Unwrap as we ensure that all file_ids are created by the file manager
         // So all file_ids will points to a corresponding path
         self.id_to_path.get(&file_id).unwrap().0.as_path()
@@ -70,12 +69,16 @@ impl FileManager {
     pub fn resolve_path(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
         let mut candidate_files = Vec::new();
 
-        let dir = self.path(anchor).to_path_buf();
+        let anchor_path = self.path(anchor).to_path_buf();
+        let anchor_dir = anchor_path.parent().unwrap();
 
-        candidate_files.push(dir.join(format!("{mod_name}.{FILE_EXTENSION}")));
+        // First we attempt to look at `base/anchor/mod_name.nr` (child of the anchor)
+        candidate_files.push(anchor_path.join(format!("{mod_name}.{FILE_EXTENSION}")));
+        // If not found, we attempt to look at `base/mod_name.nr` (sibling of the anchor)
+        candidate_files.push(anchor_dir.join(format!("{mod_name}.{FILE_EXTENSION}")));
 
         for candidate in candidate_files.iter() {
-            if let Some(file_id) = self.add_file(candidate, FileType::Normal) {
+            if let Some(file_id) = self.add_file(candidate) {
                 return Ok(file_id);
             }
         }
@@ -85,23 +88,13 @@ impl FileManager {
 }
 
 /// Takes a path to a noir file. This will panic on paths to directories
-/// Returns
-/// For Normal filetypes, given "src/mod.nr" this method returns "src/mod"
-/// For Root filetypes, given "src/mod.nr" this method returns "src"
-fn virtualize_path(path: &Path, file_type: FileType) -> VirtualPath {
-    let mut path = path.to_path_buf();
-    let path = match file_type {
-        FileType::Root => {
-            path.pop();
-            path
-        }
-        FileType::Normal => {
-            let base = path.parent().unwrap();
-            let path_no_ext: PathBuf =
-                path.file_stem().expect("ice: this should have been the path to a file").into();
-            base.join(path_no_ext)
-        }
-    };
+/// Returns the file path with the extension removed
+fn virtualize_path(path: &Path) -> VirtualPath {
+    let path = path.to_path_buf();
+    let base = path.parent().unwrap();
+    let path_no_ext: PathBuf =
+        path.file_stem().expect("ice: this should have been the path to a file").into();
+    let path = base.join(path_no_ext);
     VirtualPath(path)
 }
 #[cfg(test)]
@@ -123,7 +116,7 @@ mod tests {
 
         let mut fm = FileManager::default();
 
-        let file_id = fm.add_file(&file_path, FileType::Root).unwrap();
+        let file_id = fm.add_file(&file_path).unwrap();
 
         let _foo_file_path = dummy_file_path(&dir, "foo.nr");
         fm.resolve_path(file_id, "foo").unwrap();
@@ -135,7 +128,7 @@ mod tests {
 
         let mut fm = FileManager::default();
 
-        let file_id = fm.add_file(&file_path, FileType::Normal).unwrap();
+        let file_id = fm.add_file(&file_path).unwrap();
 
         assert!(fm.path(file_id).ends_with("foo"));
     }
@@ -148,14 +141,13 @@ mod tests {
         // we now have dir/lib.nr
         let file_path = dummy_file_path(&dir, "lib.nr");
 
-        let file_id = fm.add_file(&file_path, FileType::Root).unwrap();
+        let file_id = fm.add_file(&file_path).unwrap();
 
         // Create a sub directory
         // we now have:
         // - dir/lib.nr
         // - dir/sub_dir
         let sub_dir = TempDir::new_in(&dir).unwrap();
-        std::fs::create_dir_all(sub_dir.path()).unwrap();
         let sub_dir_name = sub_dir.path().file_name().unwrap().to_str().unwrap();
 
         // Add foo.nr to the subdirectory
@@ -176,5 +168,29 @@ mod tests {
 
         // Now check for files in it's subdirectory
         fm.resolve_path(sub_dir_file_id, "foo").unwrap();
+    }
+
+    /// Tests that two identical files that have different paths are treated as the same file
+    /// e.g. if we start in the dir ./src and have a file ../../foo.nr
+    /// that should be treated as the same file as ../ starting in ./
+    /// they should both resolve to ../foo.nr
+    #[test]
+    fn path_resolve_modules_with_different_paths_as_same_file() {
+        let mut fm = FileManager::default();
+
+        // Create a lib.nr file at the root.
+        let dir = tempdir().unwrap();
+        let sub_dir = TempDir::new_in(&dir).unwrap();
+        let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
+        let file_path = dummy_file_path(&dir, "lib.nr");
+
+        // Create another file in a subdirectory with a convoluted path
+        let second_file_path = dummy_file_path(&sub_sub_dir, "./../../lib.nr");
+
+        // Add both files to the file manager
+        let file_id = fm.add_file(&file_path).unwrap();
+        let second_file_id = fm.add_file(&second_file_path).unwrap();
+
+        assert_eq!(file_id, second_file_id);
     }
 }
