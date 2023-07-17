@@ -1,12 +1,11 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, Contract, ContractDeployer, Fr, Wallet } from '@aztec/aztec.js';
-import { deployL1Contract } from '@aztec/ethereum';
-import { DeployL1Contracts } from '@aztec/ethereum';
+import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
+import { DeployL1Contracts, deployL1Contract } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
-import { UniswapContractAbi } from '@aztec/noir-contracts/examples';
+import { UniswapContract } from '@aztec/noir-contracts/types';
 import { TxStatus } from '@aztec/types';
 
 import { getContract, parseEther } from 'viem';
@@ -45,7 +44,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
   let uniswapPortal: any;
   let uniswapPortalAddress: EthAddress;
-  let uniswapL2Contract: Contract;
+  let uniswapL2Contract: UniswapContract;
 
   beforeEach(async () => {
     let deployL1ContractsValues: DeployL1Contracts;
@@ -128,12 +127,11 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       publicClient,
     });
     // deploy l2 uniswap contract and attach to portal
-    const deployer = new ContractDeployer(UniswapContractAbi, aztecRpcServer);
-    const tx = deployer.deploy().send({ portalContract: uniswapPortalAddress });
+    const tx = UniswapContract.deploy(aztecRpcServer).send({ portalContract: uniswapPortalAddress });
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();
     expect(receipt.status).toEqual(TxStatus.MINED);
-    uniswapL2Contract = new Contract(receipt.contractAddress!, UniswapContractAbi, wallet);
+    uniswapL2Contract = new UniswapContract(receipt.contractAddress!, wallet);
     await uniswapL2Contract.attach(uniswapPortalAddress);
 
     await uniswapPortal.write.initialize(

@@ -7,9 +7,20 @@
   },
   "references": [
     {
+      "path": "../aztec.js"
+    },
+    {
       "path": "../foundation"
+    },
+    {
+      "path": "../noir-compiler"
     }
   ],
-  "include": ["src", "src/**/*.json"],
-  "exclude": ["src/contracts"]
+  "include": [
+    "src",
+    "src/**/*.json"
+  ],
+  "exclude": [
+    "src/contracts"
+  ]
 }

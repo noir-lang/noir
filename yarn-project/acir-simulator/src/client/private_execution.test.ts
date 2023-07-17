@@ -21,9 +21,9 @@ import { Fr, Point } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { AppendOnlyTree, Pedersen, StandardTree, newTree } from '@aztec/merkle-tree';
 import {
-  ChildAbi,
+  ChildContractAbi,
   NonNativeTokenContractAbi,
-  ParentAbi,
+  ParentContractAbi,
   PendingCommitmentsContractAbi,
   TestContractAbi,
   ZkTokenContractAbi,
@@ -352,15 +352,15 @@ describe('Private Execution test suite', () => {
     const privateIncrement = txContext.chainId.value + txContext.version.value;
     it('child function should be callable', async () => {
       const initialValue = 100n;
-      const abi = ChildAbi.functions.find(f => f.name === 'value')!;
+      const abi = ChildContractAbi.functions.find(f => f.name === 'value')!;
       const result = await runSimulator({ args: [initialValue], abi });
 
       expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(initialValue + privateIncrement));
     });
 
     it('parent should call child', async () => {
-      const childAbi = ChildAbi.functions.find(f => f.name === 'value')!;
-      const parentAbi = ParentAbi.functions.find(f => f.name === 'entryPoint')!;
+      const childAbi = ChildContractAbi.functions.find(f => f.name === 'value')!;
+      const parentAbi = ParentContractAbi.functions.find(f => f.name === 'entryPoint')!;
       const parentAddress = AztecAddress.random();
       const childAddress = AztecAddress.random();
       const childSelector = Buffer.alloc(4, 1); // should match the call
@@ -466,7 +466,7 @@ describe('Private Execution test suite', () => {
 
   describe('enqueued calls', () => {
     it('parent should enqueue call to child', async () => {
-      const parentAbi = ParentAbi.functions.find(f => f.name === 'enqueueCallToChild')!;
+      const parentAbi = ParentContractAbi.functions.find(f => f.name === 'enqueueCallToChild')!;
       const childAddress = AztecAddress.random();
       const childPortalContractAddress = EthAddress.random();
       const childSelector = Buffer.alloc(4, 1); // should match the call

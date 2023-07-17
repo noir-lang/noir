@@ -1,8 +1,8 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, Contract, ContractDeployer, Fr, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
-import { PublicTokenContractAbi } from '@aztec/noir-contracts/examples';
+import { PublicTokenContract } from '@aztec/noir-contracts/types';
 import { L2BlockL2Logs, LogType, TxStatus } from '@aztec/types';
 
 import times from 'lodash.times';
@@ -16,17 +16,16 @@ describe('e2e_public_token_contract', () => {
   let accounts: AztecAddress[];
   let logger: DebugLogger;
 
-  let contract: Contract;
+  let contract: PublicTokenContract;
   const balanceSlot = 1n;
 
   const deployContract = async () => {
     logger(`Deploying L2 public contract...`);
-    const deployer = new ContractDeployer(PublicTokenContractAbi, aztecRpcServer);
-    const tx = deployer.deploy().send();
+    const tx = PublicTokenContract.deploy(aztecRpcServer).send();
 
     logger(`Tx sent with hash ${await tx.getTxHash()}`);
     const receipt = await tx.getReceipt();
-    contract = new Contract(receipt.contractAddress!, PublicTokenContractAbi, wallet);
+    contract = new PublicTokenContract(receipt.contractAddress!, wallet);
     await tx.isMined(0, 0.1);
     const txReceipt = await tx.getReceipt();
     expect(txReceipt.status).toEqual(TxStatus.MINED);

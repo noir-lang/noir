@@ -10,7 +10,7 @@ import { ContractFunctionInteraction } from './contract_function_interaction.js'
  * Type representing a contract method that returns a ContractFunctionInteraction instance
  * and has a readonly 'selector' property of type Buffer. Takes any number of arguments.
  */
-type ContractMethod = ((...args: any[]) => ContractFunctionInteraction) & {
+export type ContractMethod = ((...args: any[]) => ContractFunctionInteraction) & {
   /**
    * The unique identifier for a contract function in bytecode.
    */
@@ -42,7 +42,7 @@ export class Contract {
     /**
      * The wallet.
      */
-    private wallet: Wallet,
+    protected wallet: Wallet,
   ) {
     abi.functions.forEach((f: FunctionAbi) => {
       const interactionFunction = (...args: any[]) => {

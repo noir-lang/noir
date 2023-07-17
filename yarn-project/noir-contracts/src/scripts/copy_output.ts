@@ -1,5 +1,6 @@
 import { ABIParameter, ABIType, FunctionType } from '@aztec/foundation/abi';
 import { createLogger } from '@aztec/foundation/log';
+import { generateType } from '@aztec/noir-compiler';
 
 import { readFileSync, writeFileSync } from 'fs';
 import camelCase from 'lodash.camelcase';
@@ -116,8 +117,13 @@ const main = () => {
 
   const exampleFile = `${examples}/${snakeCase(name)}_contract.json`;
   writeFileSync(exampleFile, JSON.stringify(abi, null, 2) + '\n');
-  writeToProject(abi);
   log(`Written ${exampleFile}`);
+
+  writeToProject(abi);
+
+  const typeFile = `src/types/${name}.ts`;
+  writeFileSync(typeFile, generateType(abi, '../examples/index.js'));
+  log(`Written ${typeFile}`);
 };
 
 try {

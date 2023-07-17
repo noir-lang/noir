@@ -14,8 +14,8 @@ import ZkTokenContractJson from './zk_token_contract.json' assert { type: 'json'
 
 export const TestContractAbi = TestContractJson as ContractAbi;
 export const ZkTokenContractAbi = ZkTokenContractJson as ContractAbi;
-export const ParentAbi = ParentJson as ContractAbi;
-export const ChildAbi = ChildJson as ContractAbi;
+export const ParentContractAbi = ParentJson as ContractAbi;
+export const ChildContractAbi = ChildJson as ContractAbi;
 export const PublicTokenContractAbi = PublicTokenContractJson as ContractAbi;
 export const NonNativeTokenContractAbi = NonNativeTokenContractJson as ContractAbi;
 export const EcdsaAccountContractAbi = EcdsaAccountContractJson as ContractAbi;

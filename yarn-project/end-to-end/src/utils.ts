@@ -23,6 +23,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, Logger, createDebugLogger } from '@aztec/foundation/log';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { NonNativeTokenContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
 import { TxStatus } from '@aztec/types';
 
 import every from 'lodash.every';
@@ -267,7 +268,7 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   await tx.isMined(0, 0.1);
   const receipt = await tx.getReceipt();
   if (receipt.status !== TxStatus.MINED) throw new Error(`Tx status is ${receipt.status}`);
-  const l2Contract = new Contract(receipt.contractAddress!, NonNativeTokenContractAbi, wallet);
+  const l2Contract = new NonNativeTokenContract(receipt.contractAddress!, wallet);
   await l2Contract.attach(tokenPortalAddress);
   const l2TokenAddress = l2Contract.address.toString() as `0x${string}`;
 

@@ -455,7 +455,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/noir-compiler@workspace:noir-compiler":
+"@aztec/noir-compiler@workspace:^, @aztec/noir-compiler@workspace:noir-compiler":
   version: 0.0.0-use.local
   resolution: "@aztec/noir-compiler@workspace:noir-compiler"
   dependencies:
@@ -466,10 +466,12 @@ __metadata:
     "@rushstack/eslint-patch": ^1.1.4
     "@types/fs-extra": ^11.0.1
     "@types/jest": ^29.5.0
+    "@types/lodash.compact": ^3.0.7
     "@types/node": ^18.7.23
     commander: ^9.0.0
     fs-extra: ^11.1.1
     jest: ^29.5.0
+    lodash.compact: ^3.0.1
     toml: ^3.0.0
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
@@ -484,7 +486,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aztec/noir-contracts@workspace:noir-contracts"
   dependencies:
+    "@aztec/aztec.js": "workspace:^"
     "@aztec/foundation": "workspace:^"
+    "@aztec/noir-compiler": "workspace:^"
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
@@ -3174,6 +3178,15 @@ __metadata:
   dependencies:
     "@types/lodash": "*"
   checksum: 20d6a20970b3b54b3c10cf17ace1cea49c4905d7f7cae2575a98108466e8d4c9bea3b3449d11ccaac4da1fc9bab225f477f4c2dbea8ba877cc47f629455efb69
+  languageName: node
+  linkType: hard
+
+"@types/lodash.compact@npm:^3.0.7":
+  version: 3.0.7
+  resolution: "@types/lodash.compact@npm:3.0.7"
+  dependencies:
+    "@types/lodash": "*"
+  checksum: 84871193f72d6609be220ef1ff014574d7c043049afe821d231a1f8eae513aab056b67417dd80f71578c4f7ec30c45286c223dafef138a08b27237a299c45d94
   languageName: node
   linkType: hard
 
@@ -7318,6 +7331,13 @@ __metadata:
   version: 4.5.0
   resolution: "lodash.clonedeep@npm:4.5.0"
   checksum: 92c46f094b064e876a23c97f57f81fbffd5d760bf2d8a1c61d85db6d1e488c66b0384c943abee4f6af7debf5ad4e4282e74ff83177c9e63d8ff081a4837c3489
+  languageName: node
+  linkType: hard
+
+"lodash.compact@npm:^3.0.1":
+  version: 3.0.1
+  resolution: "lodash.compact@npm:3.0.1"
+  checksum: 75039eddfa5ef2ea0da1fc3d36515e92227241f94258b3dcf771196e741c878698ce5b79c0cb7fe758841c9dfd0e6fa222888985aadc0384fd79bbc9680dd829
   languageName: node
   linkType: hard
 

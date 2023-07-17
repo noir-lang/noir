@@ -88,6 +88,7 @@ COPY ethereum/tsconfig.json ethereum/tsconfig.json
 COPY foundation/tsconfig.json foundation/tsconfig.json
 COPY key-store/tsconfig.json key-store/tsconfig.json
 COPY merkle-tree/tsconfig.json merkle-tree/tsconfig.json
+COPY noir-compiler/tsconfig.json noir-compiler/tsconfig.json
 COPY noir-contracts/tsconfig.json noir-contracts/tsconfig.json
 COPY l1-artifacts/tsconfig.json l1-artifacts/tsconfig.json
 COPY circuits.js/tsconfig.json circuits.js/tsconfig.json

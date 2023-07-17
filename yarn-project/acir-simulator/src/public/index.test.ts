@@ -14,9 +14,9 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { toBigInt } from '@aztec/foundation/serialize';
 import {
-  ChildAbi,
+  ChildContractAbi,
   NonNativeTokenContractAbi,
-  ParentAbi,
+  ParentContractAbi,
   PublicTokenContractAbi,
   TestContractAbi,
 } from '@aztec/noir-contracts/examples';
@@ -193,11 +193,11 @@ describe('ACIR public execution simulator', () => {
   describe('Parent/Child contracts', () => {
     it('calls the public entry point in the parent', async () => {
       const parentContractAddress = AztecAddress.random();
-      const parentEntryPointFn = ParentAbi.functions.find(f => f.name === 'pubEntryPoint')!;
+      const parentEntryPointFn = ParentContractAbi.functions.find(f => f.name === 'pubEntryPoint')!;
       const parentEntryPointFnSelector = keccak(Buffer.from(parentEntryPointFn.name)).subarray(0, 4);
 
       const childContractAddress = AztecAddress.random();
-      const childValueFn = ChildAbi.functions.find(f => f.name === 'pubValue')!;
+      const childValueFn = ChildContractAbi.functions.find(f => f.name === 'pubValue')!;
       const childValueFnSelector = keccak(Buffer.from(childValueFn.name)).subarray(0, 4);
 
       const initialValue = 3n;

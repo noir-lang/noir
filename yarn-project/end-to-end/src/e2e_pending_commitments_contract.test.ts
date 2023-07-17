@@ -1,8 +1,8 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, Contract, ContractDeployer, Fr, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
-import { PendingCommitmentsContractAbi } from '@aztec/noir-contracts/examples';
+import { PendingCommitmentsContract } from '@aztec/noir-contracts/types';
 import { TxStatus } from '@aztec/types';
 
 import { setup } from './utils.js';
@@ -14,7 +14,7 @@ describe('e2e_pending_commitments_contract', () => {
   let accounts: AztecAddress[];
   let logger: DebugLogger;
 
-  let contract: Contract;
+  let contract: PendingCommitmentsContract;
 
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
@@ -27,10 +27,9 @@ describe('e2e_pending_commitments_contract', () => {
 
   const deployContract = async () => {
     logger(`Deploying L2 contract...`);
-    const deployer = new ContractDeployer(PendingCommitmentsContractAbi, aztecRpcServer);
-    const tx = deployer.deploy().send();
+    const tx = PendingCommitmentsContract.deploy(aztecRpcServer).send();
     const receipt = await tx.getReceipt();
-    contract = new Contract(receipt.contractAddress!, PendingCommitmentsContractAbi, wallet);
+    contract = new PendingCommitmentsContract(receipt.contractAddress!, wallet);
     await tx.isMined(0, 0.1);
     await tx.getReceipt();
     logger('L2 contract deployed');

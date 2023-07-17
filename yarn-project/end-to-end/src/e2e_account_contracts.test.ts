@@ -2,7 +2,6 @@ import { AztecRPCServer } from '@aztec/aztec-rpc';
 import {
   AccountImplementation,
   AccountWallet,
-  Contract,
   ContractDeployer,
   Fr,
   SingleKeyAccountContract,
@@ -13,7 +12,8 @@ import { AztecAddress, PartialContractAddress, Point, getContractDeploymentInfo 
 import { Ecdsa, Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigInt } from '@aztec/foundation/serialize';
-import { ChildAbi, EcdsaAccountContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { EcdsaAccountContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { ChildContract } from '@aztec/noir-contracts/types';
 import { PublicKey } from '@aztec/types';
 
 import { randomBytes } from 'crypto';
@@ -61,7 +61,7 @@ type CreateAccountImplFn = (
 function itShouldBehaveLikeAnAccountContract(abi: ContractAbi, argsFn: () => any[], createWallet: CreateAccountImplFn) {
   describe(`behaves like an account contract`, () => {
     let context: Awaited<ReturnType<typeof setup>>;
-    let child: Contract;
+    let child: ChildContract;
     let address: AztecAddress;
     let partialAddress: PartialContractAddress;
     let wallet: AccountWallet;
@@ -78,8 +78,8 @@ function itShouldBehaveLikeAnAccountContract(abi: ContractAbi, argsFn: () => any
         createWallet,
       ));
 
-      const { address: childAddress } = await deployContract(aztecRpcServer, Point.random(), ChildAbi, []);
-      child = new Contract(childAddress, ChildAbi, wallet);
+      const { address: childAddress } = await deployContract(aztecRpcServer, Point.random(), ChildContract.abi, []);
+      child = new ChildContract(childAddress, wallet);
     }, 60_000);
 
     afterEach(async () => {
@@ -107,7 +107,7 @@ function itShouldBehaveLikeAnAccountContract(abi: ContractAbi, argsFn: () => any
         context.aztecRpcServer,
         await createWallet(address, partialAddress, randomBytes(32)),
       );
-      const childWithInvalidWallet = new Contract(child.address, child.abi, invalidWallet);
+      const childWithInvalidWallet = new ChildContract(child.address, invalidWallet);
       await expect(childWithInvalidWallet.methods.value(42).simulate()).rejects.toThrowError(
         /could not satisfy all constraints/,
       );

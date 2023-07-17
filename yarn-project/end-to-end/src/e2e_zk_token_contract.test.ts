@@ -1,8 +1,8 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, Contract, ContractDeployer, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
-import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
+import { ZkTokenContract } from '@aztec/noir-contracts/types';
 import { L2BlockL2Logs, LogType, TxStatus } from '@aztec/types';
 
 import { setup } from './utils.js';
@@ -14,7 +14,7 @@ describe('e2e_zk_token_contract', () => {
   let accounts: AztecAddress[];
   let logger: DebugLogger;
 
-  let contract: Contract;
+  let contract: ZkTokenContract;
 
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
@@ -50,10 +50,9 @@ describe('e2e_zk_token_contract', () => {
 
   const deployContract = async (initialBalance = 0n, owner = { x: 0n, y: 0n }) => {
     logger(`Deploying L2 contract...`);
-    const deployer = new ContractDeployer(ZkTokenContractAbi, aztecRpcServer);
-    const tx = deployer.deploy(initialBalance, owner).send();
+    const tx = ZkTokenContract.deploy(aztecRpcServer, initialBalance, owner).send();
     const receipt = await tx.getReceipt();
-    contract = new Contract(receipt.contractAddress!, ZkTokenContractAbi, wallet);
+    contract = new ZkTokenContract(receipt.contractAddress!, wallet);
     await tx.isMined(0, 0.1);
     const minedReceipt = await tx.getReceipt();
     expect(minedReceipt.status).toEqual(TxStatus.MINED);

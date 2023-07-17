@@ -253,7 +253,9 @@
       "^yarn-project/noir-contracts/"
     ],
     "dependencies": [
-      "foundation"
+      "aztec.js",
+      "foundation",
+      "noir-compiler"
     ]
   },
   "noir-compiler": {
