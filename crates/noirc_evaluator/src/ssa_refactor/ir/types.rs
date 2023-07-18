@@ -61,6 +61,24 @@ impl Type {
     pub(crate) fn field() -> Type {
         Type::Numeric(NumericType::NativeField)
     }
+
+    /// Arrays are a subtype of slice
+    pub(crate) fn is(&self, another: &Type) -> bool {
+        match (self, another) {
+            (Type::Array(item_typ, _), Type::Slice(another_item_typ)) => {
+                item_typ == another_item_typ
+            }
+            (_, _) => self == another,
+        }
+    }
+
+    // Cast a type to another if possible
+    pub(crate) fn cast_to(&self, another: &Type) -> Option<Type> {
+        if self.is(another) {
+            return Some(another.clone());
+        }
+        None
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.
