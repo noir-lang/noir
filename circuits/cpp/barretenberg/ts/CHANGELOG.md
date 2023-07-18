@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.2...barretenberg.js-v0.3.3) (2023-07-17)
+
+
+### Features
+
+* Bb and bb.js directly parse nargo bincode format. ([#610](https://github.com/AztecProtocol/barretenberg/issues/610)) ([d25e37a](https://github.com/AztecProtocol/barretenberg/commit/d25e37ad74b88dc45337b2a529ede3136dd4a699))
+
 ## [0.3.2](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.1...barretenberg.js-v0.3.2) (2023-07-12)
 
 
