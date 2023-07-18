@@ -19,6 +19,8 @@ pub enum LexerErrorKind {
     TooManyBits { span: Span, max: u32, got: u32 },
     #[error("LogicalAnd used instead of bitwise and")]
     LogicalAnd { span: Span },
+    #[error("Unterminated block comment")]
+    UnterminatedBlockComment { span: Span },
 }
 
 impl LexerErrorKind {
@@ -30,6 +32,7 @@ impl LexerErrorKind {
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
             LexerErrorKind::TooManyBits { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
+            LexerErrorKind::UnterminatedBlockComment { span } => *span,
         }
     }
 
@@ -77,6 +80,7 @@ impl LexerErrorKind {
                 "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
                 *span,
             ),
+            LexerErrorKind::UnterminatedBlockComment { span } => ("unterminated block comment".to_string(), "Unterminated block comment".to_string(), *span),
         }
     }
 }

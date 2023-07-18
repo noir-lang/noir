@@ -339,6 +339,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn parse_block_comment(&mut self) -> SpannedTokenResult {
+        let span = Span::new(self.position..self.position + 1);
         let mut depth = 1usize;
 
         while let Some(ch) = self.next_char() {
@@ -352,6 +353,8 @@ impl<'a> Lexer<'a> {
                     depth -= 1;
 
                     // This block comment is closed, so for a construction like "/* */ */"
+                    // there will be a successfully parsed block comment "/* */"
+                    // and " */" will be processed separately.
                     if depth == 0 {
                         break;
                     }
@@ -360,7 +363,11 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        self.next_token()
+        if depth == 0 {
+            self.next_token()
+        } else {
+            Err(LexerErrorKind::UnterminatedBlockComment { span })
+        }
     }
 
     /// Skips white space. They are not significant in the source language
@@ -495,6 +502,16 @@ fn test_arithmetic_sugar() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
     }
+}
+
+#[test]
+fn unterminated_block_comment() {
+    let input = "/*/";
+
+    let mut lexer = Lexer::new(input);
+    let token = lexer.next().unwrap();
+
+    assert!(token.is_err());
 }
 
 #[test]
