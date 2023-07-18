@@ -754,8 +754,10 @@ impl Context {
                     }
                 }
                 // Generate the sorted output variables
-                let out_vars =
-                    self.acir_context.sort(input_vars, bit_size).expect("Could not sort");
+                let out_vars = self
+                    .acir_context
+                    .sort(input_vars, bit_size, self.current_side_effects_enabled_var)
+                    .expect("Could not sort");
 
                 Ok(Self::convert_vars_to_values(out_vars, dfg, result_ids))
             }
