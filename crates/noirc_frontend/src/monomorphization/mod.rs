@@ -551,14 +551,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             let definition = Definition::Local(id);
             let mutable = false;
-            ast::Expression::Ident(ast::Ident {
-                definition,
-                mutable,
-                location: None,
-                definition_id: None,
-                name,
-                typ,
-            })
+            ast::Expression::Ident(ast::Ident { definition, mutable, location: None, name, typ })
         });
 
         // Finally we can return the created Tuple from the new block
@@ -634,14 +627,8 @@ impl<'interner> Monomorphizer<'interner> {
             let typ = self.convert_type(&field_type);
 
             // TODO: may be a cause of bugs
-            let new_rhs = ast::Expression::Ident(ast::Ident {
-                location,
-                mutable,
-                definition,
-                definition_id: None,
-                name,
-                typ,
-            });
+            let new_rhs =
+                ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ });
 
             let new_rhs = ast::Expression::ExtractTupleField(Box::new(new_rhs), i);
             let new_expr = self.unpack_pattern(field_pattern, new_rhs, &field_type);
@@ -660,14 +647,7 @@ impl<'interner> Monomorphizer<'interner> {
         let definition = self.lookup_local(ident.id)?;
         let typ = self.convert_type(&self.interner.id_type(ident.id));
 
-        Some(ast::Ident {
-            location: Some(ident.location),
-            mutable,
-            definition,
-            definition_id: Some(ident.id),
-            name,
-            typ,
-        })
+        Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ })
     }
 
     fn ident(&mut self, ident: HirIdent, expr_id: node_interner::ExprId) -> ast::Expression {
@@ -681,14 +661,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
                 let typ = self.convert_type(&typ);
-                let ident = ast::Ident {
-                    location,
-                    mutable,
-                    definition,
-                    definition_id: Some(ident.id),
-                    name,
-                    typ,
-                };
+                let ident = ast::Ident { location, mutable, definition, name, typ };
                 ast::Expression::Ident(ident)
             }
             DefinitionKind::Global(expr_id) => self.expr(*expr_id),
@@ -1096,7 +1069,6 @@ impl<'interner> Monomorphizer<'interner> {
         let name = lambda_name.to_owned();
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
-            definition_id: None,
             mutable: false,
             location: None,
             name,
@@ -1180,7 +1152,6 @@ impl<'interner> Monomorphizer<'interner> {
 
         ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
-            definition_id: None,
             mutable: false,
             location: None,
             name: lambda_name.to_owned(),

@@ -61,7 +61,6 @@ pub struct FuncId(pub u32);
 pub struct Ident {
     pub location: Option<Location>,
     pub definition: Definition,
-    pub definition_id: Option<DefinitionId>,
     pub mutable: bool,
     pub name: String,
     pub typ: Type,
