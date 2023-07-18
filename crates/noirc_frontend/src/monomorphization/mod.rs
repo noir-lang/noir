@@ -282,6 +282,7 @@ impl<'interner> Monomorphizer<'interner> {
                     self.repeated_array(repeated_element, length)
                 }
             },
+            HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
             HirExpression::Block(block) => self.block(block.0),
 
             HirExpression::Prefix(prefix) => ast::Expression::Unary(ast::Unary {

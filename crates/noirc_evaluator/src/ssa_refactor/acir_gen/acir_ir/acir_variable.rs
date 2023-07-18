@@ -124,6 +124,10 @@ impl AcirContext {
         self.add_data(var_data)
     }
 
+    pub(crate) fn get_location(&mut self) -> Option<Location> {
+        self.acir_ir.current_location
+    }
+
     pub(crate) fn set_location(&mut self, location: Option<Location>) {
         self.acir_ir.current_location = location;
     }
@@ -271,7 +275,11 @@ impl AcirContext {
                 Ok(())
             } else {
                 // Constraint is always false - this program is unprovable
-                Err(AcirGenError::BadConstantEquality { lhs: *lhs_const, rhs: *rhs_const })
+                Err(AcirGenError::BadConstantEquality {
+                    lhs: *lhs_const,
+                    rhs: *rhs_const,
+                    location: self.get_location(),
+                })
             }
         } else {
             self.acir_ir.assert_is_zero(
@@ -861,12 +869,14 @@ impl AcirContext {
         let outputs_var = vecmap(&outputs_witness, |witness_index| {
             self.add_data(AcirVarData::Witness(*witness_index))
         });
+
+        // Enforce the outputs to be a permutation of the inputs
+        self.acir_ir.permutation(&inputs_expr, &output_expr);
+
         // Enforce the outputs to be sorted
         for i in 0..(outputs_var.len() - 1) {
             self.less_than_constrain(outputs_var[i], outputs_var[i + 1], bit_size, None)?;
         }
-        // Enforce the outputs to be a permutation of the inputs
-        self.acir_ir.permutation(&inputs_expr, &output_expr);
 
         Ok(outputs_var)
     }

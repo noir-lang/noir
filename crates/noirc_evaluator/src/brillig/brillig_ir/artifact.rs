@@ -9,6 +9,9 @@ pub(crate) enum BrilligParameter {
     Register,
     // A heap array is filled in memory and a pointer to the first element is passed in the register.
     HeapArray(usize),
+    // A heap vector is filled in memory and two registers are passed in, the pointer to the first element
+    // and the length of the vector
+    HeapVector,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -114,6 +117,9 @@ impl BrilligArtifact {
             .map(|arg| match arg {
                 BrilligParameter::Register => 0,
                 BrilligParameter::HeapArray(size) => *size,
+                BrilligParameter::HeapVector => {
+                    unreachable!("ICE: Heap vectors cannot be passed as entry point arguments")
+                }
             })
             .sum::<usize>();
 

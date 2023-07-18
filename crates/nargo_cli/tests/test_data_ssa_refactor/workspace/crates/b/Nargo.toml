@@ -1,4 +1,5 @@
 [package]
+name = "b"
 authors = [""]
 compiler_version = "0.8.0"
 

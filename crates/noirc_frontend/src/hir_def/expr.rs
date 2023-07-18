@@ -81,6 +81,7 @@ pub enum HirLiteral {
     Integer(FieldElement),
     Str(String),
     FmtStr(String, Vec<HirIdent>),
+    Unit,
 }
 
 #[derive(Debug, Clone)]

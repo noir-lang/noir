@@ -71,7 +71,10 @@ impl Context {
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries which will do nothing
-        if self.crate_graph[*crate_id].crate_type == CrateType::Binary {
+        if matches!(
+            self.crate_graph[*crate_id].crate_type,
+            CrateType::Binary | CrateType::Workspace
+        ) {
             // All Binaries should have a main function
             local_crate.main_function()
         } else {

@@ -8,7 +8,7 @@ use fm::FileId;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
-use noirc_frontend::graph::{CrateId, CrateName, CrateType, LOCAL_CRATE};
+use noirc_frontend::graph::{CrateId, CrateName, CrateType};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
@@ -69,8 +69,8 @@ pub fn compile_file(
     context: &mut Context,
     root_file: PathBuf,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    create_local_crate(context, root_file, CrateType::Binary);
-    compile_main(context, &CompileOptions::default())
+    let crate_id = create_local_crate(context, root_file, CrateType::Binary);
+    compile_main(context, crate_id, &CompileOptions::default())
 }
 
 /// Adds the File with the local crate root to the file system
@@ -87,11 +87,7 @@ pub fn create_local_crate<P: AsRef<Path>>(
     let dir_path = root_file.as_ref().to_path_buf();
     let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
 
-    let crate_id = context.crate_graph.add_crate_root(crate_type, root_file_id);
-
-    assert!(crate_id == LOCAL_CRATE);
-
-    LOCAL_CRATE
+    context.crate_graph.add_crate_root(crate_type, root_file_id)
 }
 
 /// Creates a Non Local Crate. A Non Local Crate is any crate which is the not the crate that
@@ -103,9 +99,6 @@ pub fn create_non_local_crate<P: AsRef<Path>>(
 ) -> CrateId {
     let dir_path = root_file.as_ref().to_path_buf();
     let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
-
-    // The first crate is always the local crate
-    assert!(context.crate_graph.number_of_crates() != 0);
 
     // You can add any crate type to the crate graph
     // but you cannot depend on Binaries
@@ -151,6 +144,7 @@ pub fn propagate_dep(
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
 pub fn check_crate(
     context: &mut Context,
+    crate_id: CrateId,
     deny_warnings: bool,
     experimental_ssa: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
@@ -160,20 +154,24 @@ pub fn check_crate(
     // parts of the code expect the `0` FileID to be the crate root. See also #1681
     let std_crate_name = "std";
     let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
-    let std_crate = create_non_local_crate(context, path_to_std_lib_file, CrateType::Library);
+    let root_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
+
+    // You can add any crate type to the crate graph
+    // but you cannot depend on Binaries
+    let std_crate = context.crate_graph.add_stdlib(CrateType::Library, root_file_id);
     propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
 
     context.def_interner.experimental_ssa = experimental_ssa;
 
     let mut errors = vec![];
-    match context.crate_graph.crate_type(LOCAL_CRATE) {
+    match context.crate_graph.crate_type(crate_id) {
         CrateType::Workspace => {
             let keys: Vec<_> = context.crate_graph.iter_keys().collect(); // avoid borrow checker
             for crate_id in keys {
                 CrateDefMap::collect_defs(crate_id, context, &mut errors);
             }
         }
-        _ => CrateDefMap::collect_defs(LOCAL_CRATE, context, &mut errors),
+        _ => CrateDefMap::collect_defs(crate_id, context, &mut errors),
     }
 
     if has_errors(&errors, deny_warnings) {
@@ -183,8 +181,11 @@ pub fn check_crate(
     }
 }
 
-pub fn compute_function_signature(context: &Context) -> Option<FunctionSignature> {
-    let main_function = context.get_main_function(&LOCAL_CRATE)?;
+pub fn compute_function_signature(
+    context: &Context,
+    crate_id: &CrateId,
+) -> Option<FunctionSignature> {
+    let main_function = context.get_main_function(crate_id)?;
 
     let func_meta = context.def_interner.function_meta(&main_function);
 
@@ -197,11 +198,12 @@ pub fn compute_function_signature(context: &Context) -> Option<FunctionSignature
 /// On error this returns the non-empty list of warnings and errors.
 pub fn compile_main(
     context: &mut Context,
+    crate_id: CrateId,
     options: &CompileOptions,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, options.deny_warnings, options.experimental_ssa)?;
+    let warnings = check_crate(context, crate_id, options.deny_warnings, options.experimental_ssa)?;
 
-    let main = match context.get_main_function(&LOCAL_CRATE) {
+    let main = match context.get_main_function(&crate_id) {
         Some(m) => m,
         None => {
             let err = FileDiagnostic {
@@ -225,11 +227,12 @@ pub fn compile_main(
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
 pub fn compile_contracts(
     context: &mut Context,
+    crate_id: CrateId,
     options: &CompileOptions,
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, options.deny_warnings, options.experimental_ssa)?;
+    let warnings = check_crate(context, crate_id, options.deny_warnings, options.experimental_ssa)?;
 
-    let contracts = context.get_all_contracts(&LOCAL_CRATE);
+    let contracts = context.get_all_contracts(&crate_id);
     let mut compiled_contracts = vec![];
     let mut errors = warnings;
 

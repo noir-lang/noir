@@ -10,7 +10,7 @@ exclude_array=($exclude_dirs)
 fail_array=($fail_dirs)
 
 # Merge exclude and fail arrays
-exclude_fail_dirs=("${exclude_array[@]}" "${fail_array[@]}")
+exclude_fail_dirs=("${exclude_array[@]}" "${fail_array[@]}" "workspace")
 
 # Loop over every directory
 for dir in ./*; do

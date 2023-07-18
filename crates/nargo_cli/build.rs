@@ -102,7 +102,7 @@ fn prove_and_verify_{test_sub_dir}_{test_name}() {{
     if {experimental_ssa} {{
         cmd.arg("--experimental-ssa");
     }};
-    
+
 
     if {should_fail} {{
         cmd.assert().failure();

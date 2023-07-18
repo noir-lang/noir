@@ -49,6 +49,9 @@ pub(crate) struct ProveCommand {
 
     #[clap(flatten)]
     compile_options: CompileOptions,
+
+    #[clap(long)]
+    package: Option<String>,
 }
 
 pub(crate) fn run<B: Backend>(
@@ -67,6 +70,7 @@ pub(crate) fn run<B: Backend>(
         args.proof_name,
         args.prover_name,
         args.verifier_name,
+        args.package,
         config.program_dir,
         proof_dir,
         circuit_build_path,
@@ -83,6 +87,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
     proof_name: Option<String>,
     prover_name: String,
     verifier_name: String,
+    package: Option<String>,
     program_dir: P,
     proof_dir: P,
     circuit_build_path: Option<PathBuf>,
@@ -104,7 +109,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         }
         None => {
             let (program, context) =
-                compile_circuit(backend, program_dir.as_ref(), compile_options)?;
+                compile_circuit(backend, package, program_dir.as_ref(), compile_options)?;
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;

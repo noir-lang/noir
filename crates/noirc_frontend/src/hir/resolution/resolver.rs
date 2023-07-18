@@ -888,7 +888,8 @@ impl<'a> Resolver<'a> {
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
-                Literal::Str(string) => HirLiteral::Str(string),
+                Literal::Str(str) => HirLiteral::Str(str),
+                Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
                 // If the Path is being used as an Expression, then it is referring to a global from a separate module

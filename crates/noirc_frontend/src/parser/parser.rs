@@ -35,9 +35,9 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirStruct, NoirTrait,
-    Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem, TraitItem,
-    TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct,
+    NoirTrait, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
+    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -788,6 +788,7 @@ fn parse_type_inner(
         string_type(),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
+        recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser),
@@ -893,7 +894,13 @@ where
     T: NoirParser<UnresolvedType>,
 {
     let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
-    parenthesized(fields).map(UnresolvedType::Tuple)
+    parenthesized(fields).map(|fields| {
+        if fields.is_empty() {
+            UnresolvedType::Unit
+        } else {
+            UnresolvedType::Tuple(fields)
+        }
+    })
 }
 
 fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -1303,8 +1310,14 @@ fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
 where
     P: ExprParser,
 {
-    parenthesized(expression_list(expr_parser))
-        .map_with_span(|elements, span| Expression::new(ExpressionKind::Tuple(elements), span))
+    parenthesized(expression_list(expr_parser)).map_with_span(|elements, span| {
+        let kind = if elements.is_empty() {
+            ExpressionKind::Literal(Literal::Unit)
+        } else {
+            ExpressionKind::Tuple(elements)
+        };
+        Expression::new(kind, span)
+    })
 }
 
 fn field_name() -> impl NoirParser<Ident> {
@@ -1531,6 +1544,19 @@ mod test {
     fn parse_block() {
         parse_with(block(expression()), "{ [0,1,2,3,4] }").unwrap();
 
+        // Regression for #1310: this should be parsed as a block and not a function call
+        let res = parse_with(block(expression()), "{ if true { 1 } else { 2 } (3, 4) }").unwrap();
+        match unwrap_expr(res.0.last().unwrap()) {
+            // The `if` followed by a tuple is currently creates a block around both in case
+            // there was none to start with, so there is an extra block here.
+            ExpressionKind::Block(block) => {
+                assert_eq!(block.0.len(), 2);
+                assert!(matches!(unwrap_expr(&block.0[0]), ExpressionKind::If(_)));
+                assert!(matches!(unwrap_expr(&block.0[1]), ExpressionKind::Tuple(_)));
+            }
+            _ => unreachable!(),
+        }
+
         parse_all_failing(
             block(expression()),
             vec![
@@ -1542,6 +1568,14 @@ mod test {
                 "[[0,1,2,3,4]}",
             ],
         );
+    }
+
+    /// Extract an Statement::Expression from a statement or panic
+    fn unwrap_expr(stmt: &Statement) -> &ExpressionKind {
+        match stmt {
+            Statement::Expression(expr) => &expr.kind,
+            _ => unreachable!(),
+        }
     }
 
     /// Deprecated constrain usage test

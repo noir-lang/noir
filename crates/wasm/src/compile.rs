@@ -89,12 +89,13 @@ pub fn compile(args: JsValue) -> JsValue {
         add_noir_lib(&mut context, dependency.as_str());
     }
 
-    check_crate(&mut context, false, false).expect("Crate check failed");
+    check_crate(&mut context, crate_id, false, false).expect("Crate check failed");
 
     if options.contracts {
-        let compiled_contracts = compile_contracts(&mut context, &options.compile_options)
-            .expect("Contract compilation failed")
-            .0;
+        let compiled_contracts =
+            compile_contracts(&mut context, crate_id, &options.compile_options)
+                .expect("Contract compilation failed")
+                .0;
 
         let optimized_contracts: Vec<CompiledContract> =
             compiled_contracts.into_iter().map(optimize_contract).collect();
