@@ -87,33 +87,33 @@ struct CachedDep {
 pub(crate) fn resolve_root_manifest(
     dir_path: &std::path::Path,
     package: Option<String>,
-) -> Result<Context, DependencyResolutionError> {
+) -> Result<(Context, CrateId), DependencyResolutionError> {
     let mut context = Context::default();
 
     let manifest_path = super::find_package_manifest(dir_path)?;
     let manifest = super::manifest::parse(&manifest_path)?;
 
-    match manifest {
-        Manifest::Package(inner) => {
+    let crate_id = match manifest {
+        Manifest::Package(package) => {
             let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
 
             let crate_id = create_local_crate(&mut context, entry_path, crate_type);
             let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
 
-            resolve_package_manifest(&mut context, crate_id, inner, pkg_root)?;
+            resolve_package_manifest(&mut context, crate_id, package, pkg_root)?;
+
+            crate_id
         }
-        Manifest::Workspace(workspace) => {
-            resolve_workspace_manifest(
-                &mut context,
-                package,
-                manifest_path,
-                dir_path,
-                workspace.config,
-            )?;
-        }
+        Manifest::Workspace(workspace) => resolve_workspace_manifest(
+            &mut context,
+            package,
+            manifest_path,
+            dir_path,
+            workspace.config,
+        )?,
     };
 
-    Ok(context)
+    Ok((context, crate_id))
 }
 
 // Resolves a config file by recursively resolving the dependencies in the config
@@ -169,7 +169,7 @@ fn resolve_workspace_manifest(
     manifest_path: PathBuf,
     dir_path: &Path,
     workspace: WorkspaceConfig,
-) -> Result<(), DependencyResolutionError> {
+) -> Result<CrateId, DependencyResolutionError> {
     let members = workspace.members;
     let mut packages = HashMap::new();
 
@@ -222,14 +222,14 @@ fn resolve_workspace_manifest(
         .ok_or_else(|| DependencyResolutionError::PackageNotFound(crate_name(local_package)))?;
 
     let (entry_path, _crate_type) = super::lib_or_bin(local_crate)?;
-    create_local_crate(context, entry_path, CrateType::Workspace);
+    let crate_id = create_local_crate(context, entry_path, CrateType::Workspace);
 
     for (_, package_path) in packages.drain() {
         let (entry_path, crate_type) = super::lib_or_bin(package_path)?;
         create_non_local_crate(context, entry_path, crate_type);
     }
 
-    Ok(())
+    Ok(crate_id)
 }
 
 /// If the dependency is remote, download the dependency

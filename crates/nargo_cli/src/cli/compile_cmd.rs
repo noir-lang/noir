@@ -57,9 +57,9 @@ pub(crate) fn run<B: Backend>(
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
-        let mut context = resolve_root_manifest(&config.program_dir, None)?;
+        let (mut context, crate_id) = resolve_root_manifest(&config.program_dir, None)?;
 
-        let result = compile_contracts(&mut context, &args.compile_options);
+        let result = compile_contracts(&mut context, crate_id, &args.compile_options);
         let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
 
         // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
@@ -124,8 +124,8 @@ pub(crate) fn compile_circuit<B: Backend>(
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(CompiledProgram, Context), CliError<B>> {
-    let mut context = resolve_root_manifest(program_dir, package)?;
-    let result = compile_main(&mut context, compile_options);
+    let (mut context, crate_id) = resolve_root_manifest(program_dir, package)?;
+    let result = compile_main(&mut context, crate_id, compile_options);
     let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
 
     // Apply backend specific optimizations.

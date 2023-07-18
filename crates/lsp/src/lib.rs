@@ -171,7 +171,7 @@ fn on_code_lens_request(
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut context, false, false);
+    let _ = check_crate(&mut context, crate_id, false, false);
 
     let fm = &context.file_manager;
     let files = fm.as_simple_files();
@@ -254,11 +254,11 @@ fn on_did_save_text_document(
 
     let mut context = Context::default();
 
-    create_local_crate(&mut context, file_path, CrateType::Binary);
+    let crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
 
     let mut diagnostics = Vec::new();
 
-    let file_diagnostics = match check_crate(&mut context, false, false) {
+    let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
         Ok(warnings) => warnings,
         Err(errors_and_warnings) => errors_and_warnings,
     };
