@@ -40,7 +40,6 @@ pub(crate) enum Intrinsic {
     SliceInsert,
     SliceRemove,
     Println,
-    PrintlnNew,
     ToBits(Endian),
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
@@ -50,7 +49,6 @@ impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Intrinsic::Println => write!(f, "println"),
-            Intrinsic::PrintlnNew => write!(f, "println_new"),
             Intrinsic::Sort => write!(f, "arraysort"),
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
@@ -74,8 +72,6 @@ impl Intrinsic {
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
             "println" => Some(Intrinsic::Println),
-            // TODO: replace for new SSA the old println w/ this one
-            "println_new" => Some(Intrinsic::PrintlnNew),
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
@@ -502,10 +498,6 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
             } else {
                 None
             }
-        }
-        Intrinsic::PrintlnNew => {
-            dbg!(constant_args.clone());
-            None
         }
         Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,
     }

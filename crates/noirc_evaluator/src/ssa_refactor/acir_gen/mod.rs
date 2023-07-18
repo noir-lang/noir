@@ -741,7 +741,6 @@ impl Context {
 
                 Self::convert_vars_to_values(out_vars, dfg, result_ids)
             }
-            Intrinsic::PrintlnNew => Vec::new(),
             _ => todo!("expected a black box function"),
         }
     }
