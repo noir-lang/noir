@@ -244,7 +244,7 @@ impl<'a> Lexer<'a> {
             '0'..='9' => self.eat_digit(initial_char),
             _ => Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
-                found: initial_char,
+                found: initial_char.into(),
                 expected: "an alpha numeric character".to_owned(),
             }),
         }
@@ -254,7 +254,7 @@ impl<'a> Lexer<'a> {
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
-                found: self.next_char().unwrap(),
+                found: self.next_char(),
                 expected: "[".to_owned(),
             });
         }
@@ -269,7 +269,7 @@ impl<'a> Lexer<'a> {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
                 expected: "]".to_owned(),
-                found: self.next_char().unwrap(),
+                found: self.next_char(),
             });
         }
         self.next_char();
@@ -425,6 +425,15 @@ fn test_single_double_char() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
     }
+}
+
+#[test]
+fn invalid_attribute() {
+    let input = "#";
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap();
+    assert!(token.is_err());
 }
 
 #[test]

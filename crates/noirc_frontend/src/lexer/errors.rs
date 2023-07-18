@@ -8,7 +8,7 @@ use thiserror::Error;
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum LexerErrorKind {
     #[error("An unexpected character {:?} was found.", found)]
-    UnexpectedCharacter { span: Span, expected: String, found: char },
+    UnexpectedCharacter { span: Span, expected: String, found: Option<char> },
     #[error("NotADoubleChar : {:?} is not a double char token", found)]
     NotADoubleChar { span: Span, found: Token },
     #[error("InvalidIntegerLiteral : {:?} is not a integer", found)]
@@ -39,11 +39,15 @@ impl LexerErrorKind {
                 span,
                 expected,
                 found,
-            } => (
-                "an unexpected character was found".to_string(),
-                format!(" expected {expected} , but got {found}"),
-                *span,
-            ),
+            } => {
+                let found: String = found.map(Into::into).unwrap_or_else(|| "<eof>".into());
+
+                (
+                    "an unexpected character was found".to_string(),
+                    format!(" expected {expected} , but got {}", found),
+                    *span,
+                )
+            },
             LexerErrorKind::NotADoubleChar { span, found } => (
                 format!("tried to parse {found} as double char"),
                 format!(
