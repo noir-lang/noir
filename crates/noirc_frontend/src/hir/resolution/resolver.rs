@@ -894,10 +894,7 @@ impl<'a> Resolver<'a> {
                         for field in re.find_iter(&string) {
                             let matched_str = field.as_str();
                             let ident_name = matched_str[1..(matched_str.len() - 1)].to_owned();
-                            dbg!(ident_name.clone());
-                            // let scope = self.scopes.get_mut_scope();
-                            // TODO: switch this away from an expect to an actual resolver error
-                            // let old_value = scope.find(&ident_name).expect("ICE: variable undeclared");
+
                             let scope_tree = self.scopes.current_scope_tree();
                             let variable = scope_tree.find(&ident_name);
                             if let Some((old_value, _)) = variable {

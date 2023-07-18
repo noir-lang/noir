@@ -6,7 +6,7 @@ fn main(x : Field, y : pub Field) {
     let s = myStruct { y: x, x: y };
     std::println_new(s);
 
-    std::println_new("foo1: {i}, foo2: {s}");
+    std::println_new("i: {i}, s: {s}");
 
     std::println_new(x);
     std::println_new([x, y]);
