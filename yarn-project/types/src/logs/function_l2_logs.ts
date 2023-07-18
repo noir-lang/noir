@@ -73,4 +73,12 @@ export class FunctionL2Logs {
     }
     return new FunctionL2Logs(logs);
   }
+
+  /**
+   * Creates an empty L2Logs object with no logs.
+   * @returns A new FunctionL2Logs object with no logs.
+   */
+  public static empty(): FunctionL2Logs {
+    return new FunctionL2Logs([]);
+  }
 }

@@ -79,15 +79,8 @@ export interface ExecutionResult {
  * @returns All encrypted logs.
  */
 export function collectEncryptedLogs(execResult: ExecutionResult): FunctionL2Logs[] {
-  const logs: FunctionL2Logs[] = [];
-  // traverse through the stack of nested executions
-  const executionStack = [execResult];
-  while (executionStack.length) {
-    const currentExecution = executionStack.pop()!;
-    executionStack.push(...currentExecution.nestedExecutions);
-    logs.push(currentExecution.encryptedLogs);
-  }
-  return logs;
+  // without the .reverse(), the logs will be in a queue like fashion which is wrong as the kernel processes it like a stack.
+  return [execResult.encryptedLogs, ...[...execResult.nestedExecutions].reverse().flatMap(collectEncryptedLogs)];
 }
 
 /**
@@ -96,15 +89,8 @@ export function collectEncryptedLogs(execResult: ExecutionResult): FunctionL2Log
  * @returns All unencrypted logs.
  */
 export function collectUnencryptedLogs(execResult: ExecutionResult): FunctionL2Logs[] {
-  const logs: FunctionL2Logs[] = [];
-  // traverse through the stack of nested executions
-  const executionStack = [execResult];
-  while (executionStack.length) {
-    const currentExecution = executionStack.pop()!;
-    executionStack.push(...currentExecution.nestedExecutions);
-    logs.push(currentExecution.unencryptedLogs);
-  }
-  return logs;
+  // without the .reverse(), the logs will be in a queue like fashion which is wrong as the kernel processes it like a stack.
+  return [execResult.unencryptedLogs, ...[...execResult.nestedExecutions].reverse().flatMap(collectUnencryptedLogs)];
 }
 
 /**
@@ -113,8 +99,9 @@ export function collectUnencryptedLogs(execResult: ExecutionResult): FunctionL2L
  * @returns All enqueued public function calls.
  */
 export function collectEnqueuedPublicFunctionCalls(execResult: ExecutionResult): PublicCallRequest[] {
+  // without the .reverse(), the logs will be in a queue like fashion which is wrong as the kernel processes it like a stack.
   return [
     ...execResult.enqueuedPublicFunctionCalls,
-    ...execResult.nestedExecutions.flatMap(collectEnqueuedPublicFunctionCalls),
+    ...[...execResult.nestedExecutions].reverse().flatMap(collectEnqueuedPublicFunctionCalls),
   ];
 }
