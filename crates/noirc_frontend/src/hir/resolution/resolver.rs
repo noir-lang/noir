@@ -1585,6 +1585,39 @@ mod test {
         assert!(errors.is_empty());
     }
 
+    #[test]
+    fn resolve_fmt_strings() {
+        let src = r#"
+            fn main(x : Field) {
+                let y = println("this is the variable passed to main: {x}");
+                assert(y == "this is the variable passed to main: {x}");
+
+                let string = "this is x: {x}";
+                println(string);
+                
+                println("I want to print {0}")
+            }
+
+            fn println<T>(x : T) -> T {
+                x
+            }
+        "#;
+
+        let errors = resolve_src_code(src, vec!["main", "println"]);
+        for err in errors {
+            match &err {
+                ResolverError::UnusedVariable { ident } => {
+                    // The value `x` passed to the main function is never fully used in a format string
+                    assert_eq!(&ident.0.contents, "x");
+                }
+                ResolverError::NumericConstantInFormatString { name, .. } => {
+                    assert_eq!(name, "0");
+                }
+                _ => unimplemented!(),
+            };
+        }
+    }
+
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
         match err {
             ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {

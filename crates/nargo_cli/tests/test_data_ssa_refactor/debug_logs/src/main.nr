@@ -8,11 +8,11 @@ fn main(x : Field, y : pub Field) {
 
     let string: str<14> = "i: {i}, j: {j}";
     std::println_new(string);
-    let new_string = "i: {i}, j: {j}";
-    std::println_new(new_string);
-    let returned_string = string_identity(string);
+    let string_no_type = "i: {i}, j: {j}";
+    std::println_new(string_no_type);
+    let returned_string = string_identity(string_no_type);
     std::println_new(returned_string);
-    let string_generic = string_with_generic(string);
+    let string_generic = string_with_generic(string_no_type);
     std::println_new(string_generic);
     std::println_new("i: {i}, j: {j}");
 
