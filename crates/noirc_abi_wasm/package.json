@@ -1,5 +1,5 @@
 {
-  "name": "@noir-lang/noir_wasm",
+  "name": "@noir-lang/noirc_abi",
   "collaborators": [
     "The Noir Team <team@noir-lang.org>"
   ],
@@ -9,15 +9,12 @@
     "web",
     "package.json"
   ],
-  "main": "./nodejs/noir_wasm.js",
-  "types": "./web/noir_wasm.d.ts",
-  "module": "./web/noir_wasm.js",
+  "main": "./nodejs/noirc_abi_wasm.js",
+  "types": "./web/noirc_abi_wasm.d.ts",
+  "module": "./web/noirc_abi_wasm.js",
   "sideEffects": false,
-  "peerDependencies": {
-    "@noir-lang/noir-source-resolver": "1.1.2"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/noir-lang/noir_wasm.git"
+    "url": "https://github.com/noir-lang/noir.git"
   }
 }
