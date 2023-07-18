@@ -81,7 +81,6 @@ pub fn compile(args: JsValue) -> JsValue {
 
     debug!("Compiler configuration {:?}", &options);
 
-    // For now we default to plonk width = 3, though we can add it as a parameter
     let root = Path::new("/");
     let fm = FileManager::new(root);
     let graph = CrateGraph::default();
