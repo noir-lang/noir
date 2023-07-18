@@ -716,7 +716,7 @@ impl GeneratedAcir {
         a: &Expression,
         b: &Expression,
         max_bits: u32,
-        predicate: Option<Expression>,
+        predicate: Expression,
     ) -> Result<Witness, AcirGenError> {
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
@@ -742,7 +742,7 @@ impl GeneratedAcir {
         let (q_witness, r_witness) = self.quotient_directive(
             comparison_evaluation.clone(),
             two_max_bits.into(),
-            predicate,
+            Some(predicate),
             q_max_bits,
             r_max_bits,
         )?;
