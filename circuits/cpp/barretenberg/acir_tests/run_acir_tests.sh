@@ -28,12 +28,41 @@ fi
 
 cd acir_tests
 
-# Remove excluded and expected-to-fail tests.
-rm -rf bit_shifts_runtime comptime_fail poseidonsponge_x5_254 sha2_blocks sha2_byte diamond_deps_0 range_fail workspace*
+# Parse exclude and fail directories from cargo.toml
+exclude_dirs=$(grep "^exclude" config.toml | sed 's/exclude = \[//;s/\]//;s/\"//g;s/ //g' | tr ',' '\n')
+fail_dirs=$(grep "^fail" config.toml | sed 's/fail = \[//;s/\]//;s/\"//g;s/ //g' | tr ',' '\n')
+
+# Convert them to array
+exclude_array=($exclude_dirs)
+fail_array=($fail_dirs)
+skip_array=(diamond_deps_0 workspace workspace_default_member)
 
 function test() {
   echo -n "Testing $1... "
+
+  dir_name=$(basename "$1")
+  if [[ " ${exclude_array[@]} " =~ " $dir_name " ]]; then
+    echo -e "\033[33mSKIPPED\033[0m (excluded)"
+    return
+  fi
+
+  if [[ " ${fail_array[@]} " =~ " $dir_name " ]]; then
+    echo -e "\033[33mSKIPPED\033[0m (would fail)"
+    return
+  fi
+
+  if [[ " ${skip_array[@]} " =~ " $dir_name " ]]; then
+    echo -e "\033[33mSKIPPED\033[0m (hardcoded to skip)"
+    return
+  fi
+
+  if [[ ! -f ./$1/target/main.json || ! -f ./$1/target/witness.tr ]]; then
+    echo -e "\033[33mSKIPPED\033[0m (uncompiled)"
+    return
+  fi
+
   cd $1
+
   set +e
   if [ -n "$VERBOSE" ]; then
     $BB prove_and_verify -v -c $CRS_PATH
