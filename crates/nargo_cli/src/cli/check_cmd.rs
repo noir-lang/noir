@@ -36,7 +36,7 @@ fn check_from_path<B: Backend>(
     program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let (mut context, crate_id) = resolve_root_manifest(program_dir)?;
+    let (mut context, crate_id) = resolve_root_manifest(program_dir, None)?;
     check_crate_and_report_errors(
         &mut context,
         crate_id,

@@ -28,7 +28,8 @@ fn count_gates_with_path<B: Backend, P: AsRef<Path>>(
     program_dir: P,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let (compiled_program, _) = compile_circuit(backend, program_dir.as_ref(), compile_options)?;
+    let (compiled_program, _) =
+        compile_circuit(backend, None, program_dir.as_ref(), compile_options)?;
     let num_opcodes = compiled_program.circuit.opcodes.len();
 
     println!(

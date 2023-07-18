@@ -775,63 +775,67 @@ impl Binary {
         rhs: FieldElement,
         mut operand_type: Type,
     ) -> Option<Id<Value>> {
-        let value = match self.operator {
-            BinaryOp::Add => lhs + rhs,
-            BinaryOp::Sub => lhs - rhs,
-            BinaryOp::Mul => lhs * rhs,
-            BinaryOp::Div => lhs / rhs,
-            BinaryOp::Eq => {
-                operand_type = Type::bool();
-                (lhs == rhs).into()
+        let value = match &operand_type {
+            Type::Numeric(NumericType::NativeField) => {
+                self.operator.get_field_function()?(lhs, rhs)
             }
-            BinaryOp::Lt => {
-                operand_type = Type::bool();
-                (lhs < rhs).into()
-            }
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                let function = self.operator.get_u128_function();
 
-            // The rest of the operators we must try to convert to u128 first
-            BinaryOp::Mod => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::And => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::Or => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::Xor => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::Shl => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::Shr => self.eval_constant_u128_operations(lhs, rhs)?,
+                let lhs = truncate(lhs.try_into_u128()?, *bit_size);
+                let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+                let result = function(lhs, rhs)?;
+                truncate(result, *bit_size).into()
+            }
+            _ => return None,
         };
+
+        if matches!(self.operator, BinaryOp::Eq | BinaryOp::Lt) {
+            operand_type = Type::bool();
+        }
+
         Some(dfg.make_constant(value, operand_type))
     }
+}
 
-    /// Try to evaluate the given operands as u128s for operators that are only valid on u128s,
-    /// like the bitwise operators and modulus.
-    fn eval_constant_u128_operations(
-        &self,
-        lhs: FieldElement,
-        rhs: FieldElement,
-    ) -> Option<FieldElement> {
-        let lhs = lhs.try_into_u128()?;
-        let rhs = rhs.try_into_u128()?;
-        match self.operator {
-            BinaryOp::Mod => Some((lhs % rhs).into()),
-            BinaryOp::And => Some((lhs & rhs).into()),
-            BinaryOp::Or => Some((lhs | rhs).into()),
-            BinaryOp::Shr => Some((lhs >> rhs).into()),
-            // Check for overflow and return None if anything does overflow
-            BinaryOp::Shl => {
-                let rhs = rhs.try_into().ok()?;
-                lhs.checked_shl(rhs).map(Into::into)
-            }
+fn truncate(int: u128, bit_size: u32) -> u128 {
+    let max = 2u128.pow(bit_size);
+    int % max
+}
 
-            // Converting a field xor to a u128 xor would be incorrect since we wouldn't have the
-            // extra bits of the field. So we don't optimize it here.
+impl BinaryOp {
+    fn get_field_function(self) -> Option<fn(FieldElement, FieldElement) -> FieldElement> {
+        match self {
+            BinaryOp::Add => Some(std::ops::Add::add),
+            BinaryOp::Sub => Some(std::ops::Sub::sub),
+            BinaryOp::Mul => Some(std::ops::Mul::mul),
+            BinaryOp::Div => Some(std::ops::Div::div),
+            BinaryOp::Eq => Some(|x, y| (x == y).into()),
+            BinaryOp::Lt => Some(|x, y| (x < y).into()),
+            // Bitwise operators are unsupported for Fields
+            BinaryOp::Mod => None,
+            BinaryOp::And => None,
+            BinaryOp::Or => None,
             BinaryOp::Xor => None,
+            BinaryOp::Shl => None,
+            BinaryOp::Shr => None,
+        }
+    }
 
-            op @ (BinaryOp::Add
-            | BinaryOp::Sub
-            | BinaryOp::Mul
-            | BinaryOp::Div
-            | BinaryOp::Eq
-            | BinaryOp::Lt) => panic!(
-                "eval_constant_u128_operations invalid for {op:?} use eval_constants instead"
-            ),
+    fn get_u128_function(self) -> fn(u128, u128) -> Option<u128> {
+        match self {
+            BinaryOp::Add => u128::checked_add,
+            BinaryOp::Sub => u128::checked_sub,
+            BinaryOp::Mul => u128::checked_mul,
+            BinaryOp::Div => u128::checked_div,
+            BinaryOp::Mod => u128::checked_rem,
+            BinaryOp::And => |x, y| Some(x & y),
+            BinaryOp::Or => |x, y| Some(x | y),
+            BinaryOp::Xor => |x, y| Some(x ^ y),
+            BinaryOp::Shl => |x, y| x.checked_shl(y.try_into().ok()?),
+            BinaryOp::Shr => |x, y| Some(x >> y),
+            BinaryOp::Eq => |x, y| Some((x == y) as u128),
+            BinaryOp::Lt => |x, y| Some((x < y) as u128),
         }
     }
 }
