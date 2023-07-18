@@ -182,6 +182,19 @@
         doCheck = false;
       };
 
+      # Combine the environmnet with cargo args needed to build wasm package
+      noirc_abi_WasmArgs = sharedEnvironment // sharedArgs // {
+        pname = "noirc_abi_wasm";
+
+        src = ./.;
+
+        cargoExtraArgs = "--package noirc_abi_wasm --target wasm32-unknown-unknown";
+
+        buildInputs = [ ] ++ extraBuildInputs;
+
+        doCheck = false;
+      };
+
       # The `port` is parameterized to support parallel test runs without colliding static servers
       testArgs = port: testEnvironment // {
         # We provide `barretenberg-transcript00` from the overlay to the tests as a URL hosted via a static server
@@ -211,6 +224,7 @@
       native-cargo-artifacts = craneLib.buildDepsOnly nativeArgs;
       wasm-cargo-artifacts = craneLib.buildDepsOnly wasmArgs;
       noir-wasm-cargo-artifacts = craneLib.buildDepsOnly noirWasmArgs;
+      noirc-abi-wasm-cargo-artifacts = craneLib.buildDepsOnly noirc_abi_WasmArgs;
 
       noir-native = craneLib.buildPackage (nativeArgs // {
         inherit GIT_COMMIT GIT_DIRTY;
@@ -281,6 +295,7 @@
           toml2json
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
           wasm-bindgen-cli
+          binaryen
           jq
         ];
 
@@ -322,6 +337,41 @@
         '';
 
       });
+
+      # TODO: This fails with a "section too large" error on MacOS so we should limit to linux targets
+      # or fix the failure
+      packages.noirc_abi_wasm = craneLib.buildPackage (noirc_abi_WasmArgs // {
+
+        inherit GIT_COMMIT;
+        inherit GIT_DIRTY;
+        doCheck = false;
+
+        cargoArtifacts = noirc-abi-wasm-cargo-artifacts;
+
+        COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
+        VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
+        PKG_PATH = "./crates/noirc_abi_wasm/pkg";
+
+        nativeBuildInputs = with pkgs; [
+          which
+          git
+          jq
+          rustToolchain
+          wasm-bindgen-cli
+          binaryen
+          toml2json
+        ];
+
+        postBuild = ''
+          bash crates/noirc_abi_wasm/postBuild.sh
+        '';
+
+        installPhase = ''
+          bash crates/noirc_abi_wasm/installPhase.sh
+        '';
+
+      });
+
     });
 }
 
