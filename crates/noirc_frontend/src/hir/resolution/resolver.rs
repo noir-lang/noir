@@ -1281,7 +1281,6 @@ impl<'a> Resolver<'a> {
         module_id.module(self.def_maps).is_contract
     }
 
-    // TODO: write resolver tests for this
     fn resolve_call_arg(&mut self, argument: Expression, call_expr_span: Span) -> ExprId {
         match argument.kind {
             // Only function calls should convert the Str literal to a FmtStr literal
