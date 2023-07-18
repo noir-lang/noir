@@ -158,8 +158,17 @@ impl Expression {
     }
 
     pub fn call(lhs: Expression, arguments: Vec<Expression>, span: Span) -> Expression {
-        let func = Box::new(lhs);
-        let kind = ExpressionKind::Call(Box::new(CallExpression { func, arguments }));
+        // Need to check if lhs is an if expression since users can sequence if expressions
+        // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
+        // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
+        let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
+            ExpressionKind::Block(BlockExpression(vec![
+                Statement::Expression(lhs),
+                Statement::Expression(Expression::new(ExpressionKind::Tuple(arguments), span)),
+            ]))
+        } else {
+            ExpressionKind::Call(Box::new(CallExpression { func: Box::new(lhs), arguments }))
+        };
         Expression::new(kind, span)
     }
 }
@@ -282,6 +291,7 @@ pub enum Literal {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+    Unit,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -456,6 +466,7 @@ impl Display for Literal {
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
             Literal::Str(string) => write!(f, "\"{string}\""),
+            Literal::Unit => write!(f, "()"),
         }
     }
 }

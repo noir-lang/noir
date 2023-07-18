@@ -2,6 +2,7 @@ pub(crate) mod brillig_black_box;
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_directive;
 pub(crate) mod brillig_fn;
+pub(crate) mod brillig_slice_ops;
 
 use crate::ssa_refactor::ir::{function::Function, post_order::PostOrder};
 
@@ -18,7 +19,7 @@ pub(crate) fn convert_ssa_function(func: &Function) -> BrilligArtifact {
     reverse_post_order.reverse();
 
     let mut function_context =
-        FunctionContext { function_id: func.id(), ssa_value_to_register: HashMap::new() };
+        FunctionContext { function_id: func.id(), ssa_value_to_brillig_variable: HashMap::new() };
 
     let mut brillig_context = BrilligContext::new(
         FunctionContext::parameters(func),

@@ -48,6 +48,7 @@ pub(crate) struct NargoConfig {
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
+    #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Execute(execute_cmd::ExecuteCommand),
@@ -100,9 +101,9 @@ mod tests {
     /// This is used for tests.
     fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
         let mut context = Context::default();
-        create_local_crate(&mut context, &root_file, CrateType::Binary);
+        let crate_id = create_local_crate(&mut context, &root_file, CrateType::Binary);
 
-        let result = check_crate(&mut context, false, false);
+        let result = check_crate(&mut context, crate_id, false, false);
         let success = result.is_ok();
 
         let errors = match result {

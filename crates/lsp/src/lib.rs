@@ -1,3 +1,6 @@
+mod lib_hacky;
+use std::env;
+
 use std::{
     future::Future,
     ops::{self, ControlFlow},
@@ -27,7 +30,7 @@ const TEST_COMMAND: &str = "nargo.test";
 const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
-struct LspState {
+pub struct LspState {
     client: ClientSocket,
 }
 
@@ -43,6 +46,35 @@ pub struct NargoLspService {
 
 impl NargoLspService {
     pub fn new(client: &ClientSocket) -> Self {
+        // Using conditional running with lib_hacky to prevent non-hacky code from being identified as dead code
+        // Secondarily, provides a runtime way to stress the non-hacky code.
+        if env::var("NOIR_LSP_NO_HACK").is_err() {
+            let state = LspState::new(client);
+            let mut router = Router::new(state);
+            router
+                .request::<request::Initialize, _>(lib_hacky::on_initialize)
+                .request::<request::Shutdown, _>(lib_hacky::on_shutdown)
+                .request::<request::CodeLensRequest, _>(lib_hacky::on_code_lens_request)
+                .notification::<notification::Initialized>(lib_hacky::on_initialized)
+                .notification::<notification::DidChangeConfiguration>(
+                    lib_hacky::on_did_change_configuration,
+                )
+                .notification::<notification::DidOpenTextDocument>(
+                    lib_hacky::on_did_open_text_document,
+                )
+                .notification::<notification::DidChangeTextDocument>(
+                    lib_hacky::on_did_change_text_document,
+                )
+                .notification::<notification::DidCloseTextDocument>(
+                    lib_hacky::on_did_close_text_document,
+                )
+                .notification::<notification::DidSaveTextDocument>(
+                    lib_hacky::on_did_save_text_document,
+                )
+                .notification::<notification::Exit>(lib_hacky::on_exit);
+            return Self { router };
+        }
+
         let state = LspState::new(client);
         let mut router = Router::new(state);
         router
@@ -139,7 +171,7 @@ fn on_code_lens_request(
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut context, false, false);
+    let _ = check_crate(&mut context, crate_id, false, false);
 
     let fm = &context.file_manager;
     let files = fm.as_simple_files();
@@ -222,11 +254,11 @@ fn on_did_save_text_document(
 
     let mut context = Context::default();
 
-    create_local_crate(&mut context, file_path, CrateType::Binary);
+    let crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
 
     let mut diagnostics = Vec::new();
 
-    let file_diagnostics = match check_crate(&mut context, false, false) {
+    let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
         Ok(warnings) => warnings,
         Err(errors_and_warnings) => errors_and_warnings,
     };

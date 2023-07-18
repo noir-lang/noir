@@ -32,7 +32,7 @@ pub(crate) fn optimize_into_acir(
     program: Program,
     allow_log_ops: bool,
     print_ssa_passes: bool,
-) -> GeneratedAcir {
+) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
     let mut ssa = ssa_gen::generate_ssa(program)
         .print(print_ssa_passes, "Initial SSA:")
@@ -71,7 +71,7 @@ pub fn experimental_create_circuit(
 ) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let GeneratedAcir { current_witness_index, opcodes, return_witnesses, locations, .. } =
-        optimize_into_acir(program, show_output, enable_logging);
+        optimize_into_acir(program, show_output, enable_logging)?;
 
     let abi = gen_abi(func_sig, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
