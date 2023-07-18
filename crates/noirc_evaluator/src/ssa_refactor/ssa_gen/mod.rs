@@ -132,6 +132,8 @@ impl<'a> FunctionContext<'a> {
                 self.codegen_array(elements, vec![Type::char()])
             }
             ast::Literal::FmtStr(string, fields) => {
+                // A caller needs multiple pieces of information to make use of a format string
+                // The message string, the number of fields to be formatted, and the fields themselves
                 let fmt_str_tuple = &[
                     &[
                         Expression::Literal(ast::Literal::Str(string.clone())),

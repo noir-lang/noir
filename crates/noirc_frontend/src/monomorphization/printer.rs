@@ -96,8 +96,11 @@ impl AstPrinter {
             super::ast::Literal::Integer(x, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
-            // TODO: incldue types when printing format string
-            super::ast::Literal::FmtStr(s, types) => s.fmt(f),
+            super::ast::Literal::FmtStr(_, types) => {
+                write!(f, "fmtstr<")?;
+                self.print_tuple(types, f)?;
+                write!(f, ">")
+            }
         }
     }
 

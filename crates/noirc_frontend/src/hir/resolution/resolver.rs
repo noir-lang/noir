@@ -752,7 +752,6 @@ impl<'a> Resolver<'a> {
             | Type::Integer(_, _, _)
             | Type::Bool(_)
             | Type::String(_)
-            | Type::FmtString(_, _) // TODO: I probably want to find numeric generics in type
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_)
@@ -794,6 +793,11 @@ impl<'a> Resolver<'a> {
                 }
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::FmtString(_, fields) => {
+                for field in fields {
+                    Self::find_numeric_generics_in_type(field, found);
+                }
+            }
         }
     }
 
@@ -920,50 +924,11 @@ impl<'a> Resolver<'a> {
                 // Get the span and name of path for error reporting
                 let func = self.resolve_expression(*call_expr.func);
 
-                // TODO: move this logic into its own method and restrict to experimental ssa
                 let arguments = vecmap(call_expr.arguments, |arg| {
-                    // TODO: write resolver tests for this
-                    match arg.kind {
-                        // Only function calls should convert the Str literal to a FmtStr literal
-                        ExpressionKind::Literal(Literal::Str(string)) => {
-                            let re = Regex::new(r"\{([\S]+)\}").unwrap();
-                            let str_literal = if re.is_match(&string) {
-                                let mut fmt_str_idents = Vec::new();
-                                for field in re.find_iter(&string) {
-                                    let matched_str = field.as_str();
-                                    let ident_name =
-                                        matched_str[1..(matched_str.len() - 1)].to_owned();
-
-                                    let scope_tree = self.scopes.current_scope_tree();
-                                    let variable = scope_tree.find(&ident_name);
-                                    if let Some((old_value, _)) = variable {
-                                        old_value.num_times_used += 1;
-                                        fmt_str_idents.push(old_value.ident);
-                                    } else if ident_name.parse::<usize>().is_ok() {
-                                        self.errors.push(
-                                            ResolverError::NumericConstantInFormatString {
-                                                name: ident_name,
-                                                span: expr.span,
-                                            },
-                                        );
-                                    } else {
-                                        self.errors.push(ResolverError::VariableNotDeclared {
-                                            name: ident_name,
-                                            span: expr.span,
-                                        });
-                                    }
-                                }
-                                let fmt_str = HirLiteral::FmtStr(string, fmt_str_idents);
-                                fmt_str
-                            } else {
-                                HirLiteral::Str(string)
-                            };
-                            let expr_id =
-                                self.interner.push_expr(HirExpression::Literal(str_literal));
-                            self.interner.push_expr_location(expr_id, expr.span, self.file);
-                            expr_id
-                        }
-                        _ => self.resolve_expression(arg),
+                    if self.interner.experimental_ssa {
+                        self.resolve_call_arg(arg, expr.span)
+                    } else {
+                        self.resolve_expression(arg)
                     }
                 });
                 let location = Location::new(expr.span, self.file);
@@ -1313,6 +1278,48 @@ impl<'a> Resolver<'a> {
     fn in_contract(&self) -> bool {
         let module_id = self.path_resolver.module_id();
         module_id.module(self.def_maps).is_contract
+    }
+
+    // TODO: write resolver tests for this
+    fn resolve_call_arg(&mut self, argument: Expression, call_expr_span: Span) -> ExprId {
+        match argument.kind {
+            // Only function calls should convert the Str literal to a FmtStr literal
+            ExpressionKind::Literal(Literal::Str(string)) => {
+                let re = Regex::new(r"\{([\S]+)\}").unwrap();
+                let str_literal = if re.is_match(&string) {
+                    let mut fmt_str_idents = Vec::new();
+                    for field in re.find_iter(&string) {
+                        let matched_str = field.as_str();
+                        let ident_name = matched_str[1..(matched_str.len() - 1)].to_owned();
+
+                        let scope_tree = self.scopes.current_scope_tree();
+                        let variable = scope_tree.find(&ident_name);
+                        if let Some((old_value, _)) = variable {
+                            old_value.num_times_used += 1;
+                            fmt_str_idents.push(old_value.ident);
+                        } else if ident_name.parse::<usize>().is_ok() {
+                            self.errors.push(ResolverError::NumericConstantInFormatString {
+                                name: ident_name,
+                                span: call_expr_span,
+                            });
+                        } else {
+                            self.errors.push(ResolverError::VariableNotDeclared {
+                                name: ident_name,
+                                span: call_expr_span,
+                            });
+                        }
+                    }
+                    let fmt_str = HirLiteral::FmtStr(string, fmt_str_idents);
+                    fmt_str
+                } else {
+                    HirLiteral::Str(string)
+                };
+                let expr_id = self.interner.push_expr(HirExpression::Literal(str_literal));
+                self.interner.push_expr_location(expr_id, call_expr_span, self.file);
+                expr_id
+            }
+            _ => self.resolve_expression(argument),
+        }
     }
 }
 

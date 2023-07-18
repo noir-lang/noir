@@ -626,7 +626,6 @@ impl<'interner> Monomorphizer<'interner> {
             let name = i.to_string();
             let typ = self.convert_type(&field_type);
 
-            // TODO: may be a cause of bugs
             let new_rhs =
                 ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ });
 

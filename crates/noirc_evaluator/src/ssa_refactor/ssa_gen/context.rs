@@ -178,6 +178,9 @@ impl<'a> FunctionContext<'a> {
                 Self::map_type_helper(element, &mut |_| f(Type::Reference))
             }
             ast::Type::FmtString(len, fields) => {
+                // A format string is represented by multiple values
+                // The message string, the number of fields to be formatted, and
+                // then the encapsulated strings themselves
                 let final_fmt_str_fields =
                     [&[ast::Type::String(*len), ast::Type::Field], &fields[..]].concat();
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
