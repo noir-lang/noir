@@ -104,7 +104,7 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_grand_pro
     // Compute and store parameters required by relations in Sumcheck
     auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
 
-    auto public_input_delta = compute_public_input_delta<FF>(public_inputs, beta, gamma, key->circuit_size);
+    auto public_input_delta = compute_public_input_delta<Flavor>(public_inputs, beta, gamma, key->circuit_size);
 
     relation_parameters = sumcheck::RelationParameters<FF>{
         .beta = beta,

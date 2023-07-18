@@ -450,7 +450,7 @@ TEST_F(SumcheckTests, RealCircuitStandard)
     // Compute public input delta
     const auto public_inputs = circuit_constructor.get_public_inputs();
     auto public_input_delta =
-        honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, prover.key->circuit_size);
+        honk::compute_public_input_delta<Flavor>(public_inputs, beta, gamma, prover.key->circuit_size);
 
     sumcheck::RelationParameters<FF> relation_parameters{
         .beta = beta,
@@ -511,8 +511,8 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     auto circuit_constructor = UltraCircuitBuilder();
     fr a = fr::one();
 
-    // Add some basic add gates
-    uint32_t a_idx = circuit_constructor.add_variable(a);
+    // Add some basic add gates, with a public input for good measure
+    uint32_t a_idx = circuit_constructor.add_public_variable(a);
     fr b = fr::one();
     fr c = a + b;
     fr d = a + c;
@@ -632,7 +632,7 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     // Compute public input delta
     const auto public_inputs = circuit_constructor.get_public_inputs();
     auto public_input_delta =
-        honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, prover.key->circuit_size);
+        honk::compute_public_input_delta<Flavor>(public_inputs, beta, gamma, prover.key->circuit_size);
     auto lookup_grand_product_delta =
         honk::compute_lookup_grand_product_delta<FF>(beta, gamma, prover.key->circuit_size);
 

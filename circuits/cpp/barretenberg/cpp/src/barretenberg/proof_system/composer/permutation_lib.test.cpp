@@ -12,6 +12,7 @@ class PermutationHelperTests : public ::testing::Test {
   protected:
     using Flavor = honk::flavor::Standard;
     using FF = typename Flavor::FF;
+    using ProvingKey = Flavor::ProvingKey;
     Flavor::CircuitBuilder circuit_constructor;
     barretenberg::srs::factories::CrsFactory crs_factory = barretenberg::srs::factories::CrsFactory();
     std::shared_ptr<Flavor::ProvingKey> proving_key;
@@ -54,7 +55,10 @@ class PermutationHelperTests : public ::testing::Test {
 
          */
 
-        proving_key = initialize_proving_key<Flavor>(circuit_constructor, &crs_factory, 0, 2);
+        size_t num_public_inputs = circuit_constructor.public_inputs.size();
+        size_t dyadic_circuit_size =
+            circuit_constructor.get_circuit_subgroup_size(circuit_constructor.num_gates + num_public_inputs);
+        proving_key = std::make_shared<ProvingKey>(dyadic_circuit_size, num_public_inputs);
 
         // construct_selector_polynomials<Flavor>(circuit_constructor, proving_key.get());
     }

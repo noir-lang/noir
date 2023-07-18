@@ -71,6 +71,9 @@ class Ultra {
     using RelationUnivariates = decltype(create_relation_univariates_container<FF, Relations>());
     using RelationValues = decltype(create_relation_values_container<FF, Relations>());
 
+    // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
+    static constexpr bool has_zero_row = true;
+
   private:
     template <typename DataType, typename HandleType>
     /**

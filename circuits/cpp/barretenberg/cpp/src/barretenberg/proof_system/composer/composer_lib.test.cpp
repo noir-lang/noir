@@ -20,22 +20,6 @@ class ComposerLibTests : public ::testing::Test {
     }();
 };
 
-TEST_F(ComposerLibTests, InitializeProvingKey)
-{
-    static_assert(IsHonkFlavor<Flavor>);
-
-    EXPECT_EQ(circuit_constructor.get_circuit_subgroup_size(7), 8);
-
-    barretenberg::srs::factories::CrsFactory crs_factory;
-
-    auto pk = initialize_proving_key<Flavor>(circuit_constructor,
-                                             &crs_factory,
-                                             /*minimum_circuit_size=*/0,
-                                             /*num_randomized_gates=*/2);
-    EXPECT_EQ(pk->circuit_size, 8);
-    EXPECT_EQ(pk->num_public_inputs, 0);
-}
-
 TEST_F(ComposerLibTests, ConstructSelectors)
 {
     circuit_constructor.q_m = { 1, 2, 3, 4 };
@@ -70,24 +54,6 @@ TEST_F(ComposerLibTests, ConstructSelectors)
     EXPECT_EQ(proving_key.q_c[1], 18);
     EXPECT_EQ(proving_key.q_c[2], 19);
     EXPECT_EQ(proving_key.q_c[3], 20);
-}
-
-TEST_F(ComposerLibTests, EnforceNonzeroSelectors)
-{
-    circuit_constructor.q_m = { 0, 0, 0, 0 };
-    circuit_constructor.q_1 = { 0, 0, 0, 0 };
-    circuit_constructor.q_2 = { 0, 0, 0, 0 };
-    circuit_constructor.q_3 = { 0, 0, 0, 0 };
-    circuit_constructor.q_c = { 0, 0, 0, 0 };
-
-    construct_selector_polynomials<Flavor>(circuit_constructor, &proving_key);
-    enforce_nonzero_selector_polynomials<Flavor>(circuit_constructor, &proving_key);
-
-    EXPECT_EQ(proving_key.q_m[3], 1);
-    EXPECT_EQ(proving_key.q_l[3], 2);
-    EXPECT_EQ(proving_key.q_r[3], 3);
-    EXPECT_EQ(proving_key.q_o[3], 4);
-    EXPECT_EQ(proving_key.q_c[3], 5);
 }
 
 TEST_F(ComposerLibTests, ConstructWitnessPolynomialsBase)
@@ -128,7 +94,10 @@ TEST_F(ComposerLibTests, ConstructWitnessPolynomialsBase)
 
      */
 
-    auto wires = construct_wire_polynomials_base<Flavor>(circuit_constructor, 1, 2);
+    const size_t dyadic_circuit_size = circuit_constructor.get_circuit_subgroup_size(
+        circuit_constructor.num_gates + circuit_constructor.public_inputs.size());
+
+    auto wires = construct_wire_polynomials_base<Flavor>(circuit_constructor, dyadic_circuit_size);
     auto& w_l = wires[0];
     auto& w_r = wires[1];
     auto& w_o = wires[2];

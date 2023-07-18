@@ -21,7 +21,6 @@ template <StandardFlavor Flavor> class StandardComposer_ {
     using PCSCommitmentKey = typename PCSParams::CommitmentKey;
 
     static constexpr std::string_view NAME_STRING = "StandardHonk";
-    static constexpr size_t NUM_RESERVED_GATES = 2; // equal to the number of multilinear evaluations leaked
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     std::shared_ptr<ProvingKey> proving_key;
     std::shared_ptr<VerificationKey> verification_key;
@@ -31,6 +30,10 @@ template <StandardFlavor Flavor> class StandardComposer_ {
 
     // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
     std::shared_ptr<PCSCommitmentKey> commitment_key;
+
+    size_t total_num_gates;     // total num gates prior to computing dyadic size
+    size_t dyadic_circuit_size; // final dyadic circuit size
+    size_t num_public_inputs;
 
     bool computed_witness = false;
     // TODO(Luke): use make_shared
@@ -61,11 +64,6 @@ template <StandardFlavor Flavor> class StandardComposer_ {
     StandardVerifier_<Flavor> create_verifier(const CircuitBuilder& circuit_constructor);
 
     StandardProver_<Flavor> create_prover(const CircuitBuilder& circuit_constructor);
-
-    // TODO(#216)(Adrian): Seems error prone to provide the number of randomized gates
-    std::shared_ptr<ProvingKey> compute_proving_key_base(const CircuitBuilder& circuit_constructor,
-                                                         const size_t minimum_circuit_size = 0,
-                                                         const size_t num_randomized_gates = NUM_RESERVED_GATES);
 
     void compute_witness(const CircuitBuilder& circuit_constructor, const size_t minimum_circuit_size = 0);
 

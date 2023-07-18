@@ -109,7 +109,7 @@ TEST_F(RelationCorrectnessTests, StandardRelationCorrectness)
     // Compute public input delta
     const auto public_inputs = circuit_constructor.get_public_inputs();
     auto public_input_delta =
-        honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, prover.key->circuit_size);
+        honk::compute_public_input_delta<Flavor>(public_inputs, beta, gamma, prover.key->circuit_size);
 
     sumcheck::RelationParameters<FF> params{
         .beta = beta,
@@ -304,7 +304,7 @@ TEST_F(RelationCorrectnessTests, UltraRelationCorrectness)
     // Compute public input delta
     const auto public_inputs = circuit_constructor.get_public_inputs();
     auto public_input_delta =
-        honk::compute_public_input_delta<FF>(public_inputs, beta, gamma, prover.key->circuit_size);
+        honk::compute_public_input_delta<Flavor>(public_inputs, beta, gamma, prover.key->circuit_size);
     auto lookup_grand_product_delta =
         honk::compute_lookup_grand_product_delta<FF>(beta, gamma, prover.key->circuit_size);
 

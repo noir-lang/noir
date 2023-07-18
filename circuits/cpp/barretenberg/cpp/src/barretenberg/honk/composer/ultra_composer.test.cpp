@@ -59,14 +59,13 @@ class UltraHonkComposerTests : public ::testing::Test {
 /**
  * @brief A quick test to ensure that none of our polynomials are identically zero
  *
- * @note This test assumes that gates have been added by default in the circuit
- * constructor to achieve non-zero polynomials
+ * @note This test assumes that gates have been added by default in the composer
+ * to achieve non-zero polynomials
  *
  */
 TEST_F(UltraHonkComposerTests, ANonZeroPolynomialIsAGoodPolynomial)
 {
     auto circuit_constructor = UltraCircuitBuilder();
-    circuit_constructor.add_gates_to_ensure_all_polys_are_non_zero();
 
     auto composer = UltraComposer();
     auto prover = composer.create_prover(circuit_constructor);
@@ -83,6 +82,34 @@ TEST_F(UltraHonkComposerTests, ANonZeroPolynomialIsAGoodPolynomial)
     for (auto& poly : prover.key->get_wires()) {
         ensure_non_zero(poly);
     }
+}
+
+/**
+ * @brief Test simple circuit with public inputs
+ *
+ */
+TEST_F(UltraHonkComposerTests, PublicInputs)
+{
+    auto builder = UltraCircuitBuilder();
+    size_t num_gates = 10;
+
+    // Add some arbitrary arithmetic gates that utilize public inputs
+    for (size_t i = 0; i < num_gates; ++i) {
+        fr a = fr::random_element();
+        uint32_t a_idx = builder.add_public_variable(a);
+
+        fr b = fr::random_element();
+        fr c = fr::random_element();
+        fr d = a + b + c;
+        uint32_t b_idx = builder.add_variable(b);
+        uint32_t c_idx = builder.add_variable(c);
+        uint32_t d_idx = builder.add_variable(d);
+
+        builder.create_big_add_gate({ a_idx, b_idx, c_idx, d_idx, fr(1), fr(1), fr(1), fr(-1), fr(0) });
+    }
+
+    auto composer = UltraComposer();
+    prove_and_verify(builder, composer, /*expected_result=*/true);
 }
 
 TEST_F(UltraHonkComposerTests, XorConstraint)

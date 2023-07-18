@@ -33,7 +33,9 @@ class StandardHonkComposerTests : public ::testing::Test {
 TEST_F(StandardHonkComposerTests, SigmaIDCorrectness)
 {
     auto test_permutation = [](StandardCircuitBuilder& circuit_constructor, StandardComposer& composer) {
-        auto proving_key = composer.compute_proving_key(circuit_constructor);
+        auto prover = composer.create_prover(circuit_constructor);
+        auto proving_key = prover.key;
+
         const auto n = proving_key->circuit_size;
 
         auto public_inputs = circuit_constructor.get_public_inputs();
@@ -71,9 +73,6 @@ TEST_F(StandardHonkComposerTests, SigmaIDCorrectness)
         left = barretenberg::fr::one();
         right = barretenberg::fr::one();
 
-        // Now let's check that witness values correspond to the permutation
-        composer.compute_witness(circuit_constructor);
-
         auto permutation_polynomials = proving_key->get_sigma_polynomials();
         auto id_polynomials = proving_key->get_id_polynomials();
         auto wire_polynomials = proving_key->get_wires();
@@ -104,7 +103,7 @@ TEST_F(StandardHonkComposerTests, SigmaIDCorrectness)
         }
 
         // test correctness of the public input delta
-        auto delta = proof_system::honk::compute_public_input_delta<fr>(public_inputs, beta, gamma, n);
+        auto delta = proof_system::honk::compute_public_input_delta<flavor::Standard>(public_inputs, beta, gamma, n);
         EXPECT_EQ(left / right, delta);
 
         for (size_t i = 0; i < num_public_inputs; ++i) {
@@ -164,7 +163,9 @@ TEST_F(StandardHonkComposerTests, LagrangeCorrectness)
 
     // Generate proving key
     auto composer = StandardComposer();
-    auto proving_key = composer.compute_proving_key(circuit_constructor);
+    auto prover = composer.create_prover(circuit_constructor);
+    auto proving_key = prover.key;
+
     // Generate a random polynomial
     barretenberg::polynomial random_polynomial = barretenberg::polynomial(proving_key->circuit_size);
     for (size_t i = 0; i < proving_key->circuit_size; i++) {
@@ -225,7 +226,9 @@ TEST_F(StandardHonkComposerTests, AssertEquals)
      */
     auto get_maximum_cycle = [](auto& circuit_constructor, auto& composer) {
         // Compute the proving key for sigma polynomials
-        auto proving_key = composer.compute_proving_key(circuit_constructor);
+        auto prover = composer.create_prover(circuit_constructor);
+        auto proving_key = prover.key;
+
         auto permutation_length = composer.NUM_WIRES * proving_key->circuit_size;
         auto sigma_polynomials = proving_key->get_sigma_polynomials();
 

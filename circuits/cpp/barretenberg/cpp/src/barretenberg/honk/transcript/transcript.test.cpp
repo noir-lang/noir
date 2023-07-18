@@ -21,11 +21,11 @@ template <typename Flavor> class TranscriptTests : public testing::Test {
     /**
      * @brief Construct a manifest for a standard Honk proof
      *
-     * @details This is where we define the "Manifest" for a Standard Honk proof. The tests in this suite are
-     intented
-     * to warn the developer if the Prover/Verifier has deviated from this manifest, however, the Transcript class
-     is
+     * @details This is where we define the "Manifest" for a Standard Honk proof. The tests in this suite are intented
+     * to warn the developer if the Prover/Verifier has deviated from this manifest, however, the Transcript class is
      * not otherwise contrained to follow the manifest.
+     *
+     * @note Entries in the manifest consist of a name string and a size (bytes), NOT actual data.
      *
      * @return TranscriptManifest
      */
@@ -40,10 +40,12 @@ template <typename Flavor> class TranscriptTests : public testing::Test {
         size_t size_G = 2 * size_FF;
         size_t size_uni = max_relation_length * size_FF;
         size_t size_evals = (Flavor::NUM_ALL_ENTITIES)*size_FF;
+        size_t size_uint32 = 4;
+        size_t size_uint64 = 8;
 
         size_t round = 0;
-        manifest_expected.add_entry(round, "circuit_size", 4);
-        manifest_expected.add_entry(round, "public_input_size", 4);
+        manifest_expected.add_entry(round, "circuit_size", size_uint32);
+        manifest_expected.add_entry(round, "public_input_size", size_uint32);
         manifest_expected.add_entry(round, "public_input_0", size_FF);
         manifest_expected.add_entry(round, "W_1", size_G);
         manifest_expected.add_entry(round, "W_2", size_G);
@@ -87,7 +89,7 @@ template <typename Flavor> class TranscriptTests : public testing::Test {
         round++;
         // TODO(Mara): Make testing more flavor agnostic so we can test this with all flavors
         if constexpr (IsGrumpkinFlavor<Flavor>) {
-            manifest_expected.add_entry(round, "IPA:poly_degree", circuit_size);
+            manifest_expected.add_entry(round, "IPA:poly_degree", size_uint64);
             manifest_expected.add_challenge(round, "IPA:generator_challenge");
 
             for (size_t i = 0; i < log_n; i++) {

@@ -1,4 +1,5 @@
 #include "ultra_composer.hpp"
+#include "barretenberg/plonk/composer/composer_lib.hpp"
 #include "barretenberg/plonk/proof_system/commitment_scheme/kate_commitment_scheme.hpp"
 #include "barretenberg/plonk/proof_system/types/program_settings.hpp"
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
@@ -48,10 +49,7 @@ void UltraComposer::compute_witness(CircuitBuilder& circuit_constructor)
         circuit_constructor.w_4.emplace_back(circuit_constructor.zero_idx);
     }
 
-    // TODO(luke): subgroup size was already computed above but compute_witness_base computes it again. If we pass in
-    // NUM_RESERVED_GATES (as in the other split composers) the resulting sizes can differ. Reconcile this.
-    auto wire_polynomial_evaluations =
-        construct_wire_polynomials_base<Flavor>(circuit_constructor, total_num_gates, NUM_RESERVED_GATES);
+    auto wire_polynomial_evaluations = construct_wire_polynomials_base<Flavor>(circuit_constructor, subgroup_size);
 
     for (size_t j = 0; j < program_width; ++j) {
         std::string index = std::to_string(j + 1);
@@ -379,12 +377,12 @@ std::shared_ptr<proving_key> UltraComposer::compute_proving_key(CircuitBuilder& 
     const size_t num_randomized_gates = NUM_RESERVED_GATES;
     // Initialize circuit_proving_key
     // TODO(#392)(Kesha): replace composer types.
-    circuit_proving_key = initialize_proving_key<Flavor>(
+    circuit_proving_key = initialize_proving_key(
         circuit_constructor, crs_factory_.get(), minimum_circuit_size, num_randomized_gates, CircuitType::ULTRA);
 
     construct_selector_polynomials<Flavor>(circuit_constructor, circuit_proving_key.get());
 
-    enforce_nonzero_selector_polynomials<Flavor>(circuit_constructor, circuit_proving_key.get());
+    enforce_nonzero_selector_polynomials(circuit_constructor, circuit_proving_key.get());
 
     compute_monomial_and_coset_selector_forms(circuit_proving_key.get(), ultra_selector_properties());
 

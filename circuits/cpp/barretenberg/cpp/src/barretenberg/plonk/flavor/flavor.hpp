@@ -11,6 +11,8 @@ class Standard {
     using CircuitBuilder = proof_system::StandardCircuitBuilder;
     using ProvingKey = plonk::proving_key;
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
+    // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
+    static constexpr bool has_zero_row = false;
 };
 
 class Turbo {
@@ -18,6 +20,8 @@ class Turbo {
     using CircuitBuilder = proof_system::TurboCircuitBuilder;
     using ProvingKey = plonk::proving_key;
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
+    // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
+    static constexpr bool has_zero_row = false;
 };
 
 class Ultra {
@@ -25,6 +29,8 @@ class Ultra {
     using CircuitBuilder = proof_system::UltraCircuitBuilder;
     using ProvingKey = plonk::proving_key;
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
+    // Whether or not the first row of the execution trace is reserved for 0s to enable shifts
+    static constexpr bool has_zero_row = false;
 
     /**
      * @brief Create a manifest object

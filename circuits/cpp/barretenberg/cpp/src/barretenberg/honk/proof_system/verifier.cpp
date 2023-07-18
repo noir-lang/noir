@@ -95,7 +95,7 @@ template <typename Flavor> bool StandardVerifier_<Flavor>::verify_proof(const pl
     // Get permutation challenges
     auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
 
-    const FF public_input_delta = compute_public_input_delta<FF>(public_inputs, beta, gamma, circuit_size);
+    const FF public_input_delta = compute_public_input_delta<Flavor>(public_inputs, beta, gamma, circuit_size);
 
     sumcheck::RelationParameters<FF> relation_parameters{
         .beta = beta,
