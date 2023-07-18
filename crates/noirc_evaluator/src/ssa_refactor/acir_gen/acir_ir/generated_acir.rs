@@ -436,8 +436,8 @@ impl GeneratedAcir {
         // Reduce the lhs_constraint to a witness
         let lhs_reduced: Expression = self.create_witness_for_expression(lhs).into();
 
-        let div_euclidean = &(&lhs_reduced * predicate).unwrap()
-            - &(&rhs_reduced.into() * predicate).unwrap().into();
+        let div_euclidean =
+            &(&lhs_reduced * predicate).unwrap() - &(&rhs_reduced * predicate).unwrap();
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
