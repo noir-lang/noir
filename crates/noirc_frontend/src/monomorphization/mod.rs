@@ -261,7 +261,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Ident(ident) => self.ident(ident, expr),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
-                let fields = vecmap(idents.clone(), |ident| {
+                let fields = vecmap(idents, |ident| {
                     let definition_info = self.interner.definition(ident.id);
                     if let Some(expr_id) = definition_info.kind.get_rhs() {
                         self.expr(expr_id)
@@ -801,11 +801,8 @@ impl<'interner> Monomorphizer<'interner> {
 
         if let ast::Expression::Ident(ident) = func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
-                match name.as_str() {
-                    "println" => {
-                        self.append_abi_arg(&hir_arguments[0], &mut arguments);
-                    }
-                    _ => (),
+                if name.as_str() == "println" {
+                    self.append_abi_arg(&hir_arguments[0], &mut arguments);
                 }
             }
         }
@@ -833,7 +830,7 @@ impl<'interner> Monomorphizer<'interner> {
                             arguments
                                 .push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
                         }
-                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(true)))
+                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(true)));
                     }
                     _ => {
                         let abi_type = typ.as_abi_type();
@@ -841,7 +838,7 @@ impl<'interner> Monomorphizer<'interner> {
                             .expect("ICE: expected Abi type to serialize");
 
                         arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
-                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(false)))
+                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(false)));
                     }
                 }
             }

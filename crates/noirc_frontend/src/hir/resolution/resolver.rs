@@ -1310,8 +1310,7 @@ impl<'a> Resolver<'a> {
                             });
                         }
                     }
-                    let fmt_str = HirLiteral::FmtStr(string, fmt_str_idents);
-                    fmt_str
+                    HirLiteral::FmtStr(string, fmt_str_idents)
                 } else {
                     HirLiteral::Str(string)
                 };

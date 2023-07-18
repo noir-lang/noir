@@ -89,7 +89,7 @@ impl<'interner> TypeChecker<'interner> {
                     HirLiteral::FmtStr(string, idents) => {
                         let len = Type::Constant(string.len() as u64);
 
-                        let types = vecmap(idents.clone(), |ident| {
+                        let types = vecmap(idents, |ident| {
                             let t = self.interner.id_type(ident.id);
                             let (typ, bindings) = t.instantiate(self.interner);
                             self.interner.store_instantiation_bindings(*expr_id, bindings);
