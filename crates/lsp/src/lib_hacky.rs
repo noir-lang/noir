@@ -43,9 +43,13 @@ const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 // and params passed in.
 
 pub fn on_initialize(
-    _state: &mut LspState,
-    _params: InitializeParams,
+    state: &mut LspState,
+    params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
+    if let Some(root_uri) = params.root_uri {
+        state.root_path = root_uri.to_file_path().ok();
+    }
+
     async {
         let text_document_sync =
             TextDocumentSyncOptions { save: Some(true.into()), ..Default::default() };
