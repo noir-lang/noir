@@ -788,6 +788,7 @@ fn parse_type_inner(
         string_type(),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
+        parenthesized(recursive_type_parser.clone()),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser),
@@ -893,7 +894,13 @@ where
     T: NoirParser<UnresolvedType>,
 {
     let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
-    parenthesized(fields).map(UnresolvedType::Tuple)
+    parenthesized(fields).map(|fields| {
+        if fields.is_empty() {
+            UnresolvedType::Unit
+        } else {
+            UnresolvedType::Tuple(fields)
+        }
+    })
 }
 
 fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
