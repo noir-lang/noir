@@ -344,7 +344,13 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Error => Type::Error,
             UnresolvedType::Named(path, args) => self.resolve_named_type(path, args, new_variables),
             UnresolvedType::Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
+                if fields.is_empty() {
+                    Type::Unit
+                } else {
+                    Type::Tuple(vecmap(fields, |field| {
+                        self.resolve_type_inner(field, new_variables)
+                    }))
+                }
             }
             UnresolvedType::Function(args, ret) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));

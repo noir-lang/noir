@@ -238,7 +238,11 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::MemberAccess(access) => self.check_member_access(access, *expr_id),
             HirExpression::Error => Type::Error,
             HirExpression::Tuple(elements) => {
-                Type::Tuple(vecmap(&elements, |elem| self.check_expression(elem)))
+                if elements.is_empty() {
+                    Type::Unit
+                } else {
+                    Type::Tuple(vecmap(&elements, |elem: &ExprId| self.check_expression(elem)))
+                }
             }
             HirExpression::Lambda(lambda) => {
                 let params = vecmap(lambda.parameters, |(pattern, typ)| {
