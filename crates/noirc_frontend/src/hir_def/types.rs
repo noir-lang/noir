@@ -1146,6 +1146,8 @@ impl Type {
                 }
             }
 
+            (FmtString(_, _), String(_)) => Ok(()),
+
             // `T <: U  =>  &mut T <: &mut U` would be unsound(*), so mutable
             // references are never subtypes of each other.
             //
@@ -1219,7 +1221,6 @@ impl Type {
                 AbiType::String { length: size }
             }
             Type::FmtString(size, _) => {
-                // TODO: I think this is what I want to do but verify
                 let size = size
                     .evaluate_to_u64()
                     .expect("Cannot have variable sized strings as a parameter to main");

@@ -884,37 +884,7 @@ impl<'a> Resolver<'a> {
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length })
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
-                Literal::Str(string) => {
-                    // TODO: write resolver tests for this
-                    let re = Regex::new(r"\{([\S]+)\}").unwrap();
-                    if !re.is_match(&string) {
-                        HirLiteral::Str(string)
-                    } else {
-                        let mut fmt_str_idents = Vec::new();
-                        for field in re.find_iter(&string) {
-                            let matched_str = field.as_str();
-                            let ident_name = matched_str[1..(matched_str.len() - 1)].to_owned();
-
-                            let scope_tree = self.scopes.current_scope_tree();
-                            let variable = scope_tree.find(&ident_name);
-                            if let Some((old_value, _)) = variable {
-                                old_value.num_times_used += 1;
-                                fmt_str_idents.push(old_value.ident);
-                            } else if ident_name.parse::<usize>().is_ok() {
-                                self.errors.push(ResolverError::NumericConstantInFormatString {
-                                    name: ident_name,
-                                    span: expr.span,
-                                });
-                            } else {
-                                self.errors.push(ResolverError::VariableNotDeclared {
-                                    name: ident_name,
-                                    span: expr.span,
-                                });
-                            }
-                        }
-                        HirLiteral::FmtStr(string, fmt_str_idents)
-                    }
-                }
+                Literal::Str(string) => HirLiteral::Str(string),
             }),
             ExpressionKind::Variable(path) => {
                 // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -949,7 +919,56 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
                 let func = self.resolve_expression(*call_expr.func);
-                let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
+
+                // TODO: move this logic into its own method and restrict to experimental ssa
+                let arguments = vecmap(call_expr.arguments, |arg| {
+                    // TODO: write resolver tests for this
+                    // TODO: move this to resolution of a method call where we check the builtin
+                    match arg.kind {
+                        // Only function calls
+                        // we should convert the Str literal to a FmtStr literal
+                        ExpressionKind::Literal(Literal::Str(string)) => {
+                            let re = Regex::new(r"\{([\S]+)\}").unwrap();
+                            let str_literal = if re.is_match(&string) {
+                                let mut fmt_str_idents = Vec::new();
+                                for field in re.find_iter(&string) {
+                                    let matched_str = field.as_str();
+                                    let ident_name =
+                                        matched_str[1..(matched_str.len() - 1)].to_owned();
+
+                                    let scope_tree = self.scopes.current_scope_tree();
+                                    let variable = scope_tree.find(&ident_name);
+                                    if let Some((old_value, _)) = variable {
+                                        old_value.num_times_used += 1;
+                                        fmt_str_idents.push(old_value.ident);
+                                    } else if ident_name.parse::<usize>().is_ok() {
+                                        self.errors.push(
+                                            ResolverError::NumericConstantInFormatString {
+                                                name: ident_name,
+                                                span: expr.span,
+                                            },
+                                        );
+                                    } else {
+                                        self.errors.push(ResolverError::VariableNotDeclared {
+                                            name: ident_name,
+                                            span: expr.span,
+                                        });
+                                    }
+                                }
+                                let fmt_str = HirLiteral::FmtStr(string, fmt_str_idents);
+                                fmt_str
+                            } else {
+                                HirLiteral::Str(string)
+                            };
+                            let expr_id =
+                                self.interner.push_expr(HirExpression::Literal(str_literal));
+                            self.interner.push_expr_location(expr_id, expr.span, self.file);
+                            expr_id
+                        }
+                        _ => self.resolve_expression(arg),
+                        // _ => panic!("only string literals accepted to println"),
+                    }
+                });
                 let location = Location::new(expr.span, self.file);
                 HirExpression::Call(HirCallExpression { func, arguments, location })
             }

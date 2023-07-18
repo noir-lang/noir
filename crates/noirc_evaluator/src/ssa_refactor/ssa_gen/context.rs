@@ -180,7 +180,6 @@ impl<'a> FunctionContext<'a> {
             ast::Type::FmtString(len, fields) => {
                 let final_fmt_str_fields =
                     [&[ast::Type::String(*len), ast::Type::Field], &fields[..]].concat();
-                // let final_fmt_str_fields = [&[ast::Type::String(*len)], &fields[..]].concat();
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }

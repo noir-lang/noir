@@ -82,7 +82,7 @@ fn convert_string_inputs(foreign_call_inputs: &[Vec<Value>]) -> Result<String, F
     // The remaining input values should hold what is to be printed
     let (abi_type_as_values, input_values) =
         foreign_call_inputs.split_last().ok_or(ForeignCallError::MissingForeignCallInputs)?;
-    let abi_type = fetch_abi_type_new(abi_type_as_values)?;
+    let abi_type = fetch_abi_type(abi_type_as_values)?;
 
     // We must use a flat map here as each value in a struct will be in a separate input value
     let mut input_values_as_fields =
@@ -112,13 +112,7 @@ fn convert_fmt_string_inputs(
 
     let mut abi_types = Vec::new();
     for i in (input_and_abi_values.len() - num_values)..input_and_abi_values.len() {
-        // let abi_type_values = &input_and_abi_values[i];
-        // let abi_type_as_fields = vecmap(abi_type_values, |value| value.to_field());
-        // let abi_type_as_string = decode_string_value(&abi_type_as_fields);
-        // let abi_type: AbiType = serde_json::from_str(&abi_type_as_string)
-        //     .map_err(|err| ForeignCallError::InputParserError(err.into()))?;
-
-        let abi_type = fetch_abi_type_new(&input_and_abi_values[i])?;
+        let abi_type = fetch_abi_type(&input_and_abi_values[i])?;
         abi_types.push(abi_type);
     }
 
@@ -147,22 +141,7 @@ fn convert_fmt_string_inputs(
     Ok(formatted_str.into_owned())
 }
 
-fn fetch_abi_type(
-    foreign_call_inputs: &[Vec<Value>],
-) -> Result<(AbiType, &[Vec<Value>]), ForeignCallError> {
-    // Fetch the abi from the last input. The abi is included by the compiler
-    // and we will now be left with only user specifed inputs
-    let (abi_type_as_values, input_values) =
-        foreign_call_inputs.split_last().ok_or(ForeignCallError::MissingForeignCallInputs)?;
-    let abi_type_as_fields = vecmap(abi_type_as_values, |value| value.to_field());
-    let abi_type_as_string = decode_string_value(&abi_type_as_fields);
-    let abi_type: AbiType = serde_json::from_str(&abi_type_as_string)
-        .map_err(|err| ForeignCallError::InputParserError(err.into()))?;
-
-    Ok((abi_type, input_values))
-}
-
-fn fetch_abi_type_new(abi_type_as_values: &[Value]) -> Result<AbiType, ForeignCallError> {
+fn fetch_abi_type(abi_type_as_values: &[Value]) -> Result<AbiType, ForeignCallError> {
     let abi_type_as_fields = vecmap(abi_type_as_values, |value| value.to_field());
     let abi_type_as_string = decode_string_value(&abi_type_as_fields);
     let abi_type: AbiType = serde_json::from_str(&abi_type_as_string)

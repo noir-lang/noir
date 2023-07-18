@@ -724,6 +724,16 @@ impl<'interner> TypeChecker<'interner> {
 
                 Ok(Bool(CompTime::No(Some(op.location.span))))
             }
+            (FmtString(x_size, _), FmtString(y_size, _)) => {
+                x_size.unify(y_size, op.location.span, &mut self.errors, || {
+                    TypeCheckError::Unstructured {
+                        msg: format!("Can only compare format strings of the same length. Here LHS is of length {x_size}, and RHS is {y_size} "),
+                        span: op.location.span,
+                    }
+                });
+
+                Ok(Bool(CompTime::No(Some(op.location.span))))
+            }
             (lhs, rhs) => Err(format!("Unsupported types for comparison: {lhs} and {rhs}")),
         }
     }
