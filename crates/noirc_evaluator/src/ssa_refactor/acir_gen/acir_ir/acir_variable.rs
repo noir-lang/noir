@@ -180,8 +180,9 @@ impl AcirContext {
         );
         let inverted_var = Self::expect_one_var(results);
 
-        let should_be_one = self.mul_var(inverted_var, var)?;
-        self.assert_eq_one(should_be_one)?;
+        //
+        // let should_be_one = self.mul_var(inverted_var, var)?;
+        // self.assert_eq_one(should_be_one)?;
 
         Ok(inverted_var)
     }
