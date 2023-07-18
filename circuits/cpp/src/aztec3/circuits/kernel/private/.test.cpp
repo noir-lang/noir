@@ -36,7 +36,7 @@ class private_kernel_tests : public ::testing::Test {
  * @note The choice of app circuit (currently 'deposit') is entirely arbitrary and can be replaced with any other valid
  * app circuit.
  */
-TEST_F(private_kernel_tests, basic)
+TEST_F(private_kernel_tests, circuit_basic)
 {
     NT::fr const& amount = 5;
     NT::fr const& asset_id = 1;
