@@ -296,6 +296,7 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         typ: AcirType,
+        predicate: AcirVar,
     ) -> Result<AcirVar, AcirGenError> {
         let numeric_type = match typ {
             AcirType::NumericType(numeric_type) => numeric_type,
@@ -310,7 +311,7 @@ impl AcirContext {
             }
             NumericType::Unsigned { bit_size } => {
                 let (quotient_var, _remainder_var) =
-                    self.euclidean_division_var(lhs, rhs, bit_size)?;
+                    self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
                 Ok(quotient_var)
             }
             NumericType::Signed { bit_size } => {
@@ -430,17 +431,18 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: AcirVar,
     ) -> Result<(AcirVar, AcirVar), AcirGenError> {
-        let predicate = Expression::one();
-
         let lhs_data = &self.vars[&lhs];
         let rhs_data = &self.vars[&rhs];
+        let predicate_data = &self.vars[&predicate];
 
         let lhs_expr = lhs_data.to_expression();
         let rhs_expr = rhs_data.to_expression();
+        let predicate_expr = predicate_data.to_expression();
 
         let (quotient, remainder) =
-            self.acir_ir.euclidean_division(&lhs_expr, &rhs_expr, bit_size, &predicate)?;
+            self.acir_ir.euclidean_division(&lhs_expr, &rhs_expr, bit_size, &predicate_expr)?;
 
         let quotient_var = self.add_data(AcirVarData::Witness(quotient));
         let remainder_var = self.add_data(AcirVarData::Witness(remainder));
@@ -485,8 +487,9 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         bit_size: u32,
+        predicate: AcirVar,
     ) -> Result<AcirVar, AcirGenError> {
-        let (_, remainder) = self.euclidean_division_var(lhs, rhs, bit_size)?;
+        let (_, remainder) = self.euclidean_division_var(lhs, rhs, bit_size, predicate)?;
         Ok(remainder)
     }
 
@@ -505,6 +508,7 @@ impl AcirContext {
         lhs: AcirVar,
         rhs: AcirVar,
         typ: AcirType,
+        predicate: AcirVar,
     ) -> Result<AcirVar, AcirGenError> {
         let rhs_data = &self.vars[&rhs];
 
@@ -515,7 +519,7 @@ impl AcirContext {
         };
         let two_pow_rhs_var = self.add_constant(two_pow_rhs);
 
-        self.div_var(lhs, two_pow_rhs_var, typ)
+        self.div_var(lhs, two_pow_rhs_var, typ, predicate)
     }
 
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
