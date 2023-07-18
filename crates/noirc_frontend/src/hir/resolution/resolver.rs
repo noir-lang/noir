@@ -883,6 +883,7 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
                 // If the Path is being used as an Expression, then it is referring to a global from a separate module

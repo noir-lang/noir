@@ -35,9 +35,9 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirStruct, NoirTrait,
-    Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem, TraitItem,
-    TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct,
+    NoirTrait, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
+    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -788,7 +788,7 @@ fn parse_type_inner(
         string_type(),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
-        parenthesized(recursive_type_parser.clone()),
+        recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser),
@@ -1310,8 +1310,14 @@ fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
 where
     P: ExprParser,
 {
-    parenthesized(expression_list(expr_parser))
-        .map_with_span(|elements, span| Expression::new(ExpressionKind::Tuple(elements), span))
+    parenthesized(expression_list(expr_parser)).map_with_span(|elements, span| {
+        let kind = if elements.is_empty() {
+            ExpressionKind::Literal(Literal::Unit)
+        } else {
+            ExpressionKind::Tuple(elements)
+        };
+        Expression::new(kind, span)
+    })
 }
 
 fn field_name() -> impl NoirParser<Ident> {
