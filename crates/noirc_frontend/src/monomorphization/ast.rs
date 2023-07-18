@@ -29,7 +29,6 @@ pub enum Expression {
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
-
     Let(Let),
     Constrain(Box<Expression>, Location),
     Assign(Assign),
@@ -101,6 +100,13 @@ pub struct Binary {
     pub operator: BinaryOp,
     pub rhs: Box<Expression>,
     pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct Lambda {
+    pub function: Ident,
+    pub env: Ident,
+    pub typ: Type, // TODO: Perhaps this is not necessary
 }
 
 #[derive(Debug, Clone)]
@@ -222,6 +228,54 @@ impl Type {
             Type::Tuple(fields) => fields.iter().flat_map(|field| field.flatten()).collect(),
             _ => vec![self.clone()],
         }
+    }
+}
+
+pub fn type_of_lvalue(lvalue: &LValue) -> Type {
+    match lvalue {
+        LValue::Ident(ident) => ident.typ.clone(),
+        LValue::Index { element_type, .. } => element_type.clone(),
+        LValue::MemberAccess { object, field_index } => {
+            let tuple_type = type_of_lvalue(object.as_ref());
+            match tuple_type {
+                Type::Tuple(fields) => fields[*field_index].clone(),
+                _ => unreachable!("ICE: Member access on non-tuple type"),
+            }
+        }
+        LValue::Dereference { element_type, .. } => element_type.clone(),
+    }
+}
+
+pub fn type_of(expr: &Expression) -> Type {
+    match expr {
+        Expression::Ident(ident) => ident.typ.clone(),
+        Expression::Literal(lit) => match lit {
+            Literal::Integer(_, typ) => typ.clone(),
+            Literal::Bool(_) => Type::Bool,
+            Literal::Str(str) => Type::String(str.len() as u64),
+            Literal::Array(array) => {
+                // TODO
+                Type::Array(array.contents.len() as u64, Box::new(Type::Unit))
+            },
+            Literal::FmtStr(_, _, _) => unimplemented!()
+        },
+        Expression::Block(stmts) => type_of(stmts.last().unwrap()),
+        Expression::Unary(unary) => unary.result_type.clone(),
+        Expression::Binary(_binary) => unreachable!("TODO: How do we get the type of a Binary op"),
+        Expression::Index(index) => index.element_type.clone(),
+        Expression::Cast(cast) => cast.r#type.clone(),
+        Expression::For(_for_expr) => unreachable!("TODO: How do we get the type of a for loop?"),
+        Expression::If(if_expr) => if_expr.typ.clone(),
+        Expression::Tuple(elements) => Type::Tuple(elements.iter().map(type_of).collect()),
+        Expression::ExtractTupleField(tuple, index) => match tuple.as_ref() {
+            Expression::Tuple(fields) => type_of(&fields[*index]),
+            _ => unreachable!("ICE: Tuple field access on non-tuple type"),
+        },
+        Expression::Call(call) => call.return_type.clone(),
+        Expression::Let(let_stmt) => type_of(let_stmt.expression.as_ref()),
+        Expression::Constrain(contraint, _) => type_of(contraint.as_ref()),
+        Expression::Assign(assign) => type_of_lvalue(&assign.lvalue),
+        Expression::Semi(expr) => type_of(expr.as_ref()), // TODO: Is this correct?
     }
 }
 

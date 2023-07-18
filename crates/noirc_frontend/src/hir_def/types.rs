@@ -73,6 +73,11 @@ pub enum Type {
     /// A functions with arguments, and a return type.
     Function(Vec<Type>, Box<Type>),
 
+    /// A closure (a pair of a function pointer and a tuple of captured variables).
+    /// Stores the underlying function type, which has been modifies such that the
+    /// first parameter is the type of the captured variables tuple.
+    Closure(Box<Type>),
+
     /// &mut T
     MutableReference(Box<Type>),
 
@@ -701,6 +706,7 @@ impl Type {
                 parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
                     || return_type.contains_numeric_typevar(target_id)
             }
+            Type::Closure(func) => func.contains_numeric_typevar(target_id),
             Type::Struct(struct_type, generics) => {
                 generics.iter().enumerate().any(|(i, generic)| {
                     if named_generic_id_matches_target(generic) {
@@ -800,6 +806,9 @@ impl std::fmt::Display for Type {
             Type::Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {}", args.join(", "), ret)
+            }
+            Type::Closure(func) => {
+                write!(f, "closure {}", func) // i.e. we produce a string such as "closure fn(args) -> ret"
             }
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
@@ -1506,6 +1515,7 @@ impl Type {
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _) => unreachable!(),
+            Type::Closure(_) => unreachable!(),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
             Type::NotConstant => unreachable!(),
         }
@@ -1625,6 +1635,10 @@ impl Type {
                 let ret = Box::new(ret.substitute(type_bindings));
                 Type::Function(args, ret)
             }
+            Type::Closure(func) => {
+                let func = Box::new(func.substitute(type_bindings));
+                Type::Closure(func)
+            }
             Type::MutableReference(element) => {
                 Type::MutableReference(Box::new(element.substitute(type_bindings)))
             }
@@ -1663,6 +1677,7 @@ impl Type {
             Type::Function(args, ret) => {
                 args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
             }
+            Type::Closure(func) => func.occurs(target_id),
             Type::MutableReference(element) => element.occurs(target_id),
 
             Type::FieldElement(_)
@@ -1711,6 +1726,8 @@ impl Type {
                 let ret = Box::new(ret.follow_bindings());
                 Function(args, ret)
             }
+            Closure(func) => Closure(Box::new(func.follow_bindings())),
+
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types

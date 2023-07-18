@@ -683,6 +683,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Error
         | Type::NotConstant
         | Type::Struct(_, _)
-        | Type::FmtString(_, _) => None,
+        | Type::FmtString(_, _)
+        | Type::Closure(_) => None, // TODO: Is this correct? How do we add methods to functions? Can we do the same for closures?
     }
 }

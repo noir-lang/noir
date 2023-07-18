@@ -152,6 +152,7 @@ impl<'interner> TypeChecker<'interner> {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
+    use std::vec;
 
     use fm::FileId;
     use iter_extended::vecmap;
@@ -314,7 +315,29 @@ mod test {
 
         type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
     }
+    #[test]
+    fn basic_closure() {
+        let src = r#"
+            fn main(x : Field) -> pub Field {
+                let closure = |y| y + x;
+                closure(x)
+            }
+        "#;
 
+        type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
+    }
+
+    #[test]
+    fn closure_with_no_args() {
+        let src = r#"
+        fn main(x : Field) -> pub Field {
+            let closure = || x;
+            closure()
+        }
+       "#;
+
+        type_check_src_code(src, vec![String::from("main")]);
+    }
     // This is the same Stub that is in the resolver, maybe we can pull this out into a test module and re-use?
     struct TestPathResolver(HashMap<String, ModuleDefId>);
 

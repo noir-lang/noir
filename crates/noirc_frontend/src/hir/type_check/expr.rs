@@ -279,10 +279,18 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Tuple(vecmap(&elements, |elem| self.check_expression(elem)))
             }
             HirExpression::Lambda(lambda) => {
-                let params = vecmap(lambda.parameters, |(pattern, typ)| {
-                    self.bind_pattern(&pattern, typ.clone());
+                let captured_vars = vecmap(lambda.captures, |capture| {
+                    let typ = self.interner.id_type(capture.ident.id);
                     typ
                 });
+
+                let env_type = Type::Tuple(captured_vars);
+                let mut params = vec![env_type];
+
+                for (pattern, typ) in lambda.parameters {
+                    self.bind_pattern(&pattern, typ.clone());
+                    params.push(typ);
+                }
 
                 let actual_return = self.check_expression(&lambda.body);
 
@@ -294,7 +302,9 @@ impl<'interner> TypeChecker<'interner> {
                         expr_span: span,
                     }
                 });
-                Type::Function(params, Box::new(lambda.return_type))
+
+                let function_type = Type::Function(params, Box::new(lambda.return_type));
+                Type::Closure(Box::new(function_type))
             }
         };
 
@@ -870,11 +880,43 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
+    fn bind_function_type_impl(
+        &mut self,
+        fn_params: &Vec<Type>,
+        fn_ret: &Type,
+        callsite_args: &Vec<(Type, ExprId, Span)>,
+        span: Span,
+        skip_params: usize,
+    ) -> Type {
+        let real_fn_params_count = fn_params.len() - skip_params;
+
+        if real_fn_params_count != callsite_args.len() {
+            self.errors.push(TypeCheckError::ParameterCountMismatch { 
+                expected: real_fn_params_count,
+                found: callsite_args.len(), 
+                span: span
+            });
+            return Type::Error;
+        }
+
+        for (param, (arg, _, arg_span)) in fn_params.iter().skip(skip_params).zip(callsite_args) {
+            arg.make_subtype_of(param, *arg_span, &mut self.errors, || {
+                TypeCheckError::TypeMismatch {
+                    expected_typ: param.to_string(),
+                    expr_typ: arg.to_string(),
+                    expr_span: *arg_span,
+                }
+            });
+        }
+
+        fn_ret.clone()
+    }
+
     fn bind_function_type(
         &mut self,
         function: Type,
         args: Vec<(Type, ExprId, Span)>,
-        span: Span,
+        span: Span
     ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
@@ -894,31 +936,14 @@ impl<'interner> TypeChecker<'interner> {
                 ret
             }
             Type::Function(parameters, ret) => {
-                if parameters.len() != args.len() {
-                    self.errors.push(TypeCheckError::ParameterCountMismatch {
-                        expected: parameters.len(),
-                        found: args.len(),
-                        span,
-                    });
-                    return Type::Error;
-                }
-
-                for (param, (arg, arg_id, arg_span)) in parameters.iter().zip(args) {
-                    arg.make_subtype_with_coercions(
-                        param,
-                        arg_id,
-                        self.interner,
-                        &mut self.errors,
-                        || TypeCheckError::TypeMismatch {
-                            expected_typ: param.to_string(),
-                            expr_typ: arg.to_string(),
-                            expr_span: arg_span,
-                        },
-                    );
-                }
-
-                *ret
-            }
+                self.bind_function_type_impl(
+                    parameters.as_ref(),
+                    ret.as_ref(),
+                    args.as_ref(),
+                    span,
+                    0,
+                )
+            },
             Type::Error => Type::Error,
             found => {
                 self.errors.push(TypeCheckError::ExpectedFunction { found, span });
