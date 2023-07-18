@@ -430,9 +430,14 @@ impl GeneratedAcir {
         // true.
         let mut rhs_constraint = (rhs * &Expression::from(q_witness)).unwrap();
         rhs_constraint = &rhs_constraint + r_witness;
-        rhs_constraint = (&rhs_constraint * predicate).unwrap();
-        let lhs_constraint = (lhs * predicate).unwrap();
-        let div_euclidean = &lhs_constraint - &rhs_constraint;
+
+        // Reduce the rhs_constraint to a witness
+        let rhs_reduced: Expression = self.create_witness_for_expression(&rhs_constraint).into();
+        // Reduce the lhs_constraint to a witness
+        let lhs_reduced: Expression = self.create_witness_for_expression(lhs).into();
+
+        let div_euclidean = &(&lhs_reduced * predicate).unwrap()
+            - &(&rhs_reduced.into() * predicate).unwrap().into();
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
