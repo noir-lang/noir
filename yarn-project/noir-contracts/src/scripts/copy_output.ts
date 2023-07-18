@@ -59,7 +59,7 @@ function getFunction(type: FunctionType, params: ABIParameter[], returns: ABITyp
     parameters: params,
     // If the function is secret, the return is the public inputs, which should be omitted
     returnTypes: type === FunctionType.SECRET ? [] : returns,
-    bytecode: Buffer.from(fn.bytecode).toString('hex'),
+    bytecode: fn.bytecode,
     // verificationKey: Buffer.from(fn.verification_key).toString('hex'),
     verificationKey: mockedKeys.verificationKey,
   };

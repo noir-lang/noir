@@ -33,7 +33,7 @@
     "@aztec/circuits.js": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/types": "workspace:^",
-    "acvm_js": "github:sirasistant/acvm-simulator-wasm#1e84f2b4ecf0d0a7aee37f3d8d568add711b9e93",
+    "acvm_js": "github:sirasistant/acvm-simulator-wasm#32f7765a9c19d6099c2a46861dec356a075ab53c",
     "levelup": "^5.1.1",
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"

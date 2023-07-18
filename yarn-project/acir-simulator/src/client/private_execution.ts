@@ -56,7 +56,7 @@ export class PrivateFunctionExecution {
     const selector = this.functionData.functionSelectorBuffer.toString('hex');
     this.log(`Executing external function ${this.contractAddress.toString()}:${selector}`);
 
-    const acir = Buffer.from(this.abi.bytecode, 'hex');
+    const acir = Buffer.from(this.abi.bytecode, 'base64');
     const initialWitness = this.writeInputs();
 
     // TODO: Move to ClientTxExecutionContext.

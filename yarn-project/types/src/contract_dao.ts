@@ -57,6 +57,9 @@ export function getNewContractPublicFunctions(newContract: ContractDao) {
     .filter(c => c.functionType === FunctionType.OPEN)
     .map(
       fn =>
-        new EncodedContractFunction(generateFunctionSelector(fn.name, fn.parameters), Buffer.from(fn.bytecode, 'hex')),
+        new EncodedContractFunction(
+          generateFunctionSelector(fn.name, fn.parameters),
+          Buffer.from(fn.bytecode, 'base64'),
+        ),
     );
 }

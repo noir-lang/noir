@@ -79,7 +79,7 @@ describe('ACIR public execution simulator', () => {
           isStaticCall: false,
         });
 
-        publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintAbi.bytecode, 'hex'));
+        publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintAbi.bytecode, 'base64'));
 
         // Mock the old value for the recipient balance to be 20
         const previousBalance = new Fr(20n);
@@ -130,7 +130,7 @@ describe('ACIR public execution simulator', () => {
         recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient, circuitsWasm);
         senderStorageSlot = computeSlotForMapping(new Fr(1n), Fr.fromBuffer(sender.toBuffer()), circuitsWasm);
 
-        publicContracts.getBytecode.mockResolvedValue(Buffer.from(abi.bytecode, 'hex'));
+        publicContracts.getBytecode.mockResolvedValue(Buffer.from(abi.bytecode, 'base64'));
 
         execution = { contractAddress, functionData, args, callContext };
       });
@@ -221,9 +221,9 @@ describe('ACIR public execution simulator', () => {
       // eslint-disable-next-line require-await
       publicContracts.getBytecode.mockImplementation(async (addr: AztecAddress, selector: Buffer) => {
         if (addr.equals(parentContractAddress) && selector.equals(parentEntryPointFnSelector)) {
-          return Buffer.from(parentEntryPointFn.bytecode, 'hex');
+          return Buffer.from(parentEntryPointFn.bytecode, 'base64');
         } else if (addr.equals(childContractAddress) && selector.equals(childValueFnSelector)) {
-          return Buffer.from(childValueFn.bytecode, 'hex');
+          return Buffer.from(childValueFn.bytecode, 'base64');
         } else {
           return undefined;
         }
@@ -273,7 +273,7 @@ describe('ACIR public execution simulator', () => {
         isStaticCall: false,
       });
 
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(shieldAbi.bytecode, 'hex'));
+      publicContracts.getBytecode.mockResolvedValue(Buffer.from(shieldAbi.bytecode, 'base64'));
       // mock initial balance to be greater than the amount being sent
       publicState.storageRead.mockResolvedValue(amount);
 
@@ -303,7 +303,7 @@ describe('ACIR public execution simulator', () => {
         isStaticCall: false,
       });
 
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(createL2ToL1MessagePublicAbi.bytecode, 'hex'));
+      publicContracts.getBytecode.mockResolvedValue(Buffer.from(createL2ToL1MessagePublicAbi.bytecode, 'base64'));
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
       const result = await executor.execute(execution, GlobalVariables.empty());
@@ -357,7 +357,7 @@ describe('ACIR public execution simulator', () => {
         isStaticCall: false,
       });
 
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintPublicAbi.bytecode, 'hex'));
+      publicContracts.getBytecode.mockResolvedValue(Buffer.from(mintPublicAbi.bytecode, 'base64'));
       publicState.storageRead.mockResolvedValue(Fr.ZERO);
 
       // Mock response
@@ -389,7 +389,7 @@ describe('ACIR public execution simulator', () => {
         isStaticCall: false,
       });
 
-      publicContracts.getBytecode.mockResolvedValue(Buffer.from(createNullifierPublicAbi.bytecode, 'hex'));
+      publicContracts.getBytecode.mockResolvedValue(Buffer.from(createNullifierPublicAbi.bytecode, 'base64'));
 
       const execution: PublicExecution = { contractAddress, functionData, args, callContext };
       const result = await executor.execute(execution, GlobalVariables.empty());
