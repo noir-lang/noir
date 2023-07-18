@@ -41,6 +41,19 @@ using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 
 //     return aggregation_object;
 // }
+void initialise_end_values(PreviousKernelData<NT> const& previous_kernel, KernelCircuitPublicInputs<NT>& public_inputs)
+{
+    common_inner_ordering_initialise_end_values(previous_kernel, public_inputs);
+
+    // Ensure the arrays are the same as previously, before we start pushing more data onto them in other
+    // functions within this circuit:
+    auto& end = public_inputs.end;
+    const auto& start = previous_kernel.public_inputs.end;
+
+    end.read_requests = start.read_requests;
+    end.read_request_membership_witnesses = start.read_request_membership_witnesses;
+}
+
 
 void validate_this_private_call_hash(DummyBuilder& builder,
                                      PrivateKernelInputsInner<NT> const& private_inputs,
@@ -94,6 +107,9 @@ void validate_inputs(DummyBuilder& builder, PrivateKernelInputsInner<NT> const& 
     builder.do_assert(start_private_call_stack_length != 0,
                       "Cannot execute private kernel circuit with an empty private call stack",
                       CircuitErrorCode::PRIVATE_KERNEL__PRIVATE_CALL_STACK_EMPTY);
+
+    common_validate_previous_kernel_read_requests(
+        builder, start.read_requests, start.read_request_membership_witnesses);
 }
 
 // NOTE: THIS IS A VERY UNFINISHED WORK IN PROGRESS.
@@ -106,7 +122,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyBuilder& 
     KernelCircuitPublicInputs<NT> public_inputs{};
 
     // Do this before any functions can modify the inputs.
-    common_initialise_end_values(private_inputs.previous_kernel, public_inputs);
+    initialise_end_values(private_inputs.previous_kernel, public_inputs);
 
     validate_inputs(builder, private_inputs);
 
@@ -122,9 +138,9 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyBuilder& 
     common_validate_read_requests(
         builder,
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address,
-        private_inputs.private_call.call_stack_item.public_inputs.read_requests,
-        private_inputs.private_call.read_request_membership_witnesses,
-        public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root);
+        public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root,
+        private_inputs.private_call.call_stack_item.public_inputs.read_requests,  // read requests from private call
+        private_inputs.private_call.read_request_membership_witnesses);
 
 
     // TODO(dbanks12): feels like update_end_values should happen later

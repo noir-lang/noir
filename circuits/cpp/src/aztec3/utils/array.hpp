@@ -110,15 +110,26 @@ template <typename T, size_t SIZE> void array_rearrange(std::array<T, SIZE>& arr
 {
     size_t target_pos = 0;
     for (size_t i = 0; i < SIZE; i++) {
-        if (arr[i] != NT::fr(0)) {
-            arr[target_pos] = arr[i];
-            target_pos++;
+        if constexpr (std::is_same<T, NT::fr>::value) {
+            if (arr[i] != NT::fr(0)) {
+                arr[target_pos] = arr[i];
+                target_pos++;
+            }
+        } else {
+            if (!arr[i].is_empty()) {
+                arr[target_pos] = arr[i];
+                target_pos++;
+            }
         }
     }
 
     // Cleaning needed to avoid duplicate values, e.g., [1,0,3,0] --> [1,3,3,0] otherwise.
     for (size_t i = target_pos; i < SIZE; i++) {
-        arr[i] = NT::fr(0);
+        if constexpr (std::is_same<T, NT::fr>::value) {
+            arr[i] = NT::fr(0);
+        } else {
+            arr[i] = T{};
+        }
     }
 }
 

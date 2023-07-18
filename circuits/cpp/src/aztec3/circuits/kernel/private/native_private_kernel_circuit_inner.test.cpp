@@ -5,6 +5,7 @@
 #include "aztec3/circuits/apps/test_apps/escrow/deposit.hpp"
 #include "aztec3/circuits/kernel/private/common.hpp"
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/array.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 
 #include <barretenberg/barretenberg.hpp>
@@ -21,6 +22,8 @@ using aztec3::circuits::apps::test_apps::escrow::deposit;
 using aztec3::circuits::kernel::private_kernel::testing_harness::do_private_call_get_kernel_inputs_inner;
 using aztec3::circuits::kernel::private_kernel::testing_harness::get_random_reads;
 using aztec3::circuits::kernel::private_kernel::testing_harness::validate_no_new_deployed_contract;
+
+using aztec3::utils::array_length;
 using aztec3::utils::CircuitErrorCode;
 
 // NOTE: *DO NOT* call fr constructors in static initializers and assign them to constants. This will fail. Instead, use
@@ -359,6 +362,9 @@ TEST_F(native_private_kernel_inner_tests, native_no_read_requests_works)
         info("failure: ", failure);
     }
     ASSERT_FALSE(builder.failed());
+
+    // non-transient read requests are NOT forwarded
+    ASSERT_EQ(array_length(public_inputs.end.read_requests), 0);
 }
 
 TEST_F(native_private_kernel_inner_tests, native_one_read_requests_works)
@@ -387,6 +393,9 @@ TEST_F(native_private_kernel_inner_tests, native_one_read_requests_works)
         info("failure: ", failure);
     }
     ASSERT_FALSE(builder.failed());
+
+    // non-transient read requests are NOT forwarded
+    ASSERT_EQ(array_length(public_inputs.end.read_requests), 0);
 }
 
 TEST_F(native_private_kernel_inner_tests, native_two_read_requests_works)
@@ -415,6 +424,9 @@ TEST_F(native_private_kernel_inner_tests, native_two_read_requests_works)
         info("failure: ", failure);
     }
     ASSERT_FALSE(builder.failed());
+
+    // non-transient read requests are NOT forwarded
+    ASSERT_EQ(array_length(public_inputs.end.read_requests), 0);
 }
 
 TEST_F(native_private_kernel_inner_tests, native_max_read_requests_works)
@@ -444,6 +456,9 @@ TEST_F(native_private_kernel_inner_tests, native_max_read_requests_works)
         info("failure: ", failure);
     }
     ASSERT_FALSE(builder.failed());
+
+    // non-transient read requests are NOT forwarded
+    ASSERT_EQ(array_length(public_inputs.end.read_requests), 0);
 }
 
 TEST_F(native_private_kernel_inner_tests, native_read_requests_less_than_witnesses)
@@ -527,6 +542,8 @@ TEST_F(native_private_kernel_inner_tests, native_one_transient_read_requests_wor
         info("failure: ", failure);
     }
     ASSERT_FALSE(builder.failed());
+
+    ASSERT_EQ(array_length(public_inputs.end.read_requests), 1);  // transient read request gets forwarded
 }
 
 TEST_F(native_private_kernel_inner_tests, native_max_read_requests_one_transient_works)
@@ -562,6 +579,49 @@ TEST_F(native_private_kernel_inner_tests, native_max_read_requests_one_transient
         info("failure: ", failure);
     }
     ASSERT_FALSE(builder.failed());
+
+    // transient read request gets forwarded
+    ASSERT_EQ(array_length(public_inputs.end.read_requests), 1);
+}
+
+TEST_F(native_private_kernel_inner_tests, native_max_read_requests_all_transient_works)
+{
+    // max read requests with all transient should work
+
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
+
+    auto const& contract_address =
+        private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address;
+
+    auto [read_requests, read_request_membership_witnesses, root] =
+        get_random_reads(contract_address, MAX_READ_REQUESTS_PER_CALL);
+    private_inputs.previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots
+        .private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.historic_private_data_tree_root = root;
+    private_inputs.private_call.call_stack_item.public_inputs.read_requests = read_requests;
+
+    // Make the read request at position 1 transient
+    for (size_t rr_idx = 0; rr_idx < MAX_READ_REQUESTS_PER_CALL; ++rr_idx) {
+        read_request_membership_witnesses[rr_idx].leaf_index = NT::fr(0);
+        read_request_membership_witnesses[rr_idx].sibling_path = std::array<fr, PRIVATE_DATA_TREE_HEIGHT>{};
+        read_request_membership_witnesses[rr_idx].is_transient = true;
+    }
+    private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
+
+    DummyBuilder builder =
+        DummyBuilder("native_private_kernel_inner_tests__native_max_read_requests_one_transient_works");
+    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
+
+    validate_no_new_deployed_contract(public_inputs);
+
+    auto failure = builder.get_first_failure();
+    if (failure.code != CircuitErrorCode::NO_ERROR) {
+        info("failure: ", failure);
+    }
+    ASSERT_FALSE(builder.failed());
+
+    // transient read request all get forwarded
+    ASSERT_EQ(array_length(public_inputs.end.read_requests), MAX_READ_REQUESTS_PER_CALL);
 }
 
 TEST_F(native_private_kernel_inner_tests, native_logs_are_hashed_as_expected)

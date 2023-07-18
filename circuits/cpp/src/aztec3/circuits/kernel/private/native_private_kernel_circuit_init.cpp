@@ -186,9 +186,9 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_initial(DummyBuilder
     common_validate_read_requests(
         builder,
         private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address,
-        private_inputs.private_call.call_stack_item.public_inputs.read_requests,
-        private_inputs.private_call.read_request_membership_witnesses,
-        public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root);
+        public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root,
+        private_inputs.private_call.call_stack_item.public_inputs.read_requests,  // read requests from private call
+        private_inputs.private_call.read_request_membership_witnesses);
 
     // TODO(dbanks12): feels like update_end_values should happen after contract logic
     update_end_values(builder, private_inputs, public_inputs);
