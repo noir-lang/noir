@@ -297,6 +297,8 @@
           wasm-bindgen-cli
           binaryen
           jq
+          rust-bin.stable."1.66.1".default
+          rust-analyzer
         ];
 
         shellHook = ''
