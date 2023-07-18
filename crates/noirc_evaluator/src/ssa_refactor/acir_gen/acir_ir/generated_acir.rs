@@ -742,7 +742,7 @@ impl GeneratedAcir {
         let (q_witness, r_witness) = self.quotient_directive(
             comparison_evaluation.clone(),
             two_max_bits.into(),
-            Some(predicate),
+            None,
             q_max_bits,
             r_max_bits,
         )?;
