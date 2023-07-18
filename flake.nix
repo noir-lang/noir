@@ -175,6 +175,19 @@
         doCheck = false;
       };
 
+      # Combine the environmnet with cargo args needed to build wasm package
+      noirc_abi_WasmArgs = sharedEnvironment // sharedArgs // {
+        pname = "noirc_abi";
+
+        src = ./.;
+
+        cargoExtraArgs = "--package noirc_abi --target wasm32-unknown-unknown";
+
+        buildInputs = [ ] ++ extraBuildInputs;
+
+        doCheck = false;
+      };
+
       # The `port` is parameterized to support parallel test runs without colliding static servers
       testArgs = port: testEnvironment // {
         # We provide `barretenberg-transcript00` from the overlay to the tests as a URL hosted via a static server
@@ -315,6 +328,42 @@
         '';
 
       });
+
+      # TODO: This fails with a "section too large" error on MacOS so we should limit to linux targets
+      # or fix the failure
+      packages.noirc_abi_wasm = craneLib.buildPackage (noirWasmArgs // {
+
+        inherit GIT_COMMIT;
+        inherit GIT_DIRTY;
+        doCheck = false;
+
+        cargoArtifacts = noir-wasm-cargo-artifacts;
+
+        COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
+        VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
+        PKG_PATH = "./pkg";
+
+        nativeBuildInputs = with pkgs; [
+          which
+          git
+          jq
+          rustToolchain
+          wasm-bindgen-cli
+          binaryen
+          toml2json
+        ];
+
+        postBuild = ''
+          bash crates/wasm/postBuild.sh
+        '';
+
+        installPhase = ''
+          bash crates/wasm/installPhase.sh
+        '';
+
+      });
     });
+
+
 }
 
