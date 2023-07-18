@@ -156,7 +156,11 @@ impl AcirContext {
 
     /// Adds a new Variable to context whose value will
     /// be constrained to be the inverse of `var`.
-    pub(crate) fn inv_var(&mut self, var: AcirVar) -> Result<AcirVar, AcirGenError> {
+    pub(crate) fn inv_var(
+        &mut self,
+        var: AcirVar,
+        predicate: AcirVar,
+    ) -> Result<AcirVar, AcirGenError> {
         let var_data = &self.vars[&var];
         if let AcirVarData::Const(constant) = var_data {
             // Note that this will return a 0 if the inverse is not available
@@ -169,7 +173,7 @@ impl AcirContext {
         let field_type = AcirType::NumericType(NumericType::NativeField);
 
         let results = self.brillig(
-            None,
+            Some(predicate),
             inverse_code,
             vec![AcirValue::Var(var, field_type.clone())],
             vec![field_type],
@@ -306,7 +310,7 @@ impl AcirContext {
         };
         match numeric_type {
             NumericType::NativeField => {
-                let inv_rhs = self.inv_var(rhs)?;
+                let inv_rhs = self.inv_var(rhs, predicate)?;
                 self.mul_var(lhs, inv_rhs)
             }
             NumericType::Unsigned { bit_size } => {
