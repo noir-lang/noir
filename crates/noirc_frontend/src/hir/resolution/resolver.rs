@@ -923,10 +923,8 @@ impl<'a> Resolver<'a> {
                 // TODO: move this logic into its own method and restrict to experimental ssa
                 let arguments = vecmap(call_expr.arguments, |arg| {
                     // TODO: write resolver tests for this
-                    // TODO: move this to resolution of a method call where we check the builtin
                     match arg.kind {
-                        // Only function calls
-                        // we should convert the Str literal to a FmtStr literal
+                        // Only function calls should convert the Str literal to a FmtStr literal
                         ExpressionKind::Literal(Literal::Str(string)) => {
                             let re = Regex::new(r"\{([\S]+)\}").unwrap();
                             let str_literal = if re.is_match(&string) {
@@ -966,7 +964,6 @@ impl<'a> Resolver<'a> {
                             expr_id
                         }
                         _ => self.resolve_expression(arg),
-                        // _ => panic!("only string literals accepted to println"),
                     }
                 });
                 let location = Location::new(expr.span, self.file);

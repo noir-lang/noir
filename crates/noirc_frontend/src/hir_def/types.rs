@@ -37,8 +37,8 @@ pub enum Type {
     /// is either a type variable of some kind or a Type::Constant.
     String(Box<Type>),
 
-    // TODO: possibly add this and expose FmtStr's to the user
-    // add more details on what this means
+    /// FmtString(N, Vec<E>) is an array of characters of length N that contains
+    /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
     FmtString(Box<Type>, Vec<Type>),
 
     /// The unit type `()`.
@@ -1145,8 +1145,6 @@ impl Type {
                     Err(SpanKind::None)
                 }
             }
-
-            (FmtString(_, _), String(_)) => Ok(()),
 
             // `T <: U  =>  &mut T <: &mut U` would be unsound(*), so mutable
             // references are never subtypes of each other.
