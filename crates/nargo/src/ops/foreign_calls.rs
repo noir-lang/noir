@@ -111,8 +111,8 @@ fn convert_fmt_string_inputs(
     let num_values = num_values[0].to_field().to_u128() as usize;
 
     let mut abi_types = Vec::new();
-    for i in (input_and_abi_values.len() - num_values)..input_and_abi_values.len() {
-        let abi_type = fetch_abi_type(&input_and_abi_values[i])?;
+    for abi_values in input_and_abi_values.iter().skip(input_and_abi_values.len() - num_values) {
+        let abi_type = fetch_abi_type(abi_values)?;
         abi_types.push(abi_type);
     }
 
@@ -120,11 +120,11 @@ fn convert_fmt_string_inputs(
         let abi_type = &abi_types[i];
         let type_size = abi_type.field_count() as usize;
 
-        let input_values_as_fields = input_and_abi_values[i..(i + type_size)]
+        let mut input_values_as_fields = input_and_abi_values[i..(i + type_size)]
             .iter()
             .flat_map(|values| vecmap(values, |value| value.to_field()));
 
-        let decoded_value = decode_value(&mut input_values_as_fields.into_iter(), abi_type)?;
+        let decoded_value = decode_value(&mut input_values_as_fields, abi_type)?;
 
         let json_value = JsonTypes::try_from_input_value(&decoded_value, abi_type)?;
         let output_string = serde_json::to_string(&json_value)

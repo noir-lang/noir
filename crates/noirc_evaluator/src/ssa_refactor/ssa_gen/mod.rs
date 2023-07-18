@@ -145,8 +145,7 @@ impl<'a> FunctionContext<'a> {
                     &fields[..],
                 ]
                 .concat();
-                let fmt_str_fields = self.codegen_tuple(fmt_str_tuple);
-                fmt_str_fields
+                self.codegen_tuple(fmt_str_tuple)
             }
         }
     }
