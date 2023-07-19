@@ -2,13 +2,13 @@ use dep::std;
 
 fn main(x : Field, y : pub Field) {
 
-    std::println_new("*** println_new ***");
-    std::println_new(x);
-    std::println_new([x, y]);
+    std::println("*** println ***");
+    std::println(x);
+    std::println([x, y]);
     
     let s = myStruct { y: x, x: y };
     let foo = fooStruct { my_struct: s, foo: 15 };
-    std::println_new(foo);
+    std::println(foo);
 }
 
 struct myStruct {

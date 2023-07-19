@@ -15,13 +15,14 @@ mod unsafe;
 mod collections;
 mod compat;
 
+// TODO(#1850): Remove this builtin to use the foreign call based println
 #[builtin(println)]
 fn println<T>(_input : T) {}
 
 #[oracle(println)]
 unconstrained fn println_oracle<T, A>(_input: T) -> Field {}
 
-unconstrained fn println_new<T>(input: T) {
+unconstrained fn println<T>(input: T) {
     println_oracle(input);
 }
 

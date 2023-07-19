@@ -80,21 +80,42 @@ impl CrateDefMap {
         let mut ast = parse_file(&mut context.file_manager, root_file_id, errors);
 
         // TODO(#1850): This check should be removed once we fully move over to the new SSA pass
-        // Compiling with the old SSA pass will lead to duplicate method definitions between
+        // There are some features that use the new SSA pass that also affect the stdlib.
+        // 1. Compiling with the old SSA pass will lead to duplicate method definitions between
         // the `slice` and `array` modules of the stdlib.
+        // 2. The `println` method is a builtin with the old SSA but is a normal function that calls
+        // an oracle in the new SSA.
         //
         // The last crate represents the stdlib crate.
         // After resolving the manifest of the local crate the stdlib is added to the manifest and propagated to all crates
         // thus being the last crate.
-        if !context.def_interner.experimental_ssa && context.crate_graph.is_last_crate(crate_id) {
+        if crate_id.is_stdlib() {
             let path_as_str = context
                 .file_manager
                 .path(root_file_id)
                 .to_str()
                 .expect("expected std path to be convertible to str");
             assert_eq!(path_as_str, "std/lib");
-            ast.module_decls
-                .retain(|ident| ident.0.contents != "slice" && ident.0.contents != "collections");
+            if context.def_interner.experimental_ssa {
+                ast.functions.retain(|func| {
+                    if func.def.name.0.contents.as_str() == "println" {
+                        func.def.is_unconstrained
+                    } else {
+                        true
+                    }
+                });
+            } else {
+                ast.functions.retain(|func| {
+                    if func.def.name.0.contents.as_str() == "println" {
+                        !func.def.is_unconstrained
+                    } else {
+                        true
+                    }
+                });
+                ast.module_decls.retain(|ident| {
+                    ident.0.contents != "slice" && ident.0.contents != "collections"
+                });
+            }
         }
 
         // Allocate a default Module for the root, giving it a ModuleId
