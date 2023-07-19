@@ -776,9 +776,8 @@ impl GeneratedAcir {
         expr.push_addition_term(FieldElement::one(), r_witness);
 
         let equation = &comparison_evaluation - &expr;
-        let equation_reduced: Expression = self.create_witness_for_expression(&equation).into();
-        let predicate_reduced: Expression = self.create_witness_for_expression(&predicate).into();
-        let predicated_equation = (&equation_reduced * &predicate_reduced).expect("operands were reduced to witnesses and so we expect the result of their multiplication to fit into a degree-2 expression");
+        let predicated_equation = self.mul_with_witness(&equation, &predicate);
+        self.push_opcode(AcirOpcode::Arithmetic(predicated_equation));
 
         self.push_opcode(AcirOpcode::Arithmetic(predicated_equation));
 
