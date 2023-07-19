@@ -156,10 +156,10 @@ describe('Private Execution test suite', () => {
     let recipient: AztecAddress;
     let currentNoteIndex = 0n;
 
-    const buildNote = (amount: bigint, noteOwner: AztecAddress) => {
+    const buildNote = (amount: bigint, owner: AztecAddress, storageSlot = Fr.random()) => {
       const nonce = new Fr(currentNoteIndex);
-      const preimage = [new Fr(amount), noteOwner.toField(), Fr.random(), new Fr(1n)];
-      return { index: currentNoteIndex++, nonce, preimage };
+      const preimage = [new Fr(amount), owner.toField(), Fr.random(), new Fr(1n)];
+      return { contractAddress, storageSlot, index: currentNoteIndex++, nonce, preimage };
     };
 
     beforeEach(async () => {
@@ -193,7 +193,7 @@ describe('Private Execution test suite', () => {
 
     it('should have an abi for computing note hash and nullifier', async () => {
       const storageSlot = Fr.random();
-      const note = buildNote(60n, owner);
+      const note = buildNote(60n, owner, storageSlot);
 
       // Should be the same as how we compute the values for the ValueNote in the noir library.
       const valueNoteHash = pedersenPlookupCommitInputs(
@@ -263,8 +263,9 @@ describe('Private Execution test suite', () => {
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'transfer')!;
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
+      const recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient.toField(), circuitsWasm);
 
-      const notes = [buildNote(60n, owner), buildNote(80n, owner)];
+      const notes = [buildNote(60n, owner, storageSlot), buildNote(80n, owner, storageSlot)];
       oracle.getNotes.mockResolvedValue(notes);
 
       const consumedNotes = await asyncMap(notes, ({ nonce, preimage }) =>
@@ -281,13 +282,12 @@ describe('Private Execution test suite', () => {
 
       expect(result.preimages.newNotes).toHaveLength(2);
       const [changeNote, recipientNote] = result.preimages.newNotes;
-      expect(recipientNote.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), recipient.toField(), circuitsWasm));
+      expect(recipientNote.storageSlot).toEqual(recipientStorageSlot);
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
       expect(newCommitments).toHaveLength(2);
 
       const [changeNoteCommitment, recipientNoteCommitment] = newCommitments;
-      const recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient.toField(), circuitsWasm);
       expect(recipientNoteCommitment).toEqual(
         await acirSimulator.computeInnerNoteHash(contractAddress, recipientStorageSlot, recipientNote.preimage),
       );
@@ -309,7 +309,7 @@ describe('Private Execution test suite', () => {
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
 
-      const notes = [buildNote(balance, owner)];
+      const notes = [buildNote(balance, owner, storageSlot)];
       oracle.getNotes.mockResolvedValue(notes);
 
       const consumedNotes = await asyncMap(notes, ({ nonce, preimage }) =>
@@ -334,18 +334,20 @@ describe('Private Execution test suite', () => {
       const amount = 100n;
       const secret = Fr.random();
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'claim')!;
+      const storageSlot = new Fr(2n);
 
       oracle.getNotes.mockResolvedValue([
         {
+          contractAddress,
+          storageSlot,
           nonce: Fr.ZERO,
           preimage: [new Fr(amount), secret],
           index: BigInt(1),
         },
       ]);
 
-      const storageSlot = 2n;
       const customNoteHash = hash([toBufferBE(amount, 32), secret.toBuffer()]);
-      const innerNoteHash = Fr.fromBuffer(hash([toBufferBE(storageSlot, 32), customNoteHash]));
+      const innerNoteHash = Fr.fromBuffer(hash([storageSlot.toBuffer(), customNoteHash]));
 
       const result = await runSimulator({
         origin: contractAddress,

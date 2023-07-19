@@ -1,32 +1,12 @@
 import { PartialContractAddress } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { TxHash } from '@aztec/types';
-import { MerkleTreeId, PublicKey } from '@aztec/types';
+import { MerkleTreeId, PublicKey, TxHash } from '@aztec/types';
 
 import { MemoryContractDatabase } from '../contract_database/index.js';
-import { Database, GetOptions } from './database.js';
+import { Database } from './database.js';
 import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
 import { TxDao } from './tx_dao.js';
-
-const sortNotes = (notes: NoteSpendingInfoDao[], sortBy: number[], sortOrder: number[]) => {
-  const sortNotesLevel = (a: Fr[], b: Fr[], level = 0): number => {
-    const index = sortBy[level];
-    if (sortBy[level] === undefined) return 0;
-
-    const order = sortOrder[level] || 1; // Default: Descending.
-    if (order === 0) return 0;
-
-    const dir = order === 1 ? [-1, 1] : [1, -1];
-    return a[index].value === b[index].value
-      ? sortNotesLevel(a, b, level + 1)
-      : a[index].value > b[index].value
-      ? dir[0]
-      : dir[1];
-  };
-
-  return notes.sort((a, b) => sortNotesLevel(a.notePreimage.items, b.notePreimage.items));
-};
 
 /**
  * The MemoryDB class provides an in-memory implementation of a database to manage transactions and auxiliary data.
@@ -125,22 +105,15 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
    *
    * @param contract - The contract address.
    * @param storageSlot - A Fr object representing the storage slot to search for in the auxiliary data.
-   * @param options - Options for selecting notes.
    * @returns An array of NoteSpendingInfoDao objects that fulfill the contract address and storage slot criteria.
    */
-  public getNoteSpendingInfo(
-    contract: AztecAddress,
-    storageSlot: Fr,
-    { sortBy = [], sortOrder = [], limit = 0, offset = 0 }: GetOptions = {},
-  ) {
-    let res = this.noteSpendingInfoTable.filter(
+  public getNoteSpendingInfo(contract: AztecAddress, storageSlot: Fr) {
+    const res = this.noteSpendingInfoTable.filter(
       noteSpendingInfo =>
         noteSpendingInfo.contractAddress.equals(contract) &&
         noteSpendingInfo.storageSlot.toBuffer().equals(storageSlot.toBuffer()),
     );
-    res = sortNotes(res, sortBy, sortOrder);
-
-    return Promise.resolve(res.slice(offset, limit ? offset + limit : res.length));
+    return Promise.resolve(res);
   }
 
   /**

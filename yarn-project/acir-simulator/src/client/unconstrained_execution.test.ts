@@ -59,20 +59,18 @@ describe('Unconstrained Execution test suite', () => {
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'getBalance')!;
 
       const preimages = [...Array(5).fill(buildNote(1n, owner)), ...Array(2).fill(buildNote(2n, owner))];
-      // TODO for this we need that noir siloes the commitment the same way as the kernel does, to do merkle membership
 
       const historicRoots = PrivateHistoricTreeRoots.empty();
 
-      oracle.getNotes.mockImplementation((_contract, _storageSlot, _sortBy, _sortOrder, limit: number) => {
-        const notes = preimages.slice(0, limit);
-        return Promise.resolve(
-          notes.map((preimage, index) => ({
-            nonce: Fr.random(),
-            preimage,
-            index: BigInt(index),
-          })),
-        );
-      });
+      oracle.getNotes.mockResolvedValue(
+        preimages.map((preimage, index) => ({
+          contractAddress,
+          storageSlot: Fr.random(),
+          nonce: Fr.random(),
+          preimage,
+          index: BigInt(index),
+        })),
+      );
 
       const execRequest: ExecutionRequest = {
         from: AztecAddress.random(),

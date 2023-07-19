@@ -7,21 +7,19 @@ import { Fr, Point } from '@aztec/foundation/fields';
 import { CommitmentsDB } from '../index.js';
 
 /**
- * The format that noir contracts use to get notes.
+ * Information about a note needed during execution.
  */
-export interface NoteLoadOracleInputs {
-  /**
-   * The nonce of the note.
-   */
+export interface NoteData {
+  /** The contract address of the note. */
+  contractAddress: AztecAddress;
+  /** The storage slot of the note. */
+  storageSlot: Fr;
+  /** The nonce of the note. */
   nonce: Fr;
-  /**
-   * The preimage of the note.
-   */
+  /** The preimage of the note */
   preimage: Fr[];
-  /**
-   * The note's leaf index in the private data tree.
-   */
-  index: bigint;
+  /** The note's leaf index in the private data tree. Undefined for pending notes. */
+  index?: bigint;
 }
 
 /**
@@ -65,13 +63,7 @@ export interface CommitmentDataOracleInputs {
 export interface DBOracle extends CommitmentsDB {
   getPublicKey(address: AztecAddress): Promise<[Point, PartialContractAddress]>;
   getSecretKey(contractAddress: AztecAddress, pubKey: Point): Promise<Buffer>;
-  getNotes(
-    contractAddress: AztecAddress,
-    storageSlot: Fr,
-    sortBy: number[],
-    sortOrder: number[],
-    limit: number,
-  ): Promise<NoteLoadOracleInputs[]>;
+  getNotes(contractAddress: AztecAddress, storageSlot: Fr): Promise<NoteData[]>;
   getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi>;
   getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
 }
