@@ -721,6 +721,7 @@ impl<'block> BrilligBlock<'block> {
             convert_ssa_binary_op_to_brillig_binary_op(binary.operator, &binary_type);
 
         // Some binary operations with fields are issued by the compiler, such as loop comparisons, cast those to the bit size here
+        // TODO Remove after fixing https://github.com/noir-lang/noir/issues/1979
         if let (
             BrilligBinaryOp::Integer { bit_size, .. },
             Type::Numeric(NumericType::NativeField),
