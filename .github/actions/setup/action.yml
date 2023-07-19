@@ -8,7 +8,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - run: cd $INPUT_WORKING-DIRECTORY
+    - run: cd ${{ inputs.working-directory }}
       shell: bash
     - name: Install node
       uses: actions/setup-node@v3
