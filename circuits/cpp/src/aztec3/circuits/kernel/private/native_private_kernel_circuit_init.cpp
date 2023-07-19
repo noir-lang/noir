@@ -78,8 +78,8 @@ void validate_this_private_call_against_tx_request(DummyBuilder& builder,
     const auto& call_stack_item = private_inputs.private_call.call_stack_item;
 
     builder.do_assert(tx_request.origin == call_stack_item.contract_address,
-                      "user's intent does not match initial private call (tx_request.origin must match "
-                      "call_stack_item.contract_address)",
+                      "user's intent does not match initial private call (origin address of tx_request must match "
+                      "call_stack_item's contract_address)",
                       CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
 
     builder.do_assert(tx_request.function_data.hash() == call_stack_item.function_data.hash(),
@@ -87,10 +87,11 @@ void validate_this_private_call_against_tx_request(DummyBuilder& builder,
                       "call_stack_item.function_data)",
                       CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
 
-    builder.do_assert(tx_request.args_hash == call_stack_item.public_inputs.args_hash,
-                      "user's intent does not match initial private call (tx_request.args must match "
-                      "call_stack_item.public_inputs.args)",
-                      CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
+    builder.do_assert(
+        tx_request.args_hash == call_stack_item.public_inputs.args_hash,
+        "user's intent does not match initial private call (noir function args passed to tx_request must match "
+        "args in the call_stack_item)",
+        CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
 };
 
 void validate_inputs(DummyBuilder& builder, PrivateKernelInputsInit<NT> const& private_inputs)
@@ -153,7 +154,11 @@ void update_end_values(DummyBuilder& builder,
                       CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
 
     // Since it's the first iteration, we need to push the the tx hash nullifier into the `new_nullifiers` array
-    array_push(builder, public_inputs.end.new_nullifiers, private_inputs.tx_request.hash());
+    array_push(builder,
+               public_inputs.end.new_nullifiers,
+               private_inputs.tx_request.hash(),
+               format(PRIVATE_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+                      "could not push tx hash nullifier into new_nullifiers array. Too many new nullifiers in one tx"));
 
     // Note that we do not need to nullify the transaction request nonce anymore.
     // Should an account want to additionally use nonces for replay protection or handling cancellations,

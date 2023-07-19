@@ -19,7 +19,7 @@ void validate_inputs(DummyBuilder& builder, PublicKernelInputs<NT> const& public
 {
     const auto& previous_kernel = public_kernel_inputs.previous_kernel.public_inputs;
     builder.do_assert(previous_kernel.is_private == false,
-                      "Previous kernel must be public",
+                      "Previous kernel must be public when in this public kernel version",
                       CircuitErrorCode::PUBLIC_KERNEL__PREVIOUS_KERNEL_NOT_PUBLIC);
 }
 }  // namespace

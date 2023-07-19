@@ -14,6 +14,10 @@
 
 namespace aztec3::circuits::rollup::native_root_rollup {
 
+// Used when calling library functions like `check_membership` which have their own generic error code.
+// So we pad this in front of the error message to identify where the error originally came from.
+const std::string ROOT_CIRCUIT_ERROR_MESSAGE_BEGINNING = "root_rollup_circuit: ";
+
 // TODO: can we aggregate proofs if we do not have a working circuit impl
 // TODO: change the public inputs array - we wont be using this?
 
@@ -93,17 +97,19 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
         fr::zero(),
         right.end_private_data_tree_snapshot.root,
         0,
-        "historic private data tree roots insertion");
+        format(ROOT_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+               "historic private data tree roots not empty at location where subtree would be inserted"));
 
     // Update the historic private data tree
-    auto end_tree_of_historic_contract_tree_roots_snapshot =
-        components::insert_subtree_to_snapshot_tree(builder,
-                                                    left.constants.start_tree_of_historic_contract_tree_roots_snapshot,
-                                                    rootRollupInputs.new_historic_contract_tree_root_sibling_path,
-                                                    fr::zero(),
-                                                    right.end_contract_tree_snapshot.root,
-                                                    0,
-                                                    "historic contract tree roots insertion");
+    auto end_tree_of_historic_contract_tree_roots_snapshot = components::insert_subtree_to_snapshot_tree(
+        builder,
+        left.constants.start_tree_of_historic_contract_tree_roots_snapshot,
+        rootRollupInputs.new_historic_contract_tree_root_sibling_path,
+        fr::zero(),
+        right.end_contract_tree_snapshot.root,
+        0,
+        format(ROOT_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+               "historic contract tree roots not empty at location where subtree would be inserted"));
 
     // Check correct l1 to l2 tree given
     // Compute subtree inserting l1 to l2 messages
@@ -111,14 +117,15 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
 
     // // Insert subtree into the l1 to l2 data tree
     const auto empty_l1_to_l2_subtree_root = components::calculate_empty_tree_root(L1_TO_L2_MSG_SUBTREE_HEIGHT);
-    auto new_l1_to_l2_messages_tree_snapshot =
-        components::insert_subtree_to_snapshot_tree(builder,
-                                                    rootRollupInputs.start_l1_to_l2_message_tree_snapshot,
-                                                    rootRollupInputs.new_l1_to_l2_message_tree_root_sibling_path,
-                                                    empty_l1_to_l2_subtree_root,
-                                                    l1_to_l2_subtree_root,
-                                                    L1_TO_L2_MSG_SUBTREE_HEIGHT,
-                                                    "l1 to l2 message tree insertion");
+    auto new_l1_to_l2_messages_tree_snapshot = components::insert_subtree_to_snapshot_tree(
+        builder,
+        rootRollupInputs.start_l1_to_l2_message_tree_snapshot,
+        rootRollupInputs.new_l1_to_l2_message_tree_root_sibling_path,
+        empty_l1_to_l2_subtree_root,
+        l1_to_l2_subtree_root,
+        L1_TO_L2_MSG_SUBTREE_HEIGHT,
+        format(ROOT_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+               "l1 to l2 message tree not empty at location where subtree would be inserted"));
 
     // Update the historic l1 to l2 data tree
     auto end_l1_to_l2_data_roots_tree_snapshot = components::insert_subtree_to_snapshot_tree(
@@ -128,7 +135,8 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
         fr::zero(),
         new_l1_to_l2_messages_tree_snapshot.root,
         0,
-        "historic l1 to l2 message tree roots insertion");
+        format(ROOT_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+               "historic l1 to l2 message tree roots not empty at location where subtree would be inserted"));
 
     RootRollupPublicInputs public_inputs = {
         .end_aggregation_object = aggregation_object,

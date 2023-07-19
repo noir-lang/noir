@@ -24,4 +24,8 @@ using OracleWrapper = aztec3::circuits::apps::OracleWrapperInterface<Builder>;
 
 using FunctionExecutionContext = aztec3::circuits::apps::FunctionExecutionContext<Builder>;
 
+// Used when calling library functions like `psuh_array` which have their own generic error code.
+// So we pad this in front of the error message to identify where the error originally came from.
+const std::string PRIVATE_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING = "private_kernel_circuit: ";
+
 }  // namespace aztec3::circuits::kernel::private_kernel

@@ -31,7 +31,10 @@ describe('kernel/public_kernel', () => {
     input.previousKernel.publicInputs.end.publicDataReads = fullStateReadsObject;
 
     await expect(simulatePublicKernelCircuit(input)).rejects.toThrow(
-      new CircuitError(7009, 'array_push cannot push to a full array'),
+      new CircuitError(
+        7009,
+        'public_kernel_circuit: too many public data reads in one tx - array_push: capacity exceeded. Limit: 4',
+      ),
     );
   });
 });

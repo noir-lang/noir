@@ -22,6 +22,10 @@
 
 namespace aztec3::circuits::rollup::native_base_rollup {
 
+// Used when calling library functions like `check_membership` which have their own generic error code.
+// So we pad this in front of the error message to identify where the error originally came from.
+const std::string BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING = "base_rollup_circuit: ";
+
 NT::fr calculate_empty_tree_root(const size_t depth)
 {
     MemoryStore empty_tree_store;
@@ -108,7 +112,7 @@ NT::fr calculate_commitments_subtree(DummyBuilder& builder, BaseRollupInputs con
 
         // Our commitments size MUST be 4 to calculate our subtrees correctly
         builder.do_assert(new_commitments.size() == MAX_NEW_COMMITMENTS_PER_TX,
-                          "New commitments in kernel data must be 4",
+                          "New commitments in kernel data must be MAX_NEW_COMMITMENTS_PER_TX (see constants.hpp)",
                           CircuitErrorCode::BASE__INCORRECT_NUM_OF_NEW_COMMITMENTS);
 
         for (size_t j = 0; j < new_commitments.size(); j++) {
@@ -141,12 +145,17 @@ void perform_historical_private_data_tree_membership_checks(DummyBuilder& builde
         abis::MembershipWitness<NT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> const historic_root_witness =
             baseRollupInputs.historic_private_data_tree_root_membership_witnesses[i];
 
-        check_membership<NT>(builder,
-                             leaf,
-                             historic_root_witness.leaf_index,
-                             historic_root_witness.sibling_path,
-                             historic_root,
-                             format("historic private data tree roots ", i));
+        check_membership<NT>(
+            builder,
+            leaf,
+            historic_root_witness.leaf_index,
+            historic_root_witness.sibling_path,
+            historic_root,
+            format(
+                BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+                "historical root is in rollup constants but not in historic private data tree roots at kernel input ",
+                i,
+                " to this base rollup circuit"));
     }
 }
 
@@ -162,12 +171,17 @@ void perform_historical_contract_data_tree_membership_checks(DummyBuilder& build
         abis::MembershipWitness<NT, CONTRACT_TREE_ROOTS_TREE_HEIGHT> const historic_root_witness =
             baseRollupInputs.historic_contract_tree_root_membership_witnesses[i];
 
-        check_membership<NT>(builder,
-                             leaf,
-                             historic_root_witness.leaf_index,
-                             historic_root_witness.sibling_path,
-                             historic_root,
-                             format("historic contract data tree roots ", i));
+        check_membership<NT>(
+            builder,
+            leaf,
+            historic_root_witness.leaf_index,
+            historic_root_witness.sibling_path,
+            historic_root,
+            format(
+                BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+                "historical root is in rollup constants but not in historic contract data tree roots at kernel input ",
+                i,
+                " to this base rollup circuit"));
     }
 }
 
@@ -183,12 +197,17 @@ void perform_historical_l1_to_l2_message_tree_membership_checks(DummyBuilder& bu
         abis::MembershipWitness<NT, L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT> const historic_root_witness =
             baseRollupInputs.historic_l1_to_l2_msg_tree_root_membership_witnesses[i];
 
-        check_membership<NT>(builder,
-                             leaf,
-                             historic_root_witness.leaf_index,
-                             historic_root_witness.sibling_path,
-                             historic_root,
-                             format("historic l1 to l2 data tree roots ", i));
+        check_membership<NT>(
+            builder,
+            leaf,
+            historic_root_witness.leaf_index,
+            historic_root_witness.sibling_path,
+            historic_root,
+            format(
+                BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+                "historical root is in rollup constants but not in historic l1 to l2 data tree roots at kernel input ",
+                i,
+                " to this base rollup circuit"));
     }
 }
 
@@ -319,12 +338,13 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
                     };
 
                     // perform membership check for the low nullifier against the original root
-                    check_membership<NT, DummyBuilder, NULLIFIER_TREE_HEIGHT>(builder,
-                                                                              original_low_nullifier.hash(),
-                                                                              witness.leaf_index,
-                                                                              witness.sibling_path,
-                                                                              current_nullifier_tree_root,
-                                                                              "low nullifier membership check");
+                    check_membership<NT, DummyBuilder, NULLIFIER_TREE_HEIGHT>(
+                        builder,
+                        original_low_nullifier.hash(),
+                        witness.leaf_index,
+                        witness.sibling_path,
+                        current_nullifier_tree_root,
+                        format(BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING, "low nullifier not in nullifier tree"));
 
                     // Calculate the new value of the low_nullifier_leaf
                     auto const updated_low_nullifier =
@@ -357,12 +377,14 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
     const auto empty_nullifier_subtree_root = components::calculate_empty_tree_root(NULLIFIER_SUBTREE_HEIGHT);
     auto leafIndexNullifierSubtreeDepth =
         baseRollupInputs.start_nullifier_tree_snapshot.next_available_leaf_index >> NULLIFIER_SUBTREE_HEIGHT;
-    check_membership<NT>(builder,
-                         empty_nullifier_subtree_root,
-                         leafIndexNullifierSubtreeDepth,
-                         baseRollupInputs.new_nullifiers_subtree_sibling_path,
-                         current_nullifier_tree_root,
-                         "empty nullifier subtree membership check");
+    check_membership<NT>(
+        builder,
+        empty_nullifier_subtree_root,
+        leafIndexNullifierSubtreeDepth,
+        baseRollupInputs.new_nullifiers_subtree_sibling_path,
+        current_nullifier_tree_root,
+        format(BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+               "nullifier tree not empty at location where the new nullifier subtree would be inserted"));
 
     // Create new nullifier subtree to insert into the whole nullifier tree
     auto nullifier_sibling_path = baseRollupInputs.new_nullifiers_subtree_sibling_path;
@@ -398,12 +420,13 @@ fr insert_public_data_update_requests(
             continue;
         }
 
-        check_membership<NT>(builder,
-                             state_write.old_value,
-                             state_write.leaf_index,
-                             witness,
-                             root,
-                             format("validate_public_data_update_requests index ", i));
+        check_membership<NT>(
+            builder,
+            state_write.old_value,
+            state_write.leaf_index,
+            witness,
+            root,
+            format(BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING, "validate_public_data_update_requests index ", i));
 
         root = root_from_sibling_path<NT>(state_write.new_value, state_write.leaf_index, witness);
     }
@@ -426,12 +449,13 @@ void validate_public_data_reads(
             continue;
         }
 
-        check_membership<NT>(builder,
-                             public_data_read.value,
-                             public_data_read.leaf_index,
-                             witness,
-                             tree_root,
-                             format("validate_public_data_reads index ", i + witnesses_offset));
+        check_membership<NT>(
+            builder,
+            public_data_read.value,
+            public_data_read.leaf_index,
+            witness,
+            tree_root,
+            format(BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING, "validate_public_data_reads index ", i + witnesses_offset));
     }
 };
 
@@ -500,25 +524,26 @@ BaseOrMergeRollupPublicInputs base_rollup_circuit(DummyBuilder& builder, BaseRol
 
     // Insert commitment subtrees:
     const auto empty_commitments_subtree_root = components::calculate_empty_tree_root(PRIVATE_DATA_SUBTREE_HEIGHT);
-    auto end_private_data_tree_snapshot =
-        components::insert_subtree_to_snapshot_tree(builder,
-                                                    baseRollupInputs.start_private_data_tree_snapshot,
-                                                    baseRollupInputs.new_commitments_subtree_sibling_path,
-                                                    empty_commitments_subtree_root,
-                                                    commitments_tree_subroot,
-                                                    PRIVATE_DATA_SUBTREE_HEIGHT,
-                                                    "empty commitment subtree membership check");
-
+    auto end_private_data_tree_snapshot = components::insert_subtree_to_snapshot_tree(
+        builder,
+        baseRollupInputs.start_private_data_tree_snapshot,
+        baseRollupInputs.new_commitments_subtree_sibling_path,
+        empty_commitments_subtree_root,
+        commitments_tree_subroot,
+        PRIVATE_DATA_SUBTREE_HEIGHT,
+        format(BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+               "private data tree not empty at location where the new commitment subtree would be inserted"));
     // Insert contract subtrees:
     const auto empty_contracts_subtree_root = components::calculate_empty_tree_root(CONTRACT_SUBTREE_HEIGHT);
-    auto end_contract_tree_snapshot =
-        components::insert_subtree_to_snapshot_tree(builder,
-                                                    baseRollupInputs.start_contract_tree_snapshot,
-                                                    baseRollupInputs.new_contracts_subtree_sibling_path,
-                                                    empty_contracts_subtree_root,
-                                                    contracts_tree_subroot,
-                                                    CONTRACT_SUBTREE_HEIGHT,
-                                                    "empty contract subtree membership check");
+    auto end_contract_tree_snapshot = components::insert_subtree_to_snapshot_tree(
+        builder,
+        baseRollupInputs.start_contract_tree_snapshot,
+        baseRollupInputs.new_contracts_subtree_sibling_path,
+        empty_contracts_subtree_root,
+        contracts_tree_subroot,
+        CONTRACT_SUBTREE_HEIGHT,
+        format(BASE_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+               "contract tree not empty at location where the new contract subtree would be inserted"));
 
     // Insert nullifiers:
     AppendOnlySnapshot const end_nullifier_tree_snapshot =

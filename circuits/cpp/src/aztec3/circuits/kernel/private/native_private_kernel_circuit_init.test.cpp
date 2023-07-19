@@ -223,8 +223,8 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_args_hash_mismatch_
     EXPECT_EQ(builder.get_first_failure().code,
               CircuitErrorCode::PRIVATE_KERNEL__USER_INTENT_MISMATCH_BETWEEN_TX_REQUEST_AND_CALL_STACK_ITEM);
     EXPECT_EQ(builder.get_first_failure().message,
-              "user's intent does not match initial private call (tx_request.args must match "
-              "call_stack_item.public_inputs.args)");
+              "user's intent does not match initial private call (noir function args passed to tx_request must match "
+              "args in the call_stack_item)");
 }
 
 TEST_F(native_private_kernel_init_tests, private_function_is_private_false_fails)

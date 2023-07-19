@@ -35,14 +35,15 @@ template <size_t N> AppendOnlySnapshot insert_subtree_to_snapshot_tree(DummyBuil
                                                                        NT::fr emptySubtreeRoot,
                                                                        NT::fr subtreeRootToInsert,
                                                                        uint8_t subtreeDepth,
-                                                                       std::string const& message)
+                                                                       std::string const& emptySubtreeCheckErrorMessage)
 {
     // TODO: Sanity check len of siblingPath > height of subtree
     // TODO: Ensure height of subtree is correct (eg 3 for commitments, 1 for contracts)
     auto leafIndexAtDepth = snapshot.next_available_leaf_index >> subtreeDepth;
 
     // Check that the current root is correct and that there is an empty subtree at the insertion location
-    check_membership<NT>(builder, emptySubtreeRoot, leafIndexAtDepth, siblingPath, snapshot.root, message);
+    check_membership<NT>(
+        builder, emptySubtreeRoot, leafIndexAtDepth, siblingPath, snapshot.root, emptySubtreeCheckErrorMessage);
 
     // if index of leaf is x, index of its parent is x/2 or x >> 1. We need to find the parent `subtreeDepth` levels up.
     auto new_root = root_from_sibling_path<NT>(subtreeRootToInsert, leafIndexAtDepth, siblingPath);

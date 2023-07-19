@@ -111,14 +111,14 @@ void common_validate_call_stack(DummyBuilder& builder, KernelInput const& public
                                  preimage_portal_address,
                                  " expected ",
                                  expected_portal_address,
-                                 "; does not reconcile"),
+                                 "; does not reconcile for a delagate call"),
                           CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_INVALID_PORTAL_ADDRESS);
 
         const auto num_contract_storage_update_requests =
             array_length(preimage.public_inputs.contract_storage_update_requests);
         builder.do_assert(
             !is_static_call || num_contract_storage_update_requests == 0,
-            format("contract_storage_update_requests[", i, "] should be empty"),
+            format("contract_storage_update_requests[", i, "] should be empty for a static call"),
             CircuitErrorCode::PUBLIC_KERNEL__PUBLIC_CALL_STACK_CONTRACT_STORAGE_UPDATES_PROHIBITED_FOR_STATIC_CALL);
     }
 };
@@ -141,12 +141,12 @@ void common_validate_call_context(DummyBuilder& builder, KernelInput const& publ
         array_length(call_stack_item.public_inputs.contract_storage_update_requests);
 
     builder.do_assert(!is_delegate_call || contract_address != storage_contract_address,
-                      std::string("call_context contract_address == storage_contract_address on delegate_call"),
+                      std::string("curent contract address must not match storage contract address for delegate calls"),
                       CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_INVALID_STORAGE_ADDRESS_FOR_DELEGATE_CALL);
 
     builder.do_assert(
         !is_static_call || contract_storage_update_requests_length == 0,
-        std::string("call_context contract storage update requests found on static call"),
+        std::string("No contract storage update requests are allowed for static calls"),
         CircuitErrorCode::PUBLIC_KERNEL__CALL_CONTEXT_CONTRACT_STORAGE_UPDATE_REQUESTS_PROHIBITED_FOR_STATIC_CALL);
 };
 
@@ -178,10 +178,10 @@ void common_validate_inputs(DummyBuilder& builder, KernelInput const& public_ker
                       "Contract deployment can't be a public function",
                       CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_DEPLOYMENT_NOT_ALLOWED);
     builder.do_assert(this_call_stack_item.contract_address != 0,
-                      "Contract address must be valid",
+                      "Contract address must be non-zero",
                       CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_ADDRESS_INVALID);
     builder.do_assert(this_call_stack_item.function_data.function_selector != 0,
-                      "Function signature must be valid",
+                      "Function signature must be non-zero",
                       CircuitErrorCode::PUBLIC_KERNEL__FUNCTION_SIGNATURE_INVALID);
     builder.do_assert(this_call_stack_item.function_data.is_constructor == false,
                       "Constructors can't be public functions",
@@ -190,7 +190,7 @@ void common_validate_inputs(DummyBuilder& builder, KernelInput const& public_ker
                       "Cannot execute a private function with the public kernel circuit",
                       CircuitErrorCode::PUBLIC_KERNEL__PRIVATE_FUNCTION_NOT_ALLOWED);
     builder.do_assert(public_kernel_inputs.public_call.bytecode_hash != 0,
-                      "Bytecode hash must be valid",
+                      "Bytecode hash must be non-zero",
                       CircuitErrorCode::PUBLIC_KERNEL__BYTECODE_HASH_INVALID);
 }
 
@@ -206,10 +206,10 @@ void perform_static_call_checks(Builder& builder, KernelInput const& public_kern
 
     if (is_static_call) {
         builder.do_assert(utils::is_array_empty(new_commitments) == true,
-                          "perform_static_call_checks in static call new commitments must be empty",
+                          "no new commitments must be created for static calls",
                           CircuitErrorCode::PUBLIC_KERNEL__NEW_COMMITMENTS_PROHIBITED_IN_STATIC_CALL);
         builder.do_assert(utils::is_array_empty(new_nullifiers) == true,
-                          "perform_static_call_checks in static call new nullifiers must be empty",
+                          "no new nullifiers must be created for static calls",
                           CircuitErrorCode::PUBLIC_KERNEL__NEW_NULLIFIERS_PROHIBITED_IN_STATIC_CALL);
     }
 }
@@ -238,7 +238,11 @@ void propagate_valid_public_data_update_requests(Builder& builder,
             .old_value = compute_public_data_tree_value<NT>(update_request.old_value),
             .new_value = compute_public_data_tree_value<NT>(update_request.new_value),
         };
-        array_push(builder, circuit_outputs.end.public_data_update_requests, new_write);
+        array_push(
+            builder,
+            circuit_outputs.end.public_data_update_requests,
+            new_write,
+            format(PUBLIC_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING, "too many public data update requests in one tx"));
     }
 }
 
@@ -264,7 +268,10 @@ void propagate_valid_public_data_reads(Builder& builder,
             .leaf_index = compute_public_data_tree_index<NT>(contract_address, contract_storage_read.storage_slot),
             .value = compute_public_data_tree_value<NT>(contract_storage_read.current_value),
         };
-        array_push(builder, circuit_outputs.end.public_data_reads, new_read);
+        array_push(builder,
+                   circuit_outputs.end.public_data_reads,
+                   new_read,
+                   format(PUBLIC_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING, "too many public data reads in one tx"));
     }
 }
 
@@ -294,7 +301,10 @@ void propagate_new_commitments(Builder& builder,
         }
     }
 
-    push_array_to_array(builder, siloed_new_commitments, circuit_outputs.end.new_commitments);
+    push_array_to_array(builder,
+                        siloed_new_commitments,
+                        circuit_outputs.end.new_commitments,
+                        format(PUBLIC_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING, "too many new commitments in one tx"));
 }
 
 /**
@@ -323,7 +333,10 @@ void propagate_new_nullifiers(Builder& builder,
         }
     }
 
-    push_array_to_array(builder, siloed_new_nullifiers, circuit_outputs.end.new_nullifiers);
+    push_array_to_array(builder,
+                        siloed_new_nullifiers,
+                        circuit_outputs.end.new_nullifiers,
+                        format(PUBLIC_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING, "too many new nullifiers in one tx"));
 }
 
 /**
@@ -355,7 +368,11 @@ void propagate_new_l2_to_l1_messages(Builder& builder,
                 storage_contract_address, version, portal_contract_address, chain_id, new_l2_to_l1_msgs[i]);
         }
     }
-    push_array_to_array(builder, new_l2_to_l1_msgs_to_insert, circuit_outputs.end.new_l2_to_l1_msgs);
+    push_array_to_array(
+        builder,
+        new_l2_to_l1_msgs_to_insert,
+        circuit_outputs.end.new_l2_to_l1_msgs,
+        format(PUBLIC_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING, "too many new l2 to l1 messages in one tx"));
 }
 
 /**
@@ -406,7 +423,11 @@ void common_update_public_end_values(Builder& builder,
     perform_static_call_checks(builder, public_kernel_inputs);
 
     const auto& stack = public_kernel_inputs.public_call.call_stack_item.public_inputs.public_call_stack;
-    push_array_to_array(builder, stack, circuit_outputs.end.public_call_stack);
+    push_array_to_array(
+        builder,
+        stack,
+        circuit_outputs.end.public_call_stack,
+        format(PUBLIC_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING, "too many public call stack items in one tx"));
 
     propagate_new_commitments(builder, public_kernel_inputs, circuit_outputs);
     propagate_new_nullifiers(builder, public_kernel_inputs, circuit_outputs);

@@ -20,10 +20,11 @@ using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
 void validate_inputs(DummyBuilder& builder, PublicKernelInputs<NT> const& public_kernel_inputs)
 {
     builder.do_assert(array_length(public_kernel_inputs.previous_kernel.public_inputs.end.private_call_stack) == 0,
-                      "Private call stack must be empty",
+                      "Private call stack must be empty when executing in the public kernel (i.e. all private calls "
+                      "must have been completed)",
                       CircuitErrorCode::PUBLIC_KERNEL__NON_EMPTY_PRIVATE_CALL_STACK);
     builder.do_assert(public_kernel_inputs.previous_kernel.public_inputs.is_private == true,
-                      "Previous kernel must be private",
+                      "Previous kernel must be private when in this public kernel version",
                       CircuitErrorCode::PUBLIC_KERNEL__PREVIOUS_KERNEL_NOT_PRIVATE);
 }
 }  // namespace

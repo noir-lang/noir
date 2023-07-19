@@ -85,9 +85,11 @@ template <typename T, size_t SIZE> T array_pop(std::array<T, SIZE>& arr)
  * @tparam The builder type
  * @tparam The size of the array
  * @param The array into which we want to store the value
+ * @param The value to store
+ * @param The error message to display if the array is full
  */
 template <typename T, typename Builder, size_t SIZE>
-void array_push(Builder& builder, std::array<T, SIZE>& arr, T const& value)
+void array_push(Builder& builder, std::array<T, SIZE>& arr, T const& value, std::string const& error_message)
 {
     for (size_t i = 0; i < arr.size(); ++i) {
         if (is_empty(arr[i])) {
@@ -95,7 +97,9 @@ void array_push(Builder& builder, std::array<T, SIZE>& arr, T const& value)
             return;
         }
     }
-    builder.do_assert(false, "array_push cannot push to a full array", CircuitErrorCode::ARRAY_OVERFLOW);
+    builder.do_assert(false,
+                      format(error_message, " - array_push: capacity exceeded. Limit: ", arr.size()),
+                      CircuitErrorCode::ARRAY_OVERFLOW);
 };
 
 /**
@@ -158,23 +162,32 @@ template <typename T, size_t SIZE> NT::boolean is_array_empty(std::array<T, SIZE
  * @tparam The type of the value stored in the arrays
  * @param The `source` array
  * @param The `target` array
+ * @param The error message to display if the `source` array is too large
  */
 template <size_t size_1, size_t size_2, typename T, typename Builder>
-void push_array_to_array(Builder& builder, std::array<T, size_1> const& source, std::array<T, size_2>& target)
+void push_array_to_array(Builder& builder,
+                         std::array<T, size_1> const& source,
+                         std::array<T, size_2>& target,
+                         std::string const& error_message)
 {
     // Check if the `source` array is too large vs the remaining capacity of the `target` array
     size_t const source_size = array_length(source);
     size_t const target_size = array_length(target);
 
     builder.do_assert(source_size <= size_2 - target_size,
-                      "push_array_to_array cannot overflow the target",
+                      format(error_message,
+                             " - push_array_to_array exceeded capacity. Limit: ",
+                             size_2 - target_size,
+                             " but required size: ",
+                             source_size),
                       CircuitErrorCode::ARRAY_OVERFLOW);
 
     // Ensure that there are no non-zero values in the `target` array after the first zero-valued index
     for (size_t i = target_size; i < size_2; i++) {
-        builder.do_assert(is_empty(target[i]),
-                          "push_array_to_array inserting new array into a non empty space",
-                          CircuitErrorCode::ARRAY_OVERFLOW);
+        builder.do_assert(
+            is_empty(target[i]),
+            format(error_message, " - push_array_to_array inserting into a non empty space at index, ", i),
+            CircuitErrorCode::ARRAY_OVERFLOW);
     }
     // Copy the non-zero elements of the `source` array to the `target` array at the first zero-valued index
     auto zero_index = target_size;
