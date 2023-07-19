@@ -1,6 +1,6 @@
-# copyright 2019 Spilsbury Holdings
+# copyright 2020 Spilsbury Holdings
 #
-# usage: barretenberg_module(module_name [dependencies ...])
+# usage: circuits_cmake_module(module_name [dependencies ...])
 #
 # Scans for all .cpp files in a subdirectory, and creates a library named <module_name>.
 # Scans for all .test.cpp files in a subdirectory, and creates a gtest binary named <module name>_tests.
@@ -12,7 +12,7 @@
 # Then we declare executables/libraries that are to be built from these object files.
 # These assets will only be linked as their dependencies complete, but we can parallelise the compilation at least.
 
-function(barretenberg_module MODULE_NAME)
+function(circuits_cmake_module MODULE_NAME)
     file(GLOB_RECURSE SOURCE_FILES *.cpp)
     file(GLOB_RECURSE HEADER_FILES *.hpp *.tcc)
     list(FILTER SOURCE_FILES EXCLUDE REGEX ".*\.(fuzzer|test|bench).cpp$")
