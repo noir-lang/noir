@@ -5,7 +5,7 @@ import { encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
+import { ZkTokenContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ExecutionRequest } from '@aztec/types';
 
 import { mock } from 'jest-mock-extended';

@@ -6,13 +6,10 @@ mod storage;
 // be read/nullified before their creation etc.
 contract PendingCommitments {
     // Libs
-    use dep::token_utils::{
+    use dep::value_note::{
         balance_utils,
-        value_note::{
-            value_note::{VALUE_NOTE_LEN, ValueNote},
-            value_note::ValueNoteInterface,
-            filter::get_2_notes,
-        }
+        filter::get_2_notes,
+        value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteInterface},
     };
 
     use crate::storage::Storage;

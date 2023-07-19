@@ -16,7 +16,7 @@ import {
   EcdsaAccountContractAbi,
   SchnorrMultiKeyAccountContractAbi,
   SchnorrSingleKeyAccountContractAbi,
-} from '@aztec/noir-contracts/examples';
+} from '@aztec/noir-contracts/artifacts';
 import { ChildContract } from '@aztec/noir-contracts/types';
 import { PublicKey } from '@aztec/types';
 

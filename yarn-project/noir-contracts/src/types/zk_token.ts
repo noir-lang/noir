@@ -13,7 +13,7 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecRPC } from '@aztec/types';
 
-import { ZkTokenContractAbi } from '../examples/index.js';
+import { ZkTokenContractAbi } from '../artifacts/index.js';
 
 /**
  * Type-safe interface for contract ZkToken;

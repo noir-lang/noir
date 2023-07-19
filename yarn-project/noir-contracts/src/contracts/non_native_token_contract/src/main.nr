@@ -1,5 +1,6 @@
 mod hash;
 mod storage;
+mod transparent_note;
 
 // Represents an ERC20 token bridged from L1 to L2 via `l1-contracts/test/portals/TokenPortal.sol`. The bridged user
 // balance can be stored in both public and private domain. If the balance is stored in the private domain then it
@@ -17,17 +18,13 @@ mod storage;
 // 3. At this point a recipient can spend the note in a private function assuming he/she knows the secret.
 contract NonNativeToken {
     // Libs
-    use dep::token_utils::{
+    use dep::value_note::{
         balance_utils,
-        value_note::{
-            utils::{send_note, spend_notes},
-            value_note::{VALUE_NOTE_LEN},
-            value_note::ValueNoteInterface,
-        },
+        utils::{send_note, spend_notes},
+        value_note::{VALUE_NOTE_LEN, ValueNoteInterface},
     };
-    use dep::custom_notes::{
-        transparent_note::TransparentNote,
-    };
+
+    use crate::transparent_note::TransparentNote;
 
     use crate::storage::Storage;
     use crate::hash::{get_mint_content_hash, get_withdraw_content_hash};

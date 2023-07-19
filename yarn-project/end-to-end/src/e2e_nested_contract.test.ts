@@ -4,7 +4,7 @@ import { AztecAddress, Contract, ContractDeployer, Fr, Wallet } from '@aztec/azt
 import { ContractAbi } from '@aztec/foundation/abi';
 import { DebugLogger } from '@aztec/foundation/log';
 import { toBigInt } from '@aztec/foundation/serialize';
-import { ChildContractAbi, ParentContractAbi } from '@aztec/noir-contracts/examples';
+import { ChildContractAbi, ParentContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ChildContract, ParentContract } from '@aztec/noir-contracts/types';
 import { TxStatus } from '@aztec/types';
 

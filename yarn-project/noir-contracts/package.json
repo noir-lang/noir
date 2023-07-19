@@ -4,7 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./dest/index.js",
-    "./examples": "./dest/examples/index.js",
+    "./artifacts": "./dest/artifacts/index.js",
     "./types": "./dest/types/index.js"
   },
   "typedoc": {

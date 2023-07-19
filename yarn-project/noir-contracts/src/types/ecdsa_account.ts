@@ -13,7 +13,7 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecRPC } from '@aztec/types';
 
-import { EcdsaAccountContractAbi } from '../examples/index.js';
+import { EcdsaAccountContractAbi } from '../artifacts/index.js';
 
 /**
  * Type-safe interface for contract EcdsaAccount;

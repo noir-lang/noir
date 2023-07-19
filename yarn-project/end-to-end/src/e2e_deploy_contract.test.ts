@@ -3,7 +3,7 @@ import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, ContractDeployer, Fr } from '@aztec/aztec.js';
 import { getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
-import { TestContractAbi } from '@aztec/noir-contracts/examples';
+import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
 import { TxStatus } from '@aztec/types';
 
 import { setup } from './utils.js';

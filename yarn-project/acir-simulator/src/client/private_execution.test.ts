@@ -35,7 +35,7 @@ import {
   PendingCommitmentsContractAbi,
   TestContractAbi,
   ZkTokenContractAbi,
-} from '@aztec/noir-contracts/examples';
+} from '@aztec/noir-contracts/artifacts';
 import { PackedArguments, TxExecutionRequest } from '@aztec/types';
 
 import { jest } from '@jest/globals';

@@ -3,6 +3,5 @@ authors = [""]
 compiler_version = "0.1"
 
 [dependencies]
-aztec = { path = "../../libs/noir-aztec" }
-custom_notes = { path = "../../libs/custom-notes" }
-token_utils = { path = "../../libs/token-utils"}
+aztec = { path = "../../../../noir-libs/noir-aztec" }
+value_note = { path = "../../../../noir-libs/value-note"}

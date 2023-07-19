@@ -19,7 +19,7 @@ for CONTRACT_NAME in "$@"; do
   NODE_OPTIONS=--no-warnings yarn ts-node --esm src/scripts/copy_output.ts $CONTRACT_NAME
   
   echo "Formatting contract folders"
-  yarn run -T prettier -w ./src/examples/$CONTRACT_FOLDER.json ../aztec.js/src/abis/*.json ./src/types/*.ts
+  yarn run -T prettier -w ./src/artifacts/$CONTRACT_FOLDER.json ../aztec.js/src/abis/*.json ./src/types/*.ts
   echo -e "Done\n"
   
 done

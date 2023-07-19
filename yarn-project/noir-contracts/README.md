@@ -96,12 +96,12 @@ This package contains the source code and the Aztec ABIs for the example contrac
    compiler_version = "0.7.1"
 
    [dependencies]
-   aztec = { path = "../../libs/noir-aztec" }
+   aztec = { path = "../../../../noir-libs/noir-aztec" }
    ```
 
 4. Replace the content of the generated `example_contract/src/main.nr` file with your contract code.
 5. Go to `noir-contracts` root folder and run `yarn noir:build example` to compile the contract.
-6. Export the abi in `src/examples/index.ts` to be able to use the contract in the rest of the project:
+6. Export the abi in `src/artifacts/index.ts` to be able to use the contract in the rest of the project:
    ```
    import ExampleContractJson from './example_contract.json' assert { type: 'json' };
    export const ExampleContractAbi = ExampleContractJson as ContractAbi;

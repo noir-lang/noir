@@ -1,6 +1,5 @@
 use dep::aztec::note::note_getter::view_notes;
-use crate::value_note::value_note::ValueNoteInterface;
-use crate::value_note::value_note::VALUE_NOTE_LEN;
+use crate::value_note::{VALUE_NOTE_LEN, ValueNoteInterface};
 
 fn get_balance(storage_slot: Field) -> Field {
     get_balance_internal(storage_slot, 10, 0)

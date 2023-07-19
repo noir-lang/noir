@@ -13,7 +13,7 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecRPC } from '@aztec/types';
 
-import { SchnorrSingleKeyAccountContractAbi } from '../examples/index.js';
+import { SchnorrSingleKeyAccountContractAbi } from '../artifacts/index.js';
 
 /**
  * Type-safe interface for contract SchnorrSingleKeyAccount;

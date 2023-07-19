@@ -1,16 +1,12 @@
+mod claim_note;
 mod storage;
 
 contract ZkToken {
     // Libs
-    use dep::token_utils::{
+    use dep::value_note::{
         balance_utils,
-        value_note::{
-            value_note::{VALUE_NOTE_LEN, ValueNoteInterface},
-            utils::{send_note, spend_notes},
-        },
-    };
-    use dep::custom_notes::{
-        claim_note::{ClaimNote, ClaimNoteInterface},
+        utils::{send_note, spend_notes},
+        value_note::{VALUE_NOTE_LEN, ValueNoteInterface},
     };
 
     use dep::aztec::abi;
@@ -28,6 +24,7 @@ contract ZkToken {
     use dep::aztec::log::emit_unencrypted_log;
 
     use crate::storage::Storage;
+    use crate::claim_note::{ClaimNote, ClaimNoteInterface};
 
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.

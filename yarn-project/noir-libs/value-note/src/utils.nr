@@ -4,7 +4,7 @@ use dep::aztec::note::note_getter_options::NoteGetterOptions;
 use dep::aztec::oracle::get_public_key::get_public_key;
 use dep::aztec::state_vars::set::Set;
 use dep::aztec::types::point::Point;
-use crate::value_note::{
+use crate::{
     filter::get_2_notes,
     value_note::{ValueNote, VALUE_NOTE_LEN},
 };

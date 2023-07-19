@@ -19,7 +19,7 @@ import {
   ParentContractAbi,
   PublicTokenContractAbi,
   TestContractAbi,
-} from '@aztec/noir-contracts/examples';
+} from '@aztec/noir-contracts/artifacts';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 import { type MemDown, default as memdown } from 'memdown';

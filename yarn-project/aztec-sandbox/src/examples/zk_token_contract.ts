@@ -1,7 +1,7 @@
 import { Contract, Wallet, createAccounts, createAztecRpcClient } from '@aztec/aztec.js';
 import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ZkTokenContract } from '@aztec/noir-contracts/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
