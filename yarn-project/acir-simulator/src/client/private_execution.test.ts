@@ -222,7 +222,7 @@ describe('Private Execution test suite', () => {
       });
     });
 
-    it('should a constructor with arguments that creates notes', async () => {
+    it('should a constructor with arguments that inserts notes', async () => {
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'constructor')!;
 
       const result = await runSimulator({ args: [140, owner], abi, isConstructor: true });
@@ -353,11 +353,11 @@ describe('Private Execution test suite', () => {
         args: [amount, secret, recipient],
       });
 
-      // Check a nullifier has been created.
+      // Check a nullifier has been inserted.
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
       expect(newNullifiers).toHaveLength(1);
 
-      // Check the read request was created successfully.
+      // Check the read request was inserted successfully.
       const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
       const nonce = Fr.ZERO;
       const uniqueNoteHash = computeUniqueCommitment(circuitsWasm, nonce, innerNoteHash);
@@ -443,7 +443,7 @@ describe('Private Execution test suite', () => {
       const args = [bridgedAmount, recipient, messageKey, secret, canceller.toField()];
       const result = await runSimulator({ origin: contractAddress, contractAddress, abi, args });
 
-      // Check a nullifier has been created
+      // Check a nullifier has been inserted
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
       expect(newNullifiers).toHaveLength(1);
     });
@@ -475,7 +475,7 @@ describe('Private Execution test suite', () => {
         args: [amount, secret, recipient],
       });
 
-      // Check a nullifier has been created.
+      // Check a nullifier has been inserted.
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
       expect(newNullifiers).toHaveLength(1);
 
@@ -545,13 +545,15 @@ describe('Private Execution test suite', () => {
       );
     });
 
-    it('should be able to read pending commitments created in same function', async () => {
+    it('should be able to insert, read, and nullify pending commitments in one call', async () => {
       oracle.getNotes.mockResolvedValue([]);
 
       const amountToTransfer = 100n;
 
       const contractAddress = AztecAddress.random();
-      const abi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'test_insert_then_read_flat')!;
+      const abi = PendingCommitmentsContractAbi.functions.find(
+        f => f.name === 'test_insert_then_get_then_nullify_flat',
+      )!;
 
       const args = [amountToTransfer, owner];
       const result = await runSimulator({
@@ -568,12 +570,12 @@ describe('Private Execution test suite', () => {
       expect(note.preimage[0]).toEqual(new Fr(amountToTransfer));
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
-
       expect(newCommitments).toHaveLength(1);
 
       const commitment = newCommitments[0];
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
       expect(commitment).toEqual(await acirSimulator.computeInnerNoteHash(contractAddress, storageSlot, note.preimage));
+
       // read request should match commitment
       const nonce = computeCommitmentNonce(circuitsWasm, txNullifier, 0);
       const readRequest = result.callStackItem.publicInputs.readRequests[0];
@@ -581,26 +583,31 @@ describe('Private Execution test suite', () => {
 
       const gotNoteValue = result.callStackItem.publicInputs.returnValues[0].value;
       expect(gotNoteValue).toEqual(amountToTransfer);
+
+      const nullifier = result.callStackItem.publicInputs.newNullifiers[0];
+      expect(nullifier).toEqual(
+        await acirSimulator.computeNullifier(contractAddress, nonce, note.storageSlot, note.preimage),
+      );
     });
 
-    it('should be able to create and read pending commitments both in nested calls', async () => {
+    it('should be able to insert, read, and nullify pending commitments in nested calls', async () => {
       oracle.getNotes.mockResolvedValue([]);
 
       const amountToTransfer = 100n;
 
       const contractAddress = AztecAddress.random();
       const abi = PendingCommitmentsContractAbi.functions.find(
-        f => f.name === 'test_insert_then_read_both_in_nested_calls',
+        f => f.name === 'test_insert_then_get_then_nullify_all_in_nested_calls',
       )!;
-      const createAbi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'create_note')!;
-      const getAndCheckAbi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'get_and_check_note')!;
+      const insertAbi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'insert_note')!;
+      const getThenNullifyAbi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'get_then_nullify_note')!;
 
-      const createFnSelector = generateFunctionSelector(createAbi.name, createAbi.parameters);
-      const getAndCheckFnSelector = generateFunctionSelector(getAndCheckAbi.name, getAndCheckAbi.parameters);
+      const insertFnSelector = generateFunctionSelector(insertAbi.name, insertAbi.parameters);
+      const getThenNullifyFnSelector = generateFunctionSelector(getThenNullifyAbi.name, getThenNullifyAbi.parameters);
 
       oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(EthAddress.ZERO));
 
-      const args = [amountToTransfer, owner, createFnSelector, getAndCheckFnSelector];
+      const args = [amountToTransfer, owner, insertFnSelector, getThenNullifyFnSelector];
       const result = await runSimulator({
         args: args,
         abi: abi,
@@ -608,42 +615,45 @@ describe('Private Execution test suite', () => {
         contractAddress: contractAddress,
       });
 
-      const execCreate = result.nestedExecutions[0];
-      const execGetAndCheck = result.nestedExecutions[1];
+      const execInsert = result.nestedExecutions[0];
+      const execGetThenNullify = result.nestedExecutions[1];
 
-      expect(execCreate.preimages.newNotes).toHaveLength(1);
-      const note = execCreate.preimages.newNotes[0];
+      expect(execInsert.preimages.newNotes).toHaveLength(1);
+      const note = execInsert.preimages.newNotes[0];
       expect(note.storageSlot).toEqual(computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm));
 
       expect(note.preimage[0]).toEqual(new Fr(amountToTransfer));
 
-      const newCommitments = execCreate.callStackItem.publicInputs.newCommitments.filter(
+      const newCommitments = execInsert.callStackItem.publicInputs.newCommitments.filter(
         field => !field.equals(Fr.ZERO),
       );
-
       expect(newCommitments).toHaveLength(1);
 
       const commitment = newCommitments[0];
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
       expect(commitment).toEqual(await acirSimulator.computeInnerNoteHash(contractAddress, storageSlot, note.preimage));
+
       // read request should match commitment
       const nonce = computeCommitmentNonce(circuitsWasm, txNullifier, 0);
-      const readRequest = execGetAndCheck.callStackItem.publicInputs.readRequests[0];
+      const readRequest = execGetThenNullify.callStackItem.publicInputs.readRequests[0];
       expect(readRequest).toEqual(computeUniqueCommitment(circuitsWasm, nonce, commitment));
 
-      const gotNoteValue = execGetAndCheck.callStackItem.publicInputs.returnValues[0].value;
+      const gotNoteValue = execGetThenNullify.callStackItem.publicInputs.returnValues[0].value;
       expect(gotNoteValue).toEqual(amountToTransfer);
 
-      // TODO check read request is output that matches pending commitment
+      const nullifier = execGetThenNullify.callStackItem.publicInputs.newNullifiers[0];
+      expect(nullifier).toEqual(
+        await acirSimulator.computeNullifier(contractAddress, nonce, note.storageSlot, note.preimage),
+      );
     });
 
-    it('cant read a commitment that is created later in same function', async () => {
+    it('cant read a commitment that is inserted later in same call', async () => {
       oracle.getNotes.mockResolvedValue([]);
 
       const amountToTransfer = 100n;
 
       const contractAddress = AztecAddress.random();
-      const abi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'test_bad_read_then_insert_flat')!;
+      const abi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'test_bad_get_then_insert_flat')!;
 
       const args = [amountToTransfer, owner];
       const result = await runSimulator({
@@ -660,19 +670,23 @@ describe('Private Execution test suite', () => {
       expect(note.preimage[0]).toEqual(new Fr(amountToTransfer));
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
-
       expect(newCommitments).toHaveLength(1);
 
       const commitment = newCommitments[0];
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
       expect(commitment).toEqual(await acirSimulator.computeInnerNoteHash(contractAddress, storageSlot, note.preimage));
+
       // read requests should be empty
       const readRequest = result.callStackItem.publicInputs.readRequests[0].value;
       expect(readRequest).toEqual(0n);
 
+      // should get note value 0 because it actually gets a fake note since the real one hasn't been inserted yet!
       const gotNoteValue = result.callStackItem.publicInputs.returnValues[0].value;
-      // should get note value 0 because it actually gets a fake note since the real one hasn't been created yet!
       expect(gotNoteValue).toEqual(0n);
+
+      // there should be no nullifiers
+      const nullifier = result.callStackItem.publicInputs.newNullifiers[0].value;
+      expect(nullifier).toEqual(0n);
     });
   });
 
