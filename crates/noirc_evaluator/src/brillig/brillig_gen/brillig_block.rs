@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 use crate::brillig::brillig_gen::brillig_slice_ops::{
     convert_array_or_vector_to_vector, slice_push_back_operation,
 };
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
-use crate::ssa_refactor::ir::function::FunctionId;
+use crate::ssa_refactor::ir::function::{FunctionId, Signature};
 use crate::ssa_refactor::ir::instruction::Intrinsic;
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -19,7 +21,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 
 use super::brillig_black_box::convert_black_box_call;
-use super::brillig_fn::{compute_size_of_composite_type, FunctionContext};
+use super::brillig_fn::{compute_size_of_composite_type, compute_size_of_type, FunctionContext};
 use super::brillig_slice_ops::{
     slice_insert_operation, slice_pop_back_operation, slice_pop_front_operation,
     slice_push_front_operation, slice_remove_operation,
@@ -32,6 +34,8 @@ pub(crate) struct BrilligBlock<'block> {
     block_id: BasicBlockId,
     /// Context for creating brillig opcodes
     brillig_context: &'block mut BrilligContext,
+    /// A map of function ids to their signatures
+    function_to_signature: &'block HashMap<FunctionId, Signature>,
 }
 
 impl<'block> BrilligBlock<'block> {
@@ -41,8 +45,10 @@ impl<'block> BrilligBlock<'block> {
         brillig_context: &'block mut BrilligContext,
         block_id: BasicBlockId,
         dfg: &DataFlowGraph,
+        function_to_signature: &'block HashMap<FunctionId, Signature>,
     ) {
-        let mut brillig_block = BrilligBlock { function_context, block_id, brillig_context };
+        let mut brillig_block =
+            BrilligBlock { function_context, block_id, brillig_context, function_to_signature };
 
         brillig_block.convert_block(dfg);
     }
@@ -401,12 +407,18 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
         instruction_id: InstructionId,
     ) {
+        let signature_of_called_function =
+            self.function_to_signature.get(&func_id).expect("ICE: cannot find function signature");
+
         // Convert the arguments to registers casting those to the types of the receiving function
         let argument_registers: Vec<RegisterIndex> = arguments
             .iter()
-            .flat_map(|argument_id| {
+            .zip(&signature_of_called_function.params)
+            .flat_map(|(argument_id, receiver_typ)| {
                 let variable_to_pass = self.convert_ssa_value(*argument_id, dfg);
-                self.function_context.extract_registers(variable_to_pass)
+                let casted_to_param_type =
+                    self.cast_variable_for_call(variable_to_pass, receiver_typ);
+                self.function_context.extract_registers(casted_to_param_type)
             })
             .collect();
 
@@ -429,11 +441,20 @@ impl<'block> BrilligBlock<'block> {
             self.function_context.create_variable(self.brillig_context, *result_id, dfg)
         });
 
-        // Collect the registers that should have been returned
-        let returned_registers: Vec<RegisterIndex> = variables_assigned_to
+        // Transform the assigned to variables into the types of the called function returns
+        let returned_variables: Vec<RegisterOrMemory> = variables_assigned_to
             .iter()
-            .flat_map(|returned_variable| {
-                self.function_context.extract_registers(*returned_variable)
+            .zip(&signature_of_called_function.returns)
+            .map(|(variable_assigned_to, return_typ)| {
+                self.cast_back_variable_from_call(*variable_assigned_to, return_typ)
+            })
+            .collect();
+
+        // Collect the registers that should have been returned
+        let returned_registers: Vec<RegisterIndex> = returned_variables
+            .iter()
+            .flat_map(|casted_to_return_type| {
+                self.function_context.extract_registers(*casted_to_return_type)
             })
             .collect();
 
@@ -445,6 +466,56 @@ impl<'block> BrilligBlock<'block> {
         // puts the returns into the returned_registers and restores saved_registers
         self.brillig_context
             .post_call_prep_returns_load_registers(&returned_registers, &saved_registers);
+
+        // Reconciliate the types of the variables that the returns are assigned to with the types of the returns
+        variables_assigned_to.iter().zip(returned_variables).for_each(
+            |(variable_assigned_to, return_variable)| {
+                self.reconciliate_from_call(*variable_assigned_to, return_variable);
+            },
+        );
+    }
+
+    fn cast_variable_for_call(
+        &mut self,
+        variable_to_pass: RegisterOrMemory,
+        param_type: &Type,
+    ) -> RegisterOrMemory {
+        match (variable_to_pass, param_type) {
+            (RegisterOrMemory::HeapArray(array), Type::Slice(..)) => {
+                RegisterOrMemory::HeapVector(self.brillig_context.array_to_vector(&array))
+            }
+            (_, _) => variable_to_pass,
+        }
+    }
+
+    fn cast_back_variable_from_call(
+        &mut self,
+        variable_assigned_to: RegisterOrMemory,
+        return_type: &Type,
+    ) -> RegisterOrMemory {
+        match (variable_assigned_to, return_type) {
+            (RegisterOrMemory::HeapVector(vector), Type::Array(..)) => {
+                RegisterOrMemory::HeapArray(HeapArray {
+                    pointer: vector.pointer,
+                    size: compute_size_of_type(return_type),
+                })
+            }
+            (_, _) => variable_assigned_to,
+        }
+    }
+
+    fn reconciliate_from_call(
+        &mut self,
+        variable_assigned_to: RegisterOrMemory,
+        return_variable: RegisterOrMemory,
+    ) -> RegisterOrMemory {
+        match (variable_assigned_to, return_variable) {
+            (RegisterOrMemory::HeapVector(vector), RegisterOrMemory::HeapArray(array)) => {
+                self.brillig_context.const_instruction(vector.size, array.size.into());
+                RegisterOrMemory::HeapVector(vector)
+            }
+            (_, _) => variable_assigned_to,
+        }
     }
 
     /// Array set operation in SSA returns a new array or slice that is a copy of the parameter array or slice

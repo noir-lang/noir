@@ -7,7 +7,7 @@ use self::{
 };
 use crate::ssa_refactor::{
     ir::{
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId, RuntimeType, Signature},
         value::Value,
     },
     ssa_gen::Ssa,
@@ -20,12 +20,14 @@ use std::collections::{HashMap, HashSet};
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
     ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact>,
+    /// Maps between function ids to their signatures
+    ssa_function_to_signature: HashMap<FunctionId, Signature>,
 }
 
 impl Brillig {
     /// Compiles a function into brillig and store the compilation artifacts
     pub(crate) fn compile(&mut self, func: &Function) {
-        let obj = convert_ssa_function(func);
+        let obj = convert_ssa_function(func, &self.ssa_function_to_signature);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -93,7 +95,12 @@ impl Ssa {
             }
         }
 
-        let mut brillig = Brillig::default();
+        let function_to_signature: HashMap<FunctionId, Signature> =
+            self.functions.values().map(|func| (func.id(), func.into())).collect();
+
+        let mut brillig =
+            Brillig { ssa_function_to_signature: function_to_signature, ..Default::default() };
+
         for brillig_function_id in brillig_reachable_function_ids {
             let func = &self.functions[&brillig_function_id];
             brillig.compile(func);
