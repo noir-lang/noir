@@ -548,7 +548,12 @@ impl Context {
             BinaryOp::Add => self.acir_context.add_var(lhs, rhs),
             BinaryOp::Sub => self.acir_context.sub_var(lhs, rhs),
             BinaryOp::Mul => self.acir_context.mul_var(lhs, rhs),
-            BinaryOp::Div => self.acir_context.div_var(lhs, rhs, binary_type),
+            BinaryOp::Div => self.acir_context.div_var(
+                lhs,
+                rhs,
+                binary_type,
+                self.current_side_effects_enabled_var,
+            ),
             // Note: that this produces unnecessary constraints when
             // this Eq instruction is being used for a constrain statement
             BinaryOp::Eq => self.acir_context.eq_var(lhs, rhs),
@@ -559,11 +564,21 @@ impl Context {
                 self.current_side_effects_enabled_var,
             ),
             BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type),
-            BinaryOp::Shr => self.acir_context.shift_right_var(lhs, rhs, binary_type),
+            BinaryOp::Shr => self.acir_context.shift_right_var(
+                lhs,
+                rhs,
+                binary_type,
+                self.current_side_effects_enabled_var,
+            ),
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
-            BinaryOp::Mod => self.acir_context.modulo_var(lhs, rhs, bit_count),
+            BinaryOp::Mod => self.acir_context.modulo_var(
+                lhs,
+                rhs,
+                bit_count,
+                self.current_side_effects_enabled_var,
+            ),
         }
     }
 
@@ -739,8 +754,10 @@ impl Context {
                     }
                 }
                 // Generate the sorted output variables
-                let out_vars =
-                    self.acir_context.sort(input_vars, bit_size).expect("Could not sort");
+                let out_vars = self
+                    .acir_context
+                    .sort(input_vars, bit_size, self.current_side_effects_enabled_var)
+                    .expect("Could not sort");
 
                 Ok(Self::convert_vars_to_values(out_vars, dfg, result_ids))
             }
