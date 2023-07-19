@@ -133,10 +133,14 @@ fn convert_fmt_string_inputs(
     }
 
     let mut output_strings_iter = output_strings.into_iter();
-    let re = Regex::new(r"\{([a-zA-Z0-9]+)\}").unwrap();
+    let re = Regex::new(r"\{([a-zA-Z0-9]+)\}")
+        .expect("ICE: an invalid regex pattern was used for checking format strings");
 
-    let formatted_str =
-        re.replace_all(&message_as_string, |_: &Captures| output_strings_iter.next().unwrap());
+    let formatted_str = re.replace_all(&message_as_string, |_: &Captures| {
+        output_strings_iter
+            .next()
+            .expect("ICE: there are more regex matches than fields supplied to the format string")
+    });
 
     Ok(formatted_str.into_owned())
 }

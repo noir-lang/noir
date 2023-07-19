@@ -1285,7 +1285,8 @@ impl<'a> Resolver<'a> {
         match argument.kind {
             // Only function calls should convert the Str literal to a FmtStr literal
             ExpressionKind::Literal(Literal::Str(string)) => {
-                let re = Regex::new(r"\{([\S]+)\}").unwrap();
+                let re = Regex::new(r"\{([\S]+)\}")
+                    .expect("ICE: an invalid regex pattern was used for checking format strings");
                 let str_literal = if re.is_match(&string) {
                     let mut fmt_str_idents = Vec::new();
                     for field in re.find_iter(&string) {
