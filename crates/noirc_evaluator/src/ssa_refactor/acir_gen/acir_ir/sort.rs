@@ -74,28 +74,41 @@ impl GeneratedAcir {
 
     /// Returns an expression which represents a*b
     /// If one has multiplicative term and the other is of degree one or more,
-    /// the function creates intermediate variables accordindly
-    fn mul_with_witness(&mut self, a: &Expression, b: &Expression) -> Expression {
-        let a_arith;
-        let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
-            let a_witness = self.get_or_create_witness(a);
-            a_arith = Expression::from(a_witness);
-            &a_arith
-        } else {
-            a
-        };
-        let b_arith;
-        let b_arith = if !b.mul_terms.is_empty() && !a.is_const() {
-            if a == b {
-                a_arith
-            } else {
-                let b_witness = self.get_or_create_witness(a);
-                b_arith = Expression::from(b_witness);
-                &b_arith
-            }
-        } else {
-            b
-        };
-        (a_arith * b_arith).expect("Both expressions are reduced to be degree<=1")
+    /// the function creates intermediate variables accordingly
+    ///
+    /// There are two cases where we can optimize the multiplication between two expressions:
+    /// 1. If both expressions are degree-1 univariate polynomials, then we can just multiply them
+    /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
+    ///
+    /// (1) is because an Expression can hold at most a degree-2 univariate polynomial
+    /// which is what you get when you multiply two degree-1 univariate polynomials.
+    fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
+        let lhs_is_univariate = lhs.is_degree_one_univariate();
+        let rhs_is_univariate = rhs.is_degree_one_univariate();
+
+        // Perhaps we should include the constant case in degree-1 univariate
+        // Current function returns polynomials which are exactly degree-1
+        let lhs_is_const = lhs.is_const();
+        let rhs_is_const = rhs.is_const();
+
+        // Case 1; One of the sides is a constant
+        //
+        // This means we can simply scale the other side by the constant
+        let const_check = lhs_is_const || rhs_is_const;
+        // Case 2; Both sides are degree-1 univariate polynomials
+        //
+        // This means we can simply multiply the two expressions together
+        let univariate_check = lhs_is_univariate && rhs_is_univariate;
+
+        if const_check || univariate_check {
+            return (lhs * rhs)
+                .expect("one of the expressions is a constant and so this should not fail");
+        }
+
+        // Case3; One or both of the sides needs to be reduced to a degree-1 univariate polynomial
+        let lhs_reduced: Expression = self.get_or_create_witness(lhs).into();
+        let rhs_reduced: Expression = self.get_or_create_witness(rhs).into();
+
+        (&lhs_reduced * &rhs_reduced).expect("Both expressions are reduced to be degree<=1")
     }
 }
