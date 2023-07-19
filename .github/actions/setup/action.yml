@@ -1,8 +1,14 @@
 name: Setup
 
+inputs:
+  working-directory:
+    default: ./
+    required: false
+
 runs:
   using: composite
   steps:
+    - run: cd $INPUT_WORKING-DIRECTORY
     - name: Install node
       uses: actions/setup-node@v3
       with:
