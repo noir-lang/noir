@@ -1171,3 +1171,161 @@ fn undo_instantiation_bindings(bindings: TypeBindings) {
         *var.borrow_mut() = TypeBinding::Unbound(id);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use fm::FileId;
+    use iter_extended::vecmap;
+
+    use crate::{
+        graph::CrateId,
+        hir::{
+            def_map::{
+                CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, ModuleOrigin,
+            },
+            resolution::{
+                import::PathResolutionError, path_resolver::PathResolver, resolver::Resolver,
+            },
+        },
+        hir_def::function::HirFunction,
+        node_interner::{FuncId, NodeInterner},
+        parse_program,
+    };
+
+    use super::monomorphize;
+
+    // TODO: refactor into a more general test utility?
+    // mostly copied from hir / type_check / mod.rs and adapted a bit
+    fn type_check_src_code(src: &str, func_namespace: Vec<String>) -> (FuncId, NodeInterner) {
+        let (program, errors) = parse_program(src);
+        let mut interner = NodeInterner::default();
+
+        // Using assert_eq here instead of assert(errors.is_empty()) displays
+        // the whole vec if the assert fails rather than just two booleans
+        assert_eq!(errors, vec![]);
+
+        let main_id = interner.push_fn(HirFunction::empty());
+        interner.push_function_definition("main".into(), main_id);
+
+        let func_ids = vecmap(&func_namespace, |name| {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(name.into(), id);
+            id
+        });
+
+        let mut path_resolver = TestPathResolver(HashMap::new());
+        for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
+            path_resolver.insert_func(name.to_owned(), id);
+        }
+
+        let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let file = FileId::default();
+
+        let mut modules = arena::Arena::new();
+        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+
+        def_maps.insert(
+            CrateId::dummy_id(),
+            CrateDefMap {
+                root: path_resolver.local_module_id(),
+                modules,
+                krate: CrateId::dummy_id(),
+                extern_prelude: HashMap::new(),
+            },
+        );
+
+        let func_meta = vecmap(program.functions, |nf| {
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
+            let (hir_func, func_meta, _resolver_errors) = resolver.resolve_function(nf, main_id);
+            // TODO: not sure why, we do get an error here,
+            // but otherwise seem to get an ok monomorphization result
+            // assert_eq!(resolver_errors, vec![]);
+            (hir_func, func_meta)
+        });
+
+        println!("Before update_fn");
+
+        for ((hir_func, meta), func_id) in func_meta.into_iter().zip(func_ids.clone()) {
+            interner.update_fn(func_id, hir_func);
+            interner.push_fn_meta(meta, func_id);
+        }
+
+        println!("Before type_check_func");
+
+        // Type check section
+        let errors = crate::hir::type_check::type_check_func(
+            &mut interner,
+            func_ids.first().cloned().unwrap(),
+        );
+        assert_eq!(errors, vec![]);
+        (func_ids.first().cloned().unwrap(), interner)
+    }
+
+    // TODO: refactor into a more general test utility?
+    // TestPathResolver struct and impls copied from hir / type_check / mod.rs
+    struct TestPathResolver(HashMap<String, ModuleDefId>);
+
+    impl PathResolver for TestPathResolver {
+        fn resolve(
+            &self,
+            _def_maps: &HashMap<CrateId, CrateDefMap>,
+            path: crate::Path,
+        ) -> Result<ModuleDefId, PathResolutionError> {
+            // Not here that foo::bar and hello::foo::bar would fetch the same thing
+            let name = path.segments.last().unwrap();
+            let mod_def = self.0.get(&name.0.contents).cloned();
+            mod_def.ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
+        }
+
+        fn local_module_id(&self) -> LocalModuleId {
+            // This is not LocalModuleId::dummy since we need to use this to index into a Vec
+            // later and do not want to push u32::MAX number of elements before we do.
+            LocalModuleId(arena::Index::from_raw_parts(0, 0))
+        }
+
+        fn module_id(&self) -> ModuleId {
+            ModuleId { krate: CrateId::dummy_id(), local_id: self.local_module_id() }
+        }
+    }
+
+    impl TestPathResolver {
+        fn insert_func(&mut self, name: String, func_id: FuncId) {
+            self.0.insert(name, func_id.into());
+        }
+    }
+
+    // a helper test method
+    // TODO: maybe just compare trimmed src/expected
+    // for easier formatting?
+    fn check_rewrite(src: &str, expected: &str) {
+        let (func, interner) = type_check_src_code(src, vec!["main".to_string()]);
+        let program = monomorphize(func, &interner);
+        // println!("[{}]", program);
+        assert!(format!("{}", program) == expected);
+    }
+
+    #[test]
+    fn simple_closure_with_no_captured_variables() {
+        let src = r#"
+        fn main() -> Field {
+            let closure = |x| x;
+            closure(0)
+        }
+        "#;
+
+        let expected_rewrite = r#"fn main$f0() -> Field {
+    let closure$2 = {
+        let env$1 = ();
+        (env$l1, lambda$f1)
+    };
+    closure$l2.1(closure$l2.0, 0)
+}
+fn lambda$f1(mut env$l1: (), x$l0: Field) -> Field {
+    x$l0
+}
+"#;
+        check_rewrite(src, expected_rewrite);
+    }
+}
