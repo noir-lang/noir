@@ -785,7 +785,6 @@ impl GeneratedAcir {
         let predicated_equation = self.mul_with_witness(&equation, &predicate);
         self.push_opcode(AcirOpcode::Arithmetic(predicated_equation));
 
-        self.push_opcode(AcirOpcode::Arithmetic(predicated_equation));
 
         Ok(q_witness)
     }
