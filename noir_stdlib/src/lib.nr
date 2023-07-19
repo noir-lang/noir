@@ -20,7 +20,7 @@ mod compat;
 fn println<T>(_input : T) {}
 
 #[oracle(println)]
-unconstrained fn println_oracle<T, A>(_input: T) -> Field {}
+unconstrained fn println_oracle<T, A>(_input: T) {}
 
 unconstrained fn println<T>(input: T) {
     println_oracle(input);

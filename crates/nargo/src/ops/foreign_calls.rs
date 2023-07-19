@@ -46,7 +46,7 @@ impl ForeignCall {
         match Self::lookup(foreign_call_name) {
             Some(ForeignCall::Println) => {
                 Self::execute_println(&foreign_call.inputs)?;
-                Ok(foreign_call.inputs[0][0].into())
+                Ok(ForeignCallResult { values: vec![] })
             }
             Some(ForeignCall::Sequence) => {
                 let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
