@@ -428,16 +428,22 @@ impl GeneratedAcir {
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let mut rhs_constraint = (rhs * &Expression::from(q_witness)).unwrap();
+        let rhs_reduced: Expression = self.create_witness_for_expression(rhs).into();
+        let mut rhs_constraint = (&rhs_reduced * &Expression::from(q_witness))
+            .expect("rhs_reduced is expected to be a degree-1 witness");
         rhs_constraint = &rhs_constraint + r_witness;
 
         // Reduce the rhs_constraint to a witness
-        let rhs_reduced: Expression = self.create_witness_for_expression(&rhs_constraint).into();
+        let rhs_constrain_reduced: Expression =
+            self.create_witness_for_expression(&rhs_constraint).into();
         // Reduce the lhs_constraint to a witness
         let lhs_reduced: Expression = self.create_witness_for_expression(lhs).into();
 
-        let div_euclidean =
-            &(&lhs_reduced * predicate).unwrap() - &(&rhs_reduced * predicate).unwrap();
+        let div_euclidean = &(&lhs_reduced * predicate).expect(
+            "lhs_reduced should be a degree-1 witness and predicate should be a degree-1 witness",
+        ) - &(&rhs_constrain_reduced * predicate).expect(
+            "rhs_reduced should be a degree-1 witness and predicate should be a degree-1 witness",
+        );
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
