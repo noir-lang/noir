@@ -1,7 +1,9 @@
 use crate::brillig::brillig_gen::brillig_slice_ops::{
     convert_array_or_vector_to_vector, slice_push_back_operation,
 };
-use crate::brillig::brillig_ir::{BrilligBinaryOp, BrilligContext};
+use crate::brillig::brillig_ir::{
+    BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+};
 use crate::ssa_refactor::ir::function::FunctionId;
 use crate::ssa_refactor::ir::instruction::Intrinsic;
 use crate::ssa_refactor::ir::{
@@ -285,45 +287,7 @@ impl<'block> BrilligBlock<'block> {
                     }
                 }
                 Value::Function(func_id) => {
-                    let argument_registers: Vec<RegisterIndex> = arguments
-                        .iter()
-                        .flat_map(|arg| {
-                            let arg = self.convert_ssa_value(*arg, dfg);
-                            self.function_context.extract_registers(arg)
-                        })
-                        .collect();
-                    let result_ids = dfg.instruction_results(instruction_id);
-
-                    // Create label for the function that will be called
-                    let label_of_function_to_call =
-                        FunctionContext::function_id_to_function_label(*func_id);
-
-                    let saved_registers =
-                        self.brillig_context.pre_call_save_registers_prep_args(&argument_registers);
-
-                    // Call instruction, which will interpret above registers 0..num args
-                    self.brillig_context.add_external_call_instruction(label_of_function_to_call);
-
-                    // Important: resolve after pre_call_save_registers_prep_args
-                    // This ensures we don't save the results to registers unnecessarily.
-                    let result_registers: Vec<RegisterIndex> = result_ids
-                        .iter()
-                        .flat_map(|arg| {
-                            let arg = self.function_context.create_variable(
-                                self.brillig_context,
-                                *arg,
-                                dfg,
-                            );
-                            self.function_context.extract_registers(arg)
-                        })
-                        .collect();
-
-                    assert!(
-                        !saved_registers.iter().any(|x| result_registers.contains(x)),
-                        "should not save registers used as function results"
-                    );
-                    self.brillig_context
-                        .post_call_prep_returns_load_registers(&result_registers, &saved_registers);
+                    self.convert_ssa_function_call(*func_id, arguments, dfg, instruction_id);
                 }
                 Value::Intrinsic(Intrinsic::BlackBox(bb_func)) => {
                     let function_arguments =
@@ -428,6 +392,59 @@ impl<'block> BrilligBlock<'block> {
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
+    }
+
+    fn convert_ssa_function_call(
+        &mut self,
+        func_id: FunctionId,
+        arguments: &[ValueId],
+        dfg: &DataFlowGraph,
+        instruction_id: InstructionId,
+    ) {
+        // Convert the arguments to registers casting those to the types of the receiving function
+        let argument_registers: Vec<RegisterIndex> = arguments
+            .iter()
+            .flat_map(|argument_id| {
+                let variable_to_pass = self.convert_ssa_value(*argument_id, dfg);
+                self.function_context.extract_registers(variable_to_pass)
+            })
+            .collect();
+
+        let result_ids = dfg.instruction_results(instruction_id);
+
+        // Create label for the function that will be called
+        let label_of_function_to_call = FunctionContext::function_id_to_function_label(func_id);
+
+        let saved_registers =
+            self.brillig_context.pre_call_save_registers_prep_args(&argument_registers);
+
+        // Call instruction, which will interpret above registers 0..num args
+        self.brillig_context.add_external_call_instruction(label_of_function_to_call);
+
+        // Important: resolve after pre_call_save_registers_prep_args
+        // This ensures we don't save the results to registers unnecessarily.
+
+        // Allocate the registers for the variables where we are assigning the returns
+        let variables_assigned_to = vecmap(result_ids, |result_id| {
+            self.function_context.create_variable(self.brillig_context, *result_id, dfg)
+        });
+
+        // Collect the registers that should have been returned
+        let returned_registers: Vec<RegisterIndex> = variables_assigned_to
+            .iter()
+            .flat_map(|returned_variable| {
+                self.function_context.extract_registers(*returned_variable)
+            })
+            .collect();
+
+        assert!(
+            !saved_registers.iter().any(|x| returned_registers.contains(x)),
+            "should not save registers used as function results"
+        );
+
+        // puts the returns into the returned_registers and restores saved_registers
+        self.brillig_context
+            .post_call_prep_returns_load_registers(&returned_registers, &saved_registers);
     }
 
     /// Array set operation in SSA returns a new array or slice that is a copy of the parameter array or slice
@@ -697,11 +714,28 @@ impl<'block> BrilligBlock<'block> {
         let binary_type =
             type_of_binary_operation(dfg[binary.lhs].get_type(), dfg[binary.rhs].get_type());
 
-        let left = self.convert_ssa_register_value(binary.lhs, dfg);
-        let right = self.convert_ssa_register_value(binary.rhs, dfg);
+        let mut left = self.convert_ssa_register_value(binary.lhs, dfg);
+        let mut right = self.convert_ssa_register_value(binary.rhs, dfg);
 
         let brillig_binary_op =
-            convert_ssa_binary_op_to_brillig_binary_op(binary.operator, binary_type);
+            convert_ssa_binary_op_to_brillig_binary_op(binary.operator, &binary_type);
+
+        // Some binary operations with fields are issued by the compiler, such as loop comparisons, cast those to the bit size here
+        // TODO Remove after fixing https://github.com/noir-lang/noir/issues/1979
+        if let (
+            BrilligBinaryOp::Integer { bit_size, .. },
+            Type::Numeric(NumericType::NativeField),
+        ) = (&brillig_binary_op, &binary_type)
+        {
+            let new_lhs = self.brillig_context.allocate_register();
+            let new_rhs = self.brillig_context.allocate_register();
+
+            self.brillig_context.cast_instruction(new_lhs, left, *bit_size);
+            self.brillig_context.cast_instruction(new_rhs, right, *bit_size);
+
+            left = new_lhs;
+            right = new_rhs;
+        }
 
         self.brillig_context.binary_instruction(left, right, result_register, brillig_binary_op);
     }
@@ -830,7 +864,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
 /// - Brillig Binary Field Op, if it is a field type
 pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
     ssa_op: BinaryOp,
-    typ: Type,
+    typ: &Type,
 ) -> BrilligBinaryOp {
     // First get the bit size and whether its a signed integer, if it is a numeric type
     // if it is not,then we return None, indicating that
@@ -845,18 +879,20 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
       };
 
     fn binary_op_to_field_op(op: BinaryOp) -> BrilligBinaryOp {
-        let operation = match op {
-            BinaryOp::Add => BinaryFieldOp::Add,
-            BinaryOp::Sub => BinaryFieldOp::Sub,
-            BinaryOp::Mul => BinaryFieldOp::Mul,
-            BinaryOp::Div => BinaryFieldOp::Div,
-            BinaryOp::Eq => BinaryFieldOp::Equals,
+        match op {
+            BinaryOp::Add => BrilligBinaryOp::Field { op: BinaryFieldOp::Add },
+            BinaryOp::Sub => BrilligBinaryOp::Field { op: BinaryFieldOp::Sub },
+            BinaryOp::Mul => BrilligBinaryOp::Field { op: BinaryFieldOp::Mul },
+            BinaryOp::Div => BrilligBinaryOp::Field { op: BinaryFieldOp::Div },
+            BinaryOp::Eq => BrilligBinaryOp::Field { op: BinaryFieldOp::Equals },
+            BinaryOp::Lt => BrilligBinaryOp::Integer {
+                op: BinaryIntOp::LessThan,
+                bit_size: BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
+            },
             _ => unreachable!(
                 "Field type cannot be used with {op}. This should have been caught by the frontend"
             ),
-        };
-
-        BrilligBinaryOp::Field { op: operation }
+        }
     }
 
     fn binary_op_to_int_op(op: BinaryOp, bit_size: u32, is_signed: bool) -> BrilligBinaryOp {
@@ -888,7 +924,7 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
 
     // If bit size is available then it is a binary integer operation
     match bit_size_signedness {
-        Some((bit_size, is_signed)) => binary_op_to_int_op(ssa_op, bit_size, is_signed),
+        Some((bit_size, is_signed)) => binary_op_to_int_op(ssa_op, *bit_size, is_signed),
         None => binary_op_to_field_op(ssa_op),
     }
 }

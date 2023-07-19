@@ -394,6 +394,7 @@ impl BrilligContext {
             .collect();
         for (new_source, destination) in new_sources.iter().zip(destinations.iter()) {
             self.mov_instruction(*destination, *new_source);
+            self.deallocate_register(*new_source);
         }
     }
 
@@ -821,9 +822,12 @@ impl BrilligContext {
     ) {
         // Allocate our result registers and write into them
         // We assume the return values of our call are held in 0..num results register indices
-        for (i, result_register) in result_registers.iter().enumerate() {
-            self.mov_instruction(*result_register, self.register(i));
-        }
+        let (sources, destinations) = result_registers
+            .iter()
+            .enumerate()
+            .map(|(i, result_register)| (self.register(i), *result_register))
+            .unzip();
+        self.mov_registers_to_registers_instruction(sources, destinations);
 
         // Restore all the same registers we have, in exact reverse order.
         // Note that we have allocated some registers above, which we will not be handling here,
