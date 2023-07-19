@@ -2099,12 +2099,10 @@ dependencies = [
  "gloo-utils",
  "iter-extended",
  "js-sys",
- "log",
  "noirc_abi",
  "serde",
  "wasm-bindgen",
  "wasm-bindgen-test",
- "wasm-logger",
 ]
 
 [[package]]
