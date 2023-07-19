@@ -162,7 +162,7 @@ impl DataFlowGraph {
                 let instruction = match result {
                     SimplifyResult::SimplifiedToInstruction(new_instruction) => new_instruction,
                     SimplifyResult::None => instruction,
-                    _ => unreachable!(""),
+                    _ => unreachable!("handled by above match statement"),
                 };
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
