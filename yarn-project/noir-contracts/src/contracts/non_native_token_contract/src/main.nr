@@ -63,13 +63,13 @@ contract NonNativeToken {
         inputs: PrivateContextInputs,
         //*********************************/
         initial_supply: Field, 
-        owner: Point,
+        owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
 
-        let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner.x, owner.y]));
+        let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner]));
 
-        let balance = storage.balances.at(owner.x);
+        let balance = storage.balances.at(owner);
         context = send_note(context, balance, initial_supply, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
@@ -85,8 +85,7 @@ contract NonNativeToken {
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field, 
-        owner: Point,
-        owner_address: Field,
+        owner: Field,
         // This field should be hidden
         msg_key: Field,
         secret: Field,
@@ -95,16 +94,16 @@ contract NonNativeToken {
         let storage = Storage::init();
 
         let mut context = Context::new(inputs, abi::hash_args([
-            amount, owner.x, owner.y, owner_address, msg_key, secret, canceller
+            amount, owner, msg_key, secret, canceller
         ]));
 
-        let content_hash = get_mint_content_hash(amount, owner_address, canceller);
+        let content_hash = get_mint_content_hash(amount, owner, canceller);
 
         // Get the l1 message from an oracle call
         let updated_context = context.consume_l1_to_l2_message(inputs, msg_key, content_hash, secret);
         context = updated_context;
 
-        let balance = storage.balances.at(owner.x);
+        let balance = storage.balances.at(owner);
         context = send_note(context, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
@@ -120,16 +119,16 @@ contract NonNativeToken {
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field, 
-        sender: Point, 
+        sender: Field, 
         recipient: Field, // ethereum address in the field
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([
-            amount, sender.x, sender.y, recipient, callerOnL1
+            amount, sender, recipient, callerOnL1
         ]));
 
-        let sender_balance = storage.balances.at(sender.x);
+        let sender_balance = storage.balances.at(sender);
         context = spend_notes(context, sender_balance, amount, sender);
 
         let content = get_withdraw_content_hash(amount, recipient, callerOnL1);
@@ -209,19 +208,19 @@ contract NonNativeToken {
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field, 
-        sender: Point, 
-        recipient: Point,
+        sender: Field, 
+        recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([
-            amount, sender.x, sender.y, recipient.x, recipient.y
+            amount, sender, recipient
         ]));
 
         // Gets the set of sender's notes and picks 2 of those.
-        let sender_balance = storage.balances.at(sender.x);
+        let sender_balance = storage.balances.at(sender);
         context = spend_notes(context, sender_balance, amount, sender);
 
-        let balance = storage.balances.at(recipient.x);
+        let balance = storage.balances.at(recipient);
         context = send_note(context, balance, amount, recipient);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
@@ -260,12 +259,12 @@ contract NonNativeToken {
         inputs: PrivateContextInputs,
         amount: Field,
         secret: Field,
-        owner: Point,
+        owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
 
         let mut context = Context::new(inputs, abi::hash_args([
-            amount, secret, owner.x, owner.y
+            amount, secret, owner
         ]));
 
         // Assert that the note exists within the tree
@@ -273,7 +272,7 @@ contract NonNativeToken {
         context = public_note.consume_in_secret(context, inputs.roots.private_data_tree_root, secret);
 
         // Mint the tokens
-        let balance = storage.balances.at(owner.x);
+        let balance = storage.balances.at(owner);
         context = send_note(context, balance, amount, owner);
 
         context.finish()
@@ -282,16 +281,16 @@ contract NonNativeToken {
     fn unshieldTokens(
         inputs: PrivateContextInputs,
         amount: Field,
-        owner: Point,
+        owner: Field,
         recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([
-            amount, owner.x, owner.y, recipient
+            amount, owner, recipient
         ]));
 
         // Remove user balance
-        let sender_balance = storage.balances.at(owner.x);
+        let sender_balance = storage.balances.at(owner);
         context = spend_notes(context, sender_balance, amount, owner);
 
         // enqueue a public function to perform the public state update.
@@ -321,10 +320,10 @@ contract NonNativeToken {
 
     /// ABI getBalance type "unconstrained"
     fn getBalance(
-        owner: Point,
+        owner: Field,
     ) -> pub Field {
         let storage = Storage::init();
-        let owner_balance = storage.balances.at(owner.x);
+        let owner_balance = storage.balances.at(owner);
         
         balance_utils::get_balance(owner_balance.storage_slot)
     }

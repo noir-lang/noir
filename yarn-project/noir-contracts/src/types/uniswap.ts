@@ -65,7 +65,7 @@ export class UniswapContract extends Contract {
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** swap(withdrawFnSelector: field, inputAsset: field, inputAssetPortalAddress: field, inputAmount: field, uniswapFeeTier: field, outputAsset: field, outputAssetPortalAddress: field, minimumOutputAmount: field, sender: struct, recipient: field, secretHash: field, deadlineForL1ToL2Message: field, cancellerForL1ToL2Message: field, l1UniswapPortal: field, callerOnL1: field) */
+    /** swap(withdrawFnSelector: field, inputAsset: field, inputAssetPortalAddress: field, inputAmount: field, uniswapFeeTier: field, outputAsset: field, outputAssetPortalAddress: field, minimumOutputAmount: field, sender: field, recipient: field, secretHash: field, deadlineForL1ToL2Message: field, cancellerForL1ToL2Message: field, l1UniswapPortal: field, callerOnL1: field) */
     swap: ((
       withdrawFnSelector: Fr | bigint | number | { toField: () => Fr },
       inputAsset: Fr | bigint | number | { toField: () => Fr },
@@ -75,7 +75,7 @@ export class UniswapContract extends Contract {
       outputAsset: Fr | bigint | number | { toField: () => Fr },
       outputAssetPortalAddress: Fr | bigint | number | { toField: () => Fr },
       minimumOutputAmount: Fr | bigint | number | { toField: () => Fr },
-      sender: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      sender: Fr | bigint | number | { toField: () => Fr },
       recipient: Fr | bigint | number | { toField: () => Fr },
       secretHash: Fr | bigint | number | { toField: () => Fr },
       deadlineForL1ToL2Message: Fr | bigint | number | { toField: () => Fr },

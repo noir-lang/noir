@@ -49,7 +49,7 @@ export class CrossChainTestHarness {
       publicClient,
       deployL1ContractsValues!.registryAddress,
       initialBalance,
-      ownerPub.toBigInts(),
+      ownerAddress,
     );
     const l2Contract = contracts.l2Contract;
     const underlyingERC20 = contracts.underlyingERC20;
@@ -155,11 +155,7 @@ export class CrossChainTestHarness {
   async performL2Transfer(transferAmount: bigint) {
     // send a transfer tx to force through rollup with the message included
     const transferTx = this.l2Contract.methods
-      .transfer(
-        transferAmount,
-        (await this.aztecRpcServer.getAccountPublicKey(this.ownerAddress)).toBigInts(),
-        (await this.aztecRpcServer.getAccountPublicKey(this.receiver)).toBigInts(),
-      )
+      .transfer(transferAmount, this.ownerAddress, this.receiver)
       .send({ origin: this.accounts[0] });
 
     await transferTx.isMined(0, 0.1);
@@ -172,7 +168,7 @@ export class CrossChainTestHarness {
     this.logger('Consuming messages on L2 secretively');
     // Call the mint tokens function on the noir contract
     const consumptionTx = this.l2Contract.methods
-      .mint(bridgeAmount, this.ownerPub, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
+      .mint(bridgeAmount, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
       .send({ origin: this.ownerAddress });
 
     await consumptionTx.isMined(0, 0.1);
@@ -193,8 +189,7 @@ export class CrossChainTestHarness {
   }
 
   async getL2BalanceOf(owner: AztecAddress) {
-    const ownerPublicKey = await this.aztecRpcServer.getAccountPublicKey(owner);
-    const [balance] = await this.l2Contract.methods.getBalance(ownerPublicKey.toBigInts()).view({ from: owner });
+    const [balance] = await this.l2Contract.methods.getBalance(owner).view({ from: owner });
     return balance;
   }
 
@@ -268,7 +263,7 @@ export class CrossChainTestHarness {
   async redeemShieldPrivatelyOnL2(shieldAmount: bigint, secret: Fr) {
     this.logger('Spending commitment in private call');
     const privateTx = this.l2Contract.methods
-      .redeemShield(shieldAmount, secret, this.ownerPub)
+      .redeemShield(shieldAmount, secret, this.ownerAddress)
       .send({ origin: this.ownerAddress });
 
     await privateTx.isMined();
@@ -280,7 +275,7 @@ export class CrossChainTestHarness {
   async unshieldTokensOnL2(unshieldAmount: bigint) {
     this.logger('Unshielding tokens');
     const unshieldTx = this.l2Contract.methods
-      .unshieldTokens(unshieldAmount, this.ownerPub, this.ownerAddress.toField())
+      .unshieldTokens(unshieldAmount, this.ownerAddress, this.ownerAddress)
       .send({ origin: this.ownerAddress });
     await unshieldTx.isMined();
     const unshieldReceipt = await unshieldTx.getReceipt();

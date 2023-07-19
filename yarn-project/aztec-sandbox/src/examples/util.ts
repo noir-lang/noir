@@ -1,6 +1,6 @@
-import { Contract, ContractDeployer, EthAddress, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, EthAddress, Wallet } from '@aztec/aztec.js';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
-import { NonNativeTokenContractAbi } from '@aztec/noir-contracts/examples';
+import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
 
 import type { Abi, Narrow } from 'abitype';
 import { Account, Chain, Hex, HttpTransport, PublicClient, WalletClient, getContract } from 'viem';
@@ -22,7 +22,7 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   publicClient: PublicClient<HttpTransport, Chain>,
   rollupRegistryAddress: EthAddress,
   initialBalance = 0n,
-  owner = { x: 0n, y: 0n },
+  owner = AztecAddress.ZERO,
   underlyingERC20Address?: EthAddress,
 ) {
   // deploy underlying contract if no address supplied
@@ -46,13 +46,12 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   });
 
   // deploy l2 contract and attach to portal
-  const deployer = new ContractDeployer(NonNativeTokenContractAbi, wallet);
-  const tx = deployer.deploy(initialBalance, owner).send({
+  const tx = NonNativeTokenContract.deploy(wallet, initialBalance, owner).send({
     portalContract: tokenPortalAddress,
   });
   await tx.isMined(0, 0.1);
   const receipt = await tx.getReceipt();
-  const l2Contract = new Contract(receipt.contractAddress!, NonNativeTokenContractAbi, wallet);
+  const l2Contract = new NonNativeTokenContract(receipt.contractAddress!, wallet);
   await l2Contract.attach(tokenPortalAddress);
   const l2TokenAddress = l2Contract.address.toString() as `0x${string}`;
 

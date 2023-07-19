@@ -1,6 +1,7 @@
 use dep::aztec::context::Context;
 use dep::aztec::log::emit_encrypted_log;
 use dep::aztec::note::note_getter_options::NoteGetterOptions;
+use dep::aztec::oracle::get_public_key::get_public_key;
 use dep::aztec::state_vars::set::Set;
 use dep::aztec::types::point::Point;
 use crate::value_note::{
@@ -12,7 +13,7 @@ fn spend_notes(
     mut context: Context,
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     amount: Field,
-    owner: Point,
+    owner: Field,
 ) -> Context {
     let options = NoteGetterOptions::with_filter(get_2_notes, 0);
     let (mut new_context, notes) = balance.get_notes(context, options);
@@ -42,11 +43,13 @@ fn spend_notes(
     if change_note.is_dummy() == false {
         encrypted_data = change_note.serialise();
     };
+
+    let owner_key = get_public_key(owner);
     context = emit_encrypted_log(
         context,
         context.inputs.call_context.storage_contract_address,
         balance.storage_slot,
-        owner,
+        owner_key,
         encrypted_data,
     );
 
@@ -57,7 +60,7 @@ fn send_note(
     mut context: Context,
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     amount: Field,
-    recipient: Point,
+    recipient: Field,
 ) -> Context {
      // Creates new note for the recipient.
     let note = ValueNote::new(amount, recipient);
@@ -66,11 +69,12 @@ fn send_note(
     context = balance.insert(context, note);
 
     // Emit the newly created encrypted note preimages via oracle calls.
+    let recipient_key = get_public_key(recipient);
     context = emit_encrypted_log(
         context,
         context.inputs.call_context.storage_contract_address,
         balance.storage_slot,
-        recipient,
+        recipient_key,
         note.serialise(),
     );
 

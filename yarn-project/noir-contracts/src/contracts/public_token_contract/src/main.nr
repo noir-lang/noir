@@ -21,10 +21,10 @@ contract PublicToken {
     open fn mint(
         _inputs: PublicContextInputs,
         amount: Field,
-        recipient: Point,
+        recipient: Field,
     ) -> pub Field {
         let storage = Storage::init();
-        let recipient_balance = storage.balances.at(recipient.x);
+        let recipient_balance = storage.balances.at(recipient);
         let new_amount = recipient_balance.read() + amount;
         // TODO: Remove return value.
         let hash = emit_unencrypted_log("Coins minted");
@@ -36,13 +36,13 @@ contract PublicToken {
     open fn transfer(
         inputs: PublicContextInputs,
         amount: Field,
-        recipient: Point,
+        recipient: Field,
     ) -> pub Field {
         let storage = Storage::init();
         let sender = inputs.call_context.msg_sender;
 
         let sender_balance = storage.balances.at(sender);
-        let recipient_balance = storage.balances.at(recipient.x);
+        let recipient_balance = storage.balances.at(recipient);
 
         let current_sender_balance: Field = sender_balance.read();
         let current_recipient_balance = recipient_balance.read();

@@ -1,15 +1,15 @@
 import { CircuitsWasm, FunctionData, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
+import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr } from '@aztec/foundation/fields';
+import { Fr, Point } from '@aztec/foundation/fields';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/examples';
 import { ExecutionRequest } from '@aztec/types';
 
 import { mock } from 'jest-mock-extended';
 
-import { NoirPoint, toPublicKey } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
 
@@ -28,18 +28,30 @@ describe('Unconstrained Execution test suite', () => {
   });
 
   describe('zk token contract', () => {
-    let ownerPk: Buffer;
-    let owner: NoirPoint;
+    const ownerPk: Buffer = Buffer.from('5e30a2f886b4b6a11aea03bf4910fbd5b24e61aa27ea4d05c393b3ab592a8d33', 'hex');
 
-    const buildNote = (amount: bigint, owner: NoirPoint) => {
-      return [new Fr(amount), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(1n)];
+    let owner: AztecAddress;
+
+    const buildNote = (amount: bigint, owner: AztecAddress) => {
+      return [new Fr(amount), owner, Fr.random(), new Fr(1n)];
     };
 
-    beforeAll(() => {
-      ownerPk = Buffer.from('5e30a2f886b4b6a11aea03bf4910fbd5b24e61aa27ea4d05c393b3ab592a8d33', 'hex');
-
+    const calculateAddress = (privateKey: Buffer) => {
       const grumpkin = new Grumpkin(bbWasm);
-      owner = toPublicKey(ownerPk, grumpkin);
+      const pubKey = Point.fromBuffer(grumpkin.mul(Grumpkin.generator, privateKey));
+      const partialAddress = Fr.random();
+      const address = computeContractAddressFromPartial(bbWasm, pubKey, partialAddress);
+      return [address, partialAddress, pubKey] as const;
+    };
+
+    beforeEach(() => {
+      const [ownerAddress, ownerPartialAddress, ownerPubKey] = calculateAddress(ownerPk);
+      owner = ownerAddress;
+
+      oracle.getPublicKey.mockImplementation((address: AztecAddress) => {
+        if (address.equals(owner)) return Promise.resolve([ownerPubKey, ownerPartialAddress]);
+        throw new Error(`Unknown address ${address}`);
+      });
     });
 
     it('should run the getBalance function', async () => {

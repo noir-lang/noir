@@ -6,21 +6,22 @@ use dep::aztec::note::{
 use dep::aztec::oracle::{
     rand::rand,
     get_secret_key::get_secret_key,
+    get_public_key::get_public_key,
 };
 use dep::aztec::types::point::Point;
 
-global VALUE_NOTE_LEN: Field = 5;
+global VALUE_NOTE_LEN: Field = 4;
 
 struct ValueNote {
     value: Field,
-    owner: Point,
+    owner: Field,
     randomness: Field,
     is_real: bool,
     header: NoteHeader,
 }
 
 impl ValueNote {
-    fn new(value: Field, owner: Point) -> Self {
+    fn new(value: Field, owner: Field) -> Self {
         let randomness = rand();
         let is_real = value != 0;
         let header = NoteHeader::empty();
@@ -34,18 +35,15 @@ impl ValueNote {
     }
 
     fn serialise(self) -> [Field; VALUE_NOTE_LEN] {
-        [self.value, self.owner.x, self.owner.y, self.randomness, self.is_real as Field]
+        [self.value, self.owner, self.randomness, self.is_real as Field]
     }
 
     fn deserialise(preimage: [Field; VALUE_NOTE_LEN]) -> Self {
         ValueNote {
             value: preimage[0],
-            owner: Point {
-                x: preimage[1],
-                y: preimage[2]
-            },
-            randomness: preimage[3],
-            is_real: preimage[4] as bool,
+            owner: preimage[1],
+            randomness: preimage[2],
+            is_real: preimage[3] as bool,
             header: NoteHeader::empty(),
         }
     }
@@ -53,8 +51,7 @@ impl ValueNote {
     fn compute_note_hash(self) -> Field {
         dep::std::hash::pedersen([
             self.value, 
-            self.owner.x, 
-            self.owner.y, 
+            self.owner,
             self.randomness,
             self.is_real as Field,
         ])[0]
@@ -65,7 +62,9 @@ impl ValueNote {
             0
         } else {
             let siloed_note_hash = compute_siloed_note_hash(ValueNoteInterface, self);
-            let secret = get_secret_key(self.owner);
+            let owner_nullifying_public_key = get_public_key(self.owner);
+            // TODO: get_secret_key should just accept an address
+            let secret = get_secret_key(owner_nullifying_public_key);
             dep::std::hash::pedersen([
                 siloed_note_hash,
                 secret, 
@@ -76,7 +75,7 @@ impl ValueNote {
     fn dummy() -> Self {
         ValueNote {
             value: 0,
-            owner: Point { x: 0, y: 0 },
+            owner: 0,
             randomness: 0,
             is_real: false,
             header: NoteHeader::empty(),
@@ -92,8 +91,8 @@ impl ValueNote {
         self
     }
 
-    fn validate(self, sender: Point) {
-        let sender_equals = (sender.x == self.owner.x) & (sender.y == self.owner.y);
+    fn validate(self, sender: Field) {
+        let sender_equals = sender == self.owner;
         assert((!self.is_real) | sender_equals);
     }
 }

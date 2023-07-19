@@ -34,7 +34,7 @@ export class ZkTokenContract extends Contract {
   public static deploy(
     rpc: AztecRPC,
     initial_supply: Fr | bigint | number | { toField: () => Fr },
-    owner: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+    owner: Fr | bigint | number | { toField: () => Fr },
   ) {
     return new DeployMethod(Point.ZERO, rpc, ZkTokenContractAbi, Array.from(arguments).slice(1));
   }
@@ -46,7 +46,7 @@ export class ZkTokenContract extends Contract {
     rpc: AztecRPC,
     publicKey: Point,
     initial_supply: Fr | bigint | number | { toField: () => Fr },
-    owner: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+    owner: Fr | bigint | number | { toField: () => Fr },
   ) {
     return new DeployMethod(publicKey, rpc, ZkTokenContractAbi, Array.from(arguments).slice(2));
   }
@@ -60,33 +60,30 @@ export class ZkTokenContract extends Contract {
 
   /** Type-safe wrappers for the public methods exposed by the contract. */
   public methods!: {
-    /** claim(amount: field, secret: field, owner: struct) */
+    /** claim(amount: field, secret: field, owner: field) */
     claim: ((
       amount: Fr | bigint | number | { toField: () => Fr },
       secret: Fr | bigint | number | { toField: () => Fr },
-      owner: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      owner: Fr | bigint | number | { toField: () => Fr },
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** createClaims(amounts: array, secrets: array, sender: struct) */
+    /** createClaims(amounts: array, secrets: array, sender: field) */
     createClaims: ((
       amounts: (Fr | bigint | number | { toField: () => Fr })[],
       secrets: (Fr | bigint | number | { toField: () => Fr })[],
-      sender: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      sender: Fr | bigint | number | { toField: () => Fr },
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** getBalance(owner: struct) */
-    getBalance: ((owner: {
-      x: Fr | bigint | number | { toField: () => Fr };
-      y: Fr | bigint | number | { toField: () => Fr };
-    }) => ContractFunctionInteraction) &
+    /** getBalance(owner: field) */
+    getBalance: ((owner: Fr | bigint | number | { toField: () => Fr }) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** mint(amount: field, owner: struct) */
+    /** mint(amount: field, owner: field) */
     mint: ((
       amount: Fr | bigint | number | { toField: () => Fr },
-      owner: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      owner: Fr | bigint | number | { toField: () => Fr },
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
@@ -99,11 +96,11 @@ export class ZkTokenContract extends Contract {
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** transfer(amount: field, sender: struct, recipient: struct) */
+    /** transfer(amount: field, sender: field, recipient: field) */
     transfer: ((
       amount: Fr | bigint | number | { toField: () => Fr },
-      sender: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
-      recipient: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      sender: Fr | bigint | number | { toField: () => Fr },
+      recipient: Fr | bigint | number | { toField: () => Fr },
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
   };

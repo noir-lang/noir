@@ -22,7 +22,7 @@ import { randomBytes } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, Logger, createDebugLogger } from '@aztec/foundation/log';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
-import { NonNativeTokenContractAbi, SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
 import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
 import { TxStatus } from '@aztec/types';
 
@@ -236,7 +236,7 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   publicClient: PublicClient<HttpTransport, Chain>,
   rollupRegistryAddress: EthAddress,
   initialBalance = 0n,
-  owner = { x: 0n, y: 0n },
+  owner = AztecAddress.ZERO,
   underlyingERC20Address?: EthAddress,
 ) {
   // deploy underlying contract if no address supplied
@@ -260,8 +260,7 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   });
 
   // deploy l2 contract and attach to portal
-  const deployer = new ContractDeployer(NonNativeTokenContractAbi, wallet);
-  const tx = deployer.deploy(initialBalance, owner).send({
+  const tx = NonNativeTokenContract.deploy(wallet, initialBalance, owner).send({
     portalContract: tokenPortalAddress,
     contractAddressSalt: Fr.random(),
   });

@@ -51,17 +51,17 @@ export class PublicTokenContract extends Contract {
 
   /** Type-safe wrappers for the public methods exposed by the contract. */
   public methods!: {
-    /** mint(amount: field, recipient: struct) */
+    /** mint(amount: field, recipient: field) */
     mint: ((
       amount: Fr | bigint | number | { toField: () => Fr },
-      recipient: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      recipient: Fr | bigint | number | { toField: () => Fr },
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** transfer(amount: field, recipient: struct) */
+    /** transfer(amount: field, recipient: field) */
     transfer: ((
       amount: Fr | bigint | number | { toField: () => Fr },
-      recipient: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      recipient: Fr | bigint | number | { toField: () => Fr },
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
   };

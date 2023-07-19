@@ -34,7 +34,7 @@ export class NonNativeTokenContract extends Contract {
   public static deploy(
     rpc: AztecRPC,
     initial_supply: Fr | bigint | number | { toField: () => Fr },
-    owner: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+    owner: Fr | bigint | number | { toField: () => Fr },
   ) {
     return new DeployMethod(Point.ZERO, rpc, NonNativeTokenContractAbi, Array.from(arguments).slice(1));
   }
@@ -46,7 +46,7 @@ export class NonNativeTokenContract extends Contract {
     rpc: AztecRPC,
     publicKey: Point,
     initial_supply: Fr | bigint | number | { toField: () => Fr },
-    owner: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+    owner: Fr | bigint | number | { toField: () => Fr },
   ) {
     return new DeployMethod(publicKey, rpc, NonNativeTokenContractAbi, Array.from(arguments).slice(2));
   }
@@ -67,18 +67,14 @@ export class NonNativeTokenContract extends Contract {
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** getBalance(owner: struct) */
-    getBalance: ((owner: {
-      x: Fr | bigint | number | { toField: () => Fr };
-      y: Fr | bigint | number | { toField: () => Fr };
-    }) => ContractFunctionInteraction) &
+    /** getBalance(owner: field) */
+    getBalance: ((owner: Fr | bigint | number | { toField: () => Fr }) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** mint(amount: field, owner: struct, owner_address: field, msg_key: field, secret: field, canceller: field) */
+    /** mint(amount: field, owner: field, msg_key: field, secret: field, canceller: field) */
     mint: ((
       amount: Fr | bigint | number | { toField: () => Fr },
-      owner: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
-      owner_address: Fr | bigint | number | { toField: () => Fr },
+      owner: Fr | bigint | number | { toField: () => Fr },
       msg_key: Fr | bigint | number | { toField: () => Fr },
       secret: Fr | bigint | number | { toField: () => Fr },
       canceller: Fr | bigint | number | { toField: () => Fr },
@@ -95,11 +91,11 @@ export class NonNativeTokenContract extends Contract {
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** redeemShield(amount: field, secret: field, owner: struct) */
+    /** redeemShield(amount: field, secret: field, owner: field) */
     redeemShield: ((
       amount: Fr | bigint | number | { toField: () => Fr },
       secret: Fr | bigint | number | { toField: () => Fr },
-      owner: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      owner: Fr | bigint | number | { toField: () => Fr },
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
@@ -119,26 +115,26 @@ export class NonNativeTokenContract extends Contract {
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** transfer(amount: field, sender: struct, recipient: struct) */
+    /** transfer(amount: field, sender: field, recipient: field) */
     transfer: ((
       amount: Fr | bigint | number | { toField: () => Fr },
-      sender: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
-      recipient: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
-    ) => ContractFunctionInteraction) &
-      Pick<ContractMethod, 'selector'>;
-
-    /** unshieldTokens(amount: field, owner: struct, recipient: field) */
-    unshieldTokens: ((
-      amount: Fr | bigint | number | { toField: () => Fr },
-      owner: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      sender: Fr | bigint | number | { toField: () => Fr },
       recipient: Fr | bigint | number | { toField: () => Fr },
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** withdraw(amount: field, sender: struct, recipient: field, callerOnL1: field) */
+    /** unshieldTokens(amount: field, owner: field, recipient: field) */
+    unshieldTokens: ((
+      amount: Fr | bigint | number | { toField: () => Fr },
+      owner: Fr | bigint | number | { toField: () => Fr },
+      recipient: Fr | bigint | number | { toField: () => Fr },
+    ) => ContractFunctionInteraction) &
+      Pick<ContractMethod, 'selector'>;
+
+    /** withdraw(amount: field, sender: field, recipient: field, callerOnL1: field) */
     withdraw: ((
       amount: Fr | bigint | number | { toField: () => Fr },
-      sender: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+      sender: Fr | bigint | number | { toField: () => Fr },
       recipient: Fr | bigint | number | { toField: () => Fr },
       callerOnL1: Fr | bigint | number | { toField: () => Fr },
     ) => ContractFunctionInteraction) &

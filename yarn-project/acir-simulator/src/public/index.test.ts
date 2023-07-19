@@ -6,7 +6,7 @@ import {
   L1_TO_L2_MSG_TREE_HEIGHT,
   PrivateHistoricTreeRoots,
 } from '@aztec/circuits.js';
-import { Grumpkin, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
+import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { keccak } from '@aztec/foundation/crypto';
@@ -25,7 +25,7 @@ import { MockProxy, mock } from 'jest-mock-extended';
 import { type MemDown, default as memdown } from 'memdown';
 
 import { buildL1ToL2Message } from '../test/utils.js';
-import { NoirPoint, computeSlotForMapping, toPublicKey } from '../utils.js';
+import { computeSlotForMapping } from '../utils.js';
 import { CommitmentsDB, PublicContractsDB, PublicStateDB } from './db.js';
 import { PublicExecution } from './execution.js';
 import { PublicExecutor } from './executor.js';
@@ -53,14 +53,10 @@ describe('ACIR public execution simulator', () => {
   });
 
   describe('PublicToken contract', () => {
-    let recipientPk: Buffer;
-    let recipient: NoirPoint;
+    let recipient: AztecAddress;
 
-    beforeAll(() => {
-      recipientPk = Buffer.from('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec', 'hex');
-
-      const grumpkin = new Grumpkin(circuitsWasm);
-      recipient = toPublicKey(recipientPk, grumpkin);
+    beforeEach(() => {
+      recipient = AztecAddress.random();
     });
 
     describe('mint', () => {
@@ -91,7 +87,7 @@ describe('ACIR public execution simulator', () => {
         const expectedBalance = new Fr(160n);
         expect(result.returnValues).toEqual([expectedBalance]);
 
-        const storageSlot = computeSlotForMapping(new Fr(1n), recipient, circuitsWasm);
+        const storageSlot = computeSlotForMapping(new Fr(1n), recipient.toField(), circuitsWasm);
         expect(result.contractStorageUpdateRequests).toEqual([
           { storageSlot, oldValue: previousBalance, newValue: expectedBalance },
         ]);
@@ -127,7 +123,7 @@ describe('ACIR public execution simulator', () => {
           isStaticCall: false,
         });
 
-        recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient, circuitsWasm);
+        recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient.toField(), circuitsWasm);
         senderStorageSlot = computeSlotForMapping(new Fr(1n), Fr.fromBuffer(sender.toBuffer()), circuitsWasm);
 
         publicContracts.getBytecode.mockResolvedValue(Buffer.from(abi.bytecode, 'base64'));
@@ -326,14 +322,12 @@ describe('ACIR public execution simulator', () => {
 
       const bridgedAmount = 20n;
       const secret = new Fr(1n);
-      const recipientPk = Buffer.from('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec', 'hex');
-      const grumpkin = new Grumpkin(circuitsWasm);
-      const recipient = toPublicKey(recipientPk, grumpkin);
+      const recipient = AztecAddress.random();
 
       // Function selector: 0xeeb73071 keccak256('mint(uint256,bytes32,address)')
       const preimage = await buildL1ToL2Message(
         'eeb73071',
-        [new Fr(bridgedAmount), new Fr(recipient.x), canceller.toField()],
+        [new Fr(bridgedAmount), recipient.toField(), canceller.toField()],
         contractAddress,
         secret,
       );
@@ -342,7 +336,7 @@ describe('ACIR public execution simulator', () => {
       const messageKey = Fr.random();
       const args = encodeArguments(mintPublicAbi, [
         bridgedAmount,
-        recipient.x,
+        recipient.toField(),
         messageKey,
         secret,
         canceller.toField(),

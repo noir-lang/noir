@@ -34,7 +34,7 @@ contract Uniswap {
         outputAsset: Field,
         outputAssetPortalAddress: Field, // l1 portal of output asset
         minimumOutputAmount: Field, // minimum output amount to receive (slippage protection for the swap)
-        sender: Point, 
+        sender: Field, 
         recipient: Field, // receiver address of output asset after the swap
         secretHash: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
         deadlineForL1ToL2Message: Field, // for when l1 uniswap portal inserts the message to consume output assets on L2
@@ -51,8 +51,7 @@ contract Uniswap {
             outputAsset,
             outputAssetPortalAddress,
             minimumOutputAmount,
-            sender.x,
-            sender.y,
+            sender,
             recipient,
             secretHash,
             deadlineForL1ToL2Message,
@@ -66,8 +65,7 @@ contract Uniswap {
         // ref: https://docs.aztec.network/aztec/how-it-works/l1-l2-messaging#designated-caller
         let (callStackItem, mut context) = PrivateCallStackItem::call(inputAsset, withdrawFnSelector, [
             inputAmount,
-            sender.x,
-            sender.y,
+            sender,
             l1UniswapPortal,
             l1UniswapPortal,
         ], initialContext);

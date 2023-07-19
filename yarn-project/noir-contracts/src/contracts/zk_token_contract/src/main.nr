@@ -37,13 +37,13 @@ contract ZkToken {
         inputs: PrivateContextInputs,
         //*********************************/
         initial_supply: Field, 
-        owner: Point,
+        owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner.x, owner.y]));
+        let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner]));
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
-        let owner_balance = storage.balances.at(owner.x);
+        let owner_balance = storage.balances.at(owner);
         if (initial_supply != 0) {
             context = send_note(context, owner_balance, initial_supply, owner);
             context = emit_unencrypted_log(context, "Balance set in constructor");
@@ -60,13 +60,13 @@ contract ZkToken {
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field, 
-        owner: Point,
+        owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner.x, owner.y]));
+        let mut context = Context::new(inputs, abi::hash_args([amount, owner]));
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
-        let owner_balance = storage.balances.at(owner.x);
+        let owner_balance = storage.balances.at(owner);
         context = send_note(context, owner_balance, amount, owner);
         context = emit_unencrypted_log(context, "Coins minted");
 
@@ -81,18 +81,18 @@ contract ZkToken {
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field, 
-        sender: Point, 
-        recipient: Point,
+        sender: Field, 
+        recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, sender.x, sender.y, recipient.x, recipient.y]));
+        let mut context = Context::new(inputs, abi::hash_args([amount, sender, recipient]));
 
         // Pick from the set of sender's notes to spend amount.
-        let sender_balance = storage.balances.at(sender.x);
+        let sender_balance = storage.balances.at(sender);
         context = spend_notes(context, sender_balance, amount, sender);
 
         // Creates new note for the recipient.
-        let recipient_balance = storage.balances.at(recipient.x);
+        let recipient_balance = storage.balances.at(recipient);
         context = send_note(context, recipient_balance, amount, recipient);
         
         context = emit_unencrypted_log(context, "Coins transferred");
@@ -108,13 +108,13 @@ contract ZkToken {
         //*********************************/
         amounts: [Field; 2], 
         secrets: [Field; 2], 
-        sender: Point, 
+        sender: Field, 
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amounts[0], amounts[1], secrets[0], secrets[1], sender.x, sender.y]));
+        let mut context = Context::new(inputs, abi::hash_args([amounts[0], amounts[1], secrets[0], secrets[1], sender]));
 
         // Pick from the set of sender's notes to spend amount.
-        let sender_balance = storage.balances.at(sender.x);
+        let sender_balance = storage.balances.at(sender);
         let total = amounts[0] + amounts[1];
         context = spend_notes(context, sender_balance, total, sender);
 
@@ -138,10 +138,10 @@ contract ZkToken {
         //*********************************/
         amount: Field,
         secret: Field,
-        owner: Point,
+        owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, secret, owner.x, owner.y]));
+        let mut context = Context::new(inputs, abi::hash_args([amount, secret, owner]));
 
         // Remove the claim note if it exists in the set.
         let mut note = ClaimNote::new(amount, secret);
@@ -151,7 +151,7 @@ contract ZkToken {
         context = storage.claims.remove(context, note);
 
         // Send the value note.
-        let balance = storage.balances.at(owner.x);
+        let balance = storage.balances.at(owner);
         context = send_note(context, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
@@ -161,12 +161,12 @@ contract ZkToken {
     /// ABI getBalance type "unconstrained"
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).
     fn getBalance(
-        owner: Point,
+        owner: Field,
     ) -> pub Field {
         let storage = Storage::init();
 
         // Get the set of notes owned by the user.
-        let owner_balance = storage.balances.at(owner.x);
+        let owner_balance = storage.balances.at(owner);
 
         // Return the sum of all notes in the set.
         balance_utils::get_balance(owner_balance.storage_slot)

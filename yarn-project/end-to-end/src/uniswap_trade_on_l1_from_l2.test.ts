@@ -35,7 +35,6 @@ describe('uniswap_trade_on_l1_from_l2', () => {
   let ethAccount: EthAddress;
   let ownerAddress: AztecAddress;
   let receiver: AztecAddress;
-  let ownerPub: { x: bigint; y: bigint };
   const initialBalance = 10n;
   const wethAmountToBridge = parseEther('1');
 
@@ -60,7 +59,6 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
     [ownerAddress, receiver] = accounts;
     const ownerPubPoint = await aztecRpcServer.getAccountPublicKey(ownerAddress);
-    ownerPub = ownerPubPoint.toBigInts();
 
     logger('Deploying DAI Portal, initializing and deploying l2 contract...');
     const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(
@@ -69,7 +67,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       publicClient,
       deployL1ContractsValues!.registryAddress,
       initialBalance,
-      ownerPub,
+      ownerAddress,
       DAI_ADDRESS,
     );
     daiCrossChainHarness = new CrossChainTestHarness(
@@ -97,7 +95,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       publicClient,
       deployL1ContractsValues!.registryAddress,
       initialBalance,
-      ownerPub,
+      ownerAddress,
       WETH9_ADDRESS,
     );
     wethCrossChainHarness = new CrossChainTestHarness(
@@ -190,7 +188,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
         daiCrossChainHarness.l2Contract.address.toField(),
         daiCrossChainHarness.tokenPortalAddress.toField(),
         new Fr(minimumOutputAmount),
-        ownerPub,
+        ownerAddress,
         ownerAddress,
         secretHash,
         new Fr(2 ** 32 - 1),

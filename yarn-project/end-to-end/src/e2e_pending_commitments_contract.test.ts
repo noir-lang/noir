@@ -38,13 +38,11 @@ describe('e2e_pending_commitments_contract', () => {
 
   it('Noir function can "get" notes it just "inserted"', async () => {
     const mintAmount = 65n;
-
     const [owner] = accounts;
-    const ownerPublicKey = (await aztecRpcServer.getAccountPublicKey(owner)).toBigInts();
 
     const deployedContract = await deployContract();
 
-    const tx = deployedContract.methods.test_insert_then_read_flat(mintAmount, ownerPublicKey).send({ origin: owner });
+    const tx = deployedContract.methods.test_insert_then_read_flat(mintAmount, owner).send({ origin: owner });
 
     await tx.isMined(0, 0.1);
     const receipt = await tx.getReceipt();
@@ -53,16 +51,14 @@ describe('e2e_pending_commitments_contract', () => {
 
   it('Noir function can "get" notes inserted in a previous function call in same TX', async () => {
     const mintAmount = 65n;
-
     const [owner] = accounts;
-    const ownerPublicKey = (await aztecRpcServer.getAccountPublicKey(owner)).toBigInts();
 
     const deployedContract = await deployContract();
 
     const tx = deployedContract.methods
       .test_insert_then_read_both_in_nested_calls(
         mintAmount,
-        ownerPublicKey,
+        owner,
         Fr.fromBuffer(deployedContract.methods.create_note.selector),
         Fr.fromBuffer(deployedContract.methods.get_and_check_note.selector),
       )
