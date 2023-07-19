@@ -230,12 +230,10 @@ fn find_dynamic_dispatches(func: &Function) -> HashSet<Signature> {
             match instruction {
                 Instruction::Call { func: target, arguments } => {
                     if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
+                        let results = func.dfg.instruction_results(*instruction_id);
                         dispatches.insert(Signature {
                             params: vecmap(arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(
-                                func.dfg.instruction_results(*instruction_id),
-                                |result| func.dfg.type_of_value(*result),
-                            ),
+                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
                         });
                     }
                 }
