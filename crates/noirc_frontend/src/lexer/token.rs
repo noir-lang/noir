@@ -214,7 +214,7 @@ impl fmt::Display for TokenKind {
 impl Token {
     pub fn kind(&self) -> TokenKind {
         match *self {
-            Token::Ident(_) => TokenKind::Ident,
+            Token::Ident(_) | Token::Underscore => TokenKind::Ident,
             Token::Int(_) | Token::Bool(_) | Token::Str(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
