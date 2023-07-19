@@ -14,7 +14,9 @@ All issues being worked on are tracked on the [Aztec Github Project](https://git
 
 Run `bootstrap.sh` in the project root to set up your environment. This will update git submodules, download ignition transcripts, build all C++ circuits code, install Foundry, compile Solidity contracts, install the current node version via nvm, and build all typescript packages.
 
-To build C++ code, make sure to fullfil the [requirements from barretenberg](https://github.com/AztecProtocol/barretenberg/#dependencies), the underlying cryptographic library we maintain. To build Typescript code, make sure to have [`nvm`](https://github.com/nvm-sh/nvm) (node version manager) installed.
+To build the C++ code, follow the [instructions in the circuits subdirectory](./circuits/README.md), which contains all of the ZK circuit logic for Aztec. Note that "barretenberg", Aztec's underlying cryptographic library, can be found inside the circuits subdirectory as well and is automatically built as a side effect of building the circuits.
+
+To build Typescript code, make sure to have [`nvm`](https://github.com/nvm-sh/nvm) (node version manager) installed.
 
 ## Continuous Integration
 
