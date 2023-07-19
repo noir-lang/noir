@@ -7,7 +7,8 @@ import NonNativeTokenContractJson from './non_native_token_contract.json' assert
 import ParentJson from './parent_contract.json' assert { type: 'json' };
 import PendingCommitmentsContractJson from './pending_commitments_contract.json' assert { type: 'json' };
 import PublicTokenContractJson from './public_token_contract.json' assert { type: 'json' };
-import SchnorrAccountContractJson from './schnorr_account_contract.json' assert { type: 'json' };
+import SchnorrMultiKeyAccountContractJson from './schnorr_multi_key_account_contract.json' assert { type: 'json' };
+import SchnorrSingleKeyAccountContractJson from './schnorr_single_key_account_contract.json' assert { type: 'json' };
 import TestContractJson from './test_contract.json' assert { type: 'json' };
 import UniswapContractJson from './uniswap_contract.json' assert { type: 'json' };
 import ZkTokenContractJson from './zk_token_contract.json' assert { type: 'json' };
@@ -19,6 +20,7 @@ export const ChildContractAbi = ChildJson as ContractAbi;
 export const PublicTokenContractAbi = PublicTokenContractJson as ContractAbi;
 export const NonNativeTokenContractAbi = NonNativeTokenContractJson as ContractAbi;
 export const EcdsaAccountContractAbi = EcdsaAccountContractJson as ContractAbi;
-export const SchnorrAccountContractAbi = SchnorrAccountContractJson as ContractAbi;
+export const SchnorrMultiKeyAccountContractAbi = SchnorrMultiKeyAccountContractJson as ContractAbi;
+export const SchnorrSingleKeyAccountContractAbi = SchnorrSingleKeyAccountContractJson as ContractAbi;
 export const UniswapContractAbi = UniswapContractJson as ContractAbi;
 export const PendingCommitmentsContractAbi = PendingCommitmentsContractJson as ContractAbi;

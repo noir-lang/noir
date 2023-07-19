@@ -40,6 +40,7 @@
   "dependencies": {
     "@aztec/foundation": "workspace:^",
     "@msgpack/msgpack": "^3.0.0-beta2",
+    "@noble/curves": "^1.0.0",
     "@types/lodash.camelcase": "^4.3.7",
     "@types/lodash.times": "^4.3.7",
     "cross-fetch": "^3.1.5",

@@ -64,6 +64,7 @@ fn get_note<Note, N, NS>(
 ) -> Note {
     let fields = get_notes_oracle_wrapper(storage_slot, [], [], 1, 0, zero_fields);
     let has_note = fields[0] == 1;
+    let contract_address = fields[1];
     if (has_note) {
         let contract_address = fields[1];
         let nonce = fields[2];

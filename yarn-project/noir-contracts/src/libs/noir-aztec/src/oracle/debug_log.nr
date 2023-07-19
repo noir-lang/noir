@@ -9,6 +9,8 @@ fn debug_log_format_oracle<T, N>(_msg: T, _args: [Field; N], _num_args: Field) -
 fn debug_log_field_oracle(_field: Field) -> Field {}
 #[oracle(debugLog)]
 fn debug_log_array_oracle<T, N>(_arbitrary_array: [T;N]) -> Field {}
+#[oracle(debugLogWithPrefix)]
+fn debug_log_array_with_prefix_oracle<S, T, N>(_prefix: S, _arbitrary_array: [T;N]) -> Field {}
 
 /// NOTE: call this with a str<N> msg of length > 1
 /// Example:
@@ -37,4 +39,10 @@ unconstrained fn debug_log_field(field: Field) {
 /// `debug_log_array(my_array);`
 unconstrained fn debug_log_array<T, N>(arbitrary_array: [T; N]) {
     assert(debug_log_array_oracle(arbitrary_array) == 0);
+}
+
+/// Example:
+/// `debug_log_array_with_prefix("Prefix", my_array);`
+unconstrained fn debug_log_array_with_prefix<S, T, N>(prefix: S, arbitrary_array: [T; N]) {
+    assert(debug_log_array_with_prefix_oracle(prefix, arbitrary_array) == 0);
 }

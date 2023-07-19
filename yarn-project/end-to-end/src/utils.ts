@@ -22,7 +22,7 @@ import { randomBytes } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, Logger, createDebugLogger } from '@aztec/foundation/log';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
-import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/examples';
 import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
 import { TxStatus } from '@aztec/types';
 
@@ -120,10 +120,10 @@ export async function setup(numberOfAccounts = 1): Promise<{
     const privateKey = i === 0 ? Buffer.from(privKey!) : randomBytes(32);
     const publicKey = await generatePublicKey(privateKey);
     const salt = Fr.random();
-    const deploymentData = await getContractDeploymentInfo(SchnorrAccountContractAbi, [], salt, publicKey);
+    const deploymentData = await getContractDeploymentInfo(SchnorrSingleKeyAccountContractAbi, [], salt, publicKey);
     await aztecRpcServer.addAccount(privateKey, deploymentData.address, deploymentData.partialAddress);
 
-    const contractDeployer = new ContractDeployer(SchnorrAccountContractAbi, aztecRpcServer, publicKey);
+    const contractDeployer = new ContractDeployer(SchnorrSingleKeyAccountContractAbi, aztecRpcServer, publicKey);
     const deployMethod = contractDeployer.deploy();
     await deployMethod.simulate({ contractAddressSalt: salt });
     txContexts.push({

@@ -1,7 +1,7 @@
 import { Contract, Wallet, createAccounts, createAztecRpcClient } from '@aztec/aztec.js';
 import { AztecAddress, Fr } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
-import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/examples';
+import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/examples';
 import { ZkTokenContract } from '@aztec/noir-contracts/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
@@ -49,7 +49,7 @@ async function getBalance(contract: Contract, ownerAddress: AztecAddress) {
 async function main() {
   logger('Running ZK contract test on HTTP interface.');
 
-  wallet = await createAccounts(aztecRpcClient, SchnorrAccountContractAbi, privateKey, Fr.random(), 2);
+  wallet = await createAccounts(aztecRpcClient, SchnorrSingleKeyAccountContractAbi, privateKey, Fr.random(), 2);
   const accounts = await aztecRpcClient.getAccounts();
   const [ownerAddress, address2] = accounts;
   logger(`Created ${accounts.length} accounts`);

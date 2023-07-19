@@ -13,26 +13,30 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecRPC } from '@aztec/types';
 
-import { EcdsaAccountContractAbi } from '../examples/index.js';
+import { SchnorrMultiKeyAccountContractAbi } from '../examples/index.js';
 
 /**
- * Type-safe interface for contract EcdsaAccount;
+ * Type-safe interface for contract SchnorrMultiKeyAccount;
  */
-export class EcdsaAccountContract extends Contract {
+export class SchnorrMultiKeyAccountContract extends Contract {
   constructor(
     /** The deployed contract's address. */
     address: AztecAddress,
     /** The wallet. */
     wallet: Wallet,
   ) {
-    super(address, EcdsaAccountContractAbi, wallet);
+    super(address, SchnorrMultiKeyAccountContractAbi, wallet);
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract.
    */
-  public static deploy(rpc: AztecRPC, signing_pub_key_x: (bigint | number)[], signing_pub_key_y: (bigint | number)[]) {
-    return new DeployMethod(Point.ZERO, rpc, EcdsaAccountContractAbi, Array.from(arguments).slice(1));
+  public static deploy(
+    rpc: AztecRPC,
+    signing_pub_key_x: Fr | bigint | number | { toField: () => Fr },
+    signing_pub_key_y: Fr | bigint | number | { toField: () => Fr },
+  ) {
+    return new DeployMethod(Point.ZERO, rpc, SchnorrMultiKeyAccountContractAbi, Array.from(arguments).slice(1));
   }
 
   /**
@@ -41,17 +45,17 @@ export class EcdsaAccountContract extends Contract {
   public static deployWithPublicKey(
     rpc: AztecRPC,
     publicKey: Point,
-    signing_pub_key_x: (bigint | number)[],
-    signing_pub_key_y: (bigint | number)[],
+    signing_pub_key_x: Fr | bigint | number | { toField: () => Fr },
+    signing_pub_key_y: Fr | bigint | number | { toField: () => Fr },
   ) {
-    return new DeployMethod(publicKey, rpc, EcdsaAccountContractAbi, Array.from(arguments).slice(2));
+    return new DeployMethod(publicKey, rpc, SchnorrMultiKeyAccountContractAbi, Array.from(arguments).slice(2));
   }
 
   /**
    * Returns this contract's ABI.
    */
   public static get abi(): ContractAbi {
-    return EcdsaAccountContractAbi;
+    return SchnorrMultiKeyAccountContractAbi;
   }
 
   /** Type-safe wrappers for the public methods exposed by the contract. */

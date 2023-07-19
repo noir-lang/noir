@@ -8,7 +8,7 @@ import { ACVMField } from '../acvm/index.js';
  * @param msg - array of ACVMFields where each represents a single ascii character
  * @returns string representation of the message
  */
-function acvmFieldMessageToString(msg: ACVMField[]): string {
+export function acvmFieldMessageToString(msg: ACVMField[]): string {
   let msgStr = '';
   for (const msgChar of msg) {
     const asciiCode = Number(msgChar);
@@ -81,10 +81,10 @@ function processFieldOrArray(fieldOrArray: string[]) {
   }
 
   // Check if all the elements start with 63 zero bytes
-  // --> if yes, we have an array of bytes and we print as decimal values
+  // --> if yes, we have an array of bytes and we print as hex
   if (onlyBytes(fieldOrArray)) {
     const decimalArray = fieldOrArray.map(element => parseInt(element, 16));
-    return '[' + decimalArray.join(', ') + ']';
+    return '0x' + Buffer.from(decimalArray).toString('hex');
   }
 
   return '[' + fieldOrArray.join(', ') + ']';

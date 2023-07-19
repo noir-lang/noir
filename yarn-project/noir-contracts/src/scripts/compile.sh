@@ -2,6 +2,7 @@
 set -euo pipefail;
 
 ROOT=$(pwd)
+echo "Using $(nargo --version)"
 for CONTRACT_NAME in "$@"; do
   CONTRACT_FOLDER="${CONTRACT_NAME}_contract"
   echo "Compiling $CONTRACT_NAME..."

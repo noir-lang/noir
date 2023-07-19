@@ -30,7 +30,7 @@ import {
 } from '../acvm/index.js';
 import { ExecutionResult, NewNoteData, NewNullifierData } from '../index.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
-import { oracleDebugCallToFormattedStr } from './debug.js';
+import { acvmFieldMessageToString, oracleDebugCallToFormattedStr } from './debug.js';
 
 /**
  * The private function execution class.
@@ -125,6 +125,10 @@ export class PrivateFunctionExecution {
       getCommitment: ([commitment]) => this.context.getCommitment(this.contractAddress, commitment),
       debugLog: (...args) => {
         this.log(oracleDebugCallToFormattedStr(args));
+        return Promise.resolve(ZERO_ACVM_FIELD);
+      },
+      debugLogWithPrefix: (arg0, ...args) => {
+        this.log(`${acvmFieldMessageToString(arg0)}: ${oracleDebugCallToFormattedStr(args)}`);
         return Promise.resolve(ZERO_ACVM_FIELD);
       },
       enqueuePublicFunctionCall: async ([acvmContractAddress], [acvmFunctionSelector], [acvmArgsHash]) => {

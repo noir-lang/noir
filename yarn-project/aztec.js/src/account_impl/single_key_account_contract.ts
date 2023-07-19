@@ -5,7 +5,7 @@ import { ExecutionRequest, PackedArguments, TxExecutionRequest } from '@aztec/ty
 
 import partition from 'lodash.partition';
 
-import SchnorrAccountContractAbi from '../abis/schnorr_account_contract.json' assert { type: 'json' };
+import SchnorrSingleKeyAccountContractAbi from '../abis/schnorr_account_contract.json' assert { type: 'json' };
 import { generatePublicKey } from '../index.js';
 import { buildPayload, hashPayload } from './entrypoint_payload.js';
 import { AccountImplementation } from './index.js';
@@ -57,10 +57,10 @@ export class SingleKeyAccountContract implements AccountImplementation {
   }
 
   private getEntrypointAbi() {
-    // We use the SchnorrAccountContract because it implements the interface we need, but ideally
+    // We use the SchnorrSingleKeyAccountContract because it implements the interface we need, but ideally
     // we should have an interface that defines the entrypoint for SingleKeyAccountContracts and
     // load the abi from it.
-    const abi = (SchnorrAccountContractAbi as any as ContractAbi).functions.find(f => f.name === 'entrypoint');
+    const abi = (SchnorrSingleKeyAccountContractAbi as any as ContractAbi).functions.find(f => f.name === 'entrypoint');
     if (!abi) throw new Error(`Entrypoint abi for account contract not found`);
     return abi;
   }

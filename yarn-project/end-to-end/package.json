@@ -35,6 +35,7 @@
     "@aztec/p2p": "workspace:^",
     "@aztec/types": "workspace:^",
     "@jest/globals": "^29.5.0",
+    "@noble/curves": "^1.0.0",
     "@types/jest": "^29.5.0",
     "@types/levelup": "^5.1.2",
     "@types/lodash.every": "^4.6.7",

@@ -13,40 +13,40 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { AztecRPC } from '@aztec/types';
 
-import { SchnorrAccountContractAbi } from '../examples/index.js';
+import { SchnorrSingleKeyAccountContractAbi } from '../examples/index.js';
 
 /**
- * Type-safe interface for contract SchnorrAccount;
+ * Type-safe interface for contract SchnorrSingleKeyAccount;
  */
-export class SchnorrAccountContract extends Contract {
+export class SchnorrSingleKeyAccountContract extends Contract {
   constructor(
     /** The deployed contract's address. */
     address: AztecAddress,
     /** The wallet. */
     wallet: Wallet,
   ) {
-    super(address, SchnorrAccountContractAbi, wallet);
+    super(address, SchnorrSingleKeyAccountContractAbi, wallet);
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract.
    */
   public static deploy(rpc: AztecRPC) {
-    return new DeployMethod(Point.ZERO, rpc, SchnorrAccountContractAbi, Array.from(arguments).slice(1));
+    return new DeployMethod(Point.ZERO, rpc, SchnorrSingleKeyAccountContractAbi, Array.from(arguments).slice(1));
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
    */
   public static deployWithPublicKey(rpc: AztecRPC, publicKey: Point) {
-    return new DeployMethod(publicKey, rpc, SchnorrAccountContractAbi, Array.from(arguments).slice(2));
+    return new DeployMethod(publicKey, rpc, SchnorrSingleKeyAccountContractAbi, Array.from(arguments).slice(2));
   }
 
   /**
    * Returns this contract's ABI.
    */
   public static get abi(): ContractAbi {
-    return SchnorrAccountContractAbi;
+    return SchnorrSingleKeyAccountContractAbi;
   }
 
   /** Type-safe wrappers for the public methods exposed by the contract. */

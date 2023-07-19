@@ -5,7 +5,7 @@ use dep::aztec::note::utils::compute_siloed_note_hash;
 use dep::aztec::oracle::get_secret_key::get_secret_key;
 use dep::aztec::oracle::get_public_key::get_public_key;
 
-global ECDSA_PUBLIC_KEY_NOTE_LEN: Field = 65;
+global ECDSA_PUBLIC_KEY_NOTE_LEN: Field = 5;
 
 // Stores an ECDSA public key composed of two 32-byte elements
 // TODO: Do we need to include a nonce, in case we want to read/nullify/recreate with the same pubkey value?
@@ -26,13 +26,29 @@ impl EcdsaPublicKeyNote {
         }
     }
 
+    // Serialise the note as 5 fields where:
+    // [0] = x[0..31] (upper bound excluded)
+    // [1] = x[31]
+    // [2] = y[0..31]
+    // [3] = y[31]
+    // [4] = owner
     fn serialise(self) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
-        let mut res: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] = [0; ECDSA_PUBLIC_KEY_NOTE_LEN];
-        for i in 0..32 {
-          res[i] = self.x[i] as Field;
-          res[i + 32] = self.y[i] as Field;
+        let mut x: Field = 0;
+        let mut y: Field = 0;
+        let mut mul: Field = 1;
+
+        for i in 1..32 {
+          let bytex: Field = self.x[31 - i] as Field;
+          x = x + (bytex * mul);
+          let bytey: Field = self.y[31 - i] as Field;
+          y = y + (bytey * mul);
+          mul *= 256;
         }
-        res[64] = self.owner;
+
+        let last_x = self.x[31] as Field;
+        let last_y = self.y[31] as Field;
+        
+        let res: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] = [x, last_x, y, last_y, self.owner];
         res
     }
 
@@ -68,15 +84,19 @@ impl EcdsaPublicKeyNote {
 fn deserialise(preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
     let mut x: [u8; 32] = [0;32];
     let mut y: [u8; 32] = [0;32];
-    for i in 0..32 {
-        x[i] = preimage[i] as u8;
-        y[i] = preimage[i + 32] as u8;
-    }
+
+    let part_x = preimage[0].to_be_bytes(32);
+    for i in 0..31 { x[i] = part_x[i + 1]; }
+    x[31] = preimage[1].to_be_bytes(32)[31];
+
+    let part_y = preimage[2].to_be_bytes(32);
+    for i in 0..31 { y[i] = part_y[i + 1]; }
+    y[31] = preimage[3].to_be_bytes(32)[31];
 
     EcdsaPublicKeyNote {
         x,
         y,
-        owner: preimage[64],
+        owner: preimage[4],
         header: NoteHeader::empty(),
     }
 }

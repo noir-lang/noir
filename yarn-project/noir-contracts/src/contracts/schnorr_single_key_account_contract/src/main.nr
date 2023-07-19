@@ -1,7 +1,7 @@
 // Account contract that uses Schnorr signatures for authentication. The signing key is the same as the
 // encryption key, and as such is not stored in the contract but part of the address preimage, so it can
 // be verified by passing in the partial contract address.
-contract SchnorrAccount {
+contract SchnorrSingleKeyAccount {
     use dep::std;
     use dep::aztec::entrypoint;
     use dep::aztec::entrypoint::EntrypointPayload;

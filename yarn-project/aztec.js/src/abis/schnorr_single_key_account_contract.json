@@ -1,37 +1,10 @@
 {
-  "name": "EcdsaAccount",
+  "name": "SchnorrSingleKeyAccount",
   "functions": [
     {
       "name": "constructor",
       "functionType": "secret",
-      "parameters": [
-        {
-          "name": "signing_pub_key_x",
-          "type": {
-            "kind": "array",
-            "length": 32,
-            "type": {
-              "kind": "integer",
-              "sign": "unsigned",
-              "width": 8
-            }
-          },
-          "visibility": "public"
-        },
-        {
-          "name": "signing_pub_key_y",
-          "type": {
-            "kind": "array",
-            "length": 32,
-            "type": {
-              "kind": "integer",
-              "sign": "unsigned",
-              "width": 8
-            }
-          },
-          "visibility": "public"
-        }
-      ],
+      "parameters": [],
       "returnTypes": []
     },
     {
@@ -84,6 +57,19 @@
           "visibility": "public"
         },
         {
+          "name": "owner",
+          "type": {
+            "kind": "array",
+            "length": 64,
+            "type": {
+              "kind": "integer",
+              "sign": "unsigned",
+              "width": 8
+            }
+          },
+          "visibility": "public"
+        },
+        {
           "name": "signature",
           "type": {
             "kind": "array",
@@ -95,56 +81,16 @@
             }
           },
           "visibility": "public"
+        },
+        {
+          "name": "partial_address",
+          "type": {
+            "kind": "field"
+          },
+          "visibility": "public"
         }
       ],
       "returnTypes": []
-    },
-    {
-      "name": "stev",
-      "functionType": "unconstrained",
-      "parameters": [
-        {
-          "name": "contract_address",
-          "type": {
-            "kind": "field"
-          },
-          "visibility": "private"
-        },
-        {
-          "name": "nonce",
-          "type": {
-            "kind": "field"
-          },
-          "visibility": "private"
-        },
-        {
-          "name": "storage_slot",
-          "type": {
-            "kind": "field"
-          },
-          "visibility": "private"
-        },
-        {
-          "name": "preimage",
-          "type": {
-            "kind": "array",
-            "length": 5,
-            "type": {
-              "kind": "field"
-            }
-          },
-          "visibility": "private"
-        }
-      ],
-      "returnTypes": [
-        {
-          "kind": "array",
-          "length": 4,
-          "type": {
-            "kind": "field"
-          }
-        }
-      ]
     }
   ]
 }
