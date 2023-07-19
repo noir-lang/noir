@@ -230,16 +230,9 @@ impl AcirContext {
         rhs: AcirVar,
         typ: AcirType,
     ) -> Result<AcirVar, AcirGenError> {
-        let bit_size = typ.bit_size();
-        if bit_size == 1 {
-            // Operands are booleans
-            // a * b
-            self.mul_var(lhs, rhs)
-        } else {
-            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
-            Ok(outputs[0])
-        }
+        let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+        let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
+        Ok(outputs[0])
     }
 
     /// Returns an `AcirVar` that is the OR result of `lhs` & `rhs`.

@@ -737,6 +737,11 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
+                if operand_type == Type::bool() {
+                    // Boolean AND is equivalent to multiplication, which is a cheaper operation.
+                    let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs);
+                    return SimplifyResult::SimplifiedToInstruction(instruction);
+                }
             }
             BinaryOp::Or => {
                 if lhs_is_zero {
@@ -909,6 +914,9 @@ pub(crate) enum SimplifyResult {
     /// Used for when there are multiple return values from
     /// a function such as a tuple
     SimplifiedToMultiple(Vec<ValueId>),
+
+    /// Replace this function with an simpler but equivalent function.
+    SimplifiedToInstruction(Instruction),
 
     /// Remove the instruction, it is unnecessary
     Remove,
