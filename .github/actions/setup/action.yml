@@ -9,6 +9,7 @@ runs:
   using: composite
   steps:
     - run: cd $INPUT_WORKING-DIRECTORY
+      shell: bash
     - name: Install node
       uses: actions/setup-node@v3
       with:
