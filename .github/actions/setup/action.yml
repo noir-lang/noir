@@ -8,8 +8,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - run: cd ${{ inputs.working-directory }}
-      shell: bash
     - name: Install node
       uses: actions/setup-node@v3
       with:
@@ -21,6 +19,8 @@ runs:
         path: "**/node_modules"
         key: yarn-v1-${{ hashFiles('**/yarn.lock') }}
     - name: Install
-      run: yarn --immutable
+      run: |
+        cd ${{ inputs.working-directory }}
+        yarn --immutable
       shell: bash
       if: steps.cache.outputs.cache-hit != 'true'
