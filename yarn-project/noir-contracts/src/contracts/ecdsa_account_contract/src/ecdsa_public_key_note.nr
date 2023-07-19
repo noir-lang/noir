@@ -1,9 +1,9 @@
 use dep::std::hash::pedersen;
 use dep::aztec::note::note_interface::NoteInterface;
 use dep::aztec::note::note_header::NoteHeader;
+use dep::aztec::note::utils::compute_siloed_note_hash;
 use dep::aztec::oracle::get_secret_key::get_secret_key;
 use dep::aztec::oracle::get_public_key::get_public_key;
-use dep::custom_notes::utils::compute_siloed_note_hash;
 
 global ECDSA_PUBLIC_KEY_NOTE_LEN: Field = 65;
 

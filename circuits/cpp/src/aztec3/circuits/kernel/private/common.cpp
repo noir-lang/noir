@@ -203,21 +203,26 @@ void common_update_end_values(DummyBuilder& builder,
     }
 
     // Enhance commitments and nullifiers with domain separation whereby domain is the contract.
-    {  // commitments & nullifiers
-        std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_CALL> siloed_new_commitments{};
-        for (size_t i = 0; i < new_commitments.size(); ++i) {
-            siloed_new_commitments[i] =
-                new_commitments[i] == 0 ? 0 : silo_commitment<NT>(storage_contract_address, new_commitments[i]);
-        }
-
+    {
+        // nullifiers
         std::array<NT::fr, MAX_NEW_NULLIFIERS_PER_CALL> siloed_new_nullifiers{};
         for (size_t i = 0; i < new_nullifiers.size(); ++i) {
             siloed_new_nullifiers[i] =
                 new_nullifiers[i] == 0 ? 0 : silo_nullifier<NT>(storage_contract_address, new_nullifiers[i]);
         }
-
-        push_array_to_array(builder, siloed_new_commitments, public_inputs.end.new_commitments);
         push_array_to_array(builder, siloed_new_nullifiers, public_inputs.end.new_nullifiers);
+
+        // commitments
+        std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_CALL> siloed_new_commitments{};
+        const auto& first_nullifier = public_inputs.end.new_nullifiers[0];
+        const auto index_start = array_length(public_inputs.end.new_commitments);
+        for (size_t i = 0; i < new_commitments.size(); ++i) {
+            const auto nonce = compute_commitment_nonce<NT>(first_nullifier, index_start + i);
+            const auto unique_commitment = compute_unique_commitment<NT>(nonce, new_commitments[i]);
+            siloed_new_commitments[i] =
+                new_commitments[i] == 0 ? 0 : silo_commitment<NT>(storage_contract_address, unique_commitment);
+        }
+        push_array_to_array(builder, siloed_new_commitments, public_inputs.end.new_commitments);
     }
 
     {  // call stacks

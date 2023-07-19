@@ -1,10 +1,13 @@
 use crate::context::Context;
-use crate::note::note_getter_options::NoteGetterOptions;
-use crate::note::note_hash::compute_inner_note_hash;
-use crate::note::note_interface::NoteInterface;
+use crate::note::{
+    note_getter_options::NoteGetterOptions,
+    note_interface::NoteInterface,
+    utils::compute_unique_note_hash,
+};
 use crate::oracle;
 use crate::constants_gen::MAX_READ_REQUESTS_PER_CALL;
 use crate::constants_gen::GET_NOTE_ORACLE_RETURN_LENGTH;
+use crate::constants_gen::GET_NOTES_ORACLE_RETURN_LENGTH;
 use crate::constants_gen::MAX_NOTES_PER_PAGE;
 use crate::constants_gen::VIEW_NOTE_ORACLE_RETURN_LENGTH;
 
@@ -13,14 +16,23 @@ fn ensure_note_exists<Note, N>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     note: Note,
-) -> Context {
-    let mut note_hash = 0;
+) -> (Context, Note) {
+    let mut note_with_header = note;
+    let mut unique_note_hash = 0;
     let is_dummy = note_interface.is_dummy;
     if is_dummy(note) == false {
-        let compute_note_hash = note_interface.compute_note_hash;
-        note_hash = compute_inner_note_hash(storage_slot, compute_note_hash(note));
+        let zero_fields = [0; GET_NOTE_ORACLE_RETURN_LENGTH];
+        let saved_note = oracle::notes::get_note(storage_slot, note_interface, zero_fields);
+        assert(is_dummy(saved_note) == false);
+
+        let get_header = note_interface.get_header;
+        let set_header = note_interface.set_header;
+        let note_header = get_header(saved_note);
+        note_with_header = set_header(note, note_header);
+        unique_note_hash = compute_unique_note_hash(note_interface, note_with_header);
     };
-    context.push_read_request(note_hash)
+    context = context.push_read_request(unique_note_hash);
+    (context, note_with_header)
 }
 
 fn get_note<Note, N>(
@@ -28,8 +40,14 @@ fn get_note<Note, N>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
 ) -> (Context, Note) {
-    let note = oracle::notes::get_note(storage_slot, note_interface);
-    context = ensure_note_exists(context, storage_slot, note_interface, note);
+    let zero_fields = [0; GET_NOTE_ORACLE_RETURN_LENGTH];
+    let note = oracle::notes::get_note(storage_slot, note_interface, zero_fields);
+    let mut unique_note_hash = 0;
+    let is_dummy = note_interface.is_dummy;
+    if is_dummy(note) == false {
+        unique_note_hash = compute_unique_note_hash(note_interface, note);
+    };
+    context = context.push_read_request(unique_note_hash);
     (context, note)
 }
 
@@ -43,14 +61,12 @@ fn get_notes<Note, N, S, P>(
     let is_dummy = note_interface.is_dummy;
     for i in 0..notes.len() {
         let note = notes[i];
-        let mut note_hash = 0;
+        let mut unique_note_hash = 0;
         if is_dummy(note) == false {
-            let compute_note_hash = note_interface.compute_note_hash;
-            note_hash = compute_inner_note_hash(storage_slot, compute_note_hash(note));
+            unique_note_hash = compute_unique_note_hash(note_interface, note);
         };
-        context = context.push_read_request(note_hash);
+        context = context.push_read_request(unique_note_hash);
     };
-
     (context, notes)
 }
 
@@ -70,7 +86,7 @@ fn get_notes_internal<Note, N, S, P>(
     };
     let offset = options.offset;
     let dummy_notes = [dummy(); MAX_READ_REQUESTS_PER_CALL];
-    let zero_fields = [0; GET_NOTE_ORACLE_RETURN_LENGTH];
+    let zero_fields = [0; GET_NOTES_ORACLE_RETURN_LENGTH];
     let notes = oracle::notes::get_notes(
         storage_slot,
         note_interface,

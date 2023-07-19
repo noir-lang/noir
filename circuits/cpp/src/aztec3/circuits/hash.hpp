@@ -86,6 +86,32 @@ template <typename NCT> typename NCT::address compute_contract_address(Point<NCT
 }
 
 template <typename NCT>
+typename NCT::fr compute_commitment_nonce(typename NCT::fr first_nullifier, typename NCT::fr commitment_index)
+{
+    using fr = typename NCT::fr;
+
+    std::vector<fr> const inputs = {
+        first_nullifier,
+        commitment_index,
+    };
+
+    return NCT::hash(inputs, aztec3::GeneratorIndex::COMMITMENT_NONCE);
+}
+
+template <typename NCT>
+typename NCT::fr compute_unique_commitment(typename NCT::fr nonce, typename NCT::fr inner_commitment)
+{
+    using fr = typename NCT::fr;
+
+    std::vector<fr> const inputs = {
+        nonce,
+        inner_commitment,
+    };
+
+    return NCT::hash(inputs, aztec3::GeneratorIndex::UNIQUE_COMMITMENT);
+}
+
+template <typename NCT>
 typename NCT::fr silo_commitment(typename NCT::address contract_address, typename NCT::fr commitment)
 {
     using fr = typename NCT::fr;

@@ -1,5 +1,5 @@
-import { AztecAddress, CircuitsWasm } from '@aztec/circuits.js';
-import { siloNullifier } from '@aztec/circuits.js/abis';
+import { AztecAddress, CircuitsWasm, MAX_NEW_COMMITMENTS_PER_TX, MAX_NEW_NULLIFIERS_PER_TX } from '@aztec/circuits.js';
+import { computeCommitmentNonce, siloNullifier } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -45,6 +45,7 @@ export class NoteProcessor {
     private keyStore: KeyStore,
     private db: Database,
     private node: AztecNode,
+    private simulator = getAcirSimulator(db, node, node, node, keyStore),
     private log = createDebugLogger('aztec:aztec_note_processor'),
   ) {}
 
@@ -85,9 +86,8 @@ export class NoteProcessor {
     // Iterate over both blocks and encrypted logs.
     for (let blockIndex = 0; blockIndex < encryptedL2BlockLogs.length; ++blockIndex) {
       const { txLogs } = encryptedL2BlockLogs[blockIndex];
-      let logIndexWithinBlock = 0;
-      const dataStartIndexForBlock =
-        l2BlockContexts[blockIndex].block.startPrivateDataTreeSnapshot.nextAvailableLeafIndex;
+      const block = l2BlockContexts[blockIndex].block;
+      const dataStartIndexForBlock = block.startPrivateDataTreeSnapshot.nextAvailableLeafIndex;
 
       // We are using set for `userPertainingTxIndices` to avoid duplicates. This would happen in case there were
       // multiple encrypted logs in a tx pertaining to a user.
@@ -98,6 +98,12 @@ export class NoteProcessor {
 
       // Iterate over all the encrypted logs and try decrypting them. If successful, store the note spending info.
       for (let indexOfTxInABlock = 0; indexOfTxInABlock < txLogs.length; ++indexOfTxInABlock) {
+        const dataStartIndexForTx = dataStartIndexForBlock + indexOfTxInABlock * MAX_NEW_COMMITMENTS_PER_TX;
+        const newCommitments = block.newCommitments.slice(
+          indexOfTxInABlock * MAX_NEW_COMMITMENTS_PER_TX,
+          (indexOfTxInABlock + 1) * MAX_NEW_COMMITMENTS_PER_TX,
+        );
+        let commitmentStartIndex = 0;
         // Note: Each tx generates a `TxL2Logs` object and for this reason we can rely on its index corresponding
         //       to the index of a tx in a block.
         const txFunctionLogs = txLogs[indexOfTxInABlock].functionLogs;
@@ -105,16 +111,31 @@ export class NoteProcessor {
           for (const logs of functionLogs.logs) {
             const noteSpendingInfo = NoteSpendingInfo.fromEncryptedBuffer(logs, privateKey, curve);
             if (noteSpendingInfo) {
+              const newNullifiers = block.newNullifiers.slice(
+                indexOfTxInABlock * MAX_NEW_NULLIFIERS_PER_TX,
+                (indexOfTxInABlock + 1) * MAX_NEW_NULLIFIERS_PER_TX,
+              );
               // We have successfully decrypted the data.
               userPertainingTxIndices.add(indexOfTxInABlock);
+              const { index, nonce, nullifier } = await this.findNoteIndexAndNullifier(
+                dataStartIndexForTx,
+                commitmentStartIndex,
+                newCommitments,
+                newNullifiers[0],
+                noteSpendingInfo,
+              );
               noteSpendingInfoDaos.push({
                 ...noteSpendingInfo,
-                nullifier: await this.computeSiloedNullifier(noteSpendingInfo),
-                index: BigInt(dataStartIndexForBlock + logIndexWithinBlock),
+                index,
+                nonce,
+                nullifier,
                 publicKey: this.publicKey,
               });
+              // Since the order of the logs are always aligned with the order of their corresponding commitments,
+              // we can assume the log we will be processing next belongs to either the commitment for the current log,
+              // or one of the commitments after the current one.
+              commitmentStartIndex = Number(index) - dataStartIndexForTx;
             }
-            logIndexWithinBlock += 1;
           }
         }
       }
@@ -133,18 +154,59 @@ export class NoteProcessor {
   }
 
   /**
+   * Find the index of the note in the private data tree by computing the note hash with different nonce and see which
+   * commitment for the current tx matches this value.
    * Compute the nullifier for a given transaction auxiliary data.
    * The nullifier is calculated using the private key of the account,
    * contract address, and note preimage associated with the noteSpendingInfo.
    * This method assists in identifying spent commitments in the private state.
-   *
+   * @param dataStartIndex - First index of the commitments in the tx in the private data tree.
+   * @param commitmentStartIndex - Index of the commitment in the tx this function should start checking.
+   * @param commitments - Commitments in the tx. One of them should be the note's commitment.
+   * @param firstNullifier - First nullifier in the tx.
    * @param noteSpendingInfo - An instance of NoteSpendingInfo containing transaction details.
    * @returns A Fr instance representing the computed nullifier.
    */
-  private async computeSiloedNullifier({ contractAddress, storageSlot, notePreimage }: NoteSpendingInfo) {
-    const simulator = getAcirSimulator(this.db, this.node, this.node, this.node, this.keyStore);
-    const nullifier = await simulator.computeNullifier(contractAddress, storageSlot, notePreimage.items);
-    return siloNullifier(await CircuitsWasm.get(), contractAddress, nullifier);
+  private async findNoteIndexAndNullifier(
+    dataStartIndex: number,
+    commitmentStartIndex: number,
+    commitments: Fr[],
+    firstNullifier: Fr,
+    { contractAddress, storageSlot, notePreimage }: NoteSpendingInfo,
+  ) {
+    const wasm = await CircuitsWasm.get();
+    let nonce: Fr | undefined;
+    let innerNullifier: Fr | undefined;
+    let commitmentIndex = 0;
+    for (; commitmentIndex < commitments.length; ++commitmentIndex) {
+      if (commitmentIndex < commitmentStartIndex) continue;
+
+      const commitment = commitments[commitmentIndex];
+      if (commitment.equals(Fr.ZERO)) break;
+
+      const expectedNonce = computeCommitmentNonce(wasm, firstNullifier, commitmentIndex);
+      const { siloedNoteHash, nullifier } = await this.simulator.computeNoteHashAndNullifier(
+        contractAddress,
+        expectedNonce,
+        storageSlot,
+        notePreimage.items,
+      );
+      if (commitment.equals(siloedNoteHash)) {
+        nonce = expectedNonce;
+        innerNullifier = nullifier;
+        break;
+      }
+    }
+
+    if (!nonce) {
+      throw new Error('Cannot find a matching commitment for the note.');
+    }
+
+    return {
+      index: BigInt(dataStartIndex + commitmentIndex),
+      nonce,
+      nullifier: siloNullifier(wasm, contractAddress, innerNullifier!),
+    };
   }
 
   /**

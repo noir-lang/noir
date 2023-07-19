@@ -2,8 +2,8 @@ use dep::std::hash::pedersen;
 use dep::aztec::note::{
     note_header::NoteHeader,
     note_interface::NoteInterface,
+    utils::compute_siloed_note_hash,
 };
-use crate::utils::compute_siloed_note_hash;
 
 global CLAIM_NOTE_LEN: Field = 2;
 

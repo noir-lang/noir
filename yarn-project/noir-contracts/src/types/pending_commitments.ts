@@ -65,9 +65,10 @@ export class PendingCommitmentsContract extends Contract {
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
-    /** stev(contract_address: field, storage_slot: field, preimage: array) */
+    /** stev(contract_address: field, nonce: field, storage_slot: field, preimage: array) */
     stev: ((
       contract_address: Fr | bigint | number | { toField: () => Fr },
+      nonce: Fr | bigint | number | { toField: () => Fr },
       storage_slot: Fr | bigint | number | { toField: () => Fr },
       preimage: (Fr | bigint | number | { toField: () => Fr })[],
     ) => ContractFunctionInteraction) &

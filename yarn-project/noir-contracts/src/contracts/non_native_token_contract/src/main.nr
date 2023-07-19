@@ -27,7 +27,6 @@ contract NonNativeToken {
     };
     use dep::custom_notes::{
         transparent_note::TransparentNote,
-        utils::compute_note_hash_and_nullifier,
     };
 
     use crate::storage::Storage;
@@ -40,7 +39,11 @@ contract NonNativeToken {
         abi::{
             PublicContextInputs,
             PrivateContextInputs,
-        }
+        },
+        note::{
+            note_header::NoteHeader,
+            utils::compute_note_hash_and_nullifier,
+        },
     };
 
     // oracles
@@ -327,7 +330,8 @@ contract NonNativeToken {
     }
 
     /// ABI stev type "unconstrained"
-    fn stev(contract_address: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> pub [Field; 2] {
-        compute_note_hash_and_nullifier(contract_address, storage_slot, ValueNoteInterface, preimage)
+    fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> pub [Field; 4] {
+        let note_header = NoteHeader { contract_address, nonce, storage_slot };
+        compute_note_hash_and_nullifier(ValueNoteInterface, note_header, preimage)
     }
 }

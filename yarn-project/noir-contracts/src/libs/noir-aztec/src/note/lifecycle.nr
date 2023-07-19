@@ -1,23 +1,26 @@
 use crate::context::Context;
 use crate::note::{
-    note_hash::compute_inner_note_hash,
+    note_header::NoteHeader,
     note_interface::NoteInterface,
+    utils::compute_inner_note_hash,
 };
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 
 fn create_note<Note, N>(
     mut context: Context,
     storage_slot: Field,
-    note: Note,
+    mut note: Note,
     note_interface: NoteInterface<Note, N>,
 ) -> Context {
     let mut inner_note_hash = 0;
     let is_dummy = note_interface.is_dummy;
     let mut notify_result = 0; // TODO(https://github.com/noir-lang/noir/pull/1729): remove me (more below)
     if is_dummy(note) == false {
-        let compute_note_hash = note_interface.compute_note_hash;
-        let note_hash = compute_note_hash(note);
-        inner_note_hash = compute_inner_note_hash(storage_slot, note_hash);
+        let contract_address = context.inputs.call_context.storage_contract_address;
+        let header = NoteHeader { contract_address, storage_slot, nonce: 0 };
+        let set_header = note_interface.set_header;
+        note = set_header(note, header);
+        inner_note_hash = compute_inner_note_hash(note_interface, note);
 
         let serialise = note_interface.serialise;
         let preimage = serialise(note);

@@ -32,13 +32,6 @@ unconstrained fn notify_nullified_note<N>(
     notify_nullified_note_oracle(storage_slot, nullifier, preimage)
 }
 
-#[oracle(getNote)]
-fn get_note_oracle<S>(_storage_slot: Field) -> [Field; S] {}
-
-unconstrained fn get_note_oracle_wrapper<S>(storage_slot: Field) -> [Field; S] {
-    get_note_oracle(storage_slot)
-}
-
 #[oracle(getNotes)]
 fn get_notes_oracle<N, S>(
     _storage_slot: Field,
@@ -62,15 +55,25 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     get_notes_oracle(storage_slot, sort_by, sort_order, limit, offset, return_size, fields)
 }
 
-fn get_note<Note, N>(
+// TODO: The following functions should all be unconstrained.
+
+fn get_note<Note, N, NS>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
+    zero_fields: [Field; NS],
 ) -> Note {
-    let fields: [Field; N] = get_note_oracle_wrapper(storage_slot);
+    let fields = get_notes_oracle_wrapper(storage_slot, [], [], 1, 0, zero_fields);
     let has_note = fields[0] == 1;
     if (has_note) {
+        let contract_address = fields[1];
+        let nonce = fields[2];
+        let header = NoteHeader { contract_address, nonce, storage_slot };
+
         let deserialise = note_interface.deserialise;
-        deserialise(arr_copy_slice(fields, [0; N], 1))
+        let note = deserialise(arr_copy_slice(fields, [0; N], 3));
+
+        let set_header = note_interface.set_header;
+        set_header(note, header)
     } else {
         let dummy = note_interface.dummy;
         dummy()
@@ -92,14 +95,16 @@ fn get_notes<Note, N, S, NS>(
     let contract_address = fields[1];
     let deserialise = note_interface.deserialise;
     let set_header = note_interface.set_header;
-    let header = NoteHeader { contract_address, storage_slot };
     for i in 0..notes.len() {
         if i as u32 < num_notes {
-            let read_offset: comptime Field = 2 + i * N;
-            let preimage = arr_copy_slice(fields, [0; N], read_offset);
+            let read_offset: comptime Field = 2 + i * (N + 1);
+            let nonce = fields[read_offset];
+            let header = NoteHeader { contract_address, nonce, storage_slot };
+
+            let preimage = arr_copy_slice(fields, [0; N], read_offset + 1);
             let mut note = deserialise(preimage);
-            note = set_header(note, header);
-            notes[i] = note;
+
+            notes[i] = set_header(note, header);
         };
     };
     notes

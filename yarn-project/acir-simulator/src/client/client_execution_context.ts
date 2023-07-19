@@ -1,4 +1,5 @@
-import { PrivateHistoricTreeRoots, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
+import { CircuitsWasm, PrivateHistoricTreeRoots, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
+import { computeCommitmentNonce } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 
@@ -17,11 +18,13 @@ import { DBOracle } from './db_oracle.js';
  */
 export type PendingNoteData = {
   /** The preimage of the created note */
-  preimage: ACVMField[];
+  preimage: Fr[];
   /** The contract address of the commitment. */
   contractAddress: AztecAddress;
   /** The storage slot of the commitment. */
   storageSlot: Fr;
+  /** The nonce of the commitment. */
+  nonce: Fr;
 };
 
 /**
@@ -36,6 +39,8 @@ export class ClientTxExecutionContext {
   constructor(
     /**  The database oracle. */
     public db: DBOracle,
+    /** The tx nullifier, which is also the first nullifier. This will be used to compute the nonces for pending notes. */
+    private txNullifier: Fr,
     /** The tx context. */
     public txContext: TxContext,
     /** The old roots. */
@@ -43,7 +48,7 @@ export class ClientTxExecutionContext {
     /** The cache of packed arguments */
     public packedArgsCache: PackedArgsCache,
     /** Pending commitments created (and not nullified) up to current point in execution **/
-    public pendingNotes: PendingNoteData[] = [],
+    private pendingNotes: PendingNoteData[] = [],
   ) {}
 
   /**
@@ -53,6 +58,7 @@ export class ClientTxExecutionContext {
   public extend() {
     return new ClientTxExecutionContext(
       this.db,
+      this.txNullifier,
       this.txContext,
       this.historicRoots,
       this.packedArgsCache,
@@ -108,6 +114,7 @@ export class ClientTxExecutionContext {
    * @param returnSize - The return size.
    * @returns Flattened array of ACVMFields (format expected by Noir/ACVM) containing:
    * count - number of real (non-padding) notes retrieved,
+   * contractAddress - the contract address,
    * preimages - the real note preimages retrieved, and
    * paddedZeros - zeros to ensure an array with length returnSize expected by Noir circuit
    */
@@ -116,40 +123,32 @@ export class ClientTxExecutionContext {
     storageSlot: ACVMField,
     sortBy: ACVMField[],
     sortOrder: ACVMField[],
-    limit: ACVMField,
-    offset: ACVMField,
-    returnSize: ACVMField,
+    limit: number,
+    offset: number,
+    returnSize: number,
   ): Promise<ACVMField[]> {
-    const { pendingCount, pendingPreimages } = this.getPendingNotes(
-      contractAddress,
-      storageSlot,
-      sortBy,
-      sortOrder,
-      limit,
-      offset,
-    );
+    const pendingNotes = this.getPendingNotes(contractAddress, storageSlot, sortBy, sortOrder, limit);
 
-    const dbLimit = +limit - pendingCount;
-    const { count: dbCount, notes: dbNotes } = await this.db.getNotes(
+    const dbNotes = await this.db.getNotes(
       contractAddress,
       fromACVMField(storageSlot),
       sortBy.map(field => +field),
       sortOrder.map(field => +field),
-      dbLimit,
-      +offset,
+      limit,
     );
-    // Noir (ACVM) expects a flattened (basically serialized) array of ACVMFields
-    const dbPreimages = dbNotes.flatMap(({ preimage }) => preimage).map(f => toACVMField(f));
+
+    // TODO: Sort again.
+    const notes = [...pendingNotes, ...dbNotes].slice(offset, limit ? offset + limit : undefined);
 
     // Combine pending and db preimages into a single flattened array.
-    const preimages = [...pendingPreimages, ...dbPreimages];
+    const preimages = notes.flatMap(({ nonce, preimage }) => [nonce, ...preimage]).map(f => toACVMField(f));
 
     // Add a partial witness for each note from the db containing only the note index.
     // By default they will be flagged as non-transient.
     this.readRequestPartialWitnesses.push(...dbNotes.map(note => ReadRequestMembershipWitness.empty(note.index)));
 
-    const paddedZeros = Array(+returnSize - 2 - preimages.length).fill(toACVMField(Fr.ZERO));
-    return [toACVMField(pendingCount + dbCount), toACVMField(contractAddress), ...preimages, ...paddedZeros];
+    const paddedZeros = Array(Math.max(0, +returnSize - 2 - preimages.length)).fill(toACVMField(Fr.ZERO));
+    return [toACVMField(notes.length), toACVMField(contractAddress), ...preimages, ...paddedZeros];
   }
 
   /**
@@ -176,6 +175,24 @@ export class ClientTxExecutionContext {
   }
 
   /**
+   * Process new note created during execution.
+   * @param contractAddress - The contract address.
+   * @param storageSlot - The storage slot.
+   * @param preimage - new note preimage.
+   */
+  public async pushNewNote(contractAddress: AztecAddress, storageSlot: ACVMField, preimage: ACVMField[]) {
+    const wasm = await CircuitsWasm.get();
+    const nonce = computeCommitmentNonce(wasm, this.txNullifier, this.pendingNotes.length);
+    const pendingNoteData: PendingNoteData = {
+      contractAddress,
+      storageSlot: fromACVMField(storageSlot),
+      preimage: preimage.map(f => fromACVMField(f)),
+      nonce,
+    };
+    this.pendingNotes.push(pendingNoteData);
+  }
+
+  /**
    * Gets some pending notes for a contract address and storage slot.
    * Returns number of notes retrieved and a flattened array of fields representing pending notes.
    *
@@ -194,7 +211,6 @@ export class ClientTxExecutionContext {
    * @param _sortBy - The sort by fields.
    * @param _sortOrder - The sort order fields.
    * @param limit - The limit.
-   * @param _offset - The offset.
    * @returns pendingCount - number of pending notes retrieved, and
    * pendingPreimages - flattened array of ACVMFields (format expected by Noir/ACVM)
    * containing the retrieved note preimages
@@ -204,24 +220,21 @@ export class ClientTxExecutionContext {
     storageSlot: ACVMField,
     _sortBy: ACVMField[],
     _sortOrder: ACVMField[],
-    limit: ACVMField,
-    _offset: ACVMField,
+    limit: number,
   ) {
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/920): don't 'get' notes nullified in pendingNullifiers
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1030): enforce sorting and offset for pending notes
-    let pendingCount = 0;
     // Noir (ACVM) expects a flattened (basically serialized) array of ACVMFields
-    const pendingPreimages: ACVMField[] = []; // flattened fields representing preimages
+    const pendingNotes: PendingNoteData[] = []; // flattened fields representing preimages
     for (const note of this.pendingNotes) {
-      if (pendingCount == +limit) {
+      if (pendingNotes.length == +limit) {
         break;
       }
       if (note.contractAddress.equals(contractAddress) && note.storageSlot.equals(fromACVMField(storageSlot))) {
-        pendingCount++;
-        pendingPreimages.push(...note.preimage); // flattened
+        pendingNotes.push(note);
         this.readRequestPartialWitnesses.push(ReadRequestMembershipWitness.emptyTransient());
       }
     }
-    return { pendingCount, pendingPreimages };
+    return pendingNotes;
   }
 }

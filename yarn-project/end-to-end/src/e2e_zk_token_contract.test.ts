@@ -87,8 +87,7 @@ describe('e2e_zk_token_contract', () => {
     const deployedContract = await deployContract(0n, ownerPublicKey);
     await expectBalance(owner, 0n);
 
-    await expectsNumOfEncryptedLogsInTheLastBlockToBe(1);
-    await expectUnencryptedLogsFromLastBlockToBe(['Balance set in constructor']);
+    await expectsNumOfEncryptedLogsInTheLastBlockToBe(0);
 
     const tx = deployedContract.methods.mint(mintAmount, ownerPublicKey).send({ origin: owner });
 

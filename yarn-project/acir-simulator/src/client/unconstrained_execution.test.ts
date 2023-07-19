@@ -28,12 +28,11 @@ describe('Unconstrained Execution test suite', () => {
   });
 
   describe('zk token contract', () => {
-    let currentNonce = 0n;
     let ownerPk: Buffer;
     let owner: NoirPoint;
 
     const buildNote = (amount: bigint, owner: NoirPoint) => {
-      return [new Fr(amount), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(currentNonce++), new Fr(1n)];
+      return [new Fr(amount), new Fr(owner.x), new Fr(owner.y), Fr.random(), new Fr(1n)];
     };
 
     beforeAll(() => {
@@ -52,18 +51,16 @@ describe('Unconstrained Execution test suite', () => {
 
       const historicRoots = PrivateHistoricTreeRoots.empty();
 
-      oracle.getNotes.mockImplementation(
-        (_contract, _storageSlot, _sortBy, _sortOrder, limit: number, offset: number) => {
-          const notes = preimages.slice(offset, offset + limit);
-          return Promise.resolve({
-            count: preimages.length,
-            notes: notes.map((preimage, index) => ({
-              preimage,
-              index: BigInt(index),
-            })),
-          });
-        },
-      );
+      oracle.getNotes.mockImplementation((_contract, _storageSlot, _sortBy, _sortOrder, limit: number) => {
+        const notes = preimages.slice(0, limit);
+        return Promise.resolve(
+          notes.map((preimage, index) => ({
+            nonce: Fr.random(),
+            preimage,
+            index: BigInt(index),
+          })),
+        );
+      });
 
       const execRequest: ExecutionRequest = {
         from: AztecAddress.random(),

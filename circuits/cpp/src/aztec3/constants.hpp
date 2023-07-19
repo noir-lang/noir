@@ -122,33 +122,33 @@ enum GeneratorIndex {
     /**
      * Indices with size ≤ 8
      */
-    COMMITMENT = 1,                // Size = 7 (unused)
-    COMMITMENT_PLACEHOLDER,        // Size = 1 (unused), for omitting some elements of commitment when partially comm
-    OUTER_COMMITMENT,              // Size = 2
-    NULLIFIER_HASHED_PRIVATE_KEY,  // Size = 1 (unused)
-    NULLIFIER,                     // Size = 4 (unused)
-    INITIALISATION_NULLIFIER,      // Size = 2 (unused)
-    OUTER_NULLIFIER,               // Size = 2
-    PUBLIC_DATA_READ,              // Size = 2
-    PUBLIC_DATA_UPDATE_REQUEST,    // Size = 3
-    FUNCTION_DATA,                 // Size = 3
-    FUNCTION_LEAF,                 // Size = 4
-    CONTRACT_DEPLOYMENT_DATA,      // Size = 4
-    CONSTRUCTOR,                   // Size = 3
-    CONSTRUCTOR_ARGS,              // Size = 8
-    CONTRACT_ADDRESS,              // Size = 4
-    CONTRACT_LEAF,                 // Size = 3
-    CALL_CONTEXT,                  // Size = 6
-    CALL_STACK_ITEM,               // Size = 3
-    CALL_STACK_ITEM_2,             // Size = ? (unused), // TODO see function where it's used for explanation
-    L1_TO_L2_MESSAGE_SECRET,       // Size = 1 (wrongly used)
-    L2_TO_L1_MSG,                  // Size = 2 (unused)
-    TX_CONTEXT,                    // Size = 4
-    PUBLIC_LEAF_INDEX,             // Size = 2 (unused)
-    PUBLIC_DATA_LEAF,              // Size = ? (unused) // TODO what's the expected size? Assuming ≤ 8
-    SIGNED_TX_REQUEST,             // Size = 7
-    GLOBAL_VARIABLES,              // Size = 4
-    PARTIAL_CONTRACT_ADDRESS,      // Size = 7
+    COMMITMENT = 1,              // Size = 7 (unused)
+    COMMITMENT_NONCE,            // Size = 2
+    UNIQUE_COMMITMENT,           // Size = 2
+    OUTER_COMMITMENT,            // Size = 2
+    NULLIFIER,                   // Size = 4 (unused)
+    INITIALISATION_NULLIFIER,    // Size = 2 (unused)
+    OUTER_NULLIFIER,             // Size = 2
+    PUBLIC_DATA_READ,            // Size = 2
+    PUBLIC_DATA_UPDATE_REQUEST,  // Size = 3
+    FUNCTION_DATA,               // Size = 3
+    FUNCTION_LEAF,               // Size = 4
+    CONTRACT_DEPLOYMENT_DATA,    // Size = 4
+    CONSTRUCTOR,                 // Size = 3
+    CONSTRUCTOR_ARGS,            // Size = 8
+    CONTRACT_ADDRESS,            // Size = 4
+    CONTRACT_LEAF,               // Size = 3
+    CALL_CONTEXT,                // Size = 6
+    CALL_STACK_ITEM,             // Size = 3
+    CALL_STACK_ITEM_2,           // Size = ? (unused), // TODO see function where it's used for explanation
+    L1_TO_L2_MESSAGE_SECRET,     // Size = 1 (wrongly used)
+    L2_TO_L1_MSG,                // Size = 2 (unused)
+    TX_CONTEXT,                  // Size = 4
+    PUBLIC_LEAF_INDEX,           // Size = 2 (unused)
+    PUBLIC_DATA_LEAF,            // Size = ? (unused) // TODO what's the expected size? Assuming ≤ 8
+    SIGNED_TX_REQUEST,           // Size = 7
+    GLOBAL_VARIABLES,            // Size = 4
+    PARTIAL_CONTRACT_ADDRESS,    // Size = 7
     /**
      * Indices with size ≤ 16
      */
@@ -196,11 +196,13 @@ constexpr size_t L1_TO_L2_MESSAGE_ORACLE_CALL_LENGTH = L1_TO_L2_MESSAGE_LENGTH +
 
 // TODO: Remove these when nested array is supported.
 constexpr size_t MAX_NOTE_FIELDS_LENGTH = 20;
+// MAX_NOTE_FIELDS_LENGTH + 1: the plus 1 is 1 extra field for nonce.
 // + 2 for EXTRA_DATA: [number_of_return_notes, contract_address]
-constexpr size_t GET_NOTE_ORACLE_RETURN_LENGTH = MAX_READ_REQUESTS_PER_CALL * MAX_NOTE_FIELDS_LENGTH + 2;
+constexpr size_t GET_NOTE_ORACLE_RETURN_LENGTH = MAX_NOTE_FIELDS_LENGTH + 1 + 2;
+constexpr size_t GET_NOTES_ORACLE_RETURN_LENGTH = MAX_READ_REQUESTS_PER_CALL * (MAX_NOTE_FIELDS_LENGTH + 1) + 2;
 constexpr size_t MAX_NOTES_PER_PAGE = 10;
 // + 2 for EXTRA_DATA: [number_of_return_notes, contract_address]
-constexpr size_t VIEW_NOTE_ORACLE_RETURN_LENGTH = MAX_NOTES_PER_PAGE * MAX_NOTE_FIELDS_LENGTH + 2;
+constexpr size_t VIEW_NOTE_ORACLE_RETURN_LENGTH = MAX_NOTES_PER_PAGE * (MAX_NOTE_FIELDS_LENGTH + 1) + 2;
 
 constexpr size_t CALL_CONTEXT_LENGTH = 6;
 constexpr size_t COMMITMENT_TREES_ROOTS_LENGTH = 4;

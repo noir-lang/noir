@@ -56,39 +56,27 @@ export class SimulatorOracle implements DBOracle {
   /**
    * Retrieves a set of notes stored in the database for a given contract address and storage slot.
    * The query result is paginated using 'limit' and 'offset' values.
-   * Returns an object containing the total count of notes and an array of note data, including preimage,
-   * sibling path, and index for each note.
+   * Returns an object containing an array of note data, including preimage, nonce, and index for each note.
    *
    * @param contractAddress - The AztecAddress instance representing the contract address.
    * @param storageSlot - The Fr instance representing the storage slot of the notes.
    * @param sortBy - An array of indices of the fields to sort.
    * @param sortOrder - The order of the corresponding index in sortBy. (1: DESC, 2: ASC, 0: Do nothing)
    * @param limit - The number of notes to retrieve per query (pagination limit).
-   * @param offset - The starting index for pagination.
-   * @returns A Promise that resolves to an object with properties 'count' and 'notes'.
+   * @returns A Promise that resolves to an array of note data.
    */
-  async getNotes(
-    contractAddress: AztecAddress,
-    storageSlot: Fr,
-    sortBy: number[],
-    sortOrder: number[],
-    limit: number,
-    offset: number,
-  ) {
+  async getNotes(contractAddress: AztecAddress, storageSlot: Fr, sortBy: number[], sortOrder: number[], limit: number) {
     const noteDaos = await this.db.getNoteSpendingInfo(contractAddress, storageSlot, {
       sortBy,
       sortOrder,
       limit,
-      offset,
     });
-    return {
-      count: noteDaos.length,
-      notes: noteDaos.map(({ notePreimage, index }) => ({
-        preimage: notePreimage.items,
-        // RPC Client can use this index to get full MembershipWitness
-        index,
-      })),
-    };
+    return noteDaos.map(({ nonce, notePreimage, index }) => ({
+      nonce,
+      preimage: notePreimage.items,
+      // RPC Client can use this index to get full MembershipWitness
+      index,
+    }));
   }
 
   /**

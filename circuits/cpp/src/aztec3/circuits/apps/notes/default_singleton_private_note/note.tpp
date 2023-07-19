@@ -137,19 +137,9 @@ template <typename Builder, typename V>
 typename CircuitTypes<Builder>::fr DefaultSingletonPrivateNote<Builder, V>::compute_nullifier(
     fr const& commitment, fr const& owner_private_key, boolean const& is_dummy_commitment)
 {
-    /**
-     * Hashing the private key in this way enables the following use case:
-     * - A user can demonstrate to a 3rd party that they have spent a note, by providing the
-     hashed_private_key
-     * and the note_commitment. The 3rd party can then recalculate the nullifier. This does not reveal the
-     * underlying private_key to the 3rd party. */
-    const grumpkin_point hashed_private_key = CT::grumpkin_group::template fixed_base_scalar_mul<254>(
-        owner_private_key, GeneratorIndex::NULLIFIER_HASHED_PRIVATE_KEY);
-
     const std::vector<fr> hash_inputs{
         commitment,
-        hashed_private_key.x,
-        hashed_private_key.y,
+        owner_private_key,
         is_dummy_commitment,
     };
 

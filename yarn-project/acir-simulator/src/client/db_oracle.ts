@@ -11,6 +11,10 @@ import { CommitmentsDB } from '../index.js';
  */
 export interface NoteLoadOracleInputs {
   /**
+   * The nonce of the note.
+   */
+  nonce: Fr;
+  /**
    * The preimage of the note.
    */
   preimage: Fr[];
@@ -67,13 +71,7 @@ export interface DBOracle extends CommitmentsDB {
     sortBy: number[],
     sortOrder: number[],
     limit: number,
-    offset: number,
-  ): Promise<{
-    /** How many notes actually returned. */
-    count: number;
-    /** The notes. */
-    notes: NoteLoadOracleInputs[];
-  }>;
+  ): Promise<NoteLoadOracleInputs[]>;
   getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi>;
   getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
 }

@@ -419,6 +419,16 @@ WASM_EXPORT void abis__compute_contract_leaf(uint8_t const* contract_leaf_preima
 }
 
 /**
+ * @brief Generates a commitment nonce, which will be used to create a unique commitment.
+ */
+CBIND(abis__compute_commitment_nonce, aztec3::circuits::compute_commitment_nonce<NT>);
+
+/**
+ * @brief Generates a unique commitment using a commitment nonce.
+ */
+CBIND(abis__compute_unique_commitment, aztec3::circuits::compute_unique_commitment<NT>);
+
+/**
  * @brief Generates a siloed commitment tree leaf from the contract and the commitment.
  */
 CBIND(abis__silo_commitment, aztec3::circuits::silo_commitment<NT>);

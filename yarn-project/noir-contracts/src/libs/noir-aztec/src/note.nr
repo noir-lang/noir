@@ -4,3 +4,4 @@ mod note_getter_options;
 mod note_hash;
 mod note_header;
 mod note_interface;
+mod utils;

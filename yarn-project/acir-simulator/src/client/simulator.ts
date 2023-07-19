@@ -1,4 +1,5 @@
-import { CallContext, FunctionData, PrivateHistoricTreeRoots, TxContext } from '@aztec/circuits.js';
+import { CallContext, CircuitsWasm, FunctionData, PrivateHistoricTreeRoots, TxContext } from '@aztec/circuits.js';
+import { computeTxHash } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { ArrayType, FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -62,9 +63,12 @@ export class AcirSimulator {
       request.functionData.isConstructor,
     );
 
+    const wasm = await CircuitsWasm.get();
+    const txNullifier = computeTxHash(wasm, request.toTxRequest());
     const execution = new PrivateFunctionExecution(
       new ClientTxExecutionContext(
         this.db,
+        txNullifier,
         request.txContext,
         historicRoots,
         await PackedArgsCache.create(request.packedArguments),
@@ -109,7 +113,13 @@ export class AcirSimulator {
     );
 
     const execution = new UnconstrainedFunctionExecution(
-      new ClientTxExecutionContext(this.db, TxContext.empty(), historicRoots, await PackedArgsCache.create([])),
+      new ClientTxExecutionContext(
+        this.db,
+        Fr.ZERO,
+        TxContext.empty(),
+        historicRoots,
+        await PackedArgsCache.create([]),
+      ),
       entryPointABI,
       contractAddress,
       request.functionData,
@@ -123,11 +133,17 @@ export class AcirSimulator {
   /**
    * Computes the inner nullifier of a note.
    * @param contractAddress - The address of the contract.
+   * @param nonce - The nonce of the note hash.
    * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
    * @returns The nullifier.
    */
-  public async computeNoteHashAndNullifier(contractAddress: AztecAddress, storageSlot: Fr, notePreimage: Fr[]) {
+  public async computeNoteHashAndNullifier(
+    contractAddress: AztecAddress,
+    nonce: Fr,
+    storageSlot: Fr,
+    notePreimage: Fr[],
+  ) {
     const abi = await this.db.getFunctionABI(contractAddress, computeNoteHashAndNullifierSelector);
     if (!abi) {
       throw new Error(
@@ -135,17 +151,17 @@ export class AcirSimulator {
       );
     }
 
-    const preimageLen = (abi.parameters[2].type as ArrayType).length;
+    const preimageLen = (abi.parameters[3].type as ArrayType).length;
     const extendedPreimage = notePreimage.concat(Array(preimageLen - notePreimage.length).fill(Fr.ZERO));
 
     const execRequest: ExecutionRequest = {
       from: AztecAddress.ZERO,
       to: AztecAddress.ZERO,
       functionData: FunctionData.empty(),
-      args: encodeArguments(abi, [contractAddress, storageSlot, extendedPreimage]),
+      args: encodeArguments(abi, [contractAddress, nonce, storageSlot, extendedPreimage]),
     };
 
-    const [result] = await this.runUnconstrained(
+    const [[innerNoteHash, uniqueNoteHash, siloedNoteHash, innerNullifier]] = await this.runUnconstrained(
       execRequest,
       abi,
       AztecAddress.ZERO,
@@ -154,8 +170,10 @@ export class AcirSimulator {
     );
 
     return {
-      noteHash: new Fr(result[0]),
-      nullifier: new Fr(result[1]),
+      innerNoteHash: new Fr(innerNoteHash),
+      uniqueNoteHash: new Fr(uniqueNoteHash),
+      siloedNoteHash: new Fr(siloedNoteHash),
+      nullifier: new Fr(innerNullifier),
     };
   }
 
@@ -167,21 +185,65 @@ export class AcirSimulator {
    * @param abi - The ABI of the function `compute_note_hash`.
    * @returns The note hash.
    */
-  public async computeNoteHash(contractAddress: AztecAddress, storageSlot: Fr, notePreimage: Fr[]) {
-    const { noteHash } = await this.computeNoteHashAndNullifier(contractAddress, storageSlot, notePreimage);
-    return noteHash;
+  public async computeInnerNoteHash(contractAddress: AztecAddress, storageSlot: Fr, notePreimage: Fr[]) {
+    const { innerNoteHash } = await this.computeNoteHashAndNullifier(
+      contractAddress,
+      Fr.ZERO,
+      storageSlot,
+      notePreimage,
+    );
+    return innerNoteHash;
   }
 
   /**
-   * Computes the inner note hash of a note, which contains storage slot and the custom note hash.
+   * Computes the unique note hash of a note.
    * @param contractAddress - The address of the contract.
+   * @param nonce - The nonce of the note hash.
    * @param storageSlot - The storage slot.
    * @param notePreimage - The note preimage.
    * @param abi - The ABI of the function `compute_note_hash`.
    * @returns The note hash.
    */
-  public async computeNullifier(contractAddress: AztecAddress, storageSlot: Fr, notePreimage: Fr[]) {
-    const { nullifier } = await this.computeNoteHashAndNullifier(contractAddress, storageSlot, notePreimage);
+  public async computeUniqueNoteHash(contractAddress: AztecAddress, nonce: Fr, storageSlot: Fr, notePreimage: Fr[]) {
+    const { uniqueNoteHash } = await this.computeNoteHashAndNullifier(
+      contractAddress,
+      nonce,
+      storageSlot,
+      notePreimage,
+    );
+    return uniqueNoteHash;
+  }
+
+  /**
+   * Computes the siloed note hash of a note.
+   * @param contractAddress - The address of the contract.
+   * @param nonce - The nonce of the note hash.
+   * @param storageSlot - The storage slot.
+   * @param notePreimage - The note preimage.
+   * @param abi - The ABI of the function `compute_note_hash`.
+   * @returns The note hash.
+   */
+  public async computeSiloedNoteHash(contractAddress: AztecAddress, nonce: Fr, storageSlot: Fr, notePreimage: Fr[]) {
+    const { siloedNoteHash } = await this.computeNoteHashAndNullifier(
+      contractAddress,
+      nonce,
+      storageSlot,
+      notePreimage,
+    );
+    return siloedNoteHash;
+  }
+
+  /**
+   * Computes the inner note hash of a note, which contains storage slot and the custom note hash.
+   * @param contractAddress - The address of the contract.
+   * @param nonce - The nonce of the unique note hash.
+   * @param storageSlot - The storage slot.
+   * @param notePreimage - The note preimage.
+   * @param abi - The ABI of the function `compute_note_hash`.
+   * @returns The note hash.
+   */
+  public async computeNullifier(contractAddress: AztecAddress, nonce: Fr, storageSlot: Fr, notePreimage: Fr[]) {
+    const { nullifier } = await this.computeNoteHashAndNullifier(contractAddress, nonce, storageSlot, notePreimage);
     return nullifier;
   }
 }

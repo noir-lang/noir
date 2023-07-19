@@ -5,25 +5,27 @@ contract ZkToken {
     use dep::token_utils::{
         balance_utils,
         value_note::{
-            value_note::ValueNoteInterface,
+            value_note::{VALUE_NOTE_LEN, ValueNoteInterface},
             utils::{send_note, spend_notes},
         },
     };
     use dep::custom_notes::{
         claim_note::{ClaimNote, ClaimNoteInterface},
-        utils::compute_note_hash_and_nullifier,
     };
 
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::context::Context;
-    use dep::aztec::note::note_getter::NoteGetterOptions;
+    use dep::aztec::note::{
+        note_getter::NoteGetterOptions,
+        note_header::{NoteHeader},
+        utils::compute_note_hash_and_nullifier,
+    };
     use dep::aztec::types::point::Point;
     use dep::aztec::state_vars::map::Map;
     use dep::aztec::state_vars::set::Set;
     use dep::aztec::log::emit_encrypted_log;
     use dep::aztec::log::emit_unencrypted_log;
-    use dep::aztec::constants_gen::MAX_NOTE_FIELDS_LENGTH;
 
     use crate::storage::Storage;
 
@@ -42,8 +44,10 @@ contract ZkToken {
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner.x);
-        context = send_note(context, owner_balance, initial_supply, owner);
-        context = emit_unencrypted_log(context, "Balance set in constructor");
+        if (initial_supply != 0) {
+            context = send_note(context, owner_balance, initial_supply, owner);
+            context = emit_unencrypted_log(context, "Balance set in constructor");
+        }
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -140,8 +144,10 @@ contract ZkToken {
         let mut context = Context::new(inputs, abi::hash_args([amount, secret, owner.x, owner.y]));
 
         // Remove the claim note if it exists in the set.
-        let note = ClaimNote::new(amount, secret);
-        context = storage.claims.has(context, note);
+        let mut note = ClaimNote::new(amount, secret);
+        let (new_context, note_with_header) = storage.claims.has(context, note);
+        context = new_context;
+        note = note_with_header;
         context = storage.claims.remove(context, note);
 
         // Send the value note.
@@ -167,11 +173,12 @@ contract ZkToken {
     }
 
     /// ABI stev type "unconstrained"
-    fn stev(contract_address: Field, storage_slot: Field, preimage: [Field; MAX_NOTE_FIELDS_LENGTH]) -> pub [Field; 2] {
+    fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> pub [Field; 4] {
+        let note_header = NoteHeader { contract_address, nonce, storage_slot };
         if (storage_slot == 2) {
-            compute_note_hash_and_nullifier(contract_address, storage_slot, ClaimNoteInterface, preimage)
+            compute_note_hash_and_nullifier(ClaimNoteInterface, note_header, preimage)
         } else {
-            compute_note_hash_and_nullifier(contract_address, storage_slot, ValueNoteInterface, preimage)
+            compute_note_hash_and_nullifier(ValueNoteInterface, note_header, preimage)
         }
     }
 }

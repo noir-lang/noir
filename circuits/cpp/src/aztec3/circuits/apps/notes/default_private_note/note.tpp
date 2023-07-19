@@ -109,59 +109,6 @@ typename CircuitTypes<Builder>::fr DefaultPrivateNote<Builder, V>::compute_commi
 }
 
 template <typename Builder, typename V>
-typename CircuitTypes<Builder>::grumpkin_point DefaultPrivateNote<Builder, V>::compute_partial_commitment()
-{
-    if (partial_commitment.has_value()) {
-        info(
-            "WARNING: you've already computed a partial commitment for this note. Now, you might have since changed "
-            "the preimage and you want to update the partial commitment, and that's ok, so we won't throw an error "
-            "here. But if that's not the case, you should call get_partial_commitment() instead, to save constraints.");
-    }
-
-    grumpkin_point storage_slot_point = state_var->storage_slot_point;
-
-    std::vector<fr> inputs;
-    std::vector<generator_index_t> const generators;
-
-    auto gen_pair_address = [&](std::optional<address> const& input, size_t const hash_sub_index) {
-        return input ? std::make_pair((*input).to_field(),
-                                      generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }))
-                     : std::make_pair(fr(1),
-                                      generator_index_t({ GeneratorIndex::COMMITMENT_PLACEHOLDER, hash_sub_index }));
-    };
-
-    auto gen_pair_fr = [&](std::optional<fr> const& input, size_t const hash_sub_index) {
-        return input ? std::make_pair(*input, generator_index_t({ GeneratorIndex::COMMITMENT, hash_sub_index }))
-                     : std::make_pair(fr(1),
-                                      generator_index_t({ GeneratorIndex::COMMITMENT_PLACEHOLDER, hash_sub_index }));
-    };
-
-    if (!note_preimage.salt) {
-        note_preimage.salt = get_oracle().generate_random_element();
-    }
-
-    const auto& [value, owner, creator_address, memo, salt, nonce, is_dummy] = note_preimage;
-
-    const grumpkin_point partial_commitment_point =
-        storage_slot_point +
-        CT::commit(
-            { gen_pair_fr(value, PrivateStateNoteGeneratorIndex::VALUE),
-              gen_pair_address(owner, PrivateStateNoteGeneratorIndex::OWNER),
-              gen_pair_address(creator_address, PrivateStateNoteGeneratorIndex::CREATOR),
-              gen_pair_fr(salt, PrivateStateNoteGeneratorIndex::SALT),
-              gen_pair_fr(nonce, PrivateStateNoteGeneratorIndex::NONCE),
-              gen_pair_fr(memo, PrivateStateNoteGeneratorIndex::MEMO),
-              std::make_pair(
-                  is_dummy, generator_index_t({ GeneratorIndex::COMMITMENT, PrivateStateNoteGeneratorIndex::IS_DUMMY }))
-
-            });
-
-    partial_commitment = partial_commitment_point;
-
-    return *partial_commitment;
-}
-
-template <typename Builder, typename V>
 typename CircuitTypes<Builder>::fr DefaultPrivateNote<Builder, V>::compute_nullifier()
 {
     if (is_partial()) {
@@ -202,19 +149,9 @@ typename CircuitTypes<Builder>::fr DefaultPrivateNote<Builder, V>::compute_nulli
                                                                                      fr const& owner_private_key,
                                                                                      boolean const& is_dummy_commitment)
 {
-    /**
-     * Hashing the private key in this way enables the following use case:
-     * - A user can demonstrate to a 3rd party that they have spent a note, by providing the
-     hashed_private_key
-     * and the note_commitment. The 3rd party can then recalculate the nullifier. This does not reveal the
-     * underlying private_key to the 3rd party. */
-    const grumpkin_point hashed_private_key = CT::grumpkin_group::template fixed_base_scalar_mul<254>(
-        owner_private_key, GeneratorIndex::NULLIFIER_HASHED_PRIVATE_KEY);
-
     const std::vector<fr> hash_inputs{
         commitment,
-        hashed_private_key.x,
-        hashed_private_key.y,
+        owner_private_key,
         is_dummy_commitment,
     };
 
