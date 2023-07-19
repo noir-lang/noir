@@ -97,12 +97,10 @@ impl DefunctionalizationContext {
                 match func.dfg[target_func_id] {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
+                        let results = func.dfg.instruction_results(instruction_id);
                         let signature = Signature {
                             params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(
-                                func.dfg.instruction_results(instruction_id),
-                                |result| func.dfg.type_of_value(*result),
-                            ),
+                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
                         };
 
                         // Find the correct apply function
