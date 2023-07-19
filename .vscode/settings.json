@@ -13,12 +13,8 @@
             }
         }
     },
-    "rust-analyzer.cargo.features": [
-        "bb_js"
-    ],
-    "rust-analyzer.cargo.noDefaultFeatures": true,
-    "rust-analyzer.check.features": [
-        "bb_js"
-    ],
-    "rust-analyzer.check.noDefaultFeatures": true,
+    "yaml.schemas": {
+        "https://json.schemastore.org/github-workflow.json": "${workspaceRoot}/.github/workflows/*.yml"
+    },
+    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
 }

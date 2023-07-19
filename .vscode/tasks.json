@@ -1,0 +1,18 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "build",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"args": [
+				"-p",
+				"nargo_cli"
+			],
+			"group": "build",
+			"label": "rust: cargo build -p nargo_cli"
+		}
+	]
+}
