@@ -776,19 +776,8 @@ impl<'interner> Monomorphizer<'interner> {
 
         if let ast::Expression::Ident(ident) = func.as_ref() {
             if let Definition::Oracle(name) = &ident.definition {
-                match name.as_str() {
-                    "println" => {
-                        self.append_abi_arg(&hir_arguments[0], &mut arguments, false);
-                    }
-                    "println_format" => {
-                        // The first arugment represents the format string while the second argument
-                        // contains an array of arguments to be formatted.
-                        // Arrays can only have elements of the same type, thus we only need the `AbiType` of one element of the second type.
-                        // The caller who executes this foreign call will then be responsible for handling formatting according
-                        // to the string supplied in the first argument.
-                        self.append_abi_arg(&hir_arguments[1], &mut arguments, true);
-                    }
-                    _ => (),
+                if name.as_str() == "println" {
+                    self.append_abi_arg(&hir_arguments[0], &mut arguments);
                 }
             }
         }
@@ -797,25 +786,22 @@ impl<'interner> Monomorphizer<'interner> {
             .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
     }
 
-    fn append_abi_arg(
-        &self,
-        hir_argument: &HirExpression,
-        arguments: &mut Vec<ast::Expression>,
-        is_format_call: bool,
-    ) {
+    /// Adds a function argument that contains type metadata that is required to tell
+    /// a caller (such as nargo) how to convert values passed to an foreign call
+    /// back to a human-readable string.
+    /// The values passed to an foreign call will be a simple list of field elements,
+    /// thus requiring extra metadata to correctly decode this list of elements.
+    ///
+    /// The Noir compiler has an `AbiType` that handles encoding/decoding a list
+    /// of field elements to/from JSON. The type metadata attached in this method
+    /// is the serialized `AbiType` for the argument passed to the function.
+    /// The caller that is running a Noir program should then deserialize the `AbiType`,
+    /// and accurately decode the list of field elements passed to the foreign call.  
+    fn append_abi_arg(&self, hir_argument: &HirExpression, arguments: &mut Vec<ast::Expression>) {
         match hir_argument {
             HirExpression::Ident(ident) => {
                 let typ = self.interner.id_type(ident.id);
-                let typ = if is_format_call {
-                    match typ {
-                        Type::Array(_, element_type) => element_type.follow_bindings(),
-                        _ => {
-                            unreachable!("ICE: argument supplied to a format call must be an array")
-                        }
-                    }
-                } else {
-                    typ.follow_bindings()
-                };
+                let typ = typ.follow_bindings();
 
                 let abi_type = typ.as_abi_type();
                 let abi_as_string =

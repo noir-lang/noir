@@ -222,7 +222,7 @@ pub(crate) fn check_crate_and_report_errors(
     deny_warnings: bool,
     experimental_ssa: bool,
 ) -> Result<(), ReportedErrors> {
-    let result =
-        check_crate(context, crate_id, deny_warnings, experimental_ssa).map(|warnings| ((), warnings));
+    let result = check_crate(context, crate_id, deny_warnings, experimental_ssa)
+        .map(|warnings| ((), warnings));
     super::compile_cmd::report_errors(result, context, deny_warnings)
 }

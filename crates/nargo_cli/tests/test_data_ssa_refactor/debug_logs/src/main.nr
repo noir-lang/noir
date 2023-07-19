@@ -9,17 +9,6 @@ fn main(x : Field, y : pub Field) {
     let s = myStruct { y: x, x: y };
     let foo = fooStruct { my_struct: s, foo: 15 };
     std::println_new(foo);
-
-    std::println_new("*** println_format ***");
-    std::println_format("x: {0}, y: {1}", [x, y]);
-    
-    let s2 = myStruct { x: 20, y: 30 };
-    std::println_format("s1: {0}, s2: {1}", [s, s2]);
-
-    let foo2 = fooStruct { my_struct: s2, foo: 20 };
-    std::println_format("foo1: {0}, foo2: {1}", [foo, foo2]);
-
-    assert(x != y);
 }
 
 struct myStruct {

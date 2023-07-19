@@ -1987,7 +1987,6 @@ dependencies = [
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
- "regex",
  "rustc_version",
  "serde",
  "serde_json",
