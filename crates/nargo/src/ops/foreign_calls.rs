@@ -66,8 +66,6 @@ impl ForeignCall {
         let (abi_type, input_values) = fetch_abi_type(foreign_call_inputs)?;
 
         // We must use a flat map here as each value in a struct will be in a separate input value
-        // let mut input_values_as_fields =
-        //     input_values.iter().flat_map(|values| vecmap(values, |value| value.to_field()));
         let mut input_values_as_fields =
             input_values.iter().flat_map(|values| values.iter().map(|value| value.to_field()));
         let decoded_value = decode_value(&mut input_values_as_fields, &abi_type)?;
