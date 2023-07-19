@@ -9,7 +9,7 @@ WASM_EXPORT void ecdsa__compute_public_key(uint8_t const* private_key, uint8_t* 
 {
     auto priv_key = from_buffer<secp256k1::fr>(private_key);
     secp256k1::g1::affine_element pub_key = secp256k1::g1::one * priv_key;
-    write(public_key_buf, pub_key);
+    serialize::write(public_key_buf, pub_key);
 }
 
 WASM_EXPORT void ecdsa__construct_signature(uint8_t const* message,
@@ -47,7 +47,7 @@ WASM_EXPORT void ecdsa__recover_public_key_from_signature(uint8_t const* message
     auto recovered_pub_key =
         crypto::ecdsa::recover_public_key<Sha256Hasher, secp256k1::fq, secp256k1::fr, secp256k1::g1>(
             std::string((char*)message, msg_len), sig);
-    write(output_pub_key, recovered_pub_key);
+    serialize::write(output_pub_key, recovered_pub_key);
 }
 
 WASM_EXPORT bool ecdsa__verify_signature(uint8_t const* message,

@@ -60,7 +60,7 @@ WASM_EXPORT void pedersen___commit(fr::vec_in_buf inputs_buffer, fr::out_buf out
     read(inputs_buffer, to_compress);
     grumpkin::g1::affine_element pedersen_hash = crypto::pedersen_commitment::commit_native(to_compress);
 
-    write(output, pedersen_hash);
+    serialize::write(output, pedersen_hash);
 }
 
 WASM_EXPORT void pedersen___plookup_commit(fr::vec_in_buf inputs_buffer, fr::out_buf output)
@@ -69,7 +69,7 @@ WASM_EXPORT void pedersen___plookup_commit(fr::vec_in_buf inputs_buffer, fr::out
     read(inputs_buffer, to_compress);
     grumpkin::g1::affine_element pedersen_hash = crypto::pedersen_commitment::lookup::commit_native(to_compress);
 
-    write(output, pedersen_hash);
+    serialize::write(output, pedersen_hash);
 }
 
 WASM_EXPORT void pedersen___plookup_commit_with_hash_index(fr::vec_in_buf inputs_buffer,
@@ -81,7 +81,7 @@ WASM_EXPORT void pedersen___plookup_commit_with_hash_index(fr::vec_in_buf inputs
     grumpkin::g1::affine_element pedersen_hash =
         crypto::pedersen_commitment::lookup::commit_native(to_compress, ntohl(*hash_index));
 
-    write(output, pedersen_hash);
+    serialize::write(output, pedersen_hash);
 }
 
 WASM_EXPORT void pedersen___buffer_to_field(uint8_t const* data, fr::out_buf r)

@@ -6,6 +6,7 @@ extern "C" {
 
 WASM_EXPORT void ecc_secp256k1__mul(uint8_t const* point_buf, uint8_t const* scalar_buf, uint8_t* result)
 {
+    using serialize::write;
     auto point = from_buffer<secp256k1::g1::affine_element>(point_buf);
     auto scalar = from_buffer<secp256k1::fr>(scalar_buf);
     secp256k1::g1::affine_element r = point * scalar;

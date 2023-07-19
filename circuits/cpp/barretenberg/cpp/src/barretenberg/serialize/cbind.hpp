@@ -39,7 +39,7 @@ inline std::pair<uint8_t*, size_t> msgpack_encode_buffer(auto&& obj)
 // of a given function type T as a tuple.
 template <typename T> constexpr auto param_tuple()
 {
-    // decltype is used to determine the type of an expression at compile-time.
+    // decltype is used to determine the type of the expression at compile-time.
     // get_func_traits<T>() is assumed to return a structure whose ::Args member is a tuple
     // of argument types of function T. This function constructs an instance of that tuple and returns it.
     return typename decltype(get_func_traits<T>())::Args{};

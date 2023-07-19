@@ -1,5 +1,6 @@
 #pragma once
 #include "barretenberg/dsl/types.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 #include <cstdint>
 
 namespace acir_format {
@@ -22,24 +23,4 @@ void create_logic_gate(Builder& builder, uint32_t a, uint32_t b, uint32_t result
 void xor_gate(Builder& builder, uint32_t a, uint32_t b, uint32_t result);
 
 void and_gate(Builder& builder, uint32_t a, uint32_t b, uint32_t result);
-
-template <typename B> inline void read(B& buf, LogicConstraint& constraint)
-{
-    using serialize::read;
-    read(buf, constraint.a);
-    read(buf, constraint.b);
-    read(buf, constraint.result);
-    read(buf, constraint.num_bits);
-    read(buf, constraint.is_xor_gate);
-}
-
-template <typename B> inline void write(B& buf, LogicConstraint const& constraint)
-{
-    using serialize::write;
-    write(buf, constraint.a);
-    write(buf, constraint.b);
-    write(buf, constraint.result);
-    write(buf, constraint.num_bits);
-    write(buf, constraint.is_xor_gate);
-}
 } // namespace acir_format

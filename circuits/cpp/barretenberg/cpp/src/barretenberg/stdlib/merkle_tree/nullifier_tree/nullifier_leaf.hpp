@@ -1,5 +1,6 @@
 #pragma once
 #include "barretenberg/crypto/pedersen_commitment/pedersen.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 
 namespace proof_system::plonk {
 namespace stdlib {
@@ -13,28 +14,14 @@ struct nullifier_leaf {
     index_t nextIndex;
     fr nextValue;
 
+    // For serialization, update with any new fields
+    MSGPACK_FIELDS(value, nextIndex, nextValue);
     bool operator==(nullifier_leaf const&) const = default;
 
     std::ostream& operator<<(std::ostream& os)
     {
         os << "value = " << value << "\nnextIdx = " << nextIndex << "\nnextVal = " << nextValue;
         return os;
-    }
-
-    void read(uint8_t const*& it)
-    {
-        using serialize::read;
-        read(it, value);
-        read(it, nextIndex);
-        read(it, nextValue);
-    }
-
-    inline void write(std::vector<uint8_t>& buf)
-    {
-        using serialize::write;
-        write(buf, value);
-        write(buf, nextIndex);
-        write(buf, nextValue);
     }
 
     barretenberg::fr hash() const { return stdlib::merkle_tree::hash_multiple_native({ value, nextIndex, nextValue }); }

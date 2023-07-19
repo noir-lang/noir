@@ -1,4 +1,5 @@
 #include "barretenberg/ecc/fields/field.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/serialize/test_helper.hpp"
 #include <gtest/gtest.h>
 

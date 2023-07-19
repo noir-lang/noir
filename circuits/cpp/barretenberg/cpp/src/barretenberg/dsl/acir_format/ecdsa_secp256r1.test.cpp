@@ -1,8 +1,8 @@
+#include "ecdsa_secp256r1.hpp"
 #include "acir_format.hpp"
 #include "barretenberg/crypto/ecdsa/ecdsa.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
-#include "ecdsa_secp256r1.hpp"
 
 #include <gtest/gtest.h>
 #include <vector>
@@ -120,24 +120,25 @@ TEST(ECDSASecp256r1, test_hardcoded)
 
     size_t num_variables =
         generate_r1_constraints(ecdsa_r1_constraint, witness_values, pub_key_x, pub_key_y, hashed_message, signature);
+
     acir_format constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
         .public_inputs = {},
-        .fixed_base_scalar_mul_constraints = {},
         .logic_constraints = {},
         .range_constraints = {},
+        .sha256_constraints = {},
         .schnorr_constraints = {},
         .ecdsa_k1_constraints = {},
         .ecdsa_r1_constraints = { ecdsa_r1_constraint },
-        .sha256_constraints = {},
         .blake2s_constraints = {},
         .keccak_constraints = {},
         .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .block_constraints = {},
+        .hash_to_field_constraints = {},
+        .fixed_base_scalar_mul_constraints = {},
         .recursion_constraints = {},
         .constraints = {},
+        .block_constraints = {},
     };
 
     secp256r1::g1::affine_element pub_key = { pub_key_x, pub_key_y };
@@ -164,21 +165,21 @@ TEST(ECDSASecp256r1, TestECDSAConstraintSucceed)
     acir_format constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
         .public_inputs = {},
-        .fixed_base_scalar_mul_constraints = {},
         .logic_constraints = {},
         .range_constraints = {},
+        .sha256_constraints = {},
         .schnorr_constraints = {},
         .ecdsa_k1_constraints = {},
         .ecdsa_r1_constraints = { ecdsa_r1_constraint },
-        .sha256_constraints = {},
         .blake2s_constraints = {},
         .keccak_constraints = {},
         .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .block_constraints = {},
+        .hash_to_field_constraints = {},
+        .fixed_base_scalar_mul_constraints = {},
         .recursion_constraints = {},
         .constraints = {},
+        .block_constraints = {},
     };
 
     auto builder = create_circuit_with_witness(constraint_system, witness_values);
@@ -203,21 +204,21 @@ TEST(ECDSASecp256r1, TestECDSACompilesForVerifier)
     acir_format constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
         .public_inputs = {},
-        .fixed_base_scalar_mul_constraints = {},
         .logic_constraints = {},
         .range_constraints = {},
+        .sha256_constraints = {},
         .schnorr_constraints = {},
         .ecdsa_k1_constraints = {},
         .ecdsa_r1_constraints = { ecdsa_r1_constraint },
-        .sha256_constraints = {},
         .blake2s_constraints = {},
         .keccak_constraints = {},
         .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .block_constraints = {},
+        .hash_to_field_constraints = {},
+        .fixed_base_scalar_mul_constraints = {},
         .recursion_constraints = {},
         .constraints = {},
+        .block_constraints = {},
     };
     auto builder = create_circuit(constraint_system);
 }
@@ -237,21 +238,21 @@ TEST(ECDSASecp256r1, TestECDSAConstraintFail)
     acir_format constraint_system{
         .varnum = static_cast<uint32_t>(num_variables),
         .public_inputs = {},
-        .fixed_base_scalar_mul_constraints = {},
         .logic_constraints = {},
         .range_constraints = {},
+        .sha256_constraints = {},
         .schnorr_constraints = {},
         .ecdsa_k1_constraints = {},
         .ecdsa_r1_constraints = { ecdsa_r1_constraint },
-        .sha256_constraints = {},
         .blake2s_constraints = {},
         .keccak_constraints = {},
         .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .block_constraints = {},
+        .hash_to_field_constraints = {},
+        .fixed_base_scalar_mul_constraints = {},
         .recursion_constraints = {},
         .constraints = {},
+        .block_constraints = {},
     };
 
     auto builder = create_circuit_with_witness(constraint_system, witness_values);

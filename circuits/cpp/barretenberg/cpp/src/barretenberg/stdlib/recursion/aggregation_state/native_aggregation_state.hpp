@@ -21,6 +21,7 @@ struct native_aggregation_state {
     std::vector<uint32_t> proof_witness_indices;
     bool has_data = false;
 
+    // For serialization, update with new fields
     MSGPACK_FIELDS(P0, P1, public_inputs, proof_witness_indices, has_data);
     bool operator==(native_aggregation_state const& other) const
     {
@@ -28,27 +29,6 @@ struct native_aggregation_state {
                proof_witness_indices == other.proof_witness_indices && has_data == other.has_data;
     };
 };
-
-inline void read(uint8_t const*& it, native_aggregation_state& state)
-{
-    using serialize::read;
-
-    read(it, state.P0);
-    read(it, state.P1);
-    read(it, state.public_inputs);
-    read(it, state.proof_witness_indices);
-    read(it, state.has_data);
-};
-
-template <typename B> inline void write(B& buf, native_aggregation_state const& state)
-{
-    using serialize::write;
-    write(buf, state.P0);
-    write(buf, state.P1);
-    write(buf, state.public_inputs);
-    write(buf, state.proof_witness_indices);
-    write(buf, state.has_data);
-}
 
 inline std::ostream& operator<<(std::ostream& os, native_aggregation_state const& obj)
 {

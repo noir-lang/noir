@@ -219,23 +219,6 @@ void blake3_hasher_update(blake3_hasher* self, const uint8_t* input, size_t inpu
     while (input_len > BLAKE3_BLOCK_LEN) {
         blake3_compress_in_place(self->cv, input, BLAKE3_BLOCK_LEN, self->flags | maybe_start_flag(self));
 
-        // static_assert(std::is_same<decltype(self->blocks_compressed), uint8_t>::value, "blocks compressed type err");
-        // // uint8_t foo = self->blocks_compressed;
-        // // uint8_t bar(1U);
-        // std::cout << "owauefheaiufhawuifh" << std::endl;
-        // std::cout << "owauefheaiufhawuifh" << std::endl;
-        // std::cout << "owauefheaiufhawuifh" << std::endl;
-        // std::cout << "owauefheaiufhawuifh" << std::endl;
-
-        // static_assert(std::is_same<decltype(foo), uint8_t>::value, "blocks compressed type err A ");
-        // static_assert(std::is_same<decltype(bar), uint8_t>::value, "blocks compressed type err B");
-        // foo = foo + bar;
-        // std::cout << "owauefheaiufhawuifh" << std::endl;
-        // std::cout << "owauefheaiufhawuifh" << std::endl;
-        // std::cout << "owauefheaiufhawuifh" << std::endl;
-        // std::cout << "owauefheaiufhawuifh" << std::endl;
-        // std::cout << "owauefheaiufhawuifh" << std::endl;
-
         self->blocks_compressed = static_cast<uint8_t>(self->blocks_compressed + 1U);
         input += BLAKE3_BLOCK_LEN;
         input_len -= BLAKE3_BLOCK_LEN;

@@ -1,7 +1,7 @@
+#include "recursion_constraint.hpp"
 #include "acir_format.hpp"
 #include "barretenberg/plonk/proof_system/types/proof.hpp"
 #include "barretenberg/plonk/proof_system/verification_key/verification_key.hpp"
-#include "recursion_constraint.hpp"
 
 #include <gtest/gtest.h>
 #include <vector>
@@ -77,25 +77,23 @@ Builder create_inner_circuit()
         .q_c = 1,
     };
 
-    acir_format constraint_system{
-        .varnum = 7,
-        .public_inputs = { 2, 3 },
-        .fixed_base_scalar_mul_constraints = {},
-        .logic_constraints = { logic_constraint },
-        .range_constraints = { range_a, range_b },
-        .schnorr_constraints = {},
-        .ecdsa_k1_constraints = {},
-        .ecdsa_r1_constraints = {},
-        .sha256_constraints = {},
-        .blake2s_constraints = {},
-        .keccak_constraints = {},
-        .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
-        .pedersen_constraints = {},
-        .block_constraints = {},
-        .recursion_constraints = {},
-        .constraints = { expr_a, expr_b, expr_c, expr_d },
-    };
+    acir_format constraint_system{ .varnum = 7,
+                                   .public_inputs = { 2, 3 },
+                                   .logic_constraints = { logic_constraint },
+                                   .range_constraints = { range_a, range_b },
+                                   .sha256_constraints = {},
+                                   .schnorr_constraints = {},
+                                   .ecdsa_k1_constraints = {},
+                                   .ecdsa_r1_constraints = {},
+                                   .blake2s_constraints = {},
+                                   .keccak_constraints = {},
+                                   .keccak_var_constraints = {},
+                                   .pedersen_constraints = {},
+                                   .hash_to_field_constraints = {},
+                                   .fixed_base_scalar_mul_constraints = {},
+                                   .recursion_constraints = {},
+                                   .constraints = { expr_a, expr_b, expr_c, expr_d },
+                                   .block_constraints = {} };
 
     uint256_t inverse_of_five = fr(5).invert();
     auto builder = create_circuit_with_witness(constraint_system,
@@ -205,25 +203,23 @@ Builder create_outer_circuit(std::vector<Builder>& inner_circuits)
 
     std::vector<uint32_t> public_inputs(output_aggregation_object.begin(), output_aggregation_object.end());
 
-    acir_format constraint_system{
-        .varnum = static_cast<uint32_t>(witness.size() + 1),
-        .public_inputs = public_inputs,
-        .fixed_base_scalar_mul_constraints = {},
-        .logic_constraints = {},
-        .range_constraints = {},
-        .schnorr_constraints = {},
-        .ecdsa_k1_constraints = {},
-        .ecdsa_r1_constraints = {},
-        .sha256_constraints = {},
-        .blake2s_constraints = {},
-        .keccak_constraints = {},
-        .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
-        .pedersen_constraints = {},
-        .block_constraints = {},
-        .recursion_constraints = recursion_constraints,
-        .constraints = {},
-    };
+    acir_format constraint_system{ .varnum = static_cast<uint32_t>(witness.size() + 1),
+                                   .public_inputs = public_inputs,
+                                   .logic_constraints = {},
+                                   .range_constraints = {},
+                                   .sha256_constraints = {},
+                                   .schnorr_constraints = {},
+                                   .ecdsa_k1_constraints = {},
+                                   .ecdsa_r1_constraints = {},
+                                   .blake2s_constraints = {},
+                                   .keccak_constraints = {},
+                                   .keccak_var_constraints = {},
+                                   .pedersen_constraints = {},
+                                   .hash_to_field_constraints = {},
+                                   .fixed_base_scalar_mul_constraints = {},
+                                   .recursion_constraints = recursion_constraints,
+                                   .constraints = {},
+                                   .block_constraints = {} };
 
     auto outer_circuit = create_circuit_with_witness(constraint_system, witness);
 

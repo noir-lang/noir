@@ -25,21 +25,21 @@ TEST(acir_format, test_a_single_constraint_no_pub_inputs)
     acir_format constraint_system{
         .varnum = 4,
         .public_inputs = {},
-        .fixed_base_scalar_mul_constraints = {},
         .logic_constraints = {},
         .range_constraints = {},
+        .sha256_constraints = {},
         .schnorr_constraints = {},
         .ecdsa_k1_constraints = {},
         .ecdsa_r1_constraints = {},
-        .sha256_constraints = {},
         .blake2s_constraints = {},
         .keccak_constraints = {},
         .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .block_constraints = {},
+        .hash_to_field_constraints = {},
+        .fixed_base_scalar_mul_constraints = {},
         .recursion_constraints = {},
         .constraints = { constraint },
+        .block_constraints = {},
     };
 
     auto builder = create_circuit_with_witness(constraint_system, { 0, 0, 1 });
@@ -129,25 +129,23 @@ TEST(acir_format, test_logic_gate_from_noir_circuit)
     // EXPR [ (1, _4, _6) (-1, _4) 0 ]
     // EXPR [ (-1, _6) 1 ]
 
-    acir_format constraint_system{
-        .varnum = 7,
-        .public_inputs = { 2 },
-        .fixed_base_scalar_mul_constraints = {},
-        .logic_constraints = { logic_constraint },
-        .range_constraints = { range_a, range_b },
-        .schnorr_constraints = {},
-        .ecdsa_k1_constraints = {},
-        .ecdsa_r1_constraints = {},
-        .sha256_constraints = {},
-        .blake2s_constraints = {},
-        .keccak_constraints = {},
-        .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
-        .pedersen_constraints = {},
-        .block_constraints = {},
-        .recursion_constraints = {},
-        .constraints = { expr_a, expr_b, expr_c, expr_d },
-    };
+    acir_format constraint_system{ .varnum = 7,
+                                   .public_inputs = { 2 },
+                                   .logic_constraints = { logic_constraint },
+                                   .range_constraints = { range_a, range_b },
+                                   .sha256_constraints = {},
+                                   .schnorr_constraints = {},
+                                   .ecdsa_k1_constraints = {},
+                                   .ecdsa_r1_constraints = {},
+                                   .blake2s_constraints = {},
+                                   .keccak_constraints = {},
+                                   .keccak_var_constraints = {},
+                                   .pedersen_constraints = {},
+                                   .hash_to_field_constraints = {},
+                                   .fixed_base_scalar_mul_constraints = {},
+                                   .recursion_constraints = {},
+                                   .constraints = { expr_a, expr_b, expr_c, expr_d },
+                                   .block_constraints = {} };
 
     uint256_t inverse_of_five = fr(5).invert();
     auto builder = create_circuit_with_witness(constraint_system,
@@ -195,35 +193,33 @@ TEST(acir_format, test_schnorr_verify_pass)
         .result = 77,
         .signature = signature,
     };
+    acir_format constraint_system{ .varnum = 82,
+                                   .public_inputs = {},
+                                   .logic_constraints = {},
+                                   .range_constraints = range_constraints,
+                                   .sha256_constraints = {},
+                                   .schnorr_constraints = { schnorr_constraint },
+                                   .ecdsa_k1_constraints = {},
+                                   .ecdsa_r1_constraints = {},
+                                   .blake2s_constraints = {},
+                                   .keccak_constraints = {},
+                                   .keccak_var_constraints = {},
+                                   .pedersen_constraints = {},
+                                   .hash_to_field_constraints = {},
+                                   .fixed_base_scalar_mul_constraints = {},
+                                   .recursion_constraints = {},
+                                   .constraints = { poly_triple{
+                                       .a = schnorr_constraint.result,
+                                       .b = schnorr_constraint.result,
+                                       .c = schnorr_constraint.result,
+                                       .q_m = 0,
+                                       .q_l = 0,
+                                       .q_r = 0,
+                                       .q_o = 1,
+                                       .q_c = fr::neg_one(),
+                                   } },
+                                   .block_constraints = {} };
 
-    acir_format constraint_system{
-        .varnum = 82,
-        .public_inputs = {},
-        .fixed_base_scalar_mul_constraints = {},
-        .logic_constraints = {},
-        .range_constraints = range_constraints,
-        .schnorr_constraints = { schnorr_constraint },
-        .ecdsa_k1_constraints = {},
-        .ecdsa_r1_constraints = {},
-        .sha256_constraints = {},
-        .blake2s_constraints = {},
-        .keccak_constraints = {},
-        .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
-        .pedersen_constraints = {},
-        .block_constraints = {},
-        .recursion_constraints = {},
-        .constraints = { poly_triple{
-            .a = schnorr_constraint.result,
-            .b = schnorr_constraint.result,
-            .c = schnorr_constraint.result,
-            .q_m = 0,
-            .q_l = 0,
-            .q_r = 0,
-            .q_o = 1,
-            .q_c = fr::neg_one(),
-        } },
-    };
     uint256_t pub_x = uint256_t("17cbd3ed3151ccfd170efe1d54280a6a4822640bf5c369908ad74ea21518a9c5");
     uint256_t pub_y = uint256_t("0e0456e3795c1a31f20035b741cd6158929eeccd320d299cfcac962865a6bc74");
 
@@ -269,23 +265,21 @@ TEST(acir_format, test_schnorr_verify_small_range)
         .result = 77,
         .signature = signature,
     };
-
     acir_format constraint_system{
         .varnum = 82,
         .public_inputs = {},
-        .fixed_base_scalar_mul_constraints = {},
         .logic_constraints = {},
         .range_constraints = range_constraints,
+        .sha256_constraints = {},
         .schnorr_constraints = { schnorr_constraint },
         .ecdsa_k1_constraints = {},
         .ecdsa_r1_constraints = {},
-        .sha256_constraints = {},
         .blake2s_constraints = {},
         .keccak_constraints = {},
         .keccak_var_constraints = {},
-        .hash_to_field_constraints = {},
         .pedersen_constraints = {},
-        .block_constraints = {},
+        .hash_to_field_constraints = {},
+        .fixed_base_scalar_mul_constraints = {},
         .recursion_constraints = {},
         .constraints = { poly_triple{
             .a = schnorr_constraint.result,
@@ -297,7 +291,9 @@ TEST(acir_format, test_schnorr_verify_small_range)
             .q_o = 1,
             .q_c = fr::neg_one(),
         } },
+        .block_constraints = {},
     };
+
     uint256_t pub_x = uint256_t("17cbd3ed3151ccfd170efe1d54280a6a4822640bf5c369908ad74ea21518a9c5");
     uint256_t pub_y = uint256_t("0e0456e3795c1a31f20035b741cd6158929eeccd320d299cfcac962865a6bc74");
 

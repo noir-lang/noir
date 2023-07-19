@@ -185,20 +185,6 @@ template <typename Fq, typename Fr, typename Params> class alignas(64) affine_el
     // for serialization: update with new fields
     MSGPACK_FIELDS(x, y);
 };
-
-template <typename B, typename Fq, typename Fr, typename Params> void read(B& it, affine_element<Fq, Fr, Params>& value)
-{
-    read(it, value.x);
-    read(it, value.y);
-}
-
-template <typename B, typename Fq, typename Fr, typename Params>
-void write(B& buf, affine_element<Fq, Fr, Params> const& value)
-{
-    write(buf, value.x);
-    write(buf, value.y);
-}
-
 } // namespace group_elements
 } // namespace barretenberg
 

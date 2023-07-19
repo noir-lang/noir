@@ -129,22 +129,23 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, aci
                     .result_y = arg.outputs[1].value,
                 });
             } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::HashToField128Security>) {
-                af.hash_to_field_constraints.push_back(
-                    HashToFieldConstraint{ .inputs = map(arg.inputs,
-                                                         [](auto& e) {
-                                                             return HashToFieldInput{
-                                                                 .witness = e.witness.value,
-                                                                 .num_bits = e.num_bits,
-                                                             };
-                                                         }),
-                                           .result = arg.output.value });
+                af.hash_to_field_constraints.push_back(HashToFieldConstraint{
+                    .inputs = map(arg.inputs,
+                                  [](auto& e) {
+                                      return HashToFieldInput{
+                                          .witness = e.witness.value,
+                                          .num_bits = e.num_bits,
+                                      };
+                                  }),
+                    .result = arg.output.value,
+                });
             } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::EcdsaSecp256k1>) {
                 af.ecdsa_k1_constraints.push_back(EcdsaSecp256k1Constraint{
                     .hashed_message = map(arg.hashed_message, [](auto& e) { return e.witness.value; }),
+                    .signature = map(arg.signature, [](auto& e) { return e.witness.value; }),
                     .pub_x_indices = map(arg.public_key_x, [](auto& e) { return e.witness.value; }),
                     .pub_y_indices = map(arg.public_key_y, [](auto& e) { return e.witness.value; }),
                     .result = arg.output.value,
-                    .signature = map(arg.signature, [](auto& e) { return e.witness.value; }),
                 });
             } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::EcdsaSecp256r1>) {
                 af.ecdsa_r1_constraints.push_back(EcdsaSecp256r1Constraint{
@@ -180,8 +181,8 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, aci
                                           .num_bits = e.num_bits,
                                       };
                                   }),
-                    .var_message_size = arg.var_message_size.witness.value,
                     .result = map(arg.outputs, [](auto& e) { return e.value; }),
+                    .var_message_size = arg.var_message_size.witness.value,
                 });
             } else if constexpr (std::is_same_v<T, Circuit::BlackBoxFuncCall::RecursiveAggregation>) {
                 auto c = RecursionConstraint{
@@ -224,7 +225,7 @@ void handle_memory(Circuit::MemoryBlock const& mem_block, bool is_ram, acir_form
         }
         bool access_type(uint256_t(op.q_c));
         trace.push_back(MemOp{
-            .access_type = access_type,
+            .access_type = static_cast<uint8_t>(access_type),
             .index = index,
             .value = value,
         });

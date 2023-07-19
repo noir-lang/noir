@@ -54,7 +54,7 @@ TEST(msgpack_tests, msgpack_sanity_sanity)
     // This is great, but we need to check the underlying facility *somehow*
     auto checker = [&](auto&... values) {
         std::string incomplete_msgpack_status = "error";
-        if constexpr (msgpack::MsgpackConstructible<BadExampleCompileTimeError, decltype(values)...>) {
+        if constexpr (msgpack_concepts::MsgpackConstructible<BadExampleCompileTimeError, decltype(values)...>) {
             incomplete_msgpack_status = "";
         }
         EXPECT_EQ(incomplete_msgpack_status, "error");

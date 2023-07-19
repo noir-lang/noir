@@ -7,6 +7,7 @@ extern "C" {
 
 WASM_EXPORT void ecc_grumpkin__mul(uint8_t const* point_buf, uint8_t const* scalar_buf, uint8_t* result)
 {
+    using serialize::write;
     auto point = from_buffer<grumpkin::g1::affine_element>(point_buf);
     auto scalar = from_buffer<grumpkin::fr>(scalar_buf);
     grumpkin::g1::affine_element r = point * scalar;
@@ -19,6 +20,7 @@ WASM_EXPORT void ecc_grumpkin__batch_mul(uint8_t const* point_buf,
                                          uint32_t num_points,
                                          uint8_t* result)
 {
+    using serialize::write;
     std::vector<grumpkin::g1::affine_element> points;
     points.reserve(num_points);
     for (size_t i = 0; i < num_points; ++i) {

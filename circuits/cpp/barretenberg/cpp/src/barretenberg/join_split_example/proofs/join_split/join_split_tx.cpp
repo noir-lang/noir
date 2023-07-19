@@ -27,7 +27,7 @@ void write(std::vector<uint8_t>& buf, join_split_tx const& tx)
     write(buf, tx.account_required);
     write(buf, tx.account_note_index);
     write(buf, tx.account_note_path);
-    write(buf, tx.signing_pub_key);
+    serialize::write(buf, tx.signing_pub_key);
 
     write(buf, tx.backward_link);
     write(buf, tx.allow_chain);

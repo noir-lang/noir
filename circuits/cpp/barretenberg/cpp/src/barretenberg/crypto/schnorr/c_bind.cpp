@@ -11,7 +11,7 @@ WASM_EXPORT void compute_public_key(uint8_t const* private_key, uint8_t* public_
 {
     auto priv_key = from_buffer<grumpkin::fr>(private_key);
     grumpkin::g1::affine_element pub_key = grumpkin::g1::one * priv_key;
-    write(public_key_buf, pub_key);
+    serialize::write(public_key_buf, pub_key);
 }
 
 WASM_EXPORT void negate_public_key(uint8_t const* public_key_buffer, uint8_t* output)
@@ -19,7 +19,7 @@ WASM_EXPORT void negate_public_key(uint8_t const* public_key_buffer, uint8_t* ou
     // Negate the public key (effectively negating the y-coordinate of the public key) and return the resulting public
     // key.
     auto account_public_key = from_buffer<grumpkin::g1::affine_element>(public_key_buffer);
-    barretenberg::group_elements::write(output, -account_public_key);
+    serialize::write(output, -account_public_key);
 }
 
 WASM_EXPORT void construct_signature(
@@ -56,7 +56,7 @@ WASM_EXPORT void multisig_create_multisig_public_key(uint8_t const* private_key,
 
     auto agg_pubkey = multisig_public_key(key_pair);
 
-    write(multisig_pubkey_buf, agg_pubkey);
+    serialize::write(multisig_pubkey_buf, agg_pubkey);
 }
 
 WASM_EXPORT bool multisig_validate_and_combine_signer_pubkeys(uint8_t const* signer_pubkey_buf,
@@ -67,7 +67,7 @@ WASM_EXPORT bool multisig_validate_and_combine_signer_pubkeys(uint8_t const* sig
         from_buffer<std::vector<multisig::MultiSigPublicKey>>(signer_pubkey_buf);
 
     if (auto combined_key = multisig::validate_and_combine_signer_pubkeys(pubkeys); combined_key) {
-        write(combined_key_buf, *combined_key);
+        serialize::write(combined_key_buf, *combined_key);
         return true;
     } else {
         return false;
@@ -80,8 +80,8 @@ WASM_EXPORT void multisig_construct_signature_round_1(uint8_t* round_one_public_
     using multisig = crypto::schnorr::multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>;
 
     auto [public_output, private_output] = multisig::construct_signature_round_1();
-    write(round_one_public_output_buf, public_output);
-    write(round_one_private_output_buf, private_output);
+    serialize::write(round_one_public_output_buf, public_output);
+    serialize::write(round_one_private_output_buf, private_output);
 }
 
 WASM_EXPORT bool multisig_construct_signature_round_2(uint8_t const* message,

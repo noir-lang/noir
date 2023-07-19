@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+#include "barretenberg/serialize/msgpack.hpp"
+
 #include "proof_of_possession.hpp"
 #include "schnorr.hpp"
 
@@ -56,12 +58,20 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         // proof of knowledge of the secret_key for public_key
         ProofOfPossession<G1, HashRegNon> proof_of_possession;
 
+        // For serialization, update with any new fields
+        MSGPACK_FIELDS(public_key, proof_of_possession);
         // restore default constructor to enable deserialization
         MultiSigPublicKey() = default;
         // create a MultiSigPublicKey with a proof of possession associated with public_key of account
         MultiSigPublicKey(const key_pair& account)
             : public_key(account.public_key)
             , proof_of_possession(account)
+        {}
+        // Needed to appease MSGPACK_FIELDS
+        MultiSigPublicKey(const affine_element& public_key,
+                          const ProofOfPossession<G1, HashRegNon>& proof_of_possession)
+            : public_key(public_key)
+            , proof_of_possession(proof_of_possession)
         {}
     };
 
@@ -71,6 +81,8 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
 
         Fr r;
         Fr s;
+        // For serialization, update with any new fields
+        MSGPACK_FIELDS(r, s);
     };
 
     struct RoundOnePublicOutput {
@@ -83,7 +95,8 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         affine_element R;
         // S = s⋅G
         affine_element S;
-
+        // For serialization, update with any new fields
+        MSGPACK_FIELDS(R, S);
         // for std::sort
         bool operator<(const RoundOnePublicOutput& other) const
         {
@@ -153,10 +166,10 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
             domain_separator_nonce.begin(), domain_separator_nonce.end(), std::back_inserter(nonce_challenge_buffer));
 
         // write the group generator
-        write(nonce_challenge_buffer, G1::affine_one);
+        serialize::write(nonce_challenge_buffer, G1::affine_one);
 
         // write X
-        write(nonce_challenge_buffer, aggregate_pubkey);
+        serialize::write(nonce_challenge_buffer, aggregate_pubkey);
 
         // we slightly deviate from the protocol when including 'm', since the length of 'm' is variable
         // by writing a prefix and a suffix, we prevent the message from being interpreted as coming from a different
@@ -175,8 +188,8 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
 
         // write  {(R1, S1), ..., (Rn, Sn)}
         for (const auto& nonce : round_1_nonces) {
-            write(nonce_challenge_buffer, nonce.R);
-            write(nonce_challenge_buffer, nonce.S);
+            serialize::write(nonce_challenge_buffer, nonce.R);
+            serialize::write(nonce_challenge_buffer, nonce.S);
         }
 
         // uses the different hash function for proper domain separation
@@ -431,46 +444,4 @@ template <typename G1, typename HashRegNon, typename HashSig = Blake2sHasher> cl
         return sig;
     }
 };
-
-template <typename B>
-inline void read(B& it, multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>::RoundOnePublicOutput& tx)
-{
-    read(it, tx.R);
-    read(it, tx.S);
-}
-
-template <typename B>
-inline void write(B& buf, multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>::RoundOnePublicOutput const& tx)
-{
-    write(buf, tx.R);
-    write(buf, tx.S);
-}
-
-template <typename B>
-inline void read(B& it, multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>::RoundOnePrivateOutput& tx)
-{
-    read(it, tx.r);
-    read(it, tx.s);
-}
-
-template <typename B>
-inline void write(B& buf, multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>::RoundOnePrivateOutput const& tx)
-{
-    write(buf, tx.r);
-    write(buf, tx.s);
-}
-
-template <typename B>
-inline void read(B& it, multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>::MultiSigPublicKey& tx)
-{
-    read(it, tx.public_key);
-    read(it, tx.proof_of_possession);
-}
-
-template <typename B>
-inline void write(B& buf, multisig<grumpkin::g1, KeccakHasher, Blake2sHasher>::MultiSigPublicKey const& tx)
-{
-    write(buf, tx.public_key);
-    write(buf, tx.proof_of_possession);
-}
 } // namespace crypto::schnorr
