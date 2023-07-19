@@ -1,3 +1,5 @@
+//! This can most likely be imported from acvm_js to avoid redefining it here.
+
 use acvm::{
     acir::native_types::{Witness, WitnessMap},
     FieldElement,

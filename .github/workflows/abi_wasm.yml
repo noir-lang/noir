@@ -1,0 +1,91 @@
+name: ABI Wasm test
+
+on: [push, pull_request]
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build-noirc-abi-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v12
+        with:
+          name: barretenberg
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      - name: Build noirc_abi_wasm
+        run: |
+          nix build .#noirc_abi_wasm
+
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+  test-node:
+    needs: [build-noirc-abi-wasm]
+    name: Node.js Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./result
+
+      - name: Set up test environment
+        working_directory: ./crates/noirc_abi_wasm
+        uses: ./.github/actions/setup
+
+      - name: Run node tests
+        working_directory: ./crates/noirc_abi_wasm
+        run: yarn test
+
+  test-browser:
+    needs: [build-noirc-abi-wasm]
+    name: Browser Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noirc_abi_wasm
+          path: ./result
+
+      - name: Set up test environment
+        working_directory: ./crates/noirc_abi_wasm
+        uses: ./.github/actions/setup
+
+      - name: Install playwright deps
+        working_directory: ./crates/noirc_abi_wasm
+        run: |
+          npx playwright install
+          npx playwright install-deps
+
+      - name: Run browser tests
+        working_directory: ./crates/noirc_abi_wasm
+        run: yarn test:browser
