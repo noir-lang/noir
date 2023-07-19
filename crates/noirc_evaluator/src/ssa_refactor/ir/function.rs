@@ -118,6 +118,12 @@ impl Function {
         }
         blocks
     }
+
+    pub(crate) fn signature(&self) -> Signature {
+        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
+        let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
+        Signature { params, returns }
+    }
 }
 
 impl std::fmt::Display for RuntimeType {
@@ -144,14 +150,6 @@ pub(crate) struct Signature {
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::display_function(self, f)
-    }
-}
-
-impl From<&Function> for Signature {
-    fn from(function: &Function) -> Self {
-        let params = vecmap(function.parameters(), |param| function.dfg.type_of_value(*param));
-        let returns = vecmap(function.returns(), |ret| function.dfg.type_of_value(*ret));
-        Self { params, returns }
     }
 }
 
