@@ -1675,7 +1675,7 @@ mod test {
         // Let statements are not type checked here, so the parser will accept as
         // long as it is a type. Other statements such as Public are type checked
         // Because for now, they can only have one type
-        parse_all(declaration(expression()), vec!["let x = y", "let x : u8 = y"]);
+        parse_all(declaration(expression()), vec!["let _ = 42", "let x = y", "let x : u8 = y"]);
     }
 
     #[test]
