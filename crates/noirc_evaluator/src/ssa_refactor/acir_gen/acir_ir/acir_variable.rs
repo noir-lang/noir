@@ -1,8 +1,10 @@
 use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use crate::brillig::brillig_gen::brillig_directive;
-use crate::ssa_refactor::acir_gen::AcirValue;
+use crate::ssa_refactor::acir_gen::{AcirArray, AcirValue};
 use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
+use acvm::acir::circuit::opcodes::{BlockId, MemOp};
+use acvm::acir::circuit::Opcode;
 use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::brillig::{BrilligInputs, BrilligOutputs},
@@ -193,7 +195,9 @@ impl AcirContext {
         assert_eq!(results.len(), 1);
         match results[0] {
             AcirValue::Var(var, _) => var,
-            AcirValue::Array(_) => unreachable!("ICE - expected a variable"),
+            AcirValue::DynamicArray(_) | AcirValue::Array(_) => {
+                unreachable!("ICE - expected a variable")
+            }
         }
     }
 
@@ -769,6 +773,7 @@ impl AcirContext {
                     Self::flatten_value(acir_vars, value);
                 }
             }
+            AcirValue::DynamicArray(_) => unreachable!("Cannot flatten a dynamic array"),
         }
     }
 
@@ -806,6 +811,11 @@ impl AcirContext {
                 }
                 BrilligInputs::Array(var_expressions)
             }
+            AcirValue::DynamicArray(_) => {
+                let mut var_expressions = Vec::new();
+                self.brillig_array_input(&mut var_expressions, i);
+                BrilligInputs::Array(var_expressions)
+            }
         });
 
         let mut b_outputs = Vec::new();
@@ -837,7 +847,7 @@ impl AcirContext {
         outputs_var
     }
 
-    fn brillig_array_input(&self, var_expressions: &mut Vec<Expression>, input: AcirValue) {
+    fn brillig_array_input(&mut self, var_expressions: &mut Vec<Expression>, input: AcirValue) {
         match input {
             AcirValue::Var(var, _) => {
                 var_expressions.push(self.vars[&var].to_expression().into_owned());
@@ -845,6 +855,19 @@ impl AcirContext {
             AcirValue::Array(vars) => {
                 for var in vars {
                     self.brillig_array_input(var_expressions, var);
+                }
+            }
+            AcirValue::DynamicArray(AcirArray { block_id, len }) => {
+                for i in 0..len {
+                    //on doit faire un result-witness, et on en construit une brillig array
+                    let idx = AcirValue::Var(
+                        self.add_constant(FieldElement::from(i as u128)),
+                        AcirType::NumericType(NumericType::NativeField),
+                    );
+                    let index_var = idx.into_var();
+                    let result = self.read_from_memory(block_id, &index_var);
+                    let result_var_data = self.vars.get(&result).expect("ICE: undeclared AcirVar");
+                    var_expressions.push(result_var_data.to_expression().into_owned());
                 }
             }
         }
@@ -889,6 +912,59 @@ impl AcirContext {
     ) -> Result<(), AcirGenError> {
         let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size, predicate)?;
         self.assert_eq_one(lhs_less_than_rhs)
+    }
+
+    pub(crate) fn read_from_memory(&mut self, block_id: BlockId, index: &AcirVar) -> AcirVar {
+        let acir_var_data = self.vars.get(index).expect("ICE: undeclared AcirVar");
+        let index_witness = self.acir_ir.get_or_create_witness(&acir_var_data.to_expression());
+        let result = self.add_variable();
+        let result_var_data = self.vars.get(&result).expect("ICE: undeclared AcirVar");
+        let op = MemOp {
+            operation: Expression::zero(),
+            index: index_witness.into(),
+            value: result_var_data.to_expression().into_owned(),
+        };
+        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+        result
+    }
+
+    pub(crate) fn write_to_memory(&mut self, block_id: BlockId, index: &AcirVar, value: &AcirVar) {
+        let acir_var_data = self.vars.get(index).expect("ICE: undeclared AcirVar");
+        let index_witness = self.acir_ir.get_or_create_witness(&acir_var_data.to_expression());
+        let value_var_data = self.vars.get(value).expect("ICE: undeclared AcirVar");
+        let value_witness = self.acir_ir.get_or_create_witness(&value_var_data.to_expression());
+        let op = MemOp {
+            operation: Expression::one(),
+            index: index_witness.into(),
+            value: value_witness.into(),
+        };
+        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+    }
+
+    pub(crate) fn initialize_array(
+        &mut self,
+        block_id: BlockId,
+        len: usize,
+        optional_values: &[AcirValue],
+    ) {
+        let init = if optional_values.len() == len {
+            vecmap(optional_values, |value| {
+                let expr = self
+                    .vars
+                    .get(&value.clone().into_var())
+                    .expect("invalid value")
+                    .to_expression()
+                    .into_owned();
+                self.acir_ir.get_or_create_witness(&expr)
+            })
+        } else {
+            let zero = self.add_constant(FieldElement::zero());
+            let zero_exp =
+                self.vars.get(&zero).expect("ICE: return of undeclared AcirVar").to_expression();
+            let zero_witness = self.acir_ir.get_or_create_witness(&zero_exp);
+            vec![zero_witness; len]
+        };
+        self.acir_ir.opcodes.push(Opcode::MemoryInit { block_id, init });
     }
 }
 
