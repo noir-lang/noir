@@ -204,7 +204,7 @@ impl<'a> Resolver<'a> {
         warn_if_unused: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
-        let allow_shadowing = allow_shadowing || name.eq("_");
+        let allow_shadowing = allow_shadowing || &name == "_";
 
         if definition.is_global() {
             return self.add_global_variable_decl(name, definition);
