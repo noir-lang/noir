@@ -96,22 +96,14 @@ impl CrateDefMap {
                 .to_str()
                 .expect("expected std path to be convertible to str");
             assert_eq!(path_as_str, "std/lib");
-            if context.def_interner.experimental_ssa {
-                ast.functions.retain(|func| {
-                    if func.def.name.0.contents.as_str() == "println" {
-                        func.def.is_unconstrained
-                    } else {
-                        true
-                    }
-                });
-            } else {
-                ast.functions.retain(|func| {
-                    if func.def.name.0.contents.as_str() == "println" {
-                        !func.def.is_unconstrained
-                    } else {
-                        true
-                    }
-                });
+             // There are 2 printlns in the stdlib. If we are using the experimental SSA, we want to keep
+             // only the unconstrained one. Otherwise we want to keep only the constrained one.
+             ast.functions.retain(|func| {
+                func.def.name.0.contents.as_str() != "println"
+                    || func.def.is_unconstrained == context.def_interner.experimental_ssa
+             });
+
+            if !context.def_interner.experimental_ssa {
                 ast.module_decls.retain(|ident| {
                     ident.0.contents != "slice" && ident.0.contents != "collections"
                 });
