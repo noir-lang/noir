@@ -14,7 +14,7 @@ use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 mod contract;
 mod program;
@@ -67,7 +67,7 @@ pub type ErrorsAndWarnings = Vec<FileDiagnostic>;
 // with the restricted version which only uses one file
 pub fn compile_file(
     context: &mut Context,
-    root_file: PathBuf,
+    root_file: &Path,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
     let crate_id = create_local_crate(context, root_file, CrateType::Binary);
     compile_main(context, crate_id, &CompileOptions::default())
@@ -79,26 +79,24 @@ pub fn compile_file(
 /// we have multiple binaries in one workspace
 /// A Fix would be for the driver instance to store the local crate id.
 // Granted that this is the only place which relies on the local crate being first
-pub fn create_local_crate<P: AsRef<Path>>(
+pub fn create_local_crate(
     context: &mut Context,
-    root_file: P,
+    file_name: &Path,
     crate_type: CrateType,
 ) -> CrateId {
-    let dir_path = root_file.as_ref().to_path_buf();
-    let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
+    let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
     context.crate_graph.add_crate_root(crate_type, root_file_id)
 }
 
 /// Creates a Non Local Crate. A Non Local Crate is any crate which is the not the crate that
 /// the compiler is compiling.
-pub fn create_non_local_crate<P: AsRef<Path>>(
+pub fn create_non_local_crate(
     context: &mut Context,
-    root_file: P,
+    file_name: &Path,
     crate_type: CrateType,
 ) -> CrateId {
-    let dir_path = root_file.as_ref().to_path_buf();
-    let root_file_id = context.file_manager.add_file(&dir_path).unwrap();
+    let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
     // You can add any crate type to the crate graph
     // but you cannot depend on Binaries
@@ -153,7 +151,7 @@ pub fn check_crate(
     // however, the `create_non_local_crate` panics if you add the stdlib as the first crate in the graph and other
     // parts of the code expect the `0` FileID to be the crate root. See also #1681
     let std_crate_name = "std";
-    let path_to_std_lib_file = PathBuf::from(std_crate_name).join("lib.nr");
+    let path_to_std_lib_file = Path::new(std_crate_name).join("lib.nr");
     let root_file_id = context.file_manager.add_file(&path_to_std_lib_file).unwrap();
 
     // You can add any crate type to the crate graph

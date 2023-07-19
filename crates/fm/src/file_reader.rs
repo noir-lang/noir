@@ -11,6 +11,16 @@ use std::path::Path;
 #[cfg_attr(target_os = "windows", prefix = r"std\")] // Note reversed slash direction
 struct StdLibAssets;
 
+#[cfg(target_os = "windows")]
+pub(super) fn is_stdlib_asset(path: &Path) -> bool {
+    path.starts_with("std\\")
+}
+
+#[cfg(not(target_os = "windows"))]
+pub(super) fn is_stdlib_asset(path: &Path) -> bool {
+    path.starts_with("std/")
+}
+
 cfg_if::cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
         use wasm_bindgen::{prelude::*, JsValue};
@@ -41,6 +51,7 @@ cfg_if::cfg_if! {
             }
         }
     } else {
+
         pub(crate) fn read_file_to_string(path_to_file: &Path) -> Result<String, Error> {
 
             match StdLibAssets::get(path_to_file.to_str().unwrap()) {
