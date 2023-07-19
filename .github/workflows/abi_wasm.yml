@@ -1,6 +1,8 @@
 name: ABI Wasm test
 
-on: [push, pull_request]
+on:
+  pull_request:
+  merge_group:
 
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
