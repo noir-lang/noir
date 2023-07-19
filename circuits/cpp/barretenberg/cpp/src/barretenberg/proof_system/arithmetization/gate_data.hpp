@@ -70,6 +70,16 @@ template <typename FF> struct poly_triple_ {
 
 using poly_triple = poly_triple_<barretenberg::fr>;
 
+struct ecc_op_tuple {
+    uint32_t op;
+    uint32_t x_lo;
+    uint32_t x_hi;
+    uint32_t y_lo;
+    uint32_t y_hi;
+    uint32_t z_lo;
+    uint32_t z_hi;
+};
+
 template <typename B> inline void read(B& buf, poly_triple& constraint)
 {
     using serialize::read;

@@ -4,6 +4,7 @@
 #include "barretenberg/plonk/proof_system/types/prover_settings.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/proof_system/arithmetization/arithmetization.hpp"
+#include "barretenberg/proof_system/op_queue/ecc_op_queue.hpp"
 #include "barretenberg/proof_system/plookup_tables/plookup_tables.hpp"
 #include "barretenberg/proof_system/plookup_tables/types.hpp"
 #include "barretenberg/proof_system/types/merkle_hash_type.hpp"
@@ -35,6 +36,12 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
     static constexpr size_t NUM_RESERVED_GATES = 4;
     // number of gates created per non-native field operation in process_non_native_field_multiplications
     static constexpr size_t GATES_PER_NON_NATIVE_FIELD_MULTIPLICATION_ARITHMETIC = 7;
+
+    size_t num_ecc_op_gates = 0; // number of ecc op "gates" (rows); these are placed at the start of the circuit
+
+    // Stores record of ecc operations and performs corresponding native operations internally
+    ECCOpQueue op_queue;
+
     struct non_native_field_witnesses {
         // first 4 array elements = limbs
         // 5th element = prime basis limb
@@ -532,6 +539,14 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
     WireVector& w_o = std::get<2>(this->wires);
     WireVector& w_4 = std::get<3>(this->wires);
 
+    // Wires storing ecc op queue data; values are indices into the variables array
+    std::array<WireVector, arithmetization::Ultra<FF>::NUM_WIRES> ecc_op_wires;
+
+    WireVector& ecc_op_wire_1 = std::get<0>(ecc_op_wires);
+    WireVector& ecc_op_wire_2 = std::get<1>(ecc_op_wires);
+    WireVector& ecc_op_wire_3 = std::get<2>(ecc_op_wires);
+    WireVector& ecc_op_wire_4 = std::get<3>(ecc_op_wires);
+
     SelectorVector& q_m = this->selectors.q_m;
     SelectorVector& q_c = this->selectors.q_c;
     SelectorVector& q_1 = this->selectors.q_1;
@@ -688,6 +703,20 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
 
     uint32_t put_constant_variable(const FF& variable);
 
+    /**
+     * ** Goblin Methods ** (methods for add ecc op queue gates)
+     **/
+    void queue_ecc_add_accum(const g1::affine_element& point);
+    void queue_ecc_mul_accum(const g1::affine_element& point, const fr& scalar);
+    g1::affine_element queue_ecc_eq();
+    g1::affine_element batch_mul(const std::vector<g1::affine_element>& points, const std::vector<fr>& scalars);
+
+  private:
+    void record_ecc_op(const ecc_op_tuple& in);
+    void add_ecc_op_gates(uint32_t op, const g1::affine_element& point, const fr& scalar = fr::zero());
+    ecc_op_tuple make_ecc_op_tuple(uint32_t op, const g1::affine_element& point, const fr& scalar = fr::zero());
+
+  public:
     size_t get_num_constant_gates() const override { return 0; }
 
     /**
