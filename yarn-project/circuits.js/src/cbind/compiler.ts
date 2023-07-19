@@ -511,9 +511,13 @@ import { IWasmModule } from '@aztec/foundation/wasm';
         outputs.push('\n');
       }
     }
-    outputs[0] += `import {toBuffer, ${imports.join(', ')}} from './types.js';`;
-    outputs[0] += `import {Tuple, mapTuple} from '@aztec/foundation/serialize';`;
-    outputs[0] += `import mapValues from 'lodash.mapvalues';`;
+
+    outputs[0] += `
+import {toBuffer, ${imports.join(', ')}} from './types.js';
+import {Tuple, mapTuple} from '@aztec/foundation/serialize';
+import mapValues from 'lodash.mapvalues';
+       `;
+
     for (const funcDecl of Object.values(this.funcDecls)) {
       outputs.push(funcDecl);
     }
