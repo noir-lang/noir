@@ -61,20 +61,6 @@ template <typename NCT> struct CombinedHistoricTreeRoots {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, CombinedHistoricTreeRoots<NCT>& historic_tree_roots)
-{
-    using serialize::read;
-
-    read(it, historic_tree_roots.private_historic_tree_roots);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, CombinedHistoricTreeRoots<NCT> const& historic_tree_roots)
-{
-    using serialize::write;
-
-    write(buf, historic_tree_roots.private_historic_tree_roots);
-};
-
 template <typename NCT>
 std::ostream& operator<<(std::ostream& os, CombinedHistoricTreeRoots<NCT> const& historic_tree_roots)
 {

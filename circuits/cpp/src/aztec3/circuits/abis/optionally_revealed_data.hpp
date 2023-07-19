@@ -102,34 +102,6 @@ template <typename NCT> struct OptionallyRevealedData {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, OptionallyRevealedData<NCT>& data)
-{
-    using serialize::read;
-
-    read(it, data.call_stack_item_hash);
-    read(it, data.function_data);
-    read(it, data.vk_hash);
-    read(it, data.portal_contract_address);
-    read(it, data.pay_fee_from_l1);
-    read(it, data.pay_fee_from_public_l2);
-    read(it, data.called_from_l1);
-    read(it, data.called_from_public_l2);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, OptionallyRevealedData<NCT> const& data)
-{
-    using serialize::write;
-
-    write(buf, data.call_stack_item_hash);
-    write(buf, data.function_data);
-    write(buf, data.vk_hash);
-    write(buf, data.portal_contract_address);
-    write(buf, data.pay_fee_from_l1);
-    write(buf, data.pay_fee_from_public_l2);
-    write(buf, data.called_from_l1);
-    write(buf, data.called_from_public_l2);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, OptionallyRevealedData<NCT> const& data)
 {
     return os << "call_stack_item_hash: " << data.call_stack_item_hash << "\n"

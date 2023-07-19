@@ -83,28 +83,6 @@ template <typename NCT, template <class> typename PrivatePublic> struct CallStac
 };
 
 template <typename NCT, template <class> typename PrivatePublic>
-void read(uint8_t const*& it, CallStackItem<NCT, PrivatePublic>& call_stack_item)
-{
-    using serialize::read;
-
-    read(it, call_stack_item.contract_address);
-    read(it, call_stack_item.function_data);
-    read(it, call_stack_item.public_inputs);
-    read(it, call_stack_item.is_execution_request);
-};
-
-template <typename NCT, template <class> typename PrivatePublic>
-void write(std::vector<uint8_t>& buf, CallStackItem<NCT, PrivatePublic> const& call_stack_item)
-{
-    using serialize::write;
-
-    write(buf, call_stack_item.contract_address);
-    write(buf, call_stack_item.function_data);
-    write(buf, call_stack_item.public_inputs);
-    write(buf, call_stack_item.is_execution_request);
-};
-
-template <typename NCT, template <class> typename PrivatePublic>
 std::ostream& operator<<(std::ostream& os, CallStackItem<NCT, PrivatePublic> const& call_stack_item)
 {
     utils::msgpack_derived_output(os, call_stack_item);

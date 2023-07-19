@@ -63,22 +63,6 @@ template <typename NCT> struct Point {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, Point<NCT>& point)
-{
-    using serialize::read;
-
-    read(it, point.x);
-    read(it, point.y);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, Point<NCT> const& point)
-{
-    using serialize::write;
-
-    write(buf, point.x);
-    write(buf, point.y);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, Point<NCT> const& point)
 {
     return os << "x: " << point.x << "\n"

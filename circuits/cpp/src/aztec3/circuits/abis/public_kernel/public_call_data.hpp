@@ -72,28 +72,6 @@ template <typename NCT> struct PublicCallData {
     };
 };
 
-template <typename NCT> void read(uint8_t const*& it, PublicCallData<NCT>& obj)
-{
-    using serialize::read;
-
-    read(it, obj.call_stack_item);
-    read(it, obj.public_call_stack_preimages);
-    read(it, obj.proof);
-    read(it, obj.portal_contract_address);
-    read(it, obj.bytecode_hash);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, PublicCallData<NCT> const& obj)
-{
-    using serialize::write;
-
-    write(buf, obj.call_stack_item);
-    write(buf, obj.public_call_stack_preimages);
-    write(buf, obj.proof);
-    write(buf, obj.portal_contract_address);
-    write(buf, obj.bytecode_hash);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicCallData<NCT> const& obj)
 {
     return os << "call_stack_item:\n"

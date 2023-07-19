@@ -65,22 +65,6 @@ template <typename NCT> struct CombinedConstantData {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, CombinedConstantData<NCT>& constant_data)
-{
-    using serialize::read;
-
-    read(it, constant_data.historic_tree_roots);
-    read(it, constant_data.tx_context);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, CombinedConstantData<NCT> const& constant_data)
-{
-    using serialize::write;
-
-    write(buf, constant_data.historic_tree_roots);
-    write(buf, constant_data.tx_context);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedConstantData<NCT> const& constant_data)
 {
     return os << "historic_tree_roots: " << constant_data.historic_tree_roots << "\n"

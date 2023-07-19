@@ -77,28 +77,6 @@ template <typename NCT> struct PrivateHistoricTreeRoots {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, PrivateHistoricTreeRoots<NCT>& historic_tree_roots)
-{
-    using serialize::read;
-
-    read(it, historic_tree_roots.private_data_tree_root);
-    read(it, historic_tree_roots.nullifier_tree_root);
-    read(it, historic_tree_roots.contract_tree_root);
-    read(it, historic_tree_roots.l1_to_l2_messages_tree_root);
-    read(it, historic_tree_roots.private_kernel_vk_tree_root);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, PrivateHistoricTreeRoots<NCT> const& historic_tree_roots)
-{
-    using serialize::write;
-
-    write(buf, historic_tree_roots.private_data_tree_root);
-    write(buf, historic_tree_roots.nullifier_tree_root);
-    write(buf, historic_tree_roots.contract_tree_root);
-    write(buf, historic_tree_roots.l1_to_l2_messages_tree_root);
-    write(buf, historic_tree_roots.private_kernel_vk_tree_root);
-};
-
 template <typename NCT>
 std::ostream& operator<<(std::ostream& os, PrivateHistoricTreeRoots<NCT> const& historic_tree_roots)
 {

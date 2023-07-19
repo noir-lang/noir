@@ -81,24 +81,6 @@ template <typename NCT> struct FunctionData {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, FunctionData<NCT>& function_data)
-{
-    using serialize::read;
-
-    read(it, function_data.function_selector);
-    read(it, function_data.is_private);
-    read(it, function_data.is_constructor);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, FunctionData<NCT> const& function_data)
-{
-    using serialize::write;
-
-    write(buf, function_data.function_selector);
-    write(buf, function_data.is_private);
-    write(buf, function_data.is_constructor);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionData<NCT> const& function_data)
 {
     return os << "function_selector: " << function_data.function_selector << "\n"

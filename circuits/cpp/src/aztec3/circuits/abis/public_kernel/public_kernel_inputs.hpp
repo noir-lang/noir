@@ -41,22 +41,6 @@ template <typename NCT> struct PublicKernelInputs {
     };
 };
 
-template <typename NCT> void read(uint8_t const*& it, PublicKernelInputs<NCT>& public_kernel_inputs)
-{
-    using serialize::read;
-
-    read(it, public_kernel_inputs.previous_kernel);
-    read(it, public_kernel_inputs.public_call);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, PublicKernelInputs<NCT> const& public_kernel_inputs)
-{
-    using serialize::write;
-
-    write(buf, public_kernel_inputs.previous_kernel);
-    write(buf, public_kernel_inputs.public_call);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicKernelInputs<NCT> const& public_kernel_inputs)
 {
     return os << "previous_kernel:\n"

@@ -35,34 +35,6 @@ template <typename NCT> struct ConstantRollupData {
     bool operator==(ConstantRollupData<NCT> const&) const = default;
 };
 
-template <typename NCT> void read(uint8_t const*& it, ConstantRollupData<NCT>& obj)
-{
-    using serialize::read;
-
-    read(it, obj.start_tree_of_historic_private_data_tree_roots_snapshot);
-    read(it, obj.start_tree_of_historic_contract_tree_roots_snapshot);
-    read(it, obj.start_tree_of_historic_l1_to_l2_msg_tree_roots_snapshot);
-    read(it, obj.private_kernel_vk_tree_root);
-    read(it, obj.public_kernel_vk_tree_root);
-    read(it, obj.base_rollup_vk_hash);
-    read(it, obj.merge_rollup_vk_hash);
-    read(it, obj.global_variables);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, ConstantRollupData<NCT> const& obj)
-{
-    using serialize::write;
-
-    write(buf, obj.start_tree_of_historic_private_data_tree_roots_snapshot);
-    write(buf, obj.start_tree_of_historic_contract_tree_roots_snapshot);
-    write(buf, obj.start_tree_of_historic_l1_to_l2_msg_tree_roots_snapshot);
-    write(buf, obj.private_kernel_vk_tree_root);
-    write(buf, obj.public_kernel_vk_tree_root);
-    write(buf, obj.base_rollup_vk_hash);
-    write(buf, obj.merge_rollup_vk_hash);
-    write(buf, obj.global_variables);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, ConstantRollupData<NCT> const& obj)
 {
     return os << "start_tree_of_historic_private_data_tree_roots_snapshot:\n "

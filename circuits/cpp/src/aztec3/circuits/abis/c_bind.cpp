@@ -96,6 +96,7 @@ static const char* bbmalloc_copy_string(const char* data, size_t len)
  * For testing only. Take this object, write it to a buffer, then output it. */
 template <typename T> static const char* as_string_output(uint8_t const* input_buf, uint32_t* size)
 {
+    using serialize::read;
     T obj;
     read(input_buf, obj);
     std::ostringstream stream;
@@ -109,6 +110,7 @@ template <typename T> static const char* as_string_output(uint8_t const* input_b
  * For testing only. Take this object, serialize it to a buffer, then output it. */
 template <typename T> static const char* as_serialized_output(uint8_t const* input_buf, uint32_t* size)
 {
+    using serialize::read;
     T obj;
     read(input_buf, obj);
     std::vector<uint8_t> stream;
@@ -282,7 +284,7 @@ WASM_EXPORT void abis__hash_constructor(uint8_t const* function_data_buf,
     NT::fr args_hash;
     NT::fr constructor_vk_hash;
 
-    read(function_data_buf, function_data);
+    serialize::read(function_data_buf, function_data);
     read(args_hash_buf, args_hash);
     read(constructor_vk_hash_buf, constructor_vk_hash);
 
@@ -315,7 +317,7 @@ WASM_EXPORT void abis__compute_contract_address(uint8_t const* point_data_buf,
     NT::fr function_tree_root;
     NT::fr constructor_hash;
 
-    read(point_data_buf, deployer_public_key);
+    serialize::read(point_data_buf, deployer_public_key);
     read(contract_address_salt_buf, contract_address_salt);
     read(function_tree_root_buf, function_tree_root);
     read(constructor_hash_buf, constructor_hash);
@@ -344,7 +346,7 @@ WASM_EXPORT void abis__compute_contract_address_from_partial(uint8_t const* poin
     Point<NT> deployer_public_key;
     NT::fr partial_address;
 
-    read(point_data_buf, deployer_public_key);
+    serialize::read(point_data_buf, deployer_public_key);
     read(partial_address_data_buf, partial_address);
 
     NT::fr const contract_address =
@@ -412,7 +414,7 @@ WASM_EXPORT void abis__compute_var_args_hash(uint8_t const* args_buf, uint8_t* o
 WASM_EXPORT void abis__compute_contract_leaf(uint8_t const* contract_leaf_preimage_buf, uint8_t* output)
 {
     NewContractData<NT> leaf_preimage;
-    read(contract_leaf_preimage_buf, leaf_preimage);
+    serialize::read(contract_leaf_preimage_buf, leaf_preimage);
     // as per the circuit implementation, if contract address == zero then return a zero leaf
     auto to_write = leaf_preimage.hash();
     NT::fr::serialize_to_buffer(to_write, output);
@@ -460,7 +462,7 @@ WASM_EXPORT void abis__compute_transaction_hash(uint8_t const* tx_request_buf, u
 WASM_EXPORT void abis__compute_call_stack_item_hash(uint8_t const* call_stack_item_buf, uint8_t* output)
 {
     CallStackItem<NT, PublicTypes> call_stack_item;
-    read(call_stack_item_buf, call_stack_item);
+    serialize::read(call_stack_item_buf, call_stack_item);
     NT::fr::serialize_to_buffer(get_call_stack_item_hash(call_stack_item), output);
 }
 

@@ -276,8 +276,8 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
                 // Create the nullifier leaf of the new nullifier to be inserted
                 NullifierLeafPreimage new_nullifier_leaf = {
                     .leaf_value = nullifier,
-                    .next_index = low_nullifier_preimage.next_index,
                     .next_value = low_nullifier_preimage.next_value,
+                    .next_index = low_nullifier_preimage.next_index,
                 };
 
                 // Assuming populated premier subtree
@@ -333,8 +333,8 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
                     // Recreate the original low nullifier from the preimage
                     auto const original_low_nullifier = NullifierLeafPreimage{
                         .leaf_value = low_nullifier_preimage.leaf_value,
-                        .next_index = low_nullifier_preimage.next_index,
                         .next_value = low_nullifier_preimage.next_value,
+                        .next_index = low_nullifier_preimage.next_index,
                     };
 
                     // perform membership check for the low nullifier against the original root
@@ -349,8 +349,8 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
                     // Calculate the new value of the low_nullifier_leaf
                     auto const updated_low_nullifier =
                         NullifierLeafPreimage{ .leaf_value = low_nullifier_preimage.leaf_value,
-                                               .next_index = new_index,
-                                               .next_value = nullifier };
+                                               .next_value = nullifier,
+                                               .next_index = new_index };
 
                     // We need another set of witness values for this
                     current_nullifier_tree_root = root_from_sibling_path<NT>(
@@ -360,11 +360,7 @@ AppendOnlySnapshot check_nullifier_tree_non_membership_and_insert_to_tree(DummyB
                 nullifier_insertion_subtree[nullifier_index] = new_nullifier_leaf;
             } else {
                 // 0 case
-                NullifierLeafPreimage const new_nullifier_leaf = {
-                    .leaf_value = 0,
-                    .next_index = 0,
-                    .next_value = 0,
-                };
+                NullifierLeafPreimage const new_nullifier_leaf = { .leaf_value = 0, .next_value = 0, .next_index = 0 };
                 nullifier_insertion_subtree[nullifier_index] = new_nullifier_leaf;
             }
 

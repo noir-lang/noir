@@ -102,28 +102,6 @@ template <typename NCT> struct ContractDeploymentData {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, ContractDeploymentData<NCT>& data)
-{
-    using serialize::read;
-
-    read(it, data.deployer_public_key);
-    read(it, data.constructor_vk_hash);
-    read(it, data.function_tree_root);
-    read(it, data.contract_address_salt);
-    read(it, data.portal_contract_address);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, ContractDeploymentData<NCT> const& data)
-{
-    using serialize::write;
-
-    write(buf, data.deployer_public_key);
-    write(buf, data.constructor_vk_hash);
-    write(buf, data.function_tree_root);
-    write(buf, data.contract_address_salt);
-    write(buf, data.portal_contract_address);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, ContractDeploymentData<NCT> const& data)
 {
     return os << "deployer_public_key: " << data.deployer_public_key << "\n"

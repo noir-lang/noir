@@ -75,24 +75,6 @@ template <typename NCT> struct KernelCircuitPublicInputs {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, KernelCircuitPublicInputs<NCT>& public_inputs)
-{
-    using serialize::read;
-
-    read(it, public_inputs.end);
-    read(it, public_inputs.constants);
-    read(it, public_inputs.is_private);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, KernelCircuitPublicInputs<NCT> const& public_inputs)
-{
-    using serialize::write;
-
-    write(buf, public_inputs.end);
-    write(buf, public_inputs.constants);
-    write(buf, public_inputs.is_private);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, KernelCircuitPublicInputs<NCT> const& public_inputs)
 {
     return os << "end:\n"

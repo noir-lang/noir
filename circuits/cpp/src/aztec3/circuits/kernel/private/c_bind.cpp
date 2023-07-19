@@ -84,7 +84,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* tx_request_buf,
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;
-    write(public_inputs_vec, public_inputs);
+    serialize::write(public_inputs_vec, public_inputs);
     // copy public inputs to output buffer
     auto* raw_public_inputs_buf = (uint8_t*)malloc(public_inputs_vec.size());
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());
@@ -103,7 +103,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_bu
     read(private_call_buf, private_call_data);
 
     PreviousKernelData<NT> previous_kernel;
-    read(previous_kernel_buf, previous_kernel);
+    serialize::read(previous_kernel_buf, previous_kernel);
 
     PrivateKernelInputsInner<NT> const private_inputs = PrivateKernelInputsInner<NT>{
         .previous_kernel = previous_kernel,
@@ -114,7 +114,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_bu
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;
-    write(public_inputs_vec, public_inputs);
+    serialize::write(public_inputs_vec, public_inputs);
     // copy public inputs to output buffer
     auto* raw_public_inputs_buf = (uint8_t*)malloc(public_inputs_vec.size());
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());

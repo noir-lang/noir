@@ -93,7 +93,7 @@ TEST_F(private_kernel_tests, circuit_cbinds)
 
     // serialize expected public inputs for later comparison
     std::vector<uint8_t> expected_public_inputs_vec;
-    write(expected_public_inputs_vec, public_inputs);
+    serialize::write(expected_public_inputs_vec, public_inputs);
 
     //***************************************************************************
     // Now run the simulate/prove cbinds to make sure their outputs match

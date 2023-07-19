@@ -104,30 +104,6 @@ template <typename NCT> struct CallContext {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, CallContext<NCT>& call_context)
-{
-    using serialize::read;
-
-    read(it, call_context.msg_sender);
-    read(it, call_context.storage_contract_address);
-    read(it, call_context.portal_contract_address);
-    read(it, call_context.is_delegate_call);
-    read(it, call_context.is_static_call);
-    read(it, call_context.is_contract_deployment);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, CallContext<NCT> const& call_context)
-{
-    using serialize::write;
-
-    write(buf, call_context.msg_sender);
-    write(buf, call_context.storage_contract_address);
-    write(buf, call_context.portal_contract_address);
-    write(buf, call_context.is_delegate_call);
-    write(buf, call_context.is_static_call);
-    write(buf, call_context.is_contract_deployment);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, CallContext<NCT> const& call_context)
 {
     utils::msgpack_derived_output(os, call_context);

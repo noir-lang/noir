@@ -64,7 +64,7 @@ class DummyCircuitBuilder {
 
         // serialize circuit failure to bytes vec
         std::vector<uint8_t> circuit_failure_vec;
-        write(circuit_failure_vec, failure);
+        serialize::write(circuit_failure_vec, failure);
 
         // copy to output buffer
         auto* raw_failure_buf = static_cast<uint8_t*>(malloc(circuit_failure_vec.size()));

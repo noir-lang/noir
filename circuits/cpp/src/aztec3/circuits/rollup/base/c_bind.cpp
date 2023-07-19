@@ -58,7 +58,7 @@ WASM_EXPORT uint8_t* base_rollup__sim(uint8_t const* base_rollup_inputs_buf,
     // auto crs_factory = std::make_shared<EnvReferenceStringFactory>();
 
     BaseRollupInputs<NT> base_rollup_inputs;
-    read(base_rollup_inputs_buf, base_rollup_inputs);
+    serialize::read(base_rollup_inputs_buf, base_rollup_inputs);
 
     BaseOrMergeRollupPublicInputs<NT> const public_inputs = base_rollup_circuit(builder, base_rollup_inputs);
 

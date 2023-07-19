@@ -116,21 +116,6 @@ template <typename T> struct CircuitResult {
     void msgpack_schema(auto& packer) const { packer.pack_schema(result); }
 };
 
-inline void read(uint8_t const*& it, CircuitError& obj)
-{
-    using serialize::read;
-    read(it, obj.code);
-    read(it, obj.message);
-};
-
-inline void write(std::vector<uint8_t>& buf, CircuitError const& obj)
-{
-    using serialize::write;
-
-    write(buf, obj.code);
-    write(buf, obj.message);
-};
-
 inline std::ostream& operator<<(std::ostream& os, CircuitError const& obj)
 {
     return os << "code: " << obj.code << "\n"

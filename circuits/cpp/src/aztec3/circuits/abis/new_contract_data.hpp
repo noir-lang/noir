@@ -95,24 +95,6 @@ template <typename NCT> struct NewContractData {
     }
 };
 
-template <typename NCT> void read(uint8_t const*& it, NewContractData<NCT>& new_contract_data)
-{
-    using serialize::read;
-
-    read(it, new_contract_data.contract_address);
-    read(it, new_contract_data.portal_contract_address.address_);
-    read(it, new_contract_data.function_tree_root);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, NewContractData<NCT> const& new_contract_data)
-{
-    using serialize::write;
-
-    write(buf, new_contract_data.contract_address);
-    write(buf, new_contract_data.portal_contract_address.address_);
-    write(buf, new_contract_data.function_tree_root);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, NewContractData<NCT> const& new_contract_data)
 {
     return os << "contract_address: " << new_contract_data.contract_address << "\n"

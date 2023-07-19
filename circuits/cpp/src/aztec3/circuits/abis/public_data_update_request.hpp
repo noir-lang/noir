@@ -78,24 +78,6 @@ template <typename NCT> struct PublicDataUpdateRequest {
     boolean is_empty() const { return leaf_index == 0; }
 };
 
-template <typename NCT> void read(uint8_t const*& it, PublicDataUpdateRequest<NCT>& update_request)
-{
-    using serialize::read;
-
-    read(it, update_request.leaf_index);
-    read(it, update_request.old_value);
-    read(it, update_request.new_value);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, PublicDataUpdateRequest<NCT> const& update_request)
-{
-    using serialize::write;
-
-    write(buf, update_request.leaf_index);
-    write(buf, update_request.old_value);
-    write(buf, update_request.new_value);
-};
-
 template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicDataUpdateRequest<NCT> const& update_request)
 {
     return os << "leaf_index: " << update_request.leaf_index << "\n"

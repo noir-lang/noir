@@ -82,7 +82,7 @@ class base_rollup_tests : public ::testing::Test {
         // info("Verification key size: ", vk_size);
 
         std::vector<uint8_t> base_rollup_inputs_vec;
-        write(base_rollup_inputs_vec, base_rollup_inputs);
+        serialize::write(base_rollup_inputs_vec, base_rollup_inputs);
 
         // uint8_t const* proof_data;
         // size_t proof_data_size;

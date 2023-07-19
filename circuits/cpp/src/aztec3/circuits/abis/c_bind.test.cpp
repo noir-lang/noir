@@ -1,4 +1,5 @@
 #include "c_bind.h"
+
 #include "function_leaf_preimage.hpp"
 #include "tx_request.hpp"
 
@@ -89,7 +90,7 @@ TEST(abi_tests, compute_contract_address)
     write(contract_address_salt_buf, contract_address_salt);
     write(function_tree_root_buf, function_tree_root);
     write(constructor_hash_buf, constructor_hash);
-    write(point_buf, point);
+    serialize::write(point_buf, point);
     abis__compute_contract_address(point_buf.data(),
                                    contract_address_salt_buf.data(),
                                    function_tree_root_buf.data(),
@@ -287,7 +288,7 @@ TEST(abi_tests, hash_constructor)
 
     // Write the function data and args to a buffer
     std::vector<uint8_t> func_data_buf;
-    write(func_data_buf, func_data);
+    serialize::write(func_data_buf, func_data);
 
     std::vector<uint8_t> args_hash_buf;
     write(args_hash_buf, args_hash);
@@ -346,7 +347,7 @@ TEST(abi_tests, compute_contract_leaf)
 
     // Write the leaf preimage to a buffer
     std::vector<uint8_t> preimage_buf;
-    write(preimage_buf, preimage);
+    serialize::write(preimage_buf, preimage);
 
     std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
     abis__compute_contract_leaf(preimage_buf.data(), output.data());
