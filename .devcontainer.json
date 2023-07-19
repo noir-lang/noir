@@ -1,0 +1,25 @@
+{
+	"image": "ghcr.io/xtruder/nix-devcontainer",
+	"features": {
+		"ghcr.io/devcontainers/features/node:1": {
+			"nodeGypDependencies": true,
+			"version": "18"
+		}
+	},
+	"containerEnv": {
+		// extensions to preload before other extensions
+		"PRELOAD_EXTENSIONS": "arrterian.nix-env-selector"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				// select nix environment
+				"arrterian.nix-env-selector",
+				// extra extensions
+				//"fsevenm.run-it-on",
+				"jnoortheen.nix-ide",
+				//"ms-python.python"
+			]
+		}
+	}
+}
