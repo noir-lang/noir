@@ -54,11 +54,11 @@ jobs:
           path: ./result
 
       - name: Set up test environment
-        working_directory: ./crates/noirc_abi_wasm
+        working-directory: ./crates/noirc_abi_wasm
         uses: ./.github/actions/setup
 
       - name: Run node tests
-        working_directory: ./crates/noirc_abi_wasm
+        working-directory: ./crates/noirc_abi_wasm
         run: yarn test
 
   test-browser:
@@ -77,15 +77,15 @@ jobs:
           path: ./result
 
       - name: Set up test environment
-        working_directory: ./crates/noirc_abi_wasm
+        working-directory: ./crates/noirc_abi_wasm
         uses: ./.github/actions/setup
 
       - name: Install playwright deps
-        working_directory: ./crates/noirc_abi_wasm
+        working-directory: ./crates/noirc_abi_wasm
         run: |
           npx playwright install
           npx playwright install-deps
 
       - name: Run browser tests
-        working_directory: ./crates/noirc_abi_wasm
+        working-directory: ./crates/noirc_abi_wasm
         run: yarn test:browser
