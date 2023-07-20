@@ -159,7 +159,7 @@ export class AztecRPCServer implements AztecRPC {
   public async getPublicKey(address: AztecAddress): Promise<Point> {
     const result = await this.db.getPublicKeyAndPartialAddress(address);
     if (!result) {
-      throw new Error(`Unable to public key for address ${address.toString()}`);
+      throw new Error(`Unable to retrieve public key for address ${address.toString()}`);
     }
     return Promise.resolve(result[0]);
   }
@@ -264,9 +264,9 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   /**
-   * Fetchs a transaction receipt for a tx.
+   * Fetches a transaction receipt for a tx.
    * @param txHash - The transaction hash.
-   * @returns A recipt of the transaction.
+   * @returns A receipt of the transaction.
    */
   public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
     const localTx = await this.#getTxByHash(txHash);

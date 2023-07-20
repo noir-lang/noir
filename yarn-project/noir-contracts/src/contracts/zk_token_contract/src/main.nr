@@ -13,7 +13,6 @@ contract ZkToken {
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::context::Context;
     use dep::aztec::note::{
-        note_getter::NoteGetterOptions,
         note_header::{NoteHeader},
         utils::compute_note_hash_and_nullifier,
     };
@@ -170,6 +169,9 @@ contract ZkToken {
     }
 
     /// ABI stev type "unconstrained"
+    // stev function needs to be defined by every contract producing logs. Having it in all the contracts gives us the ability to
+    // compute the note hash and nullifier differently for different kind of notes.
+    // Note: "stev" is just a placeholder name before we come up with a better one.
     fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> pub [Field; 4] {
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
         if (storage_slot == 2) {

@@ -1,5 +1,6 @@
 export * from './child.js';
 export * from './ecdsa_account.js';
+export * from './pokeable_token.js';
 export * from './non_native_token.js';
 export * from './parent.js';
 export * from './pending_commitments.js';

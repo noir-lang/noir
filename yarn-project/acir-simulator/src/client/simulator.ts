@@ -144,37 +144,38 @@ export class AcirSimulator {
     storageSlot: Fr,
     notePreimage: Fr[],
   ) {
-    const abi = await this.db.getFunctionABI(contractAddress, computeNoteHashAndNullifierSelector);
-    if (!abi) {
+    try {
+      const abi = await this.db.getFunctionABI(contractAddress, computeNoteHashAndNullifierSelector);
+
+      const preimageLen = (abi.parameters[3].type as ArrayType).length;
+      const extendedPreimage = notePreimage.concat(Array(preimageLen - notePreimage.length).fill(Fr.ZERO));
+
+      const execRequest: ExecutionRequest = {
+        from: AztecAddress.ZERO,
+        to: AztecAddress.ZERO,
+        functionData: FunctionData.empty(),
+        args: encodeArguments(abi, [contractAddress, nonce, storageSlot, extendedPreimage]),
+      };
+
+      const [[innerNoteHash, uniqueNoteHash, siloedNoteHash, innerNullifier]] = await this.runUnconstrained(
+        execRequest,
+        abi,
+        AztecAddress.ZERO,
+        EthAddress.ZERO,
+        PrivateHistoricTreeRoots.empty(),
+      );
+
+      return {
+        innerNoteHash: new Fr(innerNoteHash),
+        uniqueNoteHash: new Fr(uniqueNoteHash),
+        siloedNoteHash: new Fr(siloedNoteHash),
+        nullifier: new Fr(innerNullifier),
+      };
+    } catch (e) {
       throw new Error(
-        `Please define an unconstrained function "${computeNoteHashAndNullifierSignature}" in the noir contract.`,
+        `Please define an unconstrained function "${computeNoteHashAndNullifierSignature}" in the noir contract. Bubbled error message: ${e}`,
       );
     }
-
-    const preimageLen = (abi.parameters[3].type as ArrayType).length;
-    const extendedPreimage = notePreimage.concat(Array(preimageLen - notePreimage.length).fill(Fr.ZERO));
-
-    const execRequest: ExecutionRequest = {
-      from: AztecAddress.ZERO,
-      to: AztecAddress.ZERO,
-      functionData: FunctionData.empty(),
-      args: encodeArguments(abi, [contractAddress, nonce, storageSlot, extendedPreimage]),
-    };
-
-    const [[innerNoteHash, uniqueNoteHash, siloedNoteHash, innerNullifier]] = await this.runUnconstrained(
-      execRequest,
-      abi,
-      AztecAddress.ZERO,
-      EthAddress.ZERO,
-      PrivateHistoricTreeRoots.empty(),
-    );
-
-    return {
-      innerNoteHash: new Fr(innerNoteHash),
-      uniqueNoteHash: new Fr(uniqueNoteHash),
-      siloedNoteHash: new Fr(siloedNoteHash),
-      nullifier: new Fr(innerNullifier),
-    };
   }
 
   /**
