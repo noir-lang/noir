@@ -329,7 +329,7 @@ impl<'a> Resolver<'a> {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                if self.interner.enable_slices && size.is_none() {
+                if self.interner.experimental_ssa && size.is_none() {
                     return Type::Slice(elem);
                 }
                 let resolved_size = self.resolve_array_size(size, new_variables);
