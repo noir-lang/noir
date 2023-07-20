@@ -65,6 +65,48 @@ impl Ssa {
         context.defunctionalize_all(&mut self);
         self
     }
+
+    pub(crate) fn is_defunctionalized(&self) -> bool {
+        self.functions.values().all(|func| find_functions_as_values(func).is_empty())
+    }
+
+    /// After defunctionalization, we can perform trivial reachability analysis on the SSA
+    pub(crate) fn reachable_functions(
+        &self,
+        from_function_ids: &[FunctionId],
+    ) -> HashSet<FunctionId> {
+        assert!(
+            self.is_defunctionalized(),
+            "ICE: Cannot find reachable functions in a non-defunctionalized SSA"
+        );
+        // Collect all the function ids that are reachable from the initial set
+        let mut reachable_function_ids: HashSet<FunctionId> = HashSet::new();
+
+        // Initialize the queue with the initial set
+        let mut reachability_queue: Vec<FunctionId> = from_function_ids.to_vec();
+
+        while let Some(func_id) = reachability_queue.pop() {
+            let func = &self.functions[&func_id];
+            reachable_function_ids.insert(func.id());
+
+            // All reachable functions appear as literals after defunctionalization of the SSA
+            let call_target_ids = find_static_call_targets(func);
+
+            // Explore all functions that are reachable from this function
+            for target_id in call_target_ids {
+                // If the function is already reachable or enqueued, skip it.
+                if reachable_function_ids.contains(&target_id)
+                    || reachability_queue.contains(&target_id)
+                {
+                    continue;
+                }
+
+                reachability_queue.push(target_id);
+            }
+        }
+
+        reachable_function_ids
+    }
 }
 
 impl DefunctionalizationContext {
@@ -186,6 +228,26 @@ fn find_variants(ssa: &Ssa) -> HashMap<Signature, Vec<FunctionId>> {
     }
 
     variants
+}
+
+/// Finds all functions that are targeted by a call directly
+fn find_static_call_targets(func: &Function) -> HashSet<FunctionId> {
+    let mut targets = HashSet::new();
+    for block_id in func.reachable_blocks() {
+        let block = &func.dfg[block_id];
+        for instruction_id in block.instructions() {
+            let instruction = &func.dfg[*instruction_id];
+            match instruction {
+                Instruction::Call { func: target_value_id, .. } => {
+                    if let Value::Function(target_func_id) = &func.dfg[*target_value_id] {
+                        targets.insert(*target_func_id);
+                    }
+                }
+                _ => continue,
+            };
+        }
+    }
+    targets
 }
 
 /// Finds all literal functions used as values in the given function

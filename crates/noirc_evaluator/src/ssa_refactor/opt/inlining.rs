@@ -156,23 +156,19 @@ impl InlineContext {
     }
 
     /// Finish inlining and return the new Ssa struct with the inlined version of main.
-    /// If any functions failed to inline, they are not removed from the final Ssa struct.
+    /// If any functions are still reachable from the new main, they are not removed from the final Ssa struct.
     fn finish(self, mut ssa: Ssa) -> Ssa {
         let mut new_ssa = self.builder.finish();
         assert_eq!(new_ssa.functions.len(), 1);
+        let new_main = new_ssa.functions.pop_first().unwrap().1;
 
-        // If we failed to inline any call, any function may still be reachable so we
-        // don't remove any from the final program. We could be more precise here and
-        // do a reachability analysis but it should be fine to keep the extra functions
-        // around longer if they are not called.
-        if self.failed_to_inline_a_call {
-            let new_main = new_ssa.functions.pop_first().unwrap().1;
-            ssa.main_id = new_main.id();
-            ssa.functions.insert(new_main.id(), new_main);
-            ssa
-        } else {
-            new_ssa
-        }
+        ssa.main_id = new_main.id();
+        ssa.functions.insert(new_main.id(), new_main);
+
+        let reachable_ids = ssa.reachable_functions(&[ssa.main_id]);
+        ssa.functions.retain(|id, _| reachable_ids.contains(id));
+
+        ssa
     }
 }
 
