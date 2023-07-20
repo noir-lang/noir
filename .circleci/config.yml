@@ -689,6 +689,12 @@ jobs:
           command: |
             deploy_ecr aztec-cli
             deploy_npm aztec-cli
+      - run:
+          name: "aztec-sandbox"
+          working_directory: aztec-sandbox
+          command: |
+            deploy_ecr aztec-sandbox
+            deploy_npm aztec-sandbox
 
   deploy-dockerhub:
     machine:
