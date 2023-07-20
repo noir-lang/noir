@@ -192,12 +192,9 @@ fn find_variants(ssa: &Ssa) -> HashMap<Signature, Vec<FunctionId>> {
 fn find_functions_as_values(func: &Function) -> HashSet<FunctionId> {
     let mut functions_as_values: HashSet<FunctionId> = HashSet::new();
 
-    let mut process_values = |value_ids: &[ValueId]| {
-        let values = vecmap(value_ids, |id| &func.dfg[*id]);
-        for value in values {
-            if let Value::Function(id) = value {
-                functions_as_values.insert(*id);
-            }
+    let mut process_value = |value_id: ValueId| {
+        if let Value::Function(id) = func.dfg[value_id] {
+            functions_as_values.insert(id);
         }
     };
 
@@ -207,26 +204,17 @@ fn find_functions_as_values(func: &Function) -> HashSet<FunctionId> {
             let instruction = &func.dfg[*instruction_id];
             match instruction {
                 Instruction::Call { arguments, .. } => {
-                    process_values(arguments);
+                    arguments.iter().for_each(|value_id| process_value(*value_id));
                 }
                 Instruction::Store { value, .. } => {
-                    process_values(&[*value]);
+                    process_value(*value);
                 }
                 _ => continue,
             };
         }
 
-        match block.terminator() {
-            Some(TerminatorInstruction::Jmp { arguments, .. }) => {
-                process_values(arguments);
-            }
-            Some(TerminatorInstruction::Return { return_values }) => {
-                process_values(return_values);
-            }
-            _ => {}
-        }
+        block.unwrap_terminator().for_each_value(&mut process_value);
     }
-
     functions_as_values
 }
 
