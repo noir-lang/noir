@@ -21,9 +21,6 @@ pub enum Type {
     /// is either a type variable of some kind or a Type::Constant.
     Array(Box<Type>, Box<Type>),
 
-    /// Slice(E) is a slice with elements of type E.
-    Slice(Box<Type>),
-
     /// A primitive integer type with the given sign, bit count, and whether it is known at compile-time.
     /// E.g. `u32` would be `Integer(CompTime::No(None), Unsigned, 32)`
     Integer(CompTime, Signedness, u32),
@@ -87,6 +84,19 @@ pub enum Type {
     /// A type-level integer. Included to let an Array's size type variable
     /// bind to an integer without special checks to bind it to a non-type.
     Constant(u64),
+
+    /// A type variable kind that is potentially bound to a constant.
+    /// Array literals are initialized with their lengths as MaybeConstant.
+    /// If they are not used as slices later on, the MaybeConstant size will
+    /// default to a Constant size. Otherwise they will be bound to either
+    /// NotConstant or a Constant, forcing the array literal to be used only
+    /// as a slice or array respectively.
+    MaybeConstant(TypeVariable, u64),
+
+    /// The type of a slice is an array of size NotConstant.
+    /// The size of an array literal is resolved to this if it ever uses operations
+    /// involving slices.
+    NotConstant,
 
     /// The result of some type error. Remembering type errors as their own type variant lets
     /// us avoid issuing repeat type errors for the same item. For example, a lambda with
@@ -226,6 +236,14 @@ impl std::fmt::Display for StructType {
 /// Wrapper is required for Hash impl of RefCell.
 #[derive(Debug, Eq, PartialOrd, Ord)]
 pub struct Shared<T>(Rc<RefCell<T>>);
+
+impl<T> std::ops::Deref for Shared<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.borrow()
+    }
+}
 
 impl<T: std::hash::Hash> std::hash::Hash for Shared<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -576,13 +594,13 @@ impl Type {
             | Type::PolymorphicInteger(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
+            | Type::NotConstant
+            | Type::MaybeConstant(_, _)
             | Type::Forall(_, _) => false,
 
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
             }
-
-            Type::Slice(elem) => elem.contains_numeric_typevar(target_id),
 
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
@@ -621,8 +639,13 @@ impl std::fmt::Display for Type {
             Type::FieldElement(comp_time) => {
                 write!(f, "{comp_time}Field")
             }
-            Type::Array(len, typ) => write!(f, "[{typ}; {len}]"),
-            Type::Slice(typ) => write!(f, "[{typ}]"),
+            Type::Array(len, typ) => {
+                if let Some(length) = len.evaluate_to_u64() {
+                    write!(f, "[{typ}; {length}]")
+                } else {
+                    write!(f, "[{typ}]")
+                }
+            }
             Type::Integer(comp_time, sign, num_bits) => match sign {
                 Signedness::Signed => write!(f, "{comp_time}i{num_bits}"),
                 Signedness::Unsigned => write!(f, "{comp_time}u{num_bits}"),
@@ -671,6 +694,11 @@ impl std::fmt::Display for Type {
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
             }
+            Type::MaybeConstant(binding, x) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.fmt(f),
+                TypeBinding::Unbound(_) => write!(f, "{x}"),
+            },
+            Type::NotConstant => todo!(),
         }
     }
 }
@@ -933,12 +961,18 @@ impl Type {
                 other.try_bind_to(binding)
             }
 
+            (MaybeConstant(binding, _), other) | (other, MaybeConstant(binding, _)) => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return link.try_unify(other, span);
+                }
+
+                other.try_bind_to(binding)
+            }
+
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
                 len_a.try_unify(len_b, span)?;
                 elem_a.try_unify(elem_b, span)
             }
-
-            (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, span),
 
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
@@ -1073,10 +1107,6 @@ impl Type {
                 elem_a.is_subtype_of(elem_b, span)
             }
 
-            (Slice(elem_a), Slice(elem_b)) => elem_a.is_subtype_of(elem_b, span),
-
-            (Array(_, elem_a), Slice(elem_b)) => elem_a.is_subtype_of(elem_b, span),
-
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
                     Err(SpanKind::None)
@@ -1176,6 +1206,10 @@ impl Type {
                 TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
                 TypeBinding::Unbound(_) => None,
             },
+            Type::MaybeConstant(binding, size) => match &*binding.borrow() {
+                TypeBinding::Bound(binding) => binding.evaluate_to_u64(),
+                TypeBinding::Unbound(_) => Some(*size),
+            },
             Type::Array(len, _elem) => len.evaluate_to_u64(),
             Type::Constant(x) => Some(*x),
             _ => None,
@@ -1226,8 +1260,9 @@ impl Type {
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
             Type::Function(_, _) => unreachable!(),
-            Type::Slice(_) => unreachable!("slices cannot be used in the abi"),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
+            Type::MaybeConstant(_, _) => unreachable!(),
+            Type::NotConstant => unreachable!(),
         }
     }
 
@@ -1309,16 +1344,13 @@ impl Type {
                 let element = Box::new(element.substitute(type_bindings));
                 Type::Array(size, element)
             }
-            Type::Slice(element) => {
-                let element = Box::new(element.substitute(type_bindings));
-                Type::Slice(element)
-            }
             Type::String(size) => {
                 let size = Box::new(size.substitute(type_bindings));
                 Type::String(size)
             }
             Type::PolymorphicInteger(_, binding)
             | Type::NamedGeneric(binding, _)
+            | Type::MaybeConstant(binding, _)
             | Type::TypeVariable(binding) => substitute_binding(binding),
 
             // Do not substitute fields, it can lead to infinite recursion
@@ -1354,6 +1386,7 @@ impl Type {
             | Type::Bool(_)
             | Type::Constant(_)
             | Type::Error
+            | Type::NotConstant
             | Type::Unit => self.clone(),
         }
     }
@@ -1362,12 +1395,12 @@ impl Type {
     fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
-            Type::Slice(element) => element.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::PolymorphicInteger(_, binding)
             | Type::NamedGeneric(binding, _)
+            | Type::MaybeConstant(binding, _)
             | Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(binding) => binding.occurs(target_id),
                 TypeBinding::Unbound(id) => *id == target_id,
@@ -1385,6 +1418,7 @@ impl Type {
             | Type::Bool(_)
             | Type::Constant(_)
             | Type::Error
+            | Type::NotConstant
             | Type::Unit => false,
         }
     }
@@ -1401,7 +1435,6 @@ impl Type {
             Array(size, elem) => {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
-            Slice(elem) => Slice(Box::new(elem.follow_bindings())),
             String(size) => String(Box::new(size.follow_bindings())),
             Struct(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
@@ -1409,7 +1442,10 @@ impl Type {
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
 
-            TypeVariable(var) | PolymorphicInteger(_, var) | NamedGeneric(var, _) => {
+            TypeVariable(var)
+            | PolymorphicInteger(_, var)
+            | MaybeConstant(var, _)
+            | NamedGeneric(var, _) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {
                     return typ.follow_bindings();
                 }
@@ -1426,9 +1462,13 @@ impl Type {
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
 
-            FieldElement(_) | Integer(_, _, _) | Bool(_) | Constant(_) | Unit | Error => {
-                self.clone()
-            }
+            FieldElement(_)
+            | Integer(_, _, _)
+            | Bool(_)
+            | Constant(_)
+            | Unit
+            | Error
+            | NotConstant => self.clone(),
         }
     }
 }

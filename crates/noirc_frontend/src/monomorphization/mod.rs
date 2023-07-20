@@ -678,17 +678,16 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(length, element) => {
-                let length = length.evaluate_to_u64().unwrap_or(0);
-                let element = self.convert_type(element.as_ref());
-                if self.interner.experimental_ssa {
-                    return ast::Type::Array(length, Box::new(element));
-                }
-                self.aos_to_soa_type(length, element)
-            }
+                let element = Box::new(self.convert_type(element.as_ref()));
 
-            HirType::Slice(element) => {
-                let element = self.convert_type(element.as_ref());
-                ast::Type::Slice(Box::new(element))
+                if let Some(length) = length.evaluate_to_u64() {
+                    if self.interner.experimental_ssa {
+                        return ast::Type::Array(length, element);
+                    }
+                    self.aos_to_soa_type(length, *element)
+                } else {
+                    ast::Type::Slice(element)
+                }
             }
 
             HirType::PolymorphicInteger(_, binding)
@@ -732,7 +731,10 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
+            HirType::Forall(_, _)
+            | HirType::Constant(_)
+            | HirType::NotConstant
+            | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
         }
@@ -778,7 +780,7 @@ impl<'interner> Monomorphizer<'interner> {
             if let Definition::Oracle(name) = &ident.definition {
                 if name.as_str() == "println" {
                     // Oracle calls are required to be wrapped in an unconstrained function
-                    // Thus, the only argument to the `println` oracle is expected to always be an ident 
+                    // Thus, the only argument to the `println` oracle is expected to always be an ident
                     self.append_abi_arg(&hir_arguments[0], &mut arguments);
                 }
             }
@@ -1147,7 +1149,6 @@ fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
 fn unwrap_array_element_type(typ: &HirType) -> HirType {
     match typ {
         HirType::Array(_, elem) => *elem.clone(),
-        HirType::Slice(elem) => *elem.clone(),
         HirType::TypeVariable(binding) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),

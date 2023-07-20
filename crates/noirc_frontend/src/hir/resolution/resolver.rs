@@ -760,6 +760,8 @@ impl<'a> Resolver<'a> {
             | Type::PolymorphicInteger(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
+            | Type::MaybeConstant(_, _)
+            | Type::NotConstant
             | Type::Forall(_, _) => (),
 
             Type::Array(length, _) => {
