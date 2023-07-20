@@ -60,6 +60,8 @@ type ScopeForest = GenericScopeForest<String, ResolverMeta>;
 
 pub struct LambdaContext {
     captures: Vec<HirCapturedVar>,
+    /// the index in the scope tree
+    /// (sometimes being filled by ScopeTree's find method)
     scope_index: usize,
 }
 
@@ -935,6 +937,39 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
+        let mut transitive_capture_index: Option<usize> = None;
+
+        for lambda_index in 0..self.lambda_stack.len() {
+            if self.lambda_stack[lambda_index].scope_index > var_scope_index {
+                // Beware: the same variable may be captured multiple times, so we check
+                // for its presence before adding the capture below.
+                let pos = self.lambda_stack[lambda_index]
+                    .captures
+                    .iter()
+                    .position(|capture| capture.ident.id == hir_ident.id);
+
+                if pos.is_none() {
+                    self.lambda_stack[lambda_index]
+                        .captures
+                        .push(HirCapturedVar { ident: hir_ident, transitive_capture_index });
+                }
+
+                if lambda_index + 1 < self.lambda_stack.len() {
+                    // There is more than one closure between the current scope and
+                    // the scope of the variable, so this is a propagated capture.
+                    // We need to track the transitive capture index as we go up in
+                    // the closure stack.
+                    transitive_capture_index = Some(pos.unwrap_or(
+                        // If this was a fresh capture, we added it to the end of
+                        // the captures vector:
+                        self.lambda_stack[lambda_index].captures.len() - 1,
+                    ))
+                }
+            }
+        }
+    }
+
     pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
@@ -976,39 +1011,7 @@ impl<'a> Resolver<'a> {
                         DefinitionKind::GenericType(_) => {}
                         // We ignore the above definition kinds because only local variables can be captured by closures.
                         DefinitionKind::Local(_) => {
-                            let mut transitive_capture_index: Option<usize> = None;
-
-                            for lambda_index in 0..self.lambda_stack.len() {
-                                if self.lambda_stack[lambda_index].scope_index > var_scope_index {
-                                    // Beware: the same variable may be captured multiple times, so we check
-                                    // for its presence before adding the capture below.
-                                    let pos = self.lambda_stack[lambda_index]
-                                        .captures
-                                        .iter()
-                                        .position(|capture| capture.ident.id == hir_ident.id);
-
-                                    if pos.is_none() {
-                                        self.lambda_stack[lambda_index].captures.push(
-                                            HirCapturedVar {
-                                                ident: hir_ident,
-                                                transitive_capture_index,
-                                            },
-                                        );
-                                    }
-
-                                    if lambda_index + 1 < self.lambda_stack.len() {
-                                        // There is more than one closure between the current scope and
-                                        // the scope of the variable, so this is a propagated capture.
-                                        // We need to track the transitive capture index as we go up in
-                                        // the closure stack.
-                                        transitive_capture_index = Some(pos.unwrap_or(
-                                            // If this was a fresh capture, we added it to the end of
-                                            // the captures vector:
-                                            self.lambda_stack[lambda_index].captures.len() - 1,
-                                        ))
-                                    }
-                                }
-                            }
+                            self.resolve_local_variable(hir_ident, var_scope_index);
                         }
                     }
                 }

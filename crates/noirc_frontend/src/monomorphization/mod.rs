@@ -971,7 +971,7 @@ impl<'interner> Monomorphizer<'interner> {
             Param(pattern, typ, noirc_abi::AbiVisibility::Private)
         }));
 
-        let converted_parameters = self.parameters(parameters);
+        let mut converted_parameters = self.parameters(parameters);
 
         let id = self.next_function_id();
         let name = lambda_name.to_owned();
@@ -1000,7 +1000,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let env_let_stmt = ast::Expression::Let(ast::Let {
             id: env_local_id,
-            mutable: true,
+            mutable: false,
             name: env_name.to_string(),
             expression: Box::new(env_tuple),
         });
@@ -1017,7 +1017,6 @@ impl<'interner> Monomorphizer<'interner> {
             typ: env_typ.clone(),
         });
 
-        // TODO: Is this costly? Can we avoid the copies somehow?
         self.lambda_envs_stack.push(LambdaContext {
             env_ident: Box::new(env_ident.clone()),
             captures: lambda.captures,
@@ -1036,7 +1035,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let mut parameters = vec![];
         parameters.push((env_local_id, true, env_name.to_string(), env_typ));
-        parameters.extend(converted_parameters);
+        parameters.append(&mut converted_parameters);
 
         let unconstrained = false;
         let function = ast::Function { id, name, parameters, body, return_type, unconstrained };

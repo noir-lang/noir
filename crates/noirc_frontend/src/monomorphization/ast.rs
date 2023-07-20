@@ -264,7 +264,7 @@ pub fn type_of(expr: &Expression) -> Type {
         Expression::Binary(_binary) => unreachable!("TODO: How do we get the type of a Binary op"),
         Expression::Index(index) => index.element_type.clone(),
         Expression::Cast(cast) => cast.r#type.clone(),
-        Expression::For(_for_expr) => unreachable!("TODO: How do we get the type of a for loop?"),
+        Expression::For(_for_expr) => Type::Unit,
         Expression::If(if_expr) => if_expr.typ.clone(),
         Expression::Tuple(elements) => Type::Tuple(elements.iter().map(type_of).collect()),
         Expression::ExtractTupleField(tuple, index) => match tuple.as_ref() {
@@ -275,7 +275,7 @@ pub fn type_of(expr: &Expression) -> Type {
         Expression::Let(let_stmt) => type_of(let_stmt.expression.as_ref()),
         Expression::Constrain(contraint, _) => type_of(contraint.as_ref()),
         Expression::Assign(assign) => type_of_lvalue(&assign.lvalue),
-        Expression::Semi(expr) => type_of(expr.as_ref()), // TODO: Is this correct?
+        Expression::Semi(_expr) => Type::Unit,
     }
 }
 
