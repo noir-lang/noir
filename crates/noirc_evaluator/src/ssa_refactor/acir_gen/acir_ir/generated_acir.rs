@@ -428,7 +428,7 @@ impl GeneratedAcir {
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let rhs_constraint = &self.mul_with_witness(&rhs, &q_witness.into()) + r_witness;
+        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into()) + r_witness;
         let div_euclidean = &self.mul_with_witness(lhs, predicate)
             - &self.mul_with_witness(&rhs_constraint, predicate);
 
