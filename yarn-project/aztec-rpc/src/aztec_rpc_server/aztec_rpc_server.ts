@@ -193,6 +193,18 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   /**
+   * Retrieves the public storage data at a specified contract address and storage slot.
+   * The returned data is an array of note preimage items, with each item containing its value.
+   *
+   * @param contract - The AztecAddress of the target contract.
+   * @param storageSlot - The Fr representing the storage slot to be fetched.
+   * @returns A promise that resolves to an array of note preimage items, each containing its value.
+   */
+  public async getPublicStorageAt(contract: AztecAddress, storageSlot: Fr) {
+    return await this.node.getStorageAt(contract, storageSlot.value);
+  }
+
+  /**
    * Is an L2 contract deployed at this address?
    * @param contractAddress - The contract data address.
    * @returns Whether the contract was deployed.
@@ -270,28 +282,24 @@ export class AztecRPCServer implements AztecRPC {
    */
   public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
     const localTx = await this.#getTxByHash(txHash);
-    const partialReceipt = {
-      txHash: txHash,
-      blockHash: localTx?.blockHash,
-      blockNumber: localTx?.blockNumber,
-      origin: localTx?.origin,
-      contractAddress: localTx?.contractAddress,
-      error: '',
-    };
+    const partialReceipt = new TxReceipt(
+      txHash,
+      TxStatus.PENDING,
+      '',
+      localTx?.blockHash,
+      localTx?.blockNumber,
+      localTx?.origin,
+      localTx?.contractAddress,
+    );
 
     if (localTx?.blockHash) {
-      return {
-        ...partialReceipt,
-        status: TxStatus.MINED,
-      };
+      partialReceipt.status = TxStatus.MINED;
+      return partialReceipt;
     }
 
     const pendingTx = await this.node.getPendingTxByHash(txHash);
     if (pendingTx) {
-      return {
-        ...partialReceipt,
-        status: TxStatus.PENDING,
-      };
+      return partialReceipt;
     }
 
     // if the transaction mined it will be removed from the pending pool and there is a race condition here as the synchroniser will not have the tx as mined yet, so it will appear dropped
@@ -300,19 +308,13 @@ export class AztecRPCServer implements AztecRPC {
     const isSynchronised = await this.synchroniser.isSynchronised();
     if (!isSynchronised) {
       // there is a pending L2 block, which means the transaction will not be in the tx pool but may be awaiting mine on L1
-      return {
-        ...partialReceipt,
-        status: TxStatus.PENDING,
-      };
+      return partialReceipt;
     }
 
     // TODO we should refactor this once the node can store transactions. At that point we should query the node and not deal with block heights.
-
-    return {
-      ...partialReceipt,
-      status: TxStatus.DROPPED,
-      error: 'Tx dropped by P2P node.',
-    };
+    partialReceipt.status = TxStatus.DROPPED;
+    partialReceipt.error = 'Tx dropped by P2P node.';
+    return partialReceipt;
   }
 
   /**

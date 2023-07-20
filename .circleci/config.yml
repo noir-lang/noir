@@ -605,6 +605,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_p2p_network.test.ts
 
+  e2e-uniswap-sandbox:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end uniswap_trade_on_l1_from_l2.test.ts docker-compose-e2e-sandbox.yml
+
   e2e-join:
     docker:
       - image: cimg/base:current
@@ -817,6 +828,7 @@ workflows:
             - types
             - circuits-js
             - rollup-provider
+            - aztec-sandbox
           <<: *defaults
 
       - e2e-2-rpc-servers: *e2e_test
@@ -835,6 +847,7 @@ workflows:
       - integration-l1-publisher: *e2e_test
       - integration-archiver-l1-to-l2: *e2e_test
       - e2e-p2p: *e2e_test
+      - e2e-uniswap-sandbox: *e2e_test
 
       - e2e-end:
           requires:
@@ -854,6 +867,7 @@ workflows:
             - integration-l1-publisher
             - integration-archiver-l1-to-l2
             - e2e-p2p
+            - e2e-uniswap-sandbox
           <<: *defaults
 
       - deploy-dockerhub:

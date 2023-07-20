@@ -92,12 +92,13 @@ export function createJsonRpcClient<T extends object>(
   return new Proxy(
     {},
     {
-      get:
-        (_, rpcMethod: string) =>
-        (...params: any[]) => {
+      get: (target, rpcMethod: string) => {
+        if (['then', 'catch'].includes(rpcMethod)) return Reflect.get(target, rpcMethod);
+        return (...params: any[]) => {
           debug(`JsonRpcClient.constructor`, 'proxy', rpcMethod, '<-', params);
           return request(rpcMethod, params);
-        },
+        };
+      },
     },
   ) as RemoteObject<T>;
 }

@@ -1,7 +1,15 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { JsonRpcServer } from '@aztec/foundation/json-rpc';
-import { ContractData, ContractDeploymentTx, ContractPublicData, Tx, TxExecutionRequest, TxHash } from '@aztec/types';
+import {
+  ContractData,
+  ContractDeploymentTx,
+  ContractPublicData,
+  Tx,
+  TxExecutionRequest,
+  TxHash,
+  TxReceipt,
+} from '@aztec/types';
 
 import { foundry } from 'viem/chains';
 
@@ -26,7 +34,7 @@ export function getHttpRpcServer(aztecRpcServer: AztecRPCServer): JsonRpcServer 
       Point,
       Fr,
     },
-    { Tx, ContractDeploymentTx },
+    { Tx, ContractDeploymentTx, TxReceipt },
     false,
     ['start', 'stop'],
   );

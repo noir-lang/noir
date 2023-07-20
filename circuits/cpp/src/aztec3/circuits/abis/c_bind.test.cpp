@@ -1,5 +1,4 @@
 #include "c_bind.h"
-
 #include "function_leaf_preimage.hpp"
 #include "tx_request.hpp"
 

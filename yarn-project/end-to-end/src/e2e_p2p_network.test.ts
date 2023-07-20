@@ -5,14 +5,14 @@ import {
   createAztecRPCServer,
   getConfigEnvVars as getRpcConfig,
 } from '@aztec/aztec-rpc';
-import { AztecAddress, ContractDeployer, Fr, SentTx } from '@aztec/aztec.js';
-import { CircuitsWasm, Point, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { ContractDeployer, SentTx } from '@aztec/aztec.js';
+import { AztecAddress, CircuitsWasm, Fr, Point, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
 import { BootstrapNode, P2PConfig, createLibP2PPeerId, exportLibP2PPeerIdToString } from '@aztec/p2p';
-import { TxStatus } from '@aztec/types';
+import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { setup } from './utils.js';
 
@@ -29,8 +29,8 @@ interface NodeContext {
 }
 
 describe('e2e_p2p_network', () => {
-  let aztecNode: AztecNodeService;
-  let aztecRpcServer: AztecRPCServer;
+  let aztecNode: AztecNodeService | undefined;
+  let aztecRpcServer: AztecRPC;
   let config: AztecNodeConfig;
   let logger: DebugLogger;
 
@@ -39,8 +39,10 @@ describe('e2e_p2p_network', () => {
   }, 100_000);
 
   afterEach(async () => {
-    await aztecNode.stop();
-    await aztecRpcServer.stop();
+    await aztecNode?.stop();
+    if (aztecRpcServer instanceof AztecRPCServer) {
+      await aztecRpcServer?.stop();
+    }
   });
 
   it('should rollup txs from all peers', async () => {

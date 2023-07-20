@@ -89,6 +89,8 @@ export class DeployMethod extends ContractFunctionInteraction {
     const portalContract = options.portalContract ?? EthAddress.ZERO;
     const contractAddressSalt = options.contractAddressSalt ?? Fr.random();
 
+    const { chainId, version } = await this.wallet.getNodeInfo();
+
     const { address, constructorHash, functionTreeRoot, partialAddress } = await getContractDeploymentInfo(
       this.abi,
       this.args,
@@ -103,8 +105,6 @@ export class DeployMethod extends ContractFunctionInteraction {
       contractAddressSalt,
       portalContract,
     );
-
-    const { chainId, version } = await this.wallet.getNodeInfo();
 
     const txContext = new TxContext(false, false, true, contractDeploymentData, new Fr(chainId), new Fr(version));
     const executionRequest = this.getExecutionRequest(address, AztecAddress.ZERO);

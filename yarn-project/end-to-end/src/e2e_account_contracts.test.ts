@@ -18,14 +18,14 @@ import {
   SchnorrSingleKeyAccountContractAbi,
 } from '@aztec/noir-contracts/artifacts';
 import { ChildContract } from '@aztec/noir-contracts/types';
-import { PublicKey } from '@aztec/types';
+import { AztecRPC, PublicKey } from '@aztec/types';
 
 import { randomBytes } from 'crypto';
 
 import { setup } from './utils.js';
 
 async function deployContract(
-  aztecRpcServer: AztecRPCServer,
+  aztecRpcServer: AztecRPC,
   publicKey: PublicKey,
   abi: ContractAbi,
   args: any[],
@@ -41,7 +41,7 @@ async function deployContract(
 }
 
 async function createNewAccount(
-  aztecRpcServer: AztecRPCServer,
+  aztecRpcServer: AztecRPC,
   abi: ContractAbi,
   args: any[],
   encryptionPrivateKey: Buffer,
@@ -96,8 +96,10 @@ function itShouldBehaveLikeAnAccountContract(
     }, 60_000);
 
     afterEach(async () => {
-      await context.aztecNode.stop();
-      await context.aztecRpcServer.stop();
+      await context.aztecNode?.stop();
+      if (context.aztecRpcServer instanceof AztecRPCServer) {
+        await context.aztecRpcServer.stop();
+      }
     });
 
     it('calls a private function', async () => {
@@ -108,11 +110,11 @@ function itShouldBehaveLikeAnAccountContract(
     }, 60_000);
 
     it('calls a public function', async () => {
-      const { logger, aztecNode } = context;
+      const { logger, aztecRpcServer } = context;
       logger('Calling public function...');
       const tx = child.methods.pubStoreValue(42).send();
       expect(await tx.isMined(0, 0.1)).toBeTruthy();
-      expect(toBigInt((await aztecNode.getStorageAt(child.address, 1n))!)).toEqual(42n);
+      expect(toBigInt((await aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)))!)).toEqual(42n);
     }, 60_000);
 
     it('fails to call a function using an invalid signature', async () => {

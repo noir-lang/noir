@@ -5,11 +5,11 @@ import { CircuitsWasm, Fr, TxContext } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { PokeableTokenContract } from '@aztec/noir-contracts/types';
-import { ExecutionRequest, L2BlockL2Logs, LogType, PackedArguments, TxExecutionRequest, TxStatus } from '@aztec/types';
+import { AztecRPC, ExecutionRequest, PackedArguments, TxExecutionRequest, TxStatus } from '@aztec/types';
 
 import { randomBytes } from 'crypto';
 
-import { setup } from './utils.js';
+import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './utils.js';
 
 /**
  * Wallet implementation which creates a simple transaction request without any signing.
@@ -36,8 +36,8 @@ class SignerlessWallet extends BaseWallet {
 }
 
 describe('e2e_no_contract_account', () => {
-  let aztecNode: AztecNodeService;
-  let aztecRpcServer: AztecRPCServer;
+  let aztecNode: AztecNodeService | undefined;
+  let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
   let sender: AztecAddress;
   let recipient: AztecAddress;
@@ -75,7 +75,9 @@ describe('e2e_no_contract_account', () => {
 
   afterEach(async () => {
     await aztecNode?.stop();
-    await aztecRpcServer?.stop();
+    if (aztecRpcServer instanceof AztecRPCServer) {
+      await aztecRpcServer?.stop();
+    }
   });
 
   const expectBalance = async (owner: AztecAddress, expectedBalance: bigint) => {
@@ -84,17 +86,10 @@ describe('e2e_no_contract_account', () => {
     expect(balance).toBe(expectedBalance);
   };
 
-  const expectsNumOfEncryptedLogsInTheLastBlockToBe = async (numEncryptedLogs: number) => {
-    const l2BlockNum = await aztecNode.getBlockHeight();
-    const encryptedLogs = await aztecNode.getLogs(l2BlockNum, 1, LogType.ENCRYPTED);
-    const unrolledLogs = L2BlockL2Logs.unrollLogs(encryptedLogs);
-    expect(unrolledLogs.length).toBe(numEncryptedLogs);
-  };
-
   it('Arbitrary non-contract account can call a private function on a contract', async () => {
     await expectBalance(sender, initialBalance);
     await expectBalance(recipient, 0n);
-    await expectsNumOfEncryptedLogsInTheLastBlockToBe(3);
+    await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 3);
 
     const contractWithNoContractWallet = new PokeableTokenContract(contract.address, pokerWallet);
 
@@ -114,6 +109,6 @@ describe('e2e_no_contract_account', () => {
     await expectBalance(sender, 0n);
     await expectBalance(recipient, initialBalance);
 
-    await expectsNumOfEncryptedLogsInTheLastBlockToBe(1);
+    await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
   }, 60_000);
 });

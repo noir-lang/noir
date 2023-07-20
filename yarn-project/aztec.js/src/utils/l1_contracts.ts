@@ -1,4 +1,5 @@
 import { EthAddress } from '@aztec/circuits.js';
+import { retryUntil } from '@aztec/foundation/retry';
 
 /**
  * A dictionary of the Aztec-deployed L1 contracts.
@@ -16,6 +17,14 @@ export type L1ContractAddresses = {
    * Address of the L1/L2 messaging inbox contract.
    */
   inbox: EthAddress;
+  /**
+   * Address of the L1/L2 messaging outbox contract.
+   */
+  outbox: EthAddress;
+  /**
+   * Address of the decoder helper contract
+   */
+  decoderHelper?: EthAddress;
 
   /**
    * Registry Address.
@@ -32,7 +41,18 @@ type L1ContractAddressesResp = {
 
 export const getL1ContractAddresses = async (url: string): Promise<L1ContractAddresses> => {
   const reqUrl = new URL(`${url}/api/l1-contract-addresses`);
-  const response = (await (await fetch(reqUrl.toString())).json()) as unknown as L1ContractAddressesResp;
+  const response = await retryUntil(
+    async () => {
+      try {
+        return (await (await fetch(reqUrl.toString())).json()) as unknown as L1ContractAddressesResp;
+      } catch (err) {
+        // do nothing
+      }
+    },
+    'isSandboxReady',
+    120,
+    1,
+  );
   const result = Object.fromEntries(
     Object.entries(response).map(([key, value]) => [key, EthAddress.fromString(value)]),
   );
