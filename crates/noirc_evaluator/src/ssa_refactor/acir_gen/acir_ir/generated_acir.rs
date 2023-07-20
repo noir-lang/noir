@@ -492,7 +492,7 @@ impl GeneratedAcir {
             assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
             let mut aor = lhs_offset;
             aor.q_c += FieldElement::from(r);
-            let witness = self.create_witness_for_expression(&aor);
+            let witness = self.get_or_create_witness(&aor);
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
             self.range_constraint(witness, bit_size)?;
             return Ok(());
