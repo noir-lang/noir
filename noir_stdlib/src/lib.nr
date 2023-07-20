@@ -19,6 +19,8 @@ mod compat;
 #[builtin(println)]
 fn println<T>(_input : T) {}
 
+// Oracle calls are required to be wrapped in an unconstrained function
+// Thus, the only argument to the `println` oracle is expected to always be an ident 
 #[oracle(println)]
 unconstrained fn println_oracle<T, A>(_input: T) {}
 
