@@ -1731,8 +1731,7 @@ mod test {
 
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         if !errors.is_empty() {
-            println!("Unexpected errors: {:?}", errors);
-            assert!(false); // there should be no errors
+            panic!("Unexpected errors: {:?}", errors);
         }
     }
 
