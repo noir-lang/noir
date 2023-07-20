@@ -1,0 +1,28 @@
+=meta: 0.0.2
+
+name: bashplus
+version: 0.1.0
+abstract: Modern Bash Programming
+homepage: https://github.com/ingydotnet/bashplus
+
+license: MIT
+copyright: 2013-2020
+author:
+  name: Ingy döt Net
+  email: ingy@ingy.net
+  github: ingydotnet
+  twitter: ingydotnet
+  freenode: ingy
+  homepage: http://ingy.net
+
+requires:
+  bash: 3.2
+test:
+  cmd: make test
+install:
+  cmd: make install
+
+devel:
+  git: git@github.org/ingydotnet/bashplus
+  irc: irc.freenode.net/bpan
+  bug: https://github.com/ingydotnet/bashplus/issues/

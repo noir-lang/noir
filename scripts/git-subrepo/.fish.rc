@@ -1,0 +1,20 @@
+#!fish
+
+#------------------------------------------------------------------------------
+#
+# This is the `git-subrepo` initialization script.
+#
+# This script turns on the `git-subrepo` Git subcommand and its manpages, for
+# the *Fish* shell.
+#
+# Just add a line like this to your `~/.config/fish/config.fish`:
+#
+#   source /path/to/git-subrepo/.fish.rc
+#
+#------------------------------------------------------------------------------
+
+set GIT_SUBREPO_ROOT (dirname (realpath (status --current-filename)))
+set PATH $GIT_SUBREPO_ROOT/lib $PATH
+
+set -q MANPATH || set MANPATH ''
+set MANPATH $MANPATH $GIT_SUBREPO_ROOT/man

@@ -1,0 +1,32 @@
+# shellcheck shell=bash disable=2128
+
+#------------------------------------------------------------------------------
+#
+# This is the `git-subrepo` initialization script.
+#
+# This script turns on the `git-subrepo` Git subcommand, its manpages and TAB
+# completion for the *Bash* and *zsh* shells.
+#
+# Just add a line like this to your shell startup configuration:
+#
+#   source /path/to/git-subrepo/.rc
+#
+#------------------------------------------------------------------------------
+
+[[ -n ${ZSH_VERSION-} ]] &&
+  GIT_SUBREPO_ROOT=$0 ||
+  GIT_SUBREPO_ROOT=$BASH_SOURCE
+
+[[ $GIT_SUBREPO_ROOT =~ ^/ ]] ||
+  GIT_SUBREPO_ROOT=$PWD/$GIT_SUBREPO_ROOT
+
+GIT_SUBREPO_ROOT=$(
+  cd "$(dirname "$GIT_SUBREPO_ROOT")" || return
+  pwd
+) || return
+export GIT_SUBREPO_ROOT
+
+export PATH=$GIT_SUBREPO_ROOT/lib:$PATH
+export MANPATH=$GIT_SUBREPO_ROOT/man:$MANPATH
+
+source "$GIT_SUBREPO_ROOT/share/enable-completion.sh"
