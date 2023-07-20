@@ -1,0 +1,93 @@
+---
+title: Aztec Connect Sunset
+---
+
+import Image from "@theme/IdealImage";
+
+:::danger
+
+Aztec Connect is no longer being actively developed.
+
+:::
+
+The rollup instance operated by Aztec will stop accepting deposits on March 21st, 2023. Read the full announcement [here](https://medium.com/aztec-protocol/sunsetting-aztec-connect-a786edce5cae).
+
+We will continue to process transactions and withdrawals for funds that are already in the rollup until March 2024, at which point we will stop running the sequencer. See the [zk.money](#zkmoney) section below for details on how to withdraw funds.
+
+## Run your own AC
+
+All of the infrastructure and associated code required to run and interact with the Aztec Connect rollup is open source, so anyone can publish blocks after we stop, or run their own instance of the rollup software.
+
+You can find the old documentation site that includes all of the pertinent information on the [`aztec-connect` branch](https://github.com/AztecProtocol/docs/tree/aztec-connect) of the docs repository.
+
+The code has been open sourced and you can find the relevant repositories linked below.
+
+### Source Code
+
+Follow the links for more information about each package.
+
+- [Running the rollup service](https://github.com/AztecProtocol/aztec-connect/blob/master/yarn-project/README.md)
+- [Sequencer](https://github.com/AztecProtocol/aztec-connect/tree/master/yarn-project/falafel)
+- [Contracts](https://github.com/AztecProtocol/aztec-connect/tree/master/contracts)
+- [SDK](https://github.com/AztecProtocol/aztec-connect/tree/master/yarn-project/sdk)
+- [Block Explorer](https://github.com/AztecProtocol/aztec-connect-explorer)
+- [Alpha SDK](https://github.com/AztecProtocol/aztec-connect/tree/master/yarn-project/alpha-sdk)
+- [Wallet UI](https://github.com/AztecProtocol/wallet-ui)
+
+## Zk.money
+
+### Exiting Defi Positions
+
+1. Navigate to your zk.money homepage and click “Wallet”.
+2. Scroll down to “Tokens” and “Earn Positions”.
+3. Click “Earn Positions”.
+4. Click “Claim & Exit” on the position you wish to exit. <Image img={require("/img/defiexit1.png")} />
+5. All exit transactions are free in “Batched Mode” proceed to step 6 to get a free transaction.
+6. Click “Max” to exit the full amount, and then select a speed for your transaction. <Image img={require("/img/defiexit2.png")} />
+7. Once you have done so, click “Next”.
+8. Review the amount you will receive is correct, tick the disclaimer, and click “Confirm Transaction”. <Image img={require("/img/defiexit3.png")} />
+9. After clicking confirm transaction, sign the signature request using your connected wallet (e.g. Metamask in this example). <Image img={require("/img/defiexit4.png")} />
+10. Wait until your transaction is confirmed. <Image img={require("/img/defiexit5.png")} />
+11. Navigate back to your wallet homepage and click “Earn Positions”.
+12. The status of your exit will be displayed here, as shown by “Exiting” (1 tick). <Image img={require("/img/defiexit6.png")} />
+13. To the left, click the transaction hash icon to be taken to the block explorer page to see the transaction status. <Image img={require("/img/defiexit7.png")} />
+14. Your funds will appear in your dashboard once the transaction has settled.
+
+### Exiting LUSD Borrowing
+
+Your LUSD debt is repaid using a flash loan. Part of your ETH collateral then repays the flash loan, and the remaining ETH is returned to your account. Your total TB-275 tokens represents the entirety of your share of the collateral. Spending all your TB-275 will release your entire share of the collateral (minus the market value of the debt to be repaid).
+
+Liquity: https://docs.liquity.org/
+
+1. Navigate to your zk.money homepage and click “Wallet”.
+2. Scroll down to “Tokens” and “Earn Positions”.
+3. Click “Earn Positions”.
+4. On your Liquity Trove position, click “Repay & Exit”. <Image img={require("/img/lusdexit1.png")} />
+5. Click “Max” to exit the full amount, then select a speed for your transaction. <Image img={require("/img/lusdexit2.png")} />
+6. Once you have done so, click “Next”.
+7. Review the amount you will receive is correct, tick the disclaimer, and click “Confirm Transaction”. <Image img={require("/img/lusdexit3.png")} />
+8. After clicking confirm transaction, sign the signature request using your connected wallet (e.g. Metamask).
+9. Wait until your transaction is confirmed.
+10. Navigate to your zk.money wallet homepage and click “Earn Positions”.
+11. The status of your exit will be displayed here, as shown by “Exiting” (1 tick). <Image img={require("/img/lusdexit4.png")} />
+12. Click the transaction hash icon to be taken to the block explorer page to see the transaction status. <Image img={require("/img/lusdexit5.png")} />
+13. Your funds will appear in your dashboard once the transaction has settled.
+
+### Withdrawing Assets
+
+How to withdraw ETH, DAI and LUSD.
+
+1. Navigate to your zk.money homepage and click “Wallet”.
+2. Scroll down to “Tokens” and “Earn Positions”.
+3. Click “Tokens”.
+4. Click “Exit” on the desired token you would like to withdraw. <Image img={require("/img/withdraw1.png")} />
+5. Click “Withdraw to L1”. <Image img={require("/img/withdraw2.png")} />
+6. Enter your recipient address.
+7. Click “Max” to withdraw the full amount.
+8. Select a speed for your transaction (transactions are free in “Batched Mode”).
+9. Click “Next”.
+10. Review the amount you are withdrawing is correct, tick the disclaimer, and click “Confirm Transaction”. <Image img={require("/img/withdraw3.png")} />
+11. Sign the signature request using your connected wallet (e.g. Metamask).
+12. Wait until your transaction is confirmed. <Image img={require("/img/withdraw4.png")} />
+13. Navigate back to your wallet homepage, under Transaction History. Click the transaction hash to check the status of your transaction on the block explorer. <Image img={require("/img/withdraw5.png")} />
+14. Your funds will appear in your recipient wallet once the transaction has settled.
