@@ -51,6 +51,9 @@ pub enum Type {
     /// represents the generic arguments (if any) to this struct type.
     Struct(Shared<StructType>, Vec<Type>),
 
+    
+    Trait(Shared<TraitType>),
+
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
 
@@ -176,6 +179,12 @@ impl TraitType {
         span: Span,
       ) -> TraitType {
         TraitType { id, name, span}
+    }
+}
+
+impl std::fmt::Display for TraitType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 
@@ -721,7 +730,8 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::Forall(_, _) => false,
+            | Type::Forall(_, _)
+            | Type::Trait(_) => false,
 
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
@@ -808,6 +818,9 @@ impl std::fmt::Display for Type {
                 } else {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
                 }
+            }
+            Type::Trait(s) => {
+                write!(f, "{}", s.borrow())
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -1534,6 +1547,7 @@ impl Type {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
                 AbiType::Struct { fields }
             }
+            Type::Trait(_) => unreachable!(),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
@@ -1668,7 +1682,8 @@ impl Type {
             | Type::Constant(_)
             | Type::Error
             | Type::NotConstant
-            | Type::Unit => self.clone(),
+            | Type::Unit 
+            | Type::Trait(_) => self.clone(),
         }
     }
 
@@ -1704,7 +1719,8 @@ impl Type {
             | Type::Constant(_)
             | Type::Error
             | Type::NotConstant
-            | Type::Unit => false,
+            | Type::Unit 
+            | Type::Trait(_) => false,
         }
     }
 
@@ -1747,7 +1763,7 @@ impl Type {
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types
-            Forall(..) => unreachable!(),
+            Forall(..) | Trait(..) => unreachable!(),
 
             FieldElement(_)
             | Integer(_, _, _)

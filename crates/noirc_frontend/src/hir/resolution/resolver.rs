@@ -823,7 +823,8 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::Forall(_, _) => (),
+            | Type::Forall(_, _) 
+            | Type::Trait(_) => (),
 
             Type::Array(length, element_type) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
@@ -1420,6 +1421,7 @@ mod test {
     use fm::FileId;
     use iter_extended::vecmap;
 
+    use crate::hir::def_collector;
     use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
     use crate::hir::resolution::errors::ResolverError;
     use crate::hir::resolution::import::PathResolutionError;
@@ -1438,7 +1440,6 @@ mod test {
     // and functions can be forward declared
     fn resolve_src_code(src: &str, func_namespace: Vec<&str>) -> Vec<ResolverError> {
         let (program, errors) = parse_program(src);
-        println!("{:?}", errors);
         assert!(errors.is_empty());
 
         let mut interner = NodeInterner::default();

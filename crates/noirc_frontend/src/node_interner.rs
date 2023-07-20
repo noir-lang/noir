@@ -325,12 +325,14 @@ impl NodeInterner {
     }
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+        println!("Adding trait with name = {:?}", typ.trait_def);
         self.traits.insert(
             type_id,
             Shared::new(TraitType::new(
                 type_id,
                 typ.trait_def.name.clone(),
                 typ.trait_def.span,
+                //typ.trait_def.items,
             )),
         );
     }
@@ -659,7 +661,7 @@ impl NodeInterner {
             Type::Struct(struct_type, _generics) => {
                 let key = (struct_type.borrow().id, method_name);
                 self.struct_methods.insert(key, method_id)
-            }
+            },
             Type::Error => None,
 
             other => {
@@ -720,6 +722,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Error
         | Type::NotConstant
         | Type::Struct(_, _)
-        | Type::FmtString(_, _) => None,
+        | Type::FmtString(_, _) 
+        | Type::Trait(_) => None,
     }
 }
