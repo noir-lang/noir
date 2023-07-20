@@ -34,8 +34,15 @@ export async function createAztecRPCServer(
   aztecNode: AztecNode,
   config: RpcServerConfig,
   { keyStore, db }: CreateAztecRPCServerOptions = {},
+  useLogSuffix: string | boolean | undefined = undefined,
 ) {
-  const logSuffix = Math.random().toString(16).slice(2, 8);
+  const logSuffix =
+    typeof useLogSuffix === 'boolean'
+      ? useLogSuffix
+        ? Math.random().toString(16).slice(2, 8)
+        : undefined
+      : useLogSuffix;
+
   keyStore = keyStore || new TestKeyStore(await Grumpkin.new());
   db = db || new MemoryDB(logSuffix);
 

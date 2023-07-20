@@ -23,7 +23,9 @@ export class Synchroniser {
   private log: DebugLogger;
 
   constructor(private node: AztecNode, private db: Database, logSuffix = '') {
-    this.log = createDebugLogger('aztec:aztec_rpc_synchroniser_' + logSuffix);
+    this.log = createDebugLogger(
+      logSuffix ? `aztec:aztec_rpc_synchroniser_${logSuffix}` : 'aztec:aztec_rpc_synchroniser',
+    );
   }
 
   /**

@@ -1,4 +1,4 @@
-import { createDebugLogger } from '../../log/index.js';
+import { createDebugOnlyLogger } from '../../log/index.js';
 
 /**
  * Dummy implementation of a necessary part of the wasi api:
@@ -7,7 +7,7 @@ import { createDebugLogger } from '../../log/index.js';
  * TODO find a way to update off of wasi 12.
  */
 /* eslint-disable camelcase */
-export const getEmptyWasiSdk = (debug = createDebugLogger('wasm:empty_wasi_sdk')) => ({
+export const getEmptyWasiSdk = (debug = createDebugOnlyLogger('wasm:empty_wasi_sdk')) => ({
   /**
    * Retrieves the current time from the system clock.
    * This function is a dummy implementation of the WASI API's `clock_time_get` method,

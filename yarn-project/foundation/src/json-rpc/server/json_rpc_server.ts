@@ -5,7 +5,7 @@ import bodyParser from 'koa-bodyparser';
 import compress from 'koa-compress';
 import Router from 'koa-router';
 
-import { createLogger } from '../../log/index.js';
+import { createDebugLogger } from '../../log/index.js';
 import { JsonClassConverterInput, StringClassConverterInput } from '../class_converter.js';
 import { convertBigintsInObj } from '../convert.js';
 import { JsonProxy } from './json_proxy.js';
@@ -22,7 +22,7 @@ export class JsonRpcServer {
     objectClassMap: JsonClassConverterInput,
     private createApi: boolean,
     private disallowedMethods: string[] = [],
-    private log = createLogger('aztec:foundation:json-rpc:server'),
+    private log = createDebugLogger('aztec:foundation:json-rpc:server'),
   ) {
     this.proxy = new JsonProxy(handler, stringClassMap, objectClassMap);
   }

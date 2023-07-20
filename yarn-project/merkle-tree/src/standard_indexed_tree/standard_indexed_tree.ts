@@ -1,11 +1,11 @@
 import { toBigIntBE, toBufferBE } from '@aztec/foundation/bigint-buffer';
-import { createLogger } from '@aztec/foundation/log';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { SiblingPath } from '@aztec/types';
 
 import { IndexedTree, LeafData } from '../interfaces/indexed_tree.js';
 import { TreeBase } from '../tree_base.js';
 
-const log = createLogger('aztec:standard-indexed-tree');
+const log = createDebugLogger('aztec:standard-indexed-tree');
 
 const indexToKeyLeaf = (name: string, index: bigint) => {
   return `${name}:leaf:${index}`;

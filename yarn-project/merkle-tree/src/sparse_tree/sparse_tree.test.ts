@@ -1,5 +1,5 @@
 import { CircuitsWasm } from '@aztec/circuits.js';
-import { createLogger } from '@aztec/foundation/log';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { IWasmModule } from '@aztec/foundation/wasm';
 import { Hasher, SiblingPath } from '@aztec/types';
 
@@ -15,7 +15,7 @@ import { treeTestSuite } from '../test/test_suite.js';
 import { createMemDown } from '../test/utils/create_mem_down.js';
 import { SparseTree } from './sparse_tree.js';
 
-const log = createLogger('aztec:sparse_tree_test');
+const log = createDebugLogger('aztec:sparse_tree_test');
 
 const createDb = async (
   levelUp: levelup.LevelUp,

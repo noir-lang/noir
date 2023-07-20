@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createLogger } from '@aztec/foundation/log';
+import { createConsoleLogger } from '@aztec/foundation/log';
 
 import { Command } from 'commander';
 import fsExtra from 'fs-extra';
@@ -10,7 +10,7 @@ import { ContractCompiler } from './compile.js';
 import { generateType } from './index.js';
 
 const program = new Command();
-const log = createLogger('noir-compiler-cli');
+const log = createConsoleLogger('noir-compiler-cli');
 
 const main = async () => {
   program

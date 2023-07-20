@@ -45,7 +45,7 @@ describe('e2e_2_rpc_servers', () => {
       aztecRpcServer: aztecRpcServerB,
       accounts: accounts,
       wallet: walletB,
-    } = await setupAztecRPCServer(1, aztecNode!));
+    } = await setupAztecRPCServer(1, aztecNode!, null, undefined, true));
     [userB] = accounts;
 
     logger(`Deploying L2 contract...`);

@@ -160,7 +160,7 @@ describe('e2e_p2p_network', () => {
     numTxs: number,
   ): Promise<NodeContext> => {
     const rpcConfig = getRpcConfig();
-    const aztecRpcServer = await createAztecRPCServer(node, rpcConfig);
+    const aztecRpcServer = await createAztecRPCServer(node, rpcConfig, {}, true);
     const keyPair = ConstantKeyPair.random(await Grumpkin.new());
     const partialAddress = Fr.random();
     const publicKey = keyPair.getPublicKey();

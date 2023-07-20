@@ -1,4 +1,4 @@
-import { createLogger } from '@aztec/foundation/log';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 import { fileURLToPath } from 'url';
 import { createPublicClient, http } from 'viem';
@@ -9,7 +9,7 @@ import { Archiver, getConfigEnvVars } from './archiver/index.js';
 
 export * from './archiver/index.js';
 
-const log = createLogger('aztec:archiver_init');
+const log = createDebugLogger('aztec:archiver');
 
 /**
  * A function which instantiates and starts Archiver.
@@ -47,7 +47,7 @@ async function main() {
 if (process.argv[1] === fileURLToPath(import.meta.url).replace(/\/index\.js$/, '')) {
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
   main().catch(err => {
-    log(err);
+    log.fatal(err);
     process.exit(1);
   });
 }

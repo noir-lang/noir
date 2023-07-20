@@ -1,5 +1,7 @@
 import debug from 'debug';
 
+import { LogFn } from './index.js';
+
 let preLogHook: ((...args: any[]) => void) | undefined;
 let postLogHook: ((...args: any[]) => void) | undefined;
 
@@ -24,16 +26,11 @@ function theFunctionThroughWhichAllLogsPass(logger: any, ...args: any[]) {
 }
 
 /**
- * A debug logger.
- */
-export type DebugLogger = (...args: any[]) => void;
-
-/**
  * Return a logger, meant to be silent by default and verbose during debugging.
  * @param name - The module name of the logger.
  * @returns A callable log function.
  */
-export function createDebugLogger(name: string): DebugLogger {
+export function createDebugOnlyLogger(name: string): LogFn {
   const logger = debug(name);
   return (...args: any[]) => theFunctionThroughWhichAllLogsPass(logger, ...args);
 }

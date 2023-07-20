@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 
-import { createDebugLogger, enableLogs } from './debug.js';
+import { createDebugOnlyLogger, enableLogs } from './debug.js';
 import { LogHistory } from './log_history.js';
 
 jest.useFakeTimers({ doNotFake: ['performance'] });
@@ -12,7 +12,7 @@ describe('log history', () => {
   const name = 'test:a';
 
   beforeEach(() => {
-    debug = createDebugLogger(name);
+    debug = createDebugOnlyLogger(name);
     enableLogs(name);
     logHistory = new LogHistory();
   });
@@ -53,7 +53,7 @@ describe('log history', () => {
   it('only keeps logs with enabled namespace', () => {
     logHistory.enable();
     const name2 = 'test:b';
-    const debug2 = createDebugLogger(name2);
+    const debug2 = createDebugOnlyLogger(name2);
     debug('0');
     debug2('zero');
     expect(logHistory.getLogs()).toEqual([[timestemp, name, '0']]);

@@ -56,9 +56,9 @@ export class AztecRPCServer implements AztecRPC {
     private node: AztecNode,
     private db: Database,
     private config: RpcServerConfig,
-    logSuffix = '0',
+    logSuffix?: string,
   ) {
-    this.log = createDebugLogger('aztec:rpc_server_' + logSuffix);
+    this.log = createDebugLogger(logSuffix ? `aztec:rpc_server_${logSuffix}` : `aztec:rpc_server`);
     this.synchroniser = new Synchroniser(node, db, logSuffix);
   }
 
@@ -69,6 +69,8 @@ export class AztecRPCServer implements AztecRPC {
    */
   public async start() {
     await this.synchroniser.start(1, 1, this.config.l2BlockPollingIntervalMS);
+    const info = await this.getNodeInfo();
+    this.log.info(`Started RPC server connected to chain ${info.chainId} version ${info.version}`);
   }
 
   /**
@@ -80,7 +82,7 @@ export class AztecRPCServer implements AztecRPC {
    */
   public async stop() {
     await this.synchroniser.stop();
-    this.log('Stopped.');
+    this.log.info('Stopped');
   }
 
   /**
@@ -104,6 +106,7 @@ export class AztecRPCServer implements AztecRPC {
     // }
     await this.db.addPublicKeyAndPartialAddress(address, pubKey, partialContractAddress);
     this.synchroniser.addAccount(pubKey, address, this.keyStore);
+    this.log.info(`Added account ${address.toString()}`);
     return address;
   }
 
@@ -120,6 +123,7 @@ export class AztecRPCServer implements AztecRPC {
     partialAddress: PartialContractAddress,
   ): Promise<void> {
     await this.db.addPublicKeyAndPartialAddress(address, publicKey, partialAddress);
+    this.log.info(`Added public key for ${address.toString()}`);
   }
 
   /**
@@ -133,9 +137,9 @@ export class AztecRPCServer implements AztecRPC {
     const contractDaos = contracts.map(c => toContractDao(c.abi, c.address, c.portalContract));
     await Promise.all(contractDaos.map(c => this.db.addContract(c)));
     for (const contract of contractDaos) {
-      this.log(
-        `Added contract ${contract.name} at ${contract.address} with portal ${contract.portalContract} to the local db`,
-      );
+      const portalInfo =
+        contract.portalContract && !contract.portalContract.isZero() ? ` with portal ${contract.portalContract}` : '';
+      this.log.info(`Added contract ${contract.name} at ${contract.address}${portalInfo}`);
     }
   }
 
@@ -241,6 +245,7 @@ export class AztecRPCServer implements AztecRPC {
       }),
     );
 
+    this.log.info(`Executed local simulation for ${await tx.getTxHash()}`);
     return tx;
   }
 
@@ -250,8 +255,10 @@ export class AztecRPCServer implements AztecRPC {
    * @returns A hash of the transaction, used to identify it.
    */
   public async sendTx(tx: Tx): Promise<TxHash> {
+    const txHash = await tx.getTxHash();
+    this.log.info(`Sending transaction ${txHash}`);
     await this.node.sendTx(tx);
-    return tx.getTxHash();
+    return txHash;
   }
 
   /**

@@ -12,7 +12,7 @@ import {
 import { StructType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
-import { createLogger } from '@aztec/foundation/log';
+import { createConsoleLogger } from '@aztec/foundation/log';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ContractData, L2BlockL2Logs, TxHash } from '@aztec/types';
@@ -26,7 +26,7 @@ import { deployAztecContracts, getContractAbi, getTxSender, prepTx } from './uti
 const accountCreationSalt = Fr.ZERO;
 
 const debugLogger = createDebugLogger('aztec:cli');
-const log = createLogger();
+const log = createConsoleLogger();
 
 const program = new Command();
 

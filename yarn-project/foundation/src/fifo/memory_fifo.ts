@@ -1,4 +1,4 @@
-import { createLogger } from '../log/console.js';
+import { createDebugLogger } from '../log/index.js';
 
 /**
  * A simple fifo queue. It can grow unbounded. It can have multiple producers and consumers.
@@ -10,7 +10,7 @@ export class MemoryFifo<T> {
   private items: T[] = [];
   private flushing = false;
 
-  constructor(private log = createLogger('aztec:foundation:memory_fifo')) {}
+  constructor(private log = createDebugLogger('aztec:foundation:memory_fifo')) {}
 
   /**
    * Returns the current number of items in the queue.

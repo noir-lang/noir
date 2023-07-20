@@ -1,4 +1,4 @@
-import { createLogger } from '../log/console.js';
+import { createDebugLogger } from '../log/index.js';
 import { Semaphore } from './semaphore.js';
 import { SerialQueue } from './serial_queue.js';
 
@@ -10,7 +10,7 @@ export class BoundedSerialQueue {
   private readonly queue = new SerialQueue();
   private semaphore: Semaphore;
 
-  constructor(maxQueueSize: number, private log = createLogger('aztec:foundation:bounded_serial_queue')) {
+  constructor(maxQueueSize: number, private log = createDebugLogger('aztec:foundation:bounded_serial_queue')) {
     this.semaphore = new Semaphore(maxQueueSize);
   }
 

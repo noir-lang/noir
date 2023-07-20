@@ -10,7 +10,7 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
 } from '@aztec/circuits.js';
-import { createLogger } from '@aztec/foundation/log';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { sleep } from '@aztec/foundation/sleep';
 import { INITIAL_LEAF, Pedersen } from '@aztec/merkle-tree';
 import {
@@ -103,7 +103,7 @@ const getMockBlock = (blockNumber: number, newContractsCommitments?: Buffer[]) =
 const createSynchroniser = (merkleTreeDb: any, rollupSource: any) =>
   new ServerWorldStateSynchroniser(merkleTreeDb as MerkleTreeDb, rollupSource as L2BlockSource);
 
-const log = createLogger('aztec:server_world_state_synchroniser_test');
+const log = createDebugLogger('aztec:server_world_state_synchroniser_test');
 
 describe('server_world_state_synchroniser', () => {
   const rollupSource: Mockify<Pick<L2BlockSource, 'getBlockHeight' | 'getL2Blocks'>> = {

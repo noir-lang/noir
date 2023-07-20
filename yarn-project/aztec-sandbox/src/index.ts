@@ -91,9 +91,9 @@ async function main() {
 }
 
 main()
-  .then(() => logger(`Aztec JSON RPC listening on port ${SERVER_PORT}`))
-  .then(() => logger(`${splash}\n${github}\n\n`))
+  .then(() => logger.info(`Aztec JSON RPC listening on port ${SERVER_PORT}`))
+  .then(() => logger.info(`${splash}\n${github}\n\n`))
   .catch(err => {
-    logger(err);
+    logger.fatal(err);
     process.exit(1);
   });

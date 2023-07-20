@@ -7,6 +7,7 @@ import {
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
 import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
 import {
@@ -56,6 +57,7 @@ export class AztecNodeService implements AztecNode {
     protected sequencer: SequencerClient,
     protected chainId: number,
     protected version: number,
+    private log = createDebugLogger('aztec:node'),
   ) {}
 
   /**
@@ -188,7 +190,7 @@ export class AztecNodeService implements AztecNode {
     if (tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.isEmpty()) {
       tx.data.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(this.merkleTreeDB.asLatest());
     }
-
+    this.log.info(`Received tx ${await tx.getTxHash()}`);
     await this.p2pClient!.sendTx(tx);
   }
 
@@ -201,6 +203,7 @@ export class AztecNodeService implements AztecNode {
     await this.worldStateSynchroniser.stop();
     await this.merkleTreeDB.stop();
     await this.blockSource.stop();
+    this.log.info(`Stopped`);
   }
 
   /**

@@ -1,7 +1,7 @@
 import { AztecAddress, AztecRPC } from '@aztec/aztec.js';
 import { createEthereumChain, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { DebugLogger, Logger } from '@aztec/foundation/log';
+import { DebugLogger, LogFn } from '@aztec/foundation/log';
 
 import fs from 'fs';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
@@ -32,7 +32,7 @@ export async function deployAztecContracts(
  * @param fileDir - The directory of the compiled contract ABI.
  * @returns The parsed ContractABI.
  */
-export function getContractAbi(fileDir: string, log: Logger) {
+export function getContractAbi(fileDir: string, log: LogFn) {
   const contents = fs.readFileSync(fileDir, 'utf8');
   let contractAbi: ContractAbi;
   try {
@@ -83,7 +83,7 @@ export function prepTx(
   _contractAddress: string,
   functionName: string,
   _functionArgs: string[],
-  log: Logger,
+  log: LogFn,
 ) {
   let contractAddress;
   try {

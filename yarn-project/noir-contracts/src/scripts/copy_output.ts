@@ -1,5 +1,5 @@
 import { ABIParameter, ABIType, FunctionType } from '@aztec/foundation/abi';
-import { createLogger } from '@aztec/foundation/log';
+import { createConsoleLogger } from '@aztec/foundation/log';
 import { generateType } from '@aztec/noir-compiler';
 
 import { readFileSync, writeFileSync } from 'fs';
@@ -12,7 +12,7 @@ import { join as pathJoin } from 'path';
 import mockedKeys from './mockedKeys.json' assert { type: 'json' };
 
 const STATEMENT_TYPES = ['type', 'params', 'return'] as const;
-const log = createLogger('aztec:noir-contracts');
+const log = createConsoleLogger('aztec:noir-contracts');
 
 const PROJECT_CONTRACTS = [
   { name: 'SchnorrSingleKeyAccount', target: '../aztec.js/src/abis/', exclude: ['bytecode', 'verificationKey'] },

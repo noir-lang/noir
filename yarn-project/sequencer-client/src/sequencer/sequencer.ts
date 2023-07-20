@@ -172,9 +172,10 @@ export class Sequencer {
       await this.publishContractPublicData(validTxs, block);
 
       await this.publishL2Block(block);
+      this.log.info(`Submitted rollup block ${block.number} with ${processedTxs.length} transactions`);
     } catch (err) {
-      this.log(err);
-      this.log(`Rolling back world state DB`);
+      this.log.error(err);
+      this.log.error(`Rolling back world state DB`);
       await this.worldState.getLatest().rollback();
     }
   }

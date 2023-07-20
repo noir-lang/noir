@@ -5,7 +5,7 @@ import {
   L1_TO_L2_MSG_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
-import { Logger, createLogger } from '@aztec/foundation/log';
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import {
   AztecNode,
   ContractData,
@@ -26,9 +26,9 @@ import {
  */
 export class HttpNode implements AztecNode {
   private baseUrl: string;
-  private log: Logger;
+  private log: DebugLogger;
 
-  constructor(baseUrl: string, log = createLogger('aztec:http-node')) {
+  constructor(baseUrl: string, log = createDebugLogger('aztec:http-node')) {
     this.baseUrl = baseUrl.toString().replace(/\/$/, '');
     this.log = log;
   }
@@ -183,7 +183,7 @@ export class HttpNode implements AztecNode {
     url.searchParams.append('hash', txHash.toString());
     const response = await fetch(url.toString());
     if (response.status === 404) {
-      this.log(`Tx ${txHash.toString()} not found`);
+      this.log.info(`Tx ${txHash.toString()} not found`);
       return undefined;
     }
     const txBuffer = Buffer.from(await (await fetch(url.toString())).arrayBuffer());

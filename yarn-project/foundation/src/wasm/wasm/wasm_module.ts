@@ -2,7 +2,7 @@ import { Buffer } from 'buffer';
 import { randomBytes } from 'crypto';
 
 import { MemoryFifo } from '../../fifo/index.js';
-import { DebugLogger, createDebugLogger } from '../../log/index.js';
+import { LogFn, createDebugOnlyLogger } from '../../log/index.js';
 import { getEmptyWasiSdk } from './empty_wasi_sdk.js';
 
 /**
@@ -48,7 +48,7 @@ export class WasmModule implements IWasmModule {
   private heap!: Uint8Array;
   private instance?: WebAssembly.Instance;
   private mutexQ = new MemoryFifo<boolean>();
-  private debug: DebugLogger;
+  private debug: LogFn;
 
   /**
    * Create a wasm module. Should be followed by await init();.
@@ -61,7 +61,7 @@ export class WasmModule implements IWasmModule {
     private importFn: (module: WasmModule) => any,
     loggerName = 'wasm',
   ) {
-    this.debug = createDebugLogger(loggerName);
+    this.debug = createDebugOnlyLogger(loggerName);
     this.mutexQ.put(true);
   }
 
@@ -147,7 +147,7 @@ export class WasmModule implements IWasmModule {
    * Add a logger.
    * @param logger - Function to call when logging.
    */
-  public addLogger(logger: DebugLogger) {
+  public addLogger(logger: LogFn) {
     const oldDebug = this.debug;
     this.debug = (...args: any[]) => {
       logger(...args);

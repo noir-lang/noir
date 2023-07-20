@@ -21,8 +21,8 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
   private publicKeys: Map<bigint, [PublicKey, PartialContractAddress]> = new Map();
 
-  constructor(logSuffix = '0') {
-    super(createDebugLogger('aztec:memory_db_' + logSuffix));
+  constructor(logSuffix?: string) {
+    super(createDebugLogger(logSuffix ? 'aztec:memory_db_' + logSuffix : 'aztec:memory_db'));
   }
 
   /**
