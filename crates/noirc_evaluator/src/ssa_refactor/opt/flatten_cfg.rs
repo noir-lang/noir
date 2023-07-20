@@ -157,16 +157,14 @@ use crate::ssa_refactor::{
 mod branch_analysis;
 
 impl Ssa {
-    /// Flattens the control flow graph of each function such that the function is left with a
+    /// Flattens the control flow graph of main such that the function is left with a
     /// single block containing all instructions and no more control-flow.
     ///
     /// This pass will modify any instructions with side effects in particular, often multiplying
     /// them by jump conditions to maintain correctness even when all branches of a jmpif are inlined.
     /// For more information, see the module-level comment at the top of this file.
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            flatten_function_cfg(function);
-        }
+        flatten_function_cfg(self.main_mut());
         self
     }
 }
