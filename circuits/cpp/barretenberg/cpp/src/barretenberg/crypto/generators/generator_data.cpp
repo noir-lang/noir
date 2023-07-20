@@ -24,7 +24,7 @@ struct HashIndexParams {
 
 constexpr HashIndexParams LOW = { 32, 8 };
 constexpr HashIndexParams MID = { 8, 16 };
-constexpr HashIndexParams HIGH = { 4, 44 };
+constexpr HashIndexParams HIGH = { 4, 48 };
 
 constexpr size_t num_hash_indices = (LOW.num_indices + MID.num_indices + HIGH.num_indices);
 constexpr size_t num_indexed_generators = LOW.total_generators() + MID.total_generators() + HIGH.total_generators();
