@@ -13,6 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 
 acvm.workspace = true
+fm.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
 wasm-bindgen.workspace = true

@@ -160,11 +160,12 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            let definition_info = self.interner.definition(unused_var.id);
-            let name = &definition_info.name;
-            if name != ERROR_IDENT && !definition_info.is_global() {
-                let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
-                self.push_err(ResolverError::UnusedVariable { ident });
+            if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
+                let name = &definition_info.name;
+                if name != ERROR_IDENT && !definition_info.is_global() {
+                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                    self.push_err(ResolverError::UnusedVariable { ident });
+                }
             }
         }
     }
@@ -204,6 +205,8 @@ impl<'a> Resolver<'a> {
         warn_if_unused: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
+        let allow_shadowing = allow_shadowing || &name == "_";
+
         if definition.is_global() {
             return self.add_global_variable_decl(name, definition);
         }
@@ -883,6 +886,7 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
                 // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -1280,14 +1284,15 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
             Err(ResolverError::MutableReferenceToArrayElement { span })
         }
         HirExpression::Ident(ident) => {
-            let definition = interner.definition(ident.id);
-            if !definition.mutable {
-                let span = interner.expr_span(&rhs);
-                let variable = definition.name.clone();
-                Err(ResolverError::MutableReferenceToImmutableVariable { span, variable })
-            } else {
-                Ok(())
+            if let Some(definition) = interner.try_definition(ident.id) {
+                if !definition.mutable {
+                    return Err(ResolverError::MutableReferenceToImmutableVariable {
+                        span: interner.expr_span(&rhs),
+                        variable: definition.name.clone(),
+                    });
+                }
             }
+            Ok(())
         }
         _ => Ok(()),
     }

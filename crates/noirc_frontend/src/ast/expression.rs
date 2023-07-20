@@ -291,6 +291,7 @@ pub enum Literal {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+    Unit,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -465,6 +466,7 @@ impl Display for Literal {
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
             Literal::Str(string) => write!(f, "\"{string}\""),
+            Literal::Unit => write!(f, "()"),
         }
     }
 }
