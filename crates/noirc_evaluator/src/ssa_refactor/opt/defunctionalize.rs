@@ -13,7 +13,7 @@ use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
-        instruction::{BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
