@@ -28,6 +28,7 @@ All packages need to be included in the [build manifest](`build_manifest.json`),
 
 Logging goes through the [`info` and `debug`](circuits/cpp/barretenberg/cpp/src/barretenberg/common/log.hpp) functions in C++, and through the [DebugLogger](yarn-project/foundation/src/log/debug.ts) module in Typescript. To see the log output, set a `DEBUG` environment variable to the name of the module you want to debug, to `aztec:*`, or to `*` to see all logs.
 
-## Contributing
 
-To contribute, make sure to pick an existing issue and assign yourself to it, or notify that you'll be working on it. If you're new to the repository, look for those tagged as [`good-first-issue`](https://github.com/AztecProtocol/aztec-packages/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). Then send a pull request with your contribution, linking back to the issue it fixes.
+## Contribute
+
+There are many ways you can participate and help build high quality software. Check out the [contribution guide](CONTRIBUTING.md)!
