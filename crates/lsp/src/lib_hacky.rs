@@ -4,13 +4,14 @@
 use std::{
     collections::HashMap,
     fs,
-    future::Future,
+    future::{self, Future},
     ops::{self, ControlFlow},
     path::{Path, PathBuf},
 };
 
-use async_lsp::{LanguageClient, ResponseError};
+use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use codespan_reporting::files;
+use fm::FileManager;
 use lsp_types::{
     CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic, DiagnosticSeverity,
     DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
@@ -21,10 +22,11 @@ use lsp_types::{
 use noirc_driver::{check_crate, create_local_crate, create_non_local_crate, propagate_dep};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 use noirc_frontend::{
-    graph::{CrateId, CrateName, CrateType},
+    graph::{CrateGraph, CrateId, CrateName, CrateType},
     hir::Context,
 };
 
+// I'm guessing this is here so the `lib.rs` file compiles
 use crate::LspState;
 
 const TEST_COMMAND: &str = "nargo.test";
@@ -41,9 +43,13 @@ const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 // and params passed in.
 
 pub fn on_initialize(
-    _state: &mut LspState,
-    _params: InitializeParams,
+    state: &mut LspState,
+    params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
+    if let Some(root_uri) = params.root_uri {
+        state.root_path = root_uri.to_file_path().ok();
+    }
+
     async {
         let text_document_sync =
             TextDocumentSyncOptions { save: Some(true.into()), ..Default::default() };
@@ -70,30 +76,33 @@ pub fn on_shutdown(
 }
 
 pub fn on_code_lens_request(
-    _state: &mut LspState,
+    state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
     let actual_path = params.text_document.uri.to_file_path().unwrap();
-    let (mut driver, current_crate_id) = create_context_at_path(actual_path);
+    let (mut context, crate_id) = match create_context_at_path(&state.root_path, &actual_path) {
+        Err(err) => return future::ready(Err(err)),
+        Ok(res) => res,
+    };
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut driver, false, false);
+    let _ = check_crate(&mut context, crate_id, false, false);
 
-    let fm = &driver.file_manager;
+    let fm = &context.file_manager;
     let files = fm.as_simple_files();
-    let tests = driver.get_all_test_functions_in_crate_matching(&current_crate_id, "");
+    let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
 
     let mut lenses: Vec<CodeLens> = vec![];
     for func_id in tests {
-        let location = driver.function_meta(&func_id).name.location;
+        let location = context.function_meta(&func_id).name.location;
         let file_id = location.file;
         // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
         if file_id.as_usize() != 0 {
             continue;
         }
 
-        let func_name = driver.function_name(&func_id);
+        let func_name = context.function_name(&func_id);
 
         let range =
             byte_span_to_range(files, file_id.as_usize(), location.span.into()).unwrap_or_default();
@@ -109,13 +118,9 @@ pub fn on_code_lens_request(
         lenses.push(lens);
     }
 
-    async move {
-        if lenses.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(lenses))
-        }
-    }
+    let res = if lenses.is_empty() { Ok(None) } else { Ok(Some(lenses)) };
+
+    future::ready(res)
 }
 
 pub fn on_initialized(
@@ -197,9 +202,13 @@ pub fn on_did_save_text_document(
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let actual_path = params.text_document.uri.to_file_path().unwrap();
-    let (mut context, _) = create_context_at_path(actual_path.clone());
+    let actual_file_name = actual_path.file_name();
+    let (mut context, crate_id) = match create_context_at_path(&state.root_path, &actual_path) {
+        Err(err) => return ControlFlow::Break(Err(err.into())),
+        Ok(res) => res,
+    };
 
-    let file_diagnostics = match check_crate(&mut context, false, false) {
+    let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
         Ok(warnings) => warnings,
         Err(errors_and_warnings) => errors_and_warnings,
     };
@@ -213,13 +222,13 @@ pub fn on_did_save_text_document(
             // TODO(AD): HACK, undo these total hacks once we have a proper approach
             if file_id.as_usize() == 0 {
                 // main.nr case
-                if actual_path.file_name().unwrap().to_str() != Some("main.nr")
-                    && actual_path.file_name().unwrap().to_str() != Some("lib.nr")
+                if actual_file_name.unwrap().to_str() != Some("main.nr")
+                    && actual_file_name.unwrap().to_str() != Some("lib.nr")
                 {
                     continue;
                 }
             } else if fm.path(file_id).file_name().unwrap().to_str().unwrap()
-                != actual_path.file_name().unwrap().to_str().unwrap().replace(".nr", "")
+                != actual_file_name.unwrap().to_str().unwrap().replace(".nr", "")
             {
                 // every other file case
                 continue; // TODO(AD): HACK, we list all errors, filter by hacky final path component
@@ -256,19 +265,30 @@ pub fn on_did_save_text_document(
     ControlFlow::Continue(())
 }
 
-fn create_context_at_path(actual_path: PathBuf) -> (Context, CrateId) {
-    // TODO: Requiring `Language` and `is_opcode_supported` to construct a driver makes for some real stinky code
-    // The driver should not require knowledge of the backend; instead should be implemented as an independent pass (in nargo?)
-    let mut context = Context::default();
+fn create_context_at_path(
+    root_path: &Option<PathBuf>,
+    actual_path: &Path,
+) -> Result<(Context, CrateId), ResponseError> {
+    let mut context = match &root_path {
+        Some(root_path) => {
+            let fm = FileManager::new(root_path);
+            let graph = CrateGraph::default();
+            Context::new(fm, graph)
+        }
+        None => {
+            let err = ResponseError::new(ErrorCode::REQUEST_FAILED, "Project has not been built");
+            return Err(err);
+        }
+    };
 
-    let mut file_path: PathBuf = actual_path;
+    let mut file_path = actual_path.to_path_buf();
     // TODO better naming/unhacking
     if let Some(new_path) = find_nearest_parent_file(&file_path, &["lib.nr", "main.nr"]) {
         file_path = new_path; // TODO unhack
     }
     let nargo_toml_path = find_nearest_parent_file(&file_path, &["Nargo.toml"]);
 
-    let current_crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
+    let current_crate_id = create_local_crate(&mut context, &file_path, CrateType::Binary);
 
     // TODO(AD): undo hacky dependency resolution
     if let Some(nargo_toml_path) = nargo_toml_path {
@@ -280,12 +300,12 @@ fn create_context_at_path(actual_path: PathBuf) -> (Context, CrateId) {
                     .unwrap() // TODO
                     .join(PathBuf::from(&dependency_path).join("src").join("lib.nr"));
                 let library_crate =
-                    create_non_local_crate(&mut context, path_to_lib, CrateType::Library);
+                    create_non_local_crate(&mut context, &path_to_lib, CrateType::Library);
                 propagate_dep(&mut context, library_crate, &CrateName::new(crate_name).unwrap());
             }
         }
     }
-    (context, current_crate_id)
+    Ok((context, current_crate_id))
 }
 
 pub fn on_exit(_state: &mut LspState, _params: ()) -> ControlFlow<Result<(), async_lsp::Error>> {
