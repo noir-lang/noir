@@ -1,6 +1,7 @@
 use std::{borrow::Cow, rc::Rc};
 
 use acvm::FieldElement;
+use noirc_errors::Location;
 
 use crate::ssa_refactor::ir::{
     basic_block::BasicBlockId,
@@ -32,6 +33,7 @@ pub(crate) struct FunctionBuilder {
     pub(super) current_function: Function,
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
+    current_location: Option<Location>,
 }
 
 impl FunctionBuilder {
@@ -48,7 +50,12 @@ impl FunctionBuilder {
         new_function.set_runtime(runtime);
         let current_block = new_function.entry_block();
 
-        Self { current_function: new_function, current_block, finished_functions: Vec::new() }
+        Self {
+            current_function: new_function,
+            current_block,
+            finished_functions: Vec::new(),
+            current_location: None,
+        }
     }
 
     /// Finish the current function and create a new function.
@@ -148,6 +155,7 @@ impl FunctionBuilder {
             instruction,
             self.current_block,
             ctrl_typevars,
+            self.current_location,
         )
     }
 
@@ -168,6 +176,11 @@ impl FunctionBuilder {
     /// which is always a Reference to the allocated data.
     pub(crate) fn insert_allocate(&mut self) -> ValueId {
         self.insert_instruction(Instruction::Allocate, None).first()
+    }
+
+    pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
+        self.current_location = Some(location);
+        self
     }
 
     /// Insert a Load instruction at the end of the current block, loading from the given offset

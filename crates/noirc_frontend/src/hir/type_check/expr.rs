@@ -2,12 +2,16 @@ use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
+    hir::resolution::resolver::verify_mutable_reference,
     hir_def::{
-        expr::{self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral},
+        expr::{
+            self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
+            HirPrefixExpression,
+        },
         types::Type,
     },
     node_interner::{ExprId, FuncId},
-    CompTime, Shared, TypeBinding,
+    CompTime, Shared, TypeBinding, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -38,7 +42,10 @@ impl<'interner> TypeChecker<'interner> {
                     HirLiteral::Array(HirArrayLiteral::Standard(arr)) => {
                         let elem_types = vecmap(&arr, |arg| self.check_expression(arg));
 
-                        let first_elem_type = elem_types.get(0).cloned().unwrap_or(Type::Error);
+                        let first_elem_type = elem_types
+                            .get(0)
+                            .cloned()
+                            .unwrap_or_else(|| self.interner.next_type_variable());
 
                         let arr_type = Type::Array(
                             Box::new(Type::Constant(arr.len() as u64)),
@@ -74,17 +81,12 @@ impl<'interner> TypeChecker<'interner> {
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool(CompTime::new(self.interner)),
-                    HirLiteral::Integer(_) => {
-                        let id = self.interner.next_type_variable_id();
-                        Type::PolymorphicInteger(
-                            CompTime::new(self.interner),
-                            Shared::new(TypeBinding::Unbound(id)),
-                        )
-                    }
+                    HirLiteral::Integer(_) => Type::polymorphic_integer(self.interner),
                     HirLiteral::Str(string) => {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
                     }
+                    HirLiteral::Unit => Type::Unit,
                 }
             }
             HirExpression::Infix(infix_expr) => {
@@ -112,13 +114,14 @@ impl<'interner> TypeChecker<'interner> {
                 let span = self.interner.expr_span(expr_id);
                 self.bind_function_type(function, args, span)
             }
-            HirExpression::MethodCall(method_call) => {
+            HirExpression::MethodCall(mut method_call) => {
                 let object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
-                match self.lookup_method(object_type.clone(), method_name, expr_id) {
+                match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_id) => {
                         let mut args =
                             vec![(object_type, self.interner.expr_span(&method_call.object))];
+
                         let mut arg_types = vecmap(&method_call.arguments, |arg| {
                             let typ = self.check_expression(arg);
                             (typ, self.interner.expr_span(arg))
@@ -128,6 +131,18 @@ impl<'interner> TypeChecker<'interner> {
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
                         let location = method_call.location;
+
+                        // Automatically add `&mut` if the method expects a mutable reference and
+                        // the object is not already one.
+                        if method_id != FuncId::dummy_id() {
+                            let func_meta = self.interner.function_meta(&method_id);
+                            self.try_add_mutable_reference_to_object(
+                                &mut method_call,
+                                &func_meta.typ,
+                                &mut args,
+                            );
+                        }
+
                         let (function_id, function_call) =
                             method_call.into_function_call(method_id, location, self.interner);
 
@@ -216,14 +231,8 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::Prefix(prefix_expr) => {
                 let rhs_type = self.check_expression(&prefix_expr.rhs);
-                match prefix_operand_type_rules(&prefix_expr.operator, &rhs_type) {
-                    Ok(typ) => typ,
-                    Err(msg) => {
-                        let rhs_span = self.interner.expr_span(&prefix_expr.rhs);
-                        self.errors.push(TypeCheckError::Unstructured { msg, span: rhs_span });
-                        Type::Error
-                    }
-                }
+                let span = self.interner.expr_span(&prefix_expr.rhs);
+                self.type_check_prefix_operand(&prefix_expr.operator, &rhs_type, span)
             }
             HirExpression::If(if_expr) => self.check_if_expr(&if_expr, expr_id),
             HirExpression::Constructor(constructor) => self.check_constructor(constructor, expr_id),
@@ -256,13 +265,56 @@ impl<'interner> TypeChecker<'interner> {
         typ
     }
 
+    /// Check if the given method type requires a mutable reference to the object type, and check
+    /// if the given object type is already a mutable reference. If not, add one.
+    /// This is used to automatically transform a method call: `foo.bar()` into a function
+    /// call: `bar(&mut foo)`.
+    fn try_add_mutable_reference_to_object(
+        &mut self,
+        method_call: &mut HirMethodCallExpression,
+        function_type: &Type,
+        argument_types: &mut [(Type, noirc_errors::Span)],
+    ) {
+        let expected_object_type = match function_type {
+            Type::Function(args, _) => args.get(0),
+            Type::Forall(_, typ) => match typ.as_ref() {
+                Type::Function(args, _) => args.get(0),
+                typ => unreachable!("Unexpected type for function: {typ}"),
+            },
+            typ => unreachable!("Unexpected type for function: {typ}"),
+        };
+
+        if let Some(expected_object_type) = expected_object_type {
+            if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
+                let actual_type = argument_types[0].0.follow_bindings();
+
+                if !matches!(actual_type, Type::MutableReference(_)) {
+                    if let Err(error) = verify_mutable_reference(self.interner, method_call.object)
+                    {
+                        self.errors.push(TypeCheckError::ResolverError(error));
+                    }
+
+                    let new_type = Type::MutableReference(Box::new(actual_type));
+
+                    argument_types[0].0 = new_type.clone();
+                    method_call.object =
+                        self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
+                            operator: UnaryOp::MutableReference,
+                            rhs: method_call.object,
+                        }));
+                    self.interner.push_expr_type(&method_call.object, new_type);
+                }
+            }
+        }
+    }
+
     fn check_index_expression(&mut self, index_expr: expr::HirIndexExpression) -> Type {
         let index_type = self.check_expression(&index_expr.index);
         let span = self.interner.expr_span(&index_expr.index);
 
-        index_type.make_subtype_of(&Type::field(Some(span)), span, &mut self.errors, || {
+        index_type.unify(&Type::polymorphic_integer(self.interner), span, &mut self.errors, || {
             TypeCheckError::TypeMismatch {
-                expected_typ: "Field".to_owned(),
+                expected_typ: "an integer".to_owned(),
                 expr_typ: index_type.to_string(),
                 expr_span: span,
             }
@@ -273,6 +325,7 @@ impl<'interner> TypeChecker<'interner> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
+            Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
                 let span = self.interner.expr_span(&index_expr.collection);
@@ -462,13 +515,26 @@ impl<'interner> TypeChecker<'interner> {
         Type::Struct(typ, generics)
     }
 
-    fn check_member_access(&mut self, access: expr::HirMemberAccess, expr_id: ExprId) -> Type {
+    fn check_member_access(&mut self, mut access: expr::HirMemberAccess, expr_id: ExprId) -> Type {
         let lhs_type = self.check_expression(&access.lhs).follow_bindings();
         let span = self.interner.expr_span(&expr_id);
+        let access_lhs = &mut access.lhs;
 
-        match self.check_field_access(&lhs_type, &access.rhs.0.contents, span) {
+        let dereference_lhs = |this: &mut Self, lhs_type, element| {
+            let old_lhs = *access_lhs;
+            *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
+                operator: crate::UnaryOp::Dereference,
+                rhs: old_lhs,
+            }));
+            this.interner.push_expr_type(&old_lhs, lhs_type);
+            this.interner.push_expr_type(access_lhs, element);
+        };
+
+        match self.check_field_access(&lhs_type, &access.rhs.0.contents, span, dereference_lhs) {
             Some((element_type, index)) => {
                 self.interner.set_field_index(expr_id, index);
+                // We must update `access` in case we added any dereferences to it
+                self.interner.replace_expr(&expr_id, HirExpression::MemberAccess(access));
                 element_type
             }
             None => Type::Error,
@@ -481,32 +547,50 @@ impl<'interner> TypeChecker<'interner> {
     ///
     /// This function is abstracted from check_member_access so that it can be shared between
     /// there and the HirLValue::MemberAccess case of check_lvalue.
+    ///
+    /// `dereference_lhs` is called when the lhs type is a Type::MutableReference that should be
+    /// automatically dereferenced so its field can be extracted. This function is expected to
+    /// perform any mutations necessary to wrap the lhs in a UnaryOp::Dereference prefix
+    /// expression. The second parameter of this function represents the lhs_type (which should
+    /// always be a Type::MutableReference if `dereference_lhs` is called) and the third
+    /// represents the element type.
     pub(super) fn check_field_access(
         &mut self,
         lhs_type: &Type,
         field_name: &str,
         span: Span,
+        mut dereference_lhs: impl FnMut(&mut Self, Type, Type),
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
 
-        if let Type::Struct(s, args) = &lhs_type {
-            let s = s.borrow();
-            if let Some((field, index)) = s.get_field(field_name, args) {
-                return Some((field, index));
-            }
-        } else if let Type::Tuple(elements) = &lhs_type {
-            if let Ok(index) = field_name.parse::<usize>() {
-                let length = elements.len();
-                if index < length {
-                    return Some((elements[index].clone(), index));
-                } else {
-                    self.errors.push(TypeCheckError::Unstructured {
-                        msg: format!("Index {index} is out of bounds for this tuple {lhs_type} of length {length}"),
-                        span,
-                    });
-                    return None;
+        match &lhs_type {
+            Type::Struct(s, args) => {
+                let s = s.borrow();
+                if let Some((field, index)) = s.get_field(field_name, args) {
+                    return Some((field, index));
                 }
             }
+            Type::Tuple(elements) => {
+                if let Ok(index) = field_name.parse::<usize>() {
+                    let length = elements.len();
+                    if index < length {
+                        return Some((elements[index].clone(), index));
+                    } else {
+                        self.errors.push(TypeCheckError::Unstructured {
+                            msg: format!("Index {index} is out of bounds for this tuple {lhs_type} of length {length}"),
+                            span,
+                        });
+                        return None;
+                    }
+                }
+            }
+            // If the lhs is a mutable reference we automatically transform
+            // lhs.field into (*lhs).field
+            Type::MutableReference(element) => {
+                dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
+                return self.check_field_access(element, field_name, span, dereference_lhs);
+            }
+            _ => (),
         }
 
         // If we get here the type has no field named 'access.rhs'.
@@ -526,35 +610,41 @@ impl<'interner> TypeChecker<'interner> {
         lhs_type: &Type,
         rhs_type: &Type,
         op: &HirBinaryOp,
+        span: Span,
     ) -> Result<Type, String> {
         use crate::BinaryOpKind::{Equal, NotEqual};
         use Type::*;
+        let make_error = move |msg| TypeCheckError::Unstructured { msg, span };
+
         match (lhs_type, rhs_type)  {
             // Avoid reporting errors multiple times
             (Error, _) | (_,Error) => Ok(Bool(CompTime::Yes(None))),
 
             // Matches on PolymorphicInteger and TypeVariable must be first to follow any type
             // bindings.
-            (PolymorphicInteger(comptime, int), other)
-            | (other, PolymorphicInteger(comptime, int)) => {
+            (var @ PolymorphicInteger(_, int), other)
+            | (other, var @ PolymorphicInteger(_, int))
+            | (var @ TypeVariable(int), other)
+            | (other, var @ TypeVariable(int)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
-                    return self.comparator_operand_type_rules(other, binding, op);
-                }
-                if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                    Ok(Bool(comptime.clone()))
-                } else {
-                    Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
-                }
-            }
-            (TypeVariable(var), other)
-            | (other, TypeVariable(var)) => {
-                if let TypeBinding::Bound(binding) = &*var.borrow() {
-                    return self.comparator_operand_type_rules(binding, other, op);
+                    return self.comparator_operand_type_rules(other, binding, op, span);
                 }
 
-                let comptime = CompTime::No(None);
-                if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                    Ok(Bool(comptime))
+                if !op.kind.is_valid_for_field_type() && (other.is_bindable() || other.is_field()) {
+                    let other = other.follow_bindings();
+
+                    self.push_delayed_type_check(Box::new(move || {
+                        if other.is_field() || other.is_bindable() {
+                            Err(make_error("Comparisons are invalid on Field types. Try casting the operands to a sized integer type first".into()))
+                        } else {
+                            Ok(())
+                        }
+                    }));
+                }
+
+                let comptime = var.try_get_comptime();
+                if other.try_bind_to_polymorphic_int(int, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                    Ok(Bool(comptime.into_owned()))
                 } else {
                     Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
                 }
@@ -576,14 +666,11 @@ impl<'interner> TypeChecker<'interner> {
                 Err(format!("Integer cannot be used with type {typ}"))
             }
             (FieldElement(comptime_x), FieldElement(comptime_y)) => {
-                match op.kind {
-                    Equal | NotEqual => {
-                        let comptime = comptime_x.and(comptime_y, op.location.span);
-                        Ok(Bool(comptime))
-                    },
-                    _ => {
-                        Err("Fields cannot be compared, try casting to an integer first".into())
-                    }
+                if op.kind.is_valid_for_field_type() {
+                    let comptime = comptime_x.and(comptime_y, op.location.span);
+                    Ok(Bool(comptime))
+                } else {
+                    Err("Fields cannot be compared, try casting to an integer first".into())
                 }
             }
 
@@ -634,11 +721,11 @@ impl<'interner> TypeChecker<'interner> {
 
     fn lookup_method(
         &mut self,
-        object_type: Type,
+        object_type: &Type,
         method_name: &str,
         expr_id: &ExprId,
     ) -> Option<FuncId> {
-        match &object_type {
+        match object_type {
             Type::Struct(typ, _args) => {
                 match self.interner.lookup_method(typ.borrow().id, method_name) {
                     Some(method_id) => Some(method_id),
@@ -653,6 +740,9 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 }
             }
+            // Mutable references to another type should resolve to methods of their element type.
+            // This may be a struct or a primitive type.
+            Type::MutableReference(element) => self.lookup_method(element, method_name, expr_id),
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,
@@ -741,7 +831,9 @@ impl<'interner> TypeChecker<'interner> {
         let make_error = move |msg| TypeCheckError::Unstructured { msg, span };
 
         if op.kind.is_comparator() {
-            return self.comparator_operand_type_rules(lhs_type, rhs_type, op).map_err(make_error);
+            return self
+                .comparator_operand_type_rules(lhs_type, rhs_type, op, span)
+                .map_err(make_error);
         }
 
         use Type::*;
@@ -751,8 +843,10 @@ impl<'interner> TypeChecker<'interner> {
 
             // Matches on PolymorphicInteger and TypeVariable must be first so that we follow any type
             // bindings.
-            (PolymorphicInteger(comptime, int), other)
-            | (other, PolymorphicInteger(comptime, int)) => {
+            (var @ PolymorphicInteger(_, int), other)
+            | (other, var @ PolymorphicInteger(_, int))
+            | (var @ TypeVariable(int), other)
+            | (other, var @ TypeVariable(int)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
@@ -774,20 +868,8 @@ impl<'interner> TypeChecker<'interner> {
                     }));
                 }
 
-                if other.try_bind_to_polymorphic_int(int, comptime, true, op.location.span).is_ok() || other == &Type::Error {
-                    Ok(other.clone())
-                } else {
-                    Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
-                }
-            }
-            (TypeVariable(var), other)
-            | (other, TypeVariable(var)) => {
-                if let TypeBinding::Bound(binding) = &*var.borrow() {
-                    return self.infix_operand_type_rules(binding, op, other, span);
-                }
-
-                let comptime = CompTime::No(None);
-                if other.try_bind_to_polymorphic_int(var, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                let comptime = var.try_get_comptime();
+                if other.try_bind_to_polymorphic_int(int, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
                     Ok(other.clone())
                 } else {
                     Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
@@ -830,22 +912,44 @@ impl<'interner> TypeChecker<'interner> {
             (lhs, rhs) => Err(make_error(format!("Unsupported types for binary operation: {lhs} and {rhs}"))),
         }
     }
-}
 
-fn prefix_operand_type_rules(op: &crate::UnaryOp, rhs_type: &Type) -> Result<Type, String> {
-    match op {
-        crate::UnaryOp::Minus => {
-            if !matches!(rhs_type, Type::Integer(..) | Type::Error) {
-                return Err("Only Integers can be used in a Minus expression".to_string());
+    fn type_check_prefix_operand(
+        &mut self,
+        op: &crate::UnaryOp,
+        rhs_type: &Type,
+        span: Span,
+    ) -> Type {
+        let mut unify = |expected| {
+            rhs_type.unify(&expected, span, &mut self.errors, || TypeCheckError::TypeMismatch {
+                expr_typ: rhs_type.to_string(),
+                expected_typ: expected.to_string(),
+                expr_span: span,
+            });
+            expected
+        };
+
+        match op {
+            crate::UnaryOp::Minus => unify(Type::polymorphic_integer(self.interner)),
+            crate::UnaryOp::Not => {
+                let rhs_type = rhs_type.follow_bindings();
+
+                // `!` can work on booleans or integers
+                if matches!(rhs_type, Type::Integer(..)) {
+                    return rhs_type;
+                }
+
+                unify(Type::Bool(CompTime::new(self.interner)))
             }
-        }
-        crate::UnaryOp::Not => {
-            if !matches!(rhs_type, Type::Integer(..) | Type::Bool(_) | Type::Error) {
-                return Err("Only Integers or Bool can be used in a Not expression".to_string());
+            crate::UnaryOp::MutableReference => {
+                Type::MutableReference(Box::new(rhs_type.follow_bindings()))
+            }
+            crate::UnaryOp::Dereference => {
+                let element_type = self.interner.next_type_variable();
+                unify(Type::MutableReference(Box::new(element_type.clone())));
+                element_type
             }
         }
     }
-    Ok(rhs_type.clone())
 }
 
 /// Taken from: https://stackoverflow.com/a/47127500

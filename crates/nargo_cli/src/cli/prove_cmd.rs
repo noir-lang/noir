@@ -37,9 +37,10 @@ pub(crate) struct ProveCommand {
     pub(crate) witness_options: WitnessArtifact,
 
     #[clap(flatten)]
-    backend_options: BackendOptions
+    backend_options: BackendOptions,
 
-
+    #[clap(long)]
+    package: Option<String>,
 }
 
 pub(crate) fn run<B: acvm::Backend>(

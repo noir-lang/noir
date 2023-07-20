@@ -6,10 +6,13 @@ use self::{
     brillig_ir::artifact::{BrilligArtifact, Label},
 };
 use crate::ssa_refactor::{
-    ir::function::{Function, FunctionId, RuntimeType},
+    ir::{
+        function::{Function, FunctionId, RuntimeType},
+        value::Value,
+    },
     ssa_gen::Ssa,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Context structure for the brillig pass.
 /// It stores brillig-related data required for brillig generation.
@@ -46,18 +49,54 @@ impl std::ops::Index<FunctionId> for Brillig {
 }
 
 impl Ssa {
-    /// Generate compilation artifacts for brillig functions
+    /// Compile to brillig brillig functions and ACIR functions reachable from them
     pub(crate) fn to_brillig(&self) -> Brillig {
-        // Collect all of the brillig functions
-        let brillig_functions =
-            self.functions.values().filter(|func| func.runtime() == RuntimeType::Brillig);
+        // Collect all the function ids that are reachable from brillig
+        // That means all the functions marked as brillig and ACIR functions called by them
+        let mut brillig_reachable_function_ids: HashSet<FunctionId> = HashSet::new();
+
+        // Initialize the queue with all the functions marked as brillig
+        let mut reachability_queue: Vec<FunctionId> = self
+            .functions
+            .iter()
+            .filter_map(
+                |(id, func)| {
+                    if func.runtime() == RuntimeType::Brillig {
+                        Some(*id)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .collect();
+
+        while let Some(func_id) = reachability_queue.pop() {
+            let func = &self.functions[&func_id];
+            brillig_reachable_function_ids.insert(func.id());
+
+            // Explore all functions that are reachable from this function
+            for (_, value) in func.dfg.values_iter() {
+                // All reachable functions appear as literals after defunctionalization of the SSA
+                let reachable_function = match value {
+                    Value::Function(function_id) => function_id,
+                    _ => continue,
+                };
+
+                // If the function is already reachable by brillig or enqueued, skip it.
+                if brillig_reachable_function_ids.contains(reachable_function)
+                    || reachability_queue.contains(reachable_function)
+                {
+                    continue;
+                }
+
+                reachability_queue.push(*reachable_function);
+            }
+        }
 
         let mut brillig = Brillig::default();
-        for brillig_function in brillig_functions {
-            // TODO: document why we are skipping the `main_id` for Brillig functions
-            if brillig_function.id() != self.main_id {
-                brillig.compile(brillig_function);
-            }
+        for brillig_function_id in brillig_reachable_function_ids {
+            let func = &self.functions[&brillig_function_id];
+            brillig.compile(func);
         }
 
         brillig

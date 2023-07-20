@@ -1,10 +1,12 @@
 
+// TODO: Once we fully move to the new SSA pass this module can be removed and replaced
+// by the methods in the `slice` module
 impl<T, N> [T; N] {
     #[builtin(array_len)]
-    fn len(_array: Self) -> comptime Field {}
+    fn len(_self: Self) -> comptime Field {}
 
     #[builtin(arraysort)]
-    fn sort(_array: Self) -> Self {}
+    fn sort(_self: Self) -> Self {}
 
     // Sort with a custom sorting function.
     fn sort_via(mut a: Self, ordering: fn(T, T) -> bool) -> Self { 

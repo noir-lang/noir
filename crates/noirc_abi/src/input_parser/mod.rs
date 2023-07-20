@@ -1,7 +1,7 @@
 mod json;
 mod toml;
 
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
 use acvm::FieldElement;
 use serde::Serialize;
@@ -14,8 +14,8 @@ use crate::{Abi, AbiType};
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum InputValue {
     Field(FieldElement),
-    Vec(Vec<FieldElement>),
     String(String),
+    Vec(Vec<InputValue>),
     Struct(BTreeMap<String, InputValue>),
 }
 
@@ -32,14 +32,12 @@ impl InputValue {
                 field_element.is_one() || field_element.is_zero()
             }
 
-            (InputValue::Vec(field_elements), AbiType::Array { length, typ, .. }) => {
-                if field_elements.len() != *length as usize {
+            (InputValue::Vec(array_elements), AbiType::Array { length, typ, .. }) => {
+                if array_elements.len() != *length as usize {
                     return false;
                 }
                 // Check that all of the array's elements' values match the ABI as well.
-                field_elements
-                    .iter()
-                    .all(|field_element| Self::Field(*field_element).matches_abi(typ))
+                array_elements.iter().all(|input_value| input_value.matches_abi(typ))
             }
 
             (InputValue::String(string), AbiType::String { length }) => {
@@ -67,12 +65,6 @@ impl InputValue {
             _ => false,
         }
     }
-}
-
-/// Parses the initial Witness Values that are needed to seed the
-/// Partial Witness generator
-pub trait InitialWitnessParser {
-    fn parse_initial_witness<P: AsRef<Path>>(&self, path: P) -> BTreeMap<String, InputValue>;
 }
 
 /// The different formats that are supported when parsing
@@ -106,11 +98,12 @@ impl Format {
 
     pub fn serialize(
         &self,
-        w_map: &BTreeMap<String, InputValue>,
+        input_map: &BTreeMap<String, InputValue>,
+        abi: &Abi,
     ) -> Result<String, InputParserError> {
         match self {
-            Format::Json => json::serialize_to_json(w_map),
-            Format::Toml => toml::serialize_to_toml(w_map),
+            Format::Json => json::serialize_to_json(input_map, abi),
+            Format::Toml => toml::serialize_to_toml(input_map, abi),
         }
     }
 }
@@ -163,14 +156,20 @@ mod serialization_tests {
                 "bar".into(),
                 InputValue::Struct(BTreeMap::from([
                     ("field1".into(), InputValue::Field(255u128.into())),
-                    ("field2".into(), InputValue::Vec(vec![true.into(), false.into()])),
+                    (
+                        "field2".into(),
+                        InputValue::Vec(vec![
+                            InputValue::Field(true.into()),
+                            InputValue::Field(false.into()),
+                        ]),
+                    ),
                 ])),
             ),
             (MAIN_RETURN_NAME.into(), InputValue::String("hello".to_owned())),
         ]);
 
         for format in Format::iter() {
-            let serialized_inputs = format.serialize(&input_map).unwrap();
+            let serialized_inputs = format.serialize(&input_map, &abi).unwrap();
 
             let reconstructed_input_map = format.parse(&serialized_inputs, &abi).unwrap();
 

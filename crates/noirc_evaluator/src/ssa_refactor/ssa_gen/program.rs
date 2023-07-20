@@ -38,6 +38,17 @@ impl Ssa {
     pub(crate) fn main_mut(&mut self) -> &mut Function {
         self.functions.get_mut(&self.main_id).expect("ICE: Ssa should have a main function")
     }
+
+    /// Adds a new function to the program
+    pub(crate) fn add_fn(
+        &mut self,
+        build_with_id: impl FnOnce(FunctionId) -> Function,
+    ) -> FunctionId {
+        let new_id = self.next_id.next();
+        let function = build_with_id(new_id);
+        self.functions.insert(new_id, function);
+        new_id
+    }
 }
 
 impl Display for Ssa {

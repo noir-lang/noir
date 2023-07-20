@@ -15,7 +15,7 @@ use super::backend_vendor_cmd;
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
-pub(crate) struct ContractCommand {
+pub(crate) struct CodegenVerifierCommand {
 
     #[clap(flatten)]
     pub(crate) contract_options: ContractArtifact,

@@ -3,7 +3,7 @@ use noirc_errors::FileDiagnostic;
 
 use crate::{
     graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirImpl, NoirStruct, ParsedModule,
+    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, TypeImpl,
 };
 
 use super::{
@@ -92,7 +92,7 @@ impl<'a> ModCollector<'a> {
         }
     }
 
-    fn collect_impls(&mut self, context: &mut Context, impls: Vec<NoirImpl>) {
+    fn collect_impls(&mut self, context: &mut Context, impls: Vec<TypeImpl>) {
         for r#impl in impls {
             let mut unresolved_functions =
                 UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };

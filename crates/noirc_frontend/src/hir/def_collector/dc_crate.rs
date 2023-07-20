@@ -1,6 +1,6 @@
 use super::dc_mod::collect_defs;
 use super::errors::DefCollectorErrorKind;
-use crate::graph::{CrateId, LOCAL_CRATE};
+use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::resolver::Resolver;
@@ -99,7 +99,7 @@ impl DefCollector {
             CrateDefMap::collect_defs(dep.crate_id, context, errors);
 
             let dep_def_root =
-                context.def_map(dep.crate_id).expect("ice: def map was just created").root;
+                context.def_map(&dep.crate_id).expect("ice: def map was just created").root;
             let module_id = ModuleId { krate: dep.crate_id, local_id: dep_def_root };
             // Add this crate as a dependency by linking it's root module
             def_map.extern_prelude.insert(dep.as_name(), module_id);
@@ -237,10 +237,8 @@ fn collect_impls(
                         errors.push(err.into_file_diagnostic(unresolved.file_id));
                     }
                 }
-            // Prohibit defining impls for primitive types if we're in the local crate.
-            // We should really prevent it for all crates that aren't the noir stdlib but
-            // there is no way of checking if the current crate is the stdlib currently.
-            } else if typ != Type::Error && crate_id == LOCAL_CRATE {
+            // Prohibit defining impls for primitive types if we're not in the stdlib
+            } else if typ != Type::Error && !crate_id.is_stdlib() {
                 let span = *span;
                 let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
                 errors.push(error.into_file_diagnostic(unresolved.file_id));

@@ -1,0 +1,1 @@
+{"backend":"acvm-backend-barretenberg","abi":{"parameters":[{"name":"a","type":{"kind":"array","length":3,"type":{"kind":"field"}},"visibility":"private"}],"param_witnesses":{"a":[1,2,3]},"return_type":null,"return_witnesses":[]},"bytecode":"H4sIAAAAAAAA/2NhwA0AnYOnhhwAAAA=","proving_key":null,"verification_key":null}

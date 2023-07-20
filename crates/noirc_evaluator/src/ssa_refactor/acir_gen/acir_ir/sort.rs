@@ -96,6 +96,6 @@ impl GeneratedAcir {
         } else {
             b
         };
-        a_arith * b_arith
+        (a_arith * b_arith).expect("Both expressions are reduced to be degree<=1")
     }
 }

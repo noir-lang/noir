@@ -1,7 +1,7 @@
 use super::{parse_str_to_field, InputValue};
 use crate::{errors::InputParserError, Abi, AbiType, MAIN_RETURN_NAME};
 use acvm::FieldElement;
-use iter_extended::{btree_map, try_btree_map, try_vecmap, vecmap};
+use iter_extended::{try_btree_map, try_vecmap};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -37,12 +37,22 @@ pub(crate) fn parse_json(
 }
 
 pub(crate) fn serialize_to_json(
-    w_map: &BTreeMap<String, InputValue>,
+    input_map: &BTreeMap<String, InputValue>,
+    abi: &Abi,
 ) -> Result<String, InputParserError> {
-    let to_map: BTreeMap<_, _> =
-        w_map.iter().map(|(key, value)| (key, JsonTypes::from(value.clone()))).collect();
+    let mut json_map = try_btree_map(abi.to_btree_map(), |(key, param_type)| {
+        JsonTypes::try_from_input_value(&input_map[&key], &param_type)
+            .map(|value| (key.to_owned(), value))
+    })?;
 
-    let json_string = serde_json::to_string(&to_map)?;
+    if let (Some(return_type), Some(return_value)) =
+        (&abi.return_type, input_map.get(MAIN_RETURN_NAME))
+    {
+        let return_value = JsonTypes::try_from_input_value(return_value, return_type)?;
+        json_map.insert(MAIN_RETURN_NAME.to_owned(), return_value);
+    }
+
+    let json_string = serde_json::to_string(&json_map)?;
 
     Ok(json_string)
 }
@@ -61,34 +71,43 @@ enum JsonTypes {
     Integer(u64),
     // Simple boolean flag
     Bool(bool),
-    // Array of regular integers
-    ArrayNum(Vec<u64>),
-    // Array of hexadecimal integers
-    ArrayString(Vec<String>),
-    // Array of booleans
-    ArrayBool(Vec<bool>),
+    // Array of JsonTypes
+    Array(Vec<JsonTypes>),
     // Struct of JsonTypes
     Table(BTreeMap<String, JsonTypes>),
 }
 
-impl From<InputValue> for JsonTypes {
-    fn from(value: InputValue) -> Self {
-        match value {
-            InputValue::Field(f) => {
+impl JsonTypes {
+    fn try_from_input_value(
+        value: &InputValue,
+        abi_type: &AbiType,
+    ) -> Result<JsonTypes, InputParserError> {
+        let json_value = match (value, abi_type) {
+            (InputValue::Field(f), AbiType::Field | AbiType::Integer { .. }) => {
                 let f_str = format!("0x{}", f.to_hex());
                 JsonTypes::String(f_str)
             }
-            InputValue::Vec(v) => {
-                let array = v.iter().map(|i| format!("0x{}", i.to_hex())).collect();
-                JsonTypes::ArrayString(array)
+            (InputValue::Field(f), AbiType::Boolean) => JsonTypes::Bool(f.is_one()),
+
+            (InputValue::Vec(vector), AbiType::Array { typ, .. }) => {
+                let array =
+                    try_vecmap(vector, |value| JsonTypes::try_from_input_value(value, typ))?;
+                JsonTypes::Array(array)
             }
-            InputValue::String(s) => JsonTypes::String(s),
-            InputValue::Struct(map) => {
-                let map_with_json_types =
-                    btree_map(map, |(key, value)| (key, JsonTypes::from(value)));
+
+            (InputValue::String(s), AbiType::String { .. }) => JsonTypes::String(s.to_string()),
+
+            (InputValue::Struct(map), AbiType::Struct { fields }) => {
+                let map_with_json_types = try_btree_map(fields, |(key, field_type)| {
+                    JsonTypes::try_from_input_value(&map[key], field_type)
+                        .map(|json_value| (key.to_owned(), json_value))
+                })?;
                 JsonTypes::Table(map_with_json_types)
             }
-        }
+
+            _ => return Err(InputParserError::AbiTypeMismatch(abi_type.clone())),
+        };
+        Ok(json_value)
     }
 }
 
@@ -116,32 +135,9 @@ impl InputValue {
 
             (JsonTypes::Bool(boolean), AbiType::Boolean) => InputValue::Field(boolean.into()),
 
-            (JsonTypes::ArrayNum(arr_num), AbiType::Array { typ, .. })
-                if matches!(
-                    typ.as_ref(),
-                    AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
-                ) =>
-            {
+            (JsonTypes::Array(array), AbiType::Array { typ, .. }) => {
                 let array_elements =
-                    vecmap(arr_num, |elem_num| FieldElement::from(i128::from(elem_num)));
-
-                InputValue::Vec(array_elements)
-            }
-            (JsonTypes::ArrayString(arr_str), AbiType::Array { typ, .. })
-                if matches!(
-                    typ.as_ref(),
-                    AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean
-                ) =>
-            {
-                let array_elements = try_vecmap(arr_str, |elem_str| parse_str_to_field(&elem_str))?;
-
-                InputValue::Vec(array_elements)
-            }
-            (JsonTypes::ArrayBool(arr_bool), AbiType::Array { typ, .. })
-                if matches!(typ.as_ref(), AbiType::Boolean) =>
-            {
-                let array_elements = vecmap(arr_bool, FieldElement::from);
-
+                    try_vecmap(array, |value| InputValue::try_from_json(value, typ, arg_name))?;
                 InputValue::Vec(array_elements)
             }
 
