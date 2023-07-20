@@ -429,6 +429,17 @@ jobs:
           name: "Build"
           command: build rollup-provider
 
+  e2e-2-rpc-servers:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end e2e_2_rpc_servers.test.ts
+
   e2e-deploy-contract:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -797,6 +808,7 @@ workflows:
             - rollup-provider
           <<: *defaults
 
+      - e2e-2-rpc-servers: *e2e_test
       - e2e-deploy-contract: *e2e_test
       - e2e-zk-token-contract: *e2e_test
       - e2e-block-building: *e2e_test
@@ -814,6 +826,7 @@ workflows:
 
       - e2e-end:
           requires:
+            - e2e-2-rpc-servers
             - e2e-deploy-contract
             - e2e-zk-token-contract
             - e2e-block-building

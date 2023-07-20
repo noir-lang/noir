@@ -48,7 +48,7 @@ export class SimulatorOracle implements DBOracle {
    * @returns A public key and the corresponding partial contract address, such that the hash of the two resolves to the input address.
    */
   async getPublicKey(address: AztecAddress): Promise<[Point, PartialContractAddress]> {
-    const result = await this.db.getPublicKey(address);
+    const result = await this.db.getPublicKeyAndPartialAddress(address);
     if (!result) throw new Error(`Unknown public key for address ${address.toString()}`);
     return result;
   }

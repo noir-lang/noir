@@ -58,7 +58,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
     [ownerAddress, receiver] = accounts;
-    const ownerPubPoint = await aztecRpcServer.getAccountPublicKey(ownerAddress);
+    const ownerPubPoint = await aztecRpcServer.getPublicKey(ownerAddress);
 
     logger('Deploying DAI Portal, initializing and deploying l2 contract...');
     const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(

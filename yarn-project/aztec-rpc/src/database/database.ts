@@ -25,7 +25,11 @@ export interface Database extends ContractDatabase {
   getTreeRoots(): Record<MerkleTreeId, Fr>;
   setTreeRoots(roots: Record<MerkleTreeId, Fr>): Promise<void>;
 
-  addPublicKey(address: AztecAddress, publicKey: PublicKey, partialAddress: PartialContractAddress): Promise<void>;
-  getPublicKey(address: AztecAddress): Promise<[Point, PartialContractAddress] | undefined>;
+  addPublicKeyAndPartialAddress(
+    address: AztecAddress,
+    publicKey: PublicKey,
+    partialAddress: PartialContractAddress,
+  ): Promise<void>;
+  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[Point, PartialContractAddress] | undefined>;
   getAccounts(): Promise<AztecAddress[]>;
 }

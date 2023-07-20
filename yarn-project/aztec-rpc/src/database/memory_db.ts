@@ -1,6 +1,7 @@
 import { PartialContractAddress } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
 import { MerkleTreeId, PublicKey, TxHash } from '@aztec/types';
 
 import { MemoryContractDatabase } from '../contract_database/index.js';
@@ -19,6 +20,10 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   private noteSpendingInfoTable: NoteSpendingInfoDao[] = [];
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
   private publicKeys: Map<bigint, [PublicKey, PartialContractAddress]> = new Map();
+
+  constructor(logSuffix = '0') {
+    super(createDebugLogger('aztec:memory_db_' + logSuffix));
+  }
 
   /**
    * Retrieve a transaction from the MemoryDB using its transaction hash.
@@ -173,12 +178,16 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     return Promise.resolve();
   }
 
-  addPublicKey(address: AztecAddress, publicKey: Point, partialAddress: PartialContractAddress): Promise<void> {
+  addPublicKeyAndPartialAddress(
+    address: AztecAddress,
+    publicKey: Point,
+    partialAddress: PartialContractAddress,
+  ): Promise<void> {
     this.publicKeys.set(address.toBigInt(), [publicKey, partialAddress]);
     return Promise.resolve();
   }
 
-  getPublicKey(address: AztecAddress): Promise<[Point, Fr] | undefined> {
+  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[Point, Fr] | undefined> {
     return Promise.resolve(this.publicKeys.get(address.toBigInt()));
   }
 

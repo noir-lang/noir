@@ -17,7 +17,7 @@ import {
 
 /**
  * The aztec node.
- * We will probably implemement the additional interfaces by means other than Aztec Node as it's currently a privacy leak
+ * We will probably implement the additional interfaces by means other than Aztec Node as it's currently a privacy leak
  */
 export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider, ContractCommitmentProvider {
   /**

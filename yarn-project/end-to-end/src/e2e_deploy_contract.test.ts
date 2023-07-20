@@ -28,7 +28,7 @@ describe('e2e_deploy_contract', () => {
    * https://hackmd.io/ouVCnacHQRq2o1oRc5ksNA#Interfaces-and-Responsibilities
    */
   it('should deploy a contract', async () => {
-    const publicKey = await aztecRpcServer.getAccountPublicKey(accounts[0]);
+    const publicKey = await aztecRpcServer.getPublicKey(accounts[0]);
     const salt = Fr.random();
     const deploymentData = await getContractDeploymentInfo(TestContractAbi, [], salt, publicKey);
     const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer, publicKey);

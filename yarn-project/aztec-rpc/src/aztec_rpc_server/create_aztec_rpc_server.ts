@@ -35,10 +35,11 @@ export async function createAztecRPCServer(
   config: RpcServerConfig,
   { keyStore, db }: CreateAztecRPCServerOptions = {},
 ) {
+  const logSuffix = Math.random().toString(16).slice(2, 8);
   keyStore = keyStore || new TestKeyStore(await Grumpkin.new());
-  db = db || new MemoryDB();
+  db = db || new MemoryDB(logSuffix);
 
-  const server = new AztecRPCServer(keyStore, aztecNode, db, config);
+  const server = new AztecRPCServer(keyStore, aztecNode, db, config, logSuffix);
   await server.start();
   return server;
 }

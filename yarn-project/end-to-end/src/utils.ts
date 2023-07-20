@@ -24,7 +24,7 @@ import { DebugLogger, Logger, createDebugLogger } from '@aztec/foundation/log';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
 import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
-import { TxStatus } from '@aztec/types';
+import { AztecNode, TxStatus } from '@aztec/types';
 
 import every from 'lodash.every';
 import zipWith from 'lodash.zipwith';
@@ -62,6 +62,106 @@ type TxContext = {
 };
 
 /**
+ * Sets up Aztec RPC Server.
+ * @param numberOfAccounts - The number of new accounts to be created once the RPC server is initiated.
+ * @param aztecNode - Instance of AztecNode implementation.
+ * @param firstPrivKey - The private key of the first account to be created.
+ * @param logger - The logger to be used.
+ * @returns Aztec RPC server, accounts, wallets and logger.
+ */
+export async function setupAztecRPCServer(
+  numberOfAccounts: number,
+  aztecNode: AztecNode,
+  firstPrivKey: Uint8Array | null = null,
+  logger = getLogger(),
+): Promise<{
+  /**
+   * The Aztec RPC server.
+   */
+  aztecRpcServer: AztecRPCServer;
+  /**
+   * The accounts created by the RPC server.
+   */
+  accounts: AztecAddress[];
+  /**
+   * The wallet to be used.
+   */
+  wallet: Wallet;
+  /**
+   * Logger instance named as the current test.
+   */
+  logger: DebugLogger;
+}> {
+  const rpcConfig = getRpcConfigEnvVars();
+
+  const aztecRpcServer = await createAztecRPCServer(aztecNode, rpcConfig);
+  const accountCollection = new AccountCollection();
+  const txContexts: TxContext[] = [];
+
+  for (let i = 0; i < numberOfAccounts; ++i) {
+    // We use the well-known private key and the validating account contract for the first account,
+    // and generate random key pairs for the rest.
+    // TODO(#662): Let the aztec rpc server generate the key pair rather than hardcoding the private key
+    const privateKey = i === 0 && firstPrivKey !== null ? Buffer.from(firstPrivKey!) : randomBytes(32);
+    const publicKey = await generatePublicKey(privateKey);
+    const salt = Fr.random();
+    const deploymentData = await getContractDeploymentInfo(SchnorrSingleKeyAccountContractAbi, [], salt, publicKey);
+    await aztecRpcServer.addAccount(privateKey, deploymentData.address, deploymentData.partialAddress);
+
+    const contractDeployer = new ContractDeployer(SchnorrSingleKeyAccountContractAbi, aztecRpcServer, publicKey);
+    const deployMethod = contractDeployer.deploy();
+    await deployMethod.simulate({ contractAddressSalt: salt });
+    txContexts.push({
+      tx: undefined,
+      deployMethod,
+      salt,
+      privateKey,
+      deploymentData,
+    });
+  }
+
+  for (const context of txContexts) {
+    logger(`Deploying account contract for ${context.deploymentData.address.toString()}`);
+    context.tx = context.deployMethod.send();
+  }
+
+  for (const context of txContexts) {
+    const publicKey = await generatePublicKey(context.privateKey);
+    await context.tx!.isMined(0, 0.1);
+    const receipt = await context.tx!.getReceipt();
+    if (receipt.status !== TxStatus.MINED) {
+      throw new Error(`Deployment tx not mined (status is ${receipt.status})`);
+    }
+    const receiptAddress = receipt.contractAddress!;
+    if (!receiptAddress.equals(context.deploymentData.address)) {
+      throw new Error(
+        `Deployment address does not match for account contract (expected ${context.deploymentData.address} got ${receiptAddress})`,
+      );
+    }
+    accountCollection.registerAccount(
+      context.deploymentData.address,
+      new SingleKeyAccountContract(
+        context.deploymentData.address,
+        context.deploymentData.partialAddress,
+        context.privateKey,
+        await Schnorr.new(),
+      ),
+    );
+    logger(`Created account ${context.deploymentData.address.toString()} with public key ${publicKey.toString()}`);
+  }
+
+  const accounts = await aztecRpcServer.getAccounts();
+  const wallet = new AccountWallet(aztecRpcServer, accountCollection);
+
+  return {
+    aztecRpcServer,
+    accounts,
+    wallet,
+    logger,
+  };
+}
+
+/**
  * Sets up the environment for the end-to-end tests.
  * @param numberOfAccounts - The number of new accounts to be created once the RPC server is initiated.
  */
@@ -96,12 +196,17 @@ export async function setup(numberOfAccounts = 1): Promise<{
   logger: DebugLogger;
 }> {
   const config = getConfigEnvVars();
-  const rpcConfig = getRpcConfigEnvVars();
   const logger = getLogger();
+
+  const deployL1ContractsValues = await deployL1Contracts(
+    config.rpcUrl,
+    mnemonicToAccount(MNEMONIC),
+    localAnvil,
+    logger,
+  );
 
   const hdAccount = mnemonicToAccount(MNEMONIC);
   const privKey = hdAccount.getHdKey().privateKey;
-  const deployL1ContractsValues = await deployL1Contracts(config.rpcUrl, hdAccount, localAnvil, logger);
 
   config.publisherPrivateKey = Buffer.from(privKey!);
   config.rollupContract = deployL1ContractsValues.rollupAddress;
@@ -109,63 +214,8 @@ export async function setup(numberOfAccounts = 1): Promise<{
   config.inboxContract = deployL1ContractsValues.inboxAddress;
 
   const aztecNode = await AztecNodeService.createAndSync(config);
-  const aztecRpcServer = await createAztecRPCServer(aztecNode, rpcConfig);
-  const accountCollection = new AccountCollection();
-  const txContexts: TxContext[] = [];
 
-  for (let i = 0; i < numberOfAccounts; ++i) {
-    // We use the well-known private key and the validating account contract for the first account,
-    // and generate random key pairs for the rest.
-    // TODO(#662): Let the aztec rpc server generate the key pair rather than hardcoding the private key
-    const privateKey = i === 0 ? Buffer.from(privKey!) : randomBytes(32);
-    const publicKey = await generatePublicKey(privateKey);
-    const salt = Fr.random();
-    const deploymentData = await getContractDeploymentInfo(SchnorrSingleKeyAccountContractAbi, [], salt, publicKey);
-    await aztecRpcServer.addAccount(privateKey, deploymentData.address, deploymentData.partialAddress);
-
-    const contractDeployer = new ContractDeployer(SchnorrSingleKeyAccountContractAbi, aztecRpcServer, publicKey);
-    const deployMethod = contractDeployer.deploy();
-    await deployMethod.simulate({ contractAddressSalt: salt });
-    txContexts.push({
-      tx: undefined,
-      deployMethod,
-      salt,
-      privateKey,
-      deploymentData,
-    });
-  }
-
-  for (const context of txContexts) {
-    context.tx = context.deployMethod.send();
-  }
-
-  for (const context of txContexts) {
-    const publicKey = await generatePublicKey(context.privateKey);
-    await context.tx!.isMined(0, 0.1);
-    const receipt = await context.tx!.getReceipt();
-    if (receipt.status !== TxStatus.MINED) {
-      throw new Error(`Deployment tx not mined (status is ${receipt.status})`);
-    }
-    const receiptAddress = receipt.contractAddress!;
-    if (!receiptAddress.equals(context.deploymentData.address)) {
-      throw new Error(
-        `Deployment address does not match for account contract (expected ${context.deploymentData.address} got ${receiptAddress})`,
-      );
-    }
-    accountCollection.registerAccount(
-      context.deploymentData.address,
-      new SingleKeyAccountContract(
-        context.deploymentData.address,
-        context.deploymentData.partialAddress,
-        context.privateKey,
-        await Schnorr.new(),
-      ),
-    );
-    logger(`Created account ${context.deploymentData.address.toString()} with public key ${publicKey.toString()}`);
-  }
-
-  const accounts = await aztecRpcServer.getAccounts();
-  const wallet = new AccountWallet(aztecRpcServer, accountCollection);
+  const { aztecRpcServer, accounts, wallet } = await setupAztecRPCServer(numberOfAccounts, aztecNode, privKey, logger);
 
   return {
     aztecNode,

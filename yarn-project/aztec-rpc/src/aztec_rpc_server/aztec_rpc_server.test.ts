@@ -36,7 +36,7 @@ describe('AztecRpcServer', function () {
     const address = computeContractAddressFromPartial(wasm, pubKey, partialAddress);
 
     await rpcServer.addAccount(await keyPair.getPrivateKey(), address, partialAddress);
-    expect(await db.getPublicKey(address)).toEqual([pubKey, partialAddress]);
+    expect(await db.getPublicKeyAndPartialAddress(address)).toEqual([pubKey, partialAddress]);
   });
 
   // TODO(#1007)

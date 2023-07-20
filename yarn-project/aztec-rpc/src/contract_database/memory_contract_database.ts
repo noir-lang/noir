@@ -1,4 +1,5 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
+import { DebugLogger } from '@aztec/foundation/log';
 import { ContractDao, ContractDatabase } from '@aztec/types';
 
 /**
@@ -10,6 +11,8 @@ import { ContractDao, ContractDatabase } from '@aztec/types';
 export class MemoryContractDatabase implements ContractDatabase {
   private contracts: ContractDao[] = [];
 
+  constructor(protected log: DebugLogger) {}
+
   /**
    * Adds a new ContractDao instance to the memory-based contract database.
    * The function stores the contract in an array and returns a resolved promise indicating successful addition.
@@ -18,6 +21,7 @@ export class MemoryContractDatabase implements ContractDatabase {
    * @returns A Promise that resolves when the contract is successfully added.
    */
   public addContract(contract: ContractDao) {
+    this.log(`Adding contract ${contract.address.toString()}`);
     this.contracts.push(contract);
     return Promise.resolve();
   }

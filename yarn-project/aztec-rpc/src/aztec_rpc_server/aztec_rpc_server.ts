@@ -3,10 +3,16 @@ import {
   collectEnqueuedPublicFunctionCalls,
   collectUnencryptedLogs,
 } from '@aztec/acir-simulator';
-import { AztecAddress, FunctionData, PartialContractAddress, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  FunctionData,
+  PartialContractAddress,
+  PrivateHistoricTreeRoots,
+  PublicKey,
+} from '@aztec/circuits.js';
 import { FunctionType, encodeArguments } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import {
   AztecNode,
   AztecRPC,
@@ -43,15 +49,17 @@ import { Synchroniser } from '../synchroniser/index.js';
  */
 export class AztecRPCServer implements AztecRPC {
   private synchroniser: Synchroniser;
+  private log: DebugLogger;
 
   constructor(
     private keyStore: KeyStore,
     private node: AztecNode,
     private db: Database,
     private config: RpcServerConfig,
-    private log = createDebugLogger('aztec:rpc_server'),
+    logSuffix = '0',
   ) {
-    this.synchroniser = new Synchroniser(node, db);
+    this.log = createDebugLogger('aztec:rpc_server_' + logSuffix);
+    this.synchroniser = new Synchroniser(node, db, logSuffix);
   }
 
   /**
@@ -94,9 +102,24 @@ export class AztecRPCServer implements AztecRPC {
     //     `Address cannot be derived from pubkey and partial address (received ${address.toString()}, derived ${expectedAddress.toString()})`,
     //   );
     // }
-    await this.db.addPublicKey(address, pubKey, partialContractAddress);
+    await this.db.addPublicKeyAndPartialAddress(address, pubKey, partialContractAddress);
     this.synchroniser.addAccount(pubKey, address, this.keyStore);
     return address;
+  }
+
+  /**
+   * Adds public key and partial address to a database.
+   * @param address - Address of the account to add public key and partial address for.
+   * @param publicKey - Public key of the corresponding user.
+   * @param partialAddress - The partially computed address of the account contract.
+   * @returns A Promise that resolves once the public key has been added to the database.
+   */
+  public async addPublicKeyAndPartialAddress(
+    address: AztecAddress,
+    publicKey: PublicKey,
+    partialAddress: PartialContractAddress,
+  ): Promise<void> {
+    await this.db.addPublicKeyAndPartialAddress(address, publicKey, partialAddress);
   }
 
   /**
@@ -130,15 +153,30 @@ export class AztecRPCServer implements AztecRPC {
    * Retrieve the public key associated with an address.
    * Throws an error if the account is not found in the key store.
    *
-   * @param address - The AztecAddress instance representing the account.
+   * @param address - The AztecAddress instance representing the account to get public key for.
    * @returns A Promise resolving to the Point instance representing the public key.
    */
-  public async getAccountPublicKey(address: AztecAddress): Promise<Point> {
-    const result = await this.db.getPublicKey(address);
+  public async getPublicKey(address: AztecAddress): Promise<Point> {
+    const result = await this.db.getPublicKeyAndPartialAddress(address);
     if (!result) {
       throw new Error(`Unable to public key for address ${address.toString()}`);
     }
     return Promise.resolve(result[0]);
+  }
+
+  /**
+   * Retrieve the public key and partial contract address associated with an address.
+   * Throws an error if the account is not found in the key store.
+   *
+   * @param address - The AztecAddress instance representing the account to get public key and partial address for.
+   * @returns A Promise resolving to the Point instance representing the public key.
+   */
+  public async getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[Point, PartialContractAddress]> {
+    const result = await this.db.getPublicKeyAndPartialAddress(address);
+    if (!result) {
+      throw new Error(`Unable to get public key for address ${address.toString()}`);
+    }
+    return Promise.resolve(result);
   }
 
   /**
@@ -518,5 +556,14 @@ export class AztecRPCServer implements AztecRPC {
       newContractPublicFunctions,
       enqueuedPublicFunctions,
     );
+  }
+
+  /**
+   * Returns true if the account specified by the given address is synched to the latest block
+   * @param account - The aztec address for which to query the sync status
+   * @returns True if the account is fully synched, false otherwise
+   */
+  public async isAccountSynchronised(account: AztecAddress) {
+    return await this.synchroniser.isAccountSynchronised(account);
   }
 }
