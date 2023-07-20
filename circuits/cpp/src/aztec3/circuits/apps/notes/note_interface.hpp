@@ -40,6 +40,8 @@ template <typename Builder> class NoteInterface {
 
     virtual fr get_initialisation_nullifier() = 0;
 
+    virtual fr get_initialisation_commitment() = 0;
+
     virtual void constrain_against_advice(NoteInterface<Builder> const& advice_note) = 0;
 
     virtual bool needs_nonce() = 0;

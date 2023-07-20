@@ -77,7 +77,8 @@ struct ConstantsPacker {
                  CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH,
                  CONTRACT_STORAGE_READ_LENGTH,
                  PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH),
-             NVP(GET_NOTES_ORACLE_RETURN_LENGTH));  // <-- Add names of new constants here
+             NVP(GET_NOTES_ORACLE_RETURN_LENGTH,
+                 EMPTY_NULLIFIED_COMMITMENT));  // <-- Add names of new constants here
     }
 };
 

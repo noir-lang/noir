@@ -71,6 +71,7 @@ export function toACVMPublicInputs(publicInputs: PrivateCircuitPublicInputs): AC
     ...publicInputs.readRequests.map(toACVMField),
     ...publicInputs.newCommitments.map(toACVMField),
     ...publicInputs.newNullifiers.map(toACVMField),
+    ...publicInputs.nullifiedCommitments.map(toACVMField),
     ...publicInputs.privateCallStack.map(toACVMField),
     ...publicInputs.publicCallStack.map(toACVMField),
     ...publicInputs.newL2ToL1Msgs.map(toACVMField),

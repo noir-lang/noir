@@ -155,6 +155,7 @@ struct PrivateCircuitPublicInputs {
     read_requests: [Field; crate::abi::MAX_READ_REQUESTS_PER_CALL],
     new_commitments: [Field; MAX_NEW_COMMITMENTS_PER_CALL],
     new_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_CALL],
+    nullified_commitments: [Field; MAX_NEW_NULLIFIERS_PER_CALL],
     private_call_stack: [Field; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
     public_call_stack: [Field; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
@@ -185,6 +186,7 @@ impl PrivateCircuitPublicInputs {
         fields = fields.push_array(self.read_requests);
         fields = fields.push_array(self.new_commitments);
         fields = fields.push_array(self.new_nullifiers);
+        fields = fields.push_array(self.nullified_commitments);
         fields = fields.push_array(self.private_call_stack);
         fields = fields.push_array(self.public_call_stack);
         fields = fields.push_array(self.new_l2_to_l1_msgs);

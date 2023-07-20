@@ -76,6 +76,8 @@ template <typename Builder, typename ValueType> class DefaultSingletonPrivateNot
 
     fr get_initialisation_nullifier() override;
 
+    fr get_initialisation_commitment() override;
+
     // CUSTOM METHODS
 
     auto& get_oracle();

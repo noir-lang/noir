@@ -228,4 +228,40 @@ typename CircuitTypes<Builder>::fr DefaultSingletonPrivateNote<Builder, V>::get_
         compressed_storage_slot_point, owner_private_key, is_dummy);
 };
 
+template <typename Builder, typename V>
+typename CircuitTypes<Builder>::fr DefaultSingletonPrivateNote<Builder, V>::get_initialisation_commitment()
+{
+    /**
+     * TODO: Get rid of this temporary fix of including owner_private_key while computing the initialisation commitment.
+     * Details: We need to add the initialisation commitment value to the `nullified_commitments`.
+     * In this case, since the actual note data is not yet available, we compute the initialisation nullifier as:
+     * null = hash(compressed_storage_slot, owner_private_key, false)
+     *
+     * Thus, the initialisation commitment here is `compressed_storage_slot`. But since the storage slot is not a real
+     * circuit variable, `compressed_storage_slot` would be a circuit constant. The compiler doesn't allow us
+     * to make a circuit constant as a public input of the circuit, it just crashes at runtime.
+     * To avoid this, we compute the initial commitment as:
+     * comm = hash(storage_slot_point.x, storage_slot_point.y, owner_private_key)
+     *
+     * This makes the initial commitment a "real" circuit variable.
+     */
+    auto& oracle = get_oracle();
+
+    const fr& owner_private_key = oracle.get_msg_sender_private_key();
+
+    // We prevent this storage slot from even being initialised again:
+    auto& storage_slot_point = state_var->storage_slot_point;
+
+    const std::vector<fr> hash_inputs{
+        storage_slot_point.x,
+        storage_slot_point.y,
+        owner_private_key,
+    };
+
+    // We compress the hash_inputs with Pedersen, because that's cheap.
+    fr compressed_storage_slot_point = CT::compress(hash_inputs, GeneratorIndex::INITIALISATION_NULLIFIER);
+
+    return compressed_storage_slot_point;
+};
+
 }  // namespace aztec3::circuits::apps::notes

@@ -4,6 +4,7 @@ use crate::note::note_getter::get_note;
 use crate::note::note_interface::NoteInterface;
 use crate::oracle;
 use crate::constants_gen::GENERATOR_INDEX__INITIALISATION_NULLIFIER;
+use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
 
 struct ImmutableSingleton<Note, N> {
     storage_slot: Field,
@@ -23,7 +24,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     fn initialise(self, mut context: Context, note: Note) -> Context {
         // Nullify the storage slot.
         let nullifier = self.compute_initialisation_nullifier();
-        context = context.push_new_nullifier(nullifier);
+        context = context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
 
         create_note(context, self.storage_slot, note, self.note_interface)
     }

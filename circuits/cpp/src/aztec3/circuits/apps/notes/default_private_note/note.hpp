@@ -91,6 +91,12 @@ template <typename Builder, typename ValueType> class DefaultPrivateNote : publi
             "DefaultPrivateNote does not support initialisation. Maybe use DefaultSingletonPrivateNote instead?");
     };
 
+    fr get_initialisation_commitment() override
+    {
+        throw_or_abort(
+            "DefaultPrivateNote does not support initialisation. Maybe use DefaultSingletonPrivateNote instead?");
+    };
+
     // CUSTOM METHODS
 
     auto& get_oracle();

@@ -63,6 +63,7 @@ template <typename Builder> class FunctionExecutionContext {
     // Nullifier preimages can be got from the corresponding Note that they nullify.
     std::vector<std::shared_ptr<NoteInterface<Builder>>> nullified_notes;
     std::vector<fr> new_nullifiers;
+    std::vector<fr> nullified_commitments;
 
     PrivateCircuitPublicInputs<NT> final_private_circuit_public_inputs{};
 
@@ -320,6 +321,7 @@ template <typename Builder> class FunctionExecutionContext {
         finalise_utxos();
         private_circuit_public_inputs.set_commitments(new_commitments);
         private_circuit_public_inputs.set_nullifiers(new_nullifiers);
+        private_circuit_public_inputs.set_nullified_commitments(nullified_commitments);
         private_circuit_public_inputs.set_public(builder);
         final_private_circuit_public_inputs =
             private_circuit_public_inputs.remove_optionality().template to_native_type<Builder>();

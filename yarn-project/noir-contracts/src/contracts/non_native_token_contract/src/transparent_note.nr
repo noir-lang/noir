@@ -65,7 +65,7 @@ impl TransparentNote {
         // Create a nullifier for the message based on its index in the tree
         
         let nullifier = pedersen([secret, siloed_commitment, index])[0];
-        context.push_new_nullifier(nullifier)
+        context.push_new_nullifier(nullifier, siloed_commitment)
     }
 
 }

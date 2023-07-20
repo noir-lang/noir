@@ -18,6 +18,7 @@ struct Context {
 
     new_commitments: BoundedVec<Field, constants_gen::MAX_NEW_COMMITMENTS_PER_CALL>,
     new_nullifiers: BoundedVec<Field, constants_gen::MAX_NEW_NULLIFIERS_PER_CALL>,
+    nullified_commitments: BoundedVec<Field, constants_gen::MAX_NEW_NULLIFIERS_PER_CALL>,
 
     private_call_stack : BoundedVec<Field, constants_gen::MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,
     public_call_stack : BoundedVec<Field, constants_gen::MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,
@@ -43,6 +44,7 @@ impl Context {
 
             new_commitments: BoundedVec::new(0),
             new_nullifiers: BoundedVec::new(0),
+            nullified_commitments: BoundedVec::new(0),
 
             private_call_stack: BoundedVec::new(0),
             public_call_stack: BoundedVec::new(0),
@@ -63,6 +65,7 @@ impl Context {
             read_requests: self.read_requests.storage,
             new_commitments: self.new_commitments.storage,
             new_nullifiers: self.new_nullifiers.storage,
+            nullified_commitments: self.nullified_commitments.storage,
             private_call_stack: self.private_call_stack.storage,
             public_call_stack: self.public_call_stack.storage,
             new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,
@@ -88,8 +91,9 @@ impl Context {
         self
     }
 
-    fn push_new_nullifier(mut self: Self, nullifier: Field) -> Self {
+    fn push_new_nullifier(mut self: Self, nullifier: Field, nullified_commitment: Field) -> Self {
         self.new_nullifiers = self.new_nullifiers.push(nullifier);
+        self.nullified_commitments = self.nullified_commitments.push(nullified_commitment);
         self
     }
 
@@ -103,8 +107,8 @@ impl Context {
     fn consume_l1_to_l2_message(mut self: Self, inputs: abi::PrivateContextInputs, msg_key: Field, content: Field, secret: Field) -> Context {
         let nullifier = process_l1_to_l2_message(inputs.roots.l1_to_l2_messages_tree_root, inputs.call_context.storage_contract_address, msg_key, content, secret);
 
-        // Push nullifier
-        self.push_new_nullifier(nullifier)
+        // Push nullifier (and the "commitment" corresponding to this can be "empty")
+        self.push_new_nullifier(nullifier, constants_gen::EMPTY_NULLIFIED_COMMITMENT)
     }
 
     fn set_encrypted_logs_hash(mut self: Self, hash: [Field; constants_gen::NUM_FIELDS_PER_SHA256]) -> Self {
