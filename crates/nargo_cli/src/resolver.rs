@@ -3,10 +3,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use fm::FileManager;
 use nargo::manifest::{Dependency, Manifest, PackageManifest, WorkspaceConfig};
 use noirc_driver::{add_dep, create_local_crate, create_non_local_crate};
 use noirc_frontend::{
-    graph::{CrateId, CrateName, CrateType},
+    graph::{CrateGraph, CrateId, CrateName, CrateType},
     hir::Context,
 };
 use thiserror::Error;
@@ -88,7 +89,9 @@ pub(crate) fn resolve_root_manifest(
     dir_path: &std::path::Path,
     package: Option<String>,
 ) -> Result<(Context, CrateId), DependencyResolutionError> {
-    let mut context = Context::default();
+    let fm = FileManager::new(dir_path);
+    let graph = CrateGraph::default();
+    let mut context = Context::new(fm, graph);
 
     let manifest_path = super::find_package_manifest(dir_path)?;
     let manifest = super::manifest::parse(&manifest_path)?;
@@ -97,7 +100,7 @@ pub(crate) fn resolve_root_manifest(
         Manifest::Package(package) => {
             let (entry_path, crate_type) = super::lib_or_bin(dir_path)?;
 
-            let crate_id = create_local_crate(&mut context, entry_path, crate_type);
+            let crate_id = create_local_crate(&mut context, &entry_path, crate_type);
             let pkg_root = manifest_path.parent().expect("Every manifest path has a parent.");
 
             resolve_package_manifest(&mut context, crate_id, package, pkg_root)?;
@@ -222,11 +225,11 @@ fn resolve_workspace_manifest(
         .ok_or_else(|| DependencyResolutionError::PackageNotFound(crate_name(local_package)))?;
 
     let (entry_path, _crate_type) = super::lib_or_bin(local_crate)?;
-    let crate_id = create_local_crate(context, entry_path, CrateType::Workspace);
+    let crate_id = create_local_crate(context, &entry_path, CrateType::Workspace);
 
     for (_, package_path) in packages.drain() {
         let (entry_path, crate_type) = super::lib_or_bin(package_path)?;
-        create_non_local_crate(context, entry_path, crate_type);
+        create_non_local_crate(context, &entry_path, crate_type);
     }
 
     Ok(crate_id)

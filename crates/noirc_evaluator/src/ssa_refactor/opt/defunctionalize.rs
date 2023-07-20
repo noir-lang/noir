@@ -21,27 +21,6 @@ use crate::ssa_refactor::{
     ssa_gen::Ssa,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct CallSignature {
-    params: Vec<Type>,
-    returns: Vec<Type>,
-}
-
-impl CallSignature {
-    fn from_call_params(caller: &Function, params: &[ValueId], results: &[ValueId]) -> Self {
-        let params = vecmap(params, |param| caller.dfg.type_of_value(*param));
-        let returns = vecmap(results, |result| caller.dfg.type_of_value(*result));
-        CallSignature { params, returns }
-    }
-
-    fn can_call(&self, target: &Signature) -> bool {
-        self.params.len() == target.params.len()
-            && self.returns.len() == target.returns.len()
-            && self.params.iter().enumerate().all(|(index, param)| param.is(&target.params[index]))
-            && self.returns.iter().enumerate().all(|(index, ret)| target.returns[index].is(ret))
-    }
-}
-
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
 /// ```text
@@ -69,7 +48,7 @@ struct ApplyFunction {
 #[derive(Debug, Clone)]
 struct DefunctionalizationContext {
     fn_to_runtime: HashMap<FunctionId, RuntimeType>,
-    apply_functions: HashMap<CallSignature, ApplyFunction>,
+    apply_functions: HashMap<Signature, ApplyFunction>,
 }
 
 impl Ssa {
@@ -118,13 +97,14 @@ impl DefunctionalizationContext {
                 match func.dfg[target_func_id] {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
+                        let results = func.dfg.instruction_results(instruction_id);
+                        let signature = Signature {
+                            params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
+                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                        };
+
                         // Find the correct apply function
-                        let apply_function =
-                            self.get_apply_function(&CallSignature::from_call_params(
-                                func,
-                                &arguments,
-                                func.dfg.instruction_results(instruction_id),
-                            ));
+                        let apply_function = self.get_apply_function(&signature);
 
                         // Replace the instruction with a call to apply
                         let apply_function_value_id = func.dfg.import_function(apply_function.id);
@@ -171,14 +151,14 @@ impl DefunctionalizationContext {
     }
 
     /// Returns the apply function for the given signature
-    fn get_apply_function(&self, signature: &CallSignature) -> ApplyFunction {
+    fn get_apply_function(&self, signature: &Signature) -> ApplyFunction {
         *self.apply_functions.get(signature).expect("Could not find apply function")
     }
 }
 
 /// Collects all functions used as values that can be called by their signatures
-fn find_variants(ssa: &Ssa) -> HashMap<CallSignature, Vec<FunctionId>> {
-    let mut dynamic_dispatches: HashSet<CallSignature> = HashSet::new();
+fn find_variants(ssa: &Ssa) -> HashMap<Signature, Vec<FunctionId>> {
+    let mut dynamic_dispatches: HashSet<Signature> = HashSet::new();
     let mut functions_as_values: HashSet<FunctionId> = HashSet::new();
 
     for function in ssa.functions.values() {
@@ -189,7 +169,7 @@ fn find_variants(ssa: &Ssa) -> HashMap<CallSignature, Vec<FunctionId>> {
     let mut signature_to_functions_as_value: HashMap<Signature, Vec<FunctionId>> = HashMap::new();
 
     for function_id in functions_as_values {
-        let signature = Signature::from(&ssa.functions[&function_id]);
+        let signature = ssa.functions[&function_id].signature();
         signature_to_functions_as_value.entry(signature).or_default().push(function_id);
     }
 
@@ -251,7 +231,7 @@ fn find_functions_as_values(func: &Function) -> HashSet<FunctionId> {
 }
 
 /// Finds all dynamic dispatch signatures in the given function
-fn find_dynamic_dispatches(func: &Function) -> HashSet<CallSignature> {
+fn find_dynamic_dispatches(func: &Function) -> HashSet<Signature> {
     let mut dispatches = HashSet::new();
 
     for block_id in func.reachable_blocks() {
@@ -261,11 +241,11 @@ fn find_dynamic_dispatches(func: &Function) -> HashSet<CallSignature> {
             match instruction {
                 Instruction::Call { func: target, arguments } => {
                     if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
-                        dispatches.insert(CallSignature::from_call_params(
-                            func,
-                            arguments,
-                            func.dfg.instruction_results(*instruction_id),
-                        ));
+                        let results = func.dfg.instruction_results(*instruction_id);
+                        dispatches.insert(Signature {
+                            params: vecmap(arguments, |param| func.dfg.type_of_value(*param)),
+                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                        });
                     }
                 }
                 _ => continue,
@@ -277,8 +257,8 @@ fn find_dynamic_dispatches(func: &Function) -> HashSet<CallSignature> {
 
 fn create_apply_functions(
     ssa: &mut Ssa,
-    variants_map: HashMap<CallSignature, Vec<FunctionId>>,
-) -> HashMap<CallSignature, ApplyFunction> {
+    variants_map: HashMap<Signature, Vec<FunctionId>>,
+) -> HashMap<Signature, ApplyFunction> {
     let mut apply_functions = HashMap::new();
     for (signature, variants) in variants_map.into_iter() {
         assert!(
@@ -305,7 +285,7 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 /// Creates an apply function for the given signature and variants
 fn create_apply_function(
     ssa: &mut Ssa,
-    signature: CallSignature,
+    signature: Signature,
     function_ids: Vec<FunctionId>,
 ) -> FunctionId {
     assert!(!function_ids.is_empty());

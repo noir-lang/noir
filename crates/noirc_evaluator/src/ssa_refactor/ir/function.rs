@@ -118,6 +118,12 @@ impl Function {
         }
         blocks
     }
+
+    pub(crate) fn signature(&self) -> Signature {
+        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
+        let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
+        Signature { params, returns }
+    }
 }
 
 impl std::fmt::Display for RuntimeType {
@@ -147,11 +153,12 @@ impl std::fmt::Display for Function {
     }
 }
 
-impl From<&Function> for Signature {
-    fn from(function: &Function) -> Self {
-        let params = vecmap(function.parameters(), |param| function.dfg.type_of_value(*param));
-        let returns = vecmap(function.returns(), |ret| function.dfg.type_of_value(*ret));
-        Self { params, returns }
+impl Signature {
+    pub(crate) fn can_call(&self, target: &Signature) -> bool {
+        self.params.len() == target.params.len()
+            && self.returns.len() == target.returns.len()
+            && self.params.iter().enumerate().all(|(index, param)| param.is(&target.params[index]))
+            && self.returns.iter().enumerate().all(|(index, ret)| target.returns[index].is(ret))
     }
 }
 

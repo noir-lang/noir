@@ -204,6 +204,8 @@ impl<'a> Resolver<'a> {
         warn_if_unused: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
+        let allow_shadowing = allow_shadowing || &name == "_";
+
         if definition.is_global() {
             return self.add_global_variable_decl(name, definition);
         }
@@ -883,6 +885,7 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
                 // If the Path is being used as an Expression, then it is referring to a global from a separate module

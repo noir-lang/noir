@@ -96,7 +96,7 @@ impl Ssa {
         }
 
         let function_to_signature: HashMap<FunctionId, Signature> =
-            self.functions.values().map(|func| (func.id(), func.into())).collect();
+            self.functions.values().map(|func| (func.id(), func.signature())).collect();
 
         let mut brillig =
             Brillig { ssa_function_to_signature: function_to_signature, ..Default::default() };

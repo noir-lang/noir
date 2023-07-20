@@ -182,22 +182,6 @@ impl<'a> Lexer<'a> {
                 }
                 Ok(spanned_prev_token)
             }
-            Token::Underscore => {
-                let next_char = self.peek_char();
-                let peeked_char = match next_char {
-                    Some(peek_char) => peek_char,
-                    None => return Ok(spanned_prev_token),
-                };
-
-                if peeked_char.is_ascii_alphabetic() {
-                    // Okay to unwrap here because we already peeked to
-                    // see that we have a character
-                    let current_char = self.next_char().unwrap();
-                    return self.eat_word(current_char);
-                }
-
-                Ok(spanned_prev_token)
-            }
             _ => Err(LexerErrorKind::NotADoubleChar {
                 span: Span::single_char(self.position),
                 found: prev_token,
@@ -244,7 +228,7 @@ impl<'a> Lexer<'a> {
             '0'..='9' => self.eat_digit(initial_char),
             _ => Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
-                found: initial_char,
+                found: initial_char.into(),
                 expected: "an alpha numeric character".to_owned(),
             }),
         }
@@ -254,7 +238,7 @@ impl<'a> Lexer<'a> {
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
-                found: self.next_char().unwrap(),
+                found: self.next_char(),
                 expected: "[".to_owned(),
             });
         }
@@ -269,7 +253,7 @@ impl<'a> Lexer<'a> {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
                 expected: "]".to_owned(),
-                found: self.next_char().unwrap(),
+                found: self.next_char(),
             });
         }
         self.next_char();
@@ -339,6 +323,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn parse_block_comment(&mut self) -> SpannedTokenResult {
+        let span = Span::new(self.position..self.position + 1);
         let mut depth = 1usize;
 
         while let Some(ch) = self.next_char() {
@@ -352,6 +337,8 @@ impl<'a> Lexer<'a> {
                     depth -= 1;
 
                     // This block comment is closed, so for a construction like "/* */ */"
+                    // there will be a successfully parsed block comment "/* */"
+                    // and " */" will be processed separately.
                     if depth == 0 {
                         break;
                     }
@@ -360,7 +347,11 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        self.next_token()
+        if depth == 0 {
+            self.next_token()
+        } else {
+            Err(LexerErrorKind::UnterminatedBlockComment { span })
+        }
     }
 
     /// Skips white space. They are not significant in the source language
@@ -428,6 +419,15 @@ fn test_single_double_char() {
 }
 
 #[test]
+fn invalid_attribute() {
+    let input = "#";
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap();
+    assert!(token.is_err());
+}
+
+#[test]
 fn test_custom_gate_syntax() {
     let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
 
@@ -486,6 +486,16 @@ fn test_arithmetic_sugar() {
         let got = lexer.next_token().unwrap();
         assert_eq!(got, token);
     }
+}
+
+#[test]
+fn unterminated_block_comment() {
+    let input = "/*/";
+
+    let mut lexer = Lexer::new(input);
+    let token = lexer.next().unwrap();
+
+    assert!(token.is_err());
 }
 
 #[test]
