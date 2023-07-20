@@ -1,0 +1,23 @@
+[[redirects]]
+    from = "/how-aztec-works/*"
+    to = "/"
+
+[[redirects]]
+    from = "/sdk/*"
+    to = "/"
+
+[[redirects]]
+    from = "/developers/*"
+    to = "/"
+
+[[redirects]]
+    from = "/spec/*"
+    to = "/"
+
+[[redirects]]
+    from = "/compliance"
+    to = "/"
+
+[[redirects]]
+    from = "/aztec3/*"
+    to = "/aztec/overview"
