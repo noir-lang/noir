@@ -5,6 +5,19 @@ fn main(x: u32)  {
     assert(entry_point(x) == 2);
     swap_entry_point(x, x + 1);
     assert(deep_entry_point(x) == 4);
+    multiple_values_entry_point(x);
+}
+
+unconstrained fn returns_multiple_values(x : u32) -> (u32, u32, u32, u32) {
+    (x + 1, x + 2, x + 3, x + 4)
+}
+
+unconstrained fn multiple_values_entry_point(x: u32) {
+    let (a, b, c, d) = returns_multiple_values(x);
+    assert(a == x + 1);
+    assert(b == x + 2);
+    assert(c == x + 3);
+    assert(d == x + 4);
 }
 
 unconstrained fn inner(x : u32) -> u32 {

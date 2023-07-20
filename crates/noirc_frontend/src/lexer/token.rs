@@ -80,8 +80,6 @@ pub enum Token {
     Semicolon,
     /// !
     Bang,
-    /// _
-    Underscore,
     /// =
     Assign,
     #[allow(clippy::upper_case_acronyms)]
@@ -182,7 +180,6 @@ impl fmt::Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
-            Token::Underscore => write!(f, "_"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
         }
@@ -528,7 +525,6 @@ impl Keyword {
 
             "true" => return Some(Token::Bool(true)),
             "false" => return Some(Token::Bool(false)),
-            "_" => return Some(Token::Underscore),
             _ => return None,
         };
 

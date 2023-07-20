@@ -478,8 +478,18 @@ impl NodeInterner {
         }
     }
 
+    /// Retrieves the definition where the given id was defined.
+    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// any call with a possibly undefined variable.
     pub fn definition(&self, id: DefinitionId) -> &DefinitionInfo {
         &self.definitions[id.0]
+    }
+
+    /// Tries to retrieve the given id's definition.
+    /// This function should be used during name resolution or type checking when we cannot be sure
+    /// all variables have corresponding definitions (in case of an error in the user's code).
+    pub fn try_definition(&self, id: DefinitionId) -> Option<&DefinitionInfo> {
+        self.definitions.get(id.0)
     }
 
     /// Returns the name of the definition

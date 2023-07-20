@@ -86,6 +86,7 @@ impl<'interner> TypeChecker<'interner> {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
                     }
+                    HirLiteral::Unit => Type::Unit,
                 }
             }
             HirExpression::Infix(infix_expr) => {
@@ -116,7 +117,7 @@ impl<'interner> TypeChecker<'interner> {
             HirExpression::MethodCall(mut method_call) => {
                 let object_type = self.check_expression(&method_call.object).follow_bindings();
                 let method_name = method_call.method.0.contents.as_str();
-                match self.lookup_method(object_type.clone(), method_name, expr_id) {
+                match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_id) => {
                         let mut args =
                             vec![(object_type, self.interner.expr_span(&method_call.object))];
@@ -287,11 +288,12 @@ impl<'interner> TypeChecker<'interner> {
             if matches!(expected_object_type.follow_bindings(), Type::MutableReference(_)) {
                 let actual_type = argument_types[0].0.follow_bindings();
 
-                if let Err(error) = verify_mutable_reference(self.interner, method_call.object) {
-                    self.errors.push(TypeCheckError::ResolverError(error));
-                }
-
                 if !matches!(actual_type, Type::MutableReference(_)) {
+                    if let Err(error) = verify_mutable_reference(self.interner, method_call.object)
+                    {
+                        self.errors.push(TypeCheckError::ResolverError(error));
+                    }
+
                     let new_type = Type::MutableReference(Box::new(actual_type));
 
                     argument_types[0].0 = new_type.clone();
@@ -719,11 +721,11 @@ impl<'interner> TypeChecker<'interner> {
 
     fn lookup_method(
         &mut self,
-        object_type: Type,
+        object_type: &Type,
         method_name: &str,
         expr_id: &ExprId,
     ) -> Option<FuncId> {
-        match &object_type {
+        match object_type {
             Type::Struct(typ, _args) => {
                 match self.interner.lookup_method(typ.borrow().id, method_name) {
                     Some(method_id) => Some(method_id),
@@ -738,6 +740,9 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 }
             }
+            // Mutable references to another type should resolve to methods of their element type.
+            // This may be a struct or a primitive type.
+            Type::MutableReference(element) => self.lookup_method(element, method_name, expr_id),
             // If we fail to resolve the object to a struct type, we have no way of type
             // checking its arguments as we can't even resolve the name of the function
             Type::Error => None,

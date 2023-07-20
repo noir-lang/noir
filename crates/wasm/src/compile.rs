@@ -1,4 +1,5 @@
 use acvm::acir::circuit::Circuit;
+use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use log::debug;
 use noirc_driver::{
@@ -6,11 +7,11 @@ use noirc_driver::{
     propagate_dep, CompileOptions, CompiledContract,
 };
 use noirc_frontend::{
-    graph::{CrateName, CrateType},
+    graph::{CrateGraph, CrateName, CrateType},
     hir::Context,
 };
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::Path;
 use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,8 +62,8 @@ impl Default for WASMCompileOptions {
 }
 
 fn add_noir_lib(context: &mut Context, crate_name: &str) {
-    let path_to_lib = PathBuf::from(&crate_name).join("lib.nr");
-    let library_crate = create_non_local_crate(context, path_to_lib, CrateType::Library);
+    let path_to_lib = Path::new(&crate_name).join("lib.nr");
+    let library_crate = create_non_local_crate(context, &path_to_lib, CrateType::Library);
 
     propagate_dep(context, library_crate, &CrateName::new(crate_name).unwrap());
 }
@@ -80,21 +81,25 @@ pub fn compile(args: JsValue) -> JsValue {
 
     debug!("Compiler configuration {:?}", &options);
 
-    let mut context = Context::default();
+    let root = Path::new("/");
+    let fm = FileManager::new(root);
+    let graph = CrateGraph::default();
+    let mut context = Context::new(fm, graph);
 
-    let path = PathBuf::from(&options.entry_point);
+    let path = Path::new(&options.entry_point);
     let crate_id = create_local_crate(&mut context, path, CrateType::Binary);
 
     for dependency in options.optional_dependencies_set {
         add_noir_lib(&mut context, dependency.as_str());
     }
 
-    check_crate(&mut context, false, false).expect("Crate check failed");
+    check_crate(&mut context, crate_id, false, false).expect("Crate check failed");
 
     if options.contracts {
-        let compiled_contracts = compile_contracts(&mut context, &options.compile_options)
-            .expect("Contract compilation failed")
-            .0;
+        let compiled_contracts =
+            compile_contracts(&mut context, crate_id, &options.compile_options)
+                .expect("Contract compilation failed")
+                .0;
 
         let optimized_contracts: Vec<CompiledContract> =
             compiled_contracts.into_iter().map(optimize_contract).collect();

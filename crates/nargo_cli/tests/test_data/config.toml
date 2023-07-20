@@ -4,4 +4,4 @@ exclude = ["bit_shifts_runtime", "comptime_fail", "sha2_blocks", "sha2_byte"]
 
 
 # List of tests (as their directory name in test_data) expecting to fail: if the test pass, we report an error.
-fail = ["range_fail"]
+fail = ["range_fail", "dep_impl_primitive"]
