@@ -86,9 +86,6 @@ impl CrateDefMap {
         // 2. The `println` method is a builtin with the old SSA but is a normal function that calls
         // an oracle in the new SSA.
         //
-        // The last crate represents the stdlib crate.
-        // After resolving the manifest of the local crate the stdlib is added to the manifest and propagated to all crates
-        // thus being the last crate.
         if crate_id.is_stdlib() {
             let path_as_str = context
                 .file_manager
