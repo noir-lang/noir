@@ -368,8 +368,8 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|((name, generics), items), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
-            TopLevelStatement::Trait(NoirTrait { name, generics, items })
+            //emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
+            TopLevelStatement::Trait(NoirTrait { name, generics, span, items })
         })
 }
 
@@ -467,7 +467,7 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
             let (((impl_generics, trait_name), trait_generics), (object_type, object_type_span)) =
                 other_args;
 
-            emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
+            //emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
             TopLevelStatement::TraitImpl(TraitImpl {
                 impl_generics,
                 trait_name,
@@ -498,8 +498,8 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
         .then_ignore(just(Token::Colon))
         .then(ident())
         .then(generic_type_args(parse_type()))
-        .validate(|((typ, trait_name), trait_generics), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
+        .validate(|((typ, trait_name), trait_generics), _span, _emit| {
+            //emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
             TraitConstraint { typ, trait_name, trait_generics }
         });
 

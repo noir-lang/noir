@@ -1,14 +1,16 @@
-use crate::node_interner::{FuncId, StmtId, StructId, TypeAliasId};
+
+use crate::node_interner::{FuncId, StmtId, StructId, TypeAliasId, TraitId};
 
 use super::ModuleId;
 
-/// A generic ID that references either a module, function, type, or global
+/// A generic ID that references either a module, function, type, interface or global
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
     TypeId(StructId),
     TypeAliasId(TypeAliasId),
+    InterfaceId(TraitId),
     GlobalId(StmtId),
 }
 
@@ -34,6 +36,13 @@ impl ModuleDefId {
         }
     }
 
+    pub fn as_trait(&self) -> Option<TraitId> {
+        match self {
+            ModuleDefId::InterfaceId(trait_id) => Some(*trait_id),
+            _ => None,
+        }
+    }
+
     pub fn as_global(&self) -> Option<StmtId> {
         match self {
             ModuleDefId::GlobalId(stmt_id) => Some(*stmt_id),
@@ -48,6 +57,7 @@ impl ModuleDefId {
             ModuleDefId::FunctionId(_) => "function",
             ModuleDefId::TypeId(_) => "type",
             ModuleDefId::TypeAliasId(_) => "type alias",
+            ModuleDefId::InterfaceId(_) => "trait",
             ModuleDefId::ModuleId(_) => "module",
             ModuleDefId::GlobalId(_) => "global",
         }
@@ -112,6 +122,7 @@ impl TryFromModuleDefId for StructId {
     }
 }
 
+
 impl TryFromModuleDefId for TypeAliasId {
     fn try_from(id: ModuleDefId) -> Option<Self> {
         id.as_type_alias()
@@ -123,6 +134,21 @@ impl TryFromModuleDefId for TypeAliasId {
 
     fn description() -> String {
         "type alias".to_string()
+
+    }
+}
+
+impl TryFromModuleDefId for TraitId {
+    fn try_from(id: ModuleDefId) -> Option<Self> {
+        id.as_trait()
+    }
+
+    fn dummy_id() -> Self {
+        TraitId::dummy_id()
+    }
+
+    fn description() -> String {
+        "interface".to_string()
     }
 }
 

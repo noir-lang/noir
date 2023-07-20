@@ -55,7 +55,7 @@ pub fn resolve_imports(
     def_maps: &HashMap<CrateId, CrateDefMap>,
 ) -> (Vec<ResolvedImport>, Vec<(PathResolutionError, LocalModuleId)>) {
     let def_map = &def_maps[&crate_id];
-
+    
     partition_results(imports_to_resolve, |import_directive| {
         let allow_contracts =
             allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
@@ -64,7 +64,6 @@ pub fn resolve_imports(
         let resolved_namespace =
             resolve_path_to_ns(&import_directive, def_map, def_maps, allow_contracts)
                 .map_err(|error| (error, module_scope))?;
-
         let name = resolve_path_name(&import_directive);
         Ok(ResolvedImport { name, resolved_namespace, module_scope })
     })
@@ -153,6 +152,7 @@ fn resolve_name_in_module(
             // TODO: If impls are ever implemented, types can be used in a path
             ModuleDefId::TypeId(id) => id.0,
             ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
+            ModuleDefId::InterfaceId(id) => id.0,
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
 

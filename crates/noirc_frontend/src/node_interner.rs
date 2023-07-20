@@ -7,11 +7,11 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTypeAlias};
+use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTypeAlias, UnresolvedTrait};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::types::{StructType, Type};
+use crate::hir_def::types::{StructType, TraitType, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -60,6 +60,13 @@ pub struct NodeInterner {
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
     type_aliases: Vec<TypeAliasType>,
+    
+    // Trait map.
+    //
+    // Each struct definition is possibly shared across multiple type nodes.
+    // It is also mutated through the RefCell during name resolution to append
+    // methods from impls to the type.
+    traits: HashMap<TraitId, Shared<TraitType>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -147,6 +154,18 @@ pub struct TypeAliasId(pub usize);
 impl TypeAliasId {
     pub fn dummy_id() -> TypeAliasId {
         TypeAliasId(std::usize::MAX)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct TraitId(pub ModuleId);
+
+impl TraitId {
+    // dummy id for error reporting
+    // This can be anything, as the program will ultimately fail
+    // after resolution
+    pub fn dummy_id() -> TraitId {
+        TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
 
@@ -262,6 +281,7 @@ impl Default for NodeInterner {
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
             type_aliases: Vec::new(),
+            traits: HashMap::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
@@ -303,6 +323,19 @@ impl NodeInterner {
     pub fn push_expr_type(&mut self, expr_id: &ExprId, typ: Type) {
         self.id_to_type.insert(expr_id.into(), typ);
     }
+
+    pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
+        self.traits.insert(
+            type_id,
+            Shared::new(TraitType::new(
+                type_id,
+                typ.trait_def.name.clone(),
+                typ.trait_def.span,
+            )),
+        );
+    }
+
+
 
     pub fn push_empty_struct(&mut self, type_id: StructId, typ: &UnresolvedStruct) {
         self.structs.insert(
@@ -549,6 +582,10 @@ impl NodeInterner {
 
     pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
         &self.type_aliases[id.0]
+    }
+
+    pub fn get_trait(&self, id: TraitId) -> Shared<TraitType> {
+        self.traits[&id].clone()
     }
 
     pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {

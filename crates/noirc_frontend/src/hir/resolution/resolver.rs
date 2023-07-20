@@ -26,7 +26,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -36,7 +36,7 @@ use crate::{
 use crate::{
     ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
     Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
+    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT, TraitType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -1227,6 +1227,10 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
+    pub fn get_trait(&self, type_id: TraitId) -> Shared<TraitType> {
+        self.interner.get_trait(type_id)
+    }
+
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -1434,6 +1438,7 @@ mod test {
     // and functions can be forward declared
     fn resolve_src_code(src: &str, func_namespace: Vec<&str>) -> Vec<ResolverError> {
         let (program, errors) = parse_program(src);
+        println!("{:?}", errors);
         assert!(errors.is_empty());
 
         let mut interner = NodeInterner::default();
@@ -1637,7 +1642,7 @@ mod test {
                 x
             }
         "#;
-
+        
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         assert!(errors.is_empty());
     }
@@ -1692,6 +1697,38 @@ mod test {
                 _ => unimplemented!(),
             };
         }
+    }
+
+    fn resolve_struct_method_call_expr() {
+        let src = r#"
+        
+        struct Foo {
+            bar: Field
+        }
+        
+        impl Foo {
+            fn default(x: Field,_y: Field) -> Self {
+                Self { bar: x }
+            }
+        }
+        
+        fn main(x: Field, y: Field) {
+            let _foo = Foo::default(x,y);
+        }
+        "#;
+
+        let errors = resolve_src_code(src, vec!["main", "Foo"]);
+        for err in &errors {
+            match err {
+                ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
+                    println!("\n\n name = {}\n\n", name.to_string());
+                    assert_eq!(name.to_string(), "default");
+                }
+                _ => unimplemented!("expected an unresolved path"),
+            }
+        }
+
+        assert!(errors.is_empty());
     }
 
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {

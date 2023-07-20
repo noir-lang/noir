@@ -10,10 +10,11 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TypeAliasId};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TypeAliasId, TraitId};
 use crate::{
-    ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias,
-    ParsedModule, Shared, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
+    ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, NoirTrait,
+    ParsedModule, Shared, Type, TypeBinding, UnresolvedGenerics, UnresolvedType, 
+
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -40,6 +41,13 @@ pub struct UnresolvedStruct {
     pub struct_def: NoirStruct,
 }
 
+pub struct UnresolvedTrait {
+    pub file_id: FileId,
+    pub module_id: LocalModuleId,
+    pub trait_def: NoirTrait,
+}
+
+
 #[derive(Clone)]
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
@@ -62,6 +70,7 @@ pub struct DefCollector {
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
     pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
     pub(crate) collected_type_aliases: HashMap<TypeAliasId, UnresolvedTypeAlias>,
+    pub(crate) collected_traits: HashMap<TraitId, UnresolvedTrait>,
     pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     pub(crate) collected_impls: ImplMap,
 }
@@ -80,6 +89,7 @@ impl DefCollector {
             collected_functions: vec![],
             collected_types: HashMap::new(),
             collected_type_aliases: HashMap::new(),
+            collected_traits: HashMap::new(),
             collected_impls: HashMap::new(),
             collected_globals: vec![],
         }
@@ -95,6 +105,7 @@ impl DefCollector {
         root_file_id: FileId,
         errors: &mut Vec<FileDiagnostic>,
     ) {
+        println!("\n Hohoh");
         let crate_id = def_map.krate;
 
         // Recursively resolve the dependencies
@@ -169,6 +180,7 @@ impl DefCollector {
         resolve_type_aliases(context, def_collector.collected_type_aliases, crate_id, errors);
 
         // Must resolve structs before we resolve globals.
+        resolve_traits(context, def_collector.collected_traits, crate_id, errors);
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
         // We must wait to resolve non-integer globals until after we resolve structs since structs
@@ -348,6 +360,31 @@ fn resolve_structs(
             struct_def.generics = generics;
         });
     }
+}
+
+/// Create the mappings from TypeId -> StructType
+/// so that expressions can access the fields of structs
+fn resolve_traits(
+    context: &mut Context,
+    traits: HashMap<TraitId, UnresolvedTrait>,
+    crate_id: CrateId,
+    errors: &mut Vec<FileDiagnostic>,
+) {
+    // We must first go through the struct list once to ensure all IDs are pushed to
+    // the def_interner map. This lets structs refer to each other regardless of declaration order
+    // without resolve_struct_fields non-deterministically unwrapping a value
+    // that isn't in the HashMap.
+    for (type_id, typ) in &traits {
+        context.def_interner.push_empty_trait(*type_id, typ);
+    }
+/*
+    for (type_id, typ) in traits {
+        let (generics, fields) = resolve_struct_fields(context, crate_id, typ, errors);
+        context.def_interner.update_trait(type_id, |struct_def| {
+            struct_def.generics = generics;
+        });
+    }
+*/
 }
 
 fn resolve_struct_fields(

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use fm::FileId;
 
 use crate::{
-    node_interner::{FuncId, StmtId, StructId, TypeAliasId},
+    node_interner::{FuncId, StmtId, StructId, TypeAliasId, TraitId},
     Ident,
 };
 
@@ -65,12 +65,17 @@ impl ModuleData {
         self.declare(name, ModuleDefId::TypeId(id))
     }
 
+
     pub fn declare_type_alias(
         &mut self,
         name: Ident,
         id: TypeAliasId,
     ) -> Result<(), (Ident, Ident)> {
         self.declare(name, id.into())
+    }
+
+    pub fn declare_trait(&mut self, name: Ident, id: TraitId) -> Result<(), (Ident, Ident)> {
+        self.declare(name, ModuleDefId::InterfaceId(id))
     }
 
     pub fn declare_child_module(

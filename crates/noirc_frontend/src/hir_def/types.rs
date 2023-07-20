@@ -13,7 +13,7 @@ use iter_extended::vecmap;
 use noirc_abi::AbiType;
 use noirc_errors::Span;
 
-use crate::{node_interner::StructId, Ident, Signedness};
+use crate::{node_interner::StructId, node_interner::TraitId, Ident, Signedness};
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
@@ -124,6 +124,21 @@ pub struct StructType {
     pub span: Span,
 }
 
+
+// Represents a struct type in the type system. Each instance of this
+/// rust struct will be shared across all Type::Struct variants that represent
+/// the same struct type.
+#[derive(Debug, Eq)]
+pub struct TraitType {
+    /// A unique id representing this struct type. Used to check if two
+    /// struct types are equal.
+    pub id: TraitId,
+
+    pub name: Ident,
+    pub span: Span,
+}
+
+
 /// Corresponds to generic lists such as `<T, U>` in the source
 /// program. The `TypeVariableId` portion is used to match two
 /// type variables to check for equality, while the `TypeVariable` is
@@ -139,6 +154,28 @@ impl std::hash::Hash for StructType {
 impl PartialEq for StructType {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl std::hash::Hash for TraitType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for TraitType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl TraitType {
+    pub fn new(
+        id: TraitId,
+        name: Ident,
+        span: Span,
+      ) -> TraitType {
+        TraitType { id, name, span}
     }
 }
 

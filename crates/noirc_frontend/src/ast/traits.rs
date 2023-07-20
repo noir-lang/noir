@@ -11,6 +11,7 @@ use crate::{Ident, NoirFunction, UnresolvedGenerics, UnresolvedType};
 pub struct NoirTrait {
     pub name: Ident,
     pub generics: Vec<Ident>,
+    pub span: Span,
     pub items: Vec<TraitItem>,
 }
 
