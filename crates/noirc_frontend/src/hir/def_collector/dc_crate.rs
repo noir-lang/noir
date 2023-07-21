@@ -40,6 +40,7 @@ pub struct UnresolvedStruct {
     pub struct_def: NoirStruct,
 }
 
+#[derive(Clone)]
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
@@ -367,21 +368,15 @@ fn resolve_struct_fields(
     (generics, fields)
 }
 
+// Don't resolve type aliases here
+// because they may have generics
 fn resolve_type_aliases(
     context: &mut Context,
     type_aliases: HashMap<TyAliasId, UnresolvedTypeAlias>,
-    crate_id: CrateId,
+    _crate_id: CrateId,
 ) {
-    for (type_id, unresolved_typ) in &type_aliases {
-        let path_resolver = StandardPathResolver::new(ModuleId {
-            local_id: unresolved_typ.module_id,
-            krate: crate_id,
-        });
-        let file = unresolved_typ.file_id;
-        let ty = Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
-            .resolve_type_aliases(unresolved_typ.type_alias_def.clone());
-
-        context.def_interner.push_type_alias(*type_id, ty);
+    for (type_id, unresolved_typ) in type_aliases {
+        context.def_interner.push_type_alias(type_id, unresolved_typ);
     }
 }
 

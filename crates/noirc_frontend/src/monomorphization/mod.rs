@@ -670,7 +670,6 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(&self, typ: &HirType) -> ast::Type {
-        println!("{:?}", typ);
         match typ {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),

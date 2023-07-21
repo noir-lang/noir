@@ -53,7 +53,6 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     let (function_last_type, delayed_type_check_functions, mut errors) =
         type_checker.check_function_body(function_body_id);
 
-    println!("{:?}", errors);
     // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
     for type_check_fn in delayed_type_check_functions {
         if let Err(error) = type_check_fn() {

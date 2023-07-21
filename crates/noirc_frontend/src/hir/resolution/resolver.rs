@@ -22,6 +22,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
+use crate::hir::def_collector::dc_crate::UnresolvedTypeAlias;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
@@ -391,8 +392,9 @@ impl<'a> Resolver<'a> {
             }
         }
 
+        // resolve type alias here
         if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
-            return type_alias_type;
+            return self.resolve_type_inner(type_alias_type.type_alias_def.ty, new_variables);
         }
 
         let span = path.span();
@@ -1164,7 +1166,7 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_type_alias(&self, type_alias_id: TyAliasId) -> Type {
+    pub fn get_type_alias(&self, type_alias_id: TyAliasId) -> UnresolvedTypeAlias {
         self.interner.get_type_alias(type_alias_id)
     }
 
@@ -1230,7 +1232,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn lookup_type_alias(&mut self, path: Path) -> Option<Type> {
+    fn lookup_type_alias(&mut self, path: Path) -> Option<UnresolvedTypeAlias> {
         match self.lookup(path) {
             Ok(type_alias_id) => Some(self.get_type_alias(type_alias_id)),
             Err(_) => None,

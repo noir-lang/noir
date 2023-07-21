@@ -7,7 +7,7 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::UnresolvedStruct;
+use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
@@ -56,7 +56,7 @@ pub struct NodeInterner {
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    type_aliases: HashMap<TyAliasId, Type>,
+    type_aliases: HashMap<TyAliasId, UnresolvedTypeAlias>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -335,7 +335,7 @@ impl NodeInterner {
         f(&mut value);
     }
 
-    pub fn push_type_alias(&mut self, type_id: TyAliasId, typ: Type) {
+    pub fn push_type_alias(&mut self, type_id: TyAliasId, typ: UnresolvedTypeAlias) {
         self.type_aliases.insert(type_id, typ);
     }
 
@@ -535,7 +535,7 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_type_alias(&self, id: TyAliasId) -> Type {
+    pub fn get_type_alias(&self, id: TyAliasId) -> UnresolvedTypeAlias {
         self.type_aliases[&id].clone()
     }
 

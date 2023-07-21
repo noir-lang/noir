@@ -26,7 +26,6 @@ impl<'interner> TypeChecker<'interner> {
     /// be done earlier since we need to know the type of the object `a` to resolve which
     /// function `foo` to refer to.
     pub(crate) fn check_expression(&mut self, expr_id: &ExprId) -> Type {
-        println!("{:?}", self.interner.expression(expr_id));
         let typ = match self.interner.expression(expr_id) {
             HirExpression::Ident(ident) => {
                 // An identifiers type may be forall-quantified in the case of generic functions.
@@ -75,7 +74,6 @@ impl<'interner> TypeChecker<'interner> {
                             );
                         }
 
-                        println!("{:?}", arr_type);
                         arr_type
                     }
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length }) => {
