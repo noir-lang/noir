@@ -1,5 +1,6 @@
 import { BufferReader } from '@aztec/foundation/serialize';
 
+import { FieldsOf } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { AztecAddress, EthAddress, Fr, Point } from './index.js';
 
@@ -137,5 +138,30 @@ export class TxContext {
 
   static empty(chainId: Fr = Fr.ZERO, version: Fr = Fr.ZERO) {
     return new TxContext(false, false, false, ContractDeploymentData.empty(), chainId, version);
+  }
+
+  /**
+   * Create a new instance from a fields dictionary.
+   * @param fields - The dictionary.
+   * @returns A new instance.
+   */
+  static from(fields: FieldsOf<TxContext>): TxContext {
+    return new TxContext(...TxContext.getFields(fields));
+  }
+
+  /**
+   * Serialize into a field array. Low-level utility.
+   * @param fields - Object with fields.
+   * @returns The array.
+   */
+  static getFields(fields: FieldsOf<TxContext>) {
+    return [
+      fields.isFeePaymentTx,
+      fields.isRebatePaymentTx,
+      fields.isContractDeploymentTx,
+      fields.contractDeploymentData,
+      fields.chainId,
+      fields.version,
+    ] as const;
   }
 }

@@ -197,10 +197,6 @@ export class PrivateFunctionExecution {
       MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
     );
 
-    // TODO: This should be set manually by the circuit
-    publicInputs.contractDeploymentData.deployerPublicKey =
-      this.context.txContext.contractDeploymentData.deployerPublicKey;
-
     this.log(`Returning from call to ${this.contractAddress.toString()}:${selector}`);
 
     const readRequestPartialWitnesses = this.context.getReadRequestPartialWitnesses();
@@ -245,6 +241,8 @@ export class PrivateFunctionExecution {
       this.context.historicRoots.contractTreeRoot,
       this.context.historicRoots.l1ToL2MessagesTreeRoot,
 
+      contractDeploymentData.deployerPublicKey.x,
+      contractDeploymentData.deployerPublicKey.y,
       contractDeploymentData.constructorVkHash,
       contractDeploymentData.functionTreeRoot,
       contractDeploymentData.contractAddressSalt,

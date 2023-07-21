@@ -17,6 +17,7 @@ use crate::constants_gen::CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH;
 use crate::constants_gen::CONTRACT_STORAGE_READ_LENGTH;
 use crate::constants_gen::PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH;
 use crate::types::vec::BoundedVec;
+use crate::types::point::Point;
 
 // PrivateContextInputs are expected to be provided to each private function
 struct PrivateContextInputs {
@@ -88,8 +89,7 @@ fn empty_commitment_trees_roots() -> CommitmentTreesRoots {
 }
 
 struct ContractDeploymentData {
-    // TODO Uncomment when we remove the too many unknowns issue
-    // deployer_public_key: [Field; 2],
+    deployer_public_key: Point,
     constructor_vk_hash : Field,
     function_tree_root : Field,
     contract_address_salt : Field,
@@ -99,6 +99,8 @@ struct ContractDeploymentData {
 impl ContractDeploymentData {
     fn serialize(self) -> [Field; CONTRACT_DEPLOYMENT_DATA_LENGTH] {
         [
+            self.deployer_public_key.x,
+            self.deployer_public_key.y,
             self.constructor_vk_hash,
             self.function_tree_root,
             self.contract_address_salt,

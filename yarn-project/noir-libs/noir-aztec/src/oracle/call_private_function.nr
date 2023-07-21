@@ -1,6 +1,4 @@
-// Size of the return value of a private function call, public inputs length + 5
-// contract address, function selector, is_private, is_constructor, public inputs (53), is_execution_request
-global CALL_PRIVATE_FUNCTION_RETURN_SIZE: comptime Field = 58;
+use crate::constants_gen::CALL_PRIVATE_FUNCTION_RETURN_SIZE;
 
 #[oracle(callPrivateFunction)]
 fn call_private_function_oracle(

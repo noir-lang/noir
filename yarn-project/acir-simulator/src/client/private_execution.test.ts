@@ -2,6 +2,7 @@ import {
   CallContext,
   CircuitsWasm,
   ContractDeploymentData,
+  FieldsOf,
   FunctionData,
   L1_TO_L2_MSG_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_CALL,
@@ -19,7 +20,7 @@ import {
   siloCommitment,
 } from '@aztec/circuits.js/abis';
 import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
-import { makeAddressWithPreimagesFromPrivateKey } from '@aztec/circuits.js/factories';
+import { makeAddressWithPreimagesFromPrivateKey, makeContractDeploymentData } from '@aztec/circuits.js/factories';
 import { FunctionAbi, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
 import { asyncMap } from '@aztec/foundation/async-map';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
@@ -69,7 +70,14 @@ describe('Private Execution test suite', () => {
   };
 
   const trees: { [name: keyof typeof treeHeights]: AppendOnlyTree } = {};
-  const txContext = new TxContext(false, false, false, ContractDeploymentData.empty(), new Fr(69), new Fr(420));
+  const txContextFields: FieldsOf<TxContext> = {
+    isContractDeploymentTx: false,
+    isFeePaymentTx: false,
+    isRebatePaymentTx: false,
+    chainId: new Fr(10),
+    version: new Fr(20),
+    contractDeploymentData: ContractDeploymentData.empty(),
+  };
 
   const runSimulator = async ({
     abi,
@@ -77,19 +85,21 @@ describe('Private Execution test suite', () => {
     origin = AztecAddress.random(),
     contractAddress = defaultContractAddress,
     isConstructor = false,
+    txContext = {},
   }: {
     abi: FunctionAbi;
     origin?: AztecAddress;
     contractAddress?: AztecAddress;
     isConstructor?: boolean;
     args?: any[];
+    txContext?: Partial<FieldsOf<TxContext>>;
   }) => {
     const packedArguments = await PackedArguments.fromArgs(encodeArguments(abi, args), circuitsWasm);
     const txRequest = TxExecutionRequest.from({
       origin,
       argsHash: packedArguments.hash,
       functionData: new FunctionData(Buffer.alloc(4), true, isConstructor),
-      txContext,
+      txContext: TxContext.from({ ...txContextFields, ...txContext }),
       packedArguments: [packedArguments],
     });
 
@@ -142,10 +152,13 @@ describe('Private Execution test suite', () => {
   describe('empty constructor', () => {
     it('should run the empty constructor', async () => {
       const abi = TestContractAbi.functions[0];
-      const result = await runSimulator({ abi, isConstructor: true });
-      expect(result.callStackItem.publicInputs.newCommitments).toEqual(
-        new Array(MAX_NEW_COMMITMENTS_PER_CALL).fill(Fr.ZERO),
-      );
+      const contractDeploymentData = makeContractDeploymentData(100);
+      const txContext = { isContractDeploymentTx: true, contractDeploymentData };
+      const result = await runSimulator({ abi, isConstructor: true, txContext });
+
+      const emptyCommitments = new Array(MAX_NEW_COMMITMENTS_PER_CALL).fill(Fr.ZERO);
+      expect(result.callStackItem.publicInputs.newCommitments).toEqual(emptyCommitments);
+      expect(result.callStackItem.publicInputs.contractDeploymentData).toEqual(contractDeploymentData);
     });
   });
 
@@ -368,7 +381,7 @@ describe('Private Execution test suite', () => {
   });
 
   describe('nested calls', () => {
-    const privateIncrement = txContext.chainId.value + txContext.version.value;
+    const privateIncrement = txContextFields.chainId.value + txContextFields.version.value;
     it('child function should be callable', async () => {
       const initialValue = 100n;
       const abi = ChildContractAbi.functions.find(f => f.name === 'value')!;

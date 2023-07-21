@@ -5,6 +5,7 @@ use crate::context::Context;
 use crate::abi::PrivateCircuitPublicInputs;
 use crate::abi::CommitmentTreesRoots;
 use crate::types::vec::BoundedVec;
+use crate::types::point::Point;
 use crate::utils::arr_copy_slice;
 use crate::constants_gen;
 
@@ -91,15 +92,16 @@ impl PrivateCallStackItem {
                     l1_to_l2_messages_tree_root : fields[50],
                 },
                 contract_deployment_data: ContractDeploymentData {
-                    constructor_vk_hash : fields[51],
-                    function_tree_root : fields[52],
-                    contract_address_salt : fields[53],
-                    portal_contract_address : fields[54],
+                    deployer_public_key: Point::new(fields[51], fields[52]),
+                    constructor_vk_hash : fields[53],
+                    function_tree_root : fields[54],
+                    contract_address_salt : fields[55],
+                    portal_contract_address : fields[56],
                 },
-                chain_id: fields[55],
-                version: fields[56],
+                chain_id: fields[57],
+                version: fields[58],
             },
-            is_execution_request: fields[57] as bool,
+            is_execution_request: fields[59] as bool,
         };
         assert(contract_address == item.contract_address);
         assert(function_selector == item.function_data.function_selector);
