@@ -437,17 +437,10 @@ impl Instruction {
                         // Delete the constrain, it is always true
                         return Ok(NodeEval::VarOrInstruction(NodeId::dummy()));
                     } else if obj.is_zero() {
-                        if let Some(location) = *location {
-                            return Err(RuntimeError::new(
-                                RuntimeErrorKind::ConstraintIsAlwaysFalse { spanless: false },
-                                Some(location),
-                            ));
-                        } else {
-                            return Err(RuntimeErrorKind::ConstraintIsAlwaysFalse {
-                                spanless: true,
-                            }
-                            .into());
-                        }
+                        return Err(RuntimeError::new(
+                            RuntimeErrorKind::ConstraintIsAlwaysFalse,
+                            *location,
+                        ));
                     }
                 }
             }
@@ -807,7 +800,7 @@ impl Binary {
 
     fn zero_div_error(&self, location: &Location) -> Result<(), RuntimeError> {
         if self.predicate.is_none() {
-            Err(RuntimeError { location: Some(*location), kind: RuntimeErrorKind::DivisionByZero })
+            Err(RuntimeError::new(RuntimeErrorKind::DivisionByZero, Some(*location)))
         } else {
             Ok(())
         }

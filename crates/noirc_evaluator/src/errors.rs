@@ -85,7 +85,7 @@ pub enum RuntimeErrorKind {
     DefaultWitnesses(u32),
 
     #[error("Constraint is always false")]
-    ConstraintIsAlwaysFalse { spanless: bool },
+    ConstraintIsAlwaysFalse,
 
     #[error("ICE: cannot convert signed {0} bit size into field")]
     CannotConvertSignedIntoField(u32),
@@ -122,7 +122,6 @@ impl From<RuntimeError> for Diagnostic {
             | RuntimeErrorKind::UnsupportedIntegerSize { .. }
             | RuntimeErrorKind::FailedConstraint
             | RuntimeErrorKind::DefaultWitnesses(_)
-            | RuntimeErrorKind::ConstraintIsAlwaysFalse { spanless: false }
             | RuntimeErrorKind::CannotConvertSignedIntoField(_)
             | RuntimeErrorKind::IndexOutOfBounds { .. }
             | RuntimeErrorKind::PrivateAbiInput => {
@@ -135,7 +134,10 @@ impl From<RuntimeError> for Diagnostic {
                     span,
                 )
             }
-            RuntimeErrorKind::ConstraintIsAlwaysFalse { spanless: true } => {
+            RuntimeErrorKind::ConstraintIsAlwaysFalse if error.location.is_some() => {
+                Diagnostic::simple_error("".to_owned(), error.kind.to_string(), span)
+            }
+            RuntimeErrorKind::ConstraintIsAlwaysFalse => {
                 Diagnostic::from_message(&error.kind.to_string())
             }
             RuntimeErrorKind::Unimplemented(message) => Diagnostic::from_message(message),
