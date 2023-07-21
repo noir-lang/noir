@@ -7,14 +7,16 @@ use noirc_driver::{
     compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
 };
 use noirc_errors::reporter::ReportedErrors;
+use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::Context;
-use std::path::Path;
 
 use clap::Args;
 
 use nargo::ops::{preprocess_contract_function, preprocess_program};
 
-use crate::{constants::TARGET_DIR, errors::CliError, resolver::resolve_root_manifest};
+use crate::errors::CliError;
+use crate::manifest::resolve_workspace_in_directory;
+use crate::prepare_package;
 
 use super::fs::{
     common_reference_string::{
@@ -42,6 +44,10 @@ pub(crate) struct CompileCommand {
     #[arg(short, long)]
     contracts: bool,
 
+    /// The name of the package to compile
+    #[clap(long)]
+    package: Option<CrateName>,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -51,66 +57,71 @@ pub(crate) fn run<B: Backend>(
     args: CompileCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let circuit_dir = config.program_dir.join(TARGET_DIR);
+    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+    let circuit_dir = workspace.target_directory_path();
 
     let mut common_reference_string = read_cached_common_reference_string();
 
     // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
     if args.contracts {
-        let (mut context, crate_id) = resolve_root_manifest(&config.program_dir, None)?;
+        for package in &workspace {
+            let (mut context, crate_id) = prepare_package(package);
+            let result = compile_contracts(&mut context, crate_id, &args.compile_options);
+            let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
 
-        let result = compile_contracts(&mut context, crate_id, &args.compile_options);
-        let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
+            // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
+            // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
+            // are compiled via nargo-core and then the PreprocessedContract is constructed here.
+            // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
+            let preprocessed_contracts: Result<Vec<PreprocessedContract>, CliError<B>> =
+                try_vecmap(contracts, |contract| {
+                    let preprocessed_contract_functions =
+                        try_vecmap(contract.functions, |mut func| {
+                            func.bytecode = optimize_circuit(backend, func.bytecode)?.0;
+                            common_reference_string = update_common_reference_string(
+                                backend,
+                                &common_reference_string,
+                                &func.bytecode,
+                            )
+                            .map_err(CliError::CommonReferenceStringError)?;
 
-        // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
-        // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
-        // are compiled via nargo-core and then the PreprocessedContract is constructed here.
-        // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
-        let preprocessed_contracts: Result<Vec<PreprocessedContract>, CliError<B>> =
-            try_vecmap(contracts, |contract| {
-                let preprocessed_contract_functions =
-                    try_vecmap(contract.functions, |mut func| {
-                        func.bytecode = optimize_circuit(backend, func.bytecode)?.0;
-                        common_reference_string = update_common_reference_string(
-                            backend,
-                            &common_reference_string,
-                            &func.bytecode,
-                        )
-                        .map_err(CliError::CommonReferenceStringError)?;
+                            preprocess_contract_function(
+                                backend,
+                                args.include_keys,
+                                &common_reference_string,
+                                func,
+                            )
+                            .map_err(CliError::ProofSystemCompilerError)
+                        })?;
 
-                        preprocess_contract_function(
-                            backend,
-                            args.include_keys,
-                            &common_reference_string,
-                            func,
-                        )
-                        .map_err(CliError::ProofSystemCompilerError)
-                    })?;
-
-                Ok(PreprocessedContract {
-                    name: contract.name,
-                    backend: String::from(BACKEND_IDENTIFIER),
-                    functions: preprocessed_contract_functions,
-                })
-            });
-        for contract in preprocessed_contracts? {
-            save_contract_to_file(
-                &contract,
-                &format!("{}-{}", &args.circuit_name, contract.name),
-                &circuit_dir,
-            );
+                    Ok(PreprocessedContract {
+                        name: contract.name,
+                        backend: String::from(BACKEND_IDENTIFIER),
+                        functions: preprocessed_contract_functions,
+                    })
+                });
+            for contract in preprocessed_contracts? {
+                save_contract_to_file(
+                    &contract,
+                    &format!("{}-{}", &args.circuit_name, contract.name),
+                    &circuit_dir,
+                );
+            }
         }
     } else {
-        let (program, _) =
-            compile_circuit(backend, None, &config.program_dir, &args.compile_options)?;
-        common_reference_string =
-            update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                .map_err(CliError::CommonReferenceStringError)?;
+        for package in &workspace {
+            let (mut context, crate_id) = prepare_package(package);
+            let program = compile_circuit(backend, &mut context, crate_id, &args.compile_options)?;
 
-        let (preprocessed_program, _) =
-            preprocess_program(backend, args.include_keys, &common_reference_string, program)
-                .map_err(CliError::ProofSystemCompilerError)?;
-        save_program_to_file(&preprocessed_program, &args.circuit_name, circuit_dir);
+            common_reference_string =
+                update_common_reference_string(backend, &common_reference_string, &program.circuit)
+                    .map_err(CliError::CommonReferenceStringError)?;
+
+            let (preprocessed_program, _) =
+                preprocess_program(backend, args.include_keys, &common_reference_string, program)
+                    .map_err(CliError::ProofSystemCompilerError)?;
+            save_program_to_file(&preprocessed_program, &args.circuit_name, &circuit_dir);
+        }
     }
 
     write_cached_common_reference_string(&common_reference_string);
@@ -120,18 +131,18 @@ pub(crate) fn run<B: Backend>(
 
 pub(crate) fn compile_circuit<B: Backend>(
     backend: &B,
-    package: Option<String>,
-    program_dir: &Path,
+    context: &mut Context,
+    crate_id: CrateId,
     compile_options: &CompileOptions,
-) -> Result<(CompiledProgram, Context), CliError<B>> {
-    let (mut context, crate_id) = resolve_root_manifest(program_dir, package)?;
-    let result = compile_main(&mut context, crate_id, compile_options);
-    let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
-
+) -> Result<CompiledProgram, ReportedErrors> {
+    let result = compile_main(context, crate_id, compile_options);
+    let mut program = report_errors(result, context, compile_options.deny_warnings)?;
     // Apply backend specific optimizations.
     let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit)
         .expect("Backend does not support an opcode that is in the IR");
 
+    // TODO: Why does this set `program.circuit` to `optimized_circuit` instead of the function taking ownership
+    // and requiring we use `optimized_circuit` everywhere after
     program.circuit = optimized_circuit;
     let opcode_ids = vecmap(opcode_labels, |label| match label {
         OpcodeLabel::Unresolved => {
@@ -141,7 +152,7 @@ pub(crate) fn compile_circuit<B: Backend>(
     });
     program.debug.update_acir(opcode_ids);
 
-    Ok((program, context))
+    Ok(program)
 }
 
 pub(super) fn optimize_circuit<B: Backend>(

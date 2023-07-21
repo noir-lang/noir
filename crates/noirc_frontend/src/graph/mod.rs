@@ -26,7 +26,7 @@ impl CrateId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct CrateName(SmolStr);
 
 impl From<CrateName> for String {
@@ -66,7 +66,6 @@ pub const CHARACTER_BLACK_LIST: [char; 1] = ['-'];
 pub enum CrateType {
     Library,
     Binary,
-    Workspace,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

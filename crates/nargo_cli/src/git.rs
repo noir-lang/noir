@@ -1,7 +1,16 @@
 use std::path::PathBuf;
 
+/// Creates a unique folder name for a GitHub repo
+/// by using it's URL and tag
+fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
+    let mut folder_name = base.domain().unwrap().to_owned();
+    folder_name.push_str(base.path());
+    folder_name.push_str(tag);
+    folder_name
+}
+
 pub(crate) fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
-    let folder_name = super::resolver::resolve_folder_name(base, tag);
+    let folder_name = resolve_folder_name(base, tag);
 
     super::nargo_crates().join(folder_name)
 }

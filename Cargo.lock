@@ -1982,11 +1982,11 @@ dependencies = [
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
+ "noirc_frontend",
  "rustc_version",
  "serde",
  "serde_json",
  "thiserror",
- "toml",
 ]
 
 [[package]]

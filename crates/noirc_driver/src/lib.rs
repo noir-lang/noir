@@ -87,10 +87,12 @@ pub fn create_non_local_crate(
 }
 
 /// Adds a edge in the crate graph for two crates
-pub fn add_dep(context: &mut Context, this_crate: CrateId, depends_on: CrateId, crate_name: &str) {
-    let crate_name =
-        crate_name.parse().expect("crate name contains blacklisted characters, please remove");
-
+pub fn add_dep(
+    context: &mut Context,
+    this_crate: CrateId,
+    depends_on: CrateId,
+    crate_name: CrateName,
+) {
     // Cannot depend on a binary
     if context.crate_graph.crate_type(depends_on) == CrateType::Binary {
         panic!("crates cannot depend on binaries. {crate_name:?} is a binary crate")
@@ -142,15 +144,7 @@ pub fn check_crate(
     propagate_dep(context, std_crate, &std_crate_name.parse().unwrap());
 
     let mut errors = vec![];
-    match context.crate_graph.crate_type(crate_id) {
-        CrateType::Workspace => {
-            let keys: Vec<_> = context.crate_graph.iter_keys().collect(); // avoid borrow checker
-            for crate_id in keys {
-                CrateDefMap::collect_defs(crate_id, context, &mut errors);
-            }
-        }
-        _ => CrateDefMap::collect_defs(crate_id, context, &mut errors),
-    }
+    CrateDefMap::collect_defs(crate_id, context, &mut errors);
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)

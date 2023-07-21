@@ -1,19 +1,26 @@
 use acvm::Backend;
 use clap::Args;
+use nargo::package::Package;
 use noirc_driver::CompileOptions;
-use std::path::Path;
+use noirc_frontend::graph::CrateName;
 
-use crate::cli::compile_cmd::compile_circuit;
-use crate::errors::CliError;
+use crate::{
+    cli::compile_cmd::compile_circuit, errors::CliError, manifest::resolve_workspace_in_directory,
+    prepare_package,
+};
 
 use super::NargoConfig;
 
-/// Provides detailed informaton on a circuit
+/// Provides detailed information on a circuit
 /// Current information provided:
 /// 1. The number of ACIR opcodes
 /// 2. Counts the final number gates in the circuit used by a backend
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InfoCommand {
+    /// The name of the package to detail
+    #[clap(long)]
+    package: Option<CrateName>,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -23,18 +30,26 @@ pub(crate) fn run<B: Backend>(
     args: InfoCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    count_opcodes_and_gates_with_path(backend, config.program_dir, &args.compile_options)
+    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+
+    for package in &workspace {
+        count_opcodes_and_gates_in_package(backend, package, &args.compile_options)?;
+    }
+
+    Ok(())
 }
 
-fn count_opcodes_and_gates_with_path<B: Backend, P: AsRef<Path>>(
+fn count_opcodes_and_gates_in_package<B: Backend>(
     backend: &B,
-    program_dir: P,
+    package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let (compiled_program, _) =
-        compile_circuit(backend, None, program_dir.as_ref(), compile_options)?;
+    let (mut context, crate_id) = prepare_package(package);
+    let compiled_program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
+
     let num_opcodes = compiled_program.circuit.opcodes.len();
 
+    // TODO: Print the package name at the beginning?
     println!(
         "Total ACIR opcodes generated for language {:?}: {}",
         backend.np_language(),
