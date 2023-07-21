@@ -14,12 +14,10 @@ use std::collections::HashMap;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
-#[derive(Default)]
 pub struct Context {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
-    // TODO(#1599): Remove default impl and move creation/control of the FileManager into places that construct Context
     pub file_manager: FileManager,
 
     /// Maps a given (contract) module id to the next available storage slot
@@ -71,7 +69,10 @@ impl Context {
 
         // Check the crate type
         // We don't panic here to allow users to `evaluate` libraries which will do nothing
-        if self.crate_graph[*crate_id].crate_type == CrateType::Binary {
+        if matches!(
+            self.crate_graph[*crate_id].crate_type,
+            CrateType::Binary | CrateType::Workspace
+        ) {
             // All Binaries should have a main function
             local_crate.main_function()
         } else {

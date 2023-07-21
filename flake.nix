@@ -88,14 +88,7 @@
         BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
       };
 
-      testEnvironment = sharedEnvironment // {
-        # Barretenberg fails if tests are run on multiple threads, so we set the test thread
-        # count to 1 throughout the entire project
-        #
-        # Note: Setting this allows for consistent behavior across build and shells, but is mostly
-        # hidden from the developer - i.e. when they see the command being run via `nix flake check`
-        RUST_TEST_THREADS = "1";
-      };
+      testEnvironment = sharedEnvironment // {};
 
       # The `self.rev` property is only available when the working tree is not dirty
       GIT_COMMIT = if (self ? rev) then self.rev else "unknown";
@@ -281,6 +274,7 @@
           toml2json
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
           wasm-bindgen-cli
+          jq
         ];
 
         shellHook = ''

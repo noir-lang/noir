@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::PathBuf};
 
 mod errors;
 pub use self::errors::InvalidPackageError;
@@ -53,13 +53,18 @@ pub struct Workspace {
 }
 
 #[derive(Default, Debug, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct WorkspaceConfig {
-    pub members: Vec<String>,
+    /// List of members in this workspace.
+    pub members: Vec<PathBuf>,
+    /// Specifies the default crate to interact with in the context (similarly to how we have nargo as the default crate in this repository).
+    pub default_member: Option<PathBuf>,
 }
 
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
+    pub name: Option<String>,
     // Note: a package name is not needed unless there is a registry
     authors: Vec<String>,
     // If not compiler version is supplied, the latest is used
@@ -103,6 +108,17 @@ fn parse_workspace_toml() {
     let src = r#"
         [workspace]
         members = ["a", "b"]
+    "#;
+
+    assert!(Manifest::from_toml_str(src).is_ok());
+}
+
+#[test]
+fn parse_workspace_default_member_toml() {
+    let src = r#"
+        [workspace]
+        members = ["a", "b"]
+        default-member = "a"
     "#;
 
     assert!(Manifest::from_toml_str(src).is_ok());

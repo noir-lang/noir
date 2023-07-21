@@ -428,11 +428,22 @@ impl GeneratedAcir {
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let mut rhs_constraint = (rhs * &Expression::from(q_witness)).unwrap();
+        let rhs_reduced: Expression = self.create_witness_for_expression(rhs).into();
+        let mut rhs_constraint = (&rhs_reduced * &Expression::from(q_witness))
+            .expect("rhs_reduced is expected to be a degree-1 witness");
         rhs_constraint = &rhs_constraint + r_witness;
-        rhs_constraint = (&rhs_constraint * predicate).unwrap();
-        let lhs_constraint = (lhs * predicate).unwrap();
-        let div_euclidean = &lhs_constraint - &rhs_constraint;
+
+        // Reduce the rhs_constraint to a witness
+        let rhs_constrain_reduced: Expression =
+            self.create_witness_for_expression(&rhs_constraint).into();
+        // Reduce the lhs_constraint to a witness
+        let lhs_reduced: Expression = self.create_witness_for_expression(lhs).into();
+
+        let div_euclidean = &(&lhs_reduced * predicate).expect(
+            "lhs_reduced should be a degree-1 witness and predicate should be a degree-1 witness",
+        ) - &(&rhs_constrain_reduced * predicate).expect(
+            "rhs_reduced should be a degree-1 witness and predicate should be a degree-1 witness",
+        );
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
@@ -711,7 +722,7 @@ impl GeneratedAcir {
         a: &Expression,
         b: &Expression,
         max_bits: u32,
-        predicate: Option<Expression>,
+        predicate: Expression,
     ) -> Result<Witness, AcirGenError> {
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
@@ -737,7 +748,7 @@ impl GeneratedAcir {
         let (q_witness, r_witness) = self.quotient_directive(
             comparison_evaluation.clone(),
             two_max_bits.into(),
-            predicate,
+            Some(predicate),
             q_max_bits,
             r_max_bits,
         )?;
@@ -795,19 +806,25 @@ impl GeneratedAcir {
     /// n.b. A sorting network is a predetermined set of switches,
     /// the control bits indicate the configuration of each switch: false for pass-through and true for cross-over
     pub(crate) fn permutation(&mut self, in_expr: &[Expression], out_expr: &[Expression]) {
-        let bits = Vec::new();
-        let (w, b) = self.permutation_layer(in_expr, &bits, true);
-        // Constrain the network output to out_expr
-        for (b, o) in b.iter().zip(out_expr) {
-            self.push_opcode(AcirOpcode::Arithmetic(b - o));
+        let mut bits_len = 0;
+        for i in 0..in_expr.len() {
+            bits_len += ((i + 1) as f32).log2().ceil() as u32;
         }
+
+        let bits = vecmap(0..bits_len, |_| self.next_witness_index());
         let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
         self.push_opcode(AcirOpcode::Directive(Directive::PermutationSort {
             inputs,
             tuple: 1,
-            bits: w,
+            bits: bits.clone(),
             sort_by: vec![0],
         }));
+        let (_, b) = self.permutation_layer(in_expr, &bits, false);
+
+        // Constrain the network output to out_expr
+        for (b, o) in b.iter().zip(out_expr) {
+            self.push_opcode(AcirOpcode::Arithmetic(b - o));
+        }
     }
 }
 

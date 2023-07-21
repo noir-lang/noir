@@ -6,6 +6,11 @@ fn main(mut x: Field) {
     s.add2();
     assert(s.y == 5);
 
+    // Regression for #1946: Method resolution error when calling &mut methods with a variable of type &mut T
+    let s_ref = &mut s;
+    s_ref.add2();
+    assert(s.y == 7);
+
     // Test that normal mutable variables are still copied
     let mut a = 0;
     mutate_copy(a);

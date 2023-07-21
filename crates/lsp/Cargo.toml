@@ -11,6 +11,7 @@ edition.workspace = true
 acvm.workspace = true
 codespan-lsp.workspace = true
 codespan-reporting.workspace = true
+fm.workspace = true
 lsp-types.workspace = true
 noirc_driver.workspace = true
 noirc_errors.workspace = true
