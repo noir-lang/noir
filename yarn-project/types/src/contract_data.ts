@@ -3,8 +3,7 @@ import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { numToInt32BE } from '@aztec/foundation/serialize';
-import { serializeBufferArrayToVector } from '@aztec/foundation/serialize';
+import { numToInt32BE, serializeBufferArrayToVector } from '@aztec/foundation/serialize';
 
 export { BufferReader } from '@aztec/circuits.js/utils';
 

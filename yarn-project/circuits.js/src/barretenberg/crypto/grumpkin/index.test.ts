@@ -1,11 +1,10 @@
 import { randomBytes } from '@aztec/foundation/crypto';
-
-import createDebug from 'debug';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 import { CircuitsWasm } from '../../../index.js';
 import { Grumpkin } from './index.js';
 
-const debug = createDebug('bb:grumpkin_test');
+const debug = createDebugLogger('bb:grumpkin_test');
 
 describe('grumpkin', () => {
   let barretenberg!: CircuitsWasm;

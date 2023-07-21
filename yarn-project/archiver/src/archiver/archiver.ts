@@ -4,15 +4,19 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
-import { INITIAL_L2_BLOCK_NUM, L1ToL2Message, L1ToL2MessageSource, L2BlockL2Logs, LogType } from '@aztec/types';
 import {
   ContractData,
   ContractDataSource,
   ContractPublicData,
   EncodedContractFunction,
+  INITIAL_L2_BLOCK_NUM,
+  L1ToL2Message,
+  L1ToL2MessageSource,
   L2Block,
+  L2BlockL2Logs,
   L2BlockSource,
   L2LogsSource,
+  LogType,
 } from '@aztec/types';
 
 import omit from 'lodash.omit';

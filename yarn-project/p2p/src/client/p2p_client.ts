@@ -1,6 +1,5 @@
 import { createDebugLogger } from '@aztec/foundation/log';
-import { L2Block, L2BlockContext, L2BlockDownloader, L2BlockSource } from '@aztec/types';
-import { Tx, TxHash } from '@aztec/types';
+import { L2Block, L2BlockContext, L2BlockDownloader, L2BlockSource, Tx, TxHash } from '@aztec/types';
 
 import { getP2PConfigEnvVars } from '../config.js';
 import { P2PService } from '../service/service.js';

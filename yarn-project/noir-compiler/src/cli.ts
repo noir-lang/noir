@@ -2,7 +2,7 @@
 import { createConsoleLogger } from '@aztec/foundation/log';
 
 import { Command } from 'commander';
-import fsExtra from 'fs-extra';
+import { mkdirp, readJSONSync } from 'fs-extra';
 import fs from 'fs/promises';
 import nodePath from 'path';
 
@@ -26,7 +26,7 @@ const main = async () => {
 
       const buildFolderPath = nodePath.join(projectPath, 'target');
 
-      await fsExtra.mkdirp(buildFolderPath);
+      await mkdirp(buildFolderPath);
 
       for (const contract of contracts) {
         const contractPath = nodePath.join(buildFolderPath, `aztec-${contract.name}.json`);
@@ -38,7 +38,7 @@ const main = async () => {
     .argument('[buildPath]', 'Path to the built artifact')
     .argument('[targetPath]', 'Path to the output file')
     .action(async (buildPath: string, targetPath: string) => {
-      const artifact = fsExtra.readJSONSync(buildPath);
+      const artifact = readJSONSync(buildPath);
       const output = generateType(artifact);
       await fs.writeFile(targetPath, output);
       log(`Written type for ${artifact.name} to ${targetPath}`);

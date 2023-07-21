@@ -30,6 +30,7 @@
     "@aztec/merkle-tree": "workspace:^",
     "@aztec/types": "workspace:^",
     "levelup": "^5.1.1",
+    "lodash.times": "^4.3.2",
     "memdown": "^6.1.1",
     "tslib": "^2.4.0"
   },
@@ -38,6 +39,7 @@
     "@rushstack/eslint-patch": "^1.1.4",
     "@types/jest": "^29.5.0",
     "@types/levelup": "^5.1.2",
+    "@types/lodash.times": "^4.3.7",
     "@types/memdown": "^3.0.0",
     "@types/node": "^18.7.23",
     "jest": "^29.5.0",

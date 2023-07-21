@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../foundation"
+    },
+    {
       "path": "../p2p"
     }
   ],

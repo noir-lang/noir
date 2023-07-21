@@ -24,6 +24,7 @@
     "rootDir": "./src"
   },
   "dependencies": {
+    "@aztec/archiver": "workspace:^",
     "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec-rpc": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
@@ -33,7 +34,9 @@
     "@aztec/l1-artifacts": "workspace:^",
     "@aztec/noir-contracts": "workspace:^",
     "@aztec/p2p": "workspace:^",
+    "@aztec/sequencer-client": "workspace:^",
     "@aztec/types": "workspace:^",
+    "@aztec/world-state": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@noble/curves": "^1.0.0",
     "@types/jest": "^29.5.0",

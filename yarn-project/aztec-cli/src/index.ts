@@ -12,8 +12,7 @@ import {
 import { StructType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
-import { createConsoleLogger } from '@aztec/foundation/log';
-import { createDebugLogger } from '@aztec/foundation/log';
+import { createConsoleLogger, createDebugLogger } from '@aztec/foundation/log';
 import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ContractData, L2BlockL2Logs, TxHash } from '@aztec/types';
 

@@ -103,6 +103,7 @@
       "^yarn-project/archiver/"
     ],
     "dependencies": [
+      "circuits.js",
       "ethereum",
       "foundation",
       "l1-artifacts",
@@ -120,7 +121,8 @@
       "aztec.js",
       "ethereum",
       "foundation",
-      "noir-contracts"
+      "noir-contracts",
+      "types"
     ]
   },
   "aztec-rpc": {
@@ -149,8 +151,12 @@
       "aztec-node",
       "aztec-rpc",
       "aztec.js",
+      "circuits.js",
       "ethereum",
-      "foundation"
+      "foundation",
+      "l1-artifacts",
+      "noir-contracts",
+      "types"
     ]
   },
   "aztec.js": {
@@ -186,6 +192,7 @@
       "^yarn-project/end-to-end/"
     ],
     "dependencies": [
+      "archiver",
       "aztec-node",
       "aztec-rpc",
       "aztec.js",
@@ -195,7 +202,9 @@
       "l1-artifacts",
       "noir-contracts",
       "p2p",
-      "types"
+      "sequencer-client",
+      "types",
+      "world-state"
     ]
   },
   "ethereum": {
@@ -290,6 +299,7 @@
       "^yarn-project/p2p-bootstrap/"
     ],
     "dependencies": [
+      "foundation",
       "p2p"
     ]
   },
@@ -312,7 +322,10 @@
       "^yarn-project/rollup-provider/"
     ],
     "dependencies": [
-      "aztec-node"
+      "aztec-node",
+      "circuits.js",
+      "foundation",
+      "types"
     ]
   },
   "aztec-node": {
@@ -327,6 +340,7 @@
       "circuits.js",
       "foundation",
       "l1-artifacts",
+      "merkle-tree",
       "p2p",
       "sequencer-client",
       "types",

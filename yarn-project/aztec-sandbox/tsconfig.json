@@ -16,10 +16,22 @@
       "path": "../aztec.js"
     },
     {
+      "path": "../circuits.js"
+    },
+    {
       "path": "../ethereum"
     },
     {
       "path": "../foundation"
+    },
+    {
+      "path": "../l1-artifacts"
+    },
+    {
+      "path": "../noir-contracts"
+    },
+    {
+      "path": "../types"
     }
   ],
   "include": ["src"]

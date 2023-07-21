@@ -29,7 +29,19 @@ const contexts = [
 const JSDOC_RULES_LEVEL = 'error';
 
 module.exports = {
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:import/recommended',
+    'plugin:import/typescript',
+    'prettier',
+  ],
+  settings: {
+    'import/resolver': {
+      typescript: true,
+      node: true,
+    },
+  },
   root: true,
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint', 'eslint-plugin-tsdoc', 'jsdoc'],
@@ -78,6 +90,18 @@ module.exports = {
         ],
       },
     ],
+    'import/no-unresolved': [
+      'error',
+      {
+        ignore: [
+          // See https://github.com/import-js/eslint-plugin-import/issues/2703
+          '@libp2p/bootstrap',
+          // Seems like ignoring l1-artifacts in the eslint call messes up no-unresolved
+          '@aztec/l1-artifacts',
+        ],
+      },
+    ],
+    'import/no-extraneous-dependencies': 'error',
     'tsdoc/syntax': JSDOC_RULES_LEVEL,
     'jsdoc/require-jsdoc': [
       JSDOC_RULES_LEVEL,

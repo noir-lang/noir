@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../archiver"
+    },
+    {
       "path": "../aztec-node"
     },
     {
@@ -34,7 +37,13 @@
       "path": "../p2p"
     },
     {
+      "path": "../sequencer-client"
+    },
+    {
       "path": "../types"
+    },
+    {
+      "path": "../world-state"
     }
   ],
   "include": ["src"]

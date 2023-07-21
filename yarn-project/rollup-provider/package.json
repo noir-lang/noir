@@ -33,6 +33,9 @@
   },
   "dependencies": {
     "@aztec/aztec-node": "workspace:^",
+    "@aztec/circuits.js": "workspace:^",
+    "@aztec/foundation": "workspace:^",
+    "@aztec/types": "workspace:^",
     "dotenv": "^16.0.3",
     "koa": "^2.14.2",
     "koa-router": "^12.0.0",

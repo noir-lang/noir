@@ -24,6 +24,7 @@
     "../package.common.json"
   ],
   "dependencies": {
+    "@aztec/foundation": "workspace:^",
     "@aztec/p2p": "workspace:^",
     "dotenv": "^16.0.3",
     "tslib": "^2.4.0"
