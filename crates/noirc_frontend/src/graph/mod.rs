@@ -51,16 +51,6 @@ pub struct CrateGraph {
     arena: FxHashMap<CrateId, CrateData>,
 }
 
-impl CrateGraph {
-    pub fn is_last_crate(&self, crate_id: CrateId) -> bool {
-        match crate_id {
-            CrateId::Crate(crate_id) | CrateId::Stdlib(crate_id) => {
-                (self.arena.len() - 1) == crate_id
-            }
-        }
-    }
-}
-
 /// List of characters that are not allowed in a crate name
 /// For example, Hyphen(-) is disallowed as it is similar to underscore(_)
 /// and we do not want names that differ by a hyphen
