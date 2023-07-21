@@ -57,6 +57,11 @@ struct Context {
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext,
 
+    /// Track initialised acir arrays
+    /// An acir array must start with a MemoryInit ACIR opcodes
+    /// and then have MemoryOp opcodes
+    /// This set is used to ensure that a MemoryOp opcode is only pushed to the circuit
+    /// if there is already a MemoryInit opcode.
     initialized_arrays: HashSet<BlockId>,
 }
 

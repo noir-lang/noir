@@ -859,7 +859,7 @@ impl AcirContext {
             }
             AcirValue::DynamicArray(AcirArray { block_id, len }) => {
                 for i in 0..len {
-                    //on doit faire un result-witness, et on en construit une brillig array
+                    // We generate witnesses corresponding to the array values
                     let idx = AcirValue::Var(
                         self.add_constant(FieldElement::from(i as u128)),
                         AcirType::NumericType(NumericType::NativeField),
