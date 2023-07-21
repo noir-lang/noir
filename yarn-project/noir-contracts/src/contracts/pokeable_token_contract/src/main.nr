@@ -18,7 +18,7 @@ contract PokeableToken {
         utils::compute_note_hash_and_nullifier,
     };
     use dep::aztec::types::point::Point;
-    use dep::aztec::oracle::get_public_key::get_public_key;
+    use dep::aztec::oracle::get_public_key::get_public_key_non_contract_account;
     use dep::aztec::log::emit_encrypted_log;
 
     use crate::storage::Storage;
@@ -33,10 +33,10 @@ contract PokeableToken {
         initial_supply: Field, 
         sender: Field,
         recipient: Field,
-        pokerPubKey: Point, // Here in order for the poker to be able to decrypt address notes when calling poke.
+        poker: Field, // Recipient of the address notes.
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([initial_supply, sender, recipient, pokerPubKey.x, pokerPubKey.y]));
+        let mut context = Context::new(inputs, abi::hash_args([initial_supply, sender, recipient, poker]));
 
         let sender_note = AddressNote::new(sender);
         let recipient_note = AddressNote::new(recipient);
@@ -44,12 +44,15 @@ contract PokeableToken {
         context = storage.sender.initialise(context, sender_note);
         context = storage.recipient.initialise(context, recipient_note);
 
+        let pokerEncPubKey = get_public_key_non_contract_account(poker);
+
         let this = inputs.call_context.storage_contract_address;
         context = emit_encrypted_log(
             context,
             this,
             storage.sender.storage_slot,
-            pokerPubKey,
+            poker,
+            pokerEncPubKey,
             sender_note.serialise(),
         );
 
@@ -57,7 +60,8 @@ contract PokeableToken {
             context,
             this,
             storage.recipient.storage_slot,
-            pokerPubKey,
+            poker,
+            pokerEncPubKey,
             recipient_note.serialise(),
         );
 

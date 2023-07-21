@@ -36,7 +36,7 @@ export class PokeableTokenContract extends Contract {
     initial_supply: Fr | bigint | number | { toField: () => Fr },
     sender: Fr | bigint | number | { toField: () => Fr },
     recipient: Fr | bigint | number | { toField: () => Fr },
-    pokerPubKey: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+    poker: Fr | bigint | number | { toField: () => Fr },
   ) {
     return new DeployMethod(Point.ZERO, rpc, PokeableTokenContractAbi, Array.from(arguments).slice(1));
   }
@@ -50,7 +50,7 @@ export class PokeableTokenContract extends Contract {
     initial_supply: Fr | bigint | number | { toField: () => Fr },
     sender: Fr | bigint | number | { toField: () => Fr },
     recipient: Fr | bigint | number | { toField: () => Fr },
-    pokerPubKey: { x: Fr | bigint | number | { toField: () => Fr }; y: Fr | bigint | number | { toField: () => Fr } },
+    poker: Fr | bigint | number | { toField: () => Fr },
   ) {
     return new DeployMethod(publicKey, rpc, PokeableTokenContractAbi, Array.from(arguments).slice(2));
   }

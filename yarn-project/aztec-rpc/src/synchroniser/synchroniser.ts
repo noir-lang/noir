@@ -163,16 +163,15 @@ export class Synchroniser {
    * The method resolves immediately after pushing the new note processor.
    *
    * @param publicKey - The public key for the account.
-   * @param address - The address for the account.
    * @param keyStore - The key store.
    * @returns A promise that resolves once the account is added to the Synchroniser.
    */
-  public addAccount(publicKey: PublicKey, address: AztecAddress, keyStore: KeyStore) {
+  public addAccount(publicKey: PublicKey, keyStore: KeyStore) {
     const processor = this.noteProcessors.find(x => x.publicKey.equals(publicKey));
     if (processor) {
       return;
     }
-    this.noteProcessors.push(new NoteProcessor(publicKey, address, keyStore, this.db, this.node));
+    this.noteProcessors.push(new NoteProcessor(publicKey, keyStore, this.db, this.node));
   }
 
   /**

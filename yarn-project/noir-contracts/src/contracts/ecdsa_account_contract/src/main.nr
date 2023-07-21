@@ -84,6 +84,7 @@ contract EcdsaAccount {
             context,
             this,
             storage.public_key.storage_slot,
+            this,
             get_public_key(this),
             pub_key_note.serialise(),
         );

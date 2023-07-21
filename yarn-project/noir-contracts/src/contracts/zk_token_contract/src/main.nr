@@ -19,7 +19,6 @@ contract ZkToken {
     use dep::aztec::types::point::Point;
     use dep::aztec::state_vars::map::Map;
     use dep::aztec::state_vars::set::Set;
-    use dep::aztec::log::emit_encrypted_log;
     use dep::aztec::log::emit_unencrypted_log;
 
     use crate::storage::Storage;

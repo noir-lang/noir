@@ -89,6 +89,9 @@ describe('Note Processor', () => {
       block.startPrivateDataTreeSnapshot.nextAvailableLeafIndex = firstBlockDataStartIndex + i * numCommitmentsPerBlock;
 
       const newNotes = Array(numCommitmentsPerBlock).fill(0).map(NoteSpendingInfo.random);
+      // Set the note owners to ownerAddress.
+      newNotes.forEach(n => (n.ownerAddress = ownerAddress));
+
       block.newCommitments = newNotes.map(n => computeMockNoteHash(n.notePreimage.items));
 
       const isTargetBlock = i === prependedBlocks;
@@ -120,7 +123,7 @@ describe('Note Processor', () => {
     keyStore = mock<KeyStore>();
     simulator = mock<AcirSimulator>();
     keyStore.getAccountPrivateKey.mockResolvedValue(owner.getPrivateKey());
-    noteProcessor = new NoteProcessor(owner.getPublicKey(), ownerAddress, keyStore, database, aztecNode, simulator);
+    noteProcessor = new NoteProcessor(owner.getPublicKey(), keyStore, database, aztecNode, simulator);
 
     simulator.computeNoteHashAndNullifier.mockImplementation((...args) =>
       Promise.resolve({

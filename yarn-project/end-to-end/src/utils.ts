@@ -212,7 +212,7 @@ export async function setupAztecRPCServer(
     });
   }
 
-  // We do this in a seperate loop to try and get all transactions into the same rollup.
+  // We do this in a separate loop to try and get all transactions into the same rollup.
   // Doing this here will submit the transactions with minimal delay between them.
   for (const context of txContexts) {
     logger(`Deploying account contract for ${context.deploymentData.address.toString()}`);

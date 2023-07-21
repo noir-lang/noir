@@ -44,12 +44,13 @@ fn spend_notes(
         encrypted_data = change_note.serialise();
     };
 
-    let owner_key = get_public_key(owner);
+    let encryption_pub_key = get_public_key(owner);
     context = emit_encrypted_log(
         context,
         context.inputs.call_context.storage_contract_address,
         balance.storage_slot,
-        owner_key,
+        owner,
+        encryption_pub_key,
         encrypted_data,
     );
 
@@ -69,12 +70,13 @@ fn send_note(
     context = balance.insert(context, note);
 
     // Emit the newly created encrypted note preimages via oracle calls.
-    let recipient_key = get_public_key(recipient);
+    let encryption_pub_key = get_public_key(recipient);
     context = emit_encrypted_log(
         context,
         context.inputs.call_context.storage_contract_address,
         balance.storage_slot,
-        recipient_key,
+        recipient,
+        encryption_pub_key,
         note.serialise(),
     );
 

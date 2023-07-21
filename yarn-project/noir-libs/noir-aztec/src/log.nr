@@ -6,10 +6,11 @@ fn emit_encrypted_log<N>(
     mut context: Context,
     contract_address: Field,
     storage_slot: Field,
-    account: Point,
+    owner: Field,
+    encryption_pub_key: Point,
     log: [Field; N],
 ) -> Context {
-    let hash = oracle::logs::emit_encrypted_log(contract_address, storage_slot, account, log);
+    let hash = oracle::logs::emit_encrypted_log(contract_address, storage_slot, owner, encryption_pub_key, log);
     let mut len = log.len();
     if (hash[0] == 0) & (hash[1] == 0) {
         len = 0;

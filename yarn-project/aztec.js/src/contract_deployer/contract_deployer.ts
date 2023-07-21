@@ -8,6 +8,7 @@ import { DeployMethod } from './deploy_method.js';
  * A class for deploying contract.
  */
 export class ContractDeployer {
+  // TODO: remove this?
   constructor(private abi: ContractAbi, private arc: AztecRPC, private publicKey?: PublicKey) {}
 
   /**

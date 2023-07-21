@@ -98,10 +98,10 @@ export class SimulatorOracle implements DBOracle {
   }
 
   /**
-   * Retreives the L1ToL2Message associated with a specific message key
+   * Retrieves the L1ToL2Message associated with a specific message key
    * Throws an error if the message key is not found
    *
-   * @param msgKey - The key of the message to be retreived
+   * @param msgKey - The key of the message to be retrieved
    * @returns A promise that resolves to the message data, a sibling path and the
    *          index of the message in the l1ToL2MessagesTree
    */

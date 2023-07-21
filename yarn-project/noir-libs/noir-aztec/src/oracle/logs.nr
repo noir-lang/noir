@@ -6,20 +6,23 @@ use crate::constants_gen::NUM_FIELDS_PER_SHA256;
 fn emit_encrypted_log_oracle<N>(
     _contract_address: Field,
     _storage_slot: Field,
-    _owner: Point,
+    _owner: Field,
+    _encryption_pub_key: Point,
     _preimage: [Field; N],
 )  -> Field {}
 
 unconstrained fn emit_encrypted_log<N>(
     contract_address: Field,
     storage_slot: Field,
-    owner: Point,
+    owner: Field,
+    encryption_pub_key: Point,
     preimage: [Field; N],
 ) -> [Field; NUM_FIELDS_PER_SHA256] {
     [emit_encrypted_log_oracle(
         contract_address,
         storage_slot,
         owner,
+        encryption_pub_key,
         preimage,
     ), 0]
 }
