@@ -5,6 +5,25 @@ use thiserror::Error;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
+use crate::Signedness;
+
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum Source {
+    #[error("Binary")]
+    Binary,
+    #[error("Assignment")]
+    Assignment,
+    #[error("Array")]
+    Array,
+    #[error("Array2")]
+    Array2,
+    #[error("Array2")]
+    String,
+    #[error("Comparison")]
+    Comparison,
+    #[error("BinOp")]
+    BinOp,
+}
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
@@ -14,14 +33,60 @@ pub enum TypeCheckError {
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
     TypeMismatch { expected_typ: String, expr_typ: String, expr_span: Span },
+    #[error("Expected type {expected} is not the same as {actual}")]
+    TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: u16, found: u16, span: Span },
     #[error("Return type in a function cannot be public")]
     PublicReturnType { typ: Type, span: Span },
-    // XXX: unstructured errors are not ideal for testing.
-    // They will be removed in a later iteration
-    #[error("Unstructured msg: {msg:?}")]
-    Unstructured { msg: String, span: Span },
+    #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
+    InvalidCast { from: Type, span: Span },
+    #[error("Expected a function, but found a(n) {found}")]
+    ExpectedFunction { found: Type, span: Span },
+    #[error("Type {lhs_type} has no member named {field_name}")]
+    AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
+    #[error("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given")]
+    ParameterCountMismatch {
+        expected: usize,
+        found: usize,
+        empty_or_s: &'static str,
+        was_or_were: &'static str,
+        span: Span,
+    },
+    #[error("The value is non-comptime because of this expression, which uses another non-comptime value")]
+    NotCompTime { span: Span },
+    #[error(
+        "The value is comptime because of this expression, which forces the value to be comptime"
+    )]
+    CompTime { span: Span },
+    #[error("Cannot cast to a comptime type, argument to cast is not known at compile-time")]
+    CannotCastToComptimeType { span: Span },
+    #[error("Only integer and Field types may be casted to")]
+    UnsupportedCast { span: Span },
+    #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
+    TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, span: Span },
+    #[error("Variable {name} must be mutable to be assigned to")]
+    VariableMustBeMutable { name: String, span: Span },
+    #[error("No method named '{method_name}' found for type '{object_type}'")]
+    UnresolvedMethodCall { method_name: String, object_type: Type, span: Span },
+    #[error("Comparisons are invalid on Field types. Try casting the operands to a sized integer type first")]
+    InvalidComparisonOnField { span: Span },
+    #[error("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?}")]
+    IntegerSignedness { sign_x: Signedness, sign_y: Signedness, span: Span },
+    #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
+    IntegerBitWidth { bit_width_x: u32, bit_width_y: u32, span: Span },
+    #[error("{kind} cannot be used in an infix operation")]
+    InvalidInfixOp { kind: &'static str, span: Span },
+    #[error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.")]
+    InvalidBitwiseOperationOnField { span: Span },
+    #[error("Integer cannot be used with type {typ}")]
+    IntegerTypeMismatch { typ: Type, span: Span },
+    #[error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first")]
+    IntegerAndFieldBinaryOperation { span: Span },
+    #[error("Fields cannot be compared, try casting to an integer first")]
+    FieldComparison { span: Span },
+    #[error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified")]
+    AmbiguousBitWidth { span: Span },
     #[error("Error with additional context")]
     Context { err: Box<TypeCheckError>, ctx: &'static str },
     #[error("Array is not homogeneous")]
@@ -93,8 +158,27 @@ impl From<TypeCheckError> for Diagnostic {
                 let msg = format!("Expected {expected} argument{plural}, but found {found}");
                 Diagnostic::simple_error(msg, String::new(), span)
             }
-            TypeCheckError::Unstructured { msg, span } => {
-                Diagnostic::simple_error(msg, String::new(), span)
+            TypeCheckError::InvalidCast { span, .. }
+            | TypeCheckError::ExpectedFunction { span, .. }
+            | TypeCheckError::AccessUnknownMember { span, .. }
+            | TypeCheckError::ParameterCountMismatch { span, .. }
+            | TypeCheckError::CompTime { span }
+            | TypeCheckError::NotCompTime { span }
+            | TypeCheckError::CannotCastToComptimeType { span }
+            | TypeCheckError::UnsupportedCast { span }
+            | TypeCheckError::TupleIndexOutOfBounds { span, .. }
+            | TypeCheckError::VariableMustBeMutable { span, .. }
+            | TypeCheckError::UnresolvedMethodCall { span, .. }
+            | TypeCheckError::InvalidComparisonOnField { span }
+            | TypeCheckError::IntegerSignedness { span, .. }
+            | TypeCheckError::IntegerBitWidth { span, .. }
+            | TypeCheckError::InvalidInfixOp { span, .. }
+            | TypeCheckError::InvalidBitwiseOperationOnField { span, .. }
+            | TypeCheckError::IntegerTypeMismatch { span, .. }
+            | TypeCheckError::FieldComparison { span, .. }
+            | TypeCheckError::AmbiguousBitWidth { span, .. }
+            | TypeCheckError::IntegerAndFieldBinaryOperation { span } => {
+                Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
                 "Functions cannot declare a public return type".to_string(),
@@ -107,6 +191,21 @@ impl From<TypeCheckError> for Diagnostic {
                 span,
             ),
             TypeCheckError::ResolverError(error) => error.into(),
+            TypeCheckError::TypeMismatchWithSource { expected, actual, span, source } => {
+                let message = match source {
+                    Source::Binary => format!("Types in a binary operation should match, but found {actual} and {expected}"),
+                    Source::Assignment => {
+                        format!("Cannot assign an expression of type {actual} to a value of type {expected}")
+                    }
+                    Source::Array => format!("Cannot compare {actual} and {expected}, the array element types differ"),
+                    Source::Array2 => format!("Can only compare arrays of the same length. Here LHS is of length {actual}, and RHS is {expected}"),
+                    Source::String => format!("Can only compare strings of the same length. Here LHS is of length {actual}, and RHS is {expected}"),
+                    Source::Comparison => format!("Unsupported types for comparison: {actual} and {expected}"),
+                    Source::BinOp => format!("Unsupported types for binary operation: {actual} and {expected}"),
+                };
+
+                Diagnostic::simple_error(message, String::new(), span)
+            }
         }
     }
 }
