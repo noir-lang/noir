@@ -36,8 +36,8 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct,
-    NoirTrait, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
-    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    NoirTrait, NoirTyAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl,
+    TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -82,6 +82,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Trait(t) => program.push_trait(t),
                     TopLevelStatement::TraitImpl(t) => program.push_trait_impl(t),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
+                    TopLevelStatement::TyAlias(t) => program.push_type_alias(t),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
                     TopLevelStatement::Global(c) => program.push_global(c),
                     TopLevelStatement::Error => (),
@@ -108,6 +109,7 @@ fn top_level_statement(
         trait_definition(),
         trait_implementation(),
         implementation(),
+        type_alias_definition().then_ignore(force(just(Token::Semicolon))),
         submodule(module_parser.clone()),
         contract(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
@@ -234,6 +236,16 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
             TopLevelStatement::Struct(NoirStruct { name, generics, fields, span })
         },
     )
+}
+
+fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
+    use self::Keyword::Type;
+
+    let p = ignore_then_commit(keyword(Type), ident());
+    let p = then_commit_ignore(p, just(Token::Assign));
+    let p = then_commit(p, parse_type());
+
+    p.map_with_span(|(name, ty), span| TopLevelStatement::TyAlias(NoirTyAlias { name, ty, span }))
 }
 
 fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
@@ -1890,6 +1902,15 @@ mod test {
         parse_all(struct_definition(), cases);
 
         let failing = vec!["struct {  }", "struct Foo { bar: pub Field }"];
+        parse_all_failing(struct_definition(), failing);
+    }
+
+    #[test]
+    fn parse_type_aliases() {
+        let cases = vec!["type foo = u8", "type bar = String", "type baz = Vec<T>"];
+        parse_all(type_alias_definition(), cases);
+
+        let failing = vec!["type = u8", "type foo", "type foo = 1"];
         parse_all_failing(struct_definition(), failing);
     }
 

@@ -25,7 +25,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TyAliasId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -389,6 +389,10 @@ impl<'a> Resolver<'a> {
                     return self_type;
                 }
             }
+        }
+
+        if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
+            return type_alias_type;
         }
 
         let span = path.span();
@@ -1154,6 +1158,10 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
+    pub fn get_type_alias(&self, type_alias_id: TyAliasId) -> Type {
+        self.interner.get_type_alias(type_alias_id)
+    }
+
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
         let span = path.span();
         let id = self.resolve_path(path)?;
@@ -1213,6 +1221,13 @@ impl<'a> Resolver<'a> {
                 self.push_err(error);
                 None
             }
+        }
+    }
+
+    fn lookup_type_alias(&mut self, path: Path) -> Option<Type> {
+        match self.lookup(path) {
+            Ok(type_alias_id) => Some(self.get_type_alias(type_alias_id)),
+            Err(_) => None,
         }
     }
 

@@ -52,6 +52,12 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Shared<StructType>>,
 
+    // Type Aliases map.
+    //
+    // Map type aliases to the actual type.
+    // When resolving types, check against this map to see if a type alias is defined.
+    type_aliases: HashMap<TyAliasId, Type>,
+
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
@@ -134,6 +140,18 @@ impl StructId {
     // after resolution
     pub fn dummy_id() -> StructId {
         StructId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+pub struct TyAliasId(pub ModuleId);
+
+impl TyAliasId {
+    //dummy id for error reporting
+    // This can be anything, as the program will ultimately fail
+    // after resolution
+    pub fn dummy_id() -> TyAliasId {
+        TyAliasId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
 
@@ -248,6 +266,7 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
+            type_aliases: HashMap::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
@@ -314,6 +333,10 @@ impl NodeInterner {
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
+    }
+
+    pub fn push_type_alias(&mut self, type_id: TyAliasId, typ: Type) {
+        self.type_aliases.insert(type_id, typ);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -510,6 +533,10 @@ impl NodeInterner {
 
     pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
         self.structs[&id].clone()
+    }
+
+    pub fn get_type_alias(&self, id: TyAliasId) -> Type {
+        self.type_aliases[&id].clone()
     }
 
     pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {

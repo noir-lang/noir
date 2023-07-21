@@ -1,4 +1,4 @@
-use crate::node_interner::{FuncId, StmtId, StructId};
+use crate::node_interner::{FuncId, StmtId, StructId, TyAliasId};
 
 use super::ModuleId;
 
@@ -8,6 +8,7 @@ pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
     TypeId(StructId),
+    TypeAliasId(TyAliasId),
     GlobalId(StmtId),
 }
 
@@ -26,6 +27,13 @@ impl ModuleDefId {
         }
     }
 
+    pub fn as_type_alias(&self) -> Option<TyAliasId> {
+        match self {
+            ModuleDefId::TypeAliasId(type_alias_id) => Some(*type_alias_id),
+            _ => None,
+        }
+    }
+
     pub fn as_global(&self) -> Option<StmtId> {
         match self {
             ModuleDefId::GlobalId(stmt_id) => Some(*stmt_id),
@@ -39,6 +47,7 @@ impl ModuleDefId {
         match self {
             ModuleDefId::FunctionId(_) => "function",
             ModuleDefId::TypeId(_) => "type",
+            ModuleDefId::TypeAliasId(_) => "type alias",
             ModuleDefId::ModuleId(_) => "module",
             ModuleDefId::GlobalId(_) => "global",
         }
@@ -54,6 +63,12 @@ impl From<ModuleId> for ModuleDefId {
 impl From<FuncId> for ModuleDefId {
     fn from(fid: FuncId) -> Self {
         ModuleDefId::FunctionId(fid)
+    }
+}
+
+impl From<TyAliasId> for ModuleDefId {
+    fn from(fid: TyAliasId) -> Self {
+        ModuleDefId::TypeAliasId(fid)
     }
 }
 
@@ -94,6 +109,20 @@ impl TryFromModuleDefId for StructId {
 
     fn description() -> String {
         "type".to_string()
+    }
+}
+
+impl TryFromModuleDefId for TyAliasId {
+    fn try_from(id: ModuleDefId) -> Option<Self> {
+        id.as_type_alias()
+    }
+
+    fn dummy_id() -> Self {
+        TyAliasId::dummy_id()
+    }
+
+    fn description() -> String {
+        "type alias".to_string()
     }
 }
 
