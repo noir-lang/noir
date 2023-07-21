@@ -228,7 +228,7 @@ template <typename Flavor> class SumcheckRound {
      *
      * @param univariate T^{l}(X), the round univariate that is equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^l } )
      */
-    bool check_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate, const PowUnivariate<FF>& pow_univariate)
+    bool check_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate)
     {
         // S^{l}(0) = ( (1−0) + 0⋅ζ^{ 2^l } ) ⋅ T^{l}(0) = T^{l}(0)
         // S^{l}(1) = ( (1−1) + 1⋅ζ^{ 2^l } ) ⋅ T^{l}(1) = ζ^{ 2^l } ⋅ T^{l}(1)
@@ -481,8 +481,9 @@ template <typename Flavor> class SumcheckRound {
     template <typename... T>
     static constexpr void add_tuples(std::tuple<T...>& tuple_1, const std::tuple<T...>& tuple_2)
     {
-        [&]<std::size_t... I>(std::index_sequence<I...>) { ((std::get<I>(tuple_1) += std::get<I>(tuple_2)), ...); }
-        (std::make_index_sequence<sizeof...(T)>{});
+        [&]<std::size_t... I>(std::index_sequence<I...>) {
+            ((std::get<I>(tuple_1) += std::get<I>(tuple_2)), ...);
+        }(std::make_index_sequence<sizeof...(T)>{});
     }
 
     /**

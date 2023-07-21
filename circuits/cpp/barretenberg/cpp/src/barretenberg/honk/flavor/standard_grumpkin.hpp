@@ -43,6 +43,8 @@ class StandardGrumpkin {
     // The total number of witness entities not including shifts.
     static constexpr size_t NUM_WITNESS_ENTITIES = 4;
 
+    // define the tuple of Relations that require grand products
+    using GrandProductRelations = std::tuple<sumcheck::PermutationRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
     using Relations = std::tuple<sumcheck::ArithmeticRelation<FF>, sumcheck::PermutationRelation<FF>>;
 

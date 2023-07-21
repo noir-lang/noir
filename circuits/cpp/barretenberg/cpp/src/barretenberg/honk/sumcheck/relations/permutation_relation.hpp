@@ -1,5 +1,6 @@
 #pragma once
 #include "../polynomials/univariate.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 #include "relation_parameters.hpp"
 #include "relation_types.hpp"
 // TODO(luke): change name of this file to permutation_grand_product_relation(s).hpp and move 'init' relation into it.
@@ -15,7 +16,45 @@ template <typename FF> class PermutationRelationBase {
     static constexpr size_t LEN_2 = 3; // left-shiftable polynomial sub-relation
     template <template <size_t...> typename AccumulatorTypesContainer>
     using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
+    template <typename T> using Accumulator = typename std::tuple_element<0, typename T::Accumulators>::type;
 
+    inline static auto& get_grand_product_polynomial(auto& input) { return input.z_perm; }
+    inline static auto& get_shifted_grand_product_polynomial(auto& input) { return input.z_perm_shift; }
+
+    template <typename AccumulatorTypes>
+    inline static Accumulator<AccumulatorTypes> compute_grand_product_numerator(
+        const auto& input, const RelationParameters<FF>& relation_parameters, const size_t index)
+    {
+        auto w_1 = get_view<FF, AccumulatorTypes>(input.w_l, index);
+        auto w_2 = get_view<FF, AccumulatorTypes>(input.w_r, index);
+        auto w_3 = get_view<FF, AccumulatorTypes>(input.w_o, index);
+        auto id_1 = get_view<FF, AccumulatorTypes>(input.id_1, index);
+        auto id_2 = get_view<FF, AccumulatorTypes>(input.id_2, index);
+        auto id_3 = get_view<FF, AccumulatorTypes>(input.id_3, index);
+
+        const auto& beta = relation_parameters.beta;
+        const auto& gamma = relation_parameters.gamma;
+
+        return (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) * (w_3 + id_3 * beta + gamma);
+    }
+
+    template <typename AccumulatorTypes>
+    inline static Accumulator<AccumulatorTypes> compute_grand_product_denominator(
+        const auto& input, const RelationParameters<FF>& relation_parameters, const size_t index)
+    {
+        //  using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
+        auto w_1 = get_view<FF, AccumulatorTypes>(input.w_l, index);
+        auto w_2 = get_view<FF, AccumulatorTypes>(input.w_r, index);
+        auto w_3 = get_view<FF, AccumulatorTypes>(input.w_o, index);
+        auto sigma_1 = get_view<FF, AccumulatorTypes>(input.sigma_1, index);
+        auto sigma_2 = get_view<FF, AccumulatorTypes>(input.sigma_2, index);
+        auto sigma_3 = get_view<FF, AccumulatorTypes>(input.sigma_3, index);
+
+        const auto& beta = relation_parameters.beta;
+        const auto& gamma = relation_parameters.gamma;
+
+        return (w_1 + sigma_1 * beta + gamma) * (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma);
+    }
     /**
      * @brief Compute contribution of the permutation relation for a given edge (internal function)
      *
@@ -40,21 +79,10 @@ template <typename FF> class PermutationRelationBase {
                                                   const RelationParameters<FF>& relation_parameters,
                                                   const FF& scaling_factor)
     {
-        const auto& beta = relation_parameters.beta;
-        const auto& gamma = relation_parameters.gamma;
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
         {
             using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-            auto w_1 = View(input.w_l);
-            auto w_2 = View(input.w_r);
-            auto w_3 = View(input.w_o);
-            auto sigma_1 = View(input.sigma_1);
-            auto sigma_2 = View(input.sigma_2);
-            auto sigma_3 = View(input.sigma_3);
-            auto id_1 = View(input.id_1);
-            auto id_2 = View(input.id_2);
-            auto id_3 = View(input.id_3);
             auto z_perm = View(input.z_perm);
             auto z_perm_shift = View(input.z_perm_shift);
             auto lagrange_first = View(input.lagrange_first);
@@ -62,10 +90,10 @@ template <typename FF> class PermutationRelationBase {
 
             // Contribution (1)
             std::get<0>(accumulator) +=
-                (((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
-                  (w_3 + id_3 * beta + gamma)) -
-                 ((z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
-                  (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma))) *
+                (((z_perm + lagrange_first) *
+                  compute_grand_product_numerator<AccumulatorTypes>(input, relation_parameters, 0)) -
+                 ((z_perm_shift + lagrange_last * public_input_delta) *
+                  compute_grand_product_denominator<AccumulatorTypes>(input, relation_parameters, 0))) *
                 scaling_factor;
         }
         {
@@ -90,6 +118,51 @@ template <typename FF> class UltraPermutationRelationBase {
     static constexpr size_t LEN_2 = 3; // left-shiftable polynomial sub-relation
     template <template <size_t...> typename AccumulatorTypesContainer>
     using AccumulatorTypesBase = AccumulatorTypesContainer<LEN_1, LEN_2>;
+    template <typename T> using Accumulator = typename std::tuple_element<0, typename T::Accumulators>::type;
+
+    inline static auto& get_grand_product_polynomial(auto& input) { return input.z_perm; }
+    inline static auto& get_shifted_grand_product_polynomial(auto& input) { return input.z_perm_shift; }
+
+    template <typename AccumulatorTypes>
+    inline static Accumulator<AccumulatorTypes> compute_grand_product_numerator(
+        const auto& input, const RelationParameters<FF>& relation_parameters, const size_t index)
+    {
+        auto w_1 = get_view<FF, AccumulatorTypes>(input.w_l, index);
+        auto w_2 = get_view<FF, AccumulatorTypes>(input.w_r, index);
+        auto w_3 = get_view<FF, AccumulatorTypes>(input.w_o, index);
+        auto w_4 = get_view<FF, AccumulatorTypes>(input.w_4, index);
+        auto id_1 = get_view<FF, AccumulatorTypes>(input.id_1, index);
+        auto id_2 = get_view<FF, AccumulatorTypes>(input.id_2, index);
+        auto id_3 = get_view<FF, AccumulatorTypes>(input.id_3, index);
+        auto id_4 = get_view<FF, AccumulatorTypes>(input.id_4, index);
+
+        const auto& beta = relation_parameters.beta;
+        const auto& gamma = relation_parameters.gamma;
+
+        return (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) * (w_3 + id_3 * beta + gamma) *
+               (w_4 + id_4 * beta + gamma);
+    }
+
+    template <typename AccumulatorTypes>
+    inline static Accumulator<AccumulatorTypes> compute_grand_product_denominator(
+        const auto& input, const RelationParameters<FF>& relation_parameters, const size_t index)
+    {
+        auto w_1 = get_view<FF, AccumulatorTypes>(input.w_l, index);
+        auto w_2 = get_view<FF, AccumulatorTypes>(input.w_r, index);
+        auto w_3 = get_view<FF, AccumulatorTypes>(input.w_o, index);
+        auto w_4 = get_view<FF, AccumulatorTypes>(input.w_4, index);
+
+        auto sigma_1 = get_view<FF, AccumulatorTypes>(input.sigma_1, index);
+        auto sigma_2 = get_view<FF, AccumulatorTypes>(input.sigma_2, index);
+        auto sigma_3 = get_view<FF, AccumulatorTypes>(input.sigma_3, index);
+        auto sigma_4 = get_view<FF, AccumulatorTypes>(input.sigma_4, index);
+
+        const auto& beta = relation_parameters.beta;
+        const auto& gamma = relation_parameters.gamma;
+
+        return (w_1 + sigma_1 * beta + gamma) * (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma) *
+               (w_4 + sigma_4 * beta + gamma);
+    }
 
     /**
      * @brief Compute contribution of the permutation relation for a given edge (internal function)
@@ -108,35 +181,22 @@ template <typename FF> class UltraPermutationRelationBase {
                                                   const RelationParameters<FF>& relation_parameters,
                                                   const FF& scaling_factor)
     {
-        const auto& beta = relation_parameters.beta;
-        const auto& gamma = relation_parameters.gamma;
         const auto& public_input_delta = relation_parameters.public_input_delta;
 
         // Contribution (1)
         {
             using View = typename std::tuple_element<0, typename AccumulatorTypes::AccumulatorViews>::type;
-            auto w_1 = View(extended_edges.w_l);
-            auto w_2 = View(extended_edges.w_r);
-            auto w_3 = View(extended_edges.w_o);
-            auto w_4 = View(extended_edges.w_4);
-            auto sigma_1 = View(extended_edges.sigma_1);
-            auto sigma_2 = View(extended_edges.sigma_2);
-            auto sigma_3 = View(extended_edges.sigma_3);
-            auto sigma_4 = View(extended_edges.sigma_4);
-            auto id_1 = View(extended_edges.id_1);
-            auto id_2 = View(extended_edges.id_2);
-            auto id_3 = View(extended_edges.id_3);
-            auto id_4 = View(extended_edges.id_4);
             auto z_perm = View(extended_edges.z_perm);
             auto z_perm_shift = View(extended_edges.z_perm_shift);
             auto lagrange_first = View(extended_edges.lagrange_first);
             auto lagrange_last = View(extended_edges.lagrange_last);
 
+            // Contribution (1)
             std::get<0>(accumulators) +=
-                (((z_perm + lagrange_first) * (w_1 + id_1 * beta + gamma) * (w_2 + id_2 * beta + gamma) *
-                  (w_3 + id_3 * beta + gamma) * (w_4 + id_4 * beta + gamma)) -
-                 ((z_perm_shift + lagrange_last * public_input_delta) * (w_1 + sigma_1 * beta + gamma) *
-                  (w_2 + sigma_2 * beta + gamma) * (w_3 + sigma_3 * beta + gamma) * (w_4 + sigma_4 * beta + gamma))) *
+                (((z_perm + lagrange_first) *
+                  compute_grand_product_numerator<AccumulatorTypes>(extended_edges, relation_parameters, 0)) -
+                 ((z_perm_shift + lagrange_last * public_input_delta) *
+                  compute_grand_product_denominator<AccumulatorTypes>(extended_edges, relation_parameters, 0))) *
                 scaling_factor;
         }
         // Contribution (2)

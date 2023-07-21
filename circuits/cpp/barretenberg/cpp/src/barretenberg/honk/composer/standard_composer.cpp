@@ -20,8 +20,7 @@ namespace proof_system::honk {
  * @tparam Program settings needed to establish if w_4 is being used.
  * */
 template <StandardFlavor Flavor>
-void StandardComposer_<Flavor>::compute_witness(const CircuitBuilder& circuit_constructor,
-                                                const size_t minimum_circuit_size)
+void StandardComposer_<Flavor>::compute_witness(const CircuitBuilder& circuit_constructor, const size_t /*unused*/)
 {
     if (computed_witness) {
         return;
@@ -72,7 +71,7 @@ std::shared_ptr<typename Flavor::ProvingKey> StandardComposer_<Flavor>::compute_
  * */
 template <StandardFlavor Flavor>
 std::shared_ptr<typename Flavor::VerificationKey> StandardComposer_<Flavor>::compute_verification_key(
-    const CircuitBuilder& circuit_constructor)
+    const CircuitBuilder& /*unused*/)
 {
     if (verification_key) {
         return verification_key;
@@ -124,7 +123,7 @@ StandardProver_<Flavor> StandardComposer_<Flavor>::create_prover(const CircuitBu
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
 
-    compute_commitment_key(proving_key->circuit_size, crs_factory_);
+    compute_commitment_key(proving_key->circuit_size);
 
     StandardProver_<Flavor> output_state(proving_key, commitment_key);
 

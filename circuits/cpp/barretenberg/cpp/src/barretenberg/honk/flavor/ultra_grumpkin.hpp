@@ -50,6 +50,7 @@ class UltraGrumpkin {
     // The total number of witness entities not including shifts.
     static constexpr size_t NUM_WITNESS_ENTITIES = 11;
 
+    using GrandProductRelations = std::tuple<sumcheck::UltraPermutationRelation<FF>, sumcheck::LookupRelation<FF>>;
     // define the tuple of Relations that comprise the Sumcheck relation
     using Relations = std::tuple<sumcheck::UltraArithmeticRelation<FF>,
                                  sumcheck::UltraPermutationRelation<FF>,

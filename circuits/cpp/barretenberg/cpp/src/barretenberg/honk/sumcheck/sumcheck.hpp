@@ -165,7 +165,7 @@ template <typename Flavor, class Transcript> class Sumcheck {
             auto round_univariate = transcript.template receive_from_prover<Univariate<FF, MAX_RANDOM_RELATION_LENGTH>>(
                 round_univariate_label);
 
-            bool checked = round.check_sum(round_univariate, pow_univariate);
+            bool checked = round.check_sum(round_univariate);
             verified = verified && checked;
             FF round_challenge = transcript.get_challenge("Sumcheck:u_" + std::to_string(round_idx));
             multivariate_challenge.emplace_back(round_challenge);

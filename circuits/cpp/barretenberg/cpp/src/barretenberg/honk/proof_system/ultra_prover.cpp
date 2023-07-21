@@ -3,8 +3,11 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp" // will go away
+#include "barretenberg/honk/sumcheck/relations/lookup_relation.hpp"
+#include "barretenberg/honk/sumcheck/relations/permutation_relation.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck.hpp"
 #include "barretenberg/honk/utils/power_polynomial.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
@@ -167,18 +170,11 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_c
     relation_parameters.public_input_delta = public_input_delta;
     relation_parameters.lookup_grand_product_delta = lookup_grand_product_delta;
 
-    // Compute permutation grand product and its commitment
-    key->z_perm = prover_library::compute_permutation_grand_product<Flavor>(key, beta, gamma);
+    // Compute permutation + lookup grand product and their commitments
+    grand_product_library::compute_grand_products<Flavor>(key, prover_polynomials, relation_parameters);
+
     queue.add_commitment(key->z_perm, commitment_labels.z_perm);
-
-    // Compute lookup grand product and its commitment
-    key->z_lookup = prover_library::compute_lookup_grand_product<Flavor>(key, relation_parameters.eta, beta, gamma);
     queue.add_commitment(key->z_lookup, commitment_labels.z_lookup);
-
-    prover_polynomials.z_perm = key->z_perm;
-    prover_polynomials.z_perm_shift = key->z_perm.shifted();
-    prover_polynomials.z_lookup = key->z_lookup;
-    prover_polynomials.z_lookup_shift = key->z_lookup.shifted();
 }
 
 /**

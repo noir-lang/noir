@@ -409,9 +409,6 @@ TEST_F(UltraRelationConsistency, GenPermSortRelation)
     auto relation = GenPermSortRelation<FF>();
 
     // Extract the extended edges for manual computation of relation contribution
-    const auto& z_lookup_shift = extended_edges.z_lookup_shift;
-    const auto& lagrange_last = extended_edges.lagrange_last;
-
     const auto& w_1 = extended_edges.w_l;
     const auto& w_2 = extended_edges.w_r;
     const auto& w_3 = extended_edges.w_o;

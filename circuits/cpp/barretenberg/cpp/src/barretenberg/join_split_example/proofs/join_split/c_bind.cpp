@@ -53,7 +53,7 @@ WASM_EXPORT uint32_t join_split__get_new_proving_key_data(uint8_t** output)
     return static_cast<uint32_t>(buffer.size());
 }
 
-WASM_EXPORT void join_split__init_verification_key(void* pippenger, uint8_t const* g2x)
+WASM_EXPORT void join_split__init_verification_key(void* /*unused*/, uint8_t const* /*unused*/)
 {
     init_verification_key(barretenberg::srs::get_crs_factory());
 }

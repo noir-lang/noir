@@ -2,6 +2,7 @@
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
 #include "barretenberg/honk/flavor/ultra.hpp"
+#include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "prover.hpp"
 #include "prover_library.hpp"
@@ -87,8 +88,53 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         auto beta = FF::random_element();
         auto gamma = FF::random_element();
 
+        sumcheck::RelationParameters<FF> params{
+            .eta = 0,
+            .beta = beta,
+            .gamma = gamma,
+            .public_input_delta = 1,
+            .lookup_grand_product_delta = 1,
+        };
+
+        typename Flavor::ProverPolynomials prover_polynomials;
+        prover_polynomials.w_l = proving_key->w_l;
+        prover_polynomials.w_r = proving_key->w_r;
+        prover_polynomials.w_o = proving_key->w_o;
+        prover_polynomials.q_m = proving_key->q_m;
+        prover_polynomials.q_l = proving_key->q_l;
+        prover_polynomials.q_r = proving_key->q_r;
+        prover_polynomials.q_o = proving_key->q_o;
+        prover_polynomials.q_c = proving_key->q_c;
+        prover_polynomials.sigma_1 = proving_key->sigma_1;
+        prover_polynomials.sigma_2 = proving_key->sigma_2;
+        prover_polynomials.sigma_3 = proving_key->sigma_3;
+        prover_polynomials.id_1 = proving_key->id_1;
+        prover_polynomials.id_2 = proving_key->id_2;
+        prover_polynomials.id_3 = proving_key->id_3;
+        prover_polynomials.lagrange_first = proving_key->lagrange_first;
+        prover_polynomials.lagrange_last = proving_key->lagrange_last;
+        if constexpr (Flavor::NUM_WIRES == 4) {
+            prover_polynomials.w_4 = proving_key->w_4;
+            prover_polynomials.sigma_4 = proving_key->sigma_4;
+            prover_polynomials.id_4 = proving_key->id_4;
+        }
+        prover_polynomials.z_perm = proving_key->z_perm;
+
         // Method 1: Compute z_perm using 'compute_grand_product_polynomial' as the prover would in practice
-        Polynomial z_permutation = prover_library::compute_permutation_grand_product<Flavor>(proving_key, beta, gamma);
+        constexpr size_t PERMUTATION_RELATION_INDEX = 0;
+        using LHS =
+            typename std::tuple_element<PERMUTATION_RELATION_INDEX, typename Flavor::GrandProductRelations>::type;
+        if constexpr (Flavor::NUM_WIRES == 4) {
+            using RHS = typename sumcheck::UltraPermutationRelation<FF>;
+            static_assert(std::same_as<LHS, RHS>);
+            grand_product_library::compute_grand_product<Flavor, RHS>(
+                proving_key->circuit_size, prover_polynomials, params);
+        } else {
+            using RHS = sumcheck::PermutationRelation<FF>;
+            static_assert(std::same_as<LHS, RHS>);
+            grand_product_library::compute_grand_product<Flavor, RHS>(
+                proving_key->circuit_size, prover_polynomials, params);
+        }
 
         // Method 2: Compute z_perm locally using the simplest non-optimized syntax possible. The comment below,
         // which describes the computation in 4 steps, is adapted from a similar comment in
@@ -152,7 +198,7 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         }
 
         // Check consistency between locally computed z_perm and the one computed by the prover library
-        EXPECT_EQ(z_permutation, z_permutation_expected);
+        EXPECT_EQ(proving_key->z_perm, z_permutation_expected);
     };
 
     /**
@@ -182,6 +228,7 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         // for now
         for (size_t i = 0; i < 3; ++i) { // TODO(Cody): will this test ever generalize?
             Polynomial random_polynomial = get_random_polynomial(circuit_size);
+            random_polynomial[0] = 0; // when computing shifts, 1st element needs to be 0
             wires.emplace_back(random_polynomial);
             populate_span(wire_polynomials[i], random_polynomial);
         }
@@ -190,11 +237,13 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         auto table_polynomials = proving_key->get_table_polynomials();
         for (auto& table_polynomial : table_polynomials) {
             Polynomial random_polynomial = get_random_polynomial(circuit_size);
+            random_polynomial[0] = 0; // when computing shifts, 1st element needs to be 0
             tables.emplace_back(random_polynomial);
             populate_span(table_polynomial, random_polynomial);
         }
 
         auto sorted_batched = get_random_polynomial(circuit_size);
+        sorted_batched[0] = 0; // when computing shifts, 1st element needs to be 0
         auto column_1_step_size = get_random_polynomial(circuit_size);
         auto column_2_step_size = get_random_polynomial(circuit_size);
         auto column_3_step_size = get_random_polynomial(circuit_size);
@@ -213,8 +262,46 @@ template <class FF> class ProverLibraryTests : public testing::Test {
         auto gamma = FF::random_element();
         auto eta = FF::random_element();
 
+        sumcheck::RelationParameters<FF> params{
+            .eta = eta,
+            .beta = beta,
+            .gamma = gamma,
+            .public_input_delta = 1,
+            .lookup_grand_product_delta = 1,
+        };
+
+        Flavor::ProverPolynomials prover_polynomials;
+        prover_polynomials.w_l = proving_key->w_l;
+        prover_polynomials.w_r = proving_key->w_r;
+        prover_polynomials.w_o = proving_key->w_o;
+        prover_polynomials.w_l_shift = proving_key->w_l.shifted();
+        prover_polynomials.w_r_shift = proving_key->w_r.shifted();
+        prover_polynomials.w_o_shift = proving_key->w_o.shifted();
+        prover_polynomials.sorted_accum = proving_key->sorted_accum;
+        prover_polynomials.sorted_accum_shift = proving_key->sorted_accum.shifted();
+        prover_polynomials.table_1 = proving_key->table_1;
+        prover_polynomials.table_2 = proving_key->table_2;
+        prover_polynomials.table_3 = proving_key->table_3;
+        prover_polynomials.table_4 = proving_key->table_4;
+        prover_polynomials.table_1_shift = proving_key->table_1.shifted();
+        prover_polynomials.table_2_shift = proving_key->table_2.shifted();
+        prover_polynomials.table_3_shift = proving_key->table_3.shifted();
+        prover_polynomials.table_4_shift = proving_key->table_4.shifted();
+        prover_polynomials.q_m = proving_key->q_m;
+        prover_polynomials.q_r = proving_key->q_r;
+        prover_polynomials.q_o = proving_key->q_o;
+        prover_polynomials.q_c = proving_key->q_c;
+        prover_polynomials.q_lookup = proving_key->q_lookup;
+        prover_polynomials.z_perm = proving_key->z_perm;
+        prover_polynomials.z_lookup = proving_key->z_lookup;
+
         // Method 1: Compute z_lookup using the prover library method
-        Polynomial z_lookup = prover_library::compute_lookup_grand_product<Flavor>(proving_key, eta, beta, gamma);
+        constexpr size_t LOOKUP_RELATION_INDEX = 1;
+        using LHS = typename std::tuple_element<LOOKUP_RELATION_INDEX, typename Flavor::GrandProductRelations>::type;
+        using RHS = sumcheck::LookupRelation<FF>;
+        static_assert(std::same_as<LHS, RHS>);
+        grand_product_library::compute_grand_product<Flavor, RHS>(
+            proving_key->circuit_size, prover_polynomials, params);
 
         // Method 2: Compute the lookup grand product polynomial Z_lookup:
         //
@@ -286,7 +373,7 @@ template <class FF> class ProverLibraryTests : public testing::Test {
             z_lookup_expected[i + 1] = accumulators[0][i] / accumulators[3][i];
         }
 
-        EXPECT_EQ(z_lookup, z_lookup_expected);
+        EXPECT_EQ(proving_key->z_lookup, z_lookup_expected);
     };
 
     /**
@@ -335,7 +422,7 @@ template <class FF> class ProverLibraryTests : public testing::Test {
     };
 };
 
-typedef testing::Types<barretenberg::fr> FieldTypes;
+using FieldTypes = testing::Types<barretenberg::fr>;
 TYPED_TEST_SUITE(ProverLibraryTests, FieldTypes);
 
 TYPED_TEST(ProverLibraryTests, PermutationGrandProduct)

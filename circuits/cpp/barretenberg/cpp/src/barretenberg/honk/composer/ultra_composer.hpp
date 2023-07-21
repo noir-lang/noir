@@ -74,7 +74,7 @@ template <UltraFlavor Flavor> class UltraComposer_ {
 
     void add_table_column_selector_poly_to_proving_key(polynomial& small, const std::string& tag);
 
-    void compute_commitment_key(size_t circuit_size, std::shared_ptr<srs::factories::CrsFactory> crs_factory)
+    void compute_commitment_key(size_t circuit_size)
     {
         commitment_key = std::make_shared<typename PCSParams::CommitmentKey>(circuit_size, crs_factory_);
     };

@@ -2,6 +2,7 @@
 #include "barretenberg/honk/composer/standard_composer.hpp"
 #include "barretenberg/honk/composer/ultra_composer.hpp"
 #include "barretenberg/honk/flavor/standard.hpp"
+#include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/elliptic_relation.hpp"
 #include "barretenberg/honk/sumcheck/relations/gen_perm_sort_relation.hpp"
@@ -458,16 +459,11 @@ TEST_F(SumcheckTests, RealCircuitStandard)
         .public_input_delta = public_input_delta,
     };
 
-    // Compute grand product polynomial
-    polynomial z_permutation = prover_library::compute_permutation_grand_product<Flavor>(prover.key, beta, gamma);
-
     ProverPolynomials prover_polynomials;
 
     prover_polynomials.w_l = prover.key->w_l;
     prover_polynomials.w_r = prover.key->w_r;
     prover_polynomials.w_o = prover.key->w_o;
-    prover_polynomials.z_perm = z_permutation;
-    prover_polynomials.z_perm_shift = z_permutation.shifted();
     prover_polynomials.q_m = prover.key->q_m;
     prover_polynomials.q_l = prover.key->q_l;
     prover_polynomials.q_r = prover.key->q_r;
@@ -481,6 +477,9 @@ TEST_F(SumcheckTests, RealCircuitStandard)
     prover_polynomials.id_3 = prover.key->id_3;
     prover_polynomials.lagrange_first = prover.key->lagrange_first;
     prover_polynomials.lagrange_last = prover.key->lagrange_last;
+
+    // Compute grand product polynomial
+    grand_product_library::compute_grand_products<Flavor>(prover.key, prover_polynomials, relation_parameters);
 
     auto prover_transcript = ProverTranscript<FF>::init_empty();
 
@@ -650,12 +649,6 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     // Add RAM/ROM memory records to wire four
     prover_library::add_plookup_memory_records_to_wire_4<Flavor>(prover.key, eta);
 
-    // Compute grand product polynomial
-    prover.key->z_perm = prover_library::compute_permutation_grand_product<Flavor>(prover.key, beta, gamma);
-
-    // Compute lookup grand product polynomial
-    prover.key->z_lookup = prover_library::compute_lookup_grand_product<Flavor>(prover.key, eta, beta, gamma);
-
     ProverPolynomials prover_polynomials;
 
     prover_polynomials.w_l = prover.key->w_l;
@@ -676,8 +669,6 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     prover_polynomials.table_2_shift = prover.key->table_2.shifted();
     prover_polynomials.table_3_shift = prover.key->table_3.shifted();
     prover_polynomials.table_4_shift = prover.key->table_4.shifted();
-    prover_polynomials.z_perm = prover.key->z_perm;
-    prover_polynomials.z_perm_shift = prover.key->z_perm.shifted();
     prover_polynomials.z_lookup = prover.key->z_lookup;
     prover_polynomials.z_lookup_shift = prover.key->z_lookup.shifted();
     prover_polynomials.q_m = prover.key->q_m;
@@ -701,6 +692,8 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     prover_polynomials.id_4 = prover.key->id_4;
     prover_polynomials.lagrange_first = prover.key->lagrange_first;
     prover_polynomials.lagrange_last = prover.key->lagrange_last;
+
+    grand_product_library::compute_grand_products<Flavor>(prover.key, prover_polynomials, relation_parameters);
 
     auto prover_transcript = ProverTranscript<FF>::init_empty();
 

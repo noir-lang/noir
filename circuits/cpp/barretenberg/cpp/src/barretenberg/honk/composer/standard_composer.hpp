@@ -67,7 +67,7 @@ template <StandardFlavor Flavor> class StandardComposer_ {
 
     void compute_witness(const CircuitBuilder& circuit_constructor, const size_t minimum_circuit_size = 0);
 
-    void compute_commitment_key(size_t circuit_size, std::shared_ptr<srs::factories::CrsFactory> crs_factory)
+    void compute_commitment_key(size_t circuit_size)
     {
         commitment_key = std::make_shared<typename PCSParams::CommitmentKey>(circuit_size, crs_factory_);
     };

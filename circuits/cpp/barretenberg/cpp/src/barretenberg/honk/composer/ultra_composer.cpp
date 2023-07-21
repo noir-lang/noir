@@ -21,7 +21,6 @@ void UltraComposer_<Flavor>::compute_circuit_size_parameters(CircuitBuilder& cir
         lookups_size += table.lookup_gates.size();
     }
 
-    const size_t num_gates = circuit_constructor.num_gates;
     num_public_inputs = circuit_constructor.public_inputs.size();
 
     // minimum circuit size due to the length of lookups plus tables
@@ -170,7 +169,7 @@ UltraProver_<Flavor> UltraComposer_<Flavor>::create_prover(CircuitBuilder& circu
     compute_proving_key(circuit_constructor);
     compute_witness(circuit_constructor);
 
-    compute_commitment_key(proving_key->circuit_size, crs_factory_);
+    compute_commitment_key(proving_key->circuit_size);
 
     UltraProver_<Flavor> output_state(proving_key, commitment_key);
 
