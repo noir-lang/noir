@@ -128,15 +128,13 @@ impl<T: DebugToString> DebugToString for [T] {
 
 macro_rules! debug_println {
     ( $enable_debug:expr, $literal:expr ) => {
-        match $enable_debug {
-            true => println!("{}", $literal),
-            false => ()
+        if $enable_debug {
+            println!("{}", $literal)
         }
     };
     ( $enable_debug:expr, $format_message:expr, $( $x:expr ),* ) => {
-        match $enable_debug {
-            true => println!($format_message, $( $x.debug_to_string(), )*),
-            false => ()
+        if $enable_debug {
+            println!($format_message, $( $x.debug_to_string(), )*)
         }
     };
 }
