@@ -1,0 +1,23 @@
+name: Push to docs-mirror-test branch
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'docs/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+
+      - name: Push to branch
+        run: |
+          ./scripts/git_subrepo.sh push docs --branch=main
