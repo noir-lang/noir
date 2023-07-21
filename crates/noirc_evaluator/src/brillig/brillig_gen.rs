@@ -13,7 +13,7 @@ use self::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
 use super::brillig_ir::{artifact::BrilligArtifact, BrilligContext};
 
 /// Converting an SSA function into Brillig bytecode.
-pub(crate) fn convert_ssa_function(func: &Function) -> BrilligArtifact {
+pub(crate) fn convert_ssa_function(func: &Function, enable_debug_trace: bool) -> BrilligArtifact {
     let mut reverse_post_order = Vec::new();
     reverse_post_order.extend_from_slice(PostOrder::with_function(func).as_slice());
     reverse_post_order.reverse();
@@ -24,6 +24,7 @@ pub(crate) fn convert_ssa_function(func: &Function) -> BrilligArtifact {
     let mut brillig_context = BrilligContext::new(
         FunctionContext::parameters(func),
         FunctionContext::return_values(func),
+        enable_debug_trace,
     );
 
     brillig_context.enter_context(FunctionContext::function_id_to_function_label(func.id()));
