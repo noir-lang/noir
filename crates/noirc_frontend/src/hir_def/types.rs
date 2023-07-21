@@ -769,6 +769,56 @@ impl Type {
         }
     }
 
+    /// Try to bind a MaybeConstant variable to self, succeeding if self is a Constant,
+    /// MaybeConstant, or type variable.
+    pub fn try_bind_to_maybe_constant(
+        &self,
+        var: &TypeVariable,
+        target_length: u64,
+    ) -> Result<(), SpanKind> {
+        let target_id = match &*var.borrow() {
+            TypeBinding::Bound(_) => unreachable!(),
+            TypeBinding::Unbound(id) => *id,
+        };
+
+        match self {
+            Type::Constant(length) if *length == target_length => {
+                *var.borrow_mut() = TypeBinding::Bound(self.clone());
+                Ok(())
+            }
+            Type::MaybeConstant(binding, length) if *length == target_length => {
+                let borrow = binding.borrow();
+                match &*borrow {
+                    TypeBinding::Bound(typ) => typ.try_bind_to_maybe_constant(var, target_length),
+                    // Avoid infinitely recursive bindings
+                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(_) => {
+                        drop(borrow);
+                        *var.borrow_mut() = TypeBinding::Bound(self.clone());
+                        Ok(())
+                    }
+                }
+            }
+            Type::TypeVariable(binding) => {
+                let borrow = binding.borrow();
+                match &*borrow {
+                    TypeBinding::Bound(typ) => typ.try_bind_to_maybe_constant(var, target_length),
+                    // Avoid infinitely recursive bindings
+                    TypeBinding::Unbound(id) if *id == target_id => Ok(()),
+                    TypeBinding::Unbound(_) => {
+                        drop(borrow);
+                        // MaybeConstant is more specific than TypeVariable so we bind the type
+                        // variable to PolymorphicInt instead.
+                        let clone = Type::MaybeConstant(var.clone(), target_length);
+                        *binding.borrow_mut() = TypeBinding::Bound(clone);
+                        Ok(())
+                    }
+                }
+            }
+            _ => Err(SpanKind::None),
+        }
+    }
+
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
     /// other PolymorphicInt type, or type variable. If use_subtype is true, the CompTime fields
     /// of each will be checked via sub-typing rather than unification.
@@ -953,12 +1003,12 @@ impl Type {
                 other.try_bind_to(binding)
             }
 
-            (MaybeConstant(binding, _), other) | (other, MaybeConstant(binding, _)) => {
+            (MaybeConstant(binding, length), other) | (other, MaybeConstant(binding, length)) => {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
                     return link.try_unify(other, span);
                 }
 
-                other.try_bind_to(binding)
+                other.try_bind_to_maybe_constant(binding, *length)
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
@@ -1094,19 +1144,19 @@ impl Type {
                 other.try_bind_to(binding)
             }
 
-            (MaybeConstant(binding, _), other) => {
+            (MaybeConstant(binding, length), other) => {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
                     return link.is_subtype_of(other, span);
                 }
 
-                other.try_bind_to(binding)
+                other.try_bind_to_maybe_constant(binding, *length)
             }
-            (other, MaybeConstant(binding, _)) => {
+            (other, MaybeConstant(binding, length)) => {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
                     return other.is_subtype_of(link, span);
                 }
 
-                other.try_bind_to(binding)
+                other.try_bind_to_maybe_constant(binding, *length)
             }
 
             (Array(len_a, elem_a), Array(len_b, elem_b)) => {
