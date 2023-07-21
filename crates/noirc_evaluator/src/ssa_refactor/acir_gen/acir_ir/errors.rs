@@ -36,11 +36,7 @@ impl From<AcirGenError> for RuntimeError {
     fn from(error: AcirGenError) -> Self {
         match error {
             AcirGenError::InvalidRangeConstraint { num_bits, location } => {
-                let kind = RuntimeErrorKind::UnstructuredError {
-                    message: format!(
-                        "Failed range constraint when constraining to {num_bits} bits"
-                    ),
-                };
+                let kind = RuntimeErrorKind::FailedRangeConstraint(num_bits);
                 RuntimeError::new(kind, location)
             }
             AcirGenError::IndexOutOfBounds { index, array_size, location } => {
@@ -51,17 +47,14 @@ impl From<AcirGenError> for RuntimeError {
                 RuntimeError::new(kind, location)
             }
             AcirGenError::UnsupportedIntegerSize { num_bits, max_num_bits, location } => {
-                let kind = RuntimeErrorKind::UnstructuredError {
-                    message: format!("Unsupported integer size of {num_bits} bits. The maximum supported size is {max_num_bits} bits.")
-                };
+                let kind = RuntimeErrorKind::UnsupportedIntegerSize { num_bits, max_num_bits };
                 RuntimeError::new(kind, location)
             }
             AcirGenError::BadConstantEquality { lhs: _, rhs: _, location } => {
                 // We avoid showing the actual lhs and rhs since most of the time they are just 0
                 // and 1 respectively. This would confuse users if a constraint such as
                 // assert(foo < bar) fails with "failed constraint: 0 = 1."
-                let kind =
-                    RuntimeErrorKind::UnstructuredError { message: "Failed constraint".into() };
+                let kind = RuntimeErrorKind::FailedConstraint;
                 RuntimeError::new(kind, location)
             }
         }
