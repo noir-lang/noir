@@ -51,6 +51,9 @@ pub enum RuntimeErrorKind {
     #[error("Out of bounds")]
     ArrayOutOfBounds { index: u128, bound: u128 },
 
+    #[error("index out of bounds: the len is {index} but the index is {bound}")]
+    IndexOutOfBounds { index: u32, bound: u128 },
+
     #[error("cannot call {func_name} function in non main function")]
     FunctionNonMainContext { func_name: String },
 
@@ -58,26 +61,43 @@ pub enum RuntimeErrorKind {
     #[error("Cannot find Array")]
     ArrayNotFound { found_type: String, name: String },
 
-    #[error("Unstructured Error")]
-    UnstructuredError { message: String },
+    #[error("Not an object")]
+    NotAnObject,
 
-    #[error("Spanless")]
-    // This is here due to the fact we don't have full coverage for span
-    Spanless(String),
+    #[error("Invalid id")]
+    InvalidId,
+
+    #[error("Attempt to divide by zero")]
+    DivisionByZero,
+
+    #[error("Failed range constraint when constraining to {0} bits")]
+    FailedRangeConstraint(u32),
+
+    #[error("Unsupported integer size of {num_bits} bits. The maximum supported size is {max_num_bits} bits.")]
+    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32 },
+
+    #[error("Failed constraint")]
+    FailedConstraint,
+
+    #[error(
+        "All Witnesses are by default u{0}. Applying this type does not apply any constraints."
+    )]
+    DefaultWitnesses(u32),
+
+    #[error("Constraint is always false")]
+    ConstraintIsAlwaysFalse { spanless: bool },
+
+    #[error("ICE: cannot convert signed {0} bit size into field")]
+    CannotConvertSignedIntoField(u32),
+
+    #[error("we do not allow private ABI inputs to be returned as public outputs")]
+    PrivateAbiInput,
 
     #[error("unimplemented")]
     Unimplemented(String),
 
     #[error("Unsupported operation error")]
     UnsupportedOp { op: String, first_type: String, second_type: String },
-}
-
-impl RuntimeErrorKind {
-    pub fn expected_type(expected_type: &'static str, found_type: &str) -> RuntimeErrorKind {
-        RuntimeErrorKind::UnstructuredError {
-            message: format!("Expected a {expected_type}, but found {found_type}"),
-        }
-    }
 }
 
 impl From<RuntimeError> for Diagnostic {
@@ -95,8 +115,18 @@ impl From<RuntimeError> for Diagnostic {
                 format!("{found_type} has type"),
                 span,
             ),
-            RuntimeErrorKind::UnstructuredError { message } => {
-                Diagnostic::simple_error("".to_owned(), message.to_string(), span)
+            RuntimeErrorKind::NotAnObject
+            | RuntimeErrorKind::InvalidId
+            | RuntimeErrorKind::DivisionByZero
+            | RuntimeErrorKind::FailedRangeConstraint(_)
+            | RuntimeErrorKind::UnsupportedIntegerSize { .. }
+            | RuntimeErrorKind::FailedConstraint
+            | RuntimeErrorKind::DefaultWitnesses(_)
+            | RuntimeErrorKind::ConstraintIsAlwaysFalse { spanless: false }
+            | RuntimeErrorKind::CannotConvertSignedIntoField(_)
+            | RuntimeErrorKind::IndexOutOfBounds { .. }
+            | RuntimeErrorKind::PrivateAbiInput => {
+                Diagnostic::simple_error("".to_owned(), error.kind.to_string(), span)
             }
             RuntimeErrorKind::UnsupportedOp { op, first_type, second_type } => {
                 Diagnostic::simple_error(
@@ -105,7 +135,9 @@ impl From<RuntimeError> for Diagnostic {
                     span,
                 )
             }
-            RuntimeErrorKind::Spanless(message) => Diagnostic::from_message(message),
+            RuntimeErrorKind::ConstraintIsAlwaysFalse { spanless: true } => {
+                Diagnostic::from_message(&error.kind.to_string())
+            }
             RuntimeErrorKind::Unimplemented(message) => Diagnostic::from_message(message),
             RuntimeErrorKind::FunctionNonMainContext { func_name } => Diagnostic::simple_error(
                 "cannot call function outside of main".to_owned(),
