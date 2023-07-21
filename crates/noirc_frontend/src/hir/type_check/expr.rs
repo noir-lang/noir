@@ -47,8 +47,11 @@ impl<'interner> TypeChecker<'interner> {
                             .cloned()
                             .unwrap_or_else(|| self.interner.next_type_variable());
 
+                        let typevar_id = self.interner.next_type_variable_id();
+                        let typevar = Shared::new(TypeBinding::Unbound(typevar_id));
+
                         let arr_type = Type::Array(
-                            Box::new(Type::Constant(arr.len() as u64)),
+                            Box::new(Type::MaybeConstant(typevar, arr.len() as u64)),
                             Box::new(first_elem_type.clone()),
                         );
 
@@ -78,6 +81,14 @@ impl<'interner> TypeChecker<'interner> {
                     }
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length }) => {
                         let elem_type = self.check_expression(&repeated_element);
+                        let length = match length {
+                            Type::Constant(length) => {
+                                let typevar_id = self.interner.next_type_variable_id();
+                                let typevar = Shared::new(TypeBinding::Unbound(typevar_id));
+                                Type::MaybeConstant(typevar, length)
+                            },
+                            other => other,
+                        };
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool(CompTime::new(self.interner)),
@@ -325,7 +336,6 @@ impl<'interner> TypeChecker<'interner> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
-            Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
                 let span = self.interner.expr_span(&index_expr.collection);

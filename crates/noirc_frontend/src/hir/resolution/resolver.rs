@@ -329,11 +329,12 @@ impl<'a> Resolver<'a> {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                if self.interner.experimental_ssa && size.is_none() {
-                    return Type::Slice(elem);
-                }
-                let resolved_size = self.resolve_array_size(size, new_variables);
-                Type::Array(Box::new(resolved_size), elem)
+                let size = if self.interner.experimental_ssa && size.is_none() {
+                    Type::NotConstant
+                } else {
+                    self.resolve_array_size(size, new_variables)
+                };
+                Type::Array(Box::new(size), elem)
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
             UnresolvedType::Integer(comp_time, sign, bits) => Type::Integer(comp_time, sign, bits),
@@ -768,10 +769,6 @@ impl<'a> Resolver<'a> {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
-            }
-
-            Type::Slice(typ) => {
-                Self::find_numeric_generics_in_type(typ, found);
             }
 
             Type::Tuple(fields) => {

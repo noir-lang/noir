@@ -237,14 +237,6 @@ impl std::fmt::Display for StructType {
 #[derive(Debug, Eq, PartialOrd, Ord)]
 pub struct Shared<T>(Rc<RefCell<T>>);
 
-impl<T> std::ops::Deref for Shared<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.borrow()
-    }
-}
-
 impl<T: std::hash::Hash> std::hash::Hash for Shared<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.borrow().hash(state);
@@ -640,10 +632,10 @@ impl std::fmt::Display for Type {
                 write!(f, "{comp_time}Field")
             }
             Type::Array(len, typ) => {
-                if let Some(length) = len.evaluate_to_u64() {
-                    write!(f, "[{typ}; {length}]")
-                } else {
+                if matches!(len.follow_bindings(), Type::NotConstant) {
                     write!(f, "[{typ}]")
+                } else {
+                    write!(f, "[{typ}; {len}]")
                 }
             }
             Type::Integer(comp_time, sign, num_bits) => match sign {
@@ -1095,6 +1087,21 @@ impl Type {
                 other.try_bind_to(binding)
             }
             (other, TypeVariable(binding)) => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return other.is_subtype_of(link, span);
+                }
+
+                other.try_bind_to(binding)
+            }
+
+            (MaybeConstant(binding, _), other) => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return link.is_subtype_of(other, span);
+                }
+
+                other.try_bind_to(binding)
+            }
+            (other, MaybeConstant(binding, _)) => {
                 if let TypeBinding::Bound(link) = &*binding.borrow() {
                     return other.is_subtype_of(link, span);
                 }
