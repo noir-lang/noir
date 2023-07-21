@@ -253,11 +253,7 @@ pub(crate) fn range_constraint(
         evaluator.push_opcode(AcirOpcode::Arithmetic(bool_constraint));
     } else if num_bits == FieldElement::max_num_bits() {
         // Don't apply any constraints if the range is for the maximum number of bits
-        let message = format!(
-            "All Witnesses are by default u{}. Applying this type does not apply any constraints.",
-            FieldElement::max_num_bits()
-        );
-        return Err(RuntimeErrorKind::UnstructuredError { message });
+        return Err(RuntimeErrorKind::DefaultWitnesses(FieldElement::max_num_bits()));
     } else if num_bits % 2 == 1 {
         // Note if the number of bits is odd, then Barretenberg will panic
         // new witnesses; r is constrained to num_bits-1 and b is 1 bit
