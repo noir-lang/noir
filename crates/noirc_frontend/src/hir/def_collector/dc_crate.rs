@@ -379,7 +379,8 @@ fn resolve_type_aliases(
         });
         let file = unresolved_typ.file_id;
         let ty = Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
-            .resolve_type(unresolved_typ.type_alias_def.ty.clone());
+            .resolve_type_aliases(unresolved_typ.type_alias_def.clone());
+
         context.def_interner.push_type_alias(*type_id, ty);
     }
 }

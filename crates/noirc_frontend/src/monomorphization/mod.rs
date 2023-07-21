@@ -670,6 +670,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(&self, typ: &HirType) -> ast::Type {
+        println!("{:?}", typ);
         match typ {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
@@ -778,7 +779,7 @@ impl<'interner> Monomorphizer<'interner> {
             if let Definition::Oracle(name) = &ident.definition {
                 if name.as_str() == "println" {
                     // Oracle calls are required to be wrapped in an unconstrained function
-                    // Thus, the only argument to the `println` oracle is expected to always be an ident 
+                    // Thus, the only argument to the `println` oracle is expected to always be an ident
                     self.append_abi_arg(&hir_arguments[0], &mut arguments);
                 }
             }

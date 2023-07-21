@@ -1,8 +1,6 @@
-use dep::std;
+type foo<T> = [T;2];
 
-type foo = u8;
-
-fn main(x : u8) {
-    let a: foo = 1;
-    assert(a != x);
+fn main(x : [Field; 2]) {
+    let a: foo<Field> = [1, 2];
+    // assert(a[0] != x[0]);
 }

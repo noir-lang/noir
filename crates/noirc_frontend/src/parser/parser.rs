@@ -242,10 +242,13 @@ fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     use self::Keyword::Type;
 
     let p = ignore_then_commit(keyword(Type), ident());
+    let p = then_commit(p, generics());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, parse_type());
 
-    p.map_with_span(|(name, ty), span| TopLevelStatement::TyAlias(NoirTyAlias { name, ty, span }))
+    p.map_with_span(|((name, generics), ty), span| {
+        TopLevelStatement::TyAlias(NoirTyAlias { name, generics, ty, span })
+    })
 }
 
 fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
@@ -1907,11 +1910,11 @@ mod test {
 
     #[test]
     fn parse_type_aliases() {
-        let cases = vec!["type foo = u8", "type bar = String", "type baz = Vec<T>"];
+        let cases = vec!["type foo = u8", "type bar = String", "type baz<T> = Vec<T>"];
         parse_all(type_alias_definition(), cases);
 
         let failing = vec!["type = u8", "type foo", "type foo = 1"];
-        parse_all_failing(struct_definition(), failing);
+        parse_all_failing(type_alias_definition(), failing);
     }
 
     #[test]

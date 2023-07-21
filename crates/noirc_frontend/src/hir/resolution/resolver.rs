@@ -33,9 +33,9 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, Path, Pattern, Shared,
-    StructType, Type, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics, UnresolvedType,
-    UnresolvedTypeExpression, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTyAlias, Path, Pattern,
+    Shared, StructType, Type, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
+    UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -508,6 +508,12 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType to a Type
     pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         self.resolve_type_inner(typ, &mut vec![])
+    }
+
+    pub fn resolve_type_aliases(&mut self, unresolved: NoirTyAlias) -> Type {
+        let mut generics = self.add_generics(&unresolved.generics);
+
+        self.resolve_type_inner(unresolved.ty, &mut generics)
     }
 
     pub fn take_errors(self) -> Vec<ResolverError> {
