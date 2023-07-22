@@ -1,4 +1,4 @@
-name: Push to docs-mirror-test branch
+name: Mirror to docs repo
 
 on:
   push:
@@ -26,5 +26,9 @@ jobs:
           # identify ourselves, needed to commit
           git config --global user.email "tech@aztecprotocol.com"
           git config --global user.name "AztecBot"
-          # push to subrepo, commit locally
+          # push to subrepo, commit locally. The commit is lost
+          # when the github action ends, however it is not needed
+          # to continue to replay. If we do hit issues such as this 
+          # action failing due to upstream changes, a manual resolution
+          # PR with ./scripts/git_subrepo.sh pull will be needed.
           ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main
