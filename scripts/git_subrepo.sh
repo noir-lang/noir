@@ -39,5 +39,5 @@ if [ -d "$SUBREPO_PATH" ] ; then
         git commit -m "git_subrepo.sh: Fix parent in .gitrepo file."
     fi
 fi
-"$SCRIPT_DIR"/git-subrepo/lib/git-subrepo -x $@
+"$SCRIPT_DIR"/git-subrepo/lib/git-subrepo $@
 

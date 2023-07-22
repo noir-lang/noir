@@ -1,9 +1,9 @@
 
-# Aztec Protocol Documentation
+# Aztec Network Documentation
+
+Documentation for the Aztec Network, built with docusaurus
 
 You can view the latest successful build here. https://docs.aztec.network
-
-Built with docusaurus.
 
 ## Files
 
