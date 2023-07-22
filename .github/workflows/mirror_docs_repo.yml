@@ -20,4 +20,11 @@ jobs:
 
       - name: Push to branch
         run: |
-          ./scripts/git_subrepo.sh push docs --branch=main
+          # we push using git subrepo (https://github.com/ingydotnet/git-subrepo)
+          # with some logic to recover from squashed parent commits
+          SUBREPO_PATH=docs
+          # identify ourselves, needed to commit
+          git config --global user.email "tech@aztecprotocol.com"
+          git config --global user.name "AztecBot"
+          # push to subrepo, commit locally
+          ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main
