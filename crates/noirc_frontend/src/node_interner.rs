@@ -692,7 +692,6 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
-        | Type::Struct(_, _)
-        | Type::TypeAlias(_, _) => None,
+        | Type::Struct(_, _) => None,
     }
 }

@@ -408,6 +408,9 @@ impl<'a> Resolver<'a> {
                 args.resize_with(expected_generic_count, || Type::Error);
             }
 
+            // Type Alias is monomorphized here because we do type checking before monomorphization
+            // If this is done in normal monomorphization phase type checking will return errors
+            // TODO(ethan): not sure if this is the best practice though
             let typ = type_alias_type.borrow().get_type(&args);
 
             return typ;
@@ -815,17 +818,6 @@ impl<'a> Resolver<'a> {
                 Self::find_numeric_generics_in_type(return_type, found);
             }
             Type::Struct(struct_type, generics) => {
-                for (i, generic) in generics.iter().enumerate() {
-                    if let Type::NamedGeneric(type_variable, name) = generic {
-                        if struct_type.borrow().generic_is_numeric(i) {
-                            found.insert(name.to_string(), type_variable.clone());
-                        }
-                    } else {
-                        Self::find_numeric_generics_in_type(generic, found);
-                    }
-                }
-            }
-            Type::TypeAlias(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name) = generic {
                         if struct_type.borrow().generic_is_numeric(i) {
