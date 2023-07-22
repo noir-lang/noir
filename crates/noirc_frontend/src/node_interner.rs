@@ -144,14 +144,14 @@ impl StructId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct TyAliasId(pub ModuleId);
+pub struct TyAliasId(Index);
 
 impl TyAliasId {
     //dummy id for error reporting
     // This can be anything, as the program will ultimately fail
     // after resolution
     pub fn dummy_id() -> TyAliasId {
-        TyAliasId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+        TyAliasId(Index::from_raw_parts(std::usize::MAX, 0))
     }
 }
 
@@ -197,6 +197,7 @@ enum Node {
     Function(HirFunction),
     Statement(HirStatement),
     Expression(HirExpression),
+    TypeAlias,
 }
 
 #[derive(Debug, Clone)]
@@ -293,6 +294,9 @@ impl NodeInterner {
     /// Interns a HIR expression.
     pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
+    }
+    pub fn push_type_alias(&mut self) -> TyAliasId {
+        TyAliasId(self.nodes.insert(Node::TypeAlias))
     }
 
     /// Stores the span for an interned expression.
