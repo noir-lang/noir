@@ -256,9 +256,6 @@ impl<'interner> TypeChecker<'interner> {
         // Type check the expression on the RHS
         let expr_type = self.check_expression(&rhs_expr);
 
-        println!("annotated_type {:?}", annotated_type);
-        println!("expr_type {:?}", expr_type);
-
         // First check if the LHS is unspecified
         // If so, then we give it the same type as the expression
         if annotated_type != Type::Error {

@@ -408,7 +408,9 @@ impl<'a> Resolver<'a> {
                 args.resize_with(expected_generic_count, || Type::Error);
             }
 
-            return Type::TypeAlias(type_alias_type, args);
+            let typ = type_alias_type.borrow().get_type(&args);
+
+            return typ;
         }
 
         match self.lookup_struct_or_error(path) {
