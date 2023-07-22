@@ -45,14 +45,8 @@ pub enum TypeCheckError {
     ExpectedFunction { found: Type, span: Span },
     #[error("Type {lhs_type} has no member named {field_name}")]
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
-    #[error("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given")]
-    ParameterCountMismatch {
-        expected: usize,
-        found: usize,
-        empty_or_s: &'static str,
-        was_or_were: &'static str,
-        span: Span,
-    },
+    #[error("Function expects {expected} parameters but {found} given")]
+    ParameterCountMismatch { expected: usize, found: usize, span: Span },
     #[error("The value is non-comptime because of this expression, which uses another non-comptime value")]
     NotCompTime { span: Span },
     #[error(
@@ -158,10 +152,15 @@ impl From<TypeCheckError> for Diagnostic {
                 let msg = format!("Expected {expected} argument{plural}, but found {found}");
                 Diagnostic::simple_error(msg, String::new(), span)
             }
+            TypeCheckError::ParameterCountMismatch { expected, found, span } => {
+                let empty_or_s = if expected == 1 { "" } else { "s" };
+                let was_or_were = if found == 1 { "was" } else { "were" };
+                let msg = format!("Function expects {expected} parameter{empty_or_s} but {found} {was_or_were} given");
+                Diagnostic::simple_error(msg, String::new(), span)
+            }
             TypeCheckError::InvalidCast { span, .. }
             | TypeCheckError::ExpectedFunction { span, .. }
             | TypeCheckError::AccessUnknownMember { span, .. }
-            | TypeCheckError::ParameterCountMismatch { span, .. }
             | TypeCheckError::CompTime { span }
             | TypeCheckError::NotCompTime { span }
             | TypeCheckError::CannotCastToComptimeType { span }

@@ -813,14 +813,9 @@ impl<'interner> TypeChecker<'interner> {
             }
             Type::Function(parameters, ret) => {
                 if parameters.len() != args.len() {
-                    let empty_or_s = if parameters.len() == 1 { "" } else { "s" };
-                    let was_or_were = if args.len() == 1 { "was" } else { "were" };
-
                     self.errors.push(TypeCheckError::ParameterCountMismatch {
                         expected: parameters.len(),
                         found: args.len(),
-                        empty_or_s,
-                        was_or_were,
                         span,
                     });
                     return Type::Error;
