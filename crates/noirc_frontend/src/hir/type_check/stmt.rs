@@ -131,11 +131,8 @@ impl<'interner> TypeChecker<'interner> {
 
                     if let Some(definition) = self.interner.try_definition(ident.id) {
                         if !definition.mutable && !matches!(typ, Type::MutableReference(_)) {
-                            self.errors.push(TypeCheckError::Unstructured {
-                                msg: format!(
-                                    "Variable {} must be mutable to be assigned to",
-                                    definition.name
-                                ),
+                            self.errors.push(TypeCheckError::VariableMustBeMutable {
+                                name: definition.name.clone(),
                                 span: ident.location.span,
                             });
                         }
