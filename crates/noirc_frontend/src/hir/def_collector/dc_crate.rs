@@ -368,15 +368,29 @@ fn resolve_struct_fields(
     (generics, fields)
 }
 
-// Don't resolve type aliases here
-// because they may have generics
 fn resolve_type_aliases(
     context: &mut Context,
     type_aliases: HashMap<TyAliasId, UnresolvedTypeAlias>,
-    _crate_id: CrateId,
+    crate_id: CrateId,
 ) {
+    for (type_id, typ) in &type_aliases {
+        context.def_interner.push_empty_type_alias(*type_id, typ);
+    }
+
     for (type_id, unresolved_typ) in type_aliases {
-        context.def_interner.push_type_alias(type_id, unresolved_typ);
+        let path_resolver = StandardPathResolver::new(ModuleId {
+            local_id: unresolved_typ.module_id,
+            krate: crate_id,
+        });
+        let file = unresolved_typ.file_id;
+        let (typ, generics) =
+            Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
+                .resolve_type_aliases(unresolved_typ.type_alias_def);
+
+        context.def_interner.update_type_alias(type_id, |type_alias_def| {
+            type_alias_def.set_type(typ);
+            type_alias_def.generics = generics;
+        });
     }
 }
 

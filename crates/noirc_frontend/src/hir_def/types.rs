@@ -5,7 +5,10 @@ use std::{
     rc::Rc,
 };
 
-use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
+use crate::{
+    hir::type_check::TypeCheckError,
+    node_interner::{NodeInterner, TyAliasId},
+};
 use iter_extended::vecmap;
 use noirc_abi::AbiType;
 use noirc_errors::Span;
@@ -44,6 +47,11 @@ pub enum Type {
     /// the shared definition for each instance of this struct type. The `Vec<Type>`
     /// represents the generic arguments (if any) to this struct type.
     Struct(Shared<StructType>, Vec<Type>),
+
+    /// A user-defined struct type. The `Shared<StructType>` field here refers to
+    /// the shared definition for each instance of this struct type. The `Vec<Type>`
+    /// represents the generic arguments (if any) to this struct type.
+    TypeAlias(Shared<TypeAliasTy>, Vec<Type>),
 
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
@@ -219,6 +227,70 @@ impl StructType {
 impl std::fmt::Display for StructType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
+    }
+}
+
+/// Wrap around an unsolved type
+#[derive(Debug, Clone, Eq)]
+pub struct TypeAliasTy {
+    pub name: Ident,
+    pub id: TyAliasId,
+    pub typ: Type,
+    pub generics: Generics,
+    pub span: Span,
+}
+
+impl std::hash::Hash for TypeAliasTy {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for TypeAliasTy {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl std::fmt::Display for TypeAliasTy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.typ)
+    }
+}
+
+impl TypeAliasTy {
+    pub fn new(
+        id: TyAliasId,
+        name: Ident,
+        span: Span,
+        typ: Type,
+        generics: Generics,
+    ) -> TypeAliasTy {
+        TypeAliasTy { id, typ, name, span, generics }
+    }
+
+    pub fn set_type(&mut self, typ: Type) {
+        assert_eq!(self.typ, Type::Unit);
+        self.typ = typ;
+    }
+
+    // Returns all the fields of this type, after being applied to the given generic arguments.
+    pub fn get_type(&self, generic_args: &[Type]) -> Type {
+        assert_eq!(self.generics.len(), generic_args.len());
+
+        let substitutions = self
+            .generics
+            .iter()
+            .zip(generic_args)
+            .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+            .collect();
+
+        self.typ.substitute(&substitutions)
+    }
+
+    pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
+        let target_id = self.generics[index_of_generic].0;
+        self.typ.contains_numeric_typevar(target_id)
     }
 }
 
@@ -600,6 +672,15 @@ impl Type {
                     }
                 })
             }
+            Type::TypeAlias(struct_type, generics) => {
+                generics.iter().enumerate().any(|(i, generic)| {
+                    if named_generic_id_matches_target(generic) {
+                        struct_type.borrow().generic_is_numeric(i)
+                    } else {
+                        generic.contains_numeric_typevar(target_id)
+                    }
+                })
+            }
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
         }
     }
@@ -638,6 +719,14 @@ impl std::fmt::Display for Type {
                 }
             }
             Type::Struct(s, args) => {
+                let args = vecmap(args, |arg| arg.to_string());
+                if args.is_empty() {
+                    write!(f, "{}", s.borrow())
+                } else {
+                    write!(f, "{}<{}>", s.borrow(), args.join(", "))
+                }
+            }
+            Type::TypeAlias(s, args) => {
                 let args = vecmap(args, |arg| arg.to_string());
                 if args.is_empty() {
                     write!(f, "{}", s.borrow())
@@ -1221,6 +1310,7 @@ impl Type {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
                 AbiType::Struct { fields }
             }
+            Type::TypeAlias(_, _) => todo!("as_abi_type not yet implemented for type alias types"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
@@ -1327,6 +1417,10 @@ impl Type {
                 let args = vecmap(args, |arg| arg.substitute(type_bindings));
                 Type::Struct(fields.clone(), args)
             }
+            Type::TypeAlias(typ, args) => {
+                let args = vecmap(args, |arg| arg.substitute(type_bindings));
+                Type::TypeAlias(typ.clone(), args)
+            }
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
@@ -1365,6 +1459,9 @@ impl Type {
             Type::Slice(element) => element.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
+            Type::TypeAlias(_, generic_args) => {
+                generic_args.iter().any(|arg| arg.occurs(target_id))
+            }
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::PolymorphicInteger(_, binding)
             | Type::NamedGeneric(binding, _)
@@ -1406,6 +1503,10 @@ impl Type {
             Struct(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 Struct(def.clone(), args)
+            }
+            TypeAlias(def, args) => {
+                let args = vecmap(args, |arg| arg.follow_bindings());
+                TypeAlias(def.clone(), args)
             }
             Tuple(args) => Tuple(vecmap(args, |arg| arg.follow_bindings())),
 

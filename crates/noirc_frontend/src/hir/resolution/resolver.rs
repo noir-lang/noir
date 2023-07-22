@@ -22,7 +22,6 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::UnresolvedTypeAlias;
 use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
@@ -35,7 +34,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTyAlias, Path, Pattern,
-    Shared, StructType, Type, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
+    Shared, StructType, Type, TypeAliasTy, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
     UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
@@ -392,12 +391,26 @@ impl<'a> Resolver<'a> {
             }
         }
 
-        // resolve type alias here
+        let span = path.span();
         if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
-            return self.resolve_type_inner(type_alias_type.type_alias_def.ty, new_variables);
+            let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+            let expected_generic_count = type_alias_type.borrow().generics.len();
+
+            if args.len() != expected_generic_count {
+                self.push_err(ResolverError::IncorrectGenericCount {
+                    span,
+                    struct_type: type_alias_type.borrow().to_string(),
+                    actual: args.len(),
+                    expected: expected_generic_count,
+                });
+
+                // Fix the generic count so we can continue typechecking
+                args.resize_with(expected_generic_count, || Type::Error);
+            }
+
+            return Type::TypeAlias(type_alias_type, args);
         }
 
-        let span = path.span();
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
                 let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
@@ -512,10 +525,14 @@ impl<'a> Resolver<'a> {
         self.resolve_type_inner(typ, &mut vec![])
     }
 
-    pub fn resolve_type_aliases(&mut self, unresolved: NoirTyAlias) -> Type {
-        let mut generics = self.add_generics(&unresolved.generics);
+    pub fn resolve_type_aliases(&mut self, unresolved: NoirTyAlias) -> (Type, Generics) {
+        let generics = self.add_generics(&unresolved.generics);
 
-        self.resolve_type_inner(unresolved.ty, &mut generics)
+        self.resolve_local_globals();
+
+        let typ = self.resolve_type(unresolved.ty);
+
+        (typ, generics)
     }
 
     pub fn take_errors(self) -> Vec<ResolverError> {
@@ -796,6 +813,17 @@ impl<'a> Resolver<'a> {
                 Self::find_numeric_generics_in_type(return_type, found);
             }
             Type::Struct(struct_type, generics) => {
+                for (i, generic) in generics.iter().enumerate() {
+                    if let Type::NamedGeneric(type_variable, name) = generic {
+                        if struct_type.borrow().generic_is_numeric(i) {
+                            found.insert(name.to_string(), type_variable.clone());
+                        }
+                    } else {
+                        Self::find_numeric_generics_in_type(generic, found);
+                    }
+                }
+            }
+            Type::TypeAlias(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name) = generic {
                         if struct_type.borrow().generic_is_numeric(i) {
@@ -1166,7 +1194,7 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_type_alias(&self, type_alias_id: TyAliasId) -> UnresolvedTypeAlias {
+    pub fn get_type_alias(&self, type_alias_id: TyAliasId) -> Shared<TypeAliasTy> {
         self.interner.get_type_alias(type_alias_id)
     }
 
@@ -1232,7 +1260,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn lookup_type_alias(&mut self, path: Path) -> Option<UnresolvedTypeAlias> {
+    fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAliasTy>> {
         match self.lookup(path) {
             Ok(type_alias_id) => Some(self.get_type_alias(type_alias_id)),
             Err(_) => None,

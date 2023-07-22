@@ -17,7 +17,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
+use crate::{Shared, TypeAliasTy, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -56,7 +56,7 @@ pub struct NodeInterner {
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    type_aliases: HashMap<TyAliasId, UnresolvedTypeAlias>,
+    type_aliases: HashMap<TyAliasId, Shared<TypeAliasTy>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -330,13 +330,30 @@ impl NodeInterner {
         );
     }
 
+    pub fn push_empty_type_alias(&mut self, type_id: TyAliasId, typ: &UnresolvedTypeAlias) {
+        self.type_aliases.insert(
+            type_id,
+            Shared::new(TypeAliasTy::new(
+                type_id,
+                typ.type_alias_def.name.clone(),
+                typ.type_alias_def.span,
+                Type::Unit,
+                vecmap(&typ.type_alias_def.generics, |_| {
+                    let id = TypeVariableId(0);
+                    (id, Shared::new(TypeBinding::Unbound(id)))
+                }),
+            )),
+        );
+    }
+
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
     }
 
-    pub fn push_type_alias(&mut self, type_id: TyAliasId, typ: UnresolvedTypeAlias) {
-        self.type_aliases.insert(type_id, typ);
+    pub fn update_type_alias(&mut self, type_id: TyAliasId, f: impl FnOnce(&mut TypeAliasTy)) {
+        let mut value = self.type_aliases.get_mut(&type_id).unwrap().borrow_mut();
+        f(&mut value);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -535,7 +552,7 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_type_alias(&self, id: TyAliasId) -> UnresolvedTypeAlias {
+    pub fn get_type_alias(&self, id: TyAliasId) -> Shared<TypeAliasTy> {
         self.type_aliases[&id].clone()
     }
 
@@ -671,6 +688,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
-        | Type::Struct(_, _) => None,
+        | Type::Struct(_, _)
+        | Type::TypeAlias(_, _) => None,
     }
 }
