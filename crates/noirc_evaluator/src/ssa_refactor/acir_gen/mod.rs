@@ -171,7 +171,8 @@ impl Context {
 
         let code = self.gen_brillig_for(main_func, &brillig);
 
-        let output_values = self.acir_context.brillig(None, code, inputs, outputs);
+        let output_values =
+            self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs);
         let output_vars: Vec<_> = output_values
             .iter()
             .flat_map(|value| value.clone().flatten())
@@ -284,7 +285,7 @@ impl Context {
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
 
-                                let output_values = self.acir_context.brillig(Some(self.current_side_effects_enabled_var), code, inputs, outputs);
+                                let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs);
 
                                 // Compiler sanity check
                                 assert_eq!(result_ids.len(), output_values.len(), "ICE: The number of Brillig output values should match the result ids in SSA");
