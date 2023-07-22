@@ -1,3 +1,4 @@
+use dep::std::hash::pedersen_with_separator;
 use crate::context::Context;
 use crate::note::lifecycle::create_note;
 use crate::note::note_getter::get_note;
@@ -30,11 +31,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     }
 
     fn compute_initialisation_nullifier(self) -> Field {
-        let storage_slot = self.storage_slot;
-        dep::std::hash::pedersen([
-            GENERATOR_INDEX__INITIALISATION_NULLIFIER,
-            storage_slot,
-        ])[0]
+        pedersen_with_separator([self.storage_slot], GENERATOR_INDEX__INITIALISATION_NULLIFIER)[0]
     }
     
     fn get_note(self, mut context: Context) -> (Context, Note) {

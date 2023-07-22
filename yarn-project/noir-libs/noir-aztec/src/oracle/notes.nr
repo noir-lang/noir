@@ -55,37 +55,12 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     get_notes_oracle(storage_slot, sort_by, sort_order, limit, offset, return_size, fields)
 }
 
-// TODO: The following functions should all be unconstrained.
-
-fn get_note<Note, N, NS>(
+// TODO: Should be unconstrained.
+fn get_notes<Note, N, M, S, NS>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
-    zero_fields: [Field; NS],
-) -> Note {
-    let fields = get_notes_oracle_wrapper(storage_slot, [], [], 1, 0, zero_fields);
-    let has_note = fields[0] == 1;
-    let contract_address = fields[1];
-    if (has_note) {
-        let contract_address = fields[1];
-        let nonce = fields[2];
-        let header = NoteHeader { contract_address, nonce, storage_slot };
-
-        let deserialise = note_interface.deserialise;
-        let note = deserialise(arr_copy_slice(fields, [0; N], 3));
-
-        let set_header = note_interface.set_header;
-        set_header(note, header)
-    } else {
-        let dummy = note_interface.dummy;
-        dummy()
-    }
-}
-
-fn get_notes<Note, N, S, NS>(
-    storage_slot: Field,
-    note_interface: NoteInterface<Note, N>,
-    sort_by: [u8; N],
-    sort_order: [u8; N],
+    sort_by: [u8; M],
+    sort_order: [u8; M],
     limit: u32,
     offset: u32,
     mut notes: [Note; S], // TODO: Remove it and use `limit` to initialise the note array.

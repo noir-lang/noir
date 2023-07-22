@@ -27,7 +27,7 @@ impl<Note, N> Set<Note, N> {
         create_commitment(note_hash);
     }
 
-    fn has(self, context: Context, note: Note) -> (Context, Note) {
+    fn assert_contains(self, context: Context, note: Note) -> (Context, Note) {
         ensure_note_exists(context, self.storage_slot, self.note_interface, note)
     }
 

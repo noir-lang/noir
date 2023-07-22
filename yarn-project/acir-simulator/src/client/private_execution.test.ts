@@ -343,27 +343,23 @@ describe('Private Execution test suite', () => {
     });
 
     it('Should be able to claim a note by providing the correct secret', async () => {
-      const contractAddress = AztecAddress.random();
       const amount = 100n;
       const secret = Fr.random();
       const abi = ZkTokenContractAbi.functions.find(f => f.name === 'claim')!;
       const storageSlot = new Fr(2n);
+      const nonce = Fr.ZERO;
 
       oracle.getNotes.mockResolvedValue([
         {
           contractAddress,
           storageSlot,
-          nonce: Fr.ZERO,
+          nonce,
           preimage: [new Fr(amount), secret],
-          index: BigInt(1),
+          index: 1n,
         },
       ]);
 
-      const customNoteHash = hash([toBufferBE(amount, 32), secret.toBuffer()]);
-      const innerNoteHash = Fr.fromBuffer(hash([storageSlot.toBuffer(), customNoteHash]));
-
       const result = await runSimulator({
-        origin: contractAddress,
         abi,
         args: [amount, secret, recipient],
       });
@@ -374,7 +370,8 @@ describe('Private Execution test suite', () => {
 
       // Check the read request was inserted successfully.
       const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
-      const nonce = Fr.ZERO;
+      const customNoteHash = hash([toBufferBE(amount, 32), secret.toBuffer()]);
+      const innerNoteHash = Fr.fromBuffer(hash([storageSlot.toBuffer(), customNoteHash]));
       const uniqueNoteHash = computeUniqueCommitment(circuitsWasm, nonce, innerNoteHash);
       expect(readRequests).toEqual([uniqueNoteHash]);
     });

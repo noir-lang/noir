@@ -102,7 +102,6 @@ export class NoteProcessor {
           indexOfTxInABlock * MAX_NEW_COMMITMENTS_PER_TX,
           (indexOfTxInABlock + 1) * MAX_NEW_COMMITMENTS_PER_TX,
         );
-        let commitmentStartIndex = 0;
         // Note: Each tx generates a `TxL2Logs` object and for this reason we can rely on its index corresponding
         //       to the index of a tx in a block.
         const txFunctionLogs = txLogs[indexOfTxInABlock].functionLogs;
@@ -118,7 +117,6 @@ export class NoteProcessor {
               userPertainingTxIndices.add(indexOfTxInABlock);
               const { index, nonce, nullifier } = await this.findNoteIndexAndNullifier(
                 dataStartIndexForTx,
-                commitmentStartIndex,
                 newCommitments,
                 newNullifiers[0],
                 noteSpendingInfo,
@@ -130,10 +128,6 @@ export class NoteProcessor {
                 nullifier,
                 publicKey: this.publicKey,
               });
-              // Since the order of the logs are always aligned with the order of their corresponding commitments,
-              // we can assume the log we will be processing next belongs to either the commitment for the current log,
-              // or one of the commitments after the current one.
-              commitmentStartIndex = Number(index) - dataStartIndexForTx;
             }
           }
         }
@@ -160,7 +154,6 @@ export class NoteProcessor {
    * contract address, and note preimage associated with the noteSpendingInfo.
    * This method assists in identifying spent commitments in the private state.
    * @param dataStartIndex - First index of the commitments in the tx in the private data tree.
-   * @param commitmentStartIndex - Index of the commitment in the tx this function should start checking.
    * @param commitments - Commitments in the tx. One of them should be the note's commitment.
    * @param firstNullifier - First nullifier in the tx.
    * @param noteSpendingInfo - An instance of NoteSpendingInfo containing transaction details.
@@ -168,15 +161,14 @@ export class NoteProcessor {
    */
   private async findNoteIndexAndNullifier(
     dataStartIndex: number,
-    commitmentStartIndex: number,
     commitments: Fr[],
     firstNullifier: Fr,
     { contractAddress, storageSlot, notePreimage }: NoteSpendingInfo,
   ) {
     const wasm = await CircuitsWasm.get();
+    let commitmentIndex = 0;
     let nonce: Fr | undefined;
     let innerNullifier: Fr | undefined;
-    let commitmentIndex = commitmentStartIndex;
     for (; commitmentIndex < commitments.length; ++commitmentIndex) {
       const commitment = commitments[commitmentIndex];
       if (commitment.equals(Fr.ZERO)) break;

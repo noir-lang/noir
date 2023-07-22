@@ -140,7 +140,7 @@ contract ZkToken {
 
         // Remove the claim note if it exists in the set.
         let mut note = ClaimNote::new(amount, secret);
-        let (new_context, note_with_header) = storage.claims.has(context, note);
+        let (new_context, note_with_header) = storage.claims.assert_contains(context, note);
         context = new_context;
         note = note_with_header;
         context = storage.claims.remove(context, note);

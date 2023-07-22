@@ -161,7 +161,6 @@ struct PrivateCircuitPublicInputs {
     private_call_stack: [Field; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],
     public_call_stack: [Field; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],
     new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
-    // TODO #588, relevant issue: https://github.com/AztecProtocol/aztec-packages/issues/588
     // Explore introducing a new type like uint256 (similar to Point), so it's more explicit that
     // we're talking about a single number backed by two field elements.
     encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
