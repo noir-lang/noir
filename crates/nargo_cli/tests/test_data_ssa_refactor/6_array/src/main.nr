@@ -50,4 +50,9 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
             assert(x_elem != y_elem);
         }
     }
+
+    // Test 7: Arrays of tuples/structs
+    let mut tuple_array = [(1, 2), (3, 4), (5, 6)];
+    tuple_array[1] = (7, 8);
+    assert(tuple_array[1].1 == 8);
 }

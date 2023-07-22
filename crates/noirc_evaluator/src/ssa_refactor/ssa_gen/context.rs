@@ -558,10 +558,20 @@ impl<'a> FunctionContext<'a> {
     pub(super) fn assign_new_value(&mut self, lvalue: LValue, new_value: Values) {
         match lvalue {
             LValue::Ident(references) => self.assign(references, new_value),
-            LValue::Index { old_array, index, array_lvalue } => {
-                let rvalue = new_value.into_leaf().eval(self); // TODO
-                let new_array = self.builder.insert_array_set(old_array, index, rvalue);
-                self.assign_new_value(*array_lvalue, new_array.into());
+            LValue::Index { old_array: mut array, index, array_lvalue } => {
+                let element_size = self.builder.field_constant(self.element_size(array));
+
+                // The actual base index is the user's index * the array element type's size
+                let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
+                let one = self.builder.field_constant(FieldElement::one());
+
+                new_value.for_each(|value| {
+                    let value = value.eval(self);
+                    array = self.builder.insert_array_set(array, index, value);
+                    index = self.builder.insert_binary(index, BinaryOp::Add, one);
+                });
+
+                self.assign_new_value(*array_lvalue, array.into());
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
                 let new_object = Self::replace_field(old_object, index, new_value);
@@ -570,6 +580,13 @@ impl<'a> FunctionContext<'a> {
             LValue::Dereference { reference } => {
                 self.assign(reference, new_value);
             }
+        }
+    }
+
+    fn element_size(&self, array: ValueId) -> FieldElement {
+        match self.builder.type_of_value(array) {
+            Type::Array(elements, _) | Type::Slice(elements) => (elements.len() as u128).into(),
+            t => panic!("Uncaught type error: tried to take element size of non-array type {t}"),
         }
     }
 

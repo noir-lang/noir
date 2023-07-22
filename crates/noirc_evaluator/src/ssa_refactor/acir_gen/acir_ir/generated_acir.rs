@@ -748,7 +748,7 @@ impl GeneratedAcir {
         let (q_witness, r_witness) = self.quotient_directive(
             comparison_evaluation.clone(),
             two_max_bits.into(),
-            Some(predicate),
+            Some(predicate.clone()),
             q_max_bits,
             r_max_bits,
         )?;
@@ -773,10 +773,17 @@ impl GeneratedAcir {
         // - 2^{max_bits} - k == q * 2^{max_bits} + r
         // - This is only the case when q == 0 and r == 2^{max_bits} - k
         //
+        // case: predicate is zero
+        // The values for q and r will be zero for a honest prover and
+        // can be garbage for a dishonest prover. The below constraint will
+        // will be switched off.
         let mut expr = Expression::default();
         expr.push_addition_term(two_max_bits, q_witness);
         expr.push_addition_term(FieldElement::one(), r_witness);
-        self.push_opcode(AcirOpcode::Arithmetic(&comparison_evaluation - &expr));
+
+        let equation = &comparison_evaluation - &expr;
+        let predicated_equation = self.mul_with_witness(&equation, &predicate);
+        self.push_opcode(AcirOpcode::Arithmetic(predicated_equation));
 
         Ok(q_witness)
     }
