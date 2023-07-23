@@ -84,6 +84,8 @@ pub fn resolve_path_to_ns(
     allow_contracts: bool,
 ) -> PathResolution {
     let import_path = &import_directive.path.segments;
+    println!("path_to_ns = {:?}", &import_path);
+    println!("directive = {:?}", &import_directive);
 
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
@@ -138,13 +140,13 @@ fn resolve_name_in_module(
     if current_ns.is_none() {
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
-
+    
     for segment in import_path {
         let typ = match current_ns.take_types() {
             None => return Err(PathResolutionError::Unresolved(segment.clone())),
             Some(typ) => typ,
         };
-
+        
         // In the type namespace, only Mod can be used in a path.
         let new_module_id = match typ {
             ModuleDefId::ModuleId(id) => id,
@@ -155,20 +157,25 @@ fn resolve_name_in_module(
             ModuleDefId::InterfaceId(id) => id.0,
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
-
+        
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
+        
 
         // Check if namespace
         let found_ns = current_mod.find_name(segment);
+        println!("segment = {:?} found = {}", &segment, !found_ns.is_none());
+        if segment.0.contents == "default".to_string() {
+            println!("\n {:?}", &current_mod);
+        }
         if found_ns.is_none() {
             return Err(PathResolutionError::Unresolved(segment.clone()));
         }
-
+        println!("checkpoint 3");
         // Check if it is a contract and we're calling from a non-contract context
         if current_mod.is_contract && !allow_contracts {
             return Err(PathResolutionError::ExternalContractUsed(segment.clone()));
         }
-
+        println!("checkpoint 4 ");
         current_ns = found_ns;
     }
 

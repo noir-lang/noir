@@ -62,6 +62,7 @@ impl ModuleData {
     }
 
     pub fn declare_struct(&mut self, name: Ident, id: StructId) -> Result<(), (Ident, Ident)> {
+        println!("Declare struct = {:?}", &name);
         self.declare(name, ModuleDefId::TypeId(id))
     }
 
@@ -75,6 +76,7 @@ impl ModuleData {
     }
 
     pub fn declare_trait(&mut self, name: Ident, id: TraitId) -> Result<(), (Ident, Ident)> {
+        println!("Declare trait = {:?}", &name);
         self.declare(name, ModuleDefId::InterfaceId(id))
     }
 

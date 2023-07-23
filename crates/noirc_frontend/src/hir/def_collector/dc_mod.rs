@@ -3,8 +3,8 @@ use noirc_errors::FileDiagnostic;
 
 use crate::{
     graph::CrateId, hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait}, node_interner::{StructId, TraitId},
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule, NoirTrait,
-    TypeImpl,
+    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule, NoirTrait, TraitImpl,
+    TypeImpl, TraitImplItem,
 };
 
 use super::{
@@ -62,6 +62,8 @@ pub fn collect_defs(
 
     collector.collect_functions(context, ast.functions, errors);
 
+    collector.collect_trait_impls(context, ast.trait_impls);
+
     collector.collect_impls(context, ast.impls);
 }
 
@@ -111,6 +113,29 @@ impl<'a> ModCollector<'a> {
             let key = (r#impl.object_type, self.module_id);
             let methods = self.def_collector.collected_impls.entry(key).or_default();
             methods.push((r#impl.generics, r#impl.type_span, unresolved_functions));
+        }
+    }
+
+    fn collect_trait_impls(&mut self, context: &mut Context, impls: Vec<TraitImpl>) {
+        for r#impl in impls {
+            let mut unresolved_functions =
+                UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
+
+            for item in r#impl.items {
+                match  item {
+                    TraitImplItem::Function(method) => {
+                        let func_id = context.def_interner.push_empty_fn();
+                        context.def_interner.push_function_definition(method.name().to_owned(), func_id);
+                        unresolved_functions.push_fn(self.module_id, func_id, method);
+                    }
+                    _ => { }
+                
+                }
+            }
+
+            let key = (r#impl.object_type, self.module_id);
+            let methods = self.def_collector.collected_impls.entry(key).or_default();
+            methods.push((r#impl.impl_generics, r#impl.object_type_span, unresolved_functions));
         }
     }
 

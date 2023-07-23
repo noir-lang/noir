@@ -1,6 +1,6 @@
 use dep::std;
 
-trait Animal {
+trait Default {
     fn default(x: Field, y: Field) -> Self;
 }
 
@@ -10,7 +10,7 @@ struct Foo {
 }
 
 
-impl Animal for Foo {
+impl Default for Foo {
     fn default(x: Field,y: Field) -> Self {
         Self { bar: 0, array: [x,y] }
     }
@@ -18,5 +18,5 @@ impl Animal for Foo {
 
 fn main(x: Field, y: Field) {
     let first = Foo::default(x,y);
-    assert(first == x);
+    assert(first.bar == x);
 }

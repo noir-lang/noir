@@ -21,6 +21,7 @@ impl ItemScope {
         name: Ident,
         mod_def: ModuleDefId,
     ) -> Result<(), (Ident, Ident)> {
+        println!("Adding name = {:?} mod_def = {:?}", &name, &mod_def);
         self.add_item_to_namespace(name, mod_def)?;
         self.defs.push(mod_def);
         Ok(())

@@ -105,7 +105,6 @@ impl DefCollector {
         root_file_id: FileId,
         errors: &mut Vec<FileDiagnostic>,
     ) {
-        println!("\n Hohoh");
         let crate_id = def_map.krate;
 
         // Recursively resolve the dependencies
@@ -367,8 +366,8 @@ fn resolve_structs(
 fn resolve_traits(
     context: &mut Context,
     traits: HashMap<TraitId, UnresolvedTrait>,
-    crate_id: CrateId,
-    errors: &mut Vec<FileDiagnostic>,
+    _crate_id: CrateId,
+    _errors: &mut Vec<FileDiagnostic>,
 ) {
     // We must first go through the struct list once to ensure all IDs are pushed to
     // the def_interner map. This lets structs refer to each other regardless of declaration order
@@ -457,7 +456,6 @@ fn resolve_impls(
                 generics,
                 errors,
             );
-
             if self_type != Type::Error {
                 for (file_id, method_id) in &file_func_ids {
                     let method_name = interner.function_name(method_id).to_owned();
