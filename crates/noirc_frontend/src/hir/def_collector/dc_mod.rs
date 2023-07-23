@@ -62,7 +62,7 @@ pub fn collect_defs(
 
     collector.collect_functions(context, ast.functions, errors);
 
-    collector.collect_trait_impls(context, ast.trait_impls);
+    collector.collect_trait_impls(context, ast.trait_impls, errors);
 
     collector.collect_impls(context, ast.impls);
 }
@@ -116,17 +116,17 @@ impl<'a> ModCollector<'a> {
         }
     }
 
-    fn collect_trait_impls(&mut self, context: &mut Context, impls: Vec<TraitImpl>) {
+    fn collect_trait_impls(&mut self, context: &mut Context, impls: Vec<TraitImpl>, errors: &mut Vec<FileDiagnostic>,) {
         for r#impl in impls {
             let mut unresolved_functions =
                 UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
 
             for item in r#impl.items {
                 match  item {
-                    TraitImplItem::Function(method) => {
+                    TraitImplItem::Function(noir_function) => {
                         let func_id = context.def_interner.push_empty_fn();
-                        context.def_interner.push_function_definition(method.name().to_owned(), func_id);
-                        unresolved_functions.push_fn(self.module_id, func_id, method);
+                        context.def_interner.push_function_definition(noir_function.name().to_owned(), func_id);
+                        unresolved_functions.push_fn(self.module_id, func_id, noir_function);
                     }
                     _ => { }
                 
