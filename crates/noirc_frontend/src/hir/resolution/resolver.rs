@@ -205,8 +205,6 @@ impl<'a> Resolver<'a> {
         warn_if_unused: bool,
         definition: DefinitionKind,
     ) -> HirIdent {
-        let allow_shadowing = allow_shadowing || &name == "_";
-
         if definition.is_global() {
             return self.add_global_variable_decl(name, definition);
         }
@@ -952,7 +950,7 @@ impl<'a> Resolver<'a> {
                     let decl = this.add_variable_decl(
                         identifier,
                         false,
-                        false,
+                        true,
                         DefinitionKind::Local(None),
                     );
                     (decl, this.resolve_expression(block))
@@ -1053,7 +1051,7 @@ impl<'a> Resolver<'a> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let id = self.add_variable_decl(name, mutable.is_some(), false, definition);
+                let id = self.add_variable_decl(name, mutable.is_some(), true, definition);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -1524,6 +1522,25 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let _z = foo(x);
+            }
+
+            fn foo(x : Field) -> Field {
+                x
+            }
+        "#;
+
+        let errors = resolve_src_code(src, vec!["main", "foo"]);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn resolve_shadowing() {
+        let src = r#"
+            fn main(x : Field) {
+                let x = foo(x);
+                let x = x;
+                let (x, x) = (x, x);
+                let _ = x;
             }
 
             fn foo(x : Field) -> Field {
