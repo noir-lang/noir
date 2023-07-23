@@ -53,11 +53,14 @@ fn check_from_path<B: Backend>(
         let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
         let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
 
-        let prover_toml = create_input_toml_template(parameters.clone(), None);
-        write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
-        let public_inputs = parameters.into_iter().filter(|param| param.is_public()).collect();
-        let verifier_toml = create_input_toml_template(public_inputs, return_type);
-        write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
+        if !compile_options.preserve {
+            let prover_toml = create_input_toml_template(parameters.clone(), None);
+            write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+    
+            let public_inputs = parameters.into_iter().filter(|param| param.is_public()).collect();
+            let verifier_toml = create_input_toml_template(public_inputs, return_type);
+            write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
+        }
     } else {
         // This means that this is a library. Libraries do not have ABIs.
     }

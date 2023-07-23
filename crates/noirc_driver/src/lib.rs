@@ -43,6 +43,10 @@ pub struct CompileOptions {
     /// Compile and optimize using the new experimental SSA pass
     #[arg(long)]
     pub experimental_ssa: bool,
+
+    /// Preserve the current Prover.toml and Verifier.toml file when running check.
+    #[arg(long)]
+    pub preserve: bool,
 }
 
 impl Default for CompileOptions {
@@ -53,6 +57,7 @@ impl Default for CompileOptions {
             deny_warnings: false,
             show_output: true,
             experimental_ssa: false,
+            preserve: false,
         }
     }
 }
