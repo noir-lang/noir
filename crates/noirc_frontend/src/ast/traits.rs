@@ -76,6 +76,7 @@ pub struct TraitConstraint {
 #[derive(Clone, Debug)]
 pub enum TraitImplItem {
     Function(NoirFunction),
+    Constant(Ident, UnresolvedType, Expression),
     Type { name: Ident, alias: UnresolvedType },
 }
 
@@ -189,7 +190,9 @@ impl Display for TraitImplItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TraitImplItem::Function(function) => function.fmt(f),
-            TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias}"),
+            TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias};"),
+            // TODO: Should we use `comptime` or `const` here?
+            TraitImplItem::Constant(name, typ, value) => write!(f, "comptime {}: {} = {};", name, typ, value),
         }
     }
 }

@@ -51,8 +51,10 @@ pub enum Type {
     /// represents the generic arguments (if any) to this struct type.
     Struct(Shared<StructType>, Vec<Type>),
 
-    
-    Trait(Shared<TraitType>),
+    /// A user-defined trait type. The `Shared<TraitType>` field here refers to
+    /// the shared definition for each instance of this trait type. The `Vec<Type>`
+    /// represents the generic arguments (if any) to this trait type.
+    Trait(Shared<TraitType>, Vec<Type>),
 
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
@@ -127,20 +129,46 @@ pub struct StructType {
     pub span: Span,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum TraitItemType {
+    /// A function declaration in a trait.
+    Function {
+        name: Ident,
+        generics: Generics,
+        arguments: Vec<Type>,
+        return_type: Type,
+        span: Span,
+    },
 
-// Represents a struct type in the type system. Each instance of this
-/// rust struct will be shared across all Type::Struct variants that represent
-/// the same struct type.
+    /// A constant declaration in a trait.
+    Constant {
+        name: Ident,
+        ty: Type,
+        span: Span,
+    },
+
+    /// A type declaration in a trait.
+    Type {
+        name: Ident,
+        ty: Type,
+        span: Span,
+    },
+}
+/// Represents a trait type in the type system. Each instance of this
+/// rust struct will be shared across all Type::Trait variants that represent
+/// the same trait type.
 #[derive(Debug, Eq)]
 pub struct TraitType {
     /// A unique id representing this struct type. Used to check if two
     /// struct types are equal.
     pub id: TraitId,
 
+    items: Vec<TraitItemType>,
+
     pub name: Ident,
+    pub generics: Generics,
     pub span: Span,
 }
-
 
 /// Corresponds to generic lists such as `<T, U>` in the source
 /// program. The `TypeVariableId` portion is used to match two
@@ -177,8 +205,10 @@ impl TraitType {
         id: TraitId,
         name: Ident,
         span: Span,
+        items: Vec<TraitItemType>,
+        generics: Generics,
       ) -> TraitType {
-        TraitType { id, name, span}
+        TraitType { id, name, span, items, generics }
     }
 }
 
@@ -730,8 +760,8 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::Forall(_, _)
-            | Type::Trait(_) => false,
+            | Type::Trait(..)
+            | Type::Forall(_, _) => false,
 
             Type::Array(length, elem) => {
                 elem.contains_numeric_typevar(target_id) || named_generic_id_matches_target(length)
@@ -752,6 +782,10 @@ impl Type {
                         generic.contains_numeric_typevar(target_id)
                     }
                 })
+            }
+            Type::Trait(trait_type, generics) => {
+                // TODO: Implement this
+                false
             }
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
             Type::String(length) => named_generic_id_matches_target(length),
@@ -819,8 +853,14 @@ impl std::fmt::Display for Type {
                     write!(f, "{}<{}>", s.borrow(), args.join(", "))
                 }
             }
-            Type::Trait(s) => {
-                write!(f, "{}", s.borrow())
+            Type::Trait(s, args) => {
+                // TODO: Extract this into a shared helper for traits and structs
+                let args = vecmap(args, |arg| arg.to_string());
+                if args.is_empty() {
+                    write!(f, "{}", s.borrow())
+                } else {
+                    write!(f, "{}<{}>", s.borrow(), args.join(", "))
+                }
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -1547,7 +1587,7 @@ impl Type {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
                 AbiType::Struct { fields }
             }
-            Type::Trait(_) => unreachable!(),
+            Type::Trait(_, _) => unreachable!("traits cannot be used in the abi"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
@@ -1654,6 +1694,12 @@ impl Type {
                 let args = vecmap(args, |arg| arg.substitute(type_bindings));
                 Type::Struct(fields.clone(), args)
             }
+            Type::Trait(items, args) => {
+                let args = vecmap(args, |arg| arg.substitute(type_bindings));
+                // TODO: Don't we need to substitute any reference to the generic parameters within the
+                //       items as well here? How does it work for structs?
+                Type::Trait(items.clone(), args)
+            }
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
@@ -1683,7 +1729,7 @@ impl Type {
             | Type::Error
             | Type::NotConstant
             | Type::Unit 
-            | Type::Trait(_) => self.clone(),
+            | Type::Trait(..) => self.clone(),
         }
     }
 
@@ -1698,6 +1744,7 @@ impl Type {
                 len_occurs || field_occurs
             }
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
+            Type::Trait(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
                 match &*binding.borrow() {
@@ -1720,7 +1767,8 @@ impl Type {
             | Type::Error
             | Type::NotConstant
             | Type::Unit 
-            | Type::Trait(_) => false,
+            | Type::Trait(..) => false,
+            
         }
     }
 

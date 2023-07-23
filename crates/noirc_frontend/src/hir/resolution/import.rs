@@ -55,7 +55,7 @@ pub fn resolve_imports(
     def_maps: &HashMap<CrateId, CrateDefMap>,
 ) -> (Vec<ResolvedImport>, Vec<(PathResolutionError, LocalModuleId)>) {
     let def_map = &def_maps[&crate_id];
-    
+
     partition_results(imports_to_resolve, |import_directive| {
         let allow_contracts =
             allow_referencing_contracts(def_maps, crate_id, import_directive.module_id);
@@ -140,13 +140,13 @@ fn resolve_name_in_module(
     if current_ns.is_none() {
         return Err(PathResolutionError::Unresolved(first_segment.clone()));
     }
-    
+
     for segment in import_path {
         let typ = match current_ns.take_types() {
             None => return Err(PathResolutionError::Unresolved(segment.clone())),
             Some(typ) => typ,
         };
-        
+
         // In the type namespace, only Mod can be used in a path.
         let new_module_id = match typ {
             ModuleDefId::ModuleId(id) => id,
@@ -154,12 +154,12 @@ fn resolve_name_in_module(
             // TODO: If impls are ever implemented, types can be used in a path
             ModuleDefId::TypeId(id) => id.0,
             ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
-            ModuleDefId::InterfaceId(id) => id.0,
+            ModuleDefId::TraitId(id) => id.0,
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
-        
+
         current_mod = &def_maps[&new_module_id.krate].modules[new_module_id.local_id.0];
-        
+
 
         // Check if namespace
         let found_ns = current_mod.find_name(segment);

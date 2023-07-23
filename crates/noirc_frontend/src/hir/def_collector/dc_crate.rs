@@ -47,7 +47,6 @@ pub struct UnresolvedTrait {
     pub trait_def: NoirTrait,
 }
 
-
 #[derive(Clone)]
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
@@ -361,8 +360,8 @@ fn resolve_structs(
     }
 }
 
-/// Create the mappings from TypeId -> StructType
-/// so that expressions can access the fields of structs
+/// Create the mappings from TypeId -> TraitType
+/// so that expressions can access the elements of traits
 fn resolve_traits(
     context: &mut Context,
     traits: HashMap<TraitId, UnresolvedTrait>,

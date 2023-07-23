@@ -23,8 +23,6 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
-use std::process::Command;
-
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
@@ -42,7 +40,6 @@ use crate::{
     TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
-use chumsky::chain::Chain;
 use chumsky::prelude::*;
 use iter_extended::vecmap;
 use noirc_abi::{AbiDistinctness, AbiVisibility};

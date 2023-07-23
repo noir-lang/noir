@@ -332,12 +332,18 @@ impl NodeInterner {
                 type_id,
                 typ.trait_def.name.clone(),
                 typ.trait_def.span,
-                //typ.trait_def.items,
+                Vec::new(),
+                vecmap(&typ.trait_def.generics, |_| {
+                    // Temporary type variable ids before the trait is resolved to its actual ids.
+                    // This lets us record how many arguments the type expects so that other types
+                    // can refer to it with generic arguments before the generic parameters themselves
+                    // are resolved.
+                    let id = TypeVariableId(0);
+                    (id, Shared::new(TypeBinding::Unbound(id)))
+                }),
             )),
         );
     }
-
-
 
     pub fn push_empty_struct(&mut self, type_id: StructId, typ: &UnresolvedStruct) {
         self.structs.insert(
@@ -723,6 +729,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::NotConstant
         | Type::Struct(_, _)
         | Type::FmtString(_, _) 
-        | Type::Trait(_) => None,
+        | Type::Struct(_, _)
+        | Type::Trait(_, _) => None,
     }
 }

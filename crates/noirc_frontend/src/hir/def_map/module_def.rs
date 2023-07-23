@@ -10,7 +10,7 @@ pub enum ModuleDefId {
     FunctionId(FuncId),
     TypeId(StructId),
     TypeAliasId(TypeAliasId),
-    InterfaceId(TraitId),
+    TraitId(TraitId),
     GlobalId(StmtId),
 }
 
@@ -38,7 +38,7 @@ impl ModuleDefId {
 
     pub fn as_trait(&self) -> Option<TraitId> {
         match self {
-            ModuleDefId::InterfaceId(trait_id) => Some(*trait_id),
+            ModuleDefId::TraitId(trait_id) => Some(*trait_id),
             _ => None,
         }
     }
@@ -57,7 +57,7 @@ impl ModuleDefId {
             ModuleDefId::FunctionId(_) => "function",
             ModuleDefId::TypeId(_) => "type",
             ModuleDefId::TypeAliasId(_) => "type alias",
-            ModuleDefId::InterfaceId(_) => "trait",
+            ModuleDefId::TraitId(_) => "trait",
             ModuleDefId::ModuleId(_) => "module",
             ModuleDefId::GlobalId(_) => "global",
         }
@@ -148,7 +148,7 @@ impl TryFromModuleDefId for TraitId {
     }
 
     fn description() -> String {
-        "interface".to_string()
+        "trait".to_string()
     }
 }
 

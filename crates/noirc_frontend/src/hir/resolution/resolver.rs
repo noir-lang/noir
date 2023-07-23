@@ -823,8 +823,8 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::Forall(_, _) 
-            | Type::Trait(_) => (),
+            | Type::Trait(..)
+            | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
@@ -854,6 +854,9 @@ impl<'a> Resolver<'a> {
                         Self::find_numeric_generics_in_type(generic, found);
                     }
                 }
+            }
+            Type::Trait(trait_type, generics) => {
+                // TODO: Implement this
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
@@ -1643,7 +1646,7 @@ mod test {
                 x
             }
         "#;
-        
+
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         assert!(errors.is_empty());
     }
@@ -1702,17 +1705,17 @@ mod test {
 
     fn resolve_struct_method_call_expr() {
         let src = r#"
-        
+
         struct Foo {
             bar: Field
         }
-        
+
         impl Foo {
             fn default(x: Field,_y: Field) -> Self {
                 Self { bar: x }
             }
         }
-        
+
         fn main(x: Field, y: Field) {
             let _foo = Foo::default(x,y);
         }

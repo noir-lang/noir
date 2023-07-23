@@ -10,6 +10,8 @@ use thiserror::Error;
 pub enum DefCollectorErrorKind {
     #[error("duplicate function found in namespace")]
     DuplicateFunction { first_def: Ident, second_def: Ident },
+    #[error("duplicate type definition found in namespace")]
+    DuplicateTypeDef { first_def: Ident, second_def: Ident },
     #[error("duplicate function found in namespace")]
     DuplicateModuleDecl { first_def: Ident, second_def: Ident },
     #[error("duplicate import")]
@@ -40,6 +42,19 @@ impl From<DefCollectorErrorKind> for Diagnostic {
 
                 let mut diag = Diagnostic::simple_error(
                     format!("duplicate definitions of {func_name} function found"),
+                    "first definition found here".to_string(),
+                    first_span,
+                );
+                diag.add_secondary("second definition found here".to_string(), second_span);
+                diag
+            }
+            DefCollectorErrorKind::DuplicateTypeDef { first_def, second_def } => {
+                let first_span = first_def.0.span();
+                let second_span = second_def.0.span();
+                let func_name = &first_def.0.contents;
+
+                let mut diag = Diagnostic::simple_error(
+                    format!("duplicate definitions of {func_name} type found"),
                     "first definition found here".to_string(),
                     first_span,
                 );

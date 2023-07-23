@@ -122,14 +122,19 @@ impl<'a> ModCollector<'a> {
                 UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
 
             for item in r#impl.items {
-                match  item {
+                match item {
                     TraitImplItem::Function(noir_function) => {
                         let func_id = context.def_interner.push_empty_fn();
                         context.def_interner.push_function_definition(noir_function.name().to_owned(), func_id);
                         unresolved_functions.push_fn(self.module_id, func_id, noir_function);
+
                     }
-                    _ => { }
-                
+                    TraitImplItem::Constant(_name, _typ, _value) => {
+                        // TODO: Implement this
+                    }
+                    TraitImplItem::Type { name: _, alias: _} => {
+                        // TODO: Implement this
+                    },
                 }
             }
 
@@ -199,7 +204,7 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_struct(name, id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let err = DefCollectorErrorKind::DuplicateTypeDef { first_def, second_def };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -263,11 +268,17 @@ impl<'a> ModCollector<'a> {
                 None => continue,
             };
 
-            // Add the struct to scope so its path can be looked up later
+            // Add the trait to scope so its path can be looked up later
             let result =
                 self.def_collector.def_map.modules[self.module_id.0].declare_trait(name, id);
-                            // And store the TypeId -> StructType mapping somewhere it is reachable
+                            
 
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::DuplicateTypeDef { first_def, second_def };
+                errors.push(err.into_file_diagnostic(self.file_id));
+            }
+
+            // And store the TypeId -> TraitType mapping somewhere it is reachable
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
                 module_id: self.module_id,

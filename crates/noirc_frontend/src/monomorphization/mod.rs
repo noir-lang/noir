@@ -652,7 +652,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(fields)
             }
 
-            HirType::Trait(def) => {
+            HirType::Trait(def, _args) => {
                 unreachable!("Not sure what to do here def = {:?}", def)
             }
 
