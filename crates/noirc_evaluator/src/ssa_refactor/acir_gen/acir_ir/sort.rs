@@ -82,7 +82,7 @@ impl GeneratedAcir {
     ///
     /// (1) is because an Expression can hold at most a degree-2 univariate polynomial
     /// which is what you get when you multiply two degree-1 univariate polynomials.
-    fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
+    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
         use std::borrow::Cow;
         let lhs_is_linear = lhs.is_linear();
         let rhs_is_linear = rhs.is_linear();

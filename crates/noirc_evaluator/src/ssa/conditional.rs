@@ -464,7 +464,7 @@ impl DecisionTree {
         ctx: &mut SsaContext,
         stack: &mut StackFrame,
         condition: NodeId,
-        error_msg: &str,
+        error_kind: RuntimeErrorKind,
         location: Option<Location>,
     ) -> Result<(), RuntimeError> {
         if ctx.under_assumption(condition) {
@@ -493,10 +493,7 @@ impl DecisionTree {
             stack.push(ins2);
             Ok(())
         } else {
-            Err(RuntimeError {
-                location,
-                kind: RuntimeErrorKind::UnstructuredError { message: error_msg.to_string() },
-            })
+            Err(RuntimeError { location, kind: error_kind })
         }
     }
 
@@ -569,12 +566,12 @@ impl DecisionTree {
                 Operation::Load { array_id, index, location } => {
                     if let Some(idx) = ctx.get_as_constant(*index) {
                         if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
-                            let error = format!(
-                                "index out of bounds: the len is {} but the index is {}",
-                                ctx.mem[*array_id].len,
-                                idx.to_u128()
-                            );
-                            DecisionTree::short_circuit(ctx, stack, ass_value, &error, *location)?;
+                            let error = RuntimeErrorKind::IndexOutOfBounds {
+                                index: ctx.mem[*array_id].len,
+                                bound: idx.to_u128(),
+                            };
+
+                            DecisionTree::short_circuit(ctx, stack, ass_value, error, *location)?;
                             return Ok(false);
                         }
                     } else {
@@ -647,7 +644,7 @@ impl DecisionTree {
                                 ctx,
                                 stack,
                                 cond,
-                                "attempt to divide by zero",
+                                RuntimeErrorKind::DivisionByZero,
                                 location,
                             )?;
                             return Ok(false);
@@ -667,13 +664,12 @@ impl DecisionTree {
                     if !ins.operation.is_dummy_store() {
                         if let Some(idx) = ctx.get_as_constant(*index) {
                             if (idx.to_u128() as u32) >= ctx.mem[*array_id].len {
-                                let error = format!(
-                                    "index out of bounds: the len is {} but the index is {}",
-                                    ctx.mem[*array_id].len,
-                                    idx.to_u128()
-                                );
+                                let error = RuntimeErrorKind::IndexOutOfBounds {
+                                    index: ctx.mem[*array_id].len,
+                                    bound: idx.to_u128(),
+                                };
                                 DecisionTree::short_circuit(
-                                    ctx, stack, ass_value, &error, *location,
+                                    ctx, stack, ass_value, error, *location,
                                 )?;
                                 return Ok(false);
                             }

@@ -1,4 +1,4 @@
-mod json;
+pub mod json;
 mod toml;
 
 use std::collections::BTreeMap;

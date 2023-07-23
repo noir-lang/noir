@@ -17,6 +17,7 @@ chumsky.workspace = true
 thiserror.workspace = true
 smol_str.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 rustc-hash = "1.1.0"
 small-ord-set = "0.1.3"
 

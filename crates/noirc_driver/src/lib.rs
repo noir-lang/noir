@@ -28,6 +28,9 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub show_ssa: bool,
 
+    #[arg(long)]
+    pub show_brillig: bool,
+
     /// Display the ACIR for compiled circuit
     #[arg(long)]
     pub print_acir: bool,
@@ -49,6 +52,7 @@ impl Default for CompileOptions {
     fn default() -> Self {
         Self {
             show_ssa: false,
+            show_brillig: false,
             print_acir: false,
             deny_warnings: false,
             show_output: true,
@@ -144,7 +148,7 @@ pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
-    enable_slices: bool,
+    experimental_ssa: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
     // Add the stdlib before we check the crate
     // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
@@ -159,7 +163,7 @@ pub fn check_crate(
     let std_crate = context.crate_graph.add_stdlib(CrateType::Library, root_file_id);
     propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
 
-    context.def_interner.enable_slices = enable_slices;
+    context.def_interner.experimental_ssa = experimental_ssa;
 
     let mut errors = vec![];
     match context.crate_graph.crate_type(crate_id) {
@@ -322,7 +326,12 @@ pub fn compile_no_check(
     let program = monomorphize(main_function, &context.def_interner);
 
     let (circuit, debug, abi) = if options.experimental_ssa {
-        experimental_create_circuit(program, options.show_ssa, options.show_output)?
+        experimental_create_circuit(
+            program,
+            options.show_ssa,
+            options.show_brillig,
+            options.show_output,
+        )?
     } else {
         create_circuit(program, options.show_ssa, options.show_output)?
     };

@@ -260,7 +260,7 @@ mod tests {
         arguments: Vec<BrilligParameter>,
         returns: Vec<BrilligParameter>,
     ) -> BrilligContext {
-        let mut context = BrilligContext::new(arguments, returns);
+        let mut context = BrilligContext::new(arguments, returns, true);
         context.enter_context("test");
         context
     }
