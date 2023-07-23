@@ -75,7 +75,7 @@ impl GeneratedAcir {
     /// Returns an expression which represents a*b
     /// If one has multiplicative term and the other is of degree one or more,
     /// the function creates intermediate variables accordindly
-    pub(crate) fn mul_with_witness(&mut self, a: &Expression, b: &Expression) -> Expression {
+    pub(super) fn mul_with_witness(&mut self, a: &Expression, b: &Expression) -> Expression {
         let a_arith;
         let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
             let a_witness = self.get_or_create_witness(a);
