@@ -97,12 +97,12 @@ impl GeneratedAcir {
         let lhs_reduced = if lhs_is_linear {
             Cow::Borrowed(lhs)
         } else {
-            Cow::Owned(self.get_or_create_witness(&lhs).into())
+            Cow::Owned(self.get_or_create_witness(lhs).into())
         };
         let rhs_reduced = if rhs_is_linear {
             Cow::Borrowed(rhs)
         } else {
-            Cow::Owned(self.get_or_create_witness(&rhs).into())
+            Cow::Owned(self.get_or_create_witness(rhs).into())
         };
 
         (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree<=1")
