@@ -424,26 +424,13 @@ impl GeneratedAcir {
         self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_bit_size)?;
 
         // a * predicate == (b * q + r) * predicate
-        // => predicate * ( a - b * q - r) == 0
+        // => predicate * (a - b * q - r) == 0
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let rhs_reduced: Expression = self.create_witness_for_expression(rhs).into();
-        let mut rhs_constraint = (&rhs_reduced * &Expression::from(q_witness))
-            .expect("rhs_reduced is expected to be a degree-1 witness");
-        rhs_constraint = &rhs_constraint + r_witness;
-
-        // Reduce the rhs_constraint to a witness
-        let rhs_constrain_reduced: Expression =
-            self.create_witness_for_expression(&rhs_constraint).into();
-        // Reduce the lhs_constraint to a witness
-        let lhs_reduced: Expression = self.create_witness_for_expression(lhs).into();
-
-        let div_euclidean = &(&lhs_reduced * predicate).expect(
-            "lhs_reduced should be a degree-1 witness and predicate should be a degree-1 witness",
-        ) - &(&rhs_constrain_reduced * predicate).expect(
-            "rhs_reduced should be a degree-1 witness and predicate should be a degree-1 witness",
-        );
+        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into()) + r_witness;
+        let div_euclidean = &self.mul_with_witness(lhs, predicate)
+            - &self.mul_with_witness(&rhs_constraint, predicate);
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
@@ -505,7 +492,7 @@ impl GeneratedAcir {
             assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
             let mut aor = lhs_offset;
             aor.q_c += FieldElement::from(r);
-            let witness = self.create_witness_for_expression(&aor);
+            let witness = self.get_or_create_witness(&aor);
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
             self.range_constraint(witness, bit_size)?;
             return Ok(());
