@@ -116,7 +116,7 @@ impl<'a> ModCollector<'a> {
         }
     }
 
-    fn collect_trait_impls(&mut self, context: &mut Context, impls: Vec<TraitImpl>, errors: &mut Vec<FileDiagnostic>,) {
+    fn collect_trait_impls(&mut self, context: &mut Context, impls: Vec<TraitImpl>, _errors: &mut Vec<FileDiagnostic>,) {
         for r#impl in impls {
             let mut unresolved_functions =
                 UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
