@@ -93,7 +93,7 @@ impl GeneratedAcir {
                 .expect("one of the expressions is a constant and so this should not fail");
         }
 
-        // Case2; One or both of the sides needs to be reduced to a degree-1 univariate polynomial
+        // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
         let lhs_reduced = if lhs_is_linear {
             Cow::Borrowed(lhs)
         } else {
