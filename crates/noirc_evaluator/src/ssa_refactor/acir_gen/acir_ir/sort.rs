@@ -99,6 +99,14 @@ impl GeneratedAcir {
         } else {
             Cow::Owned(self.get_or_create_witness(lhs).into())
         };
+
+        // If the lhs and rhs are the same, then we do not need to reduce
+        // rhs, we only need to square the lhs.
+        if lhs == rhs {
+            return (&*lhs_reduced * &*lhs_reduced)
+                .expect("Both expressions are reduced to be degree<=1");
+        };
+
         let rhs_reduced = if rhs_is_linear {
             Cow::Borrowed(rhs)
         } else {
