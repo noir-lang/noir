@@ -513,7 +513,9 @@ impl Context {
         self.define_result(dfg, instruction, AcirValue::Var(read, typ));
     }
 
-    // Copy the array and generates a write opcode on the new array
+    /// Copy the array and generates a write opcode on the new array
+    ///
+    /// Note: Copying the array is inefficient and is not the way we want to do it in the end.
     fn array_set(
         &mut self,
         instruction: InstructionId,
@@ -522,13 +524,25 @@ impl Context {
         store_value: ValueId,
         dfg: &DataFlowGraph,
     ) {
+        // Fetch the internal SSA ID for the array
         let array = dfg.resolve(array);
-        let block_id = BlockId(array.to_usize() as u32);
+        let array_ssa_id = array.to_usize() as u32;
+
+        // Use the SSA ID to create a block ID
+        // There is currently a 1-1 mapping from array SSA ID to block ID
+        let block_id = BlockId(array_ssa_id);
+
+        // Every array has a length in its type, so we fetch that from
+        // the SSA IR.
         let len = match dfg.type_of_value(array) {
             Type::Array(_, len) => len,
             _ => unreachable!("ICE - expected an array"),
         };
-        if !self.initialized_arrays.contains(&block_id) {
+
+        // Check if the array has already been initialized in ACIR gen
+        // if not, we initialize it using the values from SSA
+        let already_initialized = self.initialized_arrays.contains(&block_id);
+        if already_initialized == false {
             match &dfg[array] {
                 Value::Array { array, .. } => {
                     let values: Vec<AcirValue> =
@@ -539,27 +553,36 @@ impl Context {
             }
         }
 
-        // Create a new array
-        let result_id =
-            &dfg.instruction_results(instruction).first().expect("Array set to have one result");
-        let result_block_id = BlockId(result_id.to_usize() as u32);
+        // Since array_set creates a new array, we create a new block ID for this
+        // array.
+        let result_id = dfg
+            .instruction_results(instruction)
+            .first()
+            .expect("Array set does not have one result");
+        let result_array_id = result_id.to_usize() as u32;
+        let result_block_id = BlockId(result_array_id);
+
+        // Initialize the new array with zero values
+        //
+        // TODO: Why don't need initialize the array with the values from the old array?
         self.initialize_array(result_block_id, len, &Vec::new());
 
-        // Copy to the new array
+        // Copy the values from the old array into the new array
         for i in 0..len {
-            let idx = AcirValue::Var(
+            let index = AcirValue::Var(
                 self.acir_context.add_constant(FieldElement::from(i as u128)),
                 AcirType::NumericType(NumericType::NativeField),
             );
-            let var = idx.into_var();
+            let var = index.into_var();
             let read = self.acir_context.read_from_memory(block_id, &var);
             self.acir_context.write_to_memory(result_block_id, &var, &read);
         }
-        // Perform the array set on the new array
+
+        // Write the new value into the new array at the specified index
         let index_var = self.convert_value(index, dfg).into_var();
         let value_var = self.convert_value(store_value, dfg).into_var();
         self.acir_context.write_to_memory(result_block_id, &index_var, &value_var);
-        // We do not have values for the array content
+
         let result_value = AcirValue::DynamicArray(AcirArray { block_id: result_block_id, len });
         self.define_result(dfg, instruction, result_value);
     }
