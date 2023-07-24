@@ -48,7 +48,7 @@ color-eyre = "0.6.2"
 tokio = { version = "1.0", features = ["io-std"] }
 
 # Backends
-acvm-backend-barretenberg = { version = "0.9.0", default-features = false }
+acvm-backend-barretenberg = { version = "0.9.1", default-features = false }
 
 [dev-dependencies]
 tempdir = "0.3.7"
@@ -62,3 +62,4 @@ default = ["plonk_bn254"]
 plonk_bn254 = ["acvm-backend-barretenberg/native"]
 plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]
 flat_witness = ["acvm-backend-barretenberg/native"]
+
