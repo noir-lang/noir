@@ -47,7 +47,7 @@ impl ForeignCall {
         match Self::lookup(foreign_call_name) {
             Some(ForeignCall::Println) => {
                 Self::execute_println(&foreign_call.inputs)?;
-                Ok(foreign_call.inputs[0][0].into())
+                Ok(ForeignCallResult { values: vec![] })
             }
             Some(ForeignCall::Sequence) => {
                 let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
@@ -73,6 +73,16 @@ impl ForeignCall {
             convert_string_inputs(foreign_call_inputs)?
         };
         println!("{output_string}");
+        // let (abi_type, input_values) = fetch_abi_type(foreign_call_inputs)?;
+
+        // // We must use a flat map here as each value in a struct will be in a separate input value
+        // let mut input_values_as_fields =
+        //     input_values.iter().flat_map(|values| values.iter().map(|value| value.to_field()));
+        // let decoded_value = decode_value(&mut input_values_as_fields, &abi_type)?;
+
+        // let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)?;
+
+        // println!("{json_value}");
         Ok(())
     }
 }

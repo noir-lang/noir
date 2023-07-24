@@ -7,33 +7,33 @@ fn main(x : Field, y : pub Field) {
     let j = y;
 
     let string: str<14> = "i: {i}, j: {j}";
-    std::println_new(string);
+    std::println(string);
     let string_no_type = "i: {i}, j: {j}";
-    std::println_new(string_no_type);
+    std::println(string_no_type);
     let returned_string = string_identity(string_no_type);
-    std::println_new(returned_string);
+    std::println(returned_string);
     let string_generic = string_with_generic(string_no_type);
-    std::println_new(string_generic);
-    std::println_new("i: {i}, j: {j}");
+    std::println(string_generic);
+    std::println("i: {i}, j: {j}");
 
     let s = myStruct { y: x, x: y };
-    std::println_new(s);
+    std::println(s);
 
-    std::println_new("i: {i}, s: {s}");
+    std::println("i: {i}, s: {s}");
 
-    std::println_new(x);
-    std::println_new([x, y]);
+    std::println(x);
+    std::println([x, y]);
     
     let foo = fooStruct { my_struct: s, foo: 15 };
-    std::println_new("s: {s}, foo: {foo}");
+    std::println("s: {s}, foo: {foo}");
 
-    std::println_new("x: 0, y: 1");
+    std::println("x: 0, y: 1");
     
     let s2 = myStruct { x: 20, y: 30 };
-    std::println_new("s1: {s}, s2: {s2}");
+    std::println("s1: {s}, s2: {s2}");
 
     let foo2 = fooStruct { my_struct: s2, foo: 20 };
-    std::println_new("foo1: {foo}, foo2: {foo2}");
+    std::println("foo1: {foo}, foo2: {foo2}");
 
     assert(x != y);
 }

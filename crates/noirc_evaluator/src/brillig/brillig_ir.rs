@@ -19,6 +19,7 @@ use acvm::{
     },
     FieldElement,
 };
+use debug_show::DebugShow;
 
 /// Integer arithmetic in Brillig is limited to 127 bit
 /// integers.
@@ -83,6 +84,8 @@ pub(crate) struct BrilligContext {
     context_label: String,
     /// Section label, used to separate sections of code
     section_label: usize,
+    /// IR printer
+    debug_show: DebugShow,
 }
 
 impl BrilligContext {
@@ -90,12 +93,14 @@ impl BrilligContext {
     pub(crate) fn new(
         arguments: Vec<BrilligParameter>,
         return_parameters: Vec<BrilligParameter>,
+        enable_debug_trace: bool,
     ) -> BrilligContext {
         BrilligContext {
             obj: BrilligArtifact::new(arguments, return_parameters),
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,
+            debug_show: DebugShow::new(enable_debug_trace),
         }
     }
 
@@ -128,13 +133,13 @@ impl BrilligContext {
         pointer_register: RegisterIndex,
         size_register: RegisterIndex,
     ) {
-        debug_show::allocate_array_instruction(pointer_register, size_register);
+        self.debug_show.allocate_array_instruction(pointer_register, size_register);
         self.set_array_pointer(pointer_register);
         self.update_stack_pointer(size_register);
     }
 
     pub(crate) fn set_array_pointer(&mut self, pointer_register: RegisterIndex) {
-        debug_show::mov_instruction(pointer_register, ReservedRegisters::stack_pointer());
+        self.debug_show.mov_instruction(pointer_register, ReservedRegisters::stack_pointer());
         self.push_opcode(BrilligOpcode::Mov {
             destination: pointer_register,
             source: ReservedRegisters::stack_pointer(),
@@ -153,7 +158,7 @@ impl BrilligContext {
     /// Allocates a variable in memory and stores the
     /// pointer to the array in `pointer_register`
     pub(crate) fn allocate_variable_instruction(&mut self, pointer_register: RegisterIndex) {
-        debug_show::allocate_instruction(pointer_register);
+        self.debug_show.allocate_instruction(pointer_register);
         // A variable can be stored in up to two values, so we reserve two values for that.
         let size_register = self.make_constant(2_u128.into());
         self.push_opcode(BrilligOpcode::Mov {
@@ -175,7 +180,7 @@ impl BrilligContext {
         index: RegisterIndex,
         result: RegisterIndex,
     ) {
-        debug_show::array_get(array_ptr, index, result);
+        self.debug_show.array_get(array_ptr, index, result);
         // Computes array_ptr + index, ie array[index]
         let index_of_element_in_memory = self.allocate_register();
         self.binary_instruction(
@@ -197,7 +202,7 @@ impl BrilligContext {
         index: RegisterIndex,
         value: RegisterIndex,
     ) {
-        debug_show::array_set(array_ptr, index, value);
+        self.debug_show.array_set(array_ptr, index, value);
         // Computes array_ptr + index, ie array[index]
         let index_of_element_in_memory = self.allocate_register();
         self.binary_instruction(
@@ -220,7 +225,7 @@ impl BrilligContext {
         destination_pointer: RegisterIndex,
         num_elements_register: RegisterIndex,
     ) {
-        debug_show::copy_array_instruction(
+        self.debug_show.copy_array_instruction(
             source_pointer,
             destination_pointer,
             num_elements_register,
@@ -266,7 +271,7 @@ impl BrilligContext {
 
     /// Adds a label to the next opcode
     pub(crate) fn enter_context<T: ToString>(&mut self, label: T) {
-        debug_show::enter_context(label.to_string());
+        self.debug_show.enter_context(label.to_string());
         self.context_label = label.to_string();
         self.section_label = 0;
         // Add a context label to the next opcode
@@ -300,7 +305,7 @@ impl BrilligContext {
 
     /// Adds a unresolved `Jump` instruction to the bytecode.
     pub(crate) fn jump_instruction<T: ToString>(&mut self, target_label: T) {
-        debug_show::jump_instruction(target_label.to_string());
+        self.debug_show.jump_instruction(target_label.to_string());
         self.add_unresolved_jump(BrilligOpcode::Jump { location: 0 }, target_label.to_string());
     }
 
@@ -310,7 +315,7 @@ impl BrilligContext {
         condition: RegisterIndex,
         target_label: T,
     ) {
-        debug_show::jump_if_instruction(condition, target_label.to_string());
+        self.debug_show.jump_if_instruction(condition, target_label.to_string());
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
             target_label.to_string(),
@@ -343,7 +348,7 @@ impl BrilligContext {
     /// Emits brillig bytecode to jump to a trap condition if `condition`
     /// is false.
     pub(crate) fn constrain_instruction(&mut self, condition: RegisterIndex) {
-        debug_show::constrain_instruction(condition);
+        self.debug_show.constrain_instruction(condition);
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
             self.next_section_label(),
@@ -362,7 +367,7 @@ impl BrilligContext {
     /// method will move all register values to the first `N` values in
     /// the VM.
     pub(crate) fn return_instruction(&mut self, return_registers: &[RegisterIndex]) {
-        debug_show::return_instruction(return_registers);
+        self.debug_show.return_instruction(return_registers);
         let mut sources = Vec::with_capacity(return_registers.len());
         let mut destinations = Vec::with_capacity(return_registers.len());
 
@@ -394,6 +399,7 @@ impl BrilligContext {
             .collect();
         for (new_source, destination) in new_sources.iter().zip(destinations.iter()) {
             self.mov_instruction(*destination, *new_source);
+            self.deallocate_register(*new_source);
         }
     }
 
@@ -401,7 +407,7 @@ impl BrilligContext {
     ///
     /// Copies the value at `source` into `destination`
     pub(crate) fn mov_instruction(&mut self, destination: RegisterIndex, source: RegisterIndex) {
-        debug_show::mov_instruction(destination, source);
+        self.debug_show.mov_instruction(destination, source);
         self.push_opcode(BrilligOpcode::Mov { destination, source });
     }
 
@@ -416,7 +422,7 @@ impl BrilligContext {
         result: RegisterIndex,
         operation: BrilligBinaryOp,
     ) {
-        debug_show::binary_instruction(lhs, rhs, result, operation.clone());
+        self.debug_show.binary_instruction(lhs, rhs, result, operation.clone());
         match operation {
             BrilligBinaryOp::Field { op } => {
                 let opcode = BrilligOpcode::BinaryFieldOp { op, destination: result, lhs, rhs };
@@ -435,7 +441,7 @@ impl BrilligContext {
 
     /// Stores the value of `constant` in the `result` register
     pub(crate) fn const_instruction(&mut self, result: RegisterIndex, constant: Value) {
-        debug_show::const_instruction(result, constant);
+        self.debug_show.const_instruction(result, constant);
         self.push_opcode(BrilligOpcode::Const { destination: result, value: constant });
     }
 
@@ -449,7 +455,7 @@ impl BrilligContext {
         bit_size: u32,
         result: RegisterIndex,
     ) {
-        debug_show::not_instruction(input, bit_size, result);
+        self.debug_show.not_instruction(input, bit_size, result);
         // Compile !x as ((-1) - x)
         let u_max = FieldElement::from(2_i128).pow(&FieldElement::from(bit_size as i128))
             - FieldElement::one();
@@ -475,7 +481,7 @@ impl BrilligContext {
         inputs: &[RegisterOrMemory],
         outputs: &[RegisterOrMemory],
     ) {
-        debug_show::foreign_call_instruction(func_name.clone(), inputs, outputs);
+        self.debug_show.foreign_call_instruction(func_name.clone(), inputs, outputs);
         let opcode = BrilligOpcode::ForeignCall {
             function: func_name,
             destinations: outputs.to_vec(),
@@ -490,7 +496,7 @@ impl BrilligContext {
         destination: RegisterIndex,
         source_pointer: RegisterIndex,
     ) {
-        debug_show::load_instruction(destination, source_pointer);
+        self.debug_show.load_instruction(destination, source_pointer);
         self.push_opcode(BrilligOpcode::Load { destination, source_pointer });
     }
 
@@ -526,7 +532,7 @@ impl BrilligContext {
         destination_pointer: RegisterIndex,
         source: RegisterIndex,
     ) {
-        debug_show::store_instruction(destination_pointer, source);
+        self.debug_show.store_instruction(destination_pointer, source);
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
     }
 
@@ -600,7 +606,7 @@ impl BrilligContext {
 
     /// Emits a stop instruction
     pub(crate) fn stop_instruction(&mut self) {
-        debug_show::stop_instruction();
+        self.debug_show.stop_instruction();
         self.push_opcode(BrilligOpcode::Stop);
     }
 
@@ -677,7 +683,7 @@ impl BrilligContext {
         source: RegisterIndex,
         target_bit_size: u32,
     ) {
-        debug_show::cast_instruction(destination, source, target_bit_size);
+        self.debug_show.cast_instruction(destination, source, target_bit_size);
         assert!(
             target_bit_size <= BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
             "tried to cast to a bit size greater than allowed {target_bit_size}"
@@ -699,7 +705,7 @@ impl BrilligContext {
     /// Adds a unresolved external `Call` instruction to the bytecode.
     /// This calls into another function compiled into this brillig artifact.
     pub(crate) fn add_external_call_instruction<T: ToString>(&mut self, func_label: T) {
-        debug_show::add_external_call_instruction(func_label.to_string());
+        self.debug_show.add_external_call_instruction(func_label.to_string());
         self.obj.add_unresolved_external_call(
             BrilligOpcode::Call { location: 0 },
             func_label.to_string(),
@@ -821,9 +827,12 @@ impl BrilligContext {
     ) {
         // Allocate our result registers and write into them
         // We assume the return values of our call are held in 0..num results register indices
-        for (i, result_register) in result_registers.iter().enumerate() {
-            self.mov_instruction(*result_register, self.register(i));
-        }
+        let (sources, destinations) = result_registers
+            .iter()
+            .enumerate()
+            .map(|(i, result_register)| (self.register(i), *result_register))
+            .unzip();
+        self.mov_registers_to_registers_instruction(sources, destinations);
 
         // Restore all the same registers we have, in exact reverse order.
         // Note that we have allocated some registers above, which we will not be handling here,
@@ -841,7 +850,7 @@ impl BrilligContext {
 
     /// Issues a blackbox operation.
     pub(crate) fn black_box_op_instruction(&mut self, op: BlackBoxOp) {
-        debug_show::black_box_op_instruction(op);
+        self.debug_show.black_box_op_instruction(op);
         self.push_opcode(BrilligOpcode::BlackBox(op));
     }
 }
@@ -911,7 +920,7 @@ mod tests {
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
-        let mut context = BrilligContext::new(vec![], vec![]);
+        let mut context = BrilligContext::new(vec![], vec![], true);
         let r_stack = ReservedRegisters::stack_pointer();
         // Start stack pointer at 0
         context.const_instruction(r_stack, Value::from(0_usize));

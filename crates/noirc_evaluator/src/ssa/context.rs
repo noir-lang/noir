@@ -434,11 +434,9 @@ impl SsaContext {
         match self.nodes.get(id.0) {
             Some(t) => match t {
                 node::NodeObject::Variable(o) => Ok(o),
-                _ => Err(RuntimeErrorKind::UnstructuredError {
-                    message: "Not an object".to_string(),
-                }),
+                _ => Err(RuntimeErrorKind::NotAnObject),
             },
-            _ => Err(RuntimeErrorKind::UnstructuredError { message: "Invalid id".to_string() }),
+            _ => Err(RuntimeErrorKind::InvalidId),
         }
     }
 
@@ -449,11 +447,9 @@ impl SsaContext {
         match self.nodes.get_mut(id.0) {
             Some(t) => match t {
                 node::NodeObject::Variable(o) => Ok(o),
-                _ => Err(RuntimeErrorKind::UnstructuredError {
-                    message: "Not an object".to_string(),
-                }),
+                _ => Err(RuntimeErrorKind::NotAnObject),
             },
-            _ => Err(RuntimeErrorKind::UnstructuredError { message: "Invalid id".to_string() }),
+            _ => Err(RuntimeErrorKind::InvalidId),
         }
     }
 

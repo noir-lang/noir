@@ -424,15 +424,13 @@ impl GeneratedAcir {
         self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_bit_size)?;
 
         // a * predicate == (b * q + r) * predicate
-        // => predicate * ( a - b * q - r) == 0
+        // => predicate * (a - b * q - r) == 0
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let mut rhs_constraint = (rhs * &Expression::from(q_witness)).unwrap();
-        rhs_constraint = &rhs_constraint + r_witness;
-        rhs_constraint = (&rhs_constraint * predicate).unwrap();
-        let lhs_constraint = (lhs * predicate).unwrap();
-        let div_euclidean = &lhs_constraint - &rhs_constraint;
+        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into()) + r_witness;
+        let div_euclidean = &self.mul_with_witness(lhs, predicate)
+            - &self.mul_with_witness(&rhs_constraint, predicate);
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
@@ -494,7 +492,7 @@ impl GeneratedAcir {
             assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
             let mut aor = lhs_offset;
             aor.q_c += FieldElement::from(r);
-            let witness = self.create_witness_for_expression(&aor);
+            let witness = self.get_or_create_witness(&aor);
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
             self.range_constraint(witness, bit_size)?;
             return Ok(());
@@ -711,7 +709,7 @@ impl GeneratedAcir {
         a: &Expression,
         b: &Expression,
         max_bits: u32,
-        predicate: Option<Expression>,
+        predicate: Expression,
     ) -> Result<Witness, AcirGenError> {
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
@@ -737,7 +735,7 @@ impl GeneratedAcir {
         let (q_witness, r_witness) = self.quotient_directive(
             comparison_evaluation.clone(),
             two_max_bits.into(),
-            predicate,
+            Some(predicate.clone()),
             q_max_bits,
             r_max_bits,
         )?;
@@ -762,10 +760,17 @@ impl GeneratedAcir {
         // - 2^{max_bits} - k == q * 2^{max_bits} + r
         // - This is only the case when q == 0 and r == 2^{max_bits} - k
         //
+        // case: predicate is zero
+        // The values for q and r will be zero for a honest prover and
+        // can be garbage for a dishonest prover. The below constraint will
+        // will be switched off.
         let mut expr = Expression::default();
         expr.push_addition_term(two_max_bits, q_witness);
         expr.push_addition_term(FieldElement::one(), r_witness);
-        self.push_opcode(AcirOpcode::Arithmetic(&comparison_evaluation - &expr));
+
+        let equation = &comparison_evaluation - &expr;
+        let predicated_equation = self.mul_with_witness(&equation, &predicate);
+        self.push_opcode(AcirOpcode::Arithmetic(predicated_equation));
 
         Ok(q_witness)
     }

@@ -161,11 +161,12 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            let definition_info = self.interner.definition(unused_var.id);
-            let name = &definition_info.name;
-            if name != ERROR_IDENT && !definition_info.is_global() {
-                let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
-                self.push_err(ResolverError::UnusedVariable { ident });
+            if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
+                let name = &definition_info.name;
+                if name != ERROR_IDENT && !definition_info.is_global() {
+                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                    self.push_err(ResolverError::UnusedVariable { ident });
+                }
             }
         }
     }
@@ -962,7 +963,7 @@ impl<'a> Resolver<'a> {
                     let decl = this.add_variable_decl(
                         identifier,
                         false,
-                        false,
+                        true,
                         DefinitionKind::Local(None),
                     );
                     (decl, this.resolve_expression(block))
@@ -1063,7 +1064,7 @@ impl<'a> Resolver<'a> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let id = self.add_variable_decl(name, mutable.is_some(), false, definition);
+                let id = self.add_variable_decl(name, mutable.is_some(), true, definition);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -1335,14 +1336,15 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
             Err(ResolverError::MutableReferenceToArrayElement { span })
         }
         HirExpression::Ident(ident) => {
-            let definition = interner.definition(ident.id);
-            if !definition.mutable {
-                let span = interner.expr_span(&rhs);
-                let variable = definition.name.clone();
-                Err(ResolverError::MutableReferenceToImmutableVariable { span, variable })
-            } else {
-                Ok(())
+            if let Some(definition) = interner.try_definition(ident.id) {
+                if !definition.mutable {
+                    return Err(ResolverError::MutableReferenceToImmutableVariable {
+                        span: interner.expr_span(&rhs),
+                        variable: definition.name.clone(),
+                    });
+                }
             }
+            Ok(())
         }
         _ => Ok(()),
     }
@@ -1586,36 +1588,22 @@ mod test {
     }
 
     #[test]
-    fn resolve_fmt_strings() {
+    fn resolve_shadowing() {
         let src = r#"
             fn main(x : Field) {
-                let y = println("this is the variable passed to main: {x}");
-                assert(y == "this is the variable passed to main: {x}");
-
-                let string = "this is x: {x}";
-                println(string);
-                
-                println("I want to print {0}")
+                let x = foo(x);
+                let x = x;
+                let (x, x) = (x, x);
+                let _ = x;
             }
 
-            fn println<T>(x : T) -> T {
+            fn foo(x : Field) -> Field {
                 x
             }
         "#;
 
-        let errors = resolve_src_code(src, vec!["main", "println"]);
-        for err in errors {
-            match &err {
-                ResolverError::UnusedVariable { ident } => {
-                    // The value `x` passed to the main function is never fully used in a format string
-                    assert_eq!(&ident.0.contents, "x");
-                }
-                ResolverError::NumericConstantInFormatString { name, .. } => {
-                    assert_eq!(name, "0");
-                }
-                _ => unimplemented!(),
-            };
-        }
+        let errors = resolve_src_code(src, vec!["main", "foo"]);
+        assert!(errors.is_empty());
     }
 
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {

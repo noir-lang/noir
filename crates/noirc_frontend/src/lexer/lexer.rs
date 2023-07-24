@@ -182,22 +182,6 @@ impl<'a> Lexer<'a> {
                 }
                 Ok(spanned_prev_token)
             }
-            Token::Underscore => {
-                let next_char = self.peek_char();
-                let peeked_char = match next_char {
-                    Some(peek_char) => peek_char,
-                    None => return Ok(spanned_prev_token),
-                };
-
-                if peeked_char.is_ascii_alphabetic() {
-                    // Okay to unwrap here because we already peeked to
-                    // see that we have a character
-                    let current_char = self.next_char().unwrap();
-                    return self.eat_word(current_char);
-                }
-
-                Ok(spanned_prev_token)
-            }
             _ => Err(LexerErrorKind::NotADoubleChar {
                 span: Span::single_char(self.position),
                 found: prev_token,

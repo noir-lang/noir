@@ -437,19 +437,10 @@ impl Instruction {
                         // Delete the constrain, it is always true
                         return Ok(NodeEval::VarOrInstruction(NodeId::dummy()));
                     } else if obj.is_zero() {
-                        if let Some(location) = *location {
-                            return Err(RuntimeError::new(
-                                RuntimeErrorKind::UnstructuredError {
-                                    message: "Constraint is always false".into(),
-                                },
-                                Some(location),
-                            ));
-                        } else {
-                            return Err(RuntimeErrorKind::Spanless(
-                                "Constraint is always false".into(),
-                            )
-                            .into());
-                        }
+                        return Err(RuntimeError::new(
+                            RuntimeErrorKind::ConstraintIsAlwaysFalse,
+                            *location,
+                        ));
                     }
                 }
             }
@@ -809,12 +800,7 @@ impl Binary {
 
     fn zero_div_error(&self, location: &Location) -> Result<(), RuntimeError> {
         if self.predicate.is_none() {
-            Err(RuntimeError {
-                location: Some(*location),
-                kind: RuntimeErrorKind::UnstructuredError {
-                    message: "Panic - division by zero".to_string(),
-                },
-            })
+            Err(RuntimeError::new(RuntimeErrorKind::DivisionByZero, Some(*location)))
         } else {
             Ok(())
         }
@@ -1391,9 +1377,7 @@ fn field_to_signed(f: FieldElement, n: u32) -> i128 {
 
 fn signed_to_field(a: i128, n: u32) -> Result<FieldElement, RuntimeError> {
     if n >= 126 {
-        return Err(RuntimeErrorKind::UnstructuredError {
-            message: "ICE: cannot convert signed {n} bit size into field".to_string(),
-        })?;
+        return Err(RuntimeErrorKind::CannotConvertSignedIntoField(n))?;
     }
     if a >= 0 {
         Ok(FieldElement::from(a))
