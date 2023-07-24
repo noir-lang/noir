@@ -822,7 +822,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// of field elements to/from JSON. The type metadata attached in this method
     /// is the serialized `AbiType` for the argument passed to the function.
     /// The caller that is running a Noir program should then deserialize the `AbiType`,
-    /// and accurately decode the list of field elements passed to the foreign call. 
+    /// and accurately decode the list of field elements passed to the foreign call.
     fn append_abi_arg(
         &mut self,
         hir_argument: &HirExpression,
@@ -833,6 +833,8 @@ impl<'interner> Monomorphizer<'interner> {
                 let typ = self.interner.id_type(ident.id);
                 let typ: Type = typ.follow_bindings();
                 match &typ {
+                    // A format string has many different possible types that need to be handled.
+                    // Loop over each element in the format string to fetch each type's relevant metadata
                     Type::FmtString(_, element_types) => {
                         for typ in element_types {
                             let abi_type = typ.as_abi_type();
@@ -842,6 +844,7 @@ impl<'interner> Monomorphizer<'interner> {
                             arguments
                                 .push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
                         }
+                        // The caller needs information as to whether it is handling a format string or a single type
                         arguments.push(ast::Expression::Literal(ast::Literal::Bool(true)));
                     }
                     _ => {
@@ -850,6 +853,7 @@ impl<'interner> Monomorphizer<'interner> {
                             .expect("ICE: expected Abi type to serialize");
 
                         arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+                        // The caller needs information as to whether it is handling a format string or a single type
                         arguments.push(ast::Expression::Literal(ast::Literal::Bool(false)));
                     }
                 }
