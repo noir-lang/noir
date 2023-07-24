@@ -924,3 +924,12 @@ pub(crate) enum SimplifyResult {
     /// Instruction could not be simplified
     None,
 }
+
+impl SimplifyResult {
+    pub(crate) fn instruction(self) -> Option<Instruction> {
+        match self {
+            SimplifyResult::SimplifiedToInstruction(instruction) => Some(instruction),
+            _ => None,
+        }
+    }
+}
