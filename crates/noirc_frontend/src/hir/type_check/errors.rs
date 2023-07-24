@@ -13,12 +13,12 @@ pub enum Source {
     Binary,
     #[error("Assignment")]
     Assignment,
-    #[error("Array")]
-    Array,
-    #[error("Array2")]
-    Array2,
-    #[error("Array2")]
-    String,
+    #[error(ArrayElements)]
+    ArrayElements,
+    #[error("ArrayLen")]
+    ArrayLen,
+    #[error("StringLen")]
+    StringLen,
     #[error("Comparison")]
     Comparison,
     #[error("BinOp")]
