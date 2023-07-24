@@ -2,6 +2,7 @@ import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/azte
 import { RpcServerConfig, createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
 import {
   AccountCollection,
+  AccountImplementation,
   AccountWallet,
   AztecAddress,
   Contract,
@@ -15,7 +16,13 @@ import {
   generatePublicKey,
   getL1ContractAddresses,
 } from '@aztec/aztec.js';
-import { CircuitsWasm, DeploymentInfo, getContractDeploymentInfo } from '@aztec/circuits.js';
+import {
+  CircuitsWasm,
+  DeploymentInfo,
+  PartialContractAddress,
+  PublicKey,
+  getContractDeploymentInfo,
+} from '@aztec/circuits.js';
 import { Schnorr, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
@@ -319,6 +326,75 @@ export async function setup(numberOfAccounts = 1): Promise<{
     wallet,
     logger,
   };
+}
+
+/**
+ * Deploys a smart contract on L2.
+ * @param aztecRpcServer - An instance of AztecRPC that will be used for contract deployment.
+ * @param publicKey - The encryption public key.
+ * @param abi - The Contract ABI (Application Binary Interface) that defines the contract's interface.
+ * @param args - An array of arguments to be passed to the contract constructor during deployment.
+ * @param contractAddressSalt - A random value used as a salt to generate the contract address. If not provided, the contract address will be deterministic.
+ * @returns An object containing the deployed contract's address and partial contract address.
+ */
+export async function deployContract(
+  aztecRpcServer: AztecRPC,
+  publicKey: PublicKey,
+  abi: ContractAbi,
+  args: any[],
+  contractAddressSalt?: Fr,
+) {
+  const deployer = new ContractDeployer(abi, aztecRpcServer, publicKey);
+  const deployMethod = deployer.deploy(...args);
+  await deployMethod.create({ contractAddressSalt });
+  const tx = deployMethod.send();
+  expect(await tx.isMined(0, 0.1)).toBeTruthy();
+  const receipt = await tx.getReceipt();
+  return { address: receipt.contractAddress!, partialContractAddress: deployMethod.partialContractAddress! };
+}
+
+/**
+ * Represents a function that creates an AccountImplementation object asynchronously.
+ *
+ * @param address - The Aztec address associated with the account.
+ * @param useProperKey - A flag indicating whether the proper key should be used during account creation.
+ * @param partialAddress - The partial contract address associated with the account.
+ * @param encryptionPrivateKey - The encryption private key used during account creation.
+ * @returns A Promise that resolves to an AccountImplementation object.
+ */
+export type CreateAccountImplFn = (
+  address: AztecAddress,
+  useProperKey: boolean,
+  partialAddress: PartialContractAddress,
+  encryptionPrivateKey: Buffer,
+) => Promise<AccountImplementation>;
+
+/**
+ * Creates a new account.
+ * @param aztecRpcServer - The AztecRPC server to interact with.
+ * @param abi - The ABI (Application Binary Interface) of the account contract.
+ * @param args - The arguments to pass to the account contract's constructor.
+ * @param encryptionPrivateKey - The encryption private key used by the account.
+ * @param useProperKey - A flag indicating whether the proper key should be used during account creation.
+ * @param createAccountImpl - A function that creates an AccountImplementation object.
+ * @returns A Promise that resolves to an object containing the created wallet, account address, and partial address.
+ */
+export async function createNewAccount(
+  aztecRpcServer: AztecRPC,
+  abi: ContractAbi,
+  args: any[],
+  encryptionPrivateKey: Buffer,
+  useProperKey: boolean,
+  createAccountImpl: CreateAccountImplFn,
+) {
+  const salt = Fr.random();
+  const publicKey = await generatePublicKey(encryptionPrivateKey);
+  const { address, partialAddress } = await getContractDeploymentInfo(abi, args, salt, publicKey);
+  await aztecRpcServer.addAccount(encryptionPrivateKey, address, partialAddress);
+  await deployContract(aztecRpcServer, publicKey, abi, args, salt);
+  const account = await createAccountImpl(address, useProperKey, partialAddress, encryptionPrivateKey);
+  const wallet = new AccountWallet(aztecRpcServer, account);
+  return { wallet, address, partialAddress };
 }
 
 /**

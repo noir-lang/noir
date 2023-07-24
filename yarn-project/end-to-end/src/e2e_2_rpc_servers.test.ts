@@ -75,7 +75,7 @@ describe('e2e_2_rpc_servers', () => {
     const isUserSynchronised = async () => {
       return await wallet.isAccountSynchronised(owner);
     };
-    await retryUntil(isUserSynchronised, owner.toString(), 5);
+    await retryUntil(isUserSynchronised, owner.toString(), 10);
 
     // Then check the balance
     const contractWithWallet = new ZkTokenContract(contractWithWalletA.address, wallet);

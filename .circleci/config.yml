@@ -440,6 +440,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_2_rpc_servers.test.ts
 
+  e2e-multiple-accounts-1-enc-key:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end e2e_multiple_accounts_1_enc_key.test.ts
+          
   e2e-deploy-contract:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -843,6 +854,7 @@ workflows:
       - e2e-block-building: *e2e_test
       - e2e-nested-contract: *e2e_test
       - e2e-non-contract-account: *e2e_test
+      - e2e-multiple-accounts-1-enc-key: *e2e_test
       - e2e-public-token-contract: *e2e_test
       - e2e-cross-chain-messaging: *e2e_test
       - e2e-public-cross-chain-messaging: *e2e_test
@@ -863,6 +875,7 @@ workflows:
             - e2e-block-building
             - e2e-nested-contract
             - e2e-non-contract-account
+            - e2e-multiple-accounts-1-enc-key
             - e2e-public-token-contract
             - e2e-cross-chain-messaging
             - e2e-public-cross-chain-messaging

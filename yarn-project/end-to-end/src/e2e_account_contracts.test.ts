@@ -1,14 +1,6 @@
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import {
-  AccountImplementation,
-  AccountWallet,
-  ContractDeployer,
-  Fr,
-  SingleKeyAccountContract,
-  StoredKeyAccountContract,
-  generatePublicKey,
-} from '@aztec/aztec.js';
-import { AztecAddress, PartialContractAddress, Point, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { AccountWallet, Fr, SingleKeyAccountContract, StoredKeyAccountContract } from '@aztec/aztec.js';
+import { AztecAddress, PartialContractAddress, Point } from '@aztec/circuits.js';
 import { Ecdsa, Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigInt } from '@aztec/foundation/serialize';
@@ -18,52 +10,10 @@ import {
   SchnorrSingleKeyAccountContractAbi,
 } from '@aztec/noir-contracts/artifacts';
 import { ChildContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, PublicKey } from '@aztec/types';
 
 import { randomBytes } from 'crypto';
 
-import { setup } from './utils.js';
-
-async function deployContract(
-  aztecRpcServer: AztecRPC,
-  publicKey: PublicKey,
-  abi: ContractAbi,
-  args: any[],
-  contractAddressSalt?: Fr,
-) {
-  const deployer = new ContractDeployer(abi, aztecRpcServer, publicKey);
-  const deployMethod = deployer.deploy(...args);
-  await deployMethod.create({ contractAddressSalt });
-  const tx = deployMethod.send();
-  expect(await tx.isMined(0, 0.1)).toBeTruthy();
-  const receipt = await tx.getReceipt();
-  return { address: receipt.contractAddress!, partialContractAddress: deployMethod.partialContractAddress! };
-}
-
-async function createNewAccount(
-  aztecRpcServer: AztecRPC,
-  abi: ContractAbi,
-  args: any[],
-  encryptionPrivateKey: Buffer,
-  useProperKey: boolean,
-  createAccountImpl: CreateAccountImplFn,
-) {
-  const salt = Fr.random();
-  const publicKey = await generatePublicKey(encryptionPrivateKey);
-  const { address, partialAddress } = await getContractDeploymentInfo(abi, args, salt, publicKey);
-  await aztecRpcServer.addAccount(encryptionPrivateKey, address, partialAddress);
-  await deployContract(aztecRpcServer, publicKey, abi, args, salt);
-  const account = await createAccountImpl(address, useProperKey, partialAddress, encryptionPrivateKey);
-  const wallet = new AccountWallet(aztecRpcServer, account);
-  return { wallet, address, partialAddress };
-}
-
-type CreateAccountImplFn = (
-  address: AztecAddress,
-  useProperKey: boolean,
-  partialAddress: PartialContractAddress,
-  encryptionPrivateKey: Buffer,
-) => Promise<AccountImplementation>;
+import { CreateAccountImplFn, createNewAccount, deployContract, setup } from './utils.js';
 
 function itShouldBehaveLikeAnAccountContract(
   abi: ContractAbi,
