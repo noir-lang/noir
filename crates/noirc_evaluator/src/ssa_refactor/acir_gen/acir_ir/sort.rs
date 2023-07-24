@@ -71,16 +71,16 @@ impl GeneratedAcir {
         (conf, out_expr)
     }
 
-    /// Returns an expression which represents a*b
-    /// If one has multiplicative term and the other is of degree one or more,
-    /// the function creates intermediate variables accordingly
+    /// Returns an expression which represents `lhs * rhs`
     ///
+    /// If one has multiplicative term and the other is of degree one or more,
+    /// the function creates [intermediate variables][`Witness`] accordingly.
     /// There are two cases where we can optimize the multiplication between two expressions:
     /// 1. If both expressions have at most a total degree of 1 in each term, then we can just multiply them
     /// as each term in the result will be degree-2.
     /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
     ///
-    /// (1) is because an Expression can hold at most a degree-2 univariate polynomial
+    /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
     /// which is what you get when you multiply two degree-1 univariate polynomials.
     pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
         use std::borrow::Cow;
