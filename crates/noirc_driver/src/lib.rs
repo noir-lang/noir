@@ -3,7 +3,6 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
-use clap::builder::ArgPredicate;
 use clap::Args;
 use fm::FileId;
 use noirc_abi::FunctionSignature;
@@ -40,10 +39,6 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub deny_warnings: bool,
 
-    /// Display output of `println` statements
-    #[arg(long, default_value_if("prover_name", ArgPredicate::IsPresent, "true"))]
-    pub show_output: bool,
-
     /// Compile and optimize using the new experimental SSA pass
     #[arg(long)]
     pub experimental_ssa: bool,
@@ -56,7 +51,6 @@ impl Default for CompileOptions {
             show_brillig: false,
             print_acir: false,
             deny_warnings: false,
-            show_output: true,
             experimental_ssa: false,
         }
     }
@@ -217,7 +211,7 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, options, main)?;
+    let compiled_program = compile_no_check(context, true, options, main)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main:");
@@ -284,7 +278,7 @@ fn compile_contract(
     let mut errs = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, options, *function_id) {
+        let function = match compile_no_check(context, true, options, *function_id) {
             Ok(function) => function,
             Err(err) => {
                 errs.push(err);
@@ -321,20 +315,16 @@ fn compile_contract(
 #[allow(deprecated)]
 pub fn compile_no_check(
     context: &Context,
+    show_output: bool,
     options: &CompileOptions,
     main_function: FuncId,
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let (circuit, debug, abi) = if options.experimental_ssa {
-        experimental_create_circuit(
-            program,
-            options.show_ssa,
-            options.show_brillig,
-            options.show_output,
-        )?
+        experimental_create_circuit(program, options.show_ssa, options.show_brillig, show_output)?
     } else {
-        create_circuit(program, options.show_ssa, options.show_output)?
+        create_circuit(program, options.show_ssa, show_output)?
     };
 
     Ok(CompiledProgram { circuit, debug, abi })
