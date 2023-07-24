@@ -6,6 +6,7 @@ pub use self::verify::verify_proof;
 
 mod codegen_verifier;
 mod execute;
+mod foreign_calls;
 mod preprocess;
 mod prove;
 mod verify;
