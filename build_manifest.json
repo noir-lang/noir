@@ -1,4 +1,50 @@
 {
+  "barretenberg-x86_64-linux-clang": {
+    "buildDir": "circuits/cpp/barretenberg/cpp",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang",
+    "rebuildPatterns": ["^circuits/cpp/barretenberg/cpp/"],
+    "dependencies": []
+  },
+  "barretenberg-x86_64-linux-clang-assert": {
+    "buildDir": "circuits/cpp/barretenberg/cpp",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-assert",
+    "rebuildPatterns": ["^circuits/cpp/barretenberg/cpp/"],
+    "dependencies": []
+  },
+  "barretenberg-x86_64-linux-gcc": {
+    "buildDir": "circuits/cpp/barretenberg/cpp",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-gcc",
+    "rebuildPatterns": ["^circuits/cpp/barretenberg/cpp/"],
+    "dependencies": []
+  },
+  "barretenberg-wasm-linux-clang": {
+    "buildDir": "circuits/cpp/barretenberg/cpp",
+    "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
+    "rebuildPatterns": ["^circuits/cpp/barretenberg/cpp/"],
+    "dependencies": []
+  },
+  "barretenberg-circuits-x86_64-linux-clang-builder-runner": {
+    "buildDir": "circuits/cpp/barretenberg/cpp",
+    "dockerfile": "dockerfiles/Dockerfile.circuits-x86_64-linux-clang-builder-runner",
+    "rebuildPatterns": ["^circuits/cpp/barretenberg/cpp/"],
+    "dependencies": []
+  },
+  "barretenberg-circuits-wasm-linux-clang-builder-runner": {
+    "buildDir": "circuits/cpp/barretenberg/cpp",
+    "dockerfile": "dockerfiles/Dockerfile.circuits-wasm-linux-clang-builder-runner",
+    "rebuildPatterns": ["^circuits/cpp/barretenberg/cpp/"],
+    "dependencies": []
+  },
+  "bb.js": {
+    "buildDir": "circuits/cpp/barretenberg/ts",
+    "rebuildPatterns": ["^circuits/cpp/barretenberg/ts/"],
+    "dependencies": ["barretenberg-wasm-linux-clang"]
+  },
+  "barretenberg-acir-tests": {
+    "buildDir": "circuits/cpp/barretenberg/acir_tests",
+    "rebuildPatterns": ["^circuits/cpp/barretenberg/acir_tests/"],
+    "dependencies": ["bb.js", "barretenberg-x86_64-linux-clang-assert"]
+  },
   "circuits-wasm-linux-clang": {
     "buildDir": "circuits/cpp",
     "dockerfile": "dockerfiles/Dockerfile.wasm-linux-clang",
