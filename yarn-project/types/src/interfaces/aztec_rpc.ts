@@ -81,5 +81,6 @@ export interface AztecRPC {
     partialAddress: PartialContractAddress,
   ): Promise<void>;
   getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialContractAddress]>;
+  isSynchronised(): Promise<boolean>;
   isAccountSynchronised(account: AztecAddress): Promise<boolean>;
 }

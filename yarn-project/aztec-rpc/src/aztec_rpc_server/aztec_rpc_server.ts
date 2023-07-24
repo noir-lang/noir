@@ -568,6 +568,15 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   /**
+   * Return true if the top level block synchronisation is up to date
+   * This indicates that blocks and transactions are synched even if notes are not
+   * @returns True if there are no outstanding blocks to be synched
+   */
+  public async isSynchronised() {
+    return await this.synchroniser.isSynchronised();
+  }
+
+  /**
    * Returns true if the account specified by the given address is synched to the latest block
    * @param account - The aztec address for which to query the sync status
    * @returns True if the account is fully synched, false otherwise
