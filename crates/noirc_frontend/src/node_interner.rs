@@ -72,8 +72,9 @@ pub struct NodeInterner {
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
 
     /// TODO(#1850): This is technical debt that should be removed once we fully move over
-    /// to the new SSA pass which does have slices enabled
-    pub enable_slices: bool,
+    /// to the new SSA pass which has certain frontend features enabled
+    /// such as slices and the removal of aos_to_soa
+    pub experimental_ssa: bool,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -253,7 +254,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
-            enable_slices: false,
+            experimental_ssa: false,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -478,8 +479,18 @@ impl NodeInterner {
         }
     }
 
+    /// Retrieves the definition where the given id was defined.
+    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// any call with a possibly undefined variable.
     pub fn definition(&self, id: DefinitionId) -> &DefinitionInfo {
         &self.definitions[id.0]
+    }
+
+    /// Tries to retrieve the given id's definition.
+    /// This function should be used during name resolution or type checking when we cannot be sure
+    /// all variables have corresponding definitions (in case of an error in the user's code).
+    pub fn try_definition(&self, id: DefinitionId) -> Option<&DefinitionInfo> {
+        self.definitions.get(id.0)
     }
 
     /// Returns the name of the definition

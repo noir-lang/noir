@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu
-            runner: ubuntu-large
+            runner: ubuntu-latest
             target: x86_64-linux
 
     steps:

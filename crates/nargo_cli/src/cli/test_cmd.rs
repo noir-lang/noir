@@ -4,7 +4,7 @@ use acvm::{acir::native_types::WitnessMap, Backend};
 use clap::Args;
 use nargo::ops::execute_circuit;
 use noirc_driver::{compile_no_check, CompileOptions};
-use noirc_frontend::{graph::LOCAL_CRATE, hir::Context, node_interner::FuncId};
+use noirc_frontend::{hir::Context, node_interner::FuncId};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{
@@ -40,14 +40,21 @@ fn run_tests<B: Backend>(
     test_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut context = resolve_root_manifest(program_dir)?;
+    let (mut context, crate_id) = resolve_root_manifest(program_dir, None)?;
     check_crate_and_report_errors(
         &mut context,
+        crate_id,
         compile_options.deny_warnings,
         compile_options.experimental_ssa,
     )?;
 
-    let test_functions = context.get_all_test_functions_in_crate_matching(&LOCAL_CRATE, test_name);
+    let test_functions = match context.crate_graph.crate_type(crate_id) {
+        noirc_frontend::graph::CrateType::Workspace => {
+            context.get_all_test_functions_in_workspace_matching(test_name)
+        }
+        _ => context.get_all_test_functions_in_crate_matching(&crate_id, test_name),
+    };
+
     println!("Running {} test functions...", test_functions.len());
     let mut failing = 0;
 

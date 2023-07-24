@@ -12,30 +12,14 @@ use iter_extended::vecmap;
 use crate::ssa_refactor::{
     ir::{
         basic_block::BasicBlockId,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId, RuntimeType, Signature},
         instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
-        value::Value,
+        value::{Value, ValueId},
     },
     ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
 };
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct FunctionSignature {
-    parameters: Vec<Type>,
-    returns: Vec<Type>,
-    runtime: RuntimeType,
-}
-
-impl FunctionSignature {
-    fn from(function: &Function) -> Self {
-        let parameters = vecmap(function.parameters(), |param| function.dfg.type_of_value(*param));
-        let returns = vecmap(function.returns(), |ret| function.dfg.type_of_value(*ret));
-        let runtime = function.runtime();
-        Self { parameters, returns, runtime }
-    }
-}
 
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
@@ -64,8 +48,7 @@ struct ApplyFunction {
 #[derive(Debug, Clone)]
 struct DefunctionalizationContext {
     fn_to_runtime: HashMap<FunctionId, RuntimeType>,
-    variants: HashMap<FunctionSignature, Vec<FunctionId>>,
-    apply_functions: HashMap<FunctionSignature, ApplyFunction>,
+    apply_functions: HashMap<Signature, ApplyFunction>,
 }
 
 impl Ssa {
@@ -73,11 +56,11 @@ impl Ssa {
         // Find all functions used as value that share the same signature
         let variants = find_variants(&self);
 
-        let apply_functions = create_apply_functions(&mut self, &variants);
+        let apply_functions = create_apply_functions(&mut self, variants);
         let fn_to_runtime =
             self.functions.iter().map(|(func_id, func)| (*func_id, func.runtime())).collect();
 
-        let context = DefunctionalizationContext { fn_to_runtime, variants, apply_functions };
+        let context = DefunctionalizationContext { fn_to_runtime, apply_functions };
 
         context.defunctionalize_all(&mut self);
         self
@@ -94,7 +77,7 @@ impl DefunctionalizationContext {
 
     /// Defunctionalize a single function
     fn defunctionalize(&mut self, func: &mut Function) {
-        let mut target_function_ids = HashSet::new();
+        let mut call_target_values = HashSet::new();
 
         for block_id in func.reachable_blocks() {
             let block = &func.dfg[block_id];
@@ -114,21 +97,14 @@ impl DefunctionalizationContext {
                 match func.dfg[target_func_id] {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
-                        // Collect the argument types
-                        let argument_types = vecmap(&arguments, |arg| func.dfg.type_of_value(*arg));
+                        let results = func.dfg.instruction_results(instruction_id);
+                        let signature = Signature {
+                            params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
+                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                        };
 
-                        // Collect the result types
-                        let result_types =
-                            vecmap(func.dfg.instruction_results(instruction_id), |result| {
-                                func.dfg.type_of_value(*result)
-                            });
                         // Find the correct apply function
-                        let apply_function = self.get_apply_function(&FunctionSignature {
-                            parameters: argument_types,
-                            returns: result_types,
-                            runtime: func.runtime(),
-                        });
-                        target_function_ids.insert(apply_function.id);
+                        let apply_function = self.get_apply_function(&signature);
 
                         // Replace the instruction with a call to apply
                         let apply_function_value_id = func.dfg.import_function(apply_function.id);
@@ -136,10 +112,12 @@ impl DefunctionalizationContext {
                             arguments.insert(0, target_func_id);
                         }
                         let func = apply_function_value_id;
+                        call_target_values.insert(func);
+
                         replacement_instruction = Some(Instruction::Call { func, arguments });
                     }
-                    Value::Function(id) => {
-                        target_function_ids.insert(id);
+                    Value::Function(..) => {
+                        call_target_values.insert(target_func_id);
                     }
                     _ => {}
                 }
@@ -156,7 +134,7 @@ impl DefunctionalizationContext {
                 match &func.dfg[value_id] {
                     // If the value is a static function, transform it to the function id
                     Value::Function(id) => {
-                        if !target_function_ids.contains(id) {
+                        if !call_target_values.contains(&value_id) {
                             let new_value =
                                 func.dfg.make_constant(function_id_to_field(*id), Type::field());
                             func.dfg.set_value_from_id(value_id, new_value);
@@ -173,72 +151,118 @@ impl DefunctionalizationContext {
     }
 
     /// Returns the apply function for the given signature
-    fn get_apply_function(&self, signature: &FunctionSignature) -> ApplyFunction {
+    fn get_apply_function(&self, signature: &Signature) -> ApplyFunction {
         *self.apply_functions.get(signature).expect("Could not find apply function")
     }
 }
 
-/// Collects all functions used as a value by their signatures
-fn find_variants(ssa: &Ssa) -> HashMap<FunctionSignature, Vec<FunctionId>> {
-    let mut variants: HashMap<FunctionSignature, Vec<FunctionId>> = HashMap::new();
-    let mut functions_used_as_values = HashSet::new();
+/// Collects all functions used as values that can be called by their signatures
+fn find_variants(ssa: &Ssa) -> HashMap<Signature, Vec<FunctionId>> {
+    let mut dynamic_dispatches: HashSet<Signature> = HashSet::new();
+    let mut functions_as_values: HashSet<FunctionId> = HashSet::new();
 
     for function in ssa.functions.values() {
-        functions_used_as_values.extend(functions_as_values(function));
+        functions_as_values.extend(find_functions_as_values(function));
+        dynamic_dispatches.extend(find_dynamic_dispatches(function));
     }
 
-    for function_id in functions_used_as_values {
-        let function = &ssa.functions[&function_id];
-        let signature = FunctionSignature::from(function);
-        variants.entry(signature).or_default().push(function_id);
+    let mut signature_to_functions_as_value: HashMap<Signature, Vec<FunctionId>> = HashMap::new();
+
+    for function_id in functions_as_values {
+        let signature = ssa.functions[&function_id].signature();
+        signature_to_functions_as_value.entry(signature).or_default().push(function_id);
+    }
+
+    let mut variants = HashMap::new();
+
+    for dispatch_signature in dynamic_dispatches {
+        let mut target_fns = vec![];
+        for (target_signature, functions) in &signature_to_functions_as_value {
+            if &dispatch_signature == target_signature {
+                target_fns.extend(functions);
+            }
+        }
+        variants.insert(dispatch_signature, target_fns);
     }
 
     variants
 }
 
 /// Finds all literal functions used as values in the given function
-fn functions_as_values(func: &Function) -> HashSet<FunctionId> {
-    let mut literal_functions: HashSet<_> = func
-        .dfg
-        .values_iter()
-        .filter_map(|(id, _)| match func.dfg[id] {
-            Value::Function(id) => Some(id),
-            _ => None,
-        })
-        .collect();
+fn find_functions_as_values(func: &Function) -> HashSet<FunctionId> {
+    let mut functions_as_values: HashSet<FunctionId> = HashSet::new();
+
+    let mut process_value = |value_id: ValueId| {
+        if let Value::Function(id) = func.dfg[value_id] {
+            functions_as_values.insert(id);
+        }
+    };
 
     for block_id in func.reachable_blocks() {
         let block = &func.dfg[block_id];
         for instruction_id in block.instructions() {
             let instruction = &func.dfg[*instruction_id];
-            let target_value = match instruction {
-                Instruction::Call { func, .. } => func,
+            match instruction {
+                Instruction::Call { arguments, .. } => {
+                    arguments.iter().for_each(|value_id| process_value(*value_id));
+                }
+                Instruction::Store { value, .. } => {
+                    process_value(*value);
+                }
                 _ => continue,
             };
-            let target_id = match func.dfg[*target_value] {
-                Value::Function(id) => id,
+        }
+
+        block.unwrap_terminator().for_each_value(&mut process_value);
+    }
+
+    functions_as_values
+}
+
+/// Finds all dynamic dispatch signatures in the given function
+fn find_dynamic_dispatches(func: &Function) -> HashSet<Signature> {
+    let mut dispatches = HashSet::new();
+
+    for block_id in func.reachable_blocks() {
+        let block = &func.dfg[block_id];
+        for instruction_id in block.instructions() {
+            let instruction = &func.dfg[*instruction_id];
+            match instruction {
+                Instruction::Call { func: target, arguments } => {
+                    if let Value::Param { .. } | Value::Instruction { .. } = &func.dfg[*target] {
+                        let results = func.dfg.instruction_results(*instruction_id);
+                        dispatches.insert(Signature {
+                            params: vecmap(arguments, |param| func.dfg.type_of_value(*param)),
+                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                        });
+                    }
+                }
                 _ => continue,
             };
-            literal_functions.remove(&target_id);
         }
     }
-    literal_functions
+    dispatches
 }
 
 fn create_apply_functions(
     ssa: &mut Ssa,
-    variants_map: &HashMap<FunctionSignature, Vec<FunctionId>>,
-) -> HashMap<FunctionSignature, ApplyFunction> {
+    variants_map: HashMap<Signature, Vec<FunctionId>>,
+) -> HashMap<Signature, ApplyFunction> {
     let mut apply_functions = HashMap::new();
-    for (signature, variants) in variants_map.iter() {
+    for (signature, variants) in variants_map.into_iter() {
+        assert!(
+            !variants.is_empty(),
+            "ICE: at least one variant should exist for a dynamic call {:?}",
+            signature
+        );
         let dispatches_to_multiple_functions = variants.len() > 1;
+
         let id = if dispatches_to_multiple_functions {
-            create_apply_function(ssa, signature, variants)
+            create_apply_function(ssa, signature.clone(), variants)
         } else {
             variants[0]
         };
-        apply_functions
-            .insert(signature.clone(), ApplyFunction { id, dispatches_to_multiple_functions });
+        apply_functions.insert(signature, ApplyFunction { id, dispatches_to_multiple_functions });
     }
     apply_functions
 }
@@ -250,15 +274,14 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 /// Creates an apply function for the given signature and variants
 fn create_apply_function(
     ssa: &mut Ssa,
-    signature: &FunctionSignature,
-    function_ids: &[FunctionId],
+    signature: Signature,
+    function_ids: Vec<FunctionId>,
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
     ssa.add_fn(|id| {
-        let mut function_builder = FunctionBuilder::new("apply".to_string(), id, signature.runtime);
+        let mut function_builder = FunctionBuilder::new("apply".to_string(), id, RuntimeType::Acir);
         let target_id = function_builder.add_parameter(Type::field());
-        let params_ids =
-            vecmap(signature.parameters.clone(), |typ| function_builder.add_parameter(typ));
+        let params_ids = vecmap(signature.params, |typ| function_builder.add_parameter(typ));
 
         let mut previous_target_block = None;
         for (index, function_id) in function_ids.iter().enumerate() {
@@ -293,7 +316,7 @@ fn create_apply_function(
             let target_block = build_return_block(
                 &mut function_builder,
                 current_block,
-                signature.returns.clone(),
+                &signature.returns,
                 previous_target_block,
             );
             previous_target_block = Some(target_block);
@@ -321,13 +344,13 @@ fn create_apply_function(
 fn build_return_block(
     builder: &mut FunctionBuilder,
     previous_block: BasicBlockId,
-    passed_types: Vec<Type>,
+    passed_types: &[Type],
     target: Option<BasicBlockId>,
 ) -> BasicBlockId {
     let return_block = builder.insert_block();
     builder.switch_to_block(return_block);
 
-    let params = vecmap(passed_types, |typ| builder.add_block_parameter(return_block, typ));
+    let params = vecmap(passed_types, |typ| builder.add_block_parameter(return_block, typ.clone()));
     match target {
         None => builder.terminate_with_return(params),
         Some(target) => builder.terminate_with_jmp(target, params),

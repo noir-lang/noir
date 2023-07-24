@@ -160,11 +160,12 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            let definition_info = self.interner.definition(unused_var.id);
-            let name = &definition_info.name;
-            if name != ERROR_IDENT && !definition_info.is_global() {
-                let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
-                self.push_err(ResolverError::UnusedVariable { ident });
+            if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
+                let name = &definition_info.name;
+                if name != ERROR_IDENT && !definition_info.is_global() {
+                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                    self.push_err(ResolverError::UnusedVariable { ident });
+                }
             }
         }
     }
@@ -326,7 +327,7 @@ impl<'a> Resolver<'a> {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                if self.interner.enable_slices && size.is_none() {
+                if self.interner.experimental_ssa && size.is_none() {
                     return Type::Slice(elem);
                 }
                 let resolved_size = self.resolve_array_size(size, new_variables);
@@ -883,6 +884,7 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
                 // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -948,7 +950,7 @@ impl<'a> Resolver<'a> {
                     let decl = this.add_variable_decl(
                         identifier,
                         false,
-                        false,
+                        true,
                         DefinitionKind::Local(None),
                     );
                     (decl, this.resolve_expression(block))
@@ -1049,7 +1051,7 @@ impl<'a> Resolver<'a> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let id = self.add_variable_decl(name, mutable.is_some(), false, definition);
+                let id = self.add_variable_decl(name, mutable.is_some(), true, definition);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -1280,14 +1282,15 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
             Err(ResolverError::MutableReferenceToArrayElement { span })
         }
         HirExpression::Ident(ident) => {
-            let definition = interner.definition(ident.id);
-            if !definition.mutable {
-                let span = interner.expr_span(&rhs);
-                let variable = definition.name.clone();
-                Err(ResolverError::MutableReferenceToImmutableVariable { span, variable })
-            } else {
-                Ok(())
+            if let Some(definition) = interner.try_definition(ident.id) {
+                if !definition.mutable {
+                    return Err(ResolverError::MutableReferenceToImmutableVariable {
+                        span: interner.expr_span(&rhs),
+                        variable: definition.name.clone(),
+                    });
+                }
             }
+            Ok(())
         }
         _ => Ok(()),
     }
@@ -1519,6 +1522,25 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let _z = foo(x);
+            }
+
+            fn foo(x : Field) -> Field {
+                x
+            }
+        "#;
+
+        let errors = resolve_src_code(src, vec!["main", "foo"]);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn resolve_shadowing() {
+        let src = r#"
+            fn main(x : Field) {
+                let x = foo(x);
+                let x = x;
+                let (x, x) = (x, x);
+                let _ = x;
             }
 
             fn foo(x : Field) -> Field {
