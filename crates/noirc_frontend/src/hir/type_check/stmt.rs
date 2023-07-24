@@ -110,8 +110,8 @@ impl<'interner> TypeChecker<'interner> {
         let span = self.interner.expr_span(&assign_stmt.expression);
         self.make_subtype_of(&expr_type, &lvalue_type, span, || {
             TypeCheckError::TypeMismatchWithSource {
-                actual: expr_type.clone(),
-                expected: lvalue_type.clone(),
+                rhs: expr_type.clone(),
+                lhs: lvalue_type.clone(),
                 span,
                 source: Source::Assignment,
             }

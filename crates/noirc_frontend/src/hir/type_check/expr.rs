@@ -355,14 +355,12 @@ impl<'interner> TypeChecker<'interner> {
             }
         };
 
-        let mut cannot_cast_to_comptime =
-            || self.errors.push(TypeCheckError::CannotCastToComptimeType { span });
         match to {
             Type::Integer(dest_comp_time, sign, bits) => {
                 if dest_comp_time.is_comp_time()
                     && is_comp_time.unify(&dest_comp_time, span).is_err()
                 {
-                    cannot_cast_to_comptime();
+                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span })
                 }
 
                 Type::Integer(is_comp_time, sign, bits)
@@ -371,7 +369,7 @@ impl<'interner> TypeChecker<'interner> {
                 if dest_comp_time.is_comp_time()
                     && is_comp_time.unify(&dest_comp_time, span).is_err()
                 {
-                    cannot_cast_to_comptime();
+                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span })
                 }
 
                 Type::FieldElement(is_comp_time)
@@ -380,7 +378,7 @@ impl<'interner> TypeChecker<'interner> {
                 if dest_comp_time.is_comp_time()
                     && is_comp_time.unify(&dest_comp_time, span).is_err()
                 {
-                    cannot_cast_to_comptime();
+                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span })
                 }
                 Type::Bool(dest_comp_time)
             }
@@ -646,8 +644,8 @@ impl<'interner> TypeChecker<'interner> {
                     Ok(Bool(comptime.into_owned()))
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
-                        actual: lhs_type.clone(),
-                        expected: rhs_type.clone(),
+                        rhs: lhs_type.clone(),
+                        lhs: rhs_type.clone(),
                         span,
                         source: Source::Binary,
                     })
@@ -701,18 +699,18 @@ impl<'interner> TypeChecker<'interner> {
             {
                 x_type.unify(y_type, op.location.span, &mut self.errors, || {
                     TypeCheckError::TypeMismatchWithSource {
-                        actual: lhs_type.clone(),
-                        expected: rhs_type.clone(),
-                        source: Source::Array,
+                        rhs: lhs_type.clone(),
+                        lhs: rhs_type.clone(),
+                        source: Source::ArrayElements,
                         span: op.location.span,
                     }
                 });
 
                 self.unify(x_size, y_size, op.location.span, || {
                     TypeCheckError::TypeMismatchWithSource {
-                        actual: lhs_type.clone(),
-                        expected: rhs_type.clone(),
-                        source: Source::Array2,
+                        rhs: lhs_type.clone(),
+                        lhs: rhs_type.clone(),
+                        source: Source::ArrayLen,
                         span: op.location.span,
                     }
                 });
@@ -725,8 +723,8 @@ impl<'interner> TypeChecker<'interner> {
                     return Ok(Bool(CompTime::No(Some(op.location.span))));
                 }
                 Err(TypeCheckError::TypeMismatchWithSource {
-                    actual: lhs.clone(),
-                    expected: rhs.clone(),
+                    rhs: lhs.clone(),
+                    lhs: rhs.clone(),
                     source: Source::Comparison,
                     span,
                 })
@@ -734,18 +732,18 @@ impl<'interner> TypeChecker<'interner> {
             (String(x_size), String(y_size)) => {
                 x_size.unify(y_size, op.location.span, &mut self.errors, || {
                     TypeCheckError::TypeMismatchWithSource {
-                        actual: *x_size.clone(),
-                        expected: *y_size.clone(),
+                        rhs: *x_size.clone(),
+                        lhs: *y_size.clone(),
                         span: op.location.span,
-                        source: Source::String,
+                        source: Source::StringLen,
                     }
                 });
 
                 Ok(Bool(CompTime::No(Some(op.location.span))))
             }
             (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
-                actual: lhs.clone(),
-                expected: rhs.clone(),
+                rhs: lhs.clone(),
+                lhs: rhs.clone(),
                 source: Source::Comparison,
                 span,
             }),
@@ -893,8 +891,8 @@ impl<'interner> TypeChecker<'interner> {
                     Ok(other.clone())
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
-                        actual: lhs_type.clone(),
-                        expected: rhs_type.clone(),
+                        rhs: lhs_type.clone(),
+                        lhs: rhs_type.clone(),
                         source: Source::Binary,
                         span,
                     })
@@ -954,8 +952,8 @@ impl<'interner> TypeChecker<'interner> {
             }
 
             (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
-                actual: lhs.clone(),
-                expected: rhs.clone(),
+                rhs: lhs.clone(),
+                lhs: rhs.clone(),
                 source: Source::BinOp,
                 span,
             }),

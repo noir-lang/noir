@@ -13,7 +13,7 @@ pub enum Source {
     Binary,
     #[error("Assignment")]
     Assignment,
-    #[error(ArrayElements)]
+    #[error("ArrayElements")]
     ArrayElements,
     #[error("ArrayLen")]
     ArrayLen,
@@ -33,8 +33,8 @@ pub enum TypeCheckError {
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
     TypeMismatch { expected_typ: String, expr_typ: String, expr_span: Span },
-    #[error("Expected type {expected} is not the same as {actual}")]
-    TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
+    #[error("Expected type {lhs} is not the same as {rhs}")]
+    TypeMismatchWithSource { lhs: Type, rhs: Type, span: Span, source: Source },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: u16, found: u16, span: Span },
     #[error("Return type in a function cannot be public")]
@@ -190,17 +190,17 @@ impl From<TypeCheckError> for Diagnostic {
                 span,
             ),
             TypeCheckError::ResolverError(error) => error.into(),
-            TypeCheckError::TypeMismatchWithSource { expected, actual, span, source } => {
+            TypeCheckError::TypeMismatchWithSource { lhs, rhs, span, source } => {
                 let message = match source {
-                    Source::Binary => format!("Types in a binary operation should match, but found {actual} and {expected}"),
+                    Source::Binary => format!("Types in a binary operation should match, but found {lhs} and {rhs}"),
                     Source::Assignment => {
-                        format!("Cannot assign an expression of type {actual} to a value of type {expected}")
+                        format!("Cannot assign an expression of type {lhs} to a value of type {rhs}")
                     }
-                    Source::Array => format!("Cannot compare {actual} and {expected}, the array element types differ"),
-                    Source::Array2 => format!("Can only compare arrays of the same length. Here LHS is of length {actual}, and RHS is {expected}"),
-                    Source::String => format!("Can only compare strings of the same length. Here LHS is of length {actual}, and RHS is {expected}"),
-                    Source::Comparison => format!("Unsupported types for comparison: {actual} and {expected}"),
-                    Source::BinOp => format!("Unsupported types for binary operation: {actual} and {expected}"),
+                    Source::ArrayElements => format!("Cannot compare {lhs} and {rhs}, the array element types differ"),
+                    Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {lhs}, and RHS is {rhs}"),
+                    Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {lhs}, and RHS is {rhs}"),
+                    Source::Comparison => format!("Unsupported types for comparison: {lhs} and {rhs}"),
+                    Source::BinOp => format!("Unsupported types for binary operation: {lhs} and {rhs}"),
                 };
 
                 Diagnostic::simple_error(message, String::new(), span)
