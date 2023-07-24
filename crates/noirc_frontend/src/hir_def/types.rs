@@ -163,7 +163,7 @@ pub struct TraitType {
     /// struct types are equal.
     pub id: TraitId,
 
-    items: Vec<TraitItemType>,
+    pub items: Vec<TraitItemType>,
 
     pub name: Ident,
     pub generics: Generics,
@@ -783,7 +783,7 @@ impl Type {
                     }
                 })
             }
-            Type::Trait(trait_type, generics) => {
+            Type::Trait(_trait_type, _generics) => {
                 // TODO: Implement this
                 false
             }

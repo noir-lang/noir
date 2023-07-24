@@ -855,7 +855,7 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            Type::Trait(trait_type, generics) => {
+            Type::Trait(_trait_type, _generics) => {
                 // TODO: Implement this
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
@@ -1424,7 +1424,6 @@ mod test {
     use fm::FileId;
     use iter_extended::vecmap;
 
-    use crate::hir::def_collector;
     use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
     use crate::hir::resolution::errors::ResolverError;
     use crate::hir::resolution::import::PathResolutionError;
