@@ -347,6 +347,13 @@ impl<'interner> TypeChecker<'interner> {
                 TypeBinding::Bound(from) => return self.check_cast(from.clone(), to, span),
                 TypeBinding::Unbound(_) => is_comp_time,
             },
+            Type::TypeVariable(binding) => match &*binding.borrow() {
+                TypeBinding::Bound(from) => return self.check_cast(from.clone(), to, span),
+                TypeBinding::Unbound(_) => {
+                    self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+                    return Type::Error;
+                }
+            },
             Type::Bool(is_comp_time) => is_comp_time,
             Type::Error => return Type::Error,
             from => {
