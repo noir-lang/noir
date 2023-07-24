@@ -58,4 +58,4 @@ base64 = "0.21.2"
 
 [patch.crates-io]
 async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09dbcc11046f7a188a80137f8d36484d86c78c78" }
-acvm = { git = "https://github.com/noir-lang/acvm", branch = "gd/bigger_integer"}
+acvm = { git = "https://github.com/noir-lang/acvm", rev = "ceaf5fe4f45ac3d6bf4f5d7657aa7a42dafc5429"}
