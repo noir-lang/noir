@@ -492,7 +492,7 @@ impl Context {
                         array.iter().map(|i| self.convert_value(*i, dfg)).collect();
                     self.initialize_array(block_id, array.len(), &values);
                 }
-                _ => panic!("reading unitialized array"),
+                _ => panic!("reading uninitialized array"),
             }
         }
 
@@ -502,7 +502,7 @@ impl Context {
             Type::Array(typ, _) => {
                 if typ.len() != 1 {
                     unimplemented!(
-                        "Non-const array indices is not implementend for non-homogenous array"
+                        "Non-const array indices is not implemented for non-homogenous array"
                     );
                 }
                 typ[0].clone()
