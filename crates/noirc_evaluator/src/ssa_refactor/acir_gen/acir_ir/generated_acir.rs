@@ -109,51 +109,6 @@ impl GeneratedAcir {
     pub(crate) fn push_return_witness(&mut self, witness: Witness) {
         self.return_witnesses.push(witness);
     }
-
-    /// Returns an expression which represents `lhs * rhs`
-    ///
-    /// If one has multiplicative term and the other is of degree one or more,
-    /// the function creates [intermediate variables][`Witness`] accordingly.
-    /// There are two cases where we can optimize the multiplication between two expressions:
-    /// 1. If both expressions have at most a total degree of 1 in each term, then we can just multiply them
-    /// as each term in the result will be degree-2.
-    /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
-    ///
-    /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
-    /// which is what you get when you multiply two degree-1 univariate polynomials.
-    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
-        use std::borrow::Cow;
-        let lhs_is_linear = lhs.is_linear();
-        let rhs_is_linear = rhs.is_linear();
-
-        // Case 1: Both expressions have at most a total degree of 1 in each term
-        if lhs_is_linear && rhs_is_linear {
-            return (lhs * rhs)
-                .expect("one of the expressions is a constant and so this should not fail");
-        }
-
-        // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
-        let lhs_reduced = if lhs_is_linear {
-            Cow::Borrowed(lhs)
-        } else {
-            Cow::Owned(self.get_or_create_witness(lhs).into())
-        };
-
-        // If the lhs and rhs are the same, then we do not need to reduce
-        // rhs, we only need to square the lhs.
-        if lhs == rhs {
-            return (&*lhs_reduced * &*lhs_reduced)
-                .expect("Both expressions are reduced to be degree<=1");
-        };
-
-        let rhs_reduced = if rhs_is_linear {
-            Cow::Borrowed(rhs)
-        } else {
-            Cow::Owned(self.get_or_create_witness(rhs).into())
-        };
-
-        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree<=1")
-    }
 }
 
 impl GeneratedAcir {
@@ -381,6 +336,51 @@ impl GeneratedAcir {
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
         let inter = &(&Expression::from_field(max_power_of_two) - lhs) * &leading.into();
         lhs.add_mul(FieldElement::from(2_i128), &inter.unwrap())
+    }
+
+    /// Returns an expression which represents `lhs * rhs`
+    ///
+    /// If one has multiplicative term and the other is of degree one or more,
+    /// the function creates [intermediate variables][`Witness`] accordingly.
+    /// There are two cases where we can optimize the multiplication between two expressions:
+    /// 1. If both expressions have at most a total degree of 1 in each term, then we can just multiply them
+    /// as each term in the result will be degree-2.
+    /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
+    ///
+    /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
+    /// which is what you get when you multiply two degree-1 univariate polynomials.
+    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
+        use std::borrow::Cow;
+        let lhs_is_linear = lhs.is_linear();
+        let rhs_is_linear = rhs.is_linear();
+
+        // Case 1: Both expressions have at most a total degree of 1 in each term
+        if lhs_is_linear && rhs_is_linear {
+            return (lhs * rhs)
+                .expect("one of the expressions is a constant and so this should not fail");
+        }
+
+        // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
+        let lhs_reduced = if lhs_is_linear {
+            Cow::Borrowed(lhs)
+        } else {
+            Cow::Owned(self.get_or_create_witness(lhs).into())
+        };
+
+        // If the lhs and rhs are the same, then we do not need to reduce
+        // rhs, we only need to square the lhs.
+        if lhs == rhs {
+            return (&*lhs_reduced * &*lhs_reduced)
+                .expect("Both expressions are reduced to be degree<=1");
+        };
+
+        let rhs_reduced = if rhs_is_linear {
+            Cow::Borrowed(rhs)
+        } else {
+            Cow::Owned(self.get_or_create_witness(rhs).into())
+        };
+
+        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree<=1")
     }
 
     /// Signed division lhs /  rhs
