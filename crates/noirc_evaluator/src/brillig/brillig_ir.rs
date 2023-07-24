@@ -241,6 +241,8 @@ impl BrilligContext {
         self.deallocate_register(value_register);
     }
 
+    /// This instruction will issue a loop that will iterate iteration_count times
+    /// The body of the loop should be issued by the caller in the on_iteration closure.
     fn loop_instruction<F>(&mut self, iteration_count: RegisterIndex, on_iteration: F)
     where
         F: FnOnce(&mut BrilligContext, RegisterIndex),
@@ -866,6 +868,8 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::BlackBox(op));
     }
 
+    /// Issues a to_radix instruction. This instruction will write the modulus of the source register
+    /// And the radix register limb_count times to the target vector.
     pub(crate) fn radix_instruction(
         &mut self,
         source: RegisterIndex,
@@ -874,7 +878,6 @@ impl BrilligContext {
         limb_count: RegisterIndex,
         big_endian: bool,
     ) {
-        // TODO check if it'll fit
         self.mov_instruction(target_vector.size, limb_count);
         self.allocate_array_instruction(target_vector.pointer, target_vector.size);
 
@@ -915,7 +918,8 @@ impl BrilligContext {
         }
     }
 
-    fn reverse_vector_in_place_instruction(&mut self, vector: HeapVector) {
+    /// This instruction will reverse the order of the elements in a vector.
+    pub(crate) fn reverse_vector_in_place_instruction(&mut self, vector: HeapVector) {
         let iteration_count = self.allocate_register();
         self.usize_op(vector.size, iteration_count, BinaryIntOp::UnsignedDiv, 2);
 
