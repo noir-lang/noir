@@ -3,6 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+use clap::builder::ArgPredicate;
 use clap::Args;
 use fm::FileId;
 use noirc_abi::FunctionSignature;
@@ -40,7 +41,7 @@ pub struct CompileOptions {
     pub deny_warnings: bool,
 
     /// Display output of `println` statements
-    #[arg(long)]
+    #[arg(long, default_value_if("prover_name", ArgPredicate::IsPresent, "true"))]
     pub show_output: bool,
 
     /// Compile and optimize using the new experimental SSA pass
