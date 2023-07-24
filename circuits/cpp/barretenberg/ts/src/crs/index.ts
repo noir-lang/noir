@@ -1,1 +1,1 @@
-export { Crs } from './node/index.js';
+export { Crs } from 'dynamic/crs';

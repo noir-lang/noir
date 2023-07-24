@@ -10,4 +10,4 @@ COPY . .
 # Run all native tests.
 RUN ./run_acir_tests.sh
 # Just run double_verify_proof as a sanity check as bb.js is quite slow.
-RUN BB=../ts/dest/main.js ./run_acir_tests.sh double_verify_proof
+RUN BB=./run_bb.sh ./run_acir_tests.sh double_verify_proof

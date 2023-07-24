@@ -1,27 +1,8 @@
 {
-  "compilerOptions": {
-    "target": "es2020",
-    "lib": [
-      "dom",
-      "esnext",
-      "es2017.object"
-    ],
-    "module": "NodeNext",
-    "strict": true,
-    "declaration": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "downlevelIteration": true,
-    "inlineSourceMap": true,
-    "declarationMap": true,
-    "importHelpers": true,
-    "resolveJsonModule": true,
-    "composite": true,
-    "outDir": "dest",
-    "rootDir": "src",
-    "tsBuildInfoFile": ".tsbuildinfo"
-  },
-  "include": [
-    "src"
-  ]
-}
+    "files": [],
+    "references": [
+      {"path": "./tsconfig.browser.json"},
+      {"path": "./tsconfig.node.json"}
+    ]
+  }
+  

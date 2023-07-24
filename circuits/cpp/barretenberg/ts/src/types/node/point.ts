@@ -1,5 +1,5 @@
-import { Fr } from './index.js';
-import { BufferReader } from '../serialize/buffer_reader.js';
+import { Fr } from '../index.js';
+import { BufferReader } from '../../serialize/buffer_reader.js';
 
 export class Point {
   static SIZE_IN_BYTES = 64;

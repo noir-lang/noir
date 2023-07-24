@@ -10,7 +10,9 @@ export class CachedNetCrs {
 
   constructor(public readonly numPoints: number) {}
 
-  static async new(numPoints: number) {
+  // This is to keep signrature equal with the node version of CRS
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  static async new(numPoints: number, _?: string) {
     const crs = new CachedNetCrs(numPoints);
     await crs.init();
     return crs;

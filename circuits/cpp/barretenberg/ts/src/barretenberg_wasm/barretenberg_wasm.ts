@@ -3,10 +3,14 @@ import { EventEmitter } from 'events';
 import createDebug from 'debug';
 import { Remote, proxy } from 'comlink';
 import { randomBytes } from '../random/index.js';
-// Webpack config swaps this import with ./browser/index.js
-// You can toggle between these two imports to sanity check the type-safety.
-import { fetchCode, getNumCpu, createWorker, getRemoteBarretenbergWasm, threadLogger, killSelf } from './node/index.js';
-// import { fetchCode, getNumCpu, createWorker, randomBytes } from './browser/index.js';
+import {
+  fetchCode,
+  getNumCpu,
+  createWorker,
+  getRemoteBarretenbergWasm,
+  threadLogger,
+  killSelf,
+} from 'dynamic/barretenberg_wasm';
 
 const debug = createDebug('bb.js:wasm');
 
@@ -68,7 +72,7 @@ export class BarretenbergWasm {
 
     // Annoyingly the wasm declares if it's memory is shared or not. So now we need two wasms if we want to be
     // able to fallback on "non shared memory" situations.
-    const code = await fetchCode(threads > 1 ? 'barretenberg-threads.wasm' : 'barretenberg.wasm');
+    const code = await fetchCode(threads > 1);
     const { instance, module } = await WebAssembly.instantiate(code, this.getImportObj(this.memory));
 
     this.instance = instance;
@@ -78,8 +82,8 @@ export class BarretenbergWasm {
 
     // Create worker threads. Create 1 less than requested, as main thread counts as a thread.
     this.logger('creating worker threads...');
-    this.workers = await Promise.all(Array.from({ length: threads - 1 }).map(createWorker));
-    this.remoteWasms = await Promise.all(this.workers.map(getRemoteBarretenbergWasm));
+    this.workers = (await Promise.all(Array.from({ length: threads - 1 }).map(createWorker))) as any;
+    this.remoteWasms = await Promise.all(this.workers.map(getRemoteBarretenbergWasm as any));
     await Promise.all(this.remoteWasms.map(w => w.initThread(module, this.memory)));
     this.logger('init complete.');
   }

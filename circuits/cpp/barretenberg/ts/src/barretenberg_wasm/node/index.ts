@@ -8,9 +8,9 @@ import { wrap } from 'comlink';
 import { nodeEndpoint } from './node_endpoint.js';
 import { writeSync } from 'fs';
 
-export async function fetchCode(name: string) {
+export async function fetchCode(multithreading: boolean) {
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  return await readFile(__dirname + '/../../' + name);
+  return await readFile(__dirname + `/../../${multithreading ? 'barretenberg-threads.wasm' : 'barretenberg.wasm'}`);
 }
 
 export function createWorker() {
