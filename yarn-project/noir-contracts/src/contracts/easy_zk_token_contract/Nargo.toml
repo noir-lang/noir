@@ -1,0 +1,8 @@
+[package]
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]
+aztec = { path = "../../../../noir-libs/noir-aztec" }
+value_note = { path = "../../../../noir-libs/value-note"}
+easy_private_state = { path = "../../../../noir-libs/easy-private-state"}

@@ -25,7 +25,6 @@ fn create_note<Note, N>(
 
         let serialise = note_interface.serialise;
         let preimage = serialise(note);
-        let mut myfield = 0;
         notify_result = notify_created_note(storage_slot, preimage);
         assert(notify_result == 0); // TODO(https://github.com/noir-lang/noir/pull/1729): combine with above line (more below)
     }
@@ -43,7 +42,7 @@ fn destroy_note<Note, N>(
     note_interface: NoteInterface<Note, N>,
 ) -> Context {
     let mut nullifier = 0;
-    let mut nullified_commitment = EMPTY_NULLIFIED_COMMITMENT;
+    let mut nullified_commitment = 0;
     let is_dummy = note_interface.is_dummy;
     if is_dummy(note) == false {
         let compute_nullifier = note_interface.compute_nullifier;
@@ -55,7 +54,9 @@ fn destroy_note<Note, N>(
         
         // We also need the note commitment corresponding to the "nullifier"
         // TODO(suyash): We're re-computing the note commitment, ideally we can reuse the one already computed.
-        let nullified_commitment = compute_inner_note_hash(note_interface, note);
+        nullified_commitment = compute_inner_note_hash(note_interface, note);
+    } else {
+        nullified_commitment = EMPTY_NULLIFIED_COMMITMENT;
     }
 
 

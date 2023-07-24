@@ -1,0 +1,7 @@
+[package]
+authors = ["aztec-labs"]
+compiler_version = "0.7.1"
+
+[dependencies]
+aztec = { path = "../noir-aztec" }
+value_note = { path = "../value-note" }
