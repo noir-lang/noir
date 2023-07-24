@@ -70,8 +70,7 @@ fn run_tests<B: Backend>(
         writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
         writer.flush().ok();
 
-
-        match run_test(backend, test_name, test_function, &context, show_output, compile_options) {
+        match run_test(backend, &test_name, test_function, &context, show_output, compile_options) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
