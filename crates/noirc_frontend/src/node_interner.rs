@@ -325,7 +325,6 @@ impl NodeInterner {
     }
 
     pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
-        println!("Adding trait with name = {:?}", typ.trait_def);
         self.traits.insert(
             type_id,
             Shared::new(TraitType::new(

@@ -1721,17 +1721,7 @@ mod test {
         }
         "#;
 
-        let errors = resolve_src_code(src, vec!["main", "Foo"]);
-        for err in &errors {
-            match err {
-                ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
-                    println!("\n\n name = {}\n\n", name.to_string());
-                    assert_eq!(name.to_string(), "default");
-                }
-                _ => unimplemented!("expected an unresolved path"),
-            }
-        }
-
+        let errors = resolve_src_code(src, vec!["main"]);
         assert!(errors.is_empty());
     }
 

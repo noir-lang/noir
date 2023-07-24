@@ -127,7 +127,6 @@ impl<'a> ModCollector<'a> {
                         let func_id = context.def_interner.push_empty_fn();
                         context.def_interner.push_function_definition(noir_function.name().to_owned(), func_id);
                         unresolved_functions.push_fn(self.module_id, func_id, noir_function);
-
                     }
                     TraitImplItem::Constant(_name, _typ, _value) => {
                         // TODO: Implement this
