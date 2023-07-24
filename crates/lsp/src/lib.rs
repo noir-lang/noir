@@ -201,15 +201,13 @@ fn on_code_lens_request(
     let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
 
     let mut lenses: Vec<CodeLens> = vec![];
-    for func_id in tests {
+    for (func_name, func_id) in tests {
         let location = context.function_meta(&func_id).name.location;
         let file_id = location.file;
         // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
         if file_id.as_usize() != 0 {
             continue;
         }
-
-        let func_name = context.function_name(&func_id);
 
         let range =
             byte_span_to_range(files, file_id.as_usize(), location.span.into()).unwrap_or_default();

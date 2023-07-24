@@ -61,12 +61,11 @@ fn run_tests<B: Backend>(
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
-    for test_function in test_functions {
-        let test_name = context.function_name(&test_function);
+    for (test_name, test_function) in test_functions {
         writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
         writer.flush().ok();
 
-        match run_test(backend, test_name, test_function, &context, compile_options) {
+        match run_test(backend, &test_name, test_function, &context, compile_options) {
             Ok(_) => {
                 writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
                 writeln!(writer, "ok").ok();
