@@ -37,7 +37,6 @@ noirc_errors = { path = "crates/noirc_errors" }
 noirc_evaluator = { path = "crates/noirc_evaluator" }
 noirc_frontend = { path = "crates/noirc_frontend" }
 noir_wasm = { path = "crates/wasm" }
-
 cfg-if = "1.0.0"
 clap = { version = "4.1.4", features = ["derive"] }
 codespan = { version = "0.11.1", features = ["serialization"] }

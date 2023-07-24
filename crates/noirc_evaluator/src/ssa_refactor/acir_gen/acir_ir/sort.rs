@@ -1,6 +1,5 @@
-use acvm::acir::native_types::{Expression, Witness};
-
 use super::generated_acir::GeneratedAcir;
+use acvm::acir::native_types::{Expression, Witness};
 
 impl GeneratedAcir {
     // Generates gates for a sorting network
@@ -70,32 +69,5 @@ impl GeneratedAcir {
         conf.extend(w1);
         conf.extend(w2);
         (conf, out_expr)
-    }
-
-    /// Returns an expression which represents a*b
-    /// If one has multiplicative term and the other is of degree one or more,
-    /// the function creates intermediate variables accordindly
-    fn mul_with_witness(&mut self, a: &Expression, b: &Expression) -> Expression {
-        let a_arith;
-        let a_arith = if !a.mul_terms.is_empty() && !b.is_const() {
-            let a_witness = self.get_or_create_witness(a);
-            a_arith = Expression::from(a_witness);
-            &a_arith
-        } else {
-            a
-        };
-        let b_arith;
-        let b_arith = if !b.mul_terms.is_empty() && !a.is_const() {
-            if a == b {
-                a_arith
-            } else {
-                let b_witness = self.get_or_create_witness(a);
-                b_arith = Expression::from(b_witness);
-                &b_arith
-            }
-        } else {
-            b
-        };
-        (a_arith * b_arith).expect("Both expressions are reduced to be degree<=1")
     }
 }

@@ -59,7 +59,7 @@ pub(crate) fn serialize_to_json(
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
-enum JsonTypes {
+pub enum JsonTypes {
     // This is most likely going to be a hex string
     // But it is possible to support UTF-8
     String(String),
@@ -78,14 +78,13 @@ enum JsonTypes {
 }
 
 impl JsonTypes {
-    fn try_from_input_value(
+    pub fn try_from_input_value(
         value: &InputValue,
         abi_type: &AbiType,
     ) -> Result<JsonTypes, InputParserError> {
         let json_value = match (value, abi_type) {
             (InputValue::Field(f), AbiType::Field | AbiType::Integer { .. }) => {
-                let f_str = format!("0x{}", f.to_hex());
-                JsonTypes::String(f_str)
+                JsonTypes::String(Self::format_field_string(*f))
             }
             (InputValue::Field(f), AbiType::Boolean) => JsonTypes::Bool(f.is_one()),
 
@@ -108,6 +107,21 @@ impl JsonTypes {
             _ => return Err(InputParserError::AbiTypeMismatch(abi_type.clone())),
         };
         Ok(json_value)
+    }
+
+    /// This trims any leading zeroes.
+    /// A singular '0' will be prepended as well if the trimmed string has an odd length.
+    /// A hex string's length needs to be even to decode into bytes, as two digits correspond to
+    /// one byte.
+    fn format_field_string(field: FieldElement) -> String {
+        if field.is_zero() {
+            return "0x00".to_owned();
+        }
+        let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
+        if trimmed_field.len() % 2 != 0 {
+            trimmed_field = "0".to_owned() + &trimmed_field;
+        }
+        "0x".to_owned() + &trimmed_field
     }
 }
 
@@ -159,5 +173,15 @@ impl InputValue {
         };
 
         Ok(input_value)
+    }
+}
+
+impl std::fmt::Display for JsonTypes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // From the docs: https://doc.rust-lang.org/std/fmt/struct.Error.html
+        // This type does not support transmission of an error other than that an error
+        // occurred. Any extra information must be arranged to be transmitted through
+        // some other means.
+        write!(f, "{}", serde_json::to_string(&self).map_err(|_| std::fmt::Error)?)
     }
 }

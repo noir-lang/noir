@@ -26,8 +26,8 @@ pub struct Brillig {
 
 impl Brillig {
     /// Compiles a function into brillig and store the compilation artifacts
-    pub(crate) fn compile(&mut self, func: &Function) {
-        let obj = convert_ssa_function(func, &self.ssa_function_to_signature);
+    pub(crate) fn compile(&mut self, func: &Function, enable_debug_trace: bool) {
+        let obj = convert_ssa_function(func, &self.ssa_function_to_signature, enable_debug_trace);
         self.ssa_function_to_brillig.insert(func.id(), obj);
     }
 
@@ -52,7 +52,7 @@ impl std::ops::Index<FunctionId> for Brillig {
 
 impl Ssa {
     /// Compile to brillig brillig functions and ACIR functions reachable from them
-    pub(crate) fn to_brillig(&self) -> Brillig {
+    pub(crate) fn to_brillig(&self, enable_debug_trace: bool) -> Brillig {
         // Collect all the function ids that are reachable from brillig
         // That means all the functions marked as brillig and ACIR functions called by them
         let mut brillig_reachable_function_ids: HashSet<FunctionId> = HashSet::new();
@@ -103,7 +103,7 @@ impl Ssa {
 
         for brillig_function_id in brillig_reachable_function_ids {
             let func = &self.functions[&brillig_function_id];
-            brillig.compile(func);
+            brillig.compile(func, enable_debug_trace);
         }
 
         brillig

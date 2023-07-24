@@ -45,9 +45,7 @@ pub(crate) fn evaluate(
             // Before pushing to the public inputs, we need to check that
             // it was not a private ABI input
             if evaluator.is_private_abi_input(witness) {
-                return Err(RuntimeErrorKind::Spanless(String::from(
-                    "we do not allow private ABI inputs to be returned as public outputs",
-                )));
+                return Err(RuntimeErrorKind::PrivateAbiInput);
             }
             // Check if the outputted witness needs separating from an existing occurrence in the
             // abi. This behavior stems from usage of the `distinct` keyword.

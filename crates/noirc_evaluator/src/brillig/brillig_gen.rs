@@ -19,6 +19,7 @@ use super::brillig_ir::{artifact::BrilligArtifact, BrilligContext};
 pub(crate) fn convert_ssa_function(
     func: &Function,
     function_to_signature: &HashMap<FunctionId, Signature>,
+    enable_debug_trace: bool,
 ) -> BrilligArtifact {
     let mut reverse_post_order = Vec::new();
     reverse_post_order.extend_from_slice(PostOrder::with_function(func).as_slice());
@@ -30,6 +31,7 @@ pub(crate) fn convert_ssa_function(
     let mut brillig_context = BrilligContext::new(
         FunctionContext::parameters(func),
         FunctionContext::return_values(func),
+        enable_debug_trace,
     );
 
     brillig_context.enter_context(FunctionContext::function_id_to_function_label(func.id()));
