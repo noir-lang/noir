@@ -587,6 +587,8 @@ impl Context {
         self.define_result(dfg, instruction, result_value);
     }
 
+    /// Initializes an array with the given values and caches the fact that we
+    /// have initialized this array.
     fn initialize_array(&mut self, array: BlockId, len: usize, values: &[AcirValue]) {
         self.acir_context.initialize_array(array, len, values);
         self.initialized_arrays.insert(array);
