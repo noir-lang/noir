@@ -175,7 +175,7 @@ impl AcirContext {
         let field_type = AcirType::NumericType(NumericType::NativeField);
 
         let results = self.brillig(
-            Some(predicate),
+            predicate,
             inverse_code,
             vec![AcirValue::Var(var, field_type.clone())],
             vec![field_type],
@@ -815,7 +815,7 @@ impl AcirContext {
 
     pub(crate) fn brillig(
         &mut self,
-        predicate: Option<AcirVar>,
+        predicate: AcirVar,
         code: Vec<BrilligOpcode>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
@@ -861,8 +861,8 @@ impl AcirContext {
                 AcirValue::Array(array_values)
             }
         });
-        let predicate = predicate.map(|var| self.vars[&var].to_expression().into_owned());
-        self.acir_ir.brillig(predicate, code, b_inputs, b_outputs);
+        let predicate = self.vars[&predicate].to_expression().into_owned();
+        self.acir_ir.brillig(Some(predicate), code, b_inputs, b_outputs);
 
         outputs_var
     }
