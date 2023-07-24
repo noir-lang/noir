@@ -58,7 +58,7 @@ pub(super) fn simplify(ctx: &mut SsaContext, ins: &mut Instruction) -> Result<()
         }
     }
     if let Operation::Binary(binary) = &ins.operation {
-        if binary.operator == BinaryOp::Xor {
+        if binary.operator == BinaryOp::Xor && ins.res_type.bits() < 128 {
             let max = FieldElement::from(2_u128.pow(ins.res_type.bits()) - 1);
             if NodeEval::from_id(ctx, binary.rhs).into_const_value() == Some(max) {
                 ins.operation = Operation::Not(binary.lhs);

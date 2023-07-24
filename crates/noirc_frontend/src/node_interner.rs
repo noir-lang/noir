@@ -70,6 +70,11 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
+
+    /// TODO(#1850): This is technical debt that should be removed once we fully move over
+    /// to the new SSA pass which has certain frontend features enabled
+    /// such as slices and the removal of aos_to_soa
+    pub experimental_ssa: bool,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -249,6 +254,7 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
+            experimental_ssa: false,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -473,8 +479,18 @@ impl NodeInterner {
         }
     }
 
+    /// Retrieves the definition where the given id was defined.
+    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// any call with a possibly undefined variable.
     pub fn definition(&self, id: DefinitionId) -> &DefinitionInfo {
         &self.definitions[id.0]
+    }
+
+    /// Tries to retrieve the given id's definition.
+    /// This function should be used during name resolution or type checking when we cannot be sure
+    /// all variables have corresponding definitions (in case of an error in the user's code).
+    pub fn try_definition(&self, id: DefinitionId) -> Option<&DefinitionInfo> {
+        self.definitions.get(id.0)
     }
 
     /// Returns the name of the definition
@@ -527,8 +543,7 @@ impl NodeInterner {
     }
 
     pub fn next_type_variable(&mut self) -> Type {
-        let binding = TypeBinding::Unbound(self.next_type_variable_id());
-        Type::TypeVariable(Shared::new(binding))
+        Type::type_variable(self.next_type_variable_id())
     }
 
     pub fn store_instantiation_bindings(
@@ -599,12 +614,12 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
+    Slice,
     Bool,
     String,
     Unit,
     Tuple,
     Function,
-    Vec,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -613,6 +628,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     match &typ {
         Type::FieldElement(_) => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
+        Type::Slice(_) => Some(Slice),
         Type::Integer(_, _, _) => Some(FieldOrInt),
         Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),
@@ -620,7 +636,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _) => Some(Function),
-        Type::Vec(_) => Some(Vec),
+        Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
         Type::TypeVariable(_)

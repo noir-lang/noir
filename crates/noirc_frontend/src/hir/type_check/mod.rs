@@ -232,6 +232,7 @@ mod test {
             attributes: None,
             location,
             contract_function_type: None,
+            is_internal: None,
             is_unconstrained: false,
             typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
             parameters: vec![

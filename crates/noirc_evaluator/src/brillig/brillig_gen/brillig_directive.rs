@@ -1,6 +1,4 @@
-use acvm::acir::brillig_vm::{
-    BinaryFieldOp, BinaryIntOp, Opcode as BrilligOpcode, RegisterIndex, Value,
-};
+use acvm::{acir::brillig::{BinaryFieldOp, Opcode as BrilligOpcode, RegisterIndex, Value}, brillig_vm::brillig::BinaryIntOp};
 
 /// Generates brillig bytecode which computes the inverse of its input if not null, and zero else.
 pub(crate) fn directive_invert() -> Vec<BrilligOpcode> {

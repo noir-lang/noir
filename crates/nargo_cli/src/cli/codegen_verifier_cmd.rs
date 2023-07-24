@@ -51,20 +51,27 @@ pub(crate) fn run<B: Backend>(
             (common_reference_string, program)
         }
         None => {
-            let program =
-                compile_circuit(backend, config.program_dir.as_ref(), &args.compile_options)?;
+            let (program, _) =
+                compile_circuit(backend, None, config.program_dir.as_ref(), &args.compile_options)?;
             let common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
-            let program = preprocess_program(backend, &common_reference_string, program)
+            let (program, _) = preprocess_program(backend, true, &common_reference_string, program)
                 .map_err(CliError::ProofSystemCompilerError)?;
             (common_reference_string, program)
         }
     };
 
-    let smart_contract_string =
-        codegen_verifier(backend, &common_reference_string, &preprocessed_program.verification_key)
-            .map_err(CliError::SmartContractError)?;
+    let verification_key = preprocessed_program
+        .verification_key
+        .expect("Verification key should exist as `true` is passed to `preprocess_program`");
+    let smart_contract_string = codegen_verifier(
+        backend,
+        &common_reference_string,
+        &preprocessed_program.bytecode,
+        &verification_key,
+    )
+    .map_err(CliError::SmartContractError)?;
 
     write_cached_common_reference_string(&common_reference_string);
 

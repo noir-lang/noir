@@ -2,6 +2,7 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
 
+use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
 
@@ -34,6 +35,8 @@ pub enum TypeCheckError {
     },
     #[error("Cannot infer type of expression, type annotations needed before this point")]
     TypeAnnotationsNeeded { span: Span },
+    #[error("{0}")]
+    ResolverError(ResolverError),
 }
 
 impl TypeCheckError {
@@ -103,6 +106,7 @@ impl From<TypeCheckError> for Diagnostic {
                 "Type must be known at this point".to_string(),
                 span,
             ),
+            TypeCheckError::ResolverError(error) => error.into(),
         }
     }
 }

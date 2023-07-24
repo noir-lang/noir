@@ -4,6 +4,7 @@ use std::sync::{Mutex, RwLock};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
+use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
@@ -165,12 +166,17 @@ impl<'a> FunctionContext<'a> {
 
     // This helper is needed because we need to take f by mutable reference,
     // otherwise we cannot move it multiple times each loop of vecmap.
-    fn map_type_helper<T>(typ: &ast::Type, f: &mut impl FnMut(Type) -> T) -> Tree<T> {
+    fn map_type_helper<T>(typ: &ast::Type, f: &mut dyn FnMut(Type) -> T) -> Tree<T> {
         match typ {
             ast::Type::Tuple(fields) => {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
             ast::Type::Unit => Tree::empty(),
+            // A mutable reference wraps each element into a reference.
+            // This can be multiple values if the element type is a tuple.
+            ast::Type::MutableReference(element) => {
+                Self::map_type_helper(element, &mut |_| f(Type::Reference))
+            }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
         }
     }
@@ -201,11 +207,15 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _) => Type::Function,
-
-            // How should we represent Vecs?
-            // Are they a struct of array + length + capacity?
-            // Or are they just references?
-            ast::Type::Vec(_) => Type::Reference,
+            ast::Type::Slice(element) => {
+                let element_types = Self::convert_type(element).flatten();
+                Type::Slice(Rc::new(element_types))
+            }
+            ast::Type::MutableReference(element) => {
+                // Recursive call to panic if element is a tuple
+                Self::convert_non_tuple_type(element);
+                Type::Reference
+            }
         }
     }
 
@@ -223,18 +233,19 @@ impl<'a> FunctionContext<'a> {
         mut lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         mut rhs: ValueId,
+        location: Location,
     ) -> Values {
         let op = convert_operator(operator);
 
         if op == BinaryOp::Eq && matches!(self.builder.type_of_value(lhs), Type::Array(..)) {
-            return self.insert_array_equality(lhs, operator, rhs);
+            return self.insert_array_equality(lhs, operator, rhs, location);
         }
 
         if operator_requires_swapped_operands(operator) {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
-        let mut result = self.builder.insert_binary(lhs, op, rhs);
+        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
 
         if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
             operator,
@@ -286,6 +297,7 @@ impl<'a> FunctionContext<'a> {
         lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         rhs: ValueId,
+        location: Location,
     ) -> Values {
         let lhs_type = self.builder.type_of_value(lhs);
         let rhs_type = self.builder.type_of_value(rhs);
@@ -311,7 +323,7 @@ impl<'a> FunctionContext<'a> {
         let loop_end = self.builder.insert_block();
 
         // pre-loop
-        let result_alloc = self.builder.insert_allocate();
+        let result_alloc = self.builder.set_location(location).insert_allocate();
         let true_value = self.builder.numeric_constant(1u128, Type::bool());
         self.builder.insert_store(result_alloc, true_value);
         let zero = self.builder.field_constant(0u128);
@@ -356,9 +368,11 @@ impl<'a> FunctionContext<'a> {
         function: ValueId,
         arguments: Vec<ValueId>,
         result_type: &ast::Type,
+        location: Location,
     ) -> Values {
         let result_types = Self::convert_type(result_type).flatten();
-        let results = self.builder.insert_call(function, arguments, result_types);
+        let results =
+            self.builder.set_location(location).insert_call(function, arguments, result_types);
 
         let mut i = 0;
         let reshaped_return_values = Self::map_type(result_type, |_| {
@@ -473,7 +487,19 @@ impl<'a> FunctionContext<'a> {
                 let object_lvalue = Box::new(object_lvalue);
                 LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
             }
+            ast::LValue::Dereference { reference, .. } => {
+                let (reference, _) = self.extract_current_value_recursive(reference);
+                LValue::Dereference { reference }
+            }
         }
+    }
+
+    pub(super) fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+        let element_types = Self::convert_type(element_type);
+        values.map_both(element_types, |value, element_type| {
+            let reference = value.eval(self);
+            self.builder.insert_load(reference, element_type).into()
+        })
     }
 
     /// Compile the given identifier as a reference - ie. avoid calling .eval()
@@ -505,9 +531,9 @@ impl<'a> FunctionContext<'a> {
                 let variable = self.ident_lvalue(ident);
                 (variable.clone(), LValue::Ident(variable))
             }
-            ast::LValue::Index { array, index, element_type, location: _ } => {
+            ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
-                let element = self.codegen_array_index(old_array, index, element_type);
+                let element = self.codegen_array_index(old_array, index, element_type, *location);
                 (element, index_lvalue)
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
@@ -516,28 +542,51 @@ impl<'a> FunctionContext<'a> {
                 let element = Self::get_field_ref(&old_object, *index).clone();
                 (element, LValue::MemberAccess { old_object, object_lvalue, index: *index })
             }
+            ast::LValue::Dereference { reference, element_type } => {
+                let (reference, _) = self.extract_current_value_recursive(reference);
+                let dereferenced = self.dereference(&reference, element_type);
+                (dereferenced, LValue::Dereference { reference })
+            }
         }
     }
 
     /// Assigns a new value to the given LValue.
     /// The LValue can be created via a previous call to extract_current_value.
     /// This method recurs on the given LValue to create a new value to assign an allocation
-    /// instruction within an LValue::Ident - see the comment on `extract_current_value` for more
-    /// details.
-    /// When first-class references are supported the nearest reference may be in any LValue
-    /// variant rather than just LValue::Ident.
+    /// instruction within an LValue::Ident or LValue::Dereference - see the comment on
+    /// `extract_current_value` for more details.
     pub(super) fn assign_new_value(&mut self, lvalue: LValue, new_value: Values) {
         match lvalue {
             LValue::Ident(references) => self.assign(references, new_value),
-            LValue::Index { old_array, index, array_lvalue } => {
-                let rvalue = new_value.into_leaf().eval(self); // TODO
-                let new_array = self.builder.insert_array_set(old_array, index, rvalue);
-                self.assign_new_value(*array_lvalue, new_array.into());
+            LValue::Index { old_array: mut array, index, array_lvalue } => {
+                let element_size = self.builder.field_constant(self.element_size(array));
+
+                // The actual base index is the user's index * the array element type's size
+                let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
+                let one = self.builder.field_constant(FieldElement::one());
+
+                new_value.for_each(|value| {
+                    let value = value.eval(self);
+                    array = self.builder.insert_array_set(array, index, value);
+                    index = self.builder.insert_binary(index, BinaryOp::Add, one);
+                });
+
+                self.assign_new_value(*array_lvalue, array.into());
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
                 let new_object = Self::replace_field(old_object, index, new_value);
                 self.assign_new_value(*object_lvalue, new_object);
             }
+            LValue::Dereference { reference } => {
+                self.assign(reference, new_value);
+            }
+        }
+    }
+
+    fn element_size(&self, array: ValueId) -> FieldElement {
+        match self.builder.type_of_value(array) {
+            Type::Array(elements, _) | Type::Slice(elements) => (elements.len() as u128).into(),
+            t => panic!("Uncaught type error: tried to take element size of non-array type {t}"),
         }
     }
 
@@ -705,8 +754,10 @@ impl SharedContext {
 }
 
 /// Used to remember the results of each step of extracting a value from an ast::LValue
+#[derive(Debug)]
 pub(super) enum LValue {
     Ident(Values),
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
+    Dereference { reference: Values },
 }

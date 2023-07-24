@@ -74,4 +74,6 @@ fn main(x: Field, y: Field) {
     let six = legs + eyes as Field;
 
     assert(six == 6);
+
+    let Animal { legs: _, eyes: _ } = get_dog();
 }

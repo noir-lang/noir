@@ -1,18 +1,22 @@
 use std::collections::HashSet;
 
+use iter_extended::vecmap;
+
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
+use super::instruction::TerminatorInstruction;
 use super::map::Id;
 use super::types::Type;
 use super::value::ValueId;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(crate) enum RuntimeType {
     // A noir function, to be compiled in ACIR and executed by ACVM
     Acir,
     // Unconstrained function, to be compiled to brillig and executed by the Brillig VM
     Brillig,
 }
+
 /// A function holds a list of instructions.
 /// These instructions are further grouped into Basic blocks
 ///
@@ -59,7 +63,7 @@ impl Function {
 
     /// Runtime type of the function.
     pub(crate) fn runtime(&self) -> RuntimeType {
-        self.runtime.clone()
+        self.runtime
     }
 
     /// Set runtime type of the function.
@@ -83,6 +87,21 @@ impl Function {
         self.dfg.block_parameters(self.entry_block)
     }
 
+    /// Returns the return types of this function.
+    pub(crate) fn returns(&self) -> &[ValueId] {
+        let blocks = self.reachable_blocks();
+        let mut function_return_values = None;
+        for block in blocks {
+            let terminator = self.dfg[block].terminator();
+            if let Some(TerminatorInstruction::Return { return_values }) = terminator {
+                function_return_values = Some(return_values);
+                break;
+            }
+        }
+        function_return_values
+            .expect("Expected a return instruction, as function construction is finished")
+    }
+
     /// Collects all the reachable blocks of this function.
     ///
     /// Note that self.dfg.basic_blocks_iter() iterates over all blocks,
@@ -99,6 +118,21 @@ impl Function {
         }
         blocks
     }
+
+    pub(crate) fn signature(&self) -> Signature {
+        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
+        let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
+        Signature { params, returns }
+    }
+}
+
+impl std::fmt::Display for RuntimeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RuntimeType::Acir => write!(f, "acir"),
+            RuntimeType::Brillig => write!(f, "brillig"),
+        }
+    }
 }
 
 /// FunctionId is a reference for a function
@@ -107,7 +141,7 @@ impl Function {
 /// within Call instructions.
 pub(crate) type FunctionId = Id<Function>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
     pub(crate) returns: Vec<Type>,

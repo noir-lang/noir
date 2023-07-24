@@ -71,13 +71,41 @@ impl CrateDefMap {
         // Without this check, the compiler will panic as it does not
         // expect the same crate to be processed twice. It would not
         // make the implementation wrong, if the same crate was processed twice, it just makes it slow.
-        if context.def_map(crate_id).is_some() {
+        if context.def_map(&crate_id).is_some() {
             return;
         }
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
+        let mut ast = parse_file(&mut context.file_manager, root_file_id, errors);
+
+        // TODO(#1850): This check should be removed once we fully move over to the new SSA pass
+        // There are some features that use the new SSA pass that also affect the stdlib.
+        // 1. Compiling with the old SSA pass will lead to duplicate method definitions between
+        // the `slice` and `array` modules of the stdlib.
+        // 2. The `println` method is a builtin with the old SSA but is a normal function that calls
+        // an oracle in the new SSA.
+        //
+        if crate_id.is_stdlib() {
+            let path_as_str = context
+                .file_manager
+                .path(root_file_id)
+                .to_str()
+                .expect("expected std path to be convertible to str");
+            assert_eq!(path_as_str, "std/lib");
+            // There are 2 printlns in the stdlib. If we are using the experimental SSA, we want to keep
+            // only the unconstrained one. Otherwise we want to keep only the constrained one.
+            ast.functions.retain(|func| {
+                func.def.name.0.contents.as_str() != "println"
+                    || func.def.is_unconstrained == context.def_interner.experimental_ssa
+            });
+
+            if !context.def_interner.experimental_ssa {
+                ast.module_decls.retain(|ident| {
+                    ident.0.contents != "slice" && ident.0.contents != "collections"
+                });
+            }
+        }
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();

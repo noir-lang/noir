@@ -79,7 +79,9 @@ impl Opcode {
                     | BlackBoxFunc::FixedBaseScalarMul
                     | BlackBoxFunc::RecursiveAggregation => BigUint::zero(),
                     // Verify returns zero or one
-                    BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => BigUint::one(),
+                    BlackBoxFunc::SchnorrVerify
+                    | BlackBoxFunc::EcdsaSecp256k1
+                    | BlackBoxFunc::EcdsaSecp256r1 => BigUint::one(),
                     BlackBoxFunc::HashToField128Security => ObjectType::native_field().max_size(),
                     BlackBoxFunc::RANGE | BlackBoxFunc::AND | BlackBoxFunc::XOR => {
                         unimplemented!("ICE: these opcodes do not have Noir builtin functions")
@@ -103,9 +105,9 @@ impl Opcode {
                     }
                     BlackBoxFunc::HashToField128Security => (1, ObjectType::native_field()),
                     // See issue #775 on changing this to return a boolean
-                    BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => {
-                        (1, ObjectType::native_field())
-                    }
+                    BlackBoxFunc::SchnorrVerify
+                    | BlackBoxFunc::EcdsaSecp256k1
+                    | BlackBoxFunc::EcdsaSecp256r1 => (1, ObjectType::native_field()),
                     BlackBoxFunc::Pedersen => (2, ObjectType::native_field()),
                     BlackBoxFunc::FixedBaseScalarMul => (2, ObjectType::native_field()),
                     BlackBoxFunc::RecursiveAggregation => {

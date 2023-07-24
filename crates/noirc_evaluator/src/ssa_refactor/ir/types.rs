@@ -29,6 +29,9 @@ pub(crate) enum Type {
     /// An immutable array value with the given element type and length
     Array(Rc<CompositeType>, usize),
 
+    /// An immutable slice value with a given element type
+    Slice(Rc<CompositeType>),
+
     /// A function that may be called directly
     Function,
 }
@@ -73,6 +76,10 @@ impl std::fmt::Display for Type {
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 write!(f, "[{}; {length}]", elements.join(", "))
+            }
+            Type::Slice(element) => {
+                let elements = vecmap(element.iter(), |element| element.to_string());
+                write!(f, "[{}]", elements.join(", "))
             }
             Type::Function => write!(f, "function"),
         }

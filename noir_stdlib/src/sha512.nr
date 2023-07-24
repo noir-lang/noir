@@ -104,11 +104,11 @@ fn digest<N>(msg: [u8; N]) -> [u8; 64]
     let mut h: [u64; 8] = [7640891576956012808, 13503953896175478587, 4354685564936845355, 11912009170470909681, 5840696475078001361, 11170449401992604703, 2270897969802886507, 6620516959819538809]; // Intermediate hash, starting with the canonical initial value
     let mut c: [u64; 8] = [0; 8]; // Compression of current message block as sequence of u64
     let mut out_h: [u8; 64] = [0; 64]; // Digest as sequence of bytes
-    let mut i = 0; // Message byte pointer
+    let mut i: u64 = 0; // Message byte pointer
 
     for k in 0 .. msg.len() {
         // Populate msg_block
-        msg_block[i] = msg[k];
+        msg_block[i as Field] = msg[k];
         i = i + 1;
         if i == 128 { // Enough to hash block
             c = sha_c(msg_u8_to_u64(msg_block), h);
@@ -122,7 +122,7 @@ fn digest<N>(msg: [u8; N]) -> [u8; 64]
 
     // Pad the rest such that we have a [u64; 2] block at the end representing the length
     // of the message, and a block of 1 0 ... 0 following the message (i.e. [1 << 7, 0, ..., 0]).
-    msg_block[i] = 1 << 7;
+    msg_block[i as Field] = 1 << 7;
     i += 1;
     
     // If i >= 113, there aren't enough bits in the current message block to accomplish this, so
@@ -131,7 +131,7 @@ fn digest<N>(msg: [u8; N]) -> [u8; 64]
         if i < 128 {
             for _i in 113..128 {
                 if i <= 127 {
-                    msg_block[i] = 0;
+                    msg_block[i as Field] = 0;
                     i += 1;
                 }
             }
@@ -146,7 +146,7 @@ fn digest<N>(msg: [u8; N]) -> [u8; 64]
 
     for _i in 0..128 {// In any case, fill blocks up with zeros until the last 128 (i.e. until i = 112).
         if i < 112 {
-            msg_block[i] = 0;
+            msg_block[i as Field] = 0;
             i += 1;
         } else if i < 128 {
             let mut len = 8 * msg.len() as u64; // u128 unsupported

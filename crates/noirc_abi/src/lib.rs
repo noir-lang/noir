@@ -117,15 +117,6 @@ pub enum Sign {
 }
 
 impl AbiType {
-    pub fn num_elements(&self) -> usize {
-        match self {
-            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
-            AbiType::Array { length, typ: _ } => *length as usize,
-            AbiType::Struct { fields, .. } => fields.len(),
-            AbiType::String { length } => *length as usize,
-        }
-    }
-
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
         match self {
@@ -305,7 +296,11 @@ impl Abi {
         match (value, abi_type) {
             (InputValue::Field(elem), _) => encoded_value.push(elem),
 
-            (InputValue::Vec(vec_elem), _) => encoded_value.extend(vec_elem),
+            (InputValue::Vec(vec_elements), AbiType::Array { typ, .. }) => {
+                for elem in vec_elements {
+                    encoded_value.extend(Self::encode_value(elem, typ)?);
+                }
+            }
 
             (InputValue::String(string), _) => {
                 let str_as_fields =
@@ -341,7 +336,7 @@ impl Abi {
                             .copied()
                     })?;
 
-                Self::decode_value(&mut param_witness_values.into_iter(), &typ)
+                decode_value(&mut param_witness_values.into_iter(), &typ)
                     .map(|input_value| (name.clone(), input_value))
             })?;
 
@@ -358,7 +353,7 @@ impl Abi {
                         .copied()
                 })
             {
-                Some(Self::decode_value(&mut return_witness_values.into_iter(), return_type)?)
+                Some(decode_value(&mut return_witness_values.into_iter(), return_type)?)
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
@@ -371,46 +366,48 @@ impl Abi {
 
         Ok((public_inputs_map, return_value))
     }
+}
 
-    fn decode_value(
-        field_iterator: &mut impl Iterator<Item = FieldElement>,
-        value_type: &AbiType,
-    ) -> Result<InputValue, AbiError> {
-        // This function assumes that `field_iterator` contains enough `FieldElement`s in order to decode a `value_type`
-        // `Abi.decode` enforces that the encoded inputs matches the expected length defined by the ABI so this is safe.
-        let value = match value_type {
-            AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
-                let field_element = field_iterator.next().unwrap();
+pub fn decode_value(
+    field_iterator: &mut impl Iterator<Item = FieldElement>,
+    value_type: &AbiType,
+) -> Result<InputValue, AbiError> {
+    // This function assumes that `field_iterator` contains enough `FieldElement`s in order to decode a `value_type`
+    // `Abi.decode` enforces that the encoded inputs matches the expected length defined by the ABI so this is safe.
+    let value = match value_type {
+        AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
+            let field_element = field_iterator.next().unwrap();
 
-                InputValue::Field(field_element)
+            InputValue::Field(field_element)
+        }
+        AbiType::Array { length, typ } => {
+            let length = *length as usize;
+            let mut array_elements = Vec::with_capacity(length);
+            for _ in 0..length {
+                array_elements.push(decode_value(field_iterator, typ)?);
             }
-            AbiType::Array { length, .. } => {
-                let field_elements: Vec<FieldElement> =
-                    field_iterator.take(*length as usize).collect();
 
-                InputValue::Vec(field_elements)
+            InputValue::Vec(array_elements)
+        }
+        AbiType::String { length } => {
+            let field_elements: Vec<FieldElement> = field_iterator.take(*length as usize).collect();
+
+            InputValue::String(decode_string_value(&field_elements))
+        }
+        AbiType::Struct { fields, .. } => {
+            let mut struct_map = BTreeMap::new();
+
+            for (field_key, param_type) in fields {
+                let field_value = decode_value(field_iterator, param_type)?;
+
+                struct_map.insert(field_key.to_owned(), field_value);
             }
-            AbiType::String { length } => {
-                let field_elements: Vec<FieldElement> =
-                    field_iterator.take(*length as usize).collect();
 
-                InputValue::String(decode_string_value(&field_elements))
-            }
-            AbiType::Struct { fields, .. } => {
-                let mut struct_map = BTreeMap::new();
+            InputValue::Struct(struct_map)
+        }
+    };
 
-                for (field_key, param_type) in fields {
-                    let field_value = Self::decode_value(field_iterator, param_type)?;
-
-                    struct_map.insert(field_key.to_owned(), field_value);
-                }
-
-                InputValue::Struct(struct_map)
-            }
-        };
-
-        Ok(value)
-    }
+    Ok(value)
 }
 
 pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
@@ -459,7 +456,13 @@ mod test {
 
         // Note we omit return value from inputs
         let inputs: InputMap = BTreeMap::from([
-            ("thing1".to_string(), InputValue::Vec(vec![FieldElement::one(), FieldElement::one()])),
+            (
+                "thing1".to_string(),
+                InputValue::Vec(vec![
+                    InputValue::Field(FieldElement::one()),
+                    InputValue::Field(FieldElement::one()),
+                ]),
+            ),
             ("thing2".to_string(), InputValue::Field(FieldElement::zero())),
         ]);
 

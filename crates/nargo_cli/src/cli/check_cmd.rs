@@ -1,14 +1,15 @@
-use crate::errors::CliError;
+use crate::{errors::CliError, resolver::resolve_root_manifest};
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::CompileOptions;
+use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
 use noirc_errors::reporter::ReportedErrors;
+use noirc_frontend::{graph::CrateId, hir::Context};
 use std::path::{Path, PathBuf};
 
+use super::fs::write_to_file;
 use super::NargoConfig;
-use super::{compile_cmd::setup_driver, fs::write_to_file};
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
@@ -23,26 +24,33 @@ pub(crate) fn run<B: Backend>(
     args: CheckCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    check_from_path(backend, config.program_dir, &args.compile_options)?;
+    check_from_path(backend, &config.program_dir, &args.compile_options)?;
     println!("Constraint system successfully built!");
     Ok(())
 }
 
-fn check_from_path<B: Backend, P: AsRef<Path>>(
-    backend: &B,
-    program_dir: P,
+fn check_from_path<B: Backend>(
+    // Backend isn't used but keeping it in the signature allows for better type inference
+    // TODO: This function doesn't need to exist but requires a little more refactoring
+    _backend: &B,
+    program_dir: &Path,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let mut driver = setup_driver(backend, program_dir.as_ref())?;
-    check_crate_and_report_errors(&mut driver, compile_options.deny_warnings)?;
+    let (mut context, crate_id) = resolve_root_manifest(program_dir, None)?;
+    check_crate_and_report_errors(
+        &mut context,
+        crate_id,
+        compile_options.deny_warnings,
+        compile_options.experimental_ssa,
+    )?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-    if let Some((parameters, return_type)) = driver.compute_function_signature() {
+    if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
         // For now it is hard-coded to be toml.
         //
         // Check for input.toml and verifier.toml
-        let path_to_root = PathBuf::from(program_dir.as_ref());
+        let path_to_root = PathBuf::from(program_dir);
         let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
         let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
 
@@ -160,7 +168,7 @@ d2 = ["", "", ""]
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(&backend, path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, &path, &config).is_ok(),
                 "path: {}",
                 path.display()
             );
@@ -179,7 +187,7 @@ d2 = ["", "", ""]
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(&backend, path.clone(), &config).is_err(),
+                super::check_from_path(&backend, &path, &config).is_err(),
                 "path: {}",
                 path.display()
             );
@@ -198,7 +206,7 @@ d2 = ["", "", ""]
         for path in paths.flatten() {
             let path = path.path();
             assert!(
-                super::check_from_path(&backend, path.clone(), &config).is_ok(),
+                super::check_from_path(&backend, &path, &config).is_ok(),
                 "path: {}",
                 path.display()
             );
@@ -209,9 +217,12 @@ d2 = ["", "", ""]
 /// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
 /// and errors found.
 pub(crate) fn check_crate_and_report_errors(
-    driver: &mut noirc_driver::Driver,
+    context: &mut Context,
+    crate_id: CrateId,
     deny_warnings: bool,
+    experimental_ssa: bool,
 ) -> Result<(), ReportedErrors> {
-    let result = driver.check_crate(deny_warnings).map(|warnings| ((), warnings));
-    super::compile_cmd::report_errors(result, driver, deny_warnings)
+    let result = check_crate(context, crate_id, deny_warnings, experimental_ssa)
+        .map(|warnings| ((), warnings));
+    super::compile_cmd::report_errors(result, context, deny_warnings)
 }
