@@ -73,16 +73,6 @@ impl ForeignCall {
             convert_string_inputs(foreign_call_inputs)?
         };
         println!("{output_string}");
-        // let (abi_type, input_values) = fetch_abi_type(foreign_call_inputs)?;
-
-        // // We must use a flat map here as each value in a struct will be in a separate input value
-        // let mut input_values_as_fields =
-        //     input_values.iter().flat_map(|values| values.iter().map(|value| value.to_field()));
-        // let decoded_value = decode_value(&mut input_values_as_fields, &abi_type)?;
-
-        // let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)?;
-
-        // println!("{json_value}");
         Ok(())
     }
 }
@@ -101,8 +91,7 @@ fn convert_string_inputs(foreign_call_inputs: &[Vec<Value>]) -> Result<String, F
     let decoded_value = decode_value(&mut input_values_as_fields, &abi_type)?;
     let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)?;
 
-    serde_json::to_string_pretty(&json_value)
-        .map_err(|err| ForeignCallError::InputParserError(err.into()))
+    Ok(json_value.to_string())
 }
 
 fn convert_fmt_string_inputs(
@@ -137,9 +126,7 @@ fn convert_fmt_string_inputs(
         let decoded_value = decode_value(&mut input_values_as_fields, abi_type)?;
 
         let json_value = JsonTypes::try_from_input_value(&decoded_value, abi_type)?;
-        let output_string = serde_json::to_string(&json_value)
-            .map_err(|err| ForeignCallError::InputParserError(err.into()))?;
-        output_strings.push(output_string);
+        output_strings.push(json_value.to_string());
     }
 
     let mut output_strings_iter = output_strings.into_iter();
