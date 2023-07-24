@@ -1,0 +1,40 @@
+name: Noir CI
+
+on:
+  pull_request:
+    types: ["labeled", "opened", "synchronize", "reopened"]
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  noir-ci:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'noir-ci') }}
+    name: Test Noir against PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Noir
+        uses: actions/checkout@v3
+        with:
+          repository: noir-lang/noir
+          # This reference can be changed to test against a different version of Noir (such as a WIP branch)
+          ref: master
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # The GITHUB_SHA doesn't match the last commit on the PR but is instead a merge commit of the PR into master.
+      # As per GitHub docs:
+      #   Note that GITHUB_SHA for this event is the last merge commit of the pull request merge branch.
+      - name: Update barretenberg commit in flake.lock
+        run: |
+          nix flake lock --override-input barretenberg github:AztecProtocol/barretenberg/${{ env.GITHUB_SHA }}
+
+      - name: Build and test Noir
+        run: |
+          nix flake check -L

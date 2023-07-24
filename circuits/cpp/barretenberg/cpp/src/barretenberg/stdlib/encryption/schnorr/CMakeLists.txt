@@ -1,0 +1,1 @@
+barretenberg_module(stdlib_schnorr stdlib_pedersen_commitment stdlib_blake2s stdlib_primitives)

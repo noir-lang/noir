@@ -1,0 +1,8 @@
+sol/broadcast
+sol/cache
+sol/out
+sol/Dockerfile
+sol/lib
+cpp/build
+cpp/srs_db/ignition
+.gitmodules

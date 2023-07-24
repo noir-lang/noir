@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "es2020",
+    "lib": [
+      "dom",
+      "esnext",
+      "es2017.object"
+    ],
+    "module": "NodeNext",
+    "strict": false,
+    "declaration": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    "inlineSourceMap": true,
+    "declarationMap": true,
+    "importHelpers": true,
+    "resolveJsonModule": true,
+    "composite": true,
+    "outDir": "dest/node",
+    "rootDir": "src",
+    "tsBuildInfoFile": ".tsbuildinfo.node",
+    "paths": {
+      "dynamic/barretenberg_wasm": [
+        "src/barretenberg_wasm/node/index.ts"
+      ],
+      "dynamic/crs": [
+        "src/crs/node/index.ts"
+      ],
+      "dynamic/random": [
+        "src/random/node/index.ts"
+      ],
+      "dynamic/types": [
+        "src/types/node/index.ts"
+      ]
+    }
+  },
+  "include": ["src/**/*"]
+}

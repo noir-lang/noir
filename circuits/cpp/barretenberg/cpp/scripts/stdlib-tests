@@ -1,0 +1,9 @@
+stdlib_primitives_tests
+stdlib_aes128_tests
+stdlib_blake2s_tests
+stdlib_blake3s_tests
+stdlib_ecdsa_tests
+stdlib_merkle_tree_tests
+stdlib_pedersen_commitment_tests
+stdlib_schnorr_tests
+stdlib_sha256_tests

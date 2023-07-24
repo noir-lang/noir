@@ -1,0 +1,2 @@
+stringutils/=lib/solidity-stringutils/
+@openzeppelin/=lib/openzeppelin-contracts/

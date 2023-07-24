@@ -1,0 +1,8 @@
+FROM ubuntu:kinetic
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y bash build-essential git libssl-dev cmake ninja-build curl xz-utils curl
+
+RUN curl https://wasmtime.dev/install.sh -sSf | bash /dev/stdin --version v3.0.1
+WORKDIR /usr/src/barretenberg/cpp
+COPY ./scripts/install-wasi-sdk.sh ./scripts/install-wasi-sdk.sh
+RUN ./scripts/install-wasi-sdk.sh
+COPY . .

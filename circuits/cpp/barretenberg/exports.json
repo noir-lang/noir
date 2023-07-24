@@ -1,0 +1,797 @@
+[
+  {
+    "functionName": "pedersen___init",
+    "inArgs": [],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen___compress_fields",
+    "inArgs": [
+      {
+        "name": "left",
+        "type": "fr::in_buf"
+      },
+      {
+        "name": "right",
+        "type": "fr::in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "result",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen___plookup_compress_fields",
+    "inArgs": [
+      {
+        "name": "left",
+        "type": "fr::in_buf"
+      },
+      {
+        "name": "right",
+        "type": "fr::in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "result",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen___compress",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen___plookup_compress",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen___compress_with_hash_index",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      },
+      {
+        "name": "hash_index",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen___commit",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen___plookup_commit",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen___plookup_commit_with_hash_index",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      },
+      {
+        "name": "hash_index",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen___buffer_to_field",
+    "inArgs": [
+      {
+        "name": "data",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "r",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen_hash_init",
+    "inArgs": [],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen_hash_pair",
+    "inArgs": [
+      {
+        "name": "left",
+        "type": "fr::in_buf"
+      },
+      {
+        "name": "right",
+        "type": "fr::in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "result",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen_hash_multiple",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen_hash_multiple_with_hash_index",
+    "inArgs": [
+      {
+        "name": "inputs_buffer",
+        "type": "fr::vec_in_buf"
+      },
+      {
+        "name": "hash_index",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "pedersen_hash_to_tree",
+    "inArgs": [
+      {
+        "name": "data",
+        "type": "fr::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out",
+        "type": "fr::vec_out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "blake2s",
+    "inArgs": [
+      {
+        "name": "data",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "r",
+        "type": "out_buf32"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "blake2s_to_field_",
+    "inArgs": [
+      {
+        "name": "data",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "r",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "schnorr_compute_public_key",
+    "inArgs": [
+      {
+        "name": "private_key",
+        "type": "fr::in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "public_key_buf",
+        "type": "affine_element::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "schnorr_negate_public_key",
+    "inArgs": [
+      {
+        "name": "public_key_buffer",
+        "type": "affine_element::in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "output",
+        "type": "affine_element::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "schnorr_construct_signature",
+    "inArgs": [
+      {
+        "name": "message",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "private_key",
+        "type": "fr::in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "s",
+        "type": "out_buf32"
+      },
+      {
+        "name": "e",
+        "type": "out_buf32"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "schnorr_verify_signature",
+    "inArgs": [
+      {
+        "name": "message",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "pub_key",
+        "type": "affine_element::in_buf"
+      },
+      {
+        "name": "sig_s",
+        "type": "in_buf32"
+      },
+      {
+        "name": "sig_e",
+        "type": "in_buf32"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "result",
+        "type": "bool *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "schnorr_multisig_create_multisig_public_key",
+    "inArgs": [
+      {
+        "name": "private_key",
+        "type": "fq::in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "multisig_pubkey_buf",
+        "type": "multisig::MultiSigPublicKey::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "schnorr_multisig_validate_and_combine_signer_pubkeys",
+    "inArgs": [
+      {
+        "name": "signer_pubkey_buf",
+        "type": "multisig::MultiSigPublicKey::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "combined_key_buf",
+        "type": "affine_element::out_buf"
+      },
+      {
+        "name": "success",
+        "type": "bool *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "schnorr_multisig_construct_signature_round_1",
+    "inArgs": [],
+    "outArgs": [
+      {
+        "name": "round_one_public_output_buf",
+        "type": "multisig::RoundOnePublicOutput::out_buf"
+      },
+      {
+        "name": "round_one_private_output_buf",
+        "type": "multisig::RoundOnePrivateOutput::out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "schnorr_multisig_construct_signature_round_2",
+    "inArgs": [
+      {
+        "name": "message",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "private_key",
+        "type": "fq::in_buf"
+      },
+      {
+        "name": "signer_round_one_private_buf",
+        "type": "multisig::RoundOnePrivateOutput::in_buf"
+      },
+      {
+        "name": "signer_pubkeys_buf",
+        "type": "multisig::MultiSigPublicKey::vec_in_buf"
+      },
+      {
+        "name": "round_one_public_buf",
+        "type": "multisig::RoundOnePublicOutput::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "round_two_buf",
+        "type": "fq::out_buf"
+      },
+      {
+        "name": "success",
+        "type": "bool *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "schnorr_multisig_combine_signatures",
+    "inArgs": [
+      {
+        "name": "message",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "signer_pubkeys_buf",
+        "type": "multisig::MultiSigPublicKey::vec_in_buf"
+      },
+      {
+        "name": "round_one_buf",
+        "type": "multisig::RoundOnePublicOutput::vec_in_buf"
+      },
+      {
+        "name": "round_two_buf",
+        "type": "fr::vec_in_buf"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "s",
+        "type": "out_buf32"
+      },
+      {
+        "name": "e",
+        "type": "out_buf32"
+      },
+      {
+        "name": "success",
+        "type": "bool *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "srs_init_srs",
+    "inArgs": [
+      {
+        "name": "points_buf",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "num_points",
+        "type": "const uint32_t *"
+      },
+      {
+        "name": "g2_point_buf",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "examples_simple_create_and_verify_proof",
+    "inArgs": [],
+    "outArgs": [
+      {
+        "name": "valid",
+        "type": "bool *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "test_threads",
+    "inArgs": [
+      {
+        "name": "threads",
+        "type": "const uint32_t *"
+      },
+      {
+        "name": "iterations",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out",
+        "type": "uint32_t *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "test_thread_abort",
+    "inArgs": [],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "test_abort",
+    "inArgs": [],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "common_init_slab_allocator",
+    "inArgs": [
+      {
+        "name": "circuit_size",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_get_circuit_sizes",
+    "inArgs": [
+      {
+        "name": "constraint_system_buf",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "exact",
+        "type": "uint32_t *"
+      },
+      {
+        "name": "total",
+        "type": "uint32_t *"
+      },
+      {
+        "name": "subgroup",
+        "type": "uint32_t *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_new_acir_composer",
+    "inArgs": [
+      {
+        "name": "size_hint",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out",
+        "type": "out_ptr"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_delete_acir_composer",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      }
+    ],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_create_circuit",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      },
+      {
+        "name": "constraint_system_buf",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "size_hint",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_init_proving_key",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      },
+      {
+        "name": "constraint_system_buf",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_create_proof",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      },
+      {
+        "name": "constraint_system_buf",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "witness_buf",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "is_recursive",
+        "type": "const bool *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out",
+        "type": "uint8_t **"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_load_verification_key",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      },
+      {
+        "name": "vk_buf",
+        "type": "const uint8_t *"
+      }
+    ],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_init_verification_key",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      }
+    ],
+    "outArgs": [],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_get_verification_key",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out",
+        "type": "uint8_t **"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_verify_proof",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      },
+      {
+        "name": "proof_buf",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "is_recursive",
+        "type": "const bool *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "result",
+        "type": "bool *"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_get_solidity_verifier",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out",
+        "type": "out_str_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_serialize_proof_into_fields",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      },
+      {
+        "name": "proof_buf",
+        "type": "const uint8_t *"
+      },
+      {
+        "name": "num_inner_public_inputs",
+        "type": "const uint32_t *"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out",
+        "type": "fr::vec_out_buf"
+      }
+    ],
+    "isAsync": false
+  },
+  {
+    "functionName": "acir_serialize_verification_key_into_fields",
+    "inArgs": [
+      {
+        "name": "acir_composer_ptr",
+        "type": "in_ptr"
+      }
+    ],
+    "outArgs": [
+      {
+        "name": "out_vkey",
+        "type": "fr::vec_out_buf"
+      },
+      {
+        "name": "out_key_hash",
+        "type": "fr::out_buf"
+      }
+    ],
+    "isAsync": false
+  }
+]

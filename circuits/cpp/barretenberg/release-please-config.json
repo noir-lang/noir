@@ -1,0 +1,36 @@
+{
+  "release-type": "simple",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "prerelease": true,
+  "group-pull-request-title-pattern": "chore(barretenberg): Release ${version}",
+    "packages": {
+        ".": {
+            "release-type": "simple",
+            "component": "barretenberg",
+            "package-name": "barretenberg",
+            "extra-files" : [
+                "cpp/CMakeLists.txt",
+                "VERSION",
+                "barretenberg.nix",
+                "barretenberg-wasm.nix"
+            ] 
+        },
+        "ts": {
+            "release-type": "node",
+            "package-name": "barretenberg.js",
+            "component": "barretenberg.js"
+        }
+    },
+    "plugins" : [
+        {
+          "type": "linked-versions",
+          "groupName": "barretenberg",
+          "components": [
+            "barretenberg",
+            "barretenberg.js"
+          ]
+    },
+    "sentence-case"
+    ]
+}

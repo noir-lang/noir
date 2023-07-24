@@ -55,6 +55,31 @@ checkout: &checkout
       # Initialize submodules recursively (retry 10 times on failure)
       for i in $(seq 1 10); do git submodule update --init --recursive && s=0 && break || s=$? && sleep 10; done; (exit $s)
 
+# This build step checks out the code from the benchmark-archive repository. The key is saved in CircleCi environment in base64 format.
+# Initially it just fetches the latest version.
+benchmark_archive_setup: &benchmark_archive_setup
+  run:
+    name: "Add keys for getting the benchmark archive"
+    command: |
+      cd $HOME
+      mkdir -p .ssh
+      chmod 0700 .ssh
+      ssh-keyscan -t rsa github.com >> .ssh/known_hosts
+
+      # A read-write key for updating the repository.
+      echo "$GITHUB_BENCMARK_REPOSITORY_SSH_KEY" | base64 -d > .ssh/id_ed25519
+
+      # This allows github to discern wich key to use.
+      echo "Host github.com
+        Hostname github.com
+        IdentityFile=/root/.ssh/id_rsa
+
+      Host github.com-logs
+        Hostname github.com
+        IdentityFile=/root/.ssh/id_ed25519" > .ssh/config
+
+      chmod 0600 .ssh/id_ed25519
+      ssh-add .ssh/id_ed25519
 # Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
 # It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
 # the build process. This enables easy running of the build system external to CCI, as used for powerful EC2 builds.
@@ -71,6 +96,204 @@ save_logs: &save_logs
       - ./*
 
 jobs:
+  barretenberg-wasm-linux-clang:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-wasm-linux-clang 64
+
+  barretenberg-x86_64-linux-gcc:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-x86_64-linux-gcc 64
+
+  barretenberg-x86_64-linux-clang:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-x86_64-linux-clang 64
+
+  barretenberg-x86_64-linux-clang-assert:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-x86_64-linux-clang-assert 64
+
+  barretenberg-stdlib-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib-tests
+      - *save_logs
+
+  barretenberg-dsl-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 dsl_tests
+      - *save_logs
+
+  barretenberg-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_test_script ./scripts/bb-tests.sh barretenberg-x86_64-linux-clang-assert
+      - *save_logs
+
+  barretenberg-honk-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 honk_tests
+      - *save_logs
+
+  barretenberg-proof-system-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 proof_system_tests
+      - *save_logs
+
+  barretenberg-stdlib-recursion-turbo-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 1 stdlib_recursion_tests --gtest_filter=*turbo*
+      - *save_logs
+
+  barretenberg-stdlib-recursion-ultra-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 3 stdlib_recursion_tests --gtest_filter=-*turbo*
+      - *save_logs
+
+  barretenberg-join-split-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests barretenberg-x86_64-linux-clang-assert 3 join_split_example_proofs_join_split_tests --gtest_filter=-*full_proof*
+      - *save_logs
+
+  bb-bin-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_test_script ./scripts/bin-test.sh barretenberg-x86_64-linux-clang-assert
+
+  barretenberg-benchmark-aggregator:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/test-logs
+      - *checkout
+      - *setup_env
+      - *benchmark_archive_setup
+      - run:
+          name: "Test"
+          command: store_test_benchmark_logs barretenberg-x86_64-linux-clang-assert
+
+  bb-js:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: build bb.js
+
+  bb-js-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests bb.js
+
+  barretenberg-acir-tests:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: cond_spot_run_build barretenberg-acir-tests 32
+
   circuits-wasm-linux-clang:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -450,7 +673,7 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_multiple_accounts_1_enc_key.test.ts
-          
+
   e2e-deploy-contract:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -706,7 +929,6 @@ jobs:
           command: |
             deploy_ecr aztec-sandbox
             deploy_npm aztec-sandbox
-
   deploy-dockerhub:
     machine:
       image: ubuntu-2004:202010-01
@@ -757,6 +979,10 @@ e2e_test: &e2e_test
   requires:
     - e2e-join
   <<: *defaults
+bb_test: &bb_test
+  requires:
+    - barretenberg-x86_64-linux-clang-assert
+  <<: *defaults
 circuits-wasm-test: &circuits-wasm-test
   requires:
     - circuits-wasm-linux-clang-assert
@@ -768,8 +994,46 @@ circuits-x86_64-test: &circuits-x86_64-test
 workflows:
   system:
     when:
-      equal: [system, << pipeline.parameters.workflow >>]
+      equal: [ system, << pipeline.parameters.workflow >> ]
     jobs:
+      - barretenberg-x86_64-linux-gcc: *defaults
+      - barretenberg-x86_64-linux-clang: *defaults
+      - barretenberg-x86_64-linux-clang-assert: *defaults
+      - barretenberg-wasm-linux-clang: *defaults
+      - barretenberg-proof-system-tests: *bb_test
+      - barretenberg-honk-tests: *bb_test
+      - barretenberg-dsl-tests: *bb_test
+      - barretenberg-tests: *bb_test
+      - barretenberg-stdlib-tests: *bb_test
+      - barretenberg-stdlib-recursion-turbo-tests: *bb_test
+      - barretenberg-stdlib-recursion-ultra-tests: *bb_test
+      - barretenberg-join-split-tests: *bb_test
+      - bb-bin-tests: *bb_test
+      - barretenberg-benchmark-aggregator:
+          requires:
+            - barretenberg-tests
+            - barretenberg-stdlib-tests
+            - barretenberg-stdlib-recursion-turbo-tests
+            - barretenberg-stdlib-recursion-ultra-tests
+            - barretenberg-join-split-tests
+          filters:
+            branches:
+              only:
+                - master
+          <<: *defaults
+      - bb-js:
+          requires:
+            - barretenberg-wasm-linux-clang
+          <<: *defaults
+      - bb-js-tests:
+          requires:
+            - bb-js
+          <<: *defaults
+      - barretenberg-acir-tests:
+          requires:
+            - barretenberg-x86_64-linux-clang-assert
+            - bb-js
+          <<: *defaults
       - circuits-wasm-linux-clang: *defaults
       - circuits-wasm-linux-clang-assert: *defaults
       - circuits-x86_64-linux-clang-tidy: *defaults
