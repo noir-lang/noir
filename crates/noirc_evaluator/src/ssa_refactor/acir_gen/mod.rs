@@ -500,7 +500,12 @@ impl Context {
         let read = self.acir_context.read_from_memory(block_id, &index_var);
         let typ = match dfg.type_of_value(array) {
             Type::Array(typ, _) => {
-                typ[0].clone() //TODO this does not work for non-homogenous array
+                if typ.len() != 1 {
+                    unimplemented!(
+                        "Non-const array indices is not implementend for non-homogenous array"
+                    );
+                }
+                typ[0].clone()
             }
             _ => unreachable!("ICE - expected an array"),
         };
