@@ -853,6 +853,144 @@ impl BrilligContext {
         self.debug_show.black_box_op_instruction(op);
         self.push_opcode(BrilligOpcode::BlackBox(op));
     }
+
+    pub(crate) fn radix_instruction(
+        &mut self,
+        source: RegisterIndex,
+        target_vector: HeapVector,
+        radix: RegisterIndex,
+        limb_count: RegisterIndex,
+        big_endian: bool,
+    ) {
+        // TODO check if it'll fit
+        self.mov_instruction(target_vector.size, limb_count);
+        self.allocate_array_instruction(target_vector.pointer, target_vector.size);
+        let shifted_register = self.allocate_register();
+        self.mov_instruction(shifted_register, source);
+
+        let index_register = self.make_constant(0_u128.into());
+        let modulus_register = self.allocate_register();
+        let loop_label = self.next_section_label();
+        self.enter_next_section();
+
+        // Loop body
+
+        // Check if index < num_elements
+        let index_less_than_array_len = self.allocate_register();
+        self.memory_op(
+            index_register,
+            target_vector.size,
+            index_less_than_array_len,
+            BinaryIntOp::LessThan,
+        );
+
+        let exit_loop_label = self.next_section_label();
+
+        self.not_instruction(index_less_than_array_len, 1, index_less_than_array_len);
+        self.jump_if_instruction(index_less_than_array_len, exit_loop_label);
+
+        // Compute the modulus
+        self.modulo_instruction(
+            modulus_register,
+            shifted_register,
+            radix,
+            FieldElement::max_num_bits(),
+            false,
+        );
+        // Write it
+        self.array_set(target_vector.pointer, index_register, modulus_register);
+        // Integer div the field
+        self.binary_instruction(
+            shifted_register,
+            radix,
+            shifted_register,
+            BrilligBinaryOp::Integer {
+                op: BinaryIntOp::UnsignedDiv,
+                bit_size: FieldElement::max_num_bits(),
+            },
+        );
+
+        // Increment the index register
+        self.usize_op_in_place(index_register, BinaryIntOp::Add, 1);
+
+        self.jump_instruction(loop_label);
+
+        // Exit the loop
+        self.enter_next_section();
+
+        // Deallocate our temporary registers
+        self.deallocate_register(shifted_register);
+        self.deallocate_register(index_register);
+        self.deallocate_register(modulus_register);
+        self.deallocate_register(index_less_than_array_len);
+
+        if big_endian {
+            self.reverse_vector_in_place_instruction(target_vector);
+        }
+    }
+
+    fn reverse_vector_in_place_instruction(&mut self, vector: HeapVector) {
+        let iterator_register = self.make_constant(0_u128.into());
+        let iteration_count = self.allocate_register();
+        self.usize_op(vector.size, iteration_count, BinaryIntOp::UnsignedDiv, 2);
+
+        let loop_label = self.next_section_label();
+        self.enter_next_section();
+
+        // Loop body
+
+        // Check if iterator < iteration_count
+        let iterator_less_than_count = self.allocate_register();
+        self.memory_op(
+            iterator_register,
+            iteration_count,
+            iterator_less_than_count,
+            BinaryIntOp::LessThan,
+        );
+
+        let exit_loop_label = self.next_section_label();
+
+        self.not_instruction(iterator_less_than_count, 1, iterator_less_than_count);
+        self.jump_if_instruction(iterator_less_than_count, exit_loop_label);
+
+        // Load both values
+        let start_value_register = self.allocate_register();
+        self.array_get(vector.pointer, iterator_register, start_value_register);
+
+        // The index at the end of array is size - 1 - iterator
+        let index_at_end_of_array = self.allocate_register();
+        self.mov_instruction(index_at_end_of_array, vector.size);
+        self.usize_op_in_place(index_at_end_of_array, BinaryIntOp::Sub, 1);
+        self.memory_op(
+            index_at_end_of_array,
+            iterator_register,
+            index_at_end_of_array,
+            BinaryIntOp::Sub,
+        );
+
+        let end_value_register = self.allocate_register();
+        self.array_get(vector.pointer, index_at_end_of_array, end_value_register);
+
+        // Write both values
+        self.array_set(vector.pointer, iterator_register, end_value_register);
+        self.array_set(vector.pointer, index_at_end_of_array, start_value_register);
+
+        // Increment the index register
+        self.usize_op_in_place(iterator_register, BinaryIntOp::Add, 1);
+
+        self.jump_instruction(loop_label);
+
+        // Exit the loop
+        self.enter_next_section();
+
+        // Deallocate our temporary registers
+        self.deallocate_register(iterator_register);
+        self.deallocate_register(iteration_count);
+        self.deallocate_register(iterator_less_than_count);
+        self.deallocate_register(start_value_register);
+        self.deallocate_register(end_value_register);
+        self.deallocate_register(index_at_end_of_array);
+    }
 }
 
 /// Type to encapsulate the binary operation types in Brillig
