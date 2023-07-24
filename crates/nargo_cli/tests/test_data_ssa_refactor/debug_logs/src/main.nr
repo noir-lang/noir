@@ -9,7 +9,8 @@ fn main(x : Field, y : pub Field) {
     let string = "i: {i}, j: {j}";
     std::println(string);
 
-    // Can
+    // A `fmtstr` lets you easily perform string interpolation.
+    // You can 
     let fmt_str: fmtstr<14, (Field, Field)> = f"i: {i}, j: {j}";
     let fmt_str = string_identity(fmt_str);
     std::println(fmt_str);
