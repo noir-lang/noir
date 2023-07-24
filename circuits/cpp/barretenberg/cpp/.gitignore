@@ -1,0 +1,11 @@
+.cache/
+build*/
+src/wasi-sdk-*
+src/barretenberg/proof_system/proving_key/fixtures
+src/barretenberg/rollup/proofs/*/fixtures
+srs_db/*/*/transcript*
+CMakeUserPresets.json
+.vscode/settings.json
+# to be unignored when we agree on clang-tidy rules
+.clangd
+acir_tests

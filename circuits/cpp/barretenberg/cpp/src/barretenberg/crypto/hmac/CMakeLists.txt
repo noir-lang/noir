@@ -1,0 +1,1 @@
+barretenberg_module(crypto_hmac crypto_blake2s crypto_keccak crypto_sha256 numeric)

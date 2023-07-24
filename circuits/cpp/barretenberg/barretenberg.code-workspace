@@ -1,0 +1,161 @@
+{
+    // Each "folder" can define a different project in the main repo,  
+    // relative to `.code-workspace`.
+    "folders": [
+        {
+            "name": "barretenberg",
+            "path": "./"
+        },
+    ],
+    // List recommended extensions for the whole workspace.
+    "extensions": {
+        "recommendations": [
+            "GitHub.vscode-pull-request-github",
+            // Enables CMake integration and configuration
+            // for easier building
+            "ms-vscode.cmake-tools",
+            // Provides a nice UI for listing all Google Test
+            // tests, including launching a debug session
+            // for a specific test directly.
+            // Also provides buttons alongside test definitions.
+            "matepek.vscode-catch2-test-adapter",
+            // Integrates the `clangd` language server for
+            // - code formatting (clang-format)
+            // - static analysis (clang-tidy)
+            // - hints, tooltips, and more.
+            "llvm-vs-code-extensions.vscode-clangd",
+            // Better syntax highlighting for C++.
+            // Make sure to select one of the themes suggested
+            // (e.g. "Dark+")
+            "jeff-hykin.better-cpp-syntax",
+            // Handle CMakeLists.txt editing
+            "twxs.cmake",
+            // Integrates LLDB debugger
+            "vadimcn.vscode-lldb",
+            // Generate nicer Doxygen comments
+            "cschlosser.doxdocgen",
+            // Makes the CMake build output slightly
+            // prettier.
+            "IBM.output-colorizer",
+            "eamodio.gitlens",
+            "esbenp.prettier-vscode"
+        ],
+        "unwantedRecommendations": [
+            // The following may have been installed
+            // and cause some confusion when running
+            // tests.
+            // The options provided by C++ TestMate
+            // should be good enough.
+            "ms-vscode.cpptools-themes",
+            "hbenl.vscode-test-explorer",
+            "ms-vscode.test-adapter-converter",
+            "fredericbonnet.cmake-test-adapter",
+            "ms-vscode.cpptools-extension-pack",
+            // Used to enable GDB debugging
+            // Most features are disabled in `settings.json`
+            // which confict with `clangd`
+            // Since we ignore GDB, we no longer need this extension
+            "ms-vscode.cpptools"
+        ]
+    },
+    "launch": {
+        // Configure LLDB
+        "configurations": [
+            {
+                "name": "(lldb) Launch Target",
+                "type": "lldb",
+                "request": "launch",
+                "program": "${command:cmake.launchTargetPath}",
+                "args": [],
+                "cwd": "${workspaceFolder}/cpp/build",
+                "internalConsoleOptions": "openOnSessionStart",
+                "console": "internalConsole",
+            }
+        ],
+    },
+    // Global settings which will apply to all subprojects.
+    // Each subproject may have their own `.vscode/settings.json`
+    // for configuring extensions which are specific to a certain project.
+    // Some settings can only be configured here.
+    // The following are just provided as example.
+    "settings": {
+        //
+        // Clangd. Note that this setting may be overridden by  user settings
+        // to the default value "clangd".
+        //
+        "clangd.path": "clangd-15",
+        // We should disable automatic inclusion of headers unless we decide to follow "WhyIWYU".
+        "clangd.arguments": [
+            "-header-insertion=never"
+        ],
+        //
+        // CMake
+        //
+        // Location of base CMakeLists file
+        "cmake.sourceDirectory": "${workspaceFolder}/cpp/",
+        "cmake.buildDirectory": "${workspaceFolder}/cpp/build",
+        //
+        // C/C++ (should be disabled)
+        //
+        // Make sure all C++ IntelliSense features are disabled
+        // and don't interfere with clangd
+        "C_Cpp.intelliSenseEngine": "disabled",
+        "C_Cpp.autocomplete": "disabled",
+        "C_Cpp.codeAnalysis.clangTidy.codeAction.formatFixes": false,
+        "C_Cpp.codeAnalysis.runAutomatically": false,
+        "C_Cpp.configurationWarnings": "disabled",
+        "C_Cpp.debugShortcut": false,
+        "C_Cpp.default.enableConfigurationSquiggles": false,
+        "C_Cpp.formatting": "disabled",
+        "C_Cpp.vcpkg.enabled": false,
+        //
+        // TestMate
+        //
+        // Ensures tests are run from the `build` directory
+        // which ensures SRS can be read
+        "testMate.cpp.test.workingDirectory": "${workspaceFolder}/cpp/build",
+        // Filter all binaries that are not tests or benchmarks
+        "testMate.cpp.test.executables": "${workspaceFolder}/cpp/{build}/bin/*{test,Test,TEST,bench}*",
+        //
+        // Other
+        //
+        "editor.tokenColorCustomizations": {
+            "textMateRules": [
+                {
+                    "scope": "googletest.failed",
+                    "settings": {
+                        "foreground": "#f00"
+                    }
+                },
+                {
+                    "scope": "googletest.passed",
+                    "settings": {
+                        "foreground": "#0f0"
+                    }
+                },
+                {
+                    "scope": "googletest.run",
+                    "settings": {
+                        "foreground": "#0f0"
+                    }
+                }
+            ]
+        },
+        //
+        // GTest adapter (not currently used)
+        //
+        "gtest-adapter.debugConfig": [
+            "(lldb) Launch Target"
+        ],
+        "[cpp]": {
+            "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+        },
+        "cmake.configureArgs": [
+            "--preset clang15",
+            "-G Ninja",
+            "-g"
+        ],
+        "cmake.useCMakePresets": "auto",
+        "editor.inlayHints.enabled": "offUnlessPressed"
+    },
+}

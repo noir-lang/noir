@@ -1,0 +1,1 @@
+barretenberg_module(stdlib_blake3s stdlib_primitives crypto_blake3s)

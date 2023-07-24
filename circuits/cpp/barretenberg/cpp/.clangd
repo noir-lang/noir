@@ -1,0 +1,73 @@
+CompileFlags:                     # Tweak the parse settings
+  Remove: -fconstexpr-ops-limit=*
+---
+# Applies all barretenberg source files
+If:
+  PathMatch: [src/.*\.hpp, src/.*\.cpp, src/.*\.tcc]
+Diagnostics:
+  # Value Strict checks whether we are including unused header files
+  # Note that some headers may be _implicitly_ used and still
+  # need to be included. This is very noisy, and is probably best used
+  # by occasionally toggling it on.
+  UnusedIncludes: None
+
+  # Static analysis configuration
+  ClangTidy:
+    Add:
+      - cert-*
+      - google-*
+      - cppcoreguidelines-*
+      - readability-*
+      - modernize-*
+      - bugprone-*
+      - misc-*
+      - performance-*
+    Remove:
+      # Useful but check is buggy in clang-tidy 15.0.6
+      - misc-const-correctness
+      # Huge diff; obscure benefits.
+      - modernize-use-trailing-return-type
+      # Huge diff; we use lots of C-style arrays.
+      - modernize-avoid-c-arrays
+      # Huge diff; we do lots of pointer arithmetic.
+      - cppcoreguidelines-pro-bounds-pointer-arithmetic
+      # Huge diff.
+      - readability-magic-numbers
+      - cppcoreguidelines-avoid-magic-numbers
+      # We use short names because we do math. Also, huge diff.
+      - readability-identifier-length
+      # Fixing this would be a lot of work.
+      - bugprone-easily-swappable-parameters
+      # Huge diff
+      - misc-non-private-member-variables-in-classes
+      - cppcoreguidelines-non-private-member-variables-in-classes
+      # We have many `for` loops that violate this part of the bounds safety profile
+      - cppcoreguidelines-pro-bounds-constant-array-index 
+      # Large diff; we often `use` an entire namespace.
+      - google-build-using-namespace
+      # Large diff
+      - cppcoreguidelines-pro-bounds-array-to-pointer-decay
+      # Large, potentially complicated diff
+      - readability-container-data-pointer
+      # Many hits; potential for false positives.
+      - cppcoreguidelines-pro-type-member-init
+      # As cryptographers, we often think of bools as 0/1 values; would bloat code in some places.
+      - modernize-use-bool-literals
+      # Triggers on every TYPED_TEST
+      - cert-err58-cpp
+      # Triggers on some tests that are not complex
+      - readability-function-cognitive-complexity
+      # It is often nicer to not be explicit
+      - google-explicit-constructor
+
+--- # this divider is necessary
+# Disable some checks for Google Test/Bench
+If:
+  PathMatch: [src/.*\.test\.cpp, src/.*\.bench\.cpp]
+Diagnostics:
+  ClangTidy:
+    # these checks get triggered by the Google macros
+    Remove:
+      - cppcoreguidelines-avoid-non-const-global-variables
+      - cppcoreguidelines-owning-memory
+      - cppcoreguidelines-special-member-functions
