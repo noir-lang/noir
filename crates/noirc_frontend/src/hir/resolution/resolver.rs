@@ -909,7 +909,10 @@ impl<'a> Resolver<'a> {
                             let variable = scope_tree.find(&ident_name);
                             if let Some((old_value, _)) = variable {
                                 old_value.num_times_used += 1;
-                                fmt_str_idents.push(old_value.ident);
+                                let expr_id =
+                                    self.interner.push_expr(HirExpression::Ident(old_value.ident));
+                                self.interner.push_expr_location(expr_id, expr.span, self.file);
+                                fmt_str_idents.push(expr_id);
                             } else if ident_name.parse::<usize>().is_ok() {
                                 self.errors.push(ResolverError::NumericConstantInFormatString {
                                     name: ident_name,

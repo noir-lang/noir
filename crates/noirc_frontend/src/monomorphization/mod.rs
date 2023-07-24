@@ -261,13 +261,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Ident(ident) => self.ident(ident, expr),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
-                let fields = vecmap(idents, |ident| {
-                    let definition_info = self.interner.definition(ident.id);
-                    match definition_info.kind.get_rhs() {
-                        Some(expr_id) => self.expr(expr_id),
-                        None => panic!("ICE: format string field requires expression"),
-                    }
-                });
+                let fields = vecmap(idents, |ident| self.expr(ident));
                 Literal(FmtStr(contents, fields))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),

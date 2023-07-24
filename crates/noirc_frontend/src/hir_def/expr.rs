@@ -80,7 +80,7 @@ pub enum HirLiteral {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
-    FmtStr(String, Vec<HirIdent>),
+    FmtStr(String, Vec<ExprId>),
     Unit,
 }
 

@@ -3,19 +3,17 @@ use dep::std;
 fn main(x : Field, y : pub Field) {
     // TODO(#2024): format strings currently broken unless we assign
     // witness values first
-    let i = x;
-    let j = y;
 
     let string = "i: {i}, j: {j}";
     std::println(string);
 
     // A `fmtstr` lets you easily perform string interpolation.
     // You can 
-    let fmt_str: fmtstr<14, (Field, Field)> = f"i: {i}, j: {j}";
+    let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
     let fmt_str = string_identity(fmt_str);
     std::println(fmt_str);
 
-    let fmt_str_no_type = f"i: {i}, j: {j}";
+    let fmt_str_no_type = f"i: {x}, j: {y}";
     std::println(fmt_str_no_type);
 
     let fmt_str_generic = string_with_generic(fmt_str_no_type);
@@ -24,7 +22,7 @@ fn main(x : Field, y : pub Field) {
     let s = myStruct { y: x, x: y };
     std::println(s);
 
-    std::println(f"i: {i}, s: {s}");
+    std::println(f"i: {x}, s: {s}");
 
     std::println(x);
     std::println([x, y]);
