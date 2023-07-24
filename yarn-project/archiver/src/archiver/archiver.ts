@@ -142,7 +142,7 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
       return;
     }
 
-    // ********** Events that are processed inbetween blocks **********
+    // ********** Events that are processed in between blocks **********
 
     // Process l1ToL2Messages, these are consumed as time passes, not each block
     const retrievedPendingL1ToL2Messages = await retrieveNewPendingL1ToL2Messages(

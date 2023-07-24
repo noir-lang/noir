@@ -102,6 +102,7 @@ export function handleCircuitOutput<T>(
       ),
     );
     const err = CircuitError.fromBuffer(errorBuf);
+    err.message += '\nRefer to https://docs.aztec.network/aztec/protocol/errors for more information.';
     throw err;
   }
   // C++ returned a null pointer i.e. circuit didn't have an error

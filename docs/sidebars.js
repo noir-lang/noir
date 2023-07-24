@@ -84,6 +84,7 @@ const sidebars = {
 
             "aztec/protocol/contract-creation",
             "aztec/protocol/public-functions-vm-architectures",
+            "aztec/protocol/errors",
           ],
         },
       ],

@@ -9,6 +9,7 @@ import { CircuitError, CircuitsWasm, KernelCircuitPublicInputs, PublicKernelInpu
 export async function simulatePublicKernelCircuit(input: PublicKernelInputs): Promise<KernelCircuitPublicInputs> {
   const result = publicKernelSim(await CircuitsWasm.get(), input);
   if (result instanceof CircuitError) {
+    result.message += '\nRefer to https://docs.aztec.network/aztec/protocol/errors for more information.';
     throw new CircuitError(result.code, result.message);
   }
   return result;

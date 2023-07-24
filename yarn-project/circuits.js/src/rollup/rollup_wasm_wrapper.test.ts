@@ -81,7 +81,10 @@ describe('rollup/rollup_wasm_wrapper', () => {
     } catch (e) {
       expect(e).toBeInstanceOf(CircuitError);
       const err = e as CircuitError;
-      expect(err.message).toEqual('input proofs have different constants');
+      expect(err.message).toEqual(
+        `input proofs have different constants
+Refer to https://docs.aztec.network/aztec/protocol/errors for more information.`,
+      );
       expect(err.code).toEqual(7003);
     }
   });

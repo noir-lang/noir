@@ -284,7 +284,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   public getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message> {
     const message = this.confirmedL1ToL2Messages.getMessage(messageKey);
     if (!message) {
-      throw new Error(`Message with key ${messageKey.toString()} not found`);
+      throw new Error(`L1 to L2 Message with key ${messageKey.toString()} not found in the confirmed messages store`);
     }
     return Promise.resolve(message);
   }
