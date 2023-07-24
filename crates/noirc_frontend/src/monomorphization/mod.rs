@@ -812,6 +812,17 @@ impl<'interner> Monomorphizer<'interner> {
             .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
     }
 
+    /// Adds a function argument that contains type metadata that is required to tell
+    /// a caller (such as nargo) how to convert values passed to an foreign call
+    /// back to a human-readable string.
+    /// The values passed to an foreign call will be a simple list of field elements,
+    /// thus requiring extra metadata to correctly decode this list of elements.
+    ///
+    /// The Noir compiler has an `AbiType` that handles encoding/decoding a list
+    /// of field elements to/from JSON. The type metadata attached in this method
+    /// is the serialized `AbiType` for the argument passed to the function.
+    /// The caller that is running a Noir program should then deserialize the `AbiType`,
+    /// and accurately decode the list of field elements passed to the foreign call. 
     fn append_abi_arg(
         &mut self,
         hir_argument: &HirExpression,
@@ -846,33 +857,6 @@ impl<'interner> Monomorphizer<'interner> {
             _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
         }
     }
-
-    /// Adds a function argument that contains type metadata that is required to tell
-    /// a caller (such as nargo) how to convert values passed to an foreign call
-    /// back to a human-readable string.
-    /// The values passed to an foreign call will be a simple list of field elements,
-    /// thus requiring extra metadata to correctly decode this list of elements.
-    ///
-    /// The Noir compiler has an `AbiType` that handles encoding/decoding a list
-    /// of field elements to/from JSON. The type metadata attached in this method
-    /// is the serialized `AbiType` for the argument passed to the function.
-    /// The caller that is running a Noir program should then deserialize the `AbiType`,
-    /// and accurately decode the list of field elements passed to the foreign call.  
-    // fn append_abi_arg(&self, hir_argument: &HirExpression, arguments: &mut Vec<ast::Expression>) {
-    //     match hir_argument {
-    //         HirExpression::Ident(ident) => {
-    //             let typ = self.interner.id_type(ident.id);
-    //             let typ = typ.follow_bindings();
-
-    //             let abi_type = typ.as_abi_type();
-    //             let abi_as_string =
-    //                 serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
-
-    //             arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
-    //         }
-    //         _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
-    //     }
-    // }
 
     /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
     /// at their call site.
