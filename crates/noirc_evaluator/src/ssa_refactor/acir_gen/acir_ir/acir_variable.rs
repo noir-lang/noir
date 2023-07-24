@@ -990,29 +990,21 @@ impl AcirContext {
 
     /// Initializes an array in memory with the given values `optional_values`.
     /// If `optional_values` is empty, then the array is initialized with zeros.
-    ///
-    /// TODO: Can we make `optional_values` Option<&[AcirValue]> ?
     pub(crate) fn initialize_array(
         &mut self,
         block_id: BlockId,
         len: usize,
-        optional_values: &[AcirValue],
+        optional_values: Option<&[AcirValue]>,
     ) {
-        // We can either supply all of the optional values or none of them
-        assert!(
-            optional_values.is_empty() || optional_values.len() == len,
-            "invalid optional values"
-        );
-
         // If the optional values are supplied, then we fill the initialized
         // array with those values. If not, then we fill it with zeros.
-        let initialized_values = match optional_values.is_empty() {
-            true => {
+        let initialized_values = match optional_values {
+            None => {
                 let zero = self.add_constant(FieldElement::zero());
                 let zero_witness = self.var_to_witness(zero);
                 vec![zero_witness; len]
             }
-            false => vecmap(optional_values, |value| {
+            Some(optional_values) => vecmap(optional_values, |value| {
                 let value = value.clone().into_var();
                 self.var_to_witness(value)
             }),

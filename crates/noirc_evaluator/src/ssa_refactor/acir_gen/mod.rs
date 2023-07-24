@@ -231,7 +231,7 @@ impl Context {
                 AcirValue::Array(values) => {
                     let block_id = BlockId(param_id.to_usize() as u32);
                     let v = vecmap(values, |v| v.clone());
-                    self.initialize_array(block_id, values.len(), &v);
+                    self.initialize_array(block_id, values.len(), Some(&v));
                 }
                 AcirValue::DynamicArray(_) => unreachable!(
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
@@ -494,7 +494,7 @@ impl Context {
                 Value::Array { array, .. } => {
                     let values: Vec<AcirValue> =
                         array.iter().map(|i| self.convert_value(*i, dfg)).collect();
-                    self.initialize_array(block_id, array.len(), &values);
+                    self.initialize_array(block_id, array.len(), Some(&values));
                 }
                 _ => panic!("reading uninitialized array"),
             }
@@ -551,7 +551,7 @@ impl Context {
                 Value::Array { array, .. } => {
                     let values: Vec<AcirValue> =
                         array.iter().map(|i| self.convert_value(*i, dfg)).collect();
-                    self.initialize_array(block_id, array.len(), &values);
+                    self.initialize_array(block_id, array.len(), Some(&values));
                 }
                 _ => panic!("Array {} should be initialized", array),
             }
@@ -569,7 +569,7 @@ impl Context {
         // Initialize the new array with zero values
         //
         // TODO: Why don't need initialize the array with the values from the old array?
-        self.initialize_array(result_block_id, len, &Vec::new());
+        self.initialize_array(result_block_id, len, None);
 
         // Copy the values from the old array into the new array
         for i in 0..len {
@@ -594,7 +594,7 @@ impl Context {
 
     /// Initializes an array with the given values and caches the fact that we
     /// have initialized this array.
-    fn initialize_array(&mut self, array: BlockId, len: usize, values: &[AcirValue]) {
+    fn initialize_array(&mut self, array: BlockId, len: usize, values: Option<&[AcirValue]>) {
         self.acir_context.initialize_array(array, len, values);
         self.initialized_arrays.insert(array);
     }
