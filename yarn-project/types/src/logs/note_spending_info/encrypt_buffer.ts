@@ -1,3 +1,4 @@
+import { PublicKey } from '@aztec/circuits.js';
 import { Curve } from '@aztec/circuits.js/barretenberg';
 import { sha256 } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
@@ -11,12 +12,12 @@ import { createCipheriv, createDecipheriv } from 'browserify-cipher';
  * the shared secret. The shared secret is then hashed using SHA-256 to produce the final
  * AES secret key.
  *
- * @param ecdhPubKey - The ECDH public key represented as a Point object.
+ * @param ecdhPubKey - The ECDH public key represented as a PublicKey object.
  * @param ecdhPrivKey - The ECDH private key represented as a Buffer object.
  * @param grumpkin - The curve to use for curve operations.
  * @returns A Buffer containing the derived AES secret key.
  */
-export function deriveAESSecret(ecdhPubKey: Point, ecdhPrivKey: Buffer, curve: Curve): Buffer {
+export function deriveAESSecret(ecdhPubKey: PublicKey, ecdhPrivKey: Buffer, curve: Curve): Buffer {
   const sharedSecret = curve.mul(ecdhPubKey.toBuffer(), ecdhPrivKey);
   const secretBuffer = Buffer.concat([sharedSecret, numToUInt8(1)]);
   const hash = sha256(secretBuffer);
@@ -30,12 +31,12 @@ export function deriveAESSecret(ecdhPubKey: Point, ecdhPrivKey: Buffer, curve: C
  * with the provided curve instance for elliptic curve operations.
  *
  * @param data - The data buffer to be encrypted.
- * @param ownerPubKey - The owner's public key as a Point instance.
+ * @param ownerPubKey - The owner's public key as a PublicKey instance.
  * @param ephPrivKey - The ephemeral private key as a Buffer instance.
  * @param curve - The curve instance used for elliptic curve operations.
  * @returns A Buffer containing the encrypted data and the ephemeral public key.
  */
-export function encryptBuffer(data: Buffer, ownerPubKey: Point, ephPrivKey: Buffer, curve: Curve): Buffer {
+export function encryptBuffer(data: Buffer, ownerPubKey: PublicKey, ephPrivKey: Buffer, curve: Curve): Buffer {
   const aesSecret = deriveAESSecret(ownerPubKey, ephPrivKey, curve);
   const aesKey = aesSecret.subarray(0, 16);
   const iv = aesSecret.subarray(16, 32);

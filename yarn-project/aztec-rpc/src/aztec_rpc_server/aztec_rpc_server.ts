@@ -11,7 +11,7 @@ import {
   PublicKey,
 } from '@aztec/circuits.js';
 import { FunctionType, encodeArguments } from '@aztec/foundation/abi';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import {
   AztecNode,
@@ -158,9 +158,9 @@ export class AztecRPCServer implements AztecRPC {
    * Throws an error if the account is not found in the key store.
    *
    * @param address - The AztecAddress instance representing the account to get public key for.
-   * @returns A Promise resolving to the Point instance representing the public key.
+   * @returns A Promise resolving to the PublicKey instance representing the public key.
    */
-  public async getPublicKey(address: AztecAddress): Promise<Point> {
+  public async getPublicKey(address: AztecAddress): Promise<PublicKey> {
     const result = await this.db.getPublicKeyAndPartialAddress(address);
     if (!result) {
       throw new Error(`Unable to retrieve public key for address ${address.toString()}`);
@@ -173,9 +173,9 @@ export class AztecRPCServer implements AztecRPC {
    * Throws an error if the account is not found in the key store.
    *
    * @param address - The AztecAddress instance representing the account to get public key and partial address for.
-   * @returns A Promise resolving to the Point instance representing the public key.
+   * @returns A Promise resolving to the PublicKey instance representing the public key.
    */
-  public async getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[Point, PartialContractAddress]> {
+  public async getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialContractAddress]> {
     const result = await this.db.getPublicKeyAndPartialAddress(address);
     if (!result) {
       throw new Error(`Unable to get public key for address ${address.toString()}`);

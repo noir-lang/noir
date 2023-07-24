@@ -1,6 +1,5 @@
 import { AztecAddress, EthAddress, Fr, PartialContractAddress, PublicKey } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { Point } from '@aztec/foundation/fields';
 import {
   ContractData,
   ContractPublicData,
@@ -57,7 +56,7 @@ export interface AztecRPC {
     partialContractAddress: PartialContractAddress,
   ): Promise<AztecAddress>;
   getAccounts(): Promise<AztecAddress[]>;
-  getPublicKey(address: AztecAddress): Promise<Point>;
+  getPublicKey(address: AztecAddress): Promise<PublicKey>;
   addContracts(contracts: DeployedContract[]): Promise<void>;
   /**
    * Is an L2 contract deployed at this address?
@@ -81,6 +80,6 @@ export interface AztecRPC {
     publicKey: PublicKey,
     partialAddress: PartialContractAddress,
   ): Promise<void>;
-  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[Point, PartialContractAddress]>;
+  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialContractAddress]>;
   isAccountSynchronised(account: AztecAddress): Promise<boolean>;
 }

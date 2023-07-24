@@ -6,7 +6,7 @@ import {
   getConfigEnvVars as getRpcConfig,
 } from '@aztec/aztec-rpc';
 import { ContractDeployer, SentTx } from '@aztec/aztec.js';
-import { AztecAddress, CircuitsWasm, Fr, Point, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, Fr, PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
@@ -130,7 +130,7 @@ describe('e2e_p2p_network', () => {
     aztecRpcServer: AztecRPCServer,
     account: AztecAddress,
     numTxs: number,
-    publicKey: Point,
+    publicKey: PublicKey,
   ) => {
     const txs: SentTx[] = [];
     for (let i = 0; i < numTxs; i++) {

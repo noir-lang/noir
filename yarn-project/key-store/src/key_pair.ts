@@ -1,7 +1,7 @@
 import { Curve } from '@aztec/circuits.js/barretenberg';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Point } from '@aztec/foundation/fields';
-import { KeyPair } from '@aztec/types';
+import { KeyPair, PublicKey } from '@aztec/types';
 
 /**
  * The ConstantKeyPair class is an implementation of the KeyPair interface, which allows generation and management of a constant public and private key pair. It provides methods for creating a random instance of the key pair, retrieving the public key, getting the private key. This class ensures the persistence and consistency of the generated keys, making it suitable for cryptographic operations where constant key pairs are required.
@@ -34,11 +34,11 @@ export class ConstantKeyPair implements KeyPair {
     return new ConstantKeyPair(publicKey, privateKey);
   }
 
-  constructor(private publicKey: Point, private privateKey: Buffer) {}
+  constructor(private publicKey: PublicKey, private privateKey: Buffer) {}
 
   /**
    * Retrieve the public key from the KeyPair instance.
-   * The returned public key is a Point object which represents a point on the elliptic curve secp256k1.
+   * The returned public key is a PublicKey object which represents a point on the elliptic curve secp256k1.
    *
    * @returns The public key as an elliptic curve point.
    */

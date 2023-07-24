@@ -1,4 +1,3 @@
-import { Point } from '@aztec/circuits.js';
 import { Curve } from '@aztec/circuits.js/barretenberg';
 import { KeyPair, KeyStore, PublicKey } from '@aztec/types';
 
@@ -37,20 +36,20 @@ export class TestKeyStore implements KeyStore {
    * @param curve - The curve to use for generating the public key.
    * @returns A promise that resolves to the newly created account's AztecAddress.
    */
-  public createAccount(): Promise<Point> {
+  public createAccount(): Promise<PublicKey> {
     const keyPair = ConstantKeyPair.random(this.curve);
     this.accounts.push(keyPair);
     return Promise.resolve(keyPair.getPublicKey());
   }
 
   /**
-   * Retrieves the public addresses of all accounts stored in the TestKeyStore.
-   * The returned addresses are instances of `AztecAddress` and can be used for subsequent operations
+   * Retrieves the public keys of all accounts stored in the TestKeyStore.
+   * The returned addresses are instances of `PublicKey` and can be used for subsequent operations
    * such as signing transactions or fetching public/private keys.
    *
-   * @returns A Promise that resolves to an array of AztecAddress instances.
+   * @returns A Promise that resolves to an array of public keys instances.
    */
-  public getAccounts() {
+  public getAccounts(): Promise<PublicKey[]> {
     return Promise.resolve(this.accounts.map(a => a.getPublicKey()));
   }
 

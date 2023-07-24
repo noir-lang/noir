@@ -11,7 +11,7 @@ import {
 } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { AztecRPC } from '@aztec/types';
+import { AztecRPC, PublicKey } from '@aztec/types';
 
 import { SchnorrMultiKeyAccountContractAbi } from '../artifacts/index.js';
 
@@ -44,7 +44,7 @@ export class SchnorrMultiKeyAccountContract extends Contract {
    */
   public static deployWithPublicKey(
     rpc: AztecRPC,
-    publicKey: Point,
+    publicKey: PublicKey,
     signing_pub_key_x: Fr | bigint | number | { toField: () => Fr },
     signing_pub_key_y: Fr | bigint | number | { toField: () => Fr },
   ) {

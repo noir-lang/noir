@@ -17,8 +17,8 @@ import {
   FunctionData,
   FunctionLeafPreimage,
   NewContractData,
-  Point,
   PublicCallStackItem,
+  PublicKey,
   TxRequest,
   Vector,
 } from '../index.js';
@@ -140,11 +140,11 @@ export function computeFunctionLeaf(wasm: IWasmModule, fnLeaf: FunctionLeafPreim
 /**
  * Computes a function tree root from function leaves.
  * @param wasm - A module providing low-level wasm access.
- * @param fnLeves - The function leaves to be included in the contract function tree.
+ * @param fnLeaves - The function leaves to be included in the contract function tree.
  * @returns The function tree root.
  */
-export function computeFunctionTreeRoot(wasm: IWasmModule, fnLeves: Fr[]) {
-  const inputVector = serializeBufferArrayToVector(fnLeves.map(fr => fr.toBuffer()));
+export function computeFunctionTreeRoot(wasm: IWasmModule, fnLeaves: Fr[]) {
+  const inputVector = serializeBufferArrayToVector(fnLeaves.map(fr => fr.toBuffer()));
   wasm.call('pedersen__init');
   const result = wasmSyncCall(wasm, 'abis__compute_function_tree_root', inputVector, 32);
   return Fr.fromBuffer(result);
@@ -185,7 +185,7 @@ export function hashConstructor(
  */
 export function computeContractAddress(
   wasm: IWasmModule,
-  deployerPubKey: Point,
+  deployerPubKey: PublicKey,
   contractAddrSalt: Fr,
   fnTreeRoot: Fr,
   constructorHash: Fr,
@@ -232,7 +232,11 @@ export function computePartialContractAddress(
  * @param constructorHash - The hash of the constructor.
  * @returns The partially constructed contract address.
  */
-export function computeContractAddressFromPartial(wasm: IWasmModule, pubKey: Point, partialAddress: Fr): AztecAddress {
+export function computeContractAddressFromPartial(
+  wasm: IWasmModule,
+  pubKey: PublicKey,
+  partialAddress: Fr,
+): AztecAddress {
   wasm.call('pedersen__init');
   const result = inputBuffersToOutputBuffer(
     wasm,

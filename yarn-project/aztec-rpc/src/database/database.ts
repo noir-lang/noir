@@ -1,6 +1,6 @@
 import { PartialContractAddress } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
 import { ContractDatabase, MerkleTreeId, PublicKey, TxHash } from '@aztec/types';
 
 import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
@@ -19,7 +19,7 @@ export interface Database extends ContractDatabase {
   getNoteSpendingInfo(contract: AztecAddress, storageSlot: Fr): Promise<NoteSpendingInfoDao[]>;
   addNoteSpendingInfo(noteSpendingInfoDao: NoteSpendingInfoDao): Promise<void>;
   addNoteSpendingInfoBatch(noteSpendingInfoDaos: NoteSpendingInfoDao[]): Promise<void>;
-  removeNullifiedNoteSpendingInfo(nullifiers: Fr[], account: Point): Promise<NoteSpendingInfoDao[]>;
+  removeNullifiedNoteSpendingInfo(nullifiers: Fr[], account: PublicKey): Promise<NoteSpendingInfoDao[]>;
 
   getTreeRoots(): Record<MerkleTreeId, Fr>;
   setTreeRoots(roots: Record<MerkleTreeId, Fr>): Promise<void>;
@@ -29,6 +29,6 @@ export interface Database extends ContractDatabase {
     publicKey: PublicKey,
     partialAddress: PartialContractAddress,
   ): Promise<void>;
-  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[Point, PartialContractAddress] | undefined>;
+  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialContractAddress] | undefined>;
   getAccounts(): Promise<AztecAddress[]>;
 }

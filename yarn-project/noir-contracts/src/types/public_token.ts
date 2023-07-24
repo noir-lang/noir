@@ -11,7 +11,7 @@ import {
 } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { AztecRPC } from '@aztec/types';
+import { AztecRPC, PublicKey } from '@aztec/types';
 
 import { PublicTokenContractAbi } from '../artifacts/index.js';
 
@@ -38,7 +38,7 @@ export class PublicTokenContract extends Contract {
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
    */
-  public static deployWithPublicKey(rpc: AztecRPC, publicKey: Point) {
+  public static deployWithPublicKey(rpc: AztecRPC, publicKey: PublicKey) {
     return new DeployMethod(publicKey, rpc, PublicTokenContractAbi, Array.from(arguments).slice(2));
   }
 

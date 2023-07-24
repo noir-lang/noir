@@ -5,8 +5,8 @@ import {
   EthAddress,
   Fr,
   PartialContractAddress,
-  Point,
   PrivateHistoricTreeRoots,
+  PublicKey,
 } from '@aztec/circuits.js';
 import { siloCommitment } from '@aztec/circuits.js/abis';
 import { FunctionAbi } from '@aztec/foundation/abi';
@@ -37,7 +37,7 @@ export class SimulatorOracle implements DBOracle {
    * @returns A Promise that resolves to the secret key as a Buffer.
    * @throws An Error if the input address does not match the public key address of the key pair.
    */
-  getSecretKey(_contractAddress: AztecAddress, pubKey: Point): Promise<Buffer> {
+  getSecretKey(_contractAddress: AztecAddress, pubKey: PublicKey): Promise<Buffer> {
     return this.keyStore.getAccountPrivateKey(pubKey);
   }
 
@@ -46,7 +46,7 @@ export class SimulatorOracle implements DBOracle {
    * @param address - Address to fetch the pubkey for.
    * @returns A public key and the corresponding partial contract address, such that the hash of the two resolves to the input address.
    */
-  async getPublicKey(address: AztecAddress): Promise<[Point, PartialContractAddress]> {
+  async getPublicKey(address: AztecAddress): Promise<[PublicKey, PartialContractAddress]> {
     const result = await this.db.getPublicKeyAndPartialAddress(address);
     if (!result) throw new Error(`Unknown public key for address ${address.toString()}`);
     return result;

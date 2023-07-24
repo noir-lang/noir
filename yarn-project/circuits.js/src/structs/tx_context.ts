@@ -1,6 +1,6 @@
 import { BufferReader } from '@aztec/foundation/serialize';
 
-import { FieldsOf } from '../index.js';
+import { FieldsOf, PublicKey } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { AztecAddress, EthAddress, Fr, Point } from './index.js';
 
@@ -16,8 +16,8 @@ export class ContractDeploymentData {
 
   constructor(
     /** Public key of the contract deployer (used when deploying account contracts). */
-    public deployerPublicKey: Point,
-    /** Hash of the constuctor verification key. */
+    public deployerPublicKey: PublicKey,
+    /** Hash of the constructor verification key. */
     public constructorVkHash: Fr,
     /** Function tree root. */
     public functionTreeRoot: Fr,

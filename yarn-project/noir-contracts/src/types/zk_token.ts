@@ -11,7 +11,7 @@ import {
 } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { AztecRPC } from '@aztec/types';
+import { AztecRPC, PublicKey } from '@aztec/types';
 
 import { ZkTokenContractAbi } from '../artifacts/index.js';
 
@@ -44,7 +44,7 @@ export class ZkTokenContract extends Contract {
    */
   public static deployWithPublicKey(
     rpc: AztecRPC,
-    publicKey: Point,
+    publicKey: PublicKey,
     initial_supply: Fr | bigint | number | { toField: () => Fr },
     owner: Fr | bigint | number | { toField: () => Fr },
   ) {

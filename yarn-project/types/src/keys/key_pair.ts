@@ -1,10 +1,10 @@
-import { Point } from '@aztec/circuits.js';
+import { PublicKey } from '@aztec/circuits.js';
 
 /**
  * Represents a cryptographic public-private key pair.
  * Provides functionality to generate, access, and sign messages using the key pair.
  */
 export interface KeyPair {
-  getPublicKey(): Point;
+  getPublicKey(): PublicKey;
   getPrivateKey(): Promise<Buffer>;
 }

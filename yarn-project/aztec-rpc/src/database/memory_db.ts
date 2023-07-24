@@ -1,6 +1,6 @@
 import { PartialContractAddress } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { MerkleTreeId, PublicKey, TxHash } from '@aztec/types';
 
@@ -127,10 +127,10 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
    * noteSpendingInfoTable with the remaining records. It returns an array of removed NoteSpendingInfoDao instances.
    *
    * @param nullifiers - An array of Fr instances representing nullifiers to be matched.
-   * @param account - A Point instance representing the account for which the records are being removed.
+   * @param account - A PublicKey instance representing the account for which the records are being removed.
    * @returns A Promise resolved with an array of removed NoteSpendingInfoDao instances.
    */
-  public removeNullifiedNoteSpendingInfo(nullifiers: Fr[], account: Point) {
+  public removeNullifiedNoteSpendingInfo(nullifiers: Fr[], account: PublicKey) {
     const nullifierSet = new Set(nullifiers.map(nullifier => nullifier.toString()));
     const [remaining, removed] = this.noteSpendingInfoTable.reduce(
       (acc: [NoteSpendingInfoDao[], NoteSpendingInfoDao[]], noteSpendingInfo) => {
@@ -180,14 +180,14 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
 
   addPublicKeyAndPartialAddress(
     address: AztecAddress,
-    publicKey: Point,
+    publicKey: PublicKey,
     partialAddress: PartialContractAddress,
   ): Promise<void> {
     this.publicKeys.set(address.toBigInt(), [publicKey, partialAddress]);
     return Promise.resolve();
   }
 
-  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[Point, Fr] | undefined> {
+  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, Fr] | undefined> {
     return Promise.resolve(this.publicKeys.get(address.toBigInt()));
   }
 

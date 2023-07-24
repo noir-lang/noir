@@ -1,7 +1,7 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
-import { AztecAddress, EthAddress, Fr, Point } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr, PublicKey } from '@aztec/circuits.js';
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { sha256ToField } from '@aztec/foundation/crypto';
@@ -109,7 +109,7 @@ export class CrossChainTestHarness {
     /** Another Aztec Address to use in tests. */
     public receiver: AztecAddress,
     /** The owners public key. */
-    public ownerPub: Point,
+    public ownerPub: PublicKey,
   ) {}
 
   async generateClaimSecret(): Promise<[Fr, Fr]> {

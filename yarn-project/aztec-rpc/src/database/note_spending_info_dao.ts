@@ -1,4 +1,4 @@
-import { AztecAddress, Fr } from '@aztec/circuits.js';
+import { AztecAddress, Fr, PublicKey } from '@aztec/circuits.js';
 import { Point } from '@aztec/foundation/fields';
 import { NotePreimage } from '@aztec/types';
 
@@ -39,7 +39,7 @@ export interface NoteSpendingInfoDao {
   /**
    * The public key that was used to encrypt the data.
    */
-  publicKey: Point;
+  publicKey: PublicKey;
 }
 
 export const createRandomNoteSpendingInfoDao = ({

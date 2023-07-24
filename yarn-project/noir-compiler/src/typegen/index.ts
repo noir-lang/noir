@@ -86,7 +86,7 @@ function generateDeploy(input: ContractAbi) {
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
    */
-  public static deployWithPublicKey(rpc: AztecRPC, publicKey: Point, ${args}) {
+  public static deployWithPublicKey(rpc: AztecRPC, publicKey: PublicKey, ${args}) {
     return new DeployMethod(publicKey, rpc, ${abiName}, Array.from(arguments).slice(2));
   }
   `;
@@ -127,7 +127,7 @@ export function generateType(input: ContractAbi, abiImportPath?: string) {
 /* eslint-disable */
 import { AztecAddress, Contract, ContractFunctionInteraction, ContractMethod, DeployMethod, Wallet } from '@aztec/aztec.js';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { AztecRPC } from '@aztec/types';
+import { AztecRPC, PublicKey } from '@aztec/types';
 import { ContractAbi } from '@aztec/foundation/abi';
 ${abiImportStatement}
 

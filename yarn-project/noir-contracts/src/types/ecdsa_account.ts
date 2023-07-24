@@ -11,7 +11,7 @@ import {
 } from '@aztec/aztec.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr, Point } from '@aztec/foundation/fields';
-import { AztecRPC } from '@aztec/types';
+import { AztecRPC, PublicKey } from '@aztec/types';
 
 import { EcdsaAccountContractAbi } from '../artifacts/index.js';
 
@@ -40,7 +40,7 @@ export class EcdsaAccountContract extends Contract {
    */
   public static deployWithPublicKey(
     rpc: AztecRPC,
-    publicKey: Point,
+    publicKey: PublicKey,
     signing_pub_key_x: (bigint | number)[],
     signing_pub_key_y: (bigint | number)[],
   ) {
