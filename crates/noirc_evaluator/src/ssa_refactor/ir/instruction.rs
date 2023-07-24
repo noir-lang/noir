@@ -280,10 +280,10 @@ impl Instruction {
                         if let Instruction::Not(value) = &dfg[*instruction] {
                             SimplifiedTo(*value)
                         } else {
-                            SimplifyResult::could_not_simplify()
+                            SimplifiedToInstruction(None)
                         }
                     }
-                    _ => SimplifyResult::could_not_simplify(),
+                    _ => SimplifiedToInstruction(None),
                 }
             }
             Instruction::Constrain(value) => {
@@ -292,7 +292,7 @@ impl Instruction {
                         return Remove;
                     }
                 }
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
             Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);
@@ -304,7 +304,7 @@ impl Instruction {
                         return SimplifiedTo(array[index]);
                     }
                 }
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
             Instruction::ArraySet { array, index, value } => {
                 let array = dfg.get_array_constant(*array);
@@ -318,7 +318,7 @@ impl Instruction {
                         return SimplifiedTo(new_array);
                     }
                 }
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
             Instruction::Truncate { value, bit_size, .. } => {
                 if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
@@ -326,7 +326,7 @@ impl Instruction {
                     let truncated = numeric_constant.to_u128() % integer_modulus;
                     SimplifiedTo(dfg.make_constant(truncated.into(), typ))
                 } else {
-                    SimplifyResult::could_not_simplify()
+                    SimplifiedToInstruction(None)
                 }
             }
             Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg),
@@ -338,10 +338,10 @@ impl Instruction {
                         return Remove;
                     }
                 }
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
             Instruction::Allocate { .. } | Instruction::Load { .. } | Instruction::Store { .. } => {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
     }
@@ -376,12 +376,12 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
                 let truncated = FieldElement::from_be_bytes_reduce(&truncated.to_bytes_be());
                 SimplifiedTo(dfg.make_constant(truncated, dst_typ.clone()))
             }
-            _ => SimplifyResult::could_not_simplify(),
+            _ => SimplifiedToInstruction(None),
         }
     } else if *dst_typ == dfg.type_of_value(value) {
         SimplifiedTo(value)
     } else {
-        SimplifyResult::could_not_simplify()
+        SimplifiedToInstruction(None)
     }
 }
 
@@ -391,7 +391,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
     use SimplifyResult::*;
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
-        _ => return SimplifyResult::could_not_simplify(),
+        _ => return SimplifiedToInstruction(None),
     };
 
     let constant_args: Option<Vec<_>> =
@@ -404,7 +404,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
                 let limb_count = constant_args[1].to_u128() as u32;
                 SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
             } else {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
         Intrinsic::ToRadix(endian) => {
@@ -414,7 +414,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
                 let limb_count = constant_args[2].to_u128() as u32;
                 SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
             } else {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
         Intrinsic::ArrayLen => {
@@ -430,7 +430,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
                 );
                 SimplifiedTo(slice_len)
             } else {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
         Intrinsic::SlicePushBack => {
@@ -440,7 +440,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifiedTo(new_slice)
             } else {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
         Intrinsic::SlicePushFront => {
@@ -450,7 +450,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifiedTo(new_slice)
             } else {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
         Intrinsic::SlicePopBack => {
@@ -461,7 +461,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifiedToMultiple(vec![new_slice, elem])
             } else {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
         Intrinsic::SlicePopFront => {
@@ -472,7 +472,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifiedToMultiple(vec![elem, new_slice])
             } else {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
         Intrinsic::SliceInsert => {
@@ -485,7 +485,7 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifiedTo(new_slice)
             } else {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
         Intrinsic::SliceRemove => {
@@ -496,11 +496,11 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifiedToMultiple(vec![new_slice, removed_elem])
             } else {
-                SimplifyResult::could_not_simplify()
+                SimplifiedToInstruction(None)
             }
         }
         Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => {
-            SimplifyResult::could_not_simplify()
+            SimplifiedToInstruction(None)
         }
     }
 }
@@ -675,7 +675,7 @@ impl Binary {
         if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
             return match self.eval_constants(dfg, lhs, rhs, operand_type) {
                 Some(value) => SimplifyResult::SimplifiedTo(value),
-                None => SimplifyResult::could_not_simplify(),
+                None => SimplifyResult::SimplifiedToInstruction(None),
             };
         }
 
@@ -770,7 +770,7 @@ impl Binary {
                 }
             }
         }
-        SimplifyResult::could_not_simplify()
+        SimplifyResult::SimplifiedToInstruction(None)
     }
 
     /// Evaluate the two constants with the operation specified by self.operator.
@@ -925,10 +925,4 @@ pub(crate) enum SimplifyResult {
     /// The instruction may be able to be replaced with simpler but equivalent instruction.
     /// If so it will be included here.
     SimplifiedToInstruction(Option<Instruction>),
-}
-
-impl SimplifyResult {
-    fn could_not_simplify() -> Self {
-        SimplifyResult::SimplifiedToInstruction(None)
-    }
 }
