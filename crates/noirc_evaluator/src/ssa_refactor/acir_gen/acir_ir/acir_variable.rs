@@ -965,16 +965,26 @@ impl AcirContext {
         value_read_var
     }
 
+    /// Constrains the Variable `value` to be the new value located at `index` in the memory `block_id`.
     pub(crate) fn write_to_memory(&mut self, block_id: BlockId, index: &AcirVar, value: &AcirVar) {
-        let acir_var_data = self.vars.get(index).expect("ICE: undeclared AcirVar");
-        let index_witness = self.acir_ir.get_or_create_witness(&acir_var_data.to_expression());
-        let value_var_data = self.vars.get(value).expect("ICE: undeclared AcirVar");
-        let value_witness = self.acir_ir.get_or_create_witness(&value_var_data.to_expression());
+        // Fetch the witness corresponding to the index
+        //
+        // See read_memory for TODO on creating a helper
+        let index_var_data = self.vars.get(index).expect("ICE: undeclared AcirVar");
+        let index_witness = self.acir_ir.get_or_create_witness(&index_var_data.to_expression());
 
+        // Fetch the witness corresponding to the value to be written
+        let value_write_var_data = self.vars.get(value).expect("ICE: undeclared AcirVar");
+        let value_write_witness =
+            self.acir_ir.get_or_create_witness(&value_write_var_data.to_expression());
+
+        // Add the memory write operation to the list of opcodes
         let write_op = Expression::one();
-
-        let op =
-            MemOp { operation: write_op, index: index_witness.into(), value: value_witness.into() };
+        let op = MemOp {
+            operation: write_op,
+            index: index_witness.into(),
+            value: value_write_witness.into(),
+        };
         self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
     }
 
