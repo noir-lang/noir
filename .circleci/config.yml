@@ -1019,7 +1019,8 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - DISABLED_FIXME # master # TODO(AD): See #1174
+          <<: *defaults
           <<: *defaults
       - bb-js:
           requires:
