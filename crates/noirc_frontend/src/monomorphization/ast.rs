@@ -316,10 +316,10 @@ impl std::fmt::Display for Type {
             },
             Type::Bool => write!(f, "bool"),
             Type::String(len) => write!(f, "str<{len}>"),
-            Type::FmtString(_, elements) => {
+            Type::FmtString(len, elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 let element_tuple = format!("({})", elements.join(", "));
-                write!(f, "fmtstr<{element_tuple}>")
+                write!(f, "fmtstr<{len}, {element_tuple}>")
             }
             Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {

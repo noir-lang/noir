@@ -15,6 +15,7 @@ pub enum Token {
     Int(FieldElement),
     Bool(bool),
     Str(String),
+    FmtStr(String),
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
@@ -82,6 +83,9 @@ pub enum Token {
     Bang,
     /// =
     Assign,
+    /// f
+    /// Used in combination with a string token to create a format string literal
+    F,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -145,6 +149,7 @@ impl fmt::Display for Token {
             Token::Int(n) => write!(f, "{}", n.to_u128()),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b}"),
+            Token::FmtStr(ref b) => write!(f, "f{b}"),
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
             Token::IntType(ref i) => write!(f, "{i}"),
@@ -180,6 +185,7 @@ impl fmt::Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
+            Token::F => write!(f, "f"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
         }
@@ -212,7 +218,7 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_) | Token::Bool(_) | Token::Str(_) => TokenKind::Literal,
+            Token::Int(_) | Token::Bool(_) | Token::Str(_) | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
             ref tok => TokenKind::Token(tok.clone()),
@@ -424,6 +430,7 @@ pub enum Keyword {
     Field,
     Fn,
     For,
+    FormatString,
     Global,
     If,
     Impl,
@@ -462,6 +469,7 @@ impl fmt::Display for Keyword {
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
+            Keyword::FormatString => write!(f, "fmtstr"),
             Keyword::Global => write!(f, "global"),
             Keyword::If => write!(f, "if"),
             Keyword::Impl => write!(f, "impl"),
@@ -503,6 +511,7 @@ impl Keyword {
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
+            "fmtstr" => Keyword::FormatString,
             "global" => Keyword::Global,
             "if" => Keyword::If,
             "impl" => Keyword::Impl,

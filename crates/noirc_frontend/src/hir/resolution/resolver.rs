@@ -341,6 +341,11 @@ impl<'a> Resolver<'a> {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::String(Box::new(resolved_size))
             }
+            UnresolvedType::FormatString(size, fields) => {
+                let resolved_size = self.resolve_array_size(size, new_variables);
+                let fields = vecmap(fields, |field| self.resolve_type_inner(field, new_variables));
+                Type::FmtString(Box::new(resolved_size), fields)
+            }
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Error,
             UnresolvedType::Error => Type::Error,
@@ -890,6 +895,38 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::FmtStr(str) => {
+                    let re = Regex::new(r"\{([\S]+)\}").expect(
+                        "ICE: an invalid regex pattern was used for checking format strings",
+                    );
+                    if re.is_match(&str) {
+                        let mut fmt_str_idents = Vec::new();
+                        for field in re.find_iter(&str) {
+                            let matched_str = field.as_str();
+                            let ident_name = matched_str[1..(matched_str.len() - 1)].to_owned();
+
+                            let scope_tree = self.scopes.current_scope_tree();
+                            let variable = scope_tree.find(&ident_name);
+                            if let Some((old_value, _)) = variable {
+                                old_value.num_times_used += 1;
+                                fmt_str_idents.push(old_value.ident);
+                            } else if ident_name.parse::<usize>().is_ok() {
+                                self.errors.push(ResolverError::NumericConstantInFormatString {
+                                    name: ident_name,
+                                    span: expr.span,
+                                });
+                            } else {
+                                self.errors.push(ResolverError::VariableNotDeclared {
+                                    name: ident_name,
+                                    span: expr.span,
+                                });
+                            }
+                        }
+                        HirLiteral::FmtStr(str, fmt_str_idents)
+                    } else {
+                        HirLiteral::FmtStr(str, vec![])
+                    }
+                }
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
@@ -926,13 +963,7 @@ impl<'a> Resolver<'a> {
                 // Get the span and name of path for error reporting
                 let func = self.resolve_expression(*call_expr.func);
 
-                let arguments = vecmap(call_expr.arguments, |arg| {
-                    if self.interner.experimental_ssa {
-                        self.resolve_call_arg(arg, expr.span)
-                    } else {
-                        self.resolve_expression(arg)
-                    }
-                });
+                let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::Call(HirCallExpression { func, arguments, location })
             }
@@ -1280,47 +1311,6 @@ impl<'a> Resolver<'a> {
     fn in_contract(&self) -> bool {
         let module_id = self.path_resolver.module_id();
         module_id.module(self.def_maps).is_contract
-    }
-
-    fn resolve_call_arg(&mut self, argument: Expression, call_expr_span: Span) -> ExprId {
-        match argument.kind {
-            // Only function calls should convert the Str literal to a FmtStr literal
-            ExpressionKind::Literal(Literal::Str(string)) => {
-                let re = Regex::new(r"\{([\S]+)\}")
-                    .expect("ICE: an invalid regex pattern was used for checking format strings");
-                let str_literal = if re.is_match(&string) {
-                    let mut fmt_str_idents = Vec::new();
-                    for field in re.find_iter(&string) {
-                        let matched_str = field.as_str();
-                        let ident_name = matched_str[1..(matched_str.len() - 1)].to_owned();
-
-                        let scope_tree = self.scopes.current_scope_tree();
-                        let variable = scope_tree.find(&ident_name);
-                        if let Some((old_value, _)) = variable {
-                            old_value.num_times_used += 1;
-                            fmt_str_idents.push(old_value.ident);
-                        } else if ident_name.parse::<usize>().is_ok() {
-                            self.errors.push(ResolverError::NumericConstantInFormatString {
-                                name: ident_name,
-                                span: call_expr_span,
-                            });
-                        } else {
-                            self.errors.push(ResolverError::VariableNotDeclared {
-                                name: ident_name,
-                                span: call_expr_span,
-                            });
-                        }
-                    }
-                    HirLiteral::FmtStr(string, fmt_str_idents)
-                } else {
-                    HirLiteral::Str(string)
-                };
-                let expr_id = self.interner.push_expr(HirExpression::Literal(str_literal));
-                self.interner.push_expr_location(expr_id, call_expr_span, self.file);
-                expr_id
-            }
-            _ => self.resolve_expression(argument),
-        }
     }
 }
 
