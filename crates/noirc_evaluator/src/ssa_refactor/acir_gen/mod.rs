@@ -57,7 +57,8 @@ struct Context {
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
     acir_context: AcirContext,
 
-    /// Track initialised acir arrays
+    /// Track initialized acir dynamic arrays
+    ///
     /// An acir array must start with a MemoryInit ACIR opcodes
     /// and then have MemoryOp opcodes
     /// This set is used to ensure that a MemoryOp opcode is only pushed to the circuit
@@ -67,7 +68,10 @@ struct Context {
 
 #[derive(Clone)]
 pub(crate) struct AcirArray {
+    /// Identification for the Acir dynamic array
+    /// This is essentially a ACIR pointer to the array
     block_id: BlockId,
+    /// Length of the array
     len: usize,
 }
 impl Debug for AcirArray {
@@ -230,7 +234,7 @@ impl Context {
                     self.initialize_array(block_id, values.len(), &v);
                 }
                 AcirValue::DynamicArray(_) => unreachable!(
-                    "Dynamic array can only be acir-gen, it should not be in a block param"
+                    "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
                 ),
             }
             self.ssa_values.insert(*param_id, value);
