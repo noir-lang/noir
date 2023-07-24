@@ -929,6 +929,11 @@ impl AcirContext {
 
         Ok(outputs_var)
     }
+    /// Converts an AcirVar to a Witness
+    fn var_to_witness(&mut self, var: AcirVar) -> Witness {
+        let var_data = self.vars.get(&var).expect("ICE: undeclared AcirVar");
+        self.acir_ir.get_or_create_witness(&var_data.to_expression())
+    }
 
     /// Constrain lhs to be less than rhs
     fn less_than_constrain(
@@ -946,20 +951,19 @@ impl AcirContext {
     /// from the memory `block_id` at the given `index`.
     pub(crate) fn read_from_memory(&mut self, block_id: BlockId, index: &AcirVar) -> AcirVar {
         // Fetch the witness corresponding to the index
-        //
-        // TODO: We can have a helper method which converts AcirVar to Witness
-        let index_var_data = self.vars.get(index).expect("ICE: undeclared AcirVar");
-        let index_witness = self.acir_ir.get_or_create_witness(&index_var_data.to_expression());
+        let index_witness = self.var_to_witness(*index);
 
         // Create a Variable to hold the result of the read and extract the corresponding Witness
         let value_read_var = self.add_variable();
-        let value_read_var_data = self.vars.get(&value_read_var).expect("ICE: undeclared AcirVar");
-        let value_read_witness = value_read_var_data.to_expression().into_owned();
+        let value_read_witness = self.var_to_witness(value_read_var);
 
         // Add the memory read operation to the list of opcodes
         let read_op = Expression::zero();
-        let op =
-            MemOp { operation: read_op, index: index_witness.into(), value: value_read_witness };
+        let op = MemOp {
+            operation: read_op,
+            index: index_witness.into(),
+            value: value_read_witness.into(),
+        };
         self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
 
         value_read_var
@@ -969,14 +973,10 @@ impl AcirContext {
     pub(crate) fn write_to_memory(&mut self, block_id: BlockId, index: &AcirVar, value: &AcirVar) {
         // Fetch the witness corresponding to the index
         //
-        // See read_memory for TODO on creating a helper
-        let index_var_data = self.vars.get(index).expect("ICE: undeclared AcirVar");
-        let index_witness = self.acir_ir.get_or_create_witness(&index_var_data.to_expression());
+        let index_witness = self.var_to_witness(*index);
 
         // Fetch the witness corresponding to the value to be written
-        let value_write_var_data = self.vars.get(value).expect("ICE: undeclared AcirVar");
-        let value_write_witness =
-            self.acir_ir.get_or_create_witness(&value_write_var_data.to_expression());
+        let value_write_witness = self.var_to_witness(*value);
 
         // Add the memory write operation to the list of opcodes
         let write_op = Expression::one();
@@ -1008,21 +1008,13 @@ impl AcirContext {
         // array with those values. If not, then we fill it with zeros.
         let initialized_values = match optional_values.is_empty() {
             true => {
-                // TODO: See comment in read_memory, regarding a method to convert Var to Witness
                 let zero = self.add_constant(FieldElement::zero());
-                let zero_expr = self.vars[&zero].to_expression();
-                let zero_witness = self.acir_ir.get_or_create_witness(&zero_expr);
+                let zero_witness = self.var_to_witness(zero);
                 vec![zero_witness; len]
             }
-            // TODO: See comment in read_memory, regarding a method to convert Var to Witness
             false => vecmap(optional_values, |value| {
-                let expr = self
-                    .vars
-                    .get(&value.clone().into_var())
-                    .expect("invalid value")
-                    .to_expression()
-                    .into_owned();
-                self.acir_ir.get_or_create_witness(&expr)
+                let value = value.clone().into_var();
+                self.var_to_witness(value)
             }),
         };
 
