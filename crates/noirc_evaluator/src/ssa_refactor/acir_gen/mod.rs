@@ -475,7 +475,7 @@ impl Context {
         Ok(())
     }
 
-    /// Generates a load opcode for the array
+    /// Generates a read opcode for the array
     fn array_get(
         &mut self,
         instruction: InstructionId,
