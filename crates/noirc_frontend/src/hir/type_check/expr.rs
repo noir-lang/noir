@@ -360,7 +360,7 @@ impl<'interner> TypeChecker<'interner> {
                 if dest_comp_time.is_comp_time()
                     && is_comp_time.unify(&dest_comp_time, span).is_err()
                 {
-                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span })
+                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span });
                 }
 
                 Type::Integer(is_comp_time, sign, bits)
@@ -369,7 +369,7 @@ impl<'interner> TypeChecker<'interner> {
                 if dest_comp_time.is_comp_time()
                     && is_comp_time.unify(&dest_comp_time, span).is_err()
                 {
-                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span })
+                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span });
                 }
 
                 Type::FieldElement(is_comp_time)
@@ -378,7 +378,7 @@ impl<'interner> TypeChecker<'interner> {
                 if dest_comp_time.is_comp_time()
                     && is_comp_time.unify(&dest_comp_time, span).is_err()
                 {
-                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span })
+                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span });
                 }
                 Type::Bool(dest_comp_time)
             }
