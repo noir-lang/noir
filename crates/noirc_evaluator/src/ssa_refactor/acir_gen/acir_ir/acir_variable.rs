@@ -1,6 +1,6 @@
 use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use crate::brillig::brillig_gen::brillig_directive;
-use crate::ssa_refactor::acir_gen::{AcirArray, AcirValue};
+use crate::ssa_refactor::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
@@ -877,7 +877,7 @@ impl AcirContext {
                     self.brillig_array_input(var_expressions, var);
                 }
             }
-            AcirValue::DynamicArray(AcirArray { block_id, len }) => {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
                     let index = AcirValue::Var(

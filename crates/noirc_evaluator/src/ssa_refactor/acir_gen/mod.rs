@@ -67,14 +67,14 @@ struct Context {
 }
 
 #[derive(Clone)]
-pub(crate) struct AcirArray {
+pub(crate) struct AcirDynamicArray {
     /// Identification for the Acir dynamic array
     /// This is essentially a ACIR pointer to the array
     block_id: BlockId,
     /// Length of the array
     len: usize,
 }
-impl Debug for AcirArray {
+impl Debug for AcirDynamicArray {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "id: {}, len: {}", self.block_id.0, self.len)
     }
@@ -84,7 +84,7 @@ impl Debug for AcirArray {
 pub(crate) enum AcirValue {
     Var(AcirVar, AcirType),
     Array(im::Vector<AcirValue>),
-    DynamicArray(AcirArray),
+    DynamicArray(AcirDynamicArray),
 }
 
 impl AcirValue {
@@ -587,7 +587,8 @@ impl Context {
         let value_var = self.convert_value(store_value, dfg).into_var();
         self.acir_context.write_to_memory(result_block_id, &index_var, &value_var);
 
-        let result_value = AcirValue::DynamicArray(AcirArray { block_id: result_block_id, len });
+        let result_value =
+            AcirValue::DynamicArray(AcirDynamicArray { block_id: result_block_id, len });
         self.define_result(dfg, instruction, result_value);
     }
 
