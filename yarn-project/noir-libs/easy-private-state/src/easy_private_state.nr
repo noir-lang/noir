@@ -52,6 +52,7 @@ impl EasyPrivateUint {
             context,
             context.inputs.call_context.storage_contract_address,
             self.set.storage_slot,
+            owner,
             owner_key,
             addend_note.serialise(),
         );
@@ -108,6 +109,7 @@ impl EasyPrivateUint {
             context,
             context.inputs.call_context.storage_contract_address,
             self.set.storage_slot,
+            owner,
             owner_key,
             encrypted_data,
         );
