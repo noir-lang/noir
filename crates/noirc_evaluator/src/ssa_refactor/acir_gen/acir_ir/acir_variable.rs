@@ -892,7 +892,7 @@ impl AcirContext {
                         AcirType::NumericType(NumericType::NativeField),
                     );
 
-                    self.brillig_array_input(var_expressions, value_read)
+                    self.brillig_array_input(var_expressions, value_read);
                 }
             }
         }
