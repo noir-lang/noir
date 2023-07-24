@@ -27,17 +27,6 @@ jobs:
         run: |
           nix build -L .#wasm
 
-      # - name: Copy wasm build result
-      #   run: |
-      #     mkdir -p ./pkg
-      #     ls -la
-      #     cp -r -L ./result/* ./pkg
-
-      # - name: Output results
-      #   run: |
-      #     ls -R ./pkg
-
-      # Todo: Enable wasm testing by injecting wasm into noir-wasm-testing
       - name: Checkout noir-wasm-testing
         uses: actions/checkout@v3
         with:
@@ -46,28 +35,10 @@ jobs:
 
       - name: Inject built wasm into noir-wasm-testing
         run: |
-          ls -R ./noir-wasm-testing
           mkdir ./noir-wasm-testing/@noir-lang_noir_wasm
           cp -r -L ./result/* ./noir-wasm-testing/@noir-lang_noir_wasm
-          ls -R ./noir-wasm-testing
           jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
-
-      - name: Log package information
-        working-directory: ./noir-wasm-testing
-        run: |
-          echo "Wasm contents:"
-          ls -la ./@noir-lang_noir_wasm
-          echo "Directory contents:"
-          ls -la
-          echo "package.json contents:"
-          cat package.json
-          echo "Checking if noir-script.json exists:"
-          if [ -f "./src/noir-script/target/noir-script.json" ]; then
-            echo "File exists."
-          else
-            echo "File does not exist."
-          fi
 
       - name: Run build.sh in noir-wasm-testing
         working-directory: ./noir-wasm-testing
