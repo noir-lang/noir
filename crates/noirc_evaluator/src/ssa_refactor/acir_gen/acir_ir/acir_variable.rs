@@ -988,14 +988,34 @@ impl AcirContext {
         self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
     }
 
+    /// Initializes an array in memory with the given values `optional_values`.
+    /// If `optional_values` is empty, then the array is initialized with zeros.
+    ///
+    /// TODO: Can we make `optional_values` Option<&[AcirValue]> ?
     pub(crate) fn initialize_array(
         &mut self,
         block_id: BlockId,
         len: usize,
         optional_values: &[AcirValue],
     ) {
-        let init = if optional_values.len() == len {
-            vecmap(optional_values, |value| {
+        // We can either supply all of the optional values or none of them
+        assert!(
+            optional_values.is_empty() || optional_values.len() == len,
+            "invalid optional values"
+        );
+
+        // If the optional values are supplied, then we fill the initialized
+        // array with those values. If not, then we fill it with zeros.
+        let initialized_values = match optional_values.is_empty() {
+            true => {
+                // TODO: See comment in read_memory, regarding a method to convert Var to Witness
+                let zero = self.add_constant(FieldElement::zero());
+                let zero_expr = self.vars[&zero].to_expression();
+                let zero_witness = self.acir_ir.get_or_create_witness(&zero_expr);
+                vec![zero_witness; len]
+            }
+            // TODO: See comment in read_memory, regarding a method to convert Var to Witness
+            false => vecmap(optional_values, |value| {
                 let expr = self
                     .vars
                     .get(&value.clone().into_var())
@@ -1003,15 +1023,10 @@ impl AcirContext {
                     .to_expression()
                     .into_owned();
                 self.acir_ir.get_or_create_witness(&expr)
-            })
-        } else {
-            let zero = self.add_constant(FieldElement::zero());
-            let zero_exp =
-                self.vars.get(&zero).expect("ICE: return of undeclared AcirVar").to_expression();
-            let zero_witness = self.acir_ir.get_or_create_witness(&zero_exp);
-            vec![zero_witness; len]
+            }),
         };
-        self.acir_ir.opcodes.push(Opcode::MemoryInit { block_id, init });
+
+        self.acir_ir.opcodes.push(Opcode::MemoryInit { block_id, init: initialized_values });
     }
 }
 
