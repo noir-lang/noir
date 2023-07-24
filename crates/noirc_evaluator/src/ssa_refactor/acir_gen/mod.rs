@@ -567,11 +567,9 @@ impl Context {
         let result_block_id = BlockId(result_array_id);
 
         // Initialize the new array with zero values
-        //
-        // TODO: Why don't need initialize the array with the values from the old array?
         self.initialize_array(result_block_id, len, None);
 
-        // Copy the values from the old array into the new array
+        // Copy the values from the old array into the newly created zeroed array
         for i in 0..len {
             let index = AcirValue::Var(
                 self.acir_context.add_constant(FieldElement::from(i as u128)),
