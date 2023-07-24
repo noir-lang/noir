@@ -9,10 +9,9 @@ struct Foo {
     array: [Field; 2],
 }
 
-
 impl Default for Foo {
     fn default(x: Field,y: Field) -> Self {
-        Self { bar: 0, array: [x,y] }
+        Self { bar: x, array: [x,y] }
     }
 }
 
