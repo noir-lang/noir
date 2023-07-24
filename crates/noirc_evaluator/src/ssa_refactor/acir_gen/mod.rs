@@ -542,7 +542,7 @@ impl Context {
         // Check if the array has already been initialized in ACIR gen
         // if not, we initialize it using the values from SSA
         let already_initialized = self.initialized_arrays.contains(&block_id);
-        if already_initialized == false {
+        if !already_initialized {
             match &dfg[array] {
                 Value::Array { array, .. } => {
                     let values: Vec<AcirValue> =
