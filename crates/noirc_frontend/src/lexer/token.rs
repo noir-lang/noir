@@ -83,9 +83,6 @@ pub enum Token {
     Bang,
     /// =
     Assign,
-    /// f
-    /// Used in combination with a string token to create a format string literal
-    F,
     #[allow(clippy::upper_case_acronyms)]
     EOF,
 
@@ -185,7 +182,6 @@ impl fmt::Display for Token {
             Token::Semicolon => write!(f, ";"),
             Token::Assign => write!(f, "="),
             Token::Bang => write!(f, "!"),
-            Token::F => write!(f, "f"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
         }
