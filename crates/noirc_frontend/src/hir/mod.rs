@@ -99,8 +99,11 @@ impl Context {
                 let meta = interner.function_meta(&id);
                 let module = self.module(meta.module_id);
 
-                let parent =
-                    def_map.get_module_path_inner(meta.module_id.local_id.0, module.parent, "::");
+                let parent = def_map.get_module_path_with_separator(
+                    meta.module_id.local_id.0,
+                    module.parent,
+                    "::",
+                );
                 let path =
                     if parent.is_empty() { name.into() } else { format!("{parent}::{name}") };
 
