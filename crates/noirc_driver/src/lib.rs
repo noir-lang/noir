@@ -22,7 +22,7 @@ mod program;
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
-#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+#[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
     #[arg(short, long)]
@@ -42,18 +42,6 @@ pub struct CompileOptions {
     /// Compile and optimize using the new experimental SSA pass
     #[arg(long)]
     pub experimental_ssa: bool,
-}
-
-impl Default for CompileOptions {
-    fn default() -> Self {
-        Self {
-            show_ssa: false,
-            show_brillig: false,
-            print_acir: false,
-            deny_warnings: false,
-            experimental_ssa: false,
-        }
-    }
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
