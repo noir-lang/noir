@@ -942,18 +942,6 @@ impl AcirContext {
         self.maybe_eq_predicate(lhs_less_than_rhs, predicate)
     }
 
-    /// Helper function that returns Expression::zero() if its a read operation
-    /// or Expression::one() to signify a memory write operation.
-    ///
-    /// This is needed because the memory operation for dynamic arrays is a single opcode
-    fn memory_op(is_read: bool) -> Expression {
-        if is_read {
-            Expression::zero()
-        } else {
-            Expression::one()
-        }
-    }
-
     /// Returns a Variable that is constrained to be the result of reading
     /// from the memory `block_id` at the given `index`.
     pub(crate) fn read_from_memory(&mut self, block_id: BlockId, index: &AcirVar) -> AcirVar {
@@ -969,7 +957,7 @@ impl AcirContext {
         let value_read_witness = value_read_var_data.to_expression().into_owned();
 
         // Add the memory read operation to the list of opcodes
-        let read_op = Self::memory_op(true);
+        let read_op = Expression::zero();
         let op =
             MemOp { operation: read_op, index: index_witness.into(), value: value_read_witness };
         self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
@@ -982,11 +970,11 @@ impl AcirContext {
         let index_witness = self.acir_ir.get_or_create_witness(&acir_var_data.to_expression());
         let value_var_data = self.vars.get(value).expect("ICE: undeclared AcirVar");
         let value_witness = self.acir_ir.get_or_create_witness(&value_var_data.to_expression());
-        let op = MemOp {
-            operation: Expression::one(),
-            index: index_witness.into(),
-            value: value_witness.into(),
-        };
+
+        let write_op = Expression::one();
+
+        let op =
+            MemOp { operation: write_op, index: index_witness.into(), value: value_witness.into() };
         self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
     }
 
