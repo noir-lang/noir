@@ -229,6 +229,7 @@ mod test {
         let func_meta = FuncMeta {
             name,
             kind: FunctionKind::Normal,
+            module_id: ModuleId::dummy_id(),
             attributes: None,
             location,
             contract_function_type: None,
@@ -378,7 +379,8 @@ mod test {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
+            let (hir_func, func_meta, resolver_errors) =
+                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
         });
