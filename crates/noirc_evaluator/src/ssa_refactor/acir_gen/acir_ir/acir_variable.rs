@@ -880,14 +880,19 @@ impl AcirContext {
             AcirValue::DynamicArray(AcirArray { block_id, len }) => {
                 for i in 0..len {
                     // We generate witnesses corresponding to the array values
-                    let idx = AcirValue::Var(
+                    let index = AcirValue::Var(
                         self.add_constant(FieldElement::from(i as u128)),
                         AcirType::NumericType(NumericType::NativeField),
                     );
-                    let index_var = idx.into_var();
-                    let result = self.read_from_memory(block_id, &index_var);
-                    let result_var_data = self.vars.get(&result).expect("ICE: undeclared AcirVar");
-                    var_expressions.push(result_var_data.to_expression().into_owned());
+                    let index_var = index.into_var();
+
+                    let value_read_var = self.read_from_memory(block_id, &index_var);
+                    let value_read = AcirValue::Var(
+                        value_read_var,
+                        AcirType::NumericType(NumericType::NativeField),
+                    );
+
+                    self.brillig_array_input(var_expressions, value_read)
                 }
             }
         }
