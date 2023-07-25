@@ -1599,9 +1599,7 @@ mod test {
     fn resolve_fmt_strings() {
         let src = r#"
             fn main(x : Field) {
-                let y = println("this is the variable passed to main: {x}");
-                assert(y == "this is the variable passed to main: {x}");
-                let string = "this is x: {x}";
+                let string = f"this is i: {i}";
                 println(string);
                 
                 println(f"I want to print {0}");
@@ -1619,10 +1617,8 @@ mod test {
 
         for err in errors {
             match &err {
-                ResolverError::UnusedVariable { ident } => {
-                    // The value `x` passed to the main function is never used
-                    // in a format string and thus the program
-                    assert_eq!(&ident.0.contents, "x");
+                ResolverError::VariableNotDeclared { name, .. } => {
+                    assert_eq!(name, "i");
                 }
                 ResolverError::NumericConstantInFormatString { name, .. } => {
                     assert_eq!(name, "0");
