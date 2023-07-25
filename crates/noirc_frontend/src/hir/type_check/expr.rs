@@ -775,8 +775,10 @@ impl<'interner> TypeChecker<'interner> {
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _)| arg);
                 let expected = Type::Function(args, Box::new(ret.clone()));
-                *binding.borrow_mut() = TypeBinding::Bound(expected);
 
+                if let Err(error) = binding.borrow_mut().bind_to(expected, span) {
+                    self.errors.push(error);
+                }
                 ret
             }
             Type::Function(parameters, ret) => {

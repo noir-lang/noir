@@ -294,6 +294,20 @@ impl TypeBinding {
     pub fn is_unbound(&self) -> bool {
         matches!(self, TypeBinding::Unbound(_))
     }
+
+    pub fn bind_to(&mut self, binding: Type, span: Span) -> Result<(), TypeCheckError> {
+        match self {
+            TypeBinding::Bound(_) => panic!("Tried to bind an already bound type variable!"),
+            TypeBinding::Unbound(id) => {
+                if binding.occurs(*id) {
+                    Err(TypeCheckError::TypeAnnotationsNeeded { span })
+                } else {
+                    *self = TypeBinding::Bound(binding);
+                    Ok(())
+                }
+            }
+        }
+    }
 }
 
 /// A unique ID used to differentiate different type variables
