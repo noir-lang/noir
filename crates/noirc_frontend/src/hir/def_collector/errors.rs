@@ -26,6 +26,8 @@ pub enum DefCollectorErrorKind {
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
+    #[error("Feature not implemented")]
+    SimpleError { primary_message: String, secondary_message: String, span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -100,6 +102,9 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 "Only struct types may have implementation methods".into(),
                 span,
             ),
+            DefCollectorErrorKind::SimpleError { primary_message, secondary_message, span } => {
+                Diagnostic::simple_error(primary_message, secondary_message, span)
+            }
         }
     }
 }

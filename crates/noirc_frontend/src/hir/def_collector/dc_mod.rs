@@ -122,44 +122,67 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         impls: Vec<TraitImpl>,
-        _errors: &mut Vec<FileDiagnostic>,
+        errors: &mut Vec<FileDiagnostic>,
     ) {
         for r#impl in impls {
             let mut unresolved_functions =
                 UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
-
             let trait_name = r#impl.trait_name.clone();
             let module = &self.def_collector.def_map.modules[self.module_id.0];
-            let p = module.find_name(&trait_name);
-            match p.types {
+            match module.find_name(&trait_name).types {
                 Some((module_def_id, _visibility)) => match module_def_id {
-                    ModuleDefId::TraitId(_trait_id) => {}
-                    _ => {}
+                    ModuleDefId::TraitId(_trait_id) => {
+                        for item in r#impl.items {
+                            match item {
+                                TraitImplItem::Function(noir_function) => {
+                                    let func_id = context.def_interner.push_empty_fn();
+                                    context.def_interner.push_function_definition(
+                                        noir_function.name().to_owned(),
+                                        func_id,
+                                    );
+                                    unresolved_functions.push_fn(
+                                        self.module_id,
+                                        func_id,
+                                        noir_function,
+                                    );
+                                }
+                                TraitImplItem::Constant(_name, _typ, _value) => {
+                                    // TODO: Implement this
+                                }
+                                TraitImplItem::Type { name: _, alias: _ } => {
+                                    // TODO: Implement this
+                                }
+                            }
+                        }
+                        let key = (r#impl.object_type, self.module_id);
+                        let methods = self.def_collector.collected_impls.entry(key).or_default();
+                        methods.push((
+                            r#impl.impl_generics,
+                            r#impl.object_type_span,
+                            unresolved_functions,
+                        ));
+                    },
+                    _ => {
+                        let error = DefCollectorErrorKind::SimpleError {
+                            primary_message: format!(
+                                "{} is not a trait, therefore it can't be implemented",
+                                trait_name
+                            ),
+                            secondary_message: "".to_string(),
+                            span: trait_name.span(),
+                        };
+                        errors.push(error.into_file_diagnostic(self.file_id));
+                    }
                 },
-                None => {}
-            }
-
-            for item in r#impl.items {
-                match item {
-                    TraitImplItem::Function(noir_function) => {
-                        let func_id = context.def_interner.push_empty_fn();
-                        context
-                            .def_interner
-                            .push_function_definition(noir_function.name().to_owned(), func_id);
-                        unresolved_functions.push_fn(self.module_id, func_id, noir_function);
-                    }
-                    TraitImplItem::Constant(_name, _typ, _value) => {
-                        // TODO: Implement this
-                    }
-                    TraitImplItem::Type { name: _, alias: _ } => {
-                        // TODO: Implement this
-                    }
+                None => {
+                    let error = DefCollectorErrorKind::SimpleError {
+                        primary_message: format!("Trait {} not found", trait_name),
+                        secondary_message: "".to_string(),
+                        span: trait_name.span(),
+                    };
+                    errors.push(error.into_file_diagnostic(self.file_id));
                 }
             }
-
-            let key = (r#impl.object_type, self.module_id);
-            let methods = self.def_collector.collected_impls.entry(key).or_default();
-            methods.push((r#impl.impl_generics, r#impl.object_type_span, unresolved_functions));
         }
     }
 
