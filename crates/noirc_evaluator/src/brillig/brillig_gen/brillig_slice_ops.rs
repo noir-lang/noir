@@ -218,81 +218,14 @@ mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{HeapVector, Value};
-    use acvm::brillig_vm::brillig::{Opcode, RegisterIndex};
-    use acvm::brillig_vm::{Registers, VMStatus, VM};
-    use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+    use acvm::brillig_vm::brillig::RegisterIndex;
 
     use crate::brillig::brillig_gen::brillig_slice_ops::{
         slice_insert_operation, slice_pop_back_operation, slice_pop_front_operation,
         slice_push_back_operation, slice_push_front_operation, slice_remove_operation,
     };
     use crate::brillig::brillig_ir::artifact::BrilligParameter;
-    use crate::brillig::brillig_ir::BrilligContext;
-
-    struct DummyBlackBoxSolver;
-
-    impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
-        fn schnorr_verify(
-            &self,
-            _public_key_x: &FieldElement,
-            _public_key_y: &FieldElement,
-            _signature: &[u8],
-            _message: &[u8],
-        ) -> Result<bool, BlackBoxResolutionError> {
-            Ok(true)
-        }
-        fn pedersen(
-            &self,
-            _inputs: &[FieldElement],
-            _domain_separator: u32,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((2_u128.into(), 3_u128.into()))
-        }
-        fn fixed_base_scalar_mul(
-            &self,
-            _input: &FieldElement,
-        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
-            Ok((4_u128.into(), 5_u128.into()))
-        }
-    }
-
-    fn create_context() -> BrilligContext {
-        let mut context = BrilligContext::new(true);
-        context.enter_context("test");
-        context
-    }
-
-    fn create_entry_point_bytecode(
-        context: BrilligContext,
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
-    ) -> Vec<Opcode> {
-        let artifact = context.artifact();
-        let mut entry_point_artifact =
-            BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
-        entry_point_artifact.link_with(&artifact);
-        entry_point_artifact.finish()
-    }
-
-    fn create_and_run_vm(
-        memory: Vec<Value>,
-        param_registers: Vec<Value>,
-        context: BrilligContext,
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
-    ) -> VM<'static, DummyBlackBoxSolver> {
-        let mut vm = VM::new(
-            Registers { inner: param_registers },
-            memory,
-            create_entry_point_bytecode(context, arguments, returns),
-            vec![],
-            &DummyBlackBoxSolver,
-        );
-
-        let status = vm.process_opcodes();
-        assert_eq!(status, VMStatus::Finished);
-        vm
-    }
+    use crate::brillig::brillig_ir::tests::{create_and_run_vm, create_context};
 
     #[test]
     fn test_slice_push_operation() {

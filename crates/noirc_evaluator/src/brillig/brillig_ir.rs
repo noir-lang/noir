@@ -964,7 +964,7 @@ pub(crate) enum BrilligBinaryOp {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
@@ -976,9 +976,10 @@ mod tests {
 
     use crate::brillig::brillig_ir::BrilligContext;
 
+    use super::artifact::BrilligParameter;
     use super::{BrilligOpcode, ReservedRegisters};
 
-    struct DummyBlackBoxSolver;
+    pub(crate) struct DummyBlackBoxSolver;
 
     impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
         fn schnorr_verify(
@@ -1003,6 +1004,44 @@ mod tests {
         ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
             Ok((4_u128.into(), 5_u128.into()))
         }
+    }
+
+    pub(crate) fn create_context() -> BrilligContext {
+        let mut context = BrilligContext::new(true);
+        context.enter_context("test");
+        context
+    }
+
+    pub(crate) fn create_entry_point_bytecode(
+        context: BrilligContext,
+        arguments: Vec<BrilligParameter>,
+        returns: Vec<BrilligParameter>,
+    ) -> Vec<BrilligOpcode> {
+        let artifact = context.artifact();
+        let mut entry_point_artifact =
+            BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
+        entry_point_artifact.link_with(&artifact);
+        entry_point_artifact.finish()
+    }
+
+    pub(crate) fn create_and_run_vm(
+        memory: Vec<Value>,
+        param_registers: Vec<Value>,
+        context: BrilligContext,
+        arguments: Vec<BrilligParameter>,
+        returns: Vec<BrilligParameter>,
+    ) -> VM<'static, DummyBlackBoxSolver> {
+        let mut vm = VM::new(
+            Registers { inner: param_registers },
+            memory,
+            create_entry_point_bytecode(context, arguments, returns),
+            vec![],
+            &DummyBlackBoxSolver,
+        );
+
+        let status = vm.process_opcodes();
+        assert_eq!(status, VMStatus::Finished);
+        vm
     }
 
     /// Test a Brillig foreign call returning a vector
