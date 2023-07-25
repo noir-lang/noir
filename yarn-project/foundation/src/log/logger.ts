@@ -57,7 +57,7 @@ export function createDebugLogger(name: string): DebugLogger {
 function logWithDebug(debug: debug.Debugger, level: LogLevel, args: any[]) {
   if (debug.enabled) {
     debug(args[0], ...args.slice(1));
-  } else if (LogLevels.indexOf(level) <= LogLevels.indexOf(currentLevel)) {
+  } else if (LogLevels.indexOf(level) <= LogLevels.indexOf(currentLevel) && process.env.NODE_ENV !== 'test') {
     printLog([getPrefix(debug, level), ...args]);
   }
 }
