@@ -2,7 +2,7 @@ use iter_extended::vecmap;
 use noirc_errors::Span;
 
 use crate::{
-    hir::resolution::resolver::verify_mutable_reference,
+    hir::{resolution::resolver::verify_mutable_reference, type_check::errors::Source},
     hir_def::{
         expr::{
             self, HirArrayLiteral, HirBinaryOp, HirExpression, HirLiteral, HirMethodCallExpression,
@@ -351,23 +351,17 @@ impl<'interner> TypeChecker<'interner> {
             Type::Bool(is_comp_time) => is_comp_time,
             Type::Error => return Type::Error,
             from => {
-                let msg = format!(
-                    "Cannot cast type {from}, 'as' is only for primitive field or integer types",
-                );
-                self.errors.push(TypeCheckError::Unstructured { msg, span });
+                self.errors.push(TypeCheckError::InvalidCast { from, span });
                 return Type::Error;
             }
         };
 
-        let error_message =
-            "Cannot cast to a comptime type, argument to cast is not known at compile-time";
         match to {
             Type::Integer(dest_comp_time, sign, bits) => {
                 if dest_comp_time.is_comp_time()
                     && is_comp_time.unify(&dest_comp_time, span).is_err()
                 {
-                    let msg = error_message.into();
-                    self.errors.push(TypeCheckError::Unstructured { msg, span });
+                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span });
                 }
 
                 Type::Integer(is_comp_time, sign, bits)
@@ -376,8 +370,7 @@ impl<'interner> TypeChecker<'interner> {
                 if dest_comp_time.is_comp_time()
                     && is_comp_time.unify(&dest_comp_time, span).is_err()
                 {
-                    let msg = error_message.into();
-                    self.errors.push(TypeCheckError::Unstructured { msg, span });
+                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span });
                 }
 
                 Type::FieldElement(is_comp_time)
@@ -386,15 +379,13 @@ impl<'interner> TypeChecker<'interner> {
                 if dest_comp_time.is_comp_time()
                     && is_comp_time.unify(&dest_comp_time, span).is_err()
                 {
-                    let msg = error_message.into();
-                    self.errors.push(TypeCheckError::Unstructured { msg, span });
+                    self.errors.push(TypeCheckError::CannotCastToComptimeType { span });
                 }
                 Type::Bool(dest_comp_time)
             }
             Type::Error => Type::Error,
             _ => {
-                let msg = "Only integer and Field types may be casted to".into();
-                self.errors.push(TypeCheckError::Unstructured { msg, span });
+                self.errors.push(TypeCheckError::UnsupportedCast { span });
                 Type::Error
             }
         }
@@ -577,8 +568,10 @@ impl<'interner> TypeChecker<'interner> {
                     if index < length {
                         return Some((elements[index].clone(), index));
                     } else {
-                        self.errors.push(TypeCheckError::Unstructured {
-                            msg: format!("Index {index} is out of bounds for this tuple {lhs_type} of length {length}"),
+                        self.errors.push(TypeCheckError::TupleIndexOutOfBounds {
+                            index,
+                            lhs_type,
+                            length,
                             span,
                         });
                         return None;
@@ -599,8 +592,11 @@ impl<'interner> TypeChecker<'interner> {
         if let Type::TypeVariable(..) = &lhs_type {
             self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
         } else if lhs_type != Type::Error {
-            let msg = format!("Type {lhs_type} has no member named {field_name}");
-            self.errors.push(TypeCheckError::Unstructured { msg, span });
+            self.errors.push(TypeCheckError::AccessUnknownMember {
+                lhs_type,
+                field_name: field_name.to_string(),
+                span,
+            });
         }
 
         None
@@ -612,14 +608,13 @@ impl<'interner> TypeChecker<'interner> {
         rhs_type: &Type,
         op: &HirBinaryOp,
         span: Span,
-    ) -> Result<Type, String> {
+    ) -> Result<Type, TypeCheckError> {
         use crate::BinaryOpKind::{Equal, NotEqual};
         use Type::*;
-        let make_error = move |msg| TypeCheckError::Unstructured { msg, span };
 
-        match (lhs_type, rhs_type)  {
+        match (lhs_type, rhs_type) {
             // Avoid reporting errors multiple times
-            (Error, _) | (_,Error) => Ok(Bool(CompTime::Yes(None))),
+            (Error, _) | (_, Error) => Ok(Bool(CompTime::Yes(None))),
 
             // Matches on PolymorphicInteger and TypeVariable must be first to follow any type
             // bindings.
@@ -636,7 +631,7 @@ impl<'interner> TypeChecker<'interner> {
 
                     self.push_delayed_type_check(Box::new(move || {
                         if other.is_field() || other.is_bindable() {
-                            Err(make_error("Comparisons are invalid on Field types. Try casting the operands to a sized integer type first".into()))
+                            Err(TypeCheckError::InvalidComparisonOnField { span })
                         } else {
                             Ok(())
                         }
@@ -644,34 +639,52 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let comptime = var.try_get_comptime();
-                if other.try_bind_to_polymorphic_int(int, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                if other.try_bind_to_polymorphic_int(int, &comptime, true, op.location.span).is_ok()
+                    || other == &Type::Error
+                {
                     Ok(Bool(comptime.into_owned()))
                 } else {
-                    Err(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}"))
+                    Err(TypeCheckError::TypeMismatchWithSource {
+                        rhs: lhs_type.clone(),
+                        lhs: rhs_type.clone(),
+                        span,
+                        source: Source::Binary,
+                    })
                 }
             }
-            (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
+            (
+                Integer(comptime_x, sign_x, bit_width_x),
+                Integer(comptime_y, sign_y, bit_width_y),
+            ) => {
                 if sign_x != sign_y {
-                    return Err(format!("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?} "))
+                    return Err(TypeCheckError::IntegerSignedness {
+                        sign_x: *sign_x,
+                        sign_y: *sign_y,
+                        span,
+                    });
                 }
                 if bit_width_x != bit_width_y {
-                    return Err(format!("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y} "))
+                    return Err(TypeCheckError::IntegerBitWidth {
+                        bit_width_x: *bit_width_x,
+                        bit_width_y: *bit_width_y,
+                        span,
+                    });
                 }
                 let comptime = comptime_x.and(comptime_y, op.location.span);
                 Ok(Bool(comptime))
             }
-            (Integer(..), FieldElement(..)) | ( FieldElement(..), Integer(..) ) => {
-                Err("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first".to_string())
+            (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
+                Err(TypeCheckError::IntegerAndFieldBinaryOperation { span })
             }
-            (Integer(..), typ) | (typ,Integer(..)) => {
-                Err(format!("Integer cannot be used with type {typ}"))
+            (Integer(..), typ) | (typ, Integer(..)) => {
+                Err(TypeCheckError::IntegerTypeMismatch { typ: typ.clone(), span })
             }
             (FieldElement(comptime_x), FieldElement(comptime_y)) => {
                 if op.kind.is_valid_for_field_type() {
                     let comptime = comptime_x.and(comptime_y, op.location.span);
                     Ok(Bool(comptime))
                 } else {
-                    Err("Fields cannot be compared, try casting to an integer first".into())
+                    Err(TypeCheckError::FieldComparison { span })
                 }
             }
 
@@ -682,17 +695,23 @@ impl<'interner> TypeChecker<'interner> {
             }
 
             // Special-case == and != for arrays
-            (Array(x_size, x_type), Array(y_size, y_type)) if matches!(op.kind, Equal | NotEqual) => {
+            (Array(x_size, x_type), Array(y_size, y_type))
+                if matches!(op.kind, Equal | NotEqual) =>
+            {
                 x_type.unify(y_type, op.location.span, &mut self.errors, || {
-                    TypeCheckError::Unstructured {
-                        msg: format!("Cannot compare {lhs_type} and {rhs_type}, the array element types differ"),
+                    TypeCheckError::TypeMismatchWithSource {
+                        rhs: lhs_type.clone(),
+                        lhs: rhs_type.clone(),
+                        source: Source::ArrayElements,
                         span: op.location.span,
                     }
                 });
 
                 self.unify(x_size, y_size, op.location.span, || {
-                    TypeCheckError::Unstructured {
-                        msg: format!("Can only compare arrays of the same length. Here LHS is of length {x_size}, and RHS is {y_size}"),
+                    TypeCheckError::TypeMismatchWithSource {
+                        rhs: lhs_type.clone(),
+                        lhs: rhs_type.clone(),
+                        source: Source::ArrayLen,
                         span: op.location.span,
                     }
                 });
@@ -700,23 +719,35 @@ impl<'interner> TypeChecker<'interner> {
                 // We could check if all elements of all arrays are comptime but I am lazy
                 Ok(Bool(CompTime::No(Some(op.location.span))))
             }
-            (NamedGeneric(binding_a, name_a), NamedGeneric(binding_b, name_b)) => {
+            (lhs @ NamedGeneric(binding_a, _), rhs @ NamedGeneric(binding_b, _)) => {
                 if binding_a == binding_b {
                     return Ok(Bool(CompTime::No(Some(op.location.span))));
                 }
-                Err(format!("Unsupported types for comparison: {name_a} and {name_b}"))
+                Err(TypeCheckError::TypeMismatchWithSource {
+                    rhs: lhs.clone(),
+                    lhs: rhs.clone(),
+                    source: Source::Comparison,
+                    span,
+                })
             }
             (String(x_size), String(y_size)) => {
                 x_size.unify(y_size, op.location.span, &mut self.errors, || {
-                    TypeCheckError::Unstructured {
-                        msg: format!("Can only compare strings of the same length. Here LHS is of length {x_size}, and RHS is {y_size} "),
+                    TypeCheckError::TypeMismatchWithSource {
+                        rhs: *x_size.clone(),
+                        lhs: *y_size.clone(),
                         span: op.location.span,
+                        source: Source::StringLen,
                     }
                 });
 
                 Ok(Bool(CompTime::No(Some(op.location.span))))
             }
-            (lhs, rhs) => Err(format!("Unsupported types for comparison: {lhs} and {rhs}")),
+            (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
+                rhs: lhs.clone(),
+                lhs: rhs.clone(),
+                source: Source::Comparison,
+                span,
+            }),
         }
     }
 
@@ -731,11 +762,10 @@ impl<'interner> TypeChecker<'interner> {
                 match self.interner.lookup_method(typ.borrow().id, method_name) {
                     Some(method_id) => Some(method_id),
                     None => {
-                        self.errors.push(TypeCheckError::Unstructured {
+                        self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                            method_name: method_name.to_string(),
+                            object_type: object_type.clone(),
                             span: self.interner.expr_span(expr_id),
-                            msg: format!(
-                                "No method named '{method_name}' found for type '{object_type}'",
-                            ),
                         });
                         None
                     }
@@ -753,9 +783,10 @@ impl<'interner> TypeChecker<'interner> {
             other => match self.interner.lookup_primitive_method(other, method_name) {
                 Some(method_id) => Some(method_id),
                 None => {
-                    self.errors.push(TypeCheckError::Unstructured {
+                    self.errors.push(TypeCheckError::UnresolvedMethodCall {
+                        method_name: method_name.to_string(),
+                        object_type: object_type.clone(),
                         span: self.interner.expr_span(expr_id),
-                        msg: format!("No method named '{method_name}' found for type '{other}'",),
                     });
                     None
                 }
@@ -783,17 +814,9 @@ impl<'interner> TypeChecker<'interner> {
             }
             Type::Function(parameters, ret) => {
                 if parameters.len() != args.len() {
-                    let empty_or_s = if parameters.len() == 1 { "" } else { "s" };
-                    let was_or_were = if args.len() == 1 { "was" } else { "were" };
-
-                    self.errors.push(TypeCheckError::Unstructured {
-                        msg: format!(
-                            "Function expects {} parameter{} but {} {} given",
-                            parameters.len(),
-                            empty_or_s,
-                            args.len(),
-                            was_or_were
-                        ),
+                    self.errors.push(TypeCheckError::ParameterCountMismatch {
+                        expected: parameters.len(),
+                        found: args.len(),
                         span,
                     });
                     return Type::Error;
@@ -812,11 +835,8 @@ impl<'interner> TypeChecker<'interner> {
                 *ret
             }
             Type::Error => Type::Error,
-            other => {
-                self.errors.push(TypeCheckError::Unstructured {
-                    msg: format!("Expected a function, but found a(n) {other}"),
-                    span,
-                });
+            found => {
+                self.errors.push(TypeCheckError::ExpectedFunction { found, span });
                 Type::Error
             }
         }
@@ -831,18 +851,14 @@ impl<'interner> TypeChecker<'interner> {
         rhs_type: &Type,
         span: Span,
     ) -> Result<Type, TypeCheckError> {
-        let make_error = move |msg| TypeCheckError::Unstructured { msg, span };
-
         if op.kind.is_comparator() {
-            return self
-                .comparator_operand_type_rules(lhs_type, rhs_type, op, span)
-                .map_err(make_error);
+            return self.comparator_operand_type_rules(lhs_type, rhs_type, op, span);
         }
 
         use Type::*;
-        match (lhs_type, rhs_type)  {
+        match (lhs_type, rhs_type) {
             // An error type on either side will always return an error
-            (Error, _) | (_,Error) => Ok(Error),
+            (Error, _) | (_, Error) => Ok(Error),
 
             // Matches on PolymorphicInteger and TypeVariable must be first so that we follow any type
             // bindings.
@@ -862,9 +878,9 @@ impl<'interner> TypeChecker<'interner> {
                     // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
                     self.push_delayed_type_check(Box::new(move || {
                         if other.is_field() {
-                            Err(make_error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first".into()))
+                            Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
                         } else if other.is_bindable() {
-                            Err(make_error("The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified".into()))
+                            Err(TypeCheckError::AmbiguousBitWidth { span })
                         } else {
                             Ok(())
                         }
@@ -872,47 +888,78 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let comptime = var.try_get_comptime();
-                if other.try_bind_to_polymorphic_int(int, &comptime, true, op.location.span).is_ok() || other == &Type::Error {
+                if other.try_bind_to_polymorphic_int(int, &comptime, true, op.location.span).is_ok()
+                    || other == &Type::Error
+                {
                     Ok(other.clone())
                 } else {
-                    Err(make_error(format!("Types in a binary operation should match, but found {lhs_type} and {rhs_type}")))
+                    Err(TypeCheckError::TypeMismatchWithSource {
+                        rhs: lhs_type.clone(),
+                        lhs: rhs_type.clone(),
+                        source: Source::Binary,
+                        span,
+                    })
                 }
             }
-            (Integer(comptime_x, sign_x, bit_width_x), Integer(comptime_y, sign_y, bit_width_y)) => {
+            (
+                Integer(comptime_x, sign_x, bit_width_x),
+                Integer(comptime_y, sign_y, bit_width_y),
+            ) => {
                 if sign_x != sign_y {
-                    return Err(make_error(format!("Integers must have the same signedness LHS is {sign_x:?}, RHS is {sign_y:?} ")))
+                    return Err(TypeCheckError::IntegerSignedness {
+                        sign_x: *sign_x,
+                        sign_y: *sign_y,
+                        span,
+                    });
                 }
                 if bit_width_x != bit_width_y {
-                    return Err(make_error(format!("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y} ")))
+                    return Err(TypeCheckError::IntegerBitWidth {
+                        bit_width_x: *bit_width_x,
+                        bit_width_y: *bit_width_y,
+                        span,
+                    });
                 }
                 let comptime = comptime_x.and(comptime_y, op.location.span);
                 Ok(Integer(comptime, *sign_x, *bit_width_x))
             }
             (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
-                Err(make_error("Cannot use an integer and a Field in a binary operation, try converting the Field into an integer".to_string()))
+                Err(TypeCheckError::IntegerAndFieldBinaryOperation { span })
             }
-            (Integer(..), typ) | (typ,Integer(..)) => {
-                Err(make_error(format!("Integer cannot be used with type {typ}")))
+            (Integer(..), typ) | (typ, Integer(..)) => {
+                Err(TypeCheckError::IntegerTypeMismatch { typ: typ.clone(), span })
             }
             // These types are not supported in binary operations
-            (Array(..), _) | (_, Array(..)) => Err(make_error("Arrays cannot be used in an infix operation".to_string())),
-            (Struct(..), _) | (_, Struct(..)) => Err(make_error("Structs cannot be used in an infix operation".to_string())),
-            (Tuple(_), _) | (_, Tuple(_)) => Err(make_error("Tuples cannot be used in an infix operation".to_string())),
+            (Array(..), _) | (_, Array(..)) => {
+                Err(TypeCheckError::InvalidInfixOp { kind: "Arrays", span })
+            }
+            (Struct(..), _) | (_, Struct(..)) => {
+                Err(TypeCheckError::InvalidInfixOp { kind: "Structs", span })
+            }
+            (Tuple(_), _) | (_, Tuple(_)) => {
+                Err(TypeCheckError::InvalidInfixOp { kind: "Tuples", span })
+            }
 
-            (Unit, _) | (_,Unit) => Ok(Unit),
+            (Unit, _) | (_, Unit) => Ok(Unit),
 
             // The result of two Fields is always a witness
             (FieldElement(comptime_x), FieldElement(comptime_y)) => {
                 if op.is_bitwise() {
-                    return Err(make_error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.".into()));
+                    return Err(TypeCheckError::InvalidBitwiseOperationOnField { span });
                 }
                 let comptime = comptime_x.and(comptime_y, op.location.span);
                 Ok(FieldElement(comptime))
             }
 
-            (Bool(comptime_x), Bool(comptime_y)) => Ok(Bool(comptime_x.and(comptime_y, op.location.span))),
+            (Bool(comptime_x), Bool(comptime_y)) => {
+                Ok(Bool(comptime_x.and(comptime_y, op.location.span)))
+            }
 
-            (lhs, rhs) => Err(make_error(format!("Unsupported types for binary operation: {lhs} and {rhs}"))),
+            (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
+                rhs: lhs.clone(),
+                lhs: rhs.clone(),
+                source: Source::BinOp,
+                span,
+            }),
         }
     }
 
