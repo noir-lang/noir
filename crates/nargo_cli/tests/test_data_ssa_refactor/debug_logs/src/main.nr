@@ -1,9 +1,6 @@
 use dep::std;
 
 fn main(x : Field, y : pub Field) {
-    // TODO(#2024): format strings currently broken unless we assign
-    // witness values first
-
     let string = "i: {i}, j: {j}";
     std::println(string);
 
