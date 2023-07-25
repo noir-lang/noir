@@ -1,5 +1,3 @@
-use dep::std;
-
 struct Header {
     params: [Field; 3],
 }
