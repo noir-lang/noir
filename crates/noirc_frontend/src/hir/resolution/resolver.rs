@@ -623,7 +623,9 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if !self.pub_allowed(func) && func.def.return_visibility == noirc_abi::AbiVisibility::Public
+        if !self.in_contract()
+            && !self.pub_allowed(func)
+            && func.def.return_visibility == noirc_abi::AbiVisibility::Public
         {
             self.push_err(ResolverError::UnnecessaryPub {
                 ident: func.name_ident().clone(),
