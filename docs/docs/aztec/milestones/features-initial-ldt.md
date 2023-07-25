@@ -87,3 +87,7 @@ A bundle of packages which emulate the actions of all eventual Aztec network par
 ## Participate
 
 Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).
+
+
+import Disclaimer from "../common/\_disclaimer.mdx";
+<Disclaimer/>

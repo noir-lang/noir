@@ -2,10 +2,6 @@
 title: Milestones Overview
 ---
 
-import Disclaimer from '../common/\_disclaimer.mdx';
-
-<Disclaimer/>
-
 The milestones are written as sets of user stories to make it clear what functionality will be available as we work through each one.
 
 ## Development Strategy
@@ -492,3 +488,6 @@ As a Prover I can be paid for generating proofs for the current Sequencer.
 ## Participate
 
 Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).
+
+import Disclaimer from "../common/\_disclaimer.mdx";
+<Disclaimer/>

@@ -15,53 +15,87 @@
 const sidebars = {
   docsSidebar: [
     "intro",
-    "what-is-aztec",
+
+    "embedding-github-code",
+
+    "vision",
+
     {
+      label: "Aztec",
       type: "category",
-      label: "Aztec Rollup",
       link: {
         type: "doc",
         id: "aztec/overview",
       },
       items: [
         {
-          type: "category",
           label: "How it works",
+          type: "category",
           items: [
             "aztec/how-it-works/private-smart-contracts",
             "aztec/how-it-works/private-state",
             "aztec/how-it-works/private-public-execution",
-            "aztec/how-it-works/l1-l2-messaging",
-          ],
-        },
-        {
-          type: "category",
-          label: "Roadmap",
-          items: [
-            "aztec/milestones/features-initial-ldt",
-            "aztec/milestones/milestones",
-            "aztec/cryptography/cryptography-roadmap"
-          ],
-        },
-        {
-          type: "category",
-          label: "Components",
-          link: {
-            type: "doc",
-            id: "aztec/components",
-          },
-          items: [
-            "aztec/components", // TODO
+            "aztec/how-it-works/l1-l2-messaging", // TODO: move to protocol?
           ],
         },
 
         {
+          label: "Developer",
           type: "category",
-          label: "Protocol Specs",
           items: [
             {
+              label: "Dapps",
               type: "category",
+              items: [
+                "aztec/developer/dapps/building-dapps", // TODO
+              ],
+            },
+            {
+              label: "Noir Contracts",
+              type: "category",
+              items: [
+                "aztec/developer/noir-contracts/noir-contracts",
+                "aztec/developer/noir-contracts/getting-started",
+                "aztec/developer/noir-contracts/concepts",
+                "aztec/developer/noir-contracts/compiling-contracts",
+                "aztec/developer/noir-contracts/testing-contracts",
+                "aztec/developer/noir-contracts/errors",
+              ],
+            },
+            {
+              label: "Portal Contracts",
+              type: "category",
+              items: ["aztec/developer/portal-contracts/portal-contracts"],
+            },
+            {
+              label: "Sandbox",
+              type: "category",
+              items: [
+                "aztec/developer/sandbox/sandbox",
+                "aztec/developer/sandbox/components",
+                "aztec/developer/sandbox/errors",
+              ],
+            },
+            {
+              label: "Wallet Providers",
+              type: "category",
+              items: [
+                "aztec/developer/wallet-providers/building-a-wallet",
+                "aztec/developer/wallet-providers/keys",
+                "aztec/developer/wallet-providers/account-abstraction",
+                "aztec/developer/wallet-providers/writing-an-account-contract",
+              ],
+            },
+          ],
+        },
+
+        {
+          label: "Protocol",
+          type: "category",
+          items: [
+            {
               label: "Trees",
+              type: "category",
               items: [
                 "aztec/protocol/trees/trees",
                 "aztec/protocol/trees/indexed-merkle-tree",
@@ -69,29 +103,52 @@ const sidebars = {
             },
 
             {
-              type: "category",
               label: "Circuits",
-              link: {
-                type: "doc",
-                id: "aztec/protocol/circuits/circuits",
-              },
+              type: "category",
               items: [
+                "aztec/protocol/circuits/circuits",
                 "aztec/protocol/circuits/private-kernel",
                 "aztec/protocol/circuits/public-kernel",
                 "aztec/protocol/circuits/rollup",
+                "aztec/protocol/circuits/public-vm",
               ],
             },
 
             "aztec/protocol/contract-creation",
-            "aztec/protocol/public-functions-vm-architectures",
-            "aztec/protocol/errors",
+          ],
+        },
+
+        {
+          label: "Cryptography",
+          type: "category",
+          items: ["aztec/cryptography/cryptography"],
+        },
+
+        {
+          label: "Roadmap",
+          type: "category",
+          items: [
+            "aztec/milestones/features-initial-ldt",
+            "aztec/milestones/milestones",
+            "aztec/milestones/cryptography-roadmap",
+          ],
+        },
+
+        {
+          label: "History",
+          type: "category",
+          items: [
+            "aztec/history/history",
+            "aztec/history/differences-to-aztec-connect",
           ],
         },
       ],
     },
+
     "noir",
-    "aztec/history",
+
     "aztec-connect-sunset",
+
     "glossary",
   ],
 };

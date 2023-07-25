@@ -61,6 +61,26 @@
   --ifm-footer-title-color: #2f1f49;
 }
 
+[data-theme='light'] {
+  /* --docusaurus-highlighted-code-line-bg: rgb(72, 77, 91); */
+  --docusaurus-highlighted-code-line-bg: rgba(230, 211, 238, 0.75);
+}
+
+/* If you have a different syntax highlighting theme for dark mode. */
+[data-theme='dark'] {
+  /* Color which works with dark mode syntax highlighting theme */
+  /* --docusaurus-highlighted-code-line-bg: rgb(100, 100, 100); */
+  --docusaurus-highlighted-code-line-bg: rgb(72, 77, 91);
+}
+
+.code-block-error-line {
+  background-color: #f0000038;
+  display: block;
+  margin: 0 calc(-1 * var(--ifm-pre-padding));
+  padding: 0 var(--ifm-pre-padding);
+  border-left: 3px solid #ff000080;
+}
+
 @font-face {
   font-family: 'Plain-Regular';
   src: url('../../static/font/Plain-Regular.otf');

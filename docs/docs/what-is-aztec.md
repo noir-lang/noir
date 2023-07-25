@@ -1,17 +1,76 @@
 ---
+slug: "/"
+id: intro
 title: What is Aztec?
 ---
 
-Aztec is a Layer 2 zk-rollup, designed to enable programmable privacy, that will run on Ethereum. It will allow developers to build fully programable, privacy preserving smart contracts, with composable call semantics using our ZK-Snark programming language, [Noir](./noir).
+# Aztec: Ethereum, encrypted
 
-**Why?**
+On Ethereum today, everything is publicly visible, by everyone.
 
-A public blockchain utilizes a peer-to-peer network and a consensus protocol to establish the correct record of events. The core unit of intent (a transaction) is a request to update state, based on the logic of a predefined program. The blockchain node, computes this state update and records it on a shared ledger. The correctness of the ledger is enforced by other nodes "checking" the work of the current node -- only possible as the transactions and their data are public and visible to anyone.
+In the real world, people enjoy privacy.
 
-Ethereum is an example of a public blockchain, that enables the processing of transactions with arbitrary, Turing complete computation.
+Aztec brings privacy to Ethereum.
 
-**Aztec is an encrypted blockchain**, where the core unit of intent is a zero-knowledge proof, not a transaction request. The zero-knowledge proof, proves the correct execution of a specific transaction and any resultant state updates.
+<!-- include_code typescript /yarn-project/end-to-end/src/e2e_block_building.test.ts hello -->
 
-Individual transaction proofs are recursively aggregated or "rolled up" using a zk-rollup construction, for final verification on Ethereum.
+<!-- import GithubCode from '../src/components/GithubCode';
 
-To read more about the network, how it works, and the types of applications that can be built, head to Aztec's Architecture [here](./aztec/overview).
+<GithubCode owner="AztecProtocol" repo="aztec-packages" language="typescript" filePath="/yarn-project/end-to-end/src/e2e_block_building.test.ts" startLine='10' endLine='21'/> -->
+  
+---
+
+# Build with confidence.
+
+Design, build, and deploy confidential smart contracts.
+
+- Confidential functions
+- Confidential arguments
+- Confidential persistent state
+- Confidential bytecode
+- Confidential deployments
+- Confidential execution
+- Confidential transactions
+- Confidential contract composability
+- Encrypted state transitions
+- Encrypted logs
+
+Plus:
+- Composability with Ethereum L1
+- Access to Ethereum's L1 liquidity
+- Cheap, public logic, if you need it
+- Cheap, public persistent state, if you need it
+
+
+--- 
+
+# Play!
+
+[Write a private smart contract today](./aztec/developer/noir-contracts/getting-started.md).
+
+[Deploy to the Aztec Sandbox today](./aztec/developer/sandbox/sandbox.md)
+
+---
+
+
+# But what _is_ Aztec?
+
+Aztec encrypts Ethereum.
+
+Aztec is the confidentiality layer of Ethereum.
+
+Aztec is the privacy layer of Ethereum.
+
+Aztec is a private smart contract platform.
+
+Aztec is a _fully programmable_ private smart contract platform.
+
+Aztec is an Ethereum Layer 2.
+
+Aztec is a zk-zk rollup.
+
+Aztec is a hybrid private/public rollup.
+
+Aztec is a network.
+
+Still confused? Explore these docs!

@@ -4,7 +4,7 @@ title: Components
 
 <!-- TODO: Mike to edit. This is a copy of milestone1-1, which actually contained a comprehensive explanation of components (if we remove the json rpc command suggestions) -->
 
-import Disclaimer from './common/\_disclaimer.mdx';
+import Disclaimer from '../../common/\_disclaimer.mdx';
 
 <Disclaimer/>
 

@@ -1,19 +1,14 @@
 ---
-title: Aztec VM Errors
+title: Aztec Sandbox Errors
 ---
 
-<!-- TODO: Mike to update -->
-
-import Disclaimer from '../common/\_disclaimer.mdx';
-
-<Disclaimer/>
 This section contains a list of errors you may encounter when using Aztec Sanbox and an explanation of each of them.
 
 ## Circuit Errors
 **To prevent bloating this doc, here is a list of some of the common errors. Feel free to have a look at [circuit_errors.hpp](https://github.com/AztecProtocol/aztec-packages/blob/master/circuits/cpp/src/aztec3/utils/circuit_errors.hpp) for a list of all possible circuit errors.**
 
 ### Kernel Circuits
-We have several versions of public and private kernels as explained in [our circuits section](./circuits/circuits.md). Certain things are only possible in certain versions of the circuits. So always ensure that the right version is being used for proof generation. For example, there is a specific version of the public kernel that only works if the previous kernel iteration was a private kernel. Similarly there is one that only works if the previous kernel was public. 
+We have several versions of public and private kernels as explained in [our circuits section](../../protocol/circuits/circuits.md). Certain things are only possible in certain versions of the circuits. So always ensure that the right version is being used for proof generation. For example, there is a specific version of the public kernel that only works if the previous kernel iteration was a private kernel. Similarly there is one that only works if the previous kernel was public. 
 
 Remember that for each function call (i.e. each item in the call stack), there is a new kernel iteration that gets run. 
 
@@ -70,7 +65,7 @@ You are trying to do something that is currently unsupported in the public kerne
 Calling a private noir function in a public kernel is not allowed. 
 
 #### 3005 - PUBLIC_KERNEL__NON_EMPTY_PRIVATE_CALL_STACK
-Public functions are executed after all the private functions are (see [private-public execution](../how-it-works/private-public-execution.mdx)). As such, private call stack must be empty when executing in the public kernel.
+Public functions are executed after all the private functions are (see [private-public execution](../../how-it-works/private-public-execution.mdx)). As such, private call stack must be empty when executing in the public kernel.
 
 #### 3011 - PUBLIC_KERNEL__CALCULATED_PRIVATE_CALL_HASH_AND_PROVIDED_PRIVATE_CALL_HASH_MISMATCH
 When the hash stored at the top most of the call stack is different to the call stack item expected by the public kernel's inputs.
@@ -103,7 +98,7 @@ For static calls, no new commitments or nullifiers can be added to the state.
 For static calls, no new commitments or nullifiers can be added to the state.
 
 ### Rollup circuit errors
-These are errors that occur when kernel proofs (transaction proofs) are sent to the rollup circuits to create an L2 block. See [rollup circuits](./circuits/rollup.md) for more information.
+These are errors that occur when kernel proofs (transaction proofs) are sent to the rollup circuits to create an L2 block. See [rollup circuits](../../protocol/circuits/rollup.md) for more information.
 
 #### 4007 - BASE__INVALID_CHAIN_ID
 The L1 chain ID you used in your proof generation (for your private transaction) is different to what the rollup circuits expected. Double check against the global variables passed to noir and the config set in [Aztec's rollup contract](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/src/core/Rollup.sol) which are [read in by sequencer](https://github.com/AztecProtocol/aztec3-packages/blob/master/yarn-project/sequencer-client/src/global_variable_builder/global_builder.ts#L32) and subsequently passed in as inputs to the base rollup. When the sequencer submits the block to the rollup contracts, this is again sanity checked so ensure this is the same everywhere. 
@@ -111,7 +106,7 @@ The L1 chain ID you used in your proof generation (for your private transaction)
 #### 4008 - BASE__INVALID_VERSION
 Same as [section 4007](#4007---base__invalid_chain_id) except the `version` refers to the version of the Aztec L2 instance.
 
-Some scary bugs like `4003 - BASE__INVALID_NULLIFIER_SUBTREE` and `4004 - BASE__INVALID_NULLIFIER_RANGE` which are to do malformed nullifier trees (see [Indexed Merkle Trees](./trees/indexed-merkle-tree.mdx)) etc may seem unrelated at a glance, but at a closer look may be because of some bug in an application's Noir code. Same is true for certain instances of `7008 - MEMBERSHIP_CHECK_FAILED`.
+Some scary bugs like `4003 - BASE__INVALID_NULLIFIER_SUBTREE` and `4004 - BASE__INVALID_NULLIFIER_RANGE` which are to do malformed nullifier trees (see [Indexed Merkle Trees](../../protocol/trees/indexed-merkle-tree.mdx)) etc may seem unrelated at a glance, but at a closer look may be because of some bug in an application's Noir code. Same is true for certain instances of `7008 - MEMBERSHIP_CHECK_FAILED`.
 
 
 ### Generic circuit errors
@@ -141,7 +136,7 @@ Users may create a proof against a historic state in Aztec. The rollup circuits 
 * using invalid historic L1 to L2 message data tree state 
 * inserting a subtree into the greater tree 
     - we make a smaller merkle tree of all the new commitments/nullifiers etc that were created in a transaction or in a rollup and add it to the bigger state tree. Before inserting, we do a merkle membership check to ensure that the index to insert at is indeed an empty subtree (otherwise we would be overwriting state). This can happen when `next_available_leaf_index` in the state tree's snapshot is wrong (it is fetched by the sequencer from the archiver). The error message should reveal which tree is causing this issue
-    - nullifier tree related errors - The nullifier tree uses an [Indexed Merkle Tree](./trees/indexed-merkle-tree.mdx). It requires additional data from the archiver to know which is the nullifier in the tree that is just below the current nullifier before it can perform batch insertion. If the low nullifier is wrong, or the nullifier is in incorrect range, you may receive this error.
+    - nullifier tree related errors - The nullifier tree uses an [Indexed Merkle Tree](../../protocol/trees/indexed-merkle-tree.mdx). It requires additional data from the archiver to know which is the nullifier in the tree that is just below the current nullifier before it can perform batch insertion. If the low nullifier is wrong, or the nullifier is in incorrect range, you may receive this error.
 
 ---
 
@@ -159,7 +154,7 @@ Users may create a proof against a historic state in Aztec. The rollup circuits 
 
 * "${treeName} tree next available leaf index mismatch" - validating a tree's root is not enough. It also checks that the `next_avaliable_leaf_index` is as expected. This is the next index we can insert new values into. Note that for the public data tree, this test is skipped since as it is a sparse tree unlike the others. 
 
-* "Public call stack size exceeded" - In Aztec, the sequencer executes all enqueued public functions in a transaction (to prevent race conditions - see [private-public execution](../how-it-works/private-public-execution.mdx)). This error says there are too many public functions requested. 
+* "Public call stack size exceeded" - In Aztec, the sequencer executes all enqueued public functions in a transaction (to prevent race conditions - see [private-public execution](../../how-it-works/private-public-execution.mdx)). This error says there are too many public functions requested. 
 
 * "Array size exceeds target length" - happens if you add more items than allowed by the constants set due to our circuit limitations (eg sending too many L2 to L1 messages or creating a function that exceeds the call stack length or return more values than what Noir functions allows)
 
@@ -167,3 +162,7 @@ Users may create a proof against a historic state in Aztec. The rollup circuits 
 
 ## L1 Aztec Contract Errors
 Aztec's L1 contracts use custom errors in solidity. While it saves gas, it has a side effect of making it harder to decode when things go wrong. If you get an error when submitting an L2Block into our rollup contract or when interacting with our Inbox/Outbox contracts, you can use the [Errors.sol library](https://github.com/AztecProtocol/aztec-packages/blob/master/l1-contracts/src/core/libraries/Errors.sol) to match the hex encoded error to the error name. 
+
+
+import Disclaimer from '../../common/\_disclaimer.mdx';
+<Disclaimer/>

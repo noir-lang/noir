@@ -1,12 +1,6 @@
 ---
-id: intro
 title: Vision
-slug: "/"
 ---
-
-import Disclaimer from './aztec/common/\_disclaimer.mdx';
-
-<Disclaimer/>
 
 ## The world's encrypted ledger
 
@@ -27,3 +21,6 @@ We are building the [Aztec Network](https://aztec.network/), a fully programmabl
 > “When we started Aztec, the technology to scale blockchains privately didn’t exist. Since then, we’ve assembled a team of world-class cryptographers who continuously redefine the state-of-the-art. Inventing PLONK — the paradigm-defining universal zk-SNARK — showcases our ability to produce technology that matches our ambitions: unlocking an entire universe of blockchain applications that couldn’t exist without privacy.”
 
 To achieve these goals, we are pioneering the cryptography and research needed to bring our next generation, privacy-preserving zk-roll-up to mainnet.
+
+import Disclaimer from "./aztec/common/\_disclaimer.mdx";
+<Disclaimer/>

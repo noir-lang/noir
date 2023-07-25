@@ -2,10 +2,6 @@
 title: Public VM Architecture
 ---
 
-import Disclaimer from '../common/\_disclaimer.mdx';
-
-<Disclaimer/>
-
 ## Objectives
 
 We need to ensure that the execution environment for public functions has the following properties:

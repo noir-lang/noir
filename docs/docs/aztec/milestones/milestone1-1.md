@@ -2,10 +2,6 @@
 title: Milestone 1.1 - Deploying a contract
 ---
 
-import Disclaimer from '../common/\_disclaimer.mdx';
-
-<Disclaimer/>
-
 See [here](./) for draft milestones.
 
 See [here](https://drive.google.com/file/d/1riqr23R-VOAwOAzpgRj40tsAfq0ZA5yO/view?usp=share_link) for an unfinished (but maybe helpful) contract deployment sequence diagram, and other tabs for other useful diagrams.
@@ -528,3 +524,6 @@ For `offchainData`:
 ## Participate
 
 Keep up with the latest discussion and join the conversation in the [Aztec forum](https://discourse.aztec.network).
+
+import Disclaimer from "../common/\_disclaimer.mdx";
+<Disclaimer/>

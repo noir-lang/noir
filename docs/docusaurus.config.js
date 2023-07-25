@@ -32,13 +32,14 @@ const config = {
   markdown: {
     mermaid: true,
   },
-  themes: ['@docusaurus/theme-mermaid'],
+  themes: ["@docusaurus/theme-mermaid"],
   presets: [
     [
       "@docusaurus/preset-classic",
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
+          path: "processed-docs",
           sidebarPath: require.resolve("./sidebars.js"),
           editUrl: "https://github.com/AztecProtocol/docs/edit/main/",
           routeBasePath: "/",
@@ -58,11 +59,11 @@ const config = {
   ],
   stylesheets: [
     {
-      href: 'https://cdn.jsdelivr.net/npm/katex@0.13.24/dist/katex.min.css',
-      type: 'text/css',
+      href: "https://cdn.jsdelivr.net/npm/katex@0.13.24/dist/katex.min.css",
+      type: "text/css",
       integrity:
-        'sha384-odtC+0UGzzFL/6PNoE8rX/SPcQDXBJ+uRepguP4QkPCm2LBxH3FA3y+fKSiJ+AmM',
-      crossorigin: 'anonymous',
+        "sha384-odtC+0UGzzFL/6PNoE8rX/SPcQDXBJ+uRepguP4QkPCm2LBxH3FA3y+fKSiJ+AmM",
+      crossorigin: "anonymous",
     },
   ],
   plugins: [
@@ -76,11 +77,17 @@ const config = {
         disableInDev: false,
       },
     ],
+    // ["./src/plugins/plugin-embed-code", {}],
   ],
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
-      metadata: [{ name: 'keywords', content: 'aztec, noir, privacy, encrypted, ethereum, blockchain' }],
+      metadata: [
+        {
+          name: "keywords",
+          content: "aztec, noir, privacy, encrypted, ethereum, blockchain",
+        },
+      ],
       algolia: {
         appId: "CL4NK79B0W",
         apiKey: "21d89dadaa37a4d1b6bf4b17978dcf7f",
@@ -99,7 +106,7 @@ const config = {
         logo: {
           alt: "Aztec Logo",
           srcDark: "img/new_logo-01.svg",
-          src: "img/Aztec_logo_dark-01.svg"
+          src: "img/Aztec_logo_dark-01.svg",
         },
         items: [
           {
@@ -148,8 +155,8 @@ const config = {
               },
               {
                 label: "Grants",
-                href: "https://aztec.network/grants"
-              }
+                href: "https://aztec.network/grants",
+              },
             ],
           },
         ],
@@ -158,7 +165,19 @@ const config = {
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
-        additionalLanguages: ['rust', 'solidity'],
+        additionalLanguages: ["rust", "solidity", "cpp"],
+        magicComments: [
+          // Remember to extend the default highlight class name as well!
+          {
+            className: "theme-code-block-highlighted-line",
+            line: "highlight-next-line",
+            block: { start: "highlight-start", end: "highlight-end" },
+          },
+          {
+            className: "code-block-error-line",
+            line: "this-will-error",
+          },
+        ],
       },
     }),
 };

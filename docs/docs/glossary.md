@@ -40,4 +40,4 @@ How this works will be discussed via a future RFP process on Discourse, similarl
 
 ### Misc
 
-For other definitions please see the [components](./aztec/components) section.
+For other definitions please see the [components](./aztec/developer/sandbox/components) section.

@@ -1,0 +1,8 @@
+{
+    "ignore": [],
+    "watch": [
+        "./src/",
+        "./docs/"
+    ],
+    "ext": "js, css, md, mdx"
+}
