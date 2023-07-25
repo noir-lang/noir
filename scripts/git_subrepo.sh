@@ -30,8 +30,8 @@ if [ -d "$SUBREPO_PATH" ] ; then
         # Get parent of the last commit
         new_parent=$(git log --pretty=%P -n 1 $last_commit)
 
-        # Update parent in .gitrepo file using perl
-        perl -pi -e "s/${parent_commit}/${new_parent}/g" "$SUBREPO_PATH/.gitrepo"
+        # Update parent in .gitrepo file
+	git config --file="$SUBREPO_PATH/.gitrepo" subrepo.parent $new_parent
 
         # Commit this change
         git add "$SUBREPO_PATH/.gitrepo"
