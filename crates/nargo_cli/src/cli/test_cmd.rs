@@ -50,7 +50,7 @@ fn run_tests<B: Backend>(
         &mut context,
         crate_id,
         compile_options.deny_warnings,
-        compile_options.experimental_ssa,
+        compile_options.legacy_ssa,
     )?;
 
     let test_functions = match context.crate_graph.crate_type(crate_id) {

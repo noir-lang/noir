@@ -41,7 +41,7 @@ fn check_from_path<B: Backend>(
         &mut context,
         crate_id,
         compile_options.deny_warnings,
-        compile_options.experimental_ssa,
+        compile_options.legacy_ssa,
     )?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
@@ -220,9 +220,9 @@ pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
-    experimental_ssa: bool,
+    legacy_ssa: bool,
 ) -> Result<(), ReportedErrors> {
-    let result = check_crate(context, crate_id, deny_warnings, experimental_ssa)
-        .map(|warnings| ((), warnings));
+    let result =
+        check_crate(context, crate_id, deny_warnings, legacy_ssa).map(|warnings| ((), warnings));
     super::compile_cmd::report_errors(result, context, deny_warnings)
 }

@@ -54,15 +54,15 @@ fn load_conf(conf_path: &Path) -> BTreeMap<String, Vec<String>> {
     conf_data
 }
 
-fn generate_tests(test_file: &mut File, experimental_ssa: bool) {
+fn generate_tests(test_file: &mut File, legacy_ssa: bool) {
     // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
     // is the root of the repository and append the crate path
     let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
         Ok(dir) => PathBuf::from(dir),
         Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
     };
-    // Choose the test directory depending on whether we are in the SSA refactor module or not
-    let test_sub_dir = if experimental_ssa { "test_data_ssa_refactor" } else { "test_data" };
+    // Choose the test directory depending on whether we are in the legacy SSA module or not
+    let test_sub_dir = if legacy_ssa { "test_data" } else { "test_data_ssa_refactor" };
     let test_data_dir = manifest_dir.join("tests").join(test_sub_dir);
     let config_path = test_data_dir.join("config.toml");
 
@@ -99,8 +99,8 @@ fn prove_and_verify_{test_sub_dir}_{test_name}() {{
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg(if {is_workspace} {{ "test" }} else {{ "execute" }});
-    if {experimental_ssa} {{
-        cmd.arg("--experimental-ssa");
+    if {legacy_ssa} {{
+        cmd.arg("--legacy-ssa");
     }};
 
 
