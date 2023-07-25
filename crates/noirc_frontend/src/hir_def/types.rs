@@ -910,12 +910,10 @@ impl Type {
 
         match (expected.is_comp_time(), err_span) {
             (true, SpanKind::NotCompTime(span)) => {
-                let msg = "The value is non-comptime because of this expression, which uses another non-comptime value".into();
-                errors.push(TypeCheckError::Unstructured { msg, span });
+                errors.push(TypeCheckError::NotCompTime { span });
             }
             (false, SpanKind::CompTime(span)) => {
-                let msg = "The value is comptime because of this expression, which forces the value to be comptime".into();
-                errors.push(TypeCheckError::Unstructured { msg, span });
+                errors.push(TypeCheckError::CompTime { span });
             }
             _ => (),
         }
