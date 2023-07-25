@@ -7,7 +7,8 @@ use clap::Args;
 use fm::FileId;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
+use noirc_evaluator::legacy_create_circuit;
+use noirc_evaluator::ssa_refactor::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -39,9 +40,9 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub deny_warnings: bool,
 
-    /// Compile and optimize using the new experimental SSA pass
+    /// Compile and optimize using the old deprecated SSA pass
     #[arg(long)]
-    pub experimental_ssa: bool,
+    pub legacy_ssa: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -131,7 +132,7 @@ pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
-    experimental_ssa: bool,
+    legacy_ssa: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
     // Add the stdlib before we check the crate
     // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
@@ -146,7 +147,7 @@ pub fn check_crate(
     let std_crate = context.crate_graph.add_stdlib(CrateType::Library, root_file_id);
     propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
 
-    context.def_interner.experimental_ssa = experimental_ssa;
+    context.def_interner.legacy_ssa = legacy_ssa;
 
     let mut errors = vec![];
     match context.crate_graph.crate_type(crate_id) {
@@ -186,7 +187,7 @@ pub fn compile_main(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, crate_id, options.deny_warnings, options.experimental_ssa)?;
+    let warnings = check_crate(context, crate_id, options.deny_warnings, options.legacy_ssa)?;
 
     let main = match context.get_main_function(&crate_id) {
         Some(m) => m,
@@ -215,7 +216,7 @@ pub fn compile_contracts(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, crate_id, options.deny_warnings, options.experimental_ssa)?;
+    let warnings = check_crate(context, crate_id, options.deny_warnings, options.legacy_ssa)?;
 
     let contracts = context.get_all_contracts(&crate_id);
     let mut compiled_contracts = vec![];
@@ -309,10 +310,10 @@ pub fn compile_no_check(
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) = if options.experimental_ssa {
-        experimental_create_circuit(program, options.show_ssa, options.show_brillig, show_output)?
+    let (circuit, debug, abi) = if options.legacy_ssa {
+        legacy_create_circuit(program, options.show_ssa, show_output)?
     } else {
-        create_circuit(program, options.show_ssa, show_output)?
+        create_circuit(program, options.show_ssa, options.show_brillig, show_output)?
     };
 
     Ok(CompiledProgram { circuit, debug, abi })

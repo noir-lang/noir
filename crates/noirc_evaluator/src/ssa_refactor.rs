@@ -65,7 +65,7 @@ pub(crate) fn optimize_into_acir(
 /// This is analogous to `ssa:create_circuit` and this method is called when one wants
 /// to use the new ssa module to process Noir code.
 // TODO: This no longer needs to return a result, but it is kept to match the signature of `create_circuit`
-pub fn experimental_create_circuit(
+pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
