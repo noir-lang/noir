@@ -37,9 +37,9 @@ impl FunctionContext {
                 let register = brillig_context.allocate_register();
                 RegisterOrMemory::RegisterIndex(register)
             }
-            Type::Array(_, _) => {
+            Type::Array(item_typ, elem_count) => {
                 let pointer_register = brillig_context.allocate_register();
-                let size = compute_size_of_type(&typ);
+                let size = compute_array_length(&item_typ, elem_count);
                 RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_register, size })
             }
             Type::Slice(_) => {
@@ -172,17 +172,19 @@ impl FunctionContext {
     }
 }
 
-/// Computes the size of an SSA composite type
-pub(crate) fn compute_size_of_composite_type(typ: &CompositeType) -> usize {
-    typ.iter().map(compute_size_of_type).sum()
+/// Computes the length of an array. This will match with the indexes that SSA will issue
+pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
+    item_typ.len() * elem_count
 }
 
-/// Finds out the size of a given SSA type
-/// This is needed to store values in memory
+/// Finds out the total size in values of a given SSA type
 pub(crate) fn compute_size_of_type(typ: &Type) -> usize {
     match typ {
         Type::Numeric(_) => 1,
-        Type::Array(types, item_count) => compute_size_of_composite_type(types) * item_count,
+        Type::Array(types, item_count) => {
+            let item_size: usize = types.iter().map(compute_size_of_type).sum();
+            item_size * item_count
+        }
         _ => todo!("ICE: Type not supported {typ:?}"),
     }
 }
