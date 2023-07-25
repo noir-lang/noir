@@ -1,17 +1,12 @@
-use acvm::acir::brillig::{Opcode as BrilligOpcode, RegisterIndex};
+use acvm::acir::brillig::Opcode as BrilligOpcode;
 use std::collections::HashMap;
-
-use crate::brillig::brillig_ir::ReservedRegisters;
 
 /// Represents a parameter or a return value of a function.
 #[derive(Debug, Clone)]
 pub(crate) enum BrilligParameter {
-    Register,
-    // A heap array is filled in memory and a pointer to the first element is passed in the register.
-    HeapArray(usize),
-    // A heap vector is filled in memory and two registers are passed in, the pointer to the first element
-    // and the length of the vector
-    HeapVector,
+    Simple,
+    Array(Vec<BrilligParameter>, usize),
+    Slice(Vec<BrilligParameter>),
 }
 
 #[derive(Default, Debug, Clone)]
@@ -31,11 +26,6 @@ pub(crate) struct BrilligArtifact {
     /// TODO: perhaps we should combine this with the `unresolved_jumps` field
     /// TODO: and have an enum which indicates whether the jump is internal or external
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
-    /// The return values that this function will return.
-    return_parameters: Vec<BrilligParameter>,
-
-    /// The arguments that this function will take.
-    arguments: Vec<BrilligParameter>,
 }
 
 /// A pointer to a location in the opcode.
@@ -61,91 +51,10 @@ pub(crate) type JumpInstructionPosition = OpcodeLocation;
 pub(crate) type UnresolvedJumpLocation = Label;
 
 impl BrilligArtifact {
-    /// Initialize an artifact with the number of arguments and return parameters
-    pub(crate) fn new(
-        arguments: Vec<BrilligParameter>,
-        return_parameters: Vec<BrilligParameter>,
-    ) -> BrilligArtifact {
-        BrilligArtifact {
-            byte_code: Vec::new(),
-            unresolved_jumps: Vec::new(),
-            labels: HashMap::new(),
-            unresolved_external_call_labels: Vec::new(),
-            arguments,
-            return_parameters,
-        }
-    }
-
-    /// Creates an entry point artifact that will jump to the function label provided.
-    pub(crate) fn new_entry_point_artifact(
-        arguments: Vec<BrilligParameter>,
-        return_parameters: Vec<BrilligParameter>,
-        target_function: Label,
-    ) -> BrilligArtifact {
-        let mut entry_point_artifact = BrilligArtifact::new(arguments, return_parameters);
-        entry_point_artifact.entry_point_instruction();
-
-        entry_point_artifact
-            .add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, target_function);
-
-        entry_point_artifact.exit_point_instruction();
-        entry_point_artifact
-    }
-
     /// Resolves all jumps and generates the final bytecode
     pub(crate) fn finish(mut self) -> Vec<BrilligOpcode> {
         self.resolve_jumps();
         self.byte_code
-    }
-
-    /// Adds the instructions needed to handle entry point parameters
-    ///
-    /// And sets the starting value of the reserved registers
-    fn entry_point_instruction(&mut self) {
-        // Translate the inputs by the reserved registers offset
-        for i in (0..self.arguments.len()).rev() {
-            self.byte_code.push(BrilligOpcode::Mov {
-                destination: ReservedRegisters::user_register_index(i),
-                source: RegisterIndex::from(i),
-            });
-        }
-
-        // Calculate the initial value for the stack pointer register
-        let size_arguments_memory = self
-            .arguments
-            .iter()
-            .map(|arg| match arg {
-                BrilligParameter::Register => 0,
-                BrilligParameter::HeapArray(size) => *size,
-                BrilligParameter::HeapVector => {
-                    unreachable!("ICE: Heap vectors cannot be passed as entry point arguments")
-                }
-            })
-            .sum::<usize>();
-
-        // Set the initial value of the stack pointer register
-        self.byte_code.push(BrilligOpcode::Const {
-            destination: ReservedRegisters::stack_pointer(),
-            value: size_arguments_memory.into(),
-        });
-    }
-
-    /// Adds the instructions needed to handle return parameters
-    fn exit_point_instruction(&mut self) {
-        // We want all functions to follow the calling convention of returning
-        // their results in the first `n` registers. So we modify the bytecode of the
-        // function to move the return values to the first `n` registers once completed.
-
-        // TODO: this _seems_ like an abstraction leak, we need to know about the reserved
-        // TODO: registers in order to do this.
-        // Move the results to registers 0..n
-        for i in 0..self.return_parameters.len() {
-            self.push_opcode(BrilligOpcode::Mov {
-                destination: i.into(),
-                source: ReservedRegisters::user_register_index(i),
-            });
-        }
-        self.push_opcode(BrilligOpcode::Stop);
     }
 
     /// Gets the first unresolved function call of this artifact.

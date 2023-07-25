@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
+use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
@@ -137,6 +137,7 @@ impl<'a> Resolver<'a> {
         mut self,
         func: NoirFunction,
         func_id: FuncId,
+        module_id: ModuleId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
 
@@ -145,7 +146,7 @@ impl<'a> Resolver<'a> {
 
         self.add_generics(&func.def.generics);
 
-        let (hir_func, func_meta) = self.intern_function(func, func_id);
+        let (hir_func, func_meta) = self.intern_function(func, func_id, module_id);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
@@ -304,8 +305,13 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
-        let func_meta = self.extract_meta(&func, id);
+    fn intern_function(
+        &mut self,
+        func: NoirFunction,
+        id: FuncId,
+        module_id: ModuleId,
+    ) -> (HirFunction, FuncMeta) {
+        let func_meta = self.extract_meta(&func, id, module_id);
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
@@ -586,7 +592,12 @@ impl<'a> Resolver<'a> {
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: self.add_generics() has already been called with the given
     /// function's generics, including any generics from the impl, if any.
-    fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
+    fn extract_meta(
+        &mut self,
+        func: &NoirFunction,
+        func_id: FuncId,
+        module_id: ModuleId,
+    ) -> FuncMeta {
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent { id, location };
@@ -652,6 +663,7 @@ impl<'a> Resolver<'a> {
             name: name_ident,
             kind: func.kind,
             attributes,
+            module_id,
             contract_function_type: self.handle_function_type(func),
             is_internal: self.handle_is_function_internal(func),
             is_unconstrained: func.def.is_unconstrained,
@@ -1361,7 +1373,7 @@ mod test {
             let id = interner.push_fn(HirFunction::empty());
             interner.push_function_definition(func.name().to_string(), id);
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (_, _, err) = resolver.resolve_function(func, id);
+            let (_, _, err) = resolver.resolve_function(func, id, ModuleId::dummy_id());
             errors.extend(err);
         }
 

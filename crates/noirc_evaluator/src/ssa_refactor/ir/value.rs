@@ -64,7 +64,9 @@ impl Value {
             Value::Instruction { typ, .. } => typ.clone(),
             Value::Param { typ, .. } => typ.clone(),
             Value::NumericConstant { typ, .. } => typ.clone(),
-            Value::Array { element_type, array } => Type::Array(element_type.clone(), array.len() / element_type.len()),
+            Value::Array { element_type, array } => {
+                Type::Array(element_type.clone(), array.len() / element_type.len())
+            }
             Value::Function { .. } => Type::Function,
             Value::Intrinsic { .. } => Type::Function,
             Value::ForeignFunction { .. } => Type::Function,
