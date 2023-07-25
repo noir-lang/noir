@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use arena::{Arena, Index};
 use fm::FileId;
@@ -354,8 +353,8 @@ impl NodeInterner {
     }
 
     pub fn update_type_alias(&mut self, type_id: TypeAliasId, f: impl FnOnce(&mut TypeAliasType)) {
-        let mut value = self.type_aliases.get_mut(&type_id).unwrap();
-        f(&mut value);
+        let value = self.type_aliases.get_mut(&type_id).unwrap();
+        f(value);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
