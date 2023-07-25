@@ -1,21 +1,23 @@
-use crate::constants_gen::RETURN_VALUES_LENGTH;
-use crate::constants_gen::MAX_READ_REQUESTS_PER_CALL;
-use crate::constants_gen::MAX_NEW_COMMITMENTS_PER_CALL;
-use crate::constants_gen::MAX_NEW_NULLIFIERS_PER_CALL;
-use crate::constants_gen::MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL;
-use crate::constants_gen::MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL;
-use crate::constants_gen::MAX_NEW_L2_TO_L1_MSGS_PER_CALL;
-use crate::constants_gen::NUM_FIELDS_PER_SHA256;
-use crate::constants_gen::MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL;
-use crate::constants_gen::MAX_PUBLIC_DATA_READS_PER_CALL;
-use crate::constants_gen::GENERATOR_INDEX__FUNCTION_ARGS;
-use crate::constants_gen::COMMITMENT_TREES_ROOTS_LENGTH;
-use crate::constants_gen::CONTRACT_DEPLOYMENT_DATA_LENGTH;
-use crate::constants_gen::CALL_CONTEXT_LENGTH;
-use crate::constants_gen::PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH;
-use crate::constants_gen::CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH;
-use crate::constants_gen::CONTRACT_STORAGE_READ_LENGTH;
-use crate::constants_gen::PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH;
+use crate::constants_gen::{
+    RETURN_VALUES_LENGTH,
+    MAX_READ_REQUESTS_PER_CALL,
+    MAX_NEW_COMMITMENTS_PER_CALL,
+    MAX_NEW_NULLIFIERS_PER_CALL,
+    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,
+    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
+    MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
+    NUM_FIELDS_PER_SHA256,
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
+    MAX_PUBLIC_DATA_READS_PER_CALL,
+    GENERATOR_INDEX__FUNCTION_ARGS,
+    COMMITMENT_TREES_ROOTS_LENGTH,
+    CONTRACT_DEPLOYMENT_DATA_LENGTH,
+    CALL_CONTEXT_LENGTH,
+    PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
+    CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH,
+    CONTRACT_STORAGE_READ_LENGTH,
+    PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
+};
 use crate::types::vec::BoundedVec;
 use crate::types::point::Point;
 
@@ -245,6 +247,8 @@ struct PublicCircuitPublicInputs {
     new_commitments: [Field; MAX_NEW_COMMITMENTS_PER_CALL],
     new_nullifiers: [Field; crate::abi::MAX_NEW_NULLIFIERS_PER_CALL],
     new_l2_to_l1_msgs: [Field; crate::abi::MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
+    unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
+    unencrypted_log_preimages_length: Field,
     commitment_trees_roots: CommitmentTreesRoots,
     historic_public_data_tree_root: Field,
     prover_address: Field,
@@ -271,6 +275,8 @@ impl PublicCircuitPublicInputs {
         fields = fields.push_array(self.new_commitments);
         fields = fields.push_array(self.new_nullifiers);
         fields = fields.push_array(self.new_l2_to_l1_msgs);
+        fields = fields.push_array(self.unencrypted_logs_hash);
+        fields = fields.push(self.unencrypted_log_preimages_length);
         fields = fields.push_array(self.commitment_trees_roots.serialize());
         fields = fields.push(self.historic_public_data_tree_root);
         fields = fields.push(self.prover_address);

@@ -10,13 +10,8 @@ fn emit_encrypted_log<N>(
     encryption_pub_key: Point,
     log: [Field; N],
 ) -> Context {
-    let hash = oracle::logs::emit_encrypted_log(contract_address, storage_slot, owner, encryption_pub_key, log);
-    let mut len = log.len();
-    if (hash[0] == 0) & (hash[1] == 0) {
-        len = 0;
-    };
-    context = context.set_encrypted_logs_hash(hash);
-    context = context.set_encrypted_log_preimages_length(len);
+    let _ = oracle::logs::emit_encrypted_log(contract_address, storage_slot, owner, encryption_pub_key, log);
+    context = context.accumulate_encrypted_logs(log);
     context
 }
 
@@ -24,11 +19,7 @@ fn emit_unencrypted_log<T>(
     mut context: Context,
     log: T,
 ) -> Context {
-    let hash = oracle::logs::emit_unencrypted_log(log);
-    // TODO
-    let len = 0;
-    // let len = log.len();
-    context = context.set_unencrypted_logs_hash(hash);
-    context = context.set_unencrypted_log_preimages_length(len);
+    let _ = oracle::logs::emit_unencrypted_log(log);
+    context = context.accumulate_unencrypted_logs(log);
     context
 }

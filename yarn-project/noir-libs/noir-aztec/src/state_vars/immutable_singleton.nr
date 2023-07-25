@@ -4,8 +4,10 @@ use crate::note::lifecycle::create_note;
 use crate::note::note_getter::get_note;
 use crate::note::note_interface::NoteInterface;
 use crate::oracle;
-use crate::constants_gen::GENERATOR_INDEX__INITIALISATION_NULLIFIER;
-use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
+use crate::constants_gen::{
+    GENERATOR_INDEX__INITIALISATION_NULLIFIER,
+    EMPTY_NULLIFIED_COMMITMENT,
+};
 
 struct ImmutableSingleton<Note, N> {
     storage_slot: Field,

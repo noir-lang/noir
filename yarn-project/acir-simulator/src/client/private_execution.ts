@@ -179,7 +179,7 @@ export class PrivateFunctionExecution {
 
     const wasm = await CircuitsWasm.get();
 
-    // TODO(#1347): Noir fails with too many unknowns error when public inputs struct contains too many members.
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165) --> set this in Noir
     publicInputs.encryptedLogsHash = to2Fields(encryptedLogs.hash());
     publicInputs.encryptedLogPreimagesLength = new Fr(encryptedLogs.getSerializedLength());
     publicInputs.unencryptedLogsHash = to2Fields(unencryptedLogs.hash());

@@ -1,9 +1,11 @@
 use crate::types::point::Point;
 use crate::messaging::l1_to_l2_message_getter_data::L1ToL2MessageGetterData;
 use crate::messaging::l1_to_l2_message_getter_data::make_l1_to_l2_message_getter_data;
-use crate::constants_gen::L1_TO_L2_MESSAGE_LENGTH;
-use crate::constants_gen::GENERATOR_INDEX__NULLIFIER;
-use crate::constants_gen::GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET;
+use crate::constants_gen::{
+    L1_TO_L2_MESSAGE_LENGTH,
+    GENERATOR_INDEX__NULLIFIER,
+    GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET,
+};
 
 struct L1ToL2Message {
     sender: Field,
