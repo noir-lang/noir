@@ -77,6 +77,7 @@ impl BrilligContext {
         }
     }
 
+    /// Computes the size of a parameter if it was flattened
     fn flattened_size(param: &BrilligParameter) -> usize {
         match param {
             BrilligParameter::Simple => 1,
@@ -90,6 +91,7 @@ impl BrilligContext {
         }
     }
 
+    /// Deflatten an array by recursively allocating nested arrays and copying the plain values.
     fn deflatten_array(
         &mut self,
         item_type: &[BrilligParameter],
@@ -123,7 +125,7 @@ impl BrilligContext {
                         self.array_set(deflattened_array_pointer, target_index, movement_register);
                         source_offset += 1;
                     }
-                    BrilligParameter::Array(subarray_item_type, subarray_item_count) => {
+                    BrilligParameter::Array(nested_array_item_type, nested_array_item_count) => {
                         let nested_array_pointer = self.allocate_register();
                         self.mov_instruction(nested_array_pointer, flattened_array_pointer);
                         self.memory_op(
@@ -132,24 +134,30 @@ impl BrilligContext {
                             nested_array_pointer,
                             acvm::brillig_vm::brillig::BinaryIntOp::Add,
                         );
-                        let deflattened_subarray_pointer = self.deflatten_array(
-                            subarray_item_type,
-                            *subarray_item_count,
+                        let deflattened_nested_array_pointer = self.deflatten_array(
+                            nested_array_item_type,
+                            *nested_array_item_count,
                             nested_array_pointer,
                         );
                         self.array_set(
                             deflattened_array_pointer,
                             target_index,
-                            deflattened_subarray_pointer,
+                            deflattened_nested_array_pointer,
                         );
+
+                        self.deallocate_register(nested_array_pointer);
+
                         source_offset += BrilligContext::flattened_size(subitem);
                     }
                     BrilligParameter::Slice(..) => unreachable!("ICE: Cannot deflatten slices"),
                 }
+
+                self.deallocate_register(source_index);
+                self.deallocate_register(target_index);
             }
         }
 
-        // TODO deallocate registers
+        self.deallocate_register(movement_register);
 
         deflattened_array_pointer
     }
@@ -197,6 +205,7 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Stop);
     }
 
+    // Flattens an array by recursively copying nested arrays and regular items.
     fn flatten_array(
         &mut self,
         item_type: &[BrilligParameter],
@@ -227,7 +236,7 @@ impl BrilligContext {
                         self.array_set(flattened_array_pointer, target_index, movement_register);
                         target_offset += 1;
                     }
-                    BrilligParameter::Array(subarray_item_type, subarray_item_count) => {
+                    BrilligParameter::Array(nested_array_item_type, nested_array_item_count) => {
                         let nested_array_pointer = self.allocate_register();
                         self.array_get(
                             deflattened_array_pointer,
@@ -235,32 +244,41 @@ impl BrilligContext {
                             nested_array_pointer,
                         );
 
-                        let flattened_subarray_pointer = self.allocate_register();
+                        let flattened_nested_array_pointer = self.allocate_register();
 
-                        self.mov_instruction(flattened_subarray_pointer, flattened_array_pointer);
+                        self.mov_instruction(
+                            flattened_nested_array_pointer,
+                            flattened_array_pointer,
+                        );
 
                         self.memory_op(
-                            flattened_subarray_pointer,
+                            flattened_nested_array_pointer,
                             target_index,
-                            flattened_subarray_pointer,
+                            flattened_nested_array_pointer,
                             acvm::brillig_vm::brillig::BinaryIntOp::Add,
                         );
 
                         self.flatten_array(
-                            subarray_item_type,
-                            *subarray_item_count,
-                            flattened_subarray_pointer,
+                            nested_array_item_type,
+                            *nested_array_item_count,
+                            flattened_nested_array_pointer,
                             nested_array_pointer,
                         );
+
+                        self.deallocate_register(nested_array_pointer);
+                        self.deallocate_register(flattened_nested_array_pointer);
 
                         target_offset += BrilligContext::flattened_size(subitem);
                     }
                     BrilligParameter::Slice(..) => unreachable!("ICE: Cannot flatten slices"),
                 }
+
+                self.deallocate_register(source_index);
+                self.deallocate_register(target_index);
             }
         }
 
-        // TODO deallocate registers
+        self.deallocate_register(movement_register);
     }
 }
 
@@ -319,16 +337,16 @@ mod tests {
                 Value::from(4_usize),
                 Value::from(5_usize),
                 Value::from(6_usize),
-                // The pointer to the subarray of the first item
+                // The pointer to the nested array of the first item
                 Value::from(10_usize),
                 Value::from(3_usize),
-                // The pointer to the subarray of the second item
+                // The pointer to the nested array of the second item
                 Value::from(12_usize),
                 Value::from(6_usize),
-                // The subarray of the first item
+                // The nested array of the first item
                 Value::from(1_usize),
                 Value::from(2_usize),
-                // The subarray of the second item
+                // The nested array of the second item
                 Value::from(4_usize),
                 Value::from(5_usize),
             ]
@@ -389,16 +407,16 @@ mod tests {
                 Value::from(4_usize),
                 Value::from(5_usize),
                 Value::from(6_usize),
-                // The pointer to the subarray of the first item
+                // The pointer to the nested array of the first item
                 Value::from(1_usize),
                 Value::from(10_usize),
-                // The pointer to the subarray of the second item
+                // The pointer to the nested array of the second item
                 Value::from(4_usize),
                 Value::from(12_usize),
-                // The subarray of the first item
+                // The nested array of the first item
                 Value::from(2_usize),
                 Value::from(3_usize),
-                // The subarray of the second item
+                // The nested array of the second item
                 Value::from(5_usize),
                 Value::from(6_usize),
                 // The values flattened again
