@@ -4,6 +4,7 @@ use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
+use crate::hir::def_map::ModuleId;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attribute, FunctionKind};
 use crate::{ContractFunctionType, Type};
@@ -115,6 +116,8 @@ pub struct FuncMeta {
     pub name: HirIdent,
 
     pub kind: FunctionKind,
+
+    pub module_id: ModuleId,
 
     /// A function's attributes are the `#[...]` items above the function
     /// definition, if any. Currently, this is limited to a maximum of only one

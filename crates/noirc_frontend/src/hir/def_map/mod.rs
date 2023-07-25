@@ -40,6 +40,12 @@ pub struct ModuleId {
 }
 
 impl ModuleId {
+    pub fn dummy_id() -> ModuleId {
+        ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() }
+    }
+}
+
+impl ModuleId {
     pub fn module(self, def_maps: &HashMap<CrateId, CrateDefMap>) -> &ModuleData {
         &def_maps[&self.krate].modules()[self.local_id.0]
     }
@@ -185,7 +191,16 @@ impl CrateDefMap {
 
     /// Find a child module's name by inspecting its parent.
     /// Currently required as modules do not store their own names.
-    fn get_module_path(&self, child_id: Index, parent: Option<LocalModuleId>) -> String {
+    pub fn get_module_path(&self, child_id: Index, parent: Option<LocalModuleId>) -> String {
+        self.get_module_path_with_separator(child_id, parent, ".")
+    }
+
+    pub fn get_module_path_with_separator(
+        &self,
+        child_id: Index,
+        parent: Option<LocalModuleId>,
+        separator: &str,
+    ) -> String {
         if let Some(id) = parent {
             let parent = &self.modules[id.0];
             let name = parent
@@ -195,11 +210,11 @@ impl CrateDefMap {
                 .map(|(name, _)| &name.0.contents)
                 .expect("Child module was not a child of the given parent module");
 
-            let parent_name = self.get_module_path(id.0, parent.parent);
+            let parent_name = self.get_module_path_with_separator(id.0, parent.parent, separator);
             if parent_name.is_empty() {
                 name.to_string()
             } else {
-                format!("{parent_name}.{name}")
+                format!("{parent_name}{separator}{name}")
             }
         } else {
             String::new()

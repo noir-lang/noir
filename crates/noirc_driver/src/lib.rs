@@ -22,7 +22,7 @@ mod program;
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
-#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+#[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
     #[arg(short, long)]
@@ -39,26 +39,9 @@ pub struct CompileOptions {
     #[arg(short, long)]
     pub deny_warnings: bool,
 
-    /// Display output of `println` statements
-    #[arg(long)]
-    pub show_output: bool,
-
     /// Compile and optimize using the new experimental SSA pass
     #[arg(long)]
     pub experimental_ssa: bool,
-}
-
-impl Default for CompileOptions {
-    fn default() -> Self {
-        Self {
-            show_ssa: false,
-            show_brillig: false,
-            print_acir: false,
-            deny_warnings: false,
-            show_output: true,
-            experimental_ssa: false,
-        }
-    }
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -216,7 +199,7 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, options, main)?;
+    let compiled_program = compile_no_check(context, true, options, main)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main:");
@@ -283,7 +266,7 @@ fn compile_contract(
     let mut errs = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, options, *function_id) {
+        let function = match compile_no_check(context, true, options, *function_id) {
             Ok(function) => function,
             Err(err) => {
                 errs.push(err);
@@ -320,20 +303,16 @@ fn compile_contract(
 #[allow(deprecated)]
 pub fn compile_no_check(
     context: &Context,
+    show_output: bool,
     options: &CompileOptions,
     main_function: FuncId,
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let (circuit, debug, abi) = if options.experimental_ssa {
-        experimental_create_circuit(
-            program,
-            options.show_ssa,
-            options.show_brillig,
-            options.show_output,
-        )?
+        experimental_create_circuit(program, options.show_ssa, options.show_brillig, show_output)?
     } else {
-        create_circuit(program, options.show_ssa, options.show_output)?
+        create_circuit(program, options.show_ssa, show_output)?
     };
 
     if options.print_acir {

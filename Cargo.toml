@@ -57,6 +57,6 @@ wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
 
 [patch.crates-io]
-acvm = { git = "https://github.com/noir-lang/acvm", rev = "bb4ad6364f19e7326e2b8174cfe3a631369aa073" }
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "bdf707788f9d50718a2e9b63bd7be182bbcab3cd" }
+acvm = { git = "https://github.com/noir-lang/acvm", rev = "b7d70a18996d0af45ae3b9287cb7799bcdec5cbd" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "e4c435cb8098db5a306e7081669ead7fe333a163" }
 async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09dbcc11046f7a188a80137f8d36484d86c78c78" }

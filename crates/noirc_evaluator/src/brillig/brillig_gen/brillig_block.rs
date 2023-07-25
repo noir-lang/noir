@@ -5,7 +5,7 @@ use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
 use crate::ssa_refactor::ir::function::FunctionId;
-use crate::ssa_refactor::ir::instruction::Intrinsic;
+use crate::ssa_refactor::ir::instruction::{Endian, Intrinsic};
 use crate::ssa_refactor::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -326,6 +326,45 @@ impl<'block> BrilligBlock<'block> {
                         instruction_id,
                         arguments,
                     );
+                }
+                Value::Intrinsic(Intrinsic::ToRadix(endianness)) => {
+                    let source = self.convert_ssa_register_value(arguments[0], dfg);
+                    let radix = self.convert_ssa_register_value(arguments[1], dfg);
+                    let limb_count = self.convert_ssa_register_value(arguments[2], dfg);
+                    let target_slice = self.function_context.create_variable(
+                        self.brillig_context,
+                        dfg.instruction_results(instruction_id)[0],
+                        dfg,
+                    );
+
+                    self.brillig_context.radix_instruction(
+                        source,
+                        self.function_context.extract_heap_vector(target_slice),
+                        radix,
+                        limb_count,
+                        matches!(endianness, Endian::Big),
+                    );
+                }
+                Value::Intrinsic(Intrinsic::ToBits(endianness)) => {
+                    let source = self.convert_ssa_register_value(arguments[0], dfg);
+                    let limb_count = self.convert_ssa_register_value(arguments[1], dfg);
+                    let target_slice = self.function_context.create_variable(
+                        self.brillig_context,
+                        dfg.instruction_results(instruction_id)[0],
+                        dfg,
+                    );
+
+                    let radix = self.brillig_context.make_constant(2_usize.into());
+
+                    self.brillig_context.radix_instruction(
+                        source,
+                        self.function_context.extract_heap_vector(target_slice),
+                        radix,
+                        limb_count,
+                        matches!(endianness, Endian::Big),
+                    );
+
+                    self.brillig_context.deallocate_register(radix);
                 }
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])

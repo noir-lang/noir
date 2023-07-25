@@ -340,13 +340,14 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     fn check_cast(&mut self, from: Type, to: Type, span: Span) -> Type {
-        let is_comp_time = match from {
+        let is_comp_time = match from.follow_bindings() {
             Type::Integer(is_comp_time, ..) => is_comp_time,
             Type::FieldElement(is_comp_time) => is_comp_time,
-            Type::PolymorphicInteger(is_comp_time, binding) => match &*binding.borrow() {
-                TypeBinding::Bound(from) => return self.check_cast(from.clone(), to, span),
-                TypeBinding::Unbound(_) => is_comp_time,
-            },
+            Type::PolymorphicInteger(is_comp_time, _) => is_comp_time,
+            Type::TypeVariable(_) => {
+                self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
+                return Type::Error;
+            }
             Type::Bool(is_comp_time) => is_comp_time,
             Type::Error => return Type::Error,
             from => {
