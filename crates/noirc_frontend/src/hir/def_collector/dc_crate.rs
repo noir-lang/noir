@@ -486,6 +486,7 @@ fn resolve_function_set(
     let file_id = unresolved_functions.file_id;
 
     vecmap(unresolved_functions.functions, |(mod_id, func_id, func)| {
+        let module_id = ModuleId { krate: crate_id, local_id: mod_id };
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
 
@@ -496,7 +497,7 @@ fn resolve_function_set(
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
 
-        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
+        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id, module_id);
         interner.push_fn_meta(func_meta, func_id);
         interner.update_fn(func_id, hir_func);
         extend_errors(errors, file_id, errs);

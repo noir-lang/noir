@@ -13,6 +13,7 @@ mod codegen_verifier_cmd;
 mod compile_cmd;
 mod execute_cmd;
 mod gates_cmd;
+mod init_cmd;
 mod lsp_cmd;
 mod new_cmd;
 mod prove_cmd;
@@ -51,6 +52,7 @@ enum NargoCommand {
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
+    Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
@@ -63,7 +65,7 @@ pub fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.
-    if !matches!(command, NargoCommand::New(_) | NargoCommand::Lsp(_)) {
+    if !matches!(command, NargoCommand::New(_) | NargoCommand::Init(_) | NargoCommand::Lsp(_)) {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
@@ -71,6 +73,7 @@ pub fn start_cli() -> eyre::Result<()> {
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
+        NargoCommand::Init(args) => init_cmd::run(&backend, args, config),
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),

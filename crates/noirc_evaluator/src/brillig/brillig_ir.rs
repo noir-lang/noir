@@ -230,43 +230,57 @@ impl BrilligContext {
             destination_pointer,
             num_elements_register,
         );
-        let index_register = self.make_constant(0_u128.into());
+
+        let value_register = self.allocate_register();
+
+        self.loop_instruction(num_elements_register, |ctx, iterator| {
+            ctx.array_get(source_pointer, iterator, value_register);
+            ctx.array_set(destination_pointer, iterator, value_register);
+        });
+
+        self.deallocate_register(value_register);
+    }
+
+    /// This instruction will issue a loop that will iterate iteration_count times
+    /// The body of the loop should be issued by the caller in the on_iteration closure.
+    fn loop_instruction<F>(&mut self, iteration_count: RegisterIndex, on_iteration: F)
+    where
+        F: FnOnce(&mut BrilligContext, RegisterIndex),
+    {
+        let iterator_register = self.make_constant(0_u128.into());
 
         let loop_label = self.next_section_label();
         self.enter_next_section();
 
         // Loop body
 
-        // Check if index < num_elements
-        let index_less_than_array_len = self.allocate_register();
+        // Check if iterator < iteration_count
+        let iterator_less_than_iterations = self.allocate_register();
         self.memory_op(
-            index_register,
-            num_elements_register,
-            index_less_than_array_len,
+            iterator_register,
+            iteration_count,
+            iterator_less_than_iterations,
             BinaryIntOp::LessThan,
         );
 
         let exit_loop_label = self.next_section_label();
 
-        self.not_instruction(index_less_than_array_len, 1, index_less_than_array_len);
-        self.jump_if_instruction(index_less_than_array_len, exit_loop_label);
+        self.not_instruction(iterator_less_than_iterations, 1, iterator_less_than_iterations);
+        self.jump_if_instruction(iterator_less_than_iterations, exit_loop_label);
 
-        // Copy the element from source to destination
-        let value_register = self.allocate_register();
-        self.array_get(source_pointer, index_register, value_register);
-        self.array_set(destination_pointer, index_register, value_register);
+        // Call the on iteration function
+        on_iteration(self, iterator_register);
 
-        // Increment the index register
-        self.usize_op_in_place(index_register, BinaryIntOp::Add, 1);
+        // Increment the iterator register
+        self.usize_op_in_place(iterator_register, BinaryIntOp::Add, 1);
 
         self.jump_instruction(loop_label);
 
         // Exit the loop
         self.enter_next_section();
         // Deallocate our temporary registers
-        self.deallocate_register(index_less_than_array_len);
-        self.deallocate_register(value_register);
-        self.deallocate_register(index_register);
+        self.deallocate_register(iterator_less_than_iterations);
+        self.deallocate_register(iterator_register);
     }
 
     /// Adds a label to the next opcode
@@ -852,6 +866,92 @@ impl BrilligContext {
     pub(crate) fn black_box_op_instruction(&mut self, op: BlackBoxOp) {
         self.debug_show.black_box_op_instruction(op);
         self.push_opcode(BrilligOpcode::BlackBox(op));
+    }
+
+    /// Issues a to_radix instruction. This instruction will write the modulus of the source register
+    /// And the radix register limb_count times to the target vector.
+    pub(crate) fn radix_instruction(
+        &mut self,
+        source: RegisterIndex,
+        target_vector: HeapVector,
+        radix: RegisterIndex,
+        limb_count: RegisterIndex,
+        big_endian: bool,
+    ) {
+        self.mov_instruction(target_vector.size, limb_count);
+        self.allocate_array_instruction(target_vector.pointer, target_vector.size);
+
+        let shifted_register = self.allocate_register();
+        self.mov_instruction(shifted_register, source);
+
+        let modulus_register: RegisterIndex = self.allocate_register();
+
+        self.loop_instruction(target_vector.size, |ctx, iterator_register| {
+            // Compute the modulus
+            ctx.modulo_instruction(
+                modulus_register,
+                shifted_register,
+                radix,
+                FieldElement::max_num_bits(),
+                false,
+            );
+            // Write it
+            ctx.array_set(target_vector.pointer, iterator_register, modulus_register);
+            // Integer div the field
+            ctx.binary_instruction(
+                shifted_register,
+                radix,
+                shifted_register,
+                BrilligBinaryOp::Integer {
+                    op: BinaryIntOp::UnsignedDiv,
+                    bit_size: FieldElement::max_num_bits(),
+                },
+            );
+        });
+
+        // Deallocate our temporary registers
+        self.deallocate_register(shifted_register);
+        self.deallocate_register(modulus_register);
+
+        if big_endian {
+            self.reverse_vector_in_place_instruction(target_vector);
+        }
+    }
+
+    /// This instruction will reverse the order of the elements in a vector.
+    pub(crate) fn reverse_vector_in_place_instruction(&mut self, vector: HeapVector) {
+        let iteration_count = self.allocate_register();
+        self.usize_op(vector.size, iteration_count, BinaryIntOp::UnsignedDiv, 2);
+
+        let start_value_register = self.allocate_register();
+        let index_at_end_of_array = self.allocate_register();
+        let end_value_register = self.allocate_register();
+
+        self.loop_instruction(iteration_count, |ctx, iterator_register| {
+            // Load both values
+            ctx.array_get(vector.pointer, iterator_register, start_value_register);
+
+            // The index at the end of array is size - 1 - iterator
+            ctx.mov_instruction(index_at_end_of_array, vector.size);
+            ctx.usize_op_in_place(index_at_end_of_array, BinaryIntOp::Sub, 1);
+            ctx.memory_op(
+                index_at_end_of_array,
+                iterator_register,
+                index_at_end_of_array,
+                BinaryIntOp::Sub,
+            );
+
+            ctx.array_get(vector.pointer, index_at_end_of_array, end_value_register);
+
+            // Write both values
+            ctx.array_set(vector.pointer, iterator_register, end_value_register);
+            ctx.array_set(vector.pointer, index_at_end_of_array, start_value_register);
+        });
+
+        self.deallocate_register(iteration_count);
+        self.deallocate_register(start_value_register);
+        self.deallocate_register(end_value_register);
+        self.deallocate_register(index_at_end_of_array);
     }
 }
 

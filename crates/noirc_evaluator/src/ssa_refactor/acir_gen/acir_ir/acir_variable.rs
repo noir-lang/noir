@@ -1,8 +1,10 @@
 use super::{errors::AcirGenError, generated_acir::GeneratedAcir};
 use crate::brillig::brillig_gen::brillig_directive;
-use crate::ssa_refactor::acir_gen::AcirValue;
+use crate::ssa_refactor::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
+use acvm::acir::circuit::opcodes::{BlockId, MemOp};
+use acvm::acir::circuit::Opcode;
 use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::brillig::{BrilligInputs, BrilligOutputs},
@@ -173,7 +175,7 @@ impl AcirContext {
         let field_type = AcirType::NumericType(NumericType::NativeField);
 
         let results = self.brillig(
-            Some(predicate),
+            predicate,
             inverse_code,
             vec![AcirValue::Var(var, field_type.clone())],
             vec![field_type],
@@ -210,7 +212,9 @@ impl AcirContext {
         assert_eq!(results.len(), 1);
         match results[0] {
             AcirValue::Var(var, _) => var,
-            AcirValue::Array(_) => unreachable!("ICE - expected a variable"),
+            AcirValue::DynamicArray(_) | AcirValue::Array(_) => {
+                unreachable!("ICE - expected a variable")
+            }
         }
     }
 
@@ -584,9 +588,17 @@ impl AcirContext {
         let lhs_data = &self.vars[&lhs];
         let lhs_expr = lhs_data.to_expression();
 
-        let result_expr = self.acir_ir.truncate(&lhs_expr, rhs, max_bit_size)?;
+        // 2^{rhs}
+        let divisor = FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128));
+        // Computes lhs = 2^{rhs} * q + r
+        let (_, remainder) = self.acir_ir.euclidean_division(
+            &lhs_expr,
+            &Expression::from_field(divisor),
+            max_bit_size,
+            &Expression::one(),
+        )?;
 
-        Ok(self.add_data(AcirVarData::Expr(result_expr)))
+        Ok(self.add_data(AcirVarData::Expr(Expression::from(remainder))))
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
@@ -789,6 +801,7 @@ impl AcirContext {
                     Self::flatten_value(acir_vars, value);
                 }
             }
+            AcirValue::DynamicArray(_) => unreachable!("Cannot flatten a dynamic array"),
         }
     }
 
@@ -810,7 +823,7 @@ impl AcirContext {
 
     pub(crate) fn brillig(
         &mut self,
-        predicate: Option<AcirVar>,
+        predicate: AcirVar,
         code: Vec<BrilligOpcode>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
@@ -824,6 +837,11 @@ impl AcirContext {
                 for var in vars {
                     self.brillig_array_input(&mut var_expressions, var);
                 }
+                BrilligInputs::Array(var_expressions)
+            }
+            AcirValue::DynamicArray(_) => {
+                let mut var_expressions = Vec::new();
+                self.brillig_array_input(&mut var_expressions, i);
                 BrilligInputs::Array(var_expressions)
             }
         });
@@ -851,13 +869,13 @@ impl AcirContext {
                 AcirValue::Array(array_values)
             }
         });
-        let predicate = predicate.map(|var| self.vars[&var].to_expression().into_owned());
-        self.acir_ir.brillig(predicate, code, b_inputs, b_outputs);
+        let predicate = self.vars[&predicate].to_expression().into_owned();
+        self.acir_ir.brillig(Some(predicate), code, b_inputs, b_outputs);
 
         outputs_var
     }
 
-    fn brillig_array_input(&self, var_expressions: &mut Vec<Expression>, input: AcirValue) {
+    fn brillig_array_input(&mut self, var_expressions: &mut Vec<Expression>, input: AcirValue) {
         match input {
             AcirValue::Var(var, _) => {
                 var_expressions.push(self.vars[&var].to_expression().into_owned());
@@ -865,6 +883,24 @@ impl AcirContext {
             AcirValue::Array(vars) => {
                 for var in vars {
                     self.brillig_array_input(var_expressions, var);
+                }
+            }
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+                for i in 0..len {
+                    // We generate witnesses corresponding to the array values
+                    let index = AcirValue::Var(
+                        self.add_constant(FieldElement::from(i as u128)),
+                        AcirType::NumericType(NumericType::NativeField),
+                    );
+                    let index_var = index.into_var();
+
+                    let value_read_var = self.read_from_memory(block_id, &index_var);
+                    let value_read = AcirValue::Var(
+                        value_read_var,
+                        AcirType::NumericType(NumericType::NativeField),
+                    );
+
+                    self.brillig_array_input(var_expressions, value_read);
                 }
             }
         }
@@ -901,6 +937,11 @@ impl AcirContext {
 
         Ok(outputs_var)
     }
+    /// Converts an AcirVar to a Witness
+    fn var_to_witness(&mut self, var: AcirVar) -> Witness {
+        let var_data = self.vars.get(&var).expect("ICE: undeclared AcirVar");
+        self.acir_ir.get_or_create_witness(&var_data.to_expression())
+    }
 
     /// Constrain lhs to be less than rhs
     fn less_than_constrain(
@@ -912,6 +953,72 @@ impl AcirContext {
     ) -> Result<(), AcirGenError> {
         let lhs_less_than_rhs = self.more_than_eq_var(rhs, lhs, bit_size, predicate)?;
         self.maybe_eq_predicate(lhs_less_than_rhs, predicate)
+    }
+
+    /// Returns a Variable that is constrained to be the result of reading
+    /// from the memory `block_id` at the given `index`.
+    pub(crate) fn read_from_memory(&mut self, block_id: BlockId, index: &AcirVar) -> AcirVar {
+        // Fetch the witness corresponding to the index
+        let index_witness = self.var_to_witness(*index);
+
+        // Create a Variable to hold the result of the read and extract the corresponding Witness
+        let value_read_var = self.add_variable();
+        let value_read_witness = self.var_to_witness(value_read_var);
+
+        // Add the memory read operation to the list of opcodes
+        let read_op = Expression::zero();
+        let op = MemOp {
+            operation: read_op,
+            index: index_witness.into(),
+            value: value_read_witness.into(),
+        };
+        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+
+        value_read_var
+    }
+
+    /// Constrains the Variable `value` to be the new value located at `index` in the memory `block_id`.
+    pub(crate) fn write_to_memory(&mut self, block_id: BlockId, index: &AcirVar, value: &AcirVar) {
+        // Fetch the witness corresponding to the index
+        //
+        let index_witness = self.var_to_witness(*index);
+
+        // Fetch the witness corresponding to the value to be written
+        let value_write_witness = self.var_to_witness(*value);
+
+        // Add the memory write operation to the list of opcodes
+        let write_op = Expression::one();
+        let op = MemOp {
+            operation: write_op,
+            index: index_witness.into(),
+            value: value_write_witness.into(),
+        };
+        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+    }
+
+    /// Initializes an array in memory with the given values `optional_values`.
+    /// If `optional_values` is empty, then the array is initialized with zeros.
+    pub(crate) fn initialize_array(
+        &mut self,
+        block_id: BlockId,
+        len: usize,
+        optional_values: Option<&[AcirValue]>,
+    ) {
+        // If the optional values are supplied, then we fill the initialized
+        // array with those values. If not, then we fill it with zeros.
+        let initialized_values = match optional_values {
+            None => {
+                let zero = self.add_constant(FieldElement::zero());
+                let zero_witness = self.var_to_witness(zero);
+                vec![zero_witness; len]
+            }
+            Some(optional_values) => vecmap(optional_values, |value| {
+                let value = value.clone().into_var();
+                self.var_to_witness(value)
+            }),
+        };
+
+        self.acir_ir.opcodes.push(Opcode::MemoryInit { block_id, init: initialized_values });
     }
 }
 

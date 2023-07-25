@@ -87,16 +87,35 @@ impl Context {
         &self,
         crate_id: &CrateId,
         pattern: &str,
-    ) -> Vec<FuncId> {
+    ) -> Vec<(String, FuncId)> {
         let interner = &self.def_interner;
-        self.def_map(crate_id)
-            .expect("The local crate should be analyzed already")
+        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
+
+        def_map
             .get_all_test_functions(interner)
-            .filter_map(|id| interner.function_name(&id).contains(pattern).then_some(id))
+            .filter_map(|id| {
+                let name = interner.function_name(&id);
+
+                let meta = interner.function_meta(&id);
+                let module = self.module(meta.module_id);
+
+                let parent = def_map.get_module_path_with_separator(
+                    meta.module_id.local_id.0,
+                    module.parent,
+                    "::",
+                );
+                let path =
+                    if parent.is_empty() { name.into() } else { format!("{parent}::{name}") };
+
+                path.contains(pattern).then_some((path, id))
+            })
             .collect()
     }
 
-    pub fn get_all_test_functions_in_workspace_matching(&self, pattern: &str) -> Vec<FuncId> {
+    pub fn get_all_test_functions_in_workspace_matching(
+        &self,
+        pattern: &str,
+    ) -> Vec<(String, FuncId)> {
         let mut tests = Vec::new();
 
         for crate_id in self.crate_graph.iter_keys() {
