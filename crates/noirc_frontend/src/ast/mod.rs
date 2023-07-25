@@ -103,7 +103,7 @@ impl std::fmt::Display for UnresolvedType {
             Expression(expression) => expression.fmt(f),
             Bool(is_const) => write!(f, "{is_const}bool"),
             String(len) => match len {
-                None => write!(f, "str<>"),
+                None => write!(f, "str<_>"),
                 Some(len) => write!(f, "str<{len}>"),
             },
             FormatString(len, elements) => {
