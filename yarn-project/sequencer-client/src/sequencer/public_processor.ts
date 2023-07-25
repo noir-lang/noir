@@ -209,7 +209,7 @@ export class PublicProcessor {
 
     return PublicCircuitPublicInputs.from({
       callContext: result.execution.callContext,
-      proverAddress: AztecAddress.random(),
+      proverAddress: AztecAddress.ZERO,
       argsHash: await computeVarArgsHash(wasm, result.execution.args),
       newCommitments: padArrayEnd(result.newCommitments, Fr.ZERO, MAX_NEW_COMMITMENTS_PER_CALL),
       newNullifiers: padArrayEnd(result.newNullifiers, Fr.ZERO, MAX_NEW_NULLIFIERS_PER_CALL),

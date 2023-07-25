@@ -77,7 +77,7 @@ template <typename NCT> struct FunctionData {
             fr(is_constructor),
         };
 
-        return NCT::compress(inputs, GeneratorIndex::FUNCTION_DATA);
+        return NCT::hash(inputs, GeneratorIndex::FUNCTION_DATA);
     }
 };
 

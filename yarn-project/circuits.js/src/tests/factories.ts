@@ -499,12 +499,6 @@ export async function makePublicCallData(seed = 1, full = false): Promise<Public
     fr(seed + 1),
     fr(seed + 2),
   );
-  // publicCallStack should be a hash of the preimages:
-  const wasm = await CircuitsWasm.get();
-  publicCallData.callStackItem.publicInputs.publicCallStack = mapTuple(
-    publicCallData.publicCallStackPreimages,
-    preimage => computeCallStackItemHash(wasm!, preimage),
-  );
 
   // one kernel circuit call can have several methods in call stack. But all of them should have the same msg.sender - set these correctly in the preimages!
   for (let i = 0; i < publicCallData.publicCallStackPreimages.length; i++) {
@@ -521,6 +515,13 @@ export async function makePublicCallData(seed = 1, full = false): Promise<Public
       ? publicCallData.callStackItem.publicInputs.callContext.storageContractAddress
       : publicCallData.publicCallStackPreimages[i].contractAddress;
   }
+
+  // publicCallStack should be a hash of the preimages:
+  const wasm = await CircuitsWasm.get();
+  publicCallData.callStackItem.publicInputs.publicCallStack = mapTuple(
+    publicCallData.publicCallStackPreimages,
+    preimage => computeCallStackItemHash(wasm!, preimage),
+  );
 
   return publicCallData;
 }
@@ -553,15 +554,20 @@ export async function makePublicKernelInputs(seed = 1): Promise<PublicKernelInpu
 /**
  * Makes arbitrary public kernel inputs with empty output.
  * @param seed - The seed to use for generating the public kernel inputs.
+ * @param tweak - An optional function to tweak the output before computing hashes.
  * @returns Public kernel inputs.
  */
-export async function makePublicKernelInputsWithEmptyOutput(seed = 1): Promise<PublicKernelInputs> {
+export async function makePublicKernelInputsWithEmptyOutput(
+  seed = 1,
+  tweak?: (publicKernelInputs: PublicKernelInputs) => void,
+): Promise<PublicKernelInputs> {
   const kernelCircuitPublicInputs = makeEmptyKernelPublicInputs(seed);
   const publicKernelInputs = new PublicKernelInputs(
     makePreviousKernelData(seed, kernelCircuitPublicInputs),
     await makePublicCallData(seed + 0x1000),
   );
-  //Set the call stack item for this circuit iteration at the top of the call stack
+  if (tweak) tweak(publicKernelInputs);
+  // Set the call stack item for this circuit iteration at the top of the call stack
   const wasm = await CircuitsWasm.get();
   publicKernelInputs.previousKernel.publicInputs.end.publicCallStack[MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX - 1] =
     computeCallStackItemHash(wasm, publicKernelInputs.publicCall.callStackItem);

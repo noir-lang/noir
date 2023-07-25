@@ -76,7 +76,7 @@ template <typename NCT, template <class> typename PrivatePublic> struct CallStac
         };
 
         // NOLINTNEXTLINE(misc-const-correctness)
-        fr call_stack_item_hash = NCT::compress(inputs, GeneratorIndex::CALL_STACK_ITEM);
+        fr call_stack_item_hash = NCT::hash(inputs, GeneratorIndex::CALL_STACK_ITEM);
 
         return call_stack_item_hash;
     }

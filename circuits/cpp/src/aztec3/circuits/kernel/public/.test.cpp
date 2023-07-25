@@ -666,6 +666,9 @@ TEST(public_kernel_tests, incorrect_storage_contract_address_fails_for_regular_c
             NT::fr(inputs.public_call.public_call_stack_preimages[i].contract_address) + 1;
         inputs.public_call.public_call_stack_preimages[i].public_inputs.call_context.storage_contract_address =
             new_contract_address;
+        // update the call stack item hash after the change in the preimage
+        inputs.public_call.call_stack_item.public_inputs.public_call_stack[i] =
+            inputs.public_call.public_call_stack_preimages[i].hash();
         auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
         ASSERT_TRUE(dummyBuilder.failed());
         ASSERT_EQ(dummyBuilder.get_first_failure().code,
@@ -683,6 +686,9 @@ TEST(public_kernel_tests, incorrect_msg_sender_fails_for_regular_calls)
         const auto new_msg_sender = inputs.public_call.public_call_stack_preimages[i].contract_address;
         // change the storage contract address so it does not equal the contract address
         inputs.public_call.public_call_stack_preimages[i].public_inputs.call_context.msg_sender = new_msg_sender;
+        // update the call stack item hash after the change in the preimage
+        inputs.public_call.call_stack_item.public_inputs.public_call_stack[i] =
+            inputs.public_call.public_call_stack_preimages[i].hash();
         auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
         ASSERT_TRUE(dummyBuilder.failed());
         ASSERT_EQ(dummyBuilder.get_first_failure().code,
@@ -701,14 +707,12 @@ TEST(public_kernel_tests, public_kernel_circuit_succeeds_for_mixture_of_regular_
     const auto contract_portal_address = NT::fr(inputs.public_call.portal_contract_address);
 
     // redefine the child calls/stacks to use some delegate calls
-    std::array<PublicCallStackItem, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> child_call_stacks;
     NT::uint32 const seed = 1000;
     NT::fr child_contract_address = 100000;
     NT::fr child_portal_contract_address = 200000;
     NT::boolean is_delegate_call = false;
-    std::array<NT::fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL> call_stack_hashes{};
     for (size_t i = 0; i < MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL; i++) {
-        child_call_stacks[i] =
+        inputs.public_call.public_call_stack_preimages[i] =
             // NOLINTNEXTLINE(readability-suspicious-call-argument)
             generate_call_stack_item(child_contract_address,
                                      is_delegate_call ? origin_msg_sender : contract_address,
@@ -716,16 +720,21 @@ TEST(public_kernel_tests, public_kernel_circuit_succeeds_for_mixture_of_regular_
                                      is_delegate_call ? contract_portal_address : child_portal_contract_address,
                                      is_delegate_call,
                                      seed);
-        call_stack_hashes[i] = child_call_stacks[i].hash();
+        inputs.public_call.call_stack_item.public_inputs.public_call_stack[i] =
+            inputs.public_call.public_call_stack_preimages[i].hash();
 
         // change the next call type
         is_delegate_call = !is_delegate_call;
         child_contract_address++;
         child_portal_contract_address++;
     }
-    inputs.public_call.call_stack_item.public_inputs.public_call_stack = call_stack_hashes;
-    inputs.public_call.public_call_stack_preimages = child_call_stacks;
+
+    // we update the hash of the current call stack item in the previous kernel,
+    // since we modified the hash of the nested calls, which changes the hash of the parent item
+    inputs.previous_kernel.public_inputs.end.public_call_stack[0] = inputs.public_call.call_stack_item.hash();
+
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
+    ASSERT_EQ(dummyBuilder.get_first_failure(), utils::CircuitError::no_error());
     ASSERT_FALSE(dummyBuilder.failed());
 }
 

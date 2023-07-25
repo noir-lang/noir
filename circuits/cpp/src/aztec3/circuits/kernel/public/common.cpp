@@ -66,6 +66,6 @@ void validate_this_public_call_hash(DummyBuilder& builder,
                ") does not match provided public_call_hash (",
                popped_public_call_hash,
                ") at the top of the call stack"),
-        CircuitErrorCode::PUBLIC_KERNEL__CALCULATED_PRIVATE_CALL_HASH_AND_PROVIDED_PRIVATE_CALL_HASH_MISMATCH);
+        CircuitErrorCode::PUBLIC_KERNEL__CALCULATED_PUBLIC_CALL_HASH_AND_PROVIDED_PUBLIC_CALL_HASH_MISMATCH);
 };
 }  // namespace aztec3::circuits::kernel::public_kernel

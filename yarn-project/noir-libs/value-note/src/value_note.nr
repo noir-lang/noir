@@ -64,6 +64,7 @@ impl ValueNote {
             let siloed_note_hash = compute_siloed_note_hash(ValueNoteInterface, self);
             let owner_nullifying_public_key = get_public_key(self.owner);
             // TODO: get_secret_key should just accept an address
+            // TODO!
             let secret = get_secret_key(owner_nullifying_public_key);
             dep::std::hash::pedersen([
                 siloed_note_hash,

@@ -12,6 +12,7 @@ import {
   TxContext,
 } from '@aztec/circuits.js';
 import {
+  computeCallStackItemHash,
   computeCommitmentNonce,
   computeContractAddressFromPartial,
   computeSecretMessageHash,
@@ -516,22 +517,28 @@ describe('Private Execution test suite', () => {
         args,
       });
 
-      expect(result.enqueuedPublicFunctionCalls).toHaveLength(1);
-      expect(result.enqueuedPublicFunctionCalls[0]).toEqual(
-        PublicCallRequest.from({
-          contractAddress: childAddress,
-          functionData: new FunctionData(childSelector, false, false),
-          args: [new Fr(42n)],
-          callContext: CallContext.from({
-            msgSender: parentAddress,
-            storageContractAddress: childAddress,
-            portalContractAddress: childPortalContractAddress,
-            isContractDeployment: false,
-            isDelegateCall: false,
-            isStaticCall: false,
-          }),
+      const publicCallRequest = PublicCallRequest.from({
+        contractAddress: childAddress,
+        functionData: new FunctionData(childSelector, false, false),
+        args: [new Fr(42n)],
+        callContext: CallContext.from({
+          msgSender: parentAddress,
+          storageContractAddress: childAddress,
+          portalContractAddress: childPortalContractAddress,
+          isContractDeployment: false,
+          isDelegateCall: false,
+          isStaticCall: false,
         }),
+      });
+
+      const publicCallRequestHash = computeCallStackItemHash(
+        await CircuitsWasm.get(),
+        await publicCallRequest.toPublicCallStackItem(),
       );
+
+      expect(result.enqueuedPublicFunctionCalls).toHaveLength(1);
+      expect(result.enqueuedPublicFunctionCalls[0]).toEqual(publicCallRequest);
+      expect(result.callStackItem.publicInputs.publicCallStack[0]).toEqual(publicCallRequestHash);
     });
   });
 

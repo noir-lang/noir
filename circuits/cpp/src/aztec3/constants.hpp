@@ -232,6 +232,12 @@ constexpr size_t PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH =
     NUM_FIELDS_PER_SHA256 + 1 +         // + 1 for unencrypted logs preimage length
     COMMITMENT_TREES_ROOTS_LENGTH + 2;  // + 2 for chain_id and version
 
+constexpr size_t PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH =
+    2 + RETURN_VALUES_LENGTH +  // + 1 for args_hash + 1 call_context.hash
+    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL + MAX_PUBLIC_DATA_READS_PER_CALL + MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL +
+    MAX_NEW_COMMITMENTS_PER_CALL + MAX_NEW_NULLIFIERS_PER_CALL + MAX_NEW_L2_TO_L1_MSGS_PER_CALL + 5;
+
+
 // Size of the return value of a private function call,
 constexpr size_t CALL_PRIVATE_FUNCTION_RETURN_SIZE =
     1 + FUNCTION_DATA_LENGTH + PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH + 1;

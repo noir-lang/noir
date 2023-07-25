@@ -76,7 +76,7 @@ template <typename NCT> struct CallContext {
             fr(is_static_call),    fr(is_contract_deployment),
         };
 
-        return NCT::compress(inputs, GeneratorIndex::CALL_CONTEXT);
+        return NCT::hash(inputs, GeneratorIndex::CALL_CONTEXT);
     }
 
     template <typename Builder> void assert_is_zero()

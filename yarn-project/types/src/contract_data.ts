@@ -144,8 +144,6 @@ export class ContractPublicData {
    */
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    // const aztecAddr = AztecAddress.fromBuffer(reader);
-    // const ethAddr = new EthAddress(reader.readBytes(EthAddress.SIZE_IN_BYTES));
     const contractData = reader.readObject(ContractData);
     const publicFns = reader.readVector(EncodedContractFunction);
     return new ContractPublicData(contractData, publicFns);
@@ -192,7 +190,7 @@ export class ContractData {
    * @returns Encoded buffer.
    */
   public toBuffer(): Buffer {
-    return serializeToBuffer(this.contractAddress, this.portalContractAddress.toBuffer());
+    return serializeToBuffer(this.contractAddress, this.portalContractAddress.toBuffer20());
   }
 
   /**

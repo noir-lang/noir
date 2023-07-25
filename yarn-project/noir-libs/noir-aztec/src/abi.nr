@@ -17,7 +17,15 @@ use crate::constants_gen::{
     CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH,
     CONTRACT_STORAGE_READ_LENGTH,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
+    PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
+    GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,
+    GENERATOR_INDEX__FUNCTION_DATA,
+    GENERATOR_INDEX__PUBLIC_DATA_READ,
+    GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST,
+    GENERATOR_INDEX__CALL_CONTEXT,
 };
+
+use crate::oracle::debug_log;
 use crate::types::vec::BoundedVec;
 use crate::types::point::Point;
 
@@ -62,8 +70,7 @@ impl CallContext {
     }
 
     fn hash(self) -> Field {
-        // TODO hash_index
-        dep::std::hash::pedersen(self.serialize())[0]
+        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__CALL_CONTEXT)[0]
     }
 }
 
@@ -143,12 +150,11 @@ struct FunctionData {
 
 impl FunctionData {
     fn hash(self) -> Field {
-        dep::std::hash::pedersen([
-            // TODO hash_index
+        dep::std::hash::pedersen_with_separator([
             self.function_selector,
             self.is_private as Field,
             self.is_constructor as Field,
-        ])[0]
+        ], GENERATOR_INDEX__FUNCTION_DATA)[0]
     }
 }
 
@@ -218,6 +224,10 @@ impl ContractStorageRead {
     fn serialize(self) -> [Field; CONTRACT_STORAGE_READ_LENGTH] {
         [self.storage_slot, self.value]
     }
+
+    fn hash(self) -> Field {
+        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_DATA_READ)[0]
+    }
 }
 
 struct ContractStorageUpdateRequest {
@@ -229,6 +239,10 @@ struct ContractStorageUpdateRequest {
 impl ContractStorageUpdateRequest {
     fn serialize(self) -> [Field; CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH] {
         [self.storage_slot, self.old_value, self.new_value]
+    }
+
+    fn hash(self) -> Field {
+        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST)[0]
     }
 }
 
@@ -249,15 +263,38 @@ struct PublicCircuitPublicInputs {
     new_l2_to_l1_msgs: [Field; crate::abi::MAX_NEW_L2_TO_L1_MSGS_PER_CALL],
     unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
     unencrypted_log_preimages_length: Field,
-    commitment_trees_roots: CommitmentTreesRoots,
+    commitment_trees_roots: CommitmentTreesRoots, // TODO: This is not present in cpp or ts, do we need to include it?
     historic_public_data_tree_root: Field,
     prover_address: Field,
 }
 
 impl PublicCircuitPublicInputs {
-    // TODO hash_index
+    
     fn hash(self) -> Field {
-        dep::std::hash::pedersen(self.serialize())[0]
+        let mut inputs: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0);
+        inputs = inputs.push(self.call_context.hash());
+        inputs = inputs.push(self.args_hash);
+        inputs = inputs.push_array(self.return_values);
+        for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
+            inputs = inputs.push(self.contract_storage_update_requests[i].hash());
+        }
+        for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
+            inputs = inputs.push(self.contract_storage_read[i].hash());
+        }
+        inputs = inputs.push_array(self.public_call_stack);
+        inputs = inputs.push_array(self.new_commitments);
+        inputs = inputs.push_array(self.new_nullifiers);
+        inputs = inputs.push_array(self.new_l2_to_l1_msgs);
+
+        // We do not include commitment_trees_roots since it's not in the cpp hash
+        // inputs = inputs.push(self.commitment_trees_roots.hash());
+
+        inputs = inputs.push_array(self.unencrypted_logs_hash);
+        inputs = inputs.push(self.unencrypted_log_preimages_length);
+        inputs = inputs.push(self.historic_public_data_tree_root);
+        inputs = inputs.push(self.prover_address);
+
+        dep::std::hash::pedersen_with_separator(inputs.storage, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)[0]
     }
 
     fn serialize(self) -> [Field; PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH] {

@@ -104,9 +104,7 @@ template <typename NCT> struct PublicCircuitPublicInputs {
 
         std::vector<fr> inputs;
 
-        // NOTE: we omit the call_context from this hash function, and instead hash it within CallStackItem, for
-        // efficiency, so that fewer hashes are needed to 'unwrap' the call_context in the kernel circuit.
-        // inputs.push_back(call_context.hash());
+        inputs.push_back(call_context.hash());
 
         inputs.push_back(args_hash);
         spread_arr_into_vec(return_values, inputs);
@@ -120,12 +118,12 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         spread_arr_into_vec(new_l2_to_l1_msgs, inputs);
 
         spread_arr_into_vec(unencrypted_logs_hash, inputs);
-
         inputs.push_back(unencrypted_log_preimages_length);
 
         inputs.push_back(historic_public_data_tree_root);
+        inputs.push_back(prover_address);
 
-        return NCT::compress(inputs, GeneratorIndex::PUBLIC_CIRCUIT_PUBLIC_INPUTS);
+        return NCT::hash(inputs, GeneratorIndex::PUBLIC_CIRCUIT_PUBLIC_INPUTS);
     }
 
     template <size_t SIZE> void spread_arr_into_vec(std::array<fr, SIZE> const& arr, std::vector<fr>& vec) const

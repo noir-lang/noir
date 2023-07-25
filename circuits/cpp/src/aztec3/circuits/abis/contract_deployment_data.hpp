@@ -98,7 +98,7 @@ template <typename NCT> struct ContractDeploymentData {
             function_tree_root,    contract_address_salt, portal_contract_address.to_field(),
         };
 
-        return NCT::compress(inputs, GeneratorIndex::CONTRACT_DEPLOYMENT_DATA);
+        return NCT::hash(inputs, GeneratorIndex::CONTRACT_DEPLOYMENT_DATA);
     }
 };
 

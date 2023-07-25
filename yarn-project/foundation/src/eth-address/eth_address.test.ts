@@ -8,7 +8,7 @@ describe('address', () => {
 
   it('should return correct buffer', () => {
     const address = EthAddress.fromString('0xc6d9d2cd449a754c494264e1809c50e34d64562b');
-    expect(address.toBuffer()).toEqual(Buffer.from('c6d9d2cD449A754c494264e1809c50e34D64562b', 'hex'));
+    expect(address.toBuffer20()).toEqual(Buffer.from('c6d9d2cD449A754c494264e1809c50e34D64562b', 'hex'));
   });
 
   it('should return correct 32 byte buffer', () => {
@@ -30,6 +30,16 @@ describe('address', () => {
 
   it('should have correct zero address', () => {
     expect(EthAddress.ZERO.toString()).toBe('0x0000000000000000000000000000000000000000');
+  });
+
+  it('should check if is zero', () => {
+    const zero = EthAddress.fromString('0x0000000000000000000000000000000000000000');
+    expect(zero.isZero()).toBeTruthy();
+  });
+
+  it('should encode and decode as field', () => {
+    const address = EthAddress.fromString('0xc6d9d2cd449a754c494264e1809c50e34d64562b');
+    expect(EthAddress.fromField(address.toField())).toEqual(address);
   });
 
   describe('isAddress', () => {

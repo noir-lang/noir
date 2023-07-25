@@ -1,17 +1,13 @@
 import {
   CallContext,
-  CircuitsWasm,
   ContractDeploymentData,
   FunctionData,
-  MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   PrivateCallStackItem,
   PublicCallRequest,
 } from '@aztec/circuits.js';
-import { computeCallStackItemHash } from '@aztec/circuits.js/abis';
 import { Curve } from '@aztec/circuits.js/barretenberg';
 import { FunctionAbi, decodeReturnValues } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
@@ -177,8 +173,6 @@ export class PrivateFunctionExecution {
 
     const publicInputs = extractPublicInputs(partialWitness, acir);
 
-    const wasm = await CircuitsWasm.get();
-
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165) --> set this in Noir
     publicInputs.encryptedLogsHash = to2Fields(encryptedLogs.hash());
     publicInputs.encryptedLogPreimagesLength = new Fr(encryptedLogs.getSerializedLength());
@@ -187,15 +181,6 @@ export class PrivateFunctionExecution {
 
     const callStackItem = new PrivateCallStackItem(this.contractAddress, this.functionData, publicInputs);
     const returnValues = decodeReturnValues(this.abi, publicInputs.returnValues);
-
-    // TODO(#499): Noir fails to compute the enqueued calls preimages properly, since it cannot use pedersen generators, so we patch those values here.
-    const publicCallStackItems = await Promise.all(enqueuedPublicFunctionCalls.map(c => c.toPublicCallStackItem()));
-    const publicStack = await Promise.all(publicCallStackItems.map(c => computeCallStackItemHash(wasm, c)));
-    callStackItem.publicInputs.publicCallStack = padArrayEnd(
-      publicStack,
-      Fr.ZERO,
-      MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
-    );
 
     this.log(`Returning from call to ${this.contractAddress.toString()}:${selector}`);
 

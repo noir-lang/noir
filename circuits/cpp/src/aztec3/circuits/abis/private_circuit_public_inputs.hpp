@@ -198,7 +198,7 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         inputs.push_back(chain_id);
         inputs.push_back(version);
 
-        return NCT::compress(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
+        return NCT::hash(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
     }
 
     template <size_t SIZE> void spread_arr_into_vec(std::array<fr, SIZE> const& arr, std::vector<fr>& vec) const

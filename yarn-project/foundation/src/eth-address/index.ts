@@ -149,7 +149,7 @@ export class EthAddress {
    * @returns A boolean value indicating whether the two instances are equal (true) or not (false).
    */
   public equals(rhs: EthAddress) {
-    return this.buffer.equals(rhs.toBuffer());
+    return this.buffer.equals(rhs.buffer);
   }
 
   /**
@@ -175,13 +175,21 @@ export class EthAddress {
   }
 
   /**
+   * Alias for toBuffer32.
+   * @returns A 32-byte Buffer containing the padded Ethereum address.
+   */
+  public toBuffer() {
+    return this.toBuffer32();
+  }
+
+  /**
    * Returns the internal Buffer representation of the Ethereum address.
    * This method is useful when working with raw binary data or when
    * integrating with other modules that require a Buffer as input.
    *
    * @returns A Buffer instance containing the 20-byte Ethereum address.
    */
-  public toBuffer() {
+  public toBuffer20() {
     return this.buffer;
   }
 
