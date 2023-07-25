@@ -1,4 +1,4 @@
-use acvm::acir::circuit::OpcodeLabel;
+use acvm::acir::circuit::{Opcode, OpcodeLabel};
 use acvm::{acir::circuit::Circuit, Backend};
 use iter_extended::try_vecmap;
 use iter_extended::vecmap;
@@ -129,8 +129,9 @@ pub(crate) fn compile_circuit<B: Backend>(
     let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
 
     // Apply backend specific optimizations.
-    let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit)
+    let (mut optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit)
         .expect("Backend does not support an opcode that is in the IR");
+    optimized_circuit.opcodes = optimized_circuit.opcodes[0..13].to_vec();
 
     program.circuit = optimized_circuit;
     let opcode_ids = vecmap(opcode_labels, |label| match label {
