@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use acvm::brillig_vm::brillig::{HeapArray, HeapVector, RegisterIndex, RegisterOrMemory};
+use iter_extended::vecmap;
 
 use crate::{
     brillig::brillig_ir::{
@@ -139,18 +140,31 @@ impl FunctionContext {
         function_id.to_string()
     }
 
+    fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
+        match typ {
+            Type::Numeric(_) | Type::Reference => BrilligParameter::Simple,
+            Type::Array(item_type, size) => BrilligParameter::Array(
+                vecmap(item_type.iter(), |item_typ| {
+                    FunctionContext::ssa_type_to_parameter(item_typ)
+                }),
+                *size,
+            ),
+            Type::Slice(item_type) => {
+                BrilligParameter::Slice(vecmap(item_type.iter(), |item_typ| {
+                    FunctionContext::ssa_type_to_parameter(item_typ)
+                }))
+            }
+            _ => unimplemented!("Unsupported function parameter/return type {typ:?}"),
+        }
+    }
+
     /// Collects the parameters of a given function
     pub(crate) fn parameters(func: &Function) -> Vec<BrilligParameter> {
         func.parameters()
             .iter()
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
-                match typ {
-                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
-                    Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
-                    Type::Slice(_) => BrilligParameter::HeapVector,
-                    _ => unimplemented!("Unsupported function parameter type {typ:?}"),
-                }
+                FunctionContext::ssa_type_to_parameter(&typ)
             })
             .collect()
     }
@@ -161,12 +175,7 @@ impl FunctionContext {
             .iter()
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
-                match typ {
-                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
-                    Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
-                    Type::Slice(_) => BrilligParameter::HeapVector,
-                    _ => unimplemented!("Unsupported return value type {typ:?}"),
-                }
+                FunctionContext::ssa_type_to_parameter(&typ)
             })
             .collect()
     }
@@ -175,16 +184,4 @@ impl FunctionContext {
 /// Computes the length of an array. This will match with the indexes that SSA will issue
 pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
     item_typ.len() * elem_count
-}
-
-/// Finds out the total size in values of a given SSA type
-pub(crate) fn compute_size_of_type(typ: &Type) -> usize {
-    match typ {
-        Type::Numeric(_) => 1,
-        Type::Array(types, item_count) => {
-            let item_size: usize = types.iter().map(compute_size_of_type).sum();
-            item_size * item_count
-        }
-        _ => todo!("ICE: Type not supported {typ:?}"),
-    }
 }

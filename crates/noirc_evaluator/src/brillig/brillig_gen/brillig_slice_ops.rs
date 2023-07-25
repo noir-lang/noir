@@ -226,7 +226,7 @@ mod tests {
         slice_insert_operation, slice_pop_back_operation, slice_pop_front_operation,
         slice_push_back_operation, slice_push_front_operation, slice_remove_operation,
     };
-    use crate::brillig::brillig_ir::artifact::{BrilligArtifact, BrilligParameter};
+    use crate::brillig::brillig_ir::artifact::BrilligParameter;
     use crate::brillig::brillig_ir::BrilligContext;
 
     struct DummyBlackBoxSolver;
@@ -256,11 +256,8 @@ mod tests {
         }
     }
 
-    fn create_context(
-        arguments: Vec<BrilligParameter>,
-        returns: Vec<BrilligParameter>,
-    ) -> BrilligContext {
-        let mut context = BrilligContext::new(arguments, returns, true);
+    fn create_context() -> BrilligContext {
+        let mut context = BrilligContext::new(true);
         context.enter_context("test");
         context
     }
@@ -272,7 +269,7 @@ mod tests {
     ) -> Vec<Opcode> {
         let artifact = context.artifact();
         let mut entry_point_artifact =
-            BrilligArtifact::new_entry_point_artifact(arguments, returns, "test".to_string());
+            BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
         entry_point_artifact.link_with(&artifact);
         entry_point_artifact.finish()
     }
@@ -305,12 +302,16 @@ mod tests {
             expected_mem: Vec<Value>,
             item_to_push: Value,
         ) {
-            let arguments =
-                vec![BrilligParameter::HeapArray(array.len()), BrilligParameter::Register];
-            let returns =
-                vec![BrilligParameter::HeapArray(array.len() + 1), BrilligParameter::Register];
+            let arguments = vec![
+                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len()),
+                BrilligParameter::Simple,
+            ];
+            let returns = vec![
+                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() + 1),
+                BrilligParameter::Simple,
+            ];
 
-            let mut context = create_context(arguments.clone(), returns.clone());
+            let mut context = create_context();
 
             // Allocate the parameters
             let array_pointer = context.allocate_register();
@@ -395,14 +396,15 @@ mod tests {
             expected_mem: Vec<Value>,
             expected_removed_item: Value,
         ) {
-            let arguments = vec![BrilligParameter::HeapArray(array.len())];
+            let arguments =
+                vec![BrilligParameter::Array(vec![BrilligParameter::Simple], array.len())];
             let returns = vec![
-                BrilligParameter::HeapArray(array.len() - 1),
-                BrilligParameter::Register,
-                BrilligParameter::Register,
+                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() - 1),
+                BrilligParameter::Simple,
+                BrilligParameter::Simple,
             ];
 
-            let mut context = create_context(arguments.clone(), returns.clone());
+            let mut context = create_context();
 
             // Allocate the parameters
             let array_pointer = context.allocate_register();
@@ -490,14 +492,16 @@ mod tests {
             index: Value,
         ) {
             let arguments = vec![
-                BrilligParameter::HeapArray(array.len()),
-                BrilligParameter::Register,
-                BrilligParameter::Register,
+                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len()),
+                BrilligParameter::Simple,
+                BrilligParameter::Simple,
             ];
-            let returns =
-                vec![BrilligParameter::HeapArray(array.len() + 1), BrilligParameter::Register];
+            let returns = vec![
+                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() + 1),
+                BrilligParameter::Simple,
+            ];
 
-            let mut context = create_context(arguments.clone(), returns.clone());
+            let mut context = create_context();
 
             // Allocate the parameters
             let array_pointer = context.allocate_register();
@@ -609,15 +613,17 @@ mod tests {
             index: Value,
             expected_removed_item: Value,
         ) {
-            let arguments =
-                vec![BrilligParameter::HeapArray(array.len()), BrilligParameter::Register];
+            let arguments = vec![
+                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len()),
+                BrilligParameter::Simple,
+            ];
             let returns = vec![
-                BrilligParameter::HeapArray(array.len() - 1),
-                BrilligParameter::Register,
-                BrilligParameter::Register,
+                BrilligParameter::Array(vec![BrilligParameter::Simple], array.len() - 1),
+                BrilligParameter::Simple,
+                BrilligParameter::Simple,
             ];
 
-            let mut context = create_context(arguments.clone(), returns.clone());
+            let mut context = create_context();
 
             // Allocate the parameters
             let array_pointer = context.allocate_register();

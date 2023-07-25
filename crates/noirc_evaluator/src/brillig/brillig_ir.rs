@@ -8,8 +8,10 @@ pub(crate) mod artifact;
 pub(crate) mod debug_show;
 pub(crate) mod registers;
 
+mod entry_point;
+
 use self::{
-    artifact::{BrilligArtifact, BrilligParameter, UnresolvedJumpLocation},
+    artifact::{BrilligArtifact, UnresolvedJumpLocation},
     registers::BrilligRegistersContext,
 };
 use acvm::{
@@ -90,13 +92,9 @@ pub(crate) struct BrilligContext {
 
 impl BrilligContext {
     /// Initial context state
-    pub(crate) fn new(
-        arguments: Vec<BrilligParameter>,
-        return_parameters: Vec<BrilligParameter>,
-        enable_debug_trace: bool,
-    ) -> BrilligContext {
+    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext {
         BrilligContext {
-            obj: BrilligArtifact::new(arguments, return_parameters),
+            obj: BrilligArtifact::default(),
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,
@@ -1020,7 +1018,7 @@ mod tests {
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
-        let mut context = BrilligContext::new(vec![], vec![], true);
+        let mut context = BrilligContext::new(true);
         let r_stack = ReservedRegisters::stack_pointer();
         // Start stack pointer at 0
         context.const_instruction(r_stack, Value::from(0_usize));
