@@ -132,7 +132,7 @@
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, BTreeMap},
     rc::Rc,
 };
 
@@ -610,7 +610,7 @@ impl<'f> Context<'f> {
     /// this function also needs to be changed to reflect that.
     fn merge_stores(&mut self, then_branch: Branch, else_branch: Branch) {
         // Address -> (then_value, else_value, value_before_the_if)
-        let mut new_map = HashMap::with_capacity(then_branch.store_values.len());
+        let mut new_map = BTreeMap::new();
 
         for (address, store) in then_branch.store_values {
             new_map.insert(address, (store.new_value, store.old_value, store.old_value));
