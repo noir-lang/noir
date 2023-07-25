@@ -33,10 +33,11 @@ fn main(x : Field, y : pub Field) {
     let s_2 = myStruct { x: 20, y: 30 };
     std::println(f"s1: {s}, s2: {s_2}");
 
-    let foo_2 = fooStruct { my_struct: s_2, foo: 20 };
-    std::println(f"foo1: {foo}, foo2: {foo_2}");
+    let bar = fooStruct { my_struct: s_2, foo: 20 };
+    std::println(f"foo1: {foo}, foo2: {bar}");
 
-    assert(x != y);
+    let struct_string = if x != 5 { f"{foo}" } else { f"{bar}" };
+    std::println(struct_string);
 }
 
 fn string_identity(string: fmtstr<14, (Field, Field)>) -> fmtstr<14, (Field, Field)> {
