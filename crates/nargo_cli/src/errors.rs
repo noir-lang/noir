@@ -22,6 +22,9 @@ pub(crate) enum FilesystemError {
     )]
     MissingTomlFile(String, PathBuf),
 
+    #[error("Error: cannot remove file at {0:?}")]
+    CanNotRemoveFile(PathBuf),
+
     /// Input parsing error
     #[error(transparent)]
     InputParserError(#[from] InputParserError),

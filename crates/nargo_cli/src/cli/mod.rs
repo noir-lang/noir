@@ -18,6 +18,7 @@ mod lsp_cmd;
 mod new_cmd;
 mod prove_cmd;
 mod test_cmd;
+mod tomlgen_cmd;
 mod verify_cmd;
 
 const GIT_HASH: &str = env!("GIT_COMMIT");
@@ -57,6 +58,7 @@ enum NargoCommand {
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
+    Tomlgen(tomlgen_cmd::TomlgenCommand),
     Gates(gates_cmd::GatesCommand),
     Lsp(lsp_cmd::LspCommand),
 }
@@ -80,6 +82,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
+        NargoCommand::Tomlgen(args) => tomlgen_cmd::run(&backend, args, config),
         NargoCommand::Gates(args) => gates_cmd::run(&backend, args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
