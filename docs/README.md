@@ -3,7 +3,7 @@
 
 Documentation for the Aztec Network, built with docusaurus
 
-You can view the latest successful build here. https://docs.aztec.network
+You can view the latest successful build here: https://docs.aztec.network
 
 ## Files
 
