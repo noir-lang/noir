@@ -757,7 +757,6 @@ impl<'a> Resolver<'a> {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::String(_)
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_)
@@ -766,14 +765,15 @@ impl<'a> Resolver<'a> {
             | Type::NamedGeneric(_, _)
             | Type::Forall(_, _) => (),
 
-            Type::Array(length, _) => {
+            Type::Array(length, element_type) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
+                Self::find_numeric_generics_in_type(element_type, found);
             }
 
-            Type::Slice(typ) => {
-                Self::find_numeric_generics_in_type(typ, found);
+            Type::Slice(element_type) => {
+                Self::find_numeric_generics_in_type(element_type, found);
             }
 
             Type::Tuple(fields) => {
@@ -799,7 +799,15 @@ impl<'a> Resolver<'a> {
                 }
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
-            Type::FmtString(_, fields) => {
+            Type::String(length) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+            }
+            Type::FmtString(length, fields) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
                 for field in fields {
                     Self::find_numeric_generics_in_type(field, found);
                 }
