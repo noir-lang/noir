@@ -11,7 +11,9 @@ use super::{
     dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTypeAlias},
     errors::DefCollectorErrorKind,
 };
-use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
+use crate::hir::def_map::{
+    parse_file, LocalModuleId, ModuleData, ModuleDefId, ModuleId, ModuleOrigin,
+};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -116,24 +118,42 @@ impl<'a> ModCollector<'a> {
         }
     }
 
-    fn collect_trait_impls(&mut self, context: &mut Context, impls: Vec<TraitImpl>, _errors: &mut Vec<FileDiagnostic>,) {
+    fn collect_trait_impls(
+        &mut self,
+        context: &mut Context,
+        impls: Vec<TraitImpl>,
+        _errors: &mut Vec<FileDiagnostic>,
+    ) {
         for r#impl in impls {
             let mut unresolved_functions =
                 UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
+
+            let trait_name = r#impl.trait_name.clone();
+            let module = &self.def_collector.def_map.modules[self.module_id.0];
+            let p = module.find_name(&trait_name);
+            match p.types {
+                Some((module_def_id, _visibility)) => match module_def_id {
+                    ModuleDefId::TraitId(_trait_id) => {}
+                    _ => {}
+                },
+                None => {}
+            }
 
             for item in r#impl.items {
                 match item {
                     TraitImplItem::Function(noir_function) => {
                         let func_id = context.def_interner.push_empty_fn();
-                        context.def_interner.push_function_definition(noir_function.name().to_owned(), func_id);
+                        context
+                            .def_interner
+                            .push_function_definition(noir_function.name().to_owned(), func_id);
                         unresolved_functions.push_fn(self.module_id, func_id, noir_function);
                     }
                     TraitImplItem::Constant(_name, _typ, _value) => {
                         // TODO: Implement this
                     }
-                    TraitImplItem::Type { name: _, alias: _} => {
+                    TraitImplItem::Type { name: _, alias: _ } => {
                         // TODO: Implement this
-                    },
+                    }
                 }
             }
 
@@ -273,7 +293,7 @@ impl<'a> ModCollector<'a> {
                             
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateTypeDef { first_def, second_def };
+                let err = DefCollectorErrorKind::DuplicateTraitDef { first_def, second_def };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 

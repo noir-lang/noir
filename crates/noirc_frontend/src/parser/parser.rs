@@ -383,8 +383,7 @@ fn trait_body() -> impl NoirParser<Vec<TraitItem>> {
 }
 
 fn optional_default_value() -> impl NoirParser<Option<Expression>> {
-    ignore_then_commit(just(Token::Assign), expression())
-        .or_not()
+    ignore_then_commit(just(Token::Assign), expression()).or_not()
 }
 
 fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
@@ -394,8 +393,10 @@ fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
         .then_ignore(just(Token::Colon))
         .then(parse_type())
         .then(optional_default_value())
-        .validate(|((name, typ), default_value), _span, _emit| {
-            TraitItem::Constant { name, typ, default_value }
+        .validate(|((name, typ), default_value), _span, _emit| TraitItem::Constant {
+            name,
+            typ,
+            default_value,
         })
 }
 
@@ -408,25 +409,22 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
         .then(function_return_type().map(|(_, typ)| typ))
         .then(where_clause())
         .then(block(expression()).or_not())
-        .validate(|(((((name, generics), parameters), return_type), where_clause), body), span, emit| {
-            validate_where_clause(&generics, &where_clause, span, emit);
-            TraitItem::Function {
-                name,
-                generics,
-                parameters,
-                return_type,
-                where_clause,
-                body,
-            }
-        })
+        .validate(
+            |(((((name, generics), parameters), return_type), where_clause), body), span, emit| {
+                validate_where_clause(&generics, &where_clause, span, emit);
+                TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
+            },
+        )
 }
 
-fn validate_where_clause(generics: &Vec<Ident>, where_clause: &Vec<TraitConstraint>, span: Span, emit: &mut dyn FnMut(ParserError)) {
+fn validate_where_clause(
+    generics: &Vec<Ident>,
+    where_clause: &Vec<TraitConstraint>,
+    span: Span,
+    emit: &mut dyn FnMut(ParserError),
+) {
     if !where_clause.is_empty() && generics.is_empty() {
-        emit(ParserError::with_reason(
-            ParserErrorReason::WhereClauseOnNonGenericFunction,
-            span
-        ));
+        emit(ParserError::with_reason(ParserErrorReason::WhereClauseOnNonGenericFunction, span));
     }
 
     // TODO(GenericParameterNotFoundInFunction):
@@ -538,8 +536,10 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
         .then_ignore(just(Token::Colon))
         .then(ident())
         .then(generic_type_args(parse_type()))
-        .validate(|((typ, trait_name), trait_generics), _span, _emit| {
-            TraitConstraint { typ, trait_name, trait_generics }
+        .validate(|((typ, trait_name), trait_generics), _span, _emit| TraitConstraint {
+            typ,
+            trait_name,
+            trait_generics,
         });
 
     keyword(Keyword::Where)
@@ -1839,8 +1839,8 @@ mod test {
             vec![
                 "trait MissingBody",
                 "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }",
-                "trait WhereClauseWithoutGenerics where A: SomeTrait { }"
-            ]
+                "trait WhereClauseWithoutGenerics where A: SomeTrait { }",
+            ],
         );
     }
 

@@ -14,7 +14,6 @@ use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TypeAliasId, 
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, NoirTrait,
     ParsedModule, Shared, Type, TypeBinding, UnresolvedGenerics, UnresolvedType, 
-
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -375,14 +374,14 @@ fn resolve_traits(
     for (type_id, typ) in &traits {
         context.def_interner.push_empty_trait(*type_id, typ);
     }
-/*
-    for (type_id, typ) in traits {
-        let (generics, fields) = resolve_struct_fields(context, crate_id, typ, errors);
-        context.def_interner.update_trait(type_id, |struct_def| {
-            struct_def.generics = generics;
-        });
-    }
-*/
+    /*
+        for (type_id, typ) in traits {
+            let (generics, fields) = resolve_struct_fields(context, crate_id, typ, errors);
+            context.def_interner.update_trait(type_id, |struct_def| {
+                struct_def.generics = generics;
+            });
+        }
+    */
 }
 
 fn resolve_struct_fields(

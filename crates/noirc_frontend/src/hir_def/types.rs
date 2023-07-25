@@ -141,18 +141,10 @@ pub enum TraitItemType {
     },
 
     /// A constant declaration in a trait.
-    Constant {
-        name: Ident,
-        ty: Type,
-        span: Span,
-    },
+    Constant { name: Ident, ty: Type, span: Span },
 
     /// A type declaration in a trait.
-    Type {
-        name: Ident,
-        ty: Type,
-        span: Span,
-    },
+    Type { name: Ident, ty: Type, span: Span },
 }
 /// Represents a trait type in the type system. Each instance of this
 /// rust struct will be shared across all Type::Trait variants that represent
@@ -207,7 +199,7 @@ impl TraitType {
         span: Span,
         items: Vec<TraitItemType>,
         generics: Generics,
-      ) -> TraitType {
+    ) -> TraitType {
         TraitType { id, name, span, items, generics }
     }
 }

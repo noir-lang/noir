@@ -12,7 +12,9 @@ pub enum DefCollectorErrorKind {
     DuplicateFunction { first_def: Ident, second_def: Ident },
     #[error("duplicate type definition found in namespace")]
     DuplicateTypeDef { first_def: Ident, second_def: Ident },
-    #[error("duplicate function found in namespace")]
+    #[error("duplicate trait definition found in namespace")]
+    DuplicateTraitDef { first_def: Ident, second_def: Ident },
+    #[error("duplicate module found in namespace")]
     DuplicateModuleDecl { first_def: Ident, second_def: Ident },
     #[error("duplicate import")]
     DuplicateImport { first_def: Ident, second_def: Ident },
@@ -32,73 +34,55 @@ impl DefCollectorErrorKind {
     }
 }
 
+fn report_duplicate(
+    primary_message: String,
+    duplicate_type: &str,
+    first_def: Ident,
+    second_def: Ident,
+) -> Diagnostic {
+    let first_span = first_def.0.span();
+    let second_span = second_def.0.span();
+    let mut diag = Diagnostic::simple_error(
+        primary_message,
+        format!("first {} found here", duplicate_type),
+        first_span,
+    );
+    diag.add_secondary(format!("second {} found here", duplicate_type), second_span);
+    diag
+}
+
 impl From<DefCollectorErrorKind> for Diagnostic {
     fn from(error: DefCollectorErrorKind) -> Diagnostic {
         match error {
             DefCollectorErrorKind::DuplicateFunction { first_def, second_def } => {
-                let first_span = first_def.0.span();
-                let second_span = second_def.0.span();
-                let func_name = &first_def.0.contents;
-
-                let mut diag = Diagnostic::simple_error(
-                    format!("duplicate definitions of {func_name} function found"),
-                    "first definition found here".to_string(),
-                    first_span,
-                );
-                diag.add_secondary("second definition found here".to_string(), second_span);
-                diag
+                let primary_message =
+                    format!("duplicate definitions of {} function found", &first_def.0.contents);
+                report_duplicate(primary_message, "function definition", first_def, second_def)
             }
             DefCollectorErrorKind::DuplicateTypeDef { first_def, second_def } => {
-                let first_span = first_def.0.span();
-                let second_span = second_def.0.span();
-                let func_name = &first_def.0.contents;
-
-                let mut diag = Diagnostic::simple_error(
-                    format!("duplicate definitions of {func_name} type found"),
-                    "first definition found here".to_string(),
-                    first_span,
-                );
-                diag.add_secondary("second definition found here".to_string(), second_span);
-                diag
+                let primary_message =
+                    format!("duplicate definitions of {} type found", &first_def.0.contents);
+                report_duplicate(primary_message, "type definition", first_def, second_def)
+            }
+            DefCollectorErrorKind::DuplicateTraitDef { first_def, second_def } => {
+                let primary_message =
+                    format!("duplicate definitions of {} trait found", &first_def.0.contents);
+                report_duplicate(primary_message, "trait definition", first_def, second_def)
             }
             DefCollectorErrorKind::DuplicateModuleDecl { first_def, second_def } => {
-                let first_span = first_def.0.span();
-                let second_span = second_def.0.span();
-                let mod_name = &first_def.0.contents;
-
-                let mut diag = Diagnostic::simple_error(
-                    format!("module {mod_name} has been declared twice"),
-                    "first declaration found here".to_string(),
-                    first_span,
-                );
-                diag.add_secondary("second declaration found here".to_string(), second_span);
-                diag
+                let primary_message =
+                    format!("module {} has been declared twice", &first_def.0.contents);
+                report_duplicate(primary_message, "module declaration", first_def, second_def)
             }
             DefCollectorErrorKind::DuplicateImport { first_def, second_def } => {
-                let first_span = first_def.0.span();
-                let second_span = second_def.0.span();
-                let import_name = &first_def.0.contents;
-
-                let mut diag = Diagnostic::simple_error(
-                    format!("the name `{import_name}` is defined multiple times"),
-                    "first import found here".to_string(),
-                    first_span,
-                );
-                diag.add_secondary("second import found here".to_string(), second_span);
-                diag
+                let primary_message =
+                    format!("module `{}` is imported multiple times", &first_def.0.contents);
+                report_duplicate(primary_message, "import", first_def, second_def)
             }
             DefCollectorErrorKind::DuplicateGlobal { first_def, second_def } => {
-                let first_span = first_def.0.span();
-                let second_span = second_def.0.span();
-                let import_name = &first_def.0.contents;
-
-                let mut diag = Diagnostic::simple_error(
-                    format!("the name `{import_name}` is defined multiple times"),
-                    "first global declaration found here".to_string(),
-                    first_span,
-                );
-                diag.add_secondary("second global declaration found here".to_string(), second_span);
-                diag
+                let primary_message =
+                    format!("the global `{}` is defined multiple times", &first_def.0.contents);
+                report_duplicate(primary_message, "global declaration", first_def, second_def)
             }
             DefCollectorErrorKind::UnresolvedModuleDecl { mod_name } => {
                 let span = mod_name.0.span();

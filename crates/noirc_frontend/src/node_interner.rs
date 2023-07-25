@@ -666,7 +666,7 @@ impl NodeInterner {
             Type::Struct(struct_type, _generics) => {
                 let key = (struct_type.borrow().id, method_name);
                 self.struct_methods.insert(key, method_id)
-            },
+            }
             Type::Error => None,
 
             other => {

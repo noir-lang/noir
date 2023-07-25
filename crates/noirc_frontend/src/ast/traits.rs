@@ -3,7 +3,7 @@ use std::fmt::Display;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use crate::{Ident, NoirFunction, UnresolvedGenerics, UnresolvedType, Expression, BlockExpression};
+use crate::{BlockExpression, Expression, Ident, NoirFunction, UnresolvedGenerics, UnresolvedType};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -119,13 +119,7 @@ impl Display for NoirTrait {
 impl Display for TraitItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitItem::Function {
-                    name,
-                    generics,
-                    parameters,
-                    return_type,
-                    where_clause,
-                    body } => {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
                 let generics = vecmap(generics, |generic| generic.to_string());
                 let parameters = vecmap(parameters, |(name, typ)| format!("{name}: {typ}"));
                 let where_clause = vecmap(where_clause, ToString::to_string);
@@ -145,7 +139,7 @@ impl Display for TraitItem {
                 } else {
                     write!(f, ";")
                 }
-            },
+            }
             TraitItem::Constant { name, typ, default_value } => {
                 // TODO: Shall we use `comptime` or `const` here?
                 write!(f, "comptime {}: {}", name, typ)?;
@@ -155,7 +149,7 @@ impl Display for TraitItem {
                 } else {
                     write!(f, ";")
                 }
-            },
+            }
             TraitItem::Type { name } => write!(f, "type {name};"),
         }
     }
@@ -192,7 +186,9 @@ impl Display for TraitImplItem {
             TraitImplItem::Function(function) => function.fmt(f),
             TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias};"),
             // TODO: Should we use `comptime` or `const` here?
-            TraitImplItem::Constant(name, typ, value) => write!(f, "comptime {}: {} = {};", name, typ, value),
+            TraitImplItem::Constant(name, typ, value) => {
+                write!(f, "comptime {}: {} = {};", name, typ, value)
+            }
         }
     }
 }

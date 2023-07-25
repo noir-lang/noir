@@ -85,7 +85,6 @@ pub fn resolve_path_to_ns(
 ) -> PathResolution {
     let import_path = &import_directive.path.segments;
 
-
     match import_directive.path.kind {
         crate::ast::PathKind::Crate => {
             // Resolve from the root of the crate
