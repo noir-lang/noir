@@ -80,7 +80,7 @@ __metadata:
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
-    acvm_js: "github:sirasistant/acvm-simulator-wasm#32f7765a9c19d6099c2a46861dec356a075ab53c"
+    acvm_js: "github:noir-lang/acvm-simulator-wasm#f6b2c977800ad6edcab0c25edadab5ec6b3e845b"
     jest: ^29.5.0
     jest-mock-extended: ^3.0.4
     levelup: ^5.1.1
@@ -3763,10 +3763,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"acvm_js@github:sirasistant/acvm-simulator-wasm#32f7765a9c19d6099c2a46861dec356a075ab53c":
-  version: 0.0.0
-  resolution: "acvm_js@https://github.com/sirasistant/acvm-simulator-wasm.git#commit=32f7765a9c19d6099c2a46861dec356a075ab53c"
-  checksum: 6af7d13750d23dd91cd453a96e25161b424a666ac7d90a8609ffe33ec0ccfee0113d6cca6df118dc9915deb02f733874ccf90cbd657e2a99e901927fe6420323
+"acvm_js@github:noir-lang/acvm-simulator-wasm#f6b2c977800ad6edcab0c25edadab5ec6b3e845b":
+  version: 0.0.0-7f49911
+  resolution: "acvm_js@https://github.com/noir-lang/acvm-simulator-wasm.git#commit=f6b2c977800ad6edcab0c25edadab5ec6b3e845b"
+  checksum: e028891cb3870f457586d2eee6702f43afc2d5a584a3515af169609aed484e89db809f171a1c87a76484546c64a0a4772657f0bdbc5f236ba5c645f2cb168cbe
   languageName: node
   linkType: hard
 
