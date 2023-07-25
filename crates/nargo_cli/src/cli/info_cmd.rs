@@ -8,7 +8,10 @@ use crate::errors::CliError;
 
 use super::NargoConfig;
 
-/// Counts the occurrences of different gates in circuit
+/// Provides detailed informaton on a circuit
+/// Current information provided:
+/// 1. The number of ACIR opcodes
+/// 2. Counts the final number gates in the circuit used by a backend
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InfoCommand {
     #[clap(flatten)]
