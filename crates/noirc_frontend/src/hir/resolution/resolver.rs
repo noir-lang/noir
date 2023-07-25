@@ -536,8 +536,6 @@ impl<'a> Resolver<'a> {
         mut self,
         unresolved: NoirTypeAlias,
     ) -> (Type, Generics, Vec<ResolverError>) {
-        // println!("unresolved: {:?}", unresolved);
-
         let generics = self.add_generics(&unresolved.generics);
 
         self.resolve_local_globals();

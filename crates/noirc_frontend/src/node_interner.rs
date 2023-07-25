@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use arena::{Arena, Index};
 use fm::FileId;

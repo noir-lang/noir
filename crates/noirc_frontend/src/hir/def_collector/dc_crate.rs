@@ -391,11 +391,8 @@ fn resolve_type_aliases(
         extend_errors(all_errors, file, errors);
 
         context.def_interner.update_type_alias(type_id, |type_alias_def| {
-            // println!("typ: {:?}", typ);
             type_alias_def.set_type(typ);
-            // println!("generics: {:?}", generics);
             type_alias_def.generics = generics;
-            // println!("type_alias_def: {:?}", type_alias_def);
         });
     }
 }
