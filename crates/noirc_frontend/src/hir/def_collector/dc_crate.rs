@@ -375,10 +375,6 @@ fn resolve_type_aliases(
     crate_id: CrateId,
     all_errors: &mut Vec<FileDiagnostic>,
 ) {
-    for (type_id, typ) in &type_aliases {
-        context.def_interner.push_empty_type_alias(*type_id, typ);
-    }
-
     for (type_id, unresolved_typ) in type_aliases {
         let path_resolver = StandardPathResolver::new(ModuleId {
             local_id: unresolved_typ.module_id,

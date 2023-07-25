@@ -215,6 +215,10 @@ impl<'a> ModCollector<'a> {
             };
             self.def_collector.collected_type_aliases.insert(ty_alias_id, unresolved);
         }
+
+        for (type_id, typ) in &self.def_collector.collected_type_aliases {
+            context.def_interner.push_empty_type_alias(*type_id, typ);
+        }
     }
 
     fn collect_submodules(
