@@ -103,7 +103,7 @@ impl<'a> Lexer<'a> {
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
             Some('"') => Ok(self.eat_string_literal(false)),
-            Some('f') => self.eat_format_string_literal(),
+            Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
@@ -319,7 +319,7 @@ impl<'a> Lexer<'a> {
         str_literal_token.into_span(start_span, end_span)
     }
 
-    fn eat_format_string_literal(&mut self) -> SpannedTokenResult {
+    fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
         if self.peek_char_is('"') {
             self.next_char();
             Ok(self.eat_string_literal(true))

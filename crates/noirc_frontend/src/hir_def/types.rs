@@ -953,6 +953,20 @@ impl Type {
 
             (Slice(elem_a), Slice(elem_b)) => elem_a.try_unify(elem_b, span),
 
+            (String(len_a), String(len_b)) => len_a.try_unify(len_b, span),
+
+            (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
+                len_a.try_unify(len_b, span)?;
+                if elements_a.len() != elements_b.len() {
+                    Err(SpanKind::None)
+                } else {
+                    for (a, b) in elements_a.iter().zip(elements_b) {
+                        a.try_unify(b, span)?;
+                    }
+                    Ok(())
+                }
+            }
+
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
                     Err(SpanKind::None)
@@ -1090,6 +1104,20 @@ impl Type {
 
             (Array(_, elem_a), Slice(elem_b)) => elem_a.is_subtype_of(elem_b, span),
 
+            (String(len_a), String(len_b)) => len_a.is_subtype_of(len_b, span),
+
+            (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
+                len_a.is_subtype_of(len_b, span)?;
+                if elements_a.len() != elements_b.len() {
+                    Err(SpanKind::None)
+                } else {
+                    for (a, b) in elements_a.iter().zip(elements_b) {
+                        a.is_subtype_of(b, span)?;
+                    }
+                    Ok(())
+                }
+            }
+
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
                     Err(SpanKind::None)
@@ -1225,12 +1253,7 @@ impl Type {
                     .expect("Cannot have variable sized strings as a parameter to main");
                 AbiType::String { length: size }
             }
-            Type::FmtString(size, _) => {
-                let size = size
-                    .evaluate_to_u64()
-                    .expect("Cannot have variable sized strings as a parameter to main");
-                AbiType::String { length: size }
-            }
+            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Constant(_) => unreachable!(),

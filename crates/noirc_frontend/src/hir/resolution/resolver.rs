@@ -1606,7 +1606,7 @@ mod test {
     #[test]
     fn resolve_fmt_strings() {
         let src = r#"
-            fn main(x : Field) {
+            fn main() {
                 let string = f"this is i: {i}";
                 println(string);
                 
