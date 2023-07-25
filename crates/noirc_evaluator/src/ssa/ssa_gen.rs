@@ -738,7 +738,7 @@ impl IrGenerator {
 
     //Parse a block of AST statements into ssa form
     fn ssa_gen_block(&mut self, block: &[Expression]) -> Result<Value, RuntimeError> {
-        let mut last_value = Value::dummy();
+        let mut last_value = Value::Node(self.context.zero());
         for expr in block {
             last_value = self.ssa_gen_expression(expr)?;
         }

@@ -1,6 +1,6 @@
 use super::dc_mod::collect_defs;
 use super::errors::DefCollectorErrorKind;
-use crate::graph::{CrateId, LOCAL_CRATE};
+use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::resolver::Resolver;
@@ -237,10 +237,8 @@ fn collect_impls(
                         errors.push(err.into_file_diagnostic(unresolved.file_id));
                     }
                 }
-            // Prohibit defining impls for primitive types if we're in the local crate.
-            // We should really prevent it for all crates that aren't the noir stdlib but
-            // there is no way of checking if the current crate is the stdlib currently.
-            } else if typ != Type::Error && crate_id == LOCAL_CRATE {
+            // Prohibit defining impls for primitive types if we're not in the stdlib
+            } else if typ != Type::Error && !crate_id.is_stdlib() {
                 let span = *span;
                 let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
                 errors.push(error.into_file_diagnostic(unresolved.file_id));

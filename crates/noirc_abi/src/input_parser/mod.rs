@@ -1,7 +1,7 @@
-mod json;
+pub mod json;
 mod toml;
 
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
 use acvm::FieldElement;
 use serde::Serialize;
@@ -65,12 +65,6 @@ impl InputValue {
             _ => false,
         }
     }
-}
-
-/// Parses the initial Witness Values that are needed to seed the
-/// Partial Witness generator
-pub trait InitialWitnessParser {
-    fn parse_initial_witness<P: AsRef<Path>>(&self, path: P) -> BTreeMap<String, InputValue>;
 }
 
 /// The different formats that are supported when parsing

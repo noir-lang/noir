@@ -8,20 +8,23 @@ use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
-/// The local crate is the crate being compiled.
-/// The caller should ensure that this crate has a CrateId(0).
-pub const LOCAL_CRATE: CrateId = CrateId(0);
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct CrateId(usize);
+pub enum CrateId {
+    Crate(usize),
+    Stdlib(usize),
+}
 
 impl CrateId {
     pub fn dummy_id() -> CrateId {
-        CrateId(std::usize::MAX)
+        CrateId::Crate(std::usize::MAX)
+    }
+
+    pub fn is_stdlib(&self) -> bool {
+        matches!(self, CrateId::Stdlib(_))
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CrateName(SmolStr);
 
 impl CrateName {
@@ -46,12 +49,6 @@ impl CrateName {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CrateGraph {
     arena: FxHashMap<CrateId, CrateData>,
-}
-
-impl CrateGraph {
-    pub fn is_last_crate(&self, crate_id: CrateId) -> bool {
-        (self.arena.len() - 1) == crate_id.0
-    }
 }
 
 /// List of characters that are not allowed in a crate name
@@ -98,7 +95,23 @@ impl CrateGraph {
         }
 
         let data = CrateData { root_file_id: file_id, crate_type, dependencies: Vec::new() };
-        let crate_id = CrateId(self.arena.len());
+        let crate_id = CrateId::Crate(self.arena.len());
+        let prev = self.arena.insert(crate_id, data);
+        assert!(prev.is_none());
+        crate_id
+    }
+
+    pub fn add_stdlib(&mut self, crate_type: CrateType, file_id: FileId) -> CrateId {
+        let mut roots_with_file_id =
+            self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
+
+        let next_file_id = roots_with_file_id.next();
+        if let Some(file_id) = next_file_id {
+            return *file_id.0;
+        }
+
+        let data = CrateData { root_file_id: file_id, crate_type, dependencies: Vec::new() };
+        let crate_id = CrateId::Stdlib(self.arena.len());
         let prev = self.arena.insert(crate_id, data);
         assert!(prev.is_none());
         crate_id

@@ -338,6 +338,51 @@ impl GeneratedAcir {
         lhs.add_mul(FieldElement::from(2_i128), &inter.unwrap())
     }
 
+    /// Returns an expression which represents `lhs * rhs`
+    ///
+    /// If one has multiplicative term and the other is of degree one or more,
+    /// the function creates [intermediate variables][`Witness`] accordingly.
+    /// There are two cases where we can optimize the multiplication between two expressions:
+    /// 1. If both expressions have at most a total degree of 1 in each term, then we can just multiply them
+    /// as each term in the result will be degree-2.
+    /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
+    ///
+    /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
+    /// which is what you get when you multiply two degree-1 univariate polynomials.
+    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
+        use std::borrow::Cow;
+        let lhs_is_linear = lhs.is_linear();
+        let rhs_is_linear = rhs.is_linear();
+
+        // Case 1: Both expressions have at most a total degree of 1 in each term
+        if lhs_is_linear && rhs_is_linear {
+            return (lhs * rhs)
+                .expect("one of the expressions is a constant and so this should not fail");
+        }
+
+        // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
+        let lhs_reduced = if lhs_is_linear {
+            Cow::Borrowed(lhs)
+        } else {
+            Cow::Owned(self.get_or_create_witness(lhs).into())
+        };
+
+        // If the lhs and rhs are the same, then we do not need to reduce
+        // rhs, we only need to square the lhs.
+        if lhs == rhs {
+            return (&*lhs_reduced * &*lhs_reduced)
+                .expect("Both expressions are reduced to be degree<=1");
+        };
+
+        let rhs_reduced = if rhs_is_linear {
+            Cow::Borrowed(rhs)
+        } else {
+            Cow::Owned(self.get_or_create_witness(rhs).into())
+        };
+
+        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree<=1")
+    }
+
     /// Signed division lhs /  rhs
     /// We derive the signed division from the unsigned euclidian division.
     /// note that this is not euclidian division!
@@ -424,15 +469,13 @@ impl GeneratedAcir {
         self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_bit_size)?;
 
         // a * predicate == (b * q + r) * predicate
-        // => predicate * ( a - b * q - r) == 0
+        // => predicate * (a - b * q - r) == 0
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let mut rhs_constraint = (rhs * &Expression::from(q_witness)).unwrap();
-        rhs_constraint = &rhs_constraint + r_witness;
-        rhs_constraint = (&rhs_constraint * predicate).unwrap();
-        let lhs_constraint = (lhs * predicate).unwrap();
-        let div_euclidean = &lhs_constraint - &rhs_constraint;
+        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into()) + r_witness;
+        let div_euclidean = &self.mul_with_witness(lhs, predicate)
+            - &self.mul_with_witness(&rhs_constraint, predicate);
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
@@ -494,7 +537,7 @@ impl GeneratedAcir {
             assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
             let mut aor = lhs_offset;
             aor.q_c += FieldElement::from(r);
-            let witness = self.create_witness_for_expression(&aor);
+            let witness = self.get_or_create_witness(&aor);
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
             self.range_constraint(witness, bit_size)?;
             return Ok(());
@@ -711,7 +754,7 @@ impl GeneratedAcir {
         a: &Expression,
         b: &Expression,
         max_bits: u32,
-        predicate: Option<Expression>,
+        predicate: Expression,
     ) -> Result<Witness, AcirGenError> {
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
@@ -737,7 +780,7 @@ impl GeneratedAcir {
         let (q_witness, r_witness) = self.quotient_directive(
             comparison_evaluation.clone(),
             two_max_bits.into(),
-            predicate,
+            Some(predicate.clone()),
             q_max_bits,
             r_max_bits,
         )?;
@@ -762,10 +805,17 @@ impl GeneratedAcir {
         // - 2^{max_bits} - k == q * 2^{max_bits} + r
         // - This is only the case when q == 0 and r == 2^{max_bits} - k
         //
+        // case: predicate is zero
+        // The values for q and r will be zero for a honest prover and
+        // can be garbage for a dishonest prover. The below constraint will
+        // will be switched off.
         let mut expr = Expression::default();
         expr.push_addition_term(two_max_bits, q_witness);
         expr.push_addition_term(FieldElement::one(), r_witness);
-        self.push_opcode(AcirOpcode::Arithmetic(&comparison_evaluation - &expr));
+
+        let equation = &comparison_evaluation - &expr;
+        let predicated_equation = self.mul_with_witness(&equation, &predicate);
+        self.push_opcode(AcirOpcode::Arithmetic(predicated_equation));
 
         Ok(q_witness)
     }
