@@ -899,36 +899,32 @@ impl<'a> Resolver<'a> {
                     let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}").expect(
                         "ICE: an invalid regex pattern was used for checking format strings",
                     );
-                    if re.is_match(&str) {
-                        let mut fmt_str_idents = Vec::new();
-                        for field in re.find_iter(&str) {
-                            let matched_str = field.as_str();
-                            let ident_name = matched_str[1..(matched_str.len() - 1)].to_owned();
+                    let mut fmt_str_idents = Vec::new();
+                    for field in re.find_iter(&str) {
+                        let matched_str = field.as_str();
+                        let ident_name = matched_str[1..(matched_str.len() - 1)].to_owned();
 
-                            let scope_tree = self.scopes.current_scope_tree();
-                            let variable = scope_tree.find(&ident_name);
-                            if let Some((old_value, _)) = variable {
-                                old_value.num_times_used += 1;
-                                let expr_id =
-                                    self.interner.push_expr(HirExpression::Ident(old_value.ident));
-                                self.interner.push_expr_location(expr_id, expr.span, self.file);
-                                fmt_str_idents.push(expr_id);
-                            } else if ident_name.parse::<usize>().is_ok() {
-                                self.errors.push(ResolverError::NumericConstantInFormatString {
-                                    name: ident_name,
-                                    span: expr.span,
-                                });
-                            } else {
-                                self.errors.push(ResolverError::VariableNotDeclared {
-                                    name: ident_name,
-                                    span: expr.span,
-                                });
-                            }
+                        let scope_tree = self.scopes.current_scope_tree();
+                        let variable = scope_tree.find(&ident_name);
+                        if let Some((old_value, _)) = variable {
+                            old_value.num_times_used += 1;
+                            let expr_id =
+                                self.interner.push_expr(HirExpression::Ident(old_value.ident));
+                            self.interner.push_expr_location(expr_id, expr.span, self.file);
+                            fmt_str_idents.push(expr_id);
+                        } else if ident_name.parse::<usize>().is_ok() {
+                            self.errors.push(ResolverError::NumericConstantInFormatString {
+                                name: ident_name,
+                                span: expr.span,
+                            });
+                        } else {
+                            self.errors.push(ResolverError::VariableNotDeclared {
+                                name: ident_name,
+                                span: expr.span,
+                            });
                         }
-                        HirLiteral::FmtStr(str, fmt_str_idents)
-                    } else {
-                        HirLiteral::FmtStr(str, vec![])
                     }
+                    HirLiteral::FmtStr(str, fmt_str_idents)
                 }
                 Literal::Unit => HirLiteral::Unit,
             }),
