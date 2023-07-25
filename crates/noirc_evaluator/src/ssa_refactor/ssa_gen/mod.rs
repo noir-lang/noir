@@ -381,7 +381,7 @@ impl<'a> FunctionContext<'a> {
     /// and intrinsics are also represented by the function call instruction.
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
         let function = self.codegen_non_tuple_expression(&call.func);
-        let arguments: Vec<ValueId> = call
+        let arguments = call
             .arguments
             .iter()
             .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
