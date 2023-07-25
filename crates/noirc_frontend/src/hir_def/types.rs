@@ -573,8 +573,6 @@ impl Type {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::String(_)
-            | Type::FmtString(_, _)
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_)
@@ -606,6 +604,11 @@ impl Type {
                 })
             }
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
+            Type::String(length) => named_generic_id_matches_target(length),
+            Type::FmtString(length, elements) => {
+                elements.iter().any(|elem| elem.contains_numeric_typevar(target_id))
+                    || named_generic_id_matches_target(length)
+            }
         }
     }
 
