@@ -496,7 +496,7 @@ impl<'block> BrilligBlock<'block> {
             RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
                 self.brillig_context.array_get(array_pointer, index_register, pointer);
             }
-            _ => unimplemented!("ICE: Array get for slice"),
+            RegisterOrMemory::HeapVector(_) => unimplemented!("ICE: Array get for vector"),
         }
     }
 
@@ -564,7 +564,9 @@ impl<'block> BrilligBlock<'block> {
             RegisterOrMemory::HeapArray(HeapArray { pointer, .. }) => {
                 self.brillig_context.array_set(destination_pointer, index_register, pointer);
             }
-            _ => unimplemented!("ICE: cannot store slice in array"),
+            RegisterOrMemory::HeapVector(_) => {
+                unimplemented!("ICE: cannot store a vector in array")
+            }
         }
     }
 
