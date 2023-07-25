@@ -25,7 +25,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TyAliasId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TypeAliasId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -33,9 +33,9 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTyAlias, Path, Pattern,
-    Shared, StructType, Type, TypeAliasTy, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics,
-    UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
+    Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
+    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -398,12 +398,12 @@ impl<'a> Resolver<'a> {
         let span = path.span();
         if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
             let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
-            let expected_generic_count = type_alias_type.borrow().generics.len();
+            let expected_generic_count = type_alias_type.generics.len();
 
             if args.len() != expected_generic_count {
                 self.push_err(ResolverError::IncorrectGenericCount {
                     span,
-                    struct_type: type_alias_type.borrow().to_string(),
+                    struct_type: type_alias_type.to_string(),
                     actual: args.len(),
                     expected: expected_generic_count,
                 });
@@ -412,10 +412,8 @@ impl<'a> Resolver<'a> {
                 args.resize_with(expected_generic_count, || Type::Error);
             }
 
-            // Type Alias is monomorphized here because we do type checking before monomorphization
-            // If this is done in normal monomorphization phase type checking will return errors
-            // TODO(ethan): not sure if this is the best practice though
-            let typ = type_alias_type.borrow().get_type(&args);
+            // resolve type generics
+            let typ = type_alias_type.get_type(&args);
 
             return typ;
         }
@@ -534,14 +532,19 @@ impl<'a> Resolver<'a> {
         self.resolve_type_inner(typ, &mut vec![])
     }
 
-    pub fn resolve_type_aliases(&mut self, unresolved: NoirTyAlias) -> (Type, Generics) {
+    pub fn resolve_type_aliases(
+        mut self,
+        unresolved: NoirTypeAlias,
+    ) -> (Type, Generics, Vec<ResolverError>) {
+        // println!("unresolved: {:?}", unresolved);
+
         let generics = self.add_generics(&unresolved.generics);
 
         self.resolve_local_globals();
 
         let typ = self.resolve_type(unresolved.ty);
 
-        (typ, generics)
+        (typ, generics, self.errors)
     }
 
     pub fn take_errors(self) -> Vec<ResolverError> {
@@ -1198,7 +1201,7 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_type_alias(&self, type_alias_id: TyAliasId) -> Shared<TypeAliasTy> {
+    pub fn get_type_alias(&self, type_alias_id: TypeAliasId) -> TypeAliasType {
         self.interner.get_type_alias(type_alias_id)
     }
 
@@ -1264,7 +1267,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAliasTy>> {
+    fn lookup_type_alias(&mut self, path: Path) -> Option<TypeAliasType> {
         match self.lookup(path) {
             Ok(type_alias_id) => Some(self.get_type_alias(type_alias_id)),
             Err(_) => None,

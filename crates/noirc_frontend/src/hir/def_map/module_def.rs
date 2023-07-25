@@ -1,4 +1,4 @@
-use crate::node_interner::{FuncId, StmtId, StructId, TyAliasId};
+use crate::node_interner::{FuncId, StmtId, StructId, TypeAliasId};
 
 use super::ModuleId;
 
@@ -8,7 +8,7 @@ pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
     TypeId(StructId),
-    TypeAliasId(TyAliasId),
+    TypeAliasId(TypeAliasId),
     GlobalId(StmtId),
 }
 
@@ -27,7 +27,7 @@ impl ModuleDefId {
         }
     }
 
-    pub fn as_type_alias(&self) -> Option<TyAliasId> {
+    pub fn as_type_alias(&self) -> Option<TypeAliasId> {
         match self {
             ModuleDefId::TypeAliasId(type_alias_id) => Some(*type_alias_id),
             _ => None,
@@ -66,8 +66,8 @@ impl From<FuncId> for ModuleDefId {
     }
 }
 
-impl From<TyAliasId> for ModuleDefId {
-    fn from(fid: TyAliasId) -> Self {
+impl From<TypeAliasId> for ModuleDefId {
+    fn from(fid: TypeAliasId) -> Self {
         ModuleDefId::TypeAliasId(fid)
     }
 }
@@ -112,13 +112,13 @@ impl TryFromModuleDefId for StructId {
     }
 }
 
-impl TryFromModuleDefId for TyAliasId {
+impl TryFromModuleDefId for TypeAliasId {
     fn try_from(id: ModuleDefId) -> Option<Self> {
         id.as_type_alias()
     }
 
     fn dummy_id() -> Self {
-        TyAliasId::dummy_id()
+        TypeAliasId::dummy_id()
     }
 
     fn description() -> String {

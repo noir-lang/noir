@@ -10,9 +10,9 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TyAliasId};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TypeAliasId};
 use crate::{
-    ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTyAlias,
+    ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias,
     ParsedModule, Shared, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
@@ -44,7 +44,7 @@ pub struct UnresolvedStruct {
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
     pub module_id: LocalModuleId,
-    pub type_alias_def: NoirTyAlias,
+    pub type_alias_def: NoirTypeAlias,
 }
 
 #[derive(Clone)]
@@ -61,7 +61,7 @@ pub struct DefCollector {
     pub(crate) collected_imports: Vec<ImportDirective>,
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
     pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
-    pub(crate) collected_type_aliases: HashMap<TyAliasId, UnresolvedTypeAlias>,
+    pub(crate) collected_type_aliases: HashMap<TypeAliasId, UnresolvedTypeAlias>,
     pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     pub(crate) collected_impls: ImplMap,
 }
@@ -166,9 +166,10 @@ impl DefCollector {
 
         let mut file_global_ids = resolve_globals(context, integer_globals, crate_id, errors);
 
+        resolve_type_aliases(context, def_collector.collected_type_aliases, crate_id, errors);
+
         // Must resolve structs before we resolve globals.
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
-        resolve_type_aliases(context, def_collector.collected_type_aliases, crate_id);
 
         // We must wait to resolve non-integer globals until after we resolve structs since structs
         // globals will need to reference the struct type they're initialized to to ensure they are valid.
@@ -370,8 +371,9 @@ fn resolve_struct_fields(
 
 fn resolve_type_aliases(
     context: &mut Context,
-    type_aliases: HashMap<TyAliasId, UnresolvedTypeAlias>,
+    type_aliases: HashMap<TypeAliasId, UnresolvedTypeAlias>,
     crate_id: CrateId,
+    all_errors: &mut Vec<FileDiagnostic>,
 ) {
     for (type_id, typ) in &type_aliases {
         context.def_interner.push_empty_type_alias(*type_id, typ);
@@ -383,13 +385,17 @@ fn resolve_type_aliases(
             krate: crate_id,
         });
         let file = unresolved_typ.file_id;
-        let (typ, generics) =
+        let (typ, generics, errors) =
             Resolver::new(&mut context.def_interner, &path_resolver, &context.def_maps, file)
                 .resolve_type_aliases(unresolved_typ.type_alias_def);
+        extend_errors(all_errors, file, errors);
 
         context.def_interner.update_type_alias(type_id, |type_alias_def| {
+            // println!("typ: {:?}", typ);
             type_alias_def.set_type(typ);
+            // println!("generics: {:?}", generics);
             type_alias_def.generics = generics;
+            // println!("type_alias_def: {:?}", type_alias_def);
         });
     }
 }

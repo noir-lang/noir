@@ -36,7 +36,7 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTyAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl,
+    NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl,
     TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
@@ -82,7 +82,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Trait(t) => program.push_trait(t),
                     TopLevelStatement::TraitImpl(t) => program.push_trait_impl(t),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
-                    TopLevelStatement::TyAlias(t) => program.push_type_alias(t),
+                    TopLevelStatement::TypeAlias(t) => program.push_type_alias(t),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
                     TopLevelStatement::Global(c) => program.push_global(c),
                     TopLevelStatement::Error => (),
@@ -247,7 +247,7 @@ fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     let p = then_commit(p, parse_type());
 
     p.map_with_span(|((name, generics), ty), span| {
-        TopLevelStatement::TyAlias(NoirTyAlias { name, generics, ty, span })
+        TopLevelStatement::TypeAlias(NoirTypeAlias { name, generics, ty, span })
     })
 }
 

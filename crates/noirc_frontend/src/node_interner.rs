@@ -17,7 +17,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeAliasTy, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
+use crate::{Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -56,7 +56,7 @@ pub struct NodeInterner {
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    type_aliases: HashMap<TyAliasId, Shared<TypeAliasTy>>,
+    type_aliases: HashMap<TypeAliasId, TypeAliasType>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -144,14 +144,11 @@ impl StructId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct TyAliasId(Index);
+pub struct TypeAliasId(Index);
 
-impl TyAliasId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> TyAliasId {
-        TyAliasId(Index::from_raw_parts(std::usize::MAX, 0))
+impl TypeAliasId {
+    pub fn dummy_id() -> TypeAliasId {
+        TypeAliasId(Index::from_raw_parts(std::usize::MAX, 0))
     }
 }
 
@@ -295,8 +292,8 @@ impl NodeInterner {
     pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
     }
-    pub fn push_type_alias(&mut self) -> TyAliasId {
-        TyAliasId(self.nodes.insert(Node::TypeAlias))
+    pub fn push_type_alias(&mut self) -> TypeAliasId {
+        TypeAliasId(self.nodes.insert(Node::TypeAlias))
     }
 
     /// Stores the span for an interned expression.
@@ -334,10 +331,10 @@ impl NodeInterner {
         );
     }
 
-    pub fn push_empty_type_alias(&mut self, type_id: TyAliasId, typ: &UnresolvedTypeAlias) {
+    pub fn push_empty_type_alias(&mut self, type_id: TypeAliasId, typ: &UnresolvedTypeAlias) {
         self.type_aliases.insert(
             type_id,
-            Shared::new(TypeAliasTy::new(
+            TypeAliasType::new(
                 type_id,
                 typ.type_alias_def.name.clone(),
                 typ.type_alias_def.span,
@@ -346,7 +343,7 @@ impl NodeInterner {
                     let id = TypeVariableId(0);
                     (id, Shared::new(TypeBinding::Unbound(id)))
                 }),
-            )),
+            ),
         );
     }
 
@@ -355,8 +352,8 @@ impl NodeInterner {
         f(&mut value);
     }
 
-    pub fn update_type_alias(&mut self, type_id: TyAliasId, f: impl FnOnce(&mut TypeAliasTy)) {
-        let mut value = self.type_aliases.get_mut(&type_id).unwrap().borrow_mut();
+    pub fn update_type_alias(&mut self, type_id: TypeAliasId, f: impl FnOnce(&mut TypeAliasType)) {
+        let mut value = self.type_aliases.get_mut(&type_id).unwrap();
         f(&mut value);
     }
 
@@ -556,7 +553,7 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_type_alias(&self, id: TyAliasId) -> Shared<TypeAliasTy> {
+    pub fn get_type_alias(&self, id: TypeAliasId) -> TypeAliasType {
         self.type_aliases[&id].clone()
     }
 

@@ -3,7 +3,7 @@ use noirc_errors::FileDiagnostic;
 
 use crate::{
     graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTyAlias, ParsedModule,
+    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule,
     TypeImpl,
 };
 
@@ -191,7 +191,7 @@ impl<'a> ModCollector<'a> {
     fn collect_type_aliases(
         &mut self,
         context: &mut Context,
-        type_aliases: Vec<NoirTyAlias>,
+        type_aliases: Vec<NoirTypeAlias>,
         errors: &mut Vec<FileDiagnostic>,
     ) {
         for type_alias in type_aliases {

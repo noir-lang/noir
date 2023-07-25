@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     hir::type_check::TypeCheckError,
-    node_interner::{NodeInterner, TyAliasId},
+    node_interner::{NodeInterner, TypeAliasId},
 };
 use iter_extended::vecmap;
 use noirc_abi::AbiType;
@@ -227,46 +227,46 @@ impl std::fmt::Display for StructType {
 
 /// Wrap around an unsolved type
 #[derive(Debug, Clone, Eq)]
-pub struct TypeAliasTy {
+pub struct TypeAliasType {
     pub name: Ident,
-    pub id: TyAliasId,
+    pub id: TypeAliasId,
     pub typ: Type,
     pub generics: Generics,
     pub span: Span,
 }
 
-impl std::hash::Hash for TypeAliasTy {
+impl std::hash::Hash for TypeAliasType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
 }
 
-impl PartialEq for TypeAliasTy {
+impl PartialEq for TypeAliasType {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl std::fmt::Display for TypeAliasTy {
+impl std::fmt::Display for TypeAliasType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.typ)
     }
 }
 
-impl TypeAliasTy {
+impl TypeAliasType {
     pub fn new(
-        id: TyAliasId,
+        id: TypeAliasId,
         name: Ident,
         span: Span,
         typ: Type,
         generics: Generics,
-    ) -> TypeAliasTy {
-        TypeAliasTy { id, typ, name, span, generics }
+    ) -> TypeAliasType {
+        TypeAliasType { id, typ, name, span, generics }
     }
 
-    pub fn set_type(&mut self, typ: Type) {
+    pub fn set_type(&mut self, new_typ: Type) {
         assert_eq!(self.typ, Type::Unit);
-        self.typ = typ;
+        self.typ = new_typ;
     }
 
     // Returns all the fields of this type, after being applied to the given generic arguments.
@@ -281,11 +281,6 @@ impl TypeAliasTy {
             .collect();
 
         self.typ.substitute(&substitutions)
-    }
-
-    pub fn generic_is_numeric(&self, index_of_generic: usize) -> bool {
-        let target_id = self.generics[index_of_generic].0;
-        self.typ.contains_numeric_typevar(target_id)
     }
 }
 

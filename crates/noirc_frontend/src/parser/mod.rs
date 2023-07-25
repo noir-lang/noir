@@ -17,7 +17,7 @@ use crate::token::{Keyword, Token};
 use crate::{ast::ImportStatement, Expression, NoirStruct};
 use crate::{
     BlockExpression, ExpressionKind, ForExpression, Ident, IndexExpression, LetStatement,
-    MethodCallExpression, NoirFunction, NoirTrait, NoirTyAlias, Path, PathKind, Pattern,
+    MethodCallExpression, NoirFunction, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern,
     Recoverable, Statement, TraitImpl, TypeImpl, UnresolvedType, UseTree,
 };
 
@@ -43,7 +43,7 @@ pub(crate) enum TopLevelStatement {
     Trait(NoirTrait),
     TraitImpl(TraitImpl),
     Impl(TypeImpl),
-    TyAlias(NoirTyAlias),
+    TypeAlias(NoirTypeAlias),
     SubModule(SubModule),
     Global(LetStatement),
     Error,
@@ -226,7 +226,7 @@ pub struct ParsedModule {
     pub traits: Vec<NoirTrait>,
     pub trait_impls: Vec<TraitImpl>,
     pub impls: Vec<TypeImpl>,
-    pub type_aliases: Vec<NoirTyAlias>,
+    pub type_aliases: Vec<NoirTypeAlias>,
     pub globals: Vec<LetStatement>,
 
     /// Module declarations like `mod foo;`
@@ -266,7 +266,7 @@ impl ParsedModule {
         self.impls.push(r#impl);
     }
 
-    fn push_type_alias(&mut self, type_alias: NoirTyAlias) {
+    fn push_type_alias(&mut self, type_alias: NoirTypeAlias) {
         self.type_aliases.push(type_alias);
     }
 
@@ -469,7 +469,7 @@ impl std::fmt::Display for TopLevelStatement {
             TopLevelStatement::TraitImpl(i) => i.fmt(f),
             TopLevelStatement::Struct(s) => s.fmt(f),
             TopLevelStatement::Impl(i) => i.fmt(f),
-            TopLevelStatement::TyAlias(t) => t.fmt(f),
+            TopLevelStatement::TypeAlias(t) => t.fmt(f),
             TopLevelStatement::SubModule(s) => s.fmt(f),
             TopLevelStatement::Global(c) => c.fmt(f),
             TopLevelStatement::Error => write!(f, "error"),
