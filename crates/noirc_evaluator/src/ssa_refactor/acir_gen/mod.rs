@@ -3,11 +3,9 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
+use crate::brillig::brillig_ir::BrilligContext;
 use crate::{
-    brillig::{
-        brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
-        brillig_ir::artifact::BrilligArtifact, Brillig,
-    },
+    brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig},
     errors::RuntimeError,
 };
 
@@ -401,7 +399,7 @@ impl Context {
 
     fn gen_brillig_for(&self, func: &Function, brillig: &Brillig) -> Vec<Opcode> {
         // Create the entry point artifact
-        let mut entry_point = BrilligArtifact::new_entry_point_artifact(
+        let mut entry_point = BrilligContext::new_entry_point_artifact(
             BrilligFunctionContext::parameters(func),
             BrilligFunctionContext::return_values(func),
             BrilligFunctionContext::function_id_to_function_label(func.id()),
