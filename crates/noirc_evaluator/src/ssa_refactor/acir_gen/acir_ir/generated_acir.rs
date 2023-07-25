@@ -693,20 +693,6 @@ impl GeneratedAcir {
 
         // Euclidian division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
         //
-        // In the document linked above, they mention negating the value of `q`
-        // which would tell us whether a < b. Since we do not negate `q`
-        // what we get is a boolean indicating whether a >= b.
-        let (q_witness, r_witness) = self.brillig_quotient(
-            &comparison_evaluation,
-            &Expression::from_field(two_max_bits),
-            &predicate,
-            max_bits + 1,
-        );
-        self.range_constraint(r_witness, max_bits)?;
-        self.range_constraint(q_witness, 1)?;
-
-        // Add constraint : 2^{max_bits} + a - b = q * 2^{max_bits} + r
-        //
         // If a>b, then a-b is less than 2^{max_bits} - 1, so 2^{max_bits} + a - b is less than 2^{max_bits} + 2^{max_bits} - 1 = 2^{max_bits+1} -
         // If a <= b, then 2^{max_bits} + a - b is less than 2^{max_bits} <= 2^{max_bits+1} - 1
         // This means that both operands of the division have at most max_bits+1 bit size.
