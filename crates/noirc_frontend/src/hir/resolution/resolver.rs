@@ -896,7 +896,7 @@ impl<'a> Resolver<'a> {
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
                 Literal::FmtStr(str) => {
-                    let re = Regex::new(r"\{([\S]+)\}").expect(
+                    let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}").expect(
                         "ICE: an invalid regex pattern was used for checking format strings",
                     );
                     if re.is_match(&str) {
@@ -1608,7 +1608,10 @@ mod test {
                 let string = "this is x: {x}";
                 println(string);
                 
-                println(f"I want to print {0}")
+                println(f"I want to print {0}");
+
+                let new_val = 10;
+                println(f"randomstring{new_val}{new_val}");
             }
             fn println<T>(x : T) -> T {
                 x

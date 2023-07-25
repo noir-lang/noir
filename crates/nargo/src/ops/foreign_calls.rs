@@ -130,7 +130,7 @@ fn convert_fmt_string_inputs(
     }
 
     let mut output_strings_iter = output_strings.into_iter();
-    let re = Regex::new(r"\{([a-zA-Z0-9]+)\}")
+    let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}")
         .expect("ICE: an invalid regex pattern was used for checking format strings");
 
     let formatted_str = re.replace_all(&message_as_string, |_: &Captures| {

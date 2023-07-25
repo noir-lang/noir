@@ -5,7 +5,6 @@ fn main(x : Field, y : pub Field) {
     std::println(string);
 
     // A `fmtstr` lets you easily perform string interpolation.
-    // You can 
     let fmt_str: fmtstr<14, (Field, Field)> = f"i: {x}, j: {y}";
     let fmt_str = string_identity(fmt_str);
     std::println(fmt_str);
@@ -19,6 +18,8 @@ fn main(x : Field, y : pub Field) {
     let s = myStruct { y: x, x: y };
     std::println(s);
 
+    std::println(f"randomstring{x}{x}");
+
     std::println(f"i: {x}, s: {s}");
 
     std::println(x);
@@ -29,11 +30,11 @@ fn main(x : Field, y : pub Field) {
 
     std::println(f"x: 0, y: 1");
     
-    let s2 = myStruct { x: 20, y: 30 };
-    std::println(f"s1: {s}, s2: {s2}");
+    let s_2 = myStruct { x: 20, y: 30 };
+    std::println(f"s1: {s}, s2: {s_2}");
 
-    let foo2 = fooStruct { my_struct: s2, foo: 20 };
-    std::println(f"foo1: {foo}, foo2: {foo2}");
+    let foo_2 = fooStruct { my_struct: s_2, foo: 20 };
+    std::println(f"foo1: {foo}, foo2: {foo_2}");
 
     assert(x != y);
 }
