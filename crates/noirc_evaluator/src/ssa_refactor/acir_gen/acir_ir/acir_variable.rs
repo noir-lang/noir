@@ -588,9 +588,17 @@ impl AcirContext {
         let lhs_data = &self.vars[&lhs];
         let lhs_expr = lhs_data.to_expression();
 
-        let result_expr = self.acir_ir.truncate(&lhs_expr, rhs, max_bit_size)?;
+        // 2^{rhs}
+        let divisor = FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128));
+        // Computes lhs = 2^{rhs} * q + r
+        let (_, remainder) = self.acir_ir.euclidean_division(
+            &lhs_expr,
+            &Expression::from_field(divisor),
+            max_bit_size,
+            &Expression::one(),
+        )?;
 
-        Ok(self.add_data(AcirVarData::Expr(result_expr)))
+        Ok(self.add_data(AcirVarData::Expr(Expression::from(remainder))))
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
