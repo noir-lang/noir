@@ -144,11 +144,11 @@ impl StructId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct TypeAliasId(Index);
+pub struct TypeAliasId(pub ModuleId);
 
 impl TypeAliasId {
     pub fn dummy_id() -> TypeAliasId {
-        TypeAliasId(Index::from_raw_parts(std::usize::MAX, 0))
+        TypeAliasId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
 
@@ -194,7 +194,6 @@ enum Node {
     Function(HirFunction),
     Statement(HirStatement),
     Expression(HirExpression),
-    TypeAlias,
 }
 
 #[derive(Debug, Clone)]
@@ -291,9 +290,6 @@ impl NodeInterner {
     /// Interns a HIR expression.
     pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
-    }
-    pub fn push_type_alias(&mut self) -> TypeAliasId {
-        TypeAliasId(self.nodes.insert(Node::TypeAlias))
     }
 
     /// Stores the span for an interned expression.

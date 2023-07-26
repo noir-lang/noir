@@ -2,9 +2,11 @@ use fm::FileId;
 use noirc_errors::FileDiagnostic;
 
 use crate::{
-    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule,
-    TypeImpl,
+    graph::CrateId,
+    hir::def_collector::dc_crate::UnresolvedStruct,
+    node_interner::{StructId, TypeAliasId},
+    parser::SubModule,
+    Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule, TypeImpl,
 };
 
 use super::{
@@ -56,7 +58,7 @@ pub fn collect_defs(
 
     collector.collect_structs(ast.types, crate_id, errors);
 
-    collector.collect_type_aliases(context, ast.type_aliases, errors);
+    collector.collect_type_aliases(context, ast.type_aliases, crate_id, errors);
 
     collector.collect_functions(context, ast.functions, errors);
 
@@ -192,12 +194,18 @@ impl<'a> ModCollector<'a> {
         &mut self,
         context: &mut Context,
         type_aliases: Vec<NoirTypeAlias>,
+        krate: CrateId,
         errors: &mut Vec<FileDiagnostic>,
     ) {
         for type_alias in type_aliases {
             let name = type_alias.name.clone();
 
-            let ty_alias_id = context.def_interner.push_type_alias();
+            // let ty_alias_id = context.def_interner.push_type_alias();
+            let ty_alias_id =
+                match self.push_child_module(&name, self.file_id, false, false, errors) {
+                    Some(local_id) => TypeAliasId(ModuleId { krate, local_id }),
+                    None => continue,
+                };
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
                 .declare_type_alias(name, ty_alias_id);
