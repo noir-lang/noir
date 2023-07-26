@@ -1,0 +1,7 @@
+[package]
+name = "dep_impl_primitive"
+authors = [""]
+compiler_version = "0.8.0"
+
+[dependencies]
+bad_impl = { path = "../../test_libraries/bad_impl" }
