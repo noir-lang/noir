@@ -27,6 +27,32 @@ usage() {
   exit 1
 }
 
+build() {
+  CONTRACT_NAME=$1
+  CONTRACT_FOLDER="${CONTRACT_NAME}_contract"
+  echo "Compiling $CONTRACT_NAME..."
+  cd src/contracts/$CONTRACT_FOLDER
+  rm -f target/*
+
+  # If VERBOSE is not set, compile with 'nargo' and redirect standard error (stderr) to /dev/null and standard output (stdout) to /dev/null.
+  # If the compilation fails, rerun the compilation with 'nargo' and show the compiler output.
+  if [[ -z "${VERBOSE:-}" ]]; then
+    "$NARGO_COMMAND" compile main --contracts 2> /dev/null > /dev/null  || (echo "Error compiling contract. Re-running as verbose to show compiler output:"; "$NARGO_COMMAND" compile main --contracts);
+  else
+    "$NARGO_COMMAND" compile main --contracts
+  fi
+
+  cd $ROOT
+  echo "Copying output for $CONTRACT_NAME"
+  NODE_OPTIONS=--no-warnings yarn ts-node --esm src/scripts/copy_output.ts $CONTRACT_NAME
+}
+
+format(){
+  echo "Formatting contract folders"
+  yarn run -T prettier -w ./src/artifacts/*.json ../aztec.js/src/abis/*.json ./src/types/*.ts
+  echo -e "Done\n"
+}
+
 # Parse command-line arguments
 for arg in "$@"; do
   case $arg in
@@ -58,28 +84,12 @@ echo "Using $($NARGO_COMMAND --version)"
 
 # Build contracts
 for CONTRACT_NAME in "$@"; do
-  CONTRACT_FOLDER="${CONTRACT_NAME}_contract"
-  echo "Compiling $CONTRACT_NAME..."
-  cd src/contracts/$CONTRACT_FOLDER
-  rm -f target/*
-
-  # If VERBOSE is not set, compile with 'nargo' and redirect standard error (stderr) to /dev/null and standard output (stdout) to /dev/null.
-  # If the compilation fails, rerun the compilation with 'nargo' and show the compiler output.
-  if [[ -z "${VERBOSE:-}" ]]; then
-    "$NARGO_COMMAND" compile main --contracts 2> /dev/null > /dev/null  || (echo "Error compiling contract. Re-running as verbose to show compiler output:"; "$NARGO_COMMAND" compile main --contracts);
-  else
-    "$NARGO_COMMAND" compile main --contracts
-  fi
-
-  cd $ROOT
-  echo "Copying output for $CONTRACT_NAME"
-  NODE_OPTIONS=--no-warnings yarn ts-node --esm src/scripts/copy_output.ts $CONTRACT_NAME
-  
-  echo "Formatting contract folders"
-  yarn run -T prettier -w ./src/artifacts/$CONTRACT_FOLDER.json ../aztec.js/src/abis/*.json ./src/types/*.ts
-  echo -e "Done\n"
-
+  build $CONTRACT_NAME &
 done
+
+# Format contracts once all background processes have finished
+wait
+format
 
 # Check for stale artifacts
 for json_path in src/artifacts/*.json; do
