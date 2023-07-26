@@ -117,7 +117,7 @@ impl From<ParserError> for Diagnostic {
                         "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
-                    reason @ ParserErrorReason::ExpectedPattern(ty) => {
+                    reason @ ParserErrorReason::ExpectedPatternButFoundType(ty) => {
                         Diagnostic::simple_error(reason.to_string(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
                     }
                     other => {
