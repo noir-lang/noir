@@ -14,7 +14,7 @@ pub enum ParserErrorReason {
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
     #[error("expected a pattern but found a type - {0}")]
-    ExpectedPattern(Token),
+    ExpectedPatternButFoundType(Token),
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
