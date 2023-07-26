@@ -384,40 +384,10 @@ impl<'interner> Monomorphizer<'interner> {
         array_contents: Vec<ast::Expression>,
         element_type: ast::Type,
     ) -> ast::Expression {
-        if !self.interner.legacy_ssa {
-            return ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-                contents: array_contents,
-                element_type,
-            }));
-        }
-        match element_type {
-            ast::Type::Field
-            | ast::Type::Integer(_, _)
-            | ast::Type::Bool
-            | ast::Type::Unit
-            | ast::Type::Function(_, _)
-            | ast::Type::MutableReference(_) => {
-                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-                    contents: array_contents,
-                    element_type,
-                }))
-            }
-
-            ast::Type::Tuple(elements) => ast::Expression::Tuple(vecmap(
-                elements.into_iter().enumerate(),
-                |(i, element_type)| {
-                    let contents = vecmap(&array_contents, |element| {
-                        ast::Expression::ExtractTupleField(Box::new(element.clone()), i)
-                    });
-
-                    self.aos_to_soa(contents, element_type)
-                },
-            )),
-
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
-                unreachable!("Nested arrays, arrays of strings, and Vecs are not supported")
-            }
-        }
+        return ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
+            contents: array_contents,
+            element_type,
+        }));
     }
 
     fn index(&mut self, id: node_interner::ExprId, index: HirIndexExpression) -> ast::Expression {
@@ -438,39 +408,7 @@ impl<'interner> Monomorphizer<'interner> {
         element_type: ast::Type,
         location: Location,
     ) -> ast::Expression {
-        if !self.interner.legacy_ssa {
-            return ast::Expression::Index(ast::Index {
-                collection,
-                index,
-                element_type,
-                location,
-            });
-        }
-        match element_type {
-            ast::Type::Field
-            | ast::Type::Integer(_, _)
-            | ast::Type::Bool
-            | ast::Type::Unit
-            | ast::Type::Function(_, _)
-            | ast::Type::MutableReference(_) => {
-                ast::Expression::Index(ast::Index { collection, index, element_type, location })
-            }
-
-            ast::Type::Tuple(elements) => {
-                let elements = elements.into_iter().enumerate();
-                ast::Expression::Tuple(vecmap(elements, |(i, element_type)| {
-                    // collection should itself be a tuple of arrays
-                    let collection =
-                        Box::new(ast::Expression::ExtractTupleField(collection.clone(), i));
-
-                    self.aos_to_soa_index(collection, index.clone(), element_type, location)
-                }))
-            }
-
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
-                unreachable!("Nested arrays and arrays of strings or Vecs are not supported")
-            }
-        }
+        return ast::Expression::Index(ast::Index { collection, index, element_type, location });
     }
 
     fn statement(&mut self, id: StmtId) -> ast::Expression {
@@ -680,10 +618,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Array(length, element) => {
                 let length = length.evaluate_to_u64().unwrap_or(0);
                 let element = self.convert_type(element.as_ref());
-                if !self.interner.legacy_ssa {
-                    return ast::Type::Array(length, Box::new(element));
-                }
-                self.aos_to_soa_type(length, element)
+                return ast::Type::Array(length, Box::new(element));
             }
 
             HirType::Slice(element) => {
@@ -734,30 +669,6 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
-            }
-        }
-    }
-
-    /// Converts arrays of structs (AOS) into structs of arrays (SOA).
-    /// This is required since our SSA pass does not support arrays of structs.
-    fn aos_to_soa_type(&self, length: u64, element: ast::Type) -> ast::Type {
-        if !self.interner.legacy_ssa {
-            return ast::Type::Array(length, Box::new(element));
-        }
-        match element {
-            ast::Type::Field
-            | ast::Type::Integer(_, _)
-            | ast::Type::Bool
-            | ast::Type::Unit
-            | ast::Type::Function(_, _)
-            | ast::Type::MutableReference(_) => ast::Type::Array(length, Box::new(element)),
-
-            ast::Type::Tuple(elements) => {
-                ast::Type::Tuple(vecmap(elements, |typ| self.aos_to_soa_type(length, typ)))
-            }
-
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
-                unreachable!("Nested arrays and arrays of strings are not supported")
             }
         }
     }
@@ -980,33 +891,8 @@ impl<'interner> Monomorphizer<'interner> {
         typ: ast::Type,
         location: Location,
     ) -> ast::Expression {
-        if !self.interner.legacy_ssa {
-            let lvalue = ast::LValue::Index { array: lvalue, index, element_type: typ, location };
-            return ast::Expression::Assign(ast::Assign { lvalue, expression });
-        }
-        match typ {
-            ast::Type::Tuple(fields) => {
-                let fields = fields.into_iter().enumerate();
-                ast::Expression::Block(vecmap(fields, |(i, field)| {
-                    let expression = ast::Expression::ExtractTupleField(expression.clone(), i);
-                    let lvalue =
-                        ast::LValue::MemberAccess { object: lvalue.clone(), field_index: i };
-                    self.aos_to_soa_assign(
-                        Box::new(expression),
-                        Box::new(lvalue),
-                        index.clone(),
-                        field,
-                        location,
-                    )
-                }))
-            }
-
-            // No changes if the element_type is not a tuple
-            element_type => {
-                let lvalue = ast::LValue::Index { array: lvalue, index, element_type, location };
-                ast::Expression::Assign(ast::Assign { lvalue, expression })
-            }
-        }
+        let lvalue = ast::LValue::Index { array: lvalue, index, element_type: typ, location };
+        return ast::Expression::Assign(ast::Assign { lvalue, expression });
     }
 
     fn lambda(&mut self, lambda: HirLambda) -> ast::Expression {
