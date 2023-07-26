@@ -132,7 +132,7 @@
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
 use std::{
-    collections::{HashMap, HashSet, BTreeMap},
+    collections::{BTreeMap, HashMap, HashSet},
     rc::Rc,
 };
 

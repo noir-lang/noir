@@ -356,7 +356,7 @@ impl<'interner> Monomorphizer<'interner> {
         let element_type =
             Self::convert_type(&unwrap_array_element_type(&self.interner.id_type(array)));
         let contents = vecmap(array_elements, |id| self.expr(id));
-        self.aos_to_soa(contents, element_type)
+        ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, element_type }))
     }
 
     fn repeated_array(
@@ -371,23 +371,7 @@ impl<'interner> Monomorphizer<'interner> {
             .expect("Length of array is unknown when evaluating numeric generic");
 
         let contents = vec![contents; length as usize];
-        self.aos_to_soa(contents, element_type)
-    }
-
-    /// Convert an array in (potentially) array of structs form into struct of arrays form.
-    /// This will do nothing if the given array element type is a primitive type like Field.
-    ///
-    ///
-    /// TODO Remove side effects from clones
-    fn aos_to_soa(
-        &self,
-        array_contents: Vec<ast::Expression>,
-        element_type: ast::Type,
-    ) -> ast::Expression {
-        ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-            contents: array_contents,
-            element_type,
-        }))
+        ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, element_type }))
     }
 
     fn index(&mut self, id: node_interner::ExprId, index: HirIndexExpression) -> ast::Expression {
@@ -396,18 +380,6 @@ impl<'interner> Monomorphizer<'interner> {
         let collection = Box::new(self.expr(index.collection));
         let index = Box::new(self.expr(index.index));
         let location = self.interner.expr_location(&id);
-        self.aos_to_soa_index(collection, index, element_type, location)
-    }
-
-    /// Unpack an array index into an array of structs into a struct of arrays index if needed.
-    /// E.g. transforms my_pair_array[i] into (my_pair1_array[i], my_pair2_array[i])
-    fn aos_to_soa_index(
-        &self,
-        collection: Box<ast::Expression>,
-        index: Box<ast::Expression>,
-        element_type: ast::Type,
-        location: Location,
-    ) -> ast::Expression {
         ast::Expression::Index(ast::Index { collection, index, element_type, location })
     }
 
@@ -835,7 +807,9 @@ impl<'interner> Monomorphizer<'interner> {
 
         match index_lvalue {
             Some((index, element_type, location)) => {
-                self.aos_to_soa_assign(expression, Box::new(lvalue), index, element_type, location)
+                let lvalue =
+                    ast::LValue::Index { array: Box::new(lvalue), index, element_type, location };
+                ast::Expression::Assign(ast::Assign { lvalue, expression })
             }
             None => ast::Expression::Assign(ast::Assign { expression, lvalue }),
         }
@@ -881,18 +855,6 @@ impl<'interner> Monomorphizer<'interner> {
                 (lvalue, index)
             }
         }
-    }
-
-    fn aos_to_soa_assign(
-        &self,
-        expression: Box<ast::Expression>,
-        lvalue: Box<ast::LValue>,
-        index: Box<ast::Expression>,
-        typ: ast::Type,
-        location: Location,
-    ) -> ast::Expression {
-        let lvalue = ast::LValue::Index { array: lvalue, index, element_type: typ, location };
-        ast::Expression::Assign(ast::Assign { lvalue, expression })
     }
 
     fn lambda(&mut self, lambda: HirLambda) -> ast::Expression {
