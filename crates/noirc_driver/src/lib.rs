@@ -305,5 +305,10 @@ pub fn compile_no_check(
     let (circuit, debug, abi) =
         create_circuit(program, options.show_ssa, options.show_brillig, show_output)?;
 
+    if options.print_acir {
+        println!("Unoptimised ACIR for main:");
+        println!("{}", circuit);
+    }
+
     Ok(CompiledProgram { circuit, debug, abi })
 }

@@ -5,8 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79c05de6ceaf6964ecdb7ea31e0ebed1073914de7e4975909b10f4007caf1934"
+source = "git+https://github.com/noir-lang/acvm?rev=5198b1cba0a981179fa76fd13b9df5619b8491d1#5198b1cba0a981179fa76fd13b9df5619b8491d1"
 dependencies = [
  "acir_field",
  "bincode",
@@ -19,8 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5015ffcaf93c3d5981ebebbd4669efd2ec629ff6b483bdfb03fb8a519738498"
+source = "git+https://github.com/noir-lang/acvm?rev=5198b1cba0a981179fa76fd13b9df5619b8491d1#5198b1cba0a981179fa76fd13b9df5619b8491d1"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -33,8 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d7ff2f8ae07bac36f3595496c79cecd55bef29533e319d2b77e8adbabadef0f"
+source = "git+https://github.com/noir-lang/acvm?rev=5198b1cba0a981179fa76fd13b9df5619b8491d1#5198b1cba0a981179fa76fd13b9df5619b8491d1"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -44,15 +41,13 @@ dependencies = [
  "indexmap 1.9.3",
  "num-bigint",
  "num-traits",
- "rmp-serde",
  "thiserror",
 ]
 
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06094a352644202d2094d2221ae0ebc480af7a755dceb72e6ddda3cd69e406e2"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=1008155593f30d6061af6c8507e5955cd28ea802#1008155593f30d6061af6c8507e5955cd28ea802"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -71,8 +66,7 @@ dependencies = [
 [[package]]
 name = "acvm_blackbox_solver"
 version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4c72b4c5dacee9f85b039689dfbfbcda8ad89cb0e34830ac83c6ce3aa58f8ba"
+source = "git+https://github.com/noir-lang/acvm?rev=5198b1cba0a981179fa76fd13b9df5619b8491d1#5198b1cba0a981179fa76fd13b9df5619b8491d1"
 dependencies = [
  "acir",
  "blake2",
@@ -86,8 +80,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90cc4d246a745c7ec533626098eade94a6a98eb77fc65af8870286d05e5fba74"
+source = "git+https://github.com/noir-lang/acvm?rev=5198b1cba0a981179fa76fd13b9df5619b8491d1#5198b1cba0a981179fa76fd13b9df5619b8491d1"
 dependencies = [
  "acir",
 ]
@@ -525,8 +518,7 @@ dependencies = [
 [[package]]
 name = "brillig"
 version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dc8ff1e2bf7251338dbe8dbdd82dab735f8bb31c8fa4f90b77adcdf90907230"
+source = "git+https://github.com/noir-lang/acvm?rev=5198b1cba0a981179fa76fd13b9df5619b8491d1#5198b1cba0a981179fa76fd13b9df5619b8491d1"
 dependencies = [
  "acir_field",
  "serde",
@@ -535,8 +527,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ca3f1f9bd6ee5f8abdb531cdf356b75351cf28f010fe0d97abbe060ba44e9f0"
+source = "git+https://github.com/noir-lang/acvm?rev=5198b1cba0a981179fa76fd13b9df5619b8491d1#5198b1cba0a981179fa76fd13b9df5619b8491d1"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -593,12 +584,6 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
-
-[[package]]
-name = "byteorder"
-version = "1.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "bytes"
@@ -2703,28 +2688,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "rmp"
-version = "0.8.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44519172358fd6d58656c86ab8e7fbc9e1490c3e8f14d35ed78ca0dd07403c9f"
-dependencies = [
- "byteorder",
- "num-traits",
- "paste",
-]
-
-[[package]]
-name = "rmp-serde"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5b13be192e0220b8afb7222aa5813cb62cc269ebb5cac346ca6487681d2913e"
-dependencies = [
- "byteorder",
- "rmp",
- "serde",
 ]
 
 [[package]]
