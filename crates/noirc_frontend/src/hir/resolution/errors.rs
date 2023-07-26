@@ -6,9 +6,11 @@ use crate::{parser::ParserError, Ident, Type};
 
 use super::import::PathResolutionError;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum PubPosition {
+    #[error("parameter")]
     Parameter,
+    #[error("return type")]
     ReturnType,
 }
 
@@ -169,13 +171,9 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::UnnecessaryPub { ident, position } => {
                 let name = &ident.0.contents;
 
-                let kind = match position {
-                    PubPosition::Parameter => "parameter",
-                    PubPosition::ReturnType => "return type",
-                };
                 let mut diag = Diagnostic::simple_error(
-                    format!("unnecessary pub keyword on {kind} for function {name}"),
-                    format!("unnecessary pub {kind}"),
+                    format!("unnecessary pub keyword on {position} for function {name}"),
+                    format!("unnecessary pub {position}"),
                     ident.0.span(),
                 );
 
