@@ -425,6 +425,24 @@ fn invalid_attribute() {
 }
 
 #[test]
+fn deprecated_attribute() {
+    let input = r#"#[deprecated]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated(None)));
+}
+
+#[test]
+fn deprecated_attribute_with_note() {
+    let input = r#"#[deprecated("hello")]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated("hello".to_string().into())));
+}
+
+#[test]
 fn test_custom_gate_syntax() {
     let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
 
