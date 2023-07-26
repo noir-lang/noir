@@ -412,7 +412,7 @@ impl<'a> Resolver<'a> {
                 args.resize_with(expected_generic_count, || Type::Error);
             }
 
-            // resolve type generics
+            // resolve generics in type aliases
             let typ = type_alias_type.get_type(&args);
 
             return typ;
@@ -537,9 +537,7 @@ impl<'a> Resolver<'a> {
         unresolved: NoirTypeAlias,
     ) -> (Type, Generics, Vec<ResolverError>) {
         let generics = self.add_generics(&unresolved.generics);
-
         self.resolve_local_globals();
-
         let typ = self.resolve_type(unresolved.ty);
 
         (typ, generics, self.errors)
