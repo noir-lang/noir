@@ -112,7 +112,7 @@ mod tests {
         let mut context = Context::new(fm, graph);
         let crate_id = create_local_crate(&mut context, root_file, CrateType::Binary);
 
-        let result = check_crate(&mut context, crate_id, false, false);
+        let result = check_crate(&mut context, crate_id, false);
         let success = result.is_ok();
 
         let errors = match result {
