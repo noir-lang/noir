@@ -2,23 +2,23 @@ mod bn254; // Instantiations of Poseidon for prime field of the same order as BN
 
 use crate::field::modulus_num_bits;
 
-struct PoseidonConfig {
+struct PoseidonConfig<M,N> {
     t: comptime Field, // Width, i.e. state size
     rf: comptime u8, // Number of full rounds; should be even
     rp: comptime u8, // Number of partial rounds
     alpha: comptime Field, // S-box power; depends on the underlying field
-    ark: [Field], // Additive round keys
-    mds: [Field] // MDS Matrix in row-major order
+    ark: [Field; M], // Additive round keys
+    mds: [Field; N] // MDS Matrix in row-major order
 }
 
-fn config(
+fn config<M,N>(
     t: comptime Field,
     rf: comptime u8,
     rp: comptime u8,
     alpha: comptime Field,
-    ark: [Field],
-    mds: [Field])
-    -> PoseidonConfig {
+    ark: [Field; M],
+    mds: [Field; N])
+    -> PoseidonConfig<M,N> {
     // Input checks
     assert(t as u8 * (rf + rp) == ark.len() as u8);
     assert(t * t == mds.len());
@@ -28,10 +28,10 @@ fn config(
 }
 
 // General Poseidon permutation on elements of type Field
-fn permute(
-    pos_conf: PoseidonConfig,
-    mut state: [Field])
-    -> [Field] {
+fn permute<M,N,O>(
+    pos_conf: PoseidonConfig<M, N>,
+    mut state: [Field; O])
+    -> [Field; O] {
     let PoseidonConfig {t, rf, rp, alpha, ark, mds} = pos_conf;
 
     assert(t == state.len());
@@ -61,13 +61,13 @@ fn permute(
 }
 
 // Absorption. Fully absorbs input message.
-fn absorb(
-    pos_conf: PoseidonConfig,
-    mut state: [Field], // Initial state; usually [0; O]
+fn absorb<M,N,O,P>(
+    pos_conf: PoseidonConfig<M, N>,
+    mut state: [Field; O], // Initial state; usually [0; O]
     rate: comptime Field, // Rate
     capacity: comptime Field, // Capacity; usually 1
-    msg: [Field]) // Arbitrary length message
-    -> [Field] {
+    msg: [Field; P]) // Arbitrary length message
+    -> [Field; O] {
     assert(pos_conf.t == rate + capacity);
     
     let mut i = 0;
@@ -101,7 +101,7 @@ fn check_security(rate: Field, width: Field, security: Field) -> bool {
 }
 
 // A*x where A is an n x n matrix in row-major order and x an n-vector
-fn apply_matrix(a: [Field], x: [Field]) -> [Field] {
+fn apply_matrix<N>(a: [Field], x: [Field; N]) -> [Field; N] {
     let mut y = x;
 
     for i in 0..x.len() {
