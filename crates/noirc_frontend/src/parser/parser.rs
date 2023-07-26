@@ -686,7 +686,7 @@ fn pattern() -> impl NoirParser<Pattern> {
         let ident_pattern = ident().map(Pattern::Identifier).map_err(|mut error| {
             if matches!(error.found(), Token::IntType(..)) {
                 error = ParserError::with_reason(
-                    ParserErrorReason::ExpectedPattern(error.found().clone()),
+                    ParserErrorReason::ExpectedPatternButFoundType(error.found().clone()),
                     error.span(),
                 );
             }
