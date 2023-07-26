@@ -208,13 +208,10 @@ impl From<TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(message, String::new(), span)
             }
             TypeCheckError::CallDeprecated { span, ref note, .. } => {
-                let mut message = error.to_string();
+                let primary_message = error.to_string();
+                let secondary_message = note.clone().unwrap_or_default();
 
-                if let Some(note) = note {
-                    message += &format!(": {note}");
-                }
-
-                Diagnostic::simple_warning(message, String::new(), span)
+                Diagnostic::simple_warning(primary_message, secondary_message, span)
             }
         }
     }
