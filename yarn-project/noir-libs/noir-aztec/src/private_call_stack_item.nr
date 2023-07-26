@@ -8,6 +8,8 @@ use crate::types::vec::BoundedVec;
 use crate::types::point::Point;
 use crate::utils::arr_copy_slice;
 use crate::constants_gen;
+use crate::constants_gen::GENERATOR_INDEX__FUNCTION_DATA;
+use crate::constants_gen::GENERATOR_INDEX__CALL_STACK_ITEM;
 
 use crate::oracle::call_private_function::call_private_function_internal;
 use crate::oracle::arguments;
@@ -20,12 +22,11 @@ struct FunctionData {
 
 impl FunctionData {
     fn hash(self) -> Field {
-        dep::std::hash::pedersen([
-            // TODO hash_index
+        dep::std::hash::pedersen_with_separator([
             self.function_selector,
             self.is_private as Field,
             self.is_constructor as Field,
-        ])[0]
+        ], GENERATOR_INDEX__FUNCTION_DATA)[0]
     }
 }
 
@@ -127,12 +128,10 @@ impl PrivateCallStackItem {
     }
 
     fn hash(self) -> Field {
-        dep::std::hash::pedersen([
-            // TODO hash_index
-            // FIXME - https://github.com/AztecProtocol/aztec-packages/issues/499
+        dep::std::hash::pedersen_with_separator([
             self.contract_address,
             self.function_data.hash(),
             self.public_inputs.hash(),
-        ])[0]
+        ], GENERATOR_INDEX__CALL_STACK_ITEM)[0]
     }
 }

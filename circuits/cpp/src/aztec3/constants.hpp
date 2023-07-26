@@ -142,7 +142,7 @@ enum GeneratorIndex {
     CALL_CONTEXT,                // Size = 6
     CALL_STACK_ITEM,             // Size = 3
     CALL_STACK_ITEM_2,           // Size = ? (unused), // TODO see function where it's used for explanation
-    L1_TO_L2_MESSAGE_SECRET,     // Size = 1 (wrongly used)
+    L1_TO_L2_MESSAGE_SECRET,     // Size = 1
     L2_TO_L1_MSG,                // Size = 2 (unused)
     TX_CONTEXT,                  // Size = 4
     PUBLIC_LEAF_INDEX,           // Size = 2 (unused)

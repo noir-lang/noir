@@ -1,4 +1,5 @@
 use dep::std::hash::pedersen;
+use dep::std::hash::pedersen_with_separator;
 use dep::aztec::context::Context;
 use dep::aztec::messaging::get_commitment_getter_data::make_commitment_getter_data;
 use dep::aztec::oracle::{
@@ -53,7 +54,8 @@ impl TransparentNote {
     }
 
     fn compute_secret_hash(secret: Field) -> Field {
-        pedersen([GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET, secret])[0]
+        // TODO(#1205) This is probably not the right index to use
+        pedersen_with_separator([secret], GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET)[0]
     }
 
     fn knows_secret(self, secret: Field) {

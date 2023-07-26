@@ -476,9 +476,7 @@ WASM_EXPORT void abis__compute_message_secret_hash(uint8_t const* secret, uint8_
 {
     NT::fr message_secret;
     read(secret, message_secret);
-    // TODO(sean): This is not using the generator correctly and is unsafe, update
-    auto secret_hash = crypto::pedersen_commitment::lookup::compress_native(
-        { aztec3::GeneratorIndex::L1_TO_L2_MESSAGE_SECRET, message_secret });
+    auto secret_hash = NT::hash({ message_secret }, aztec3::GeneratorIndex::L1_TO_L2_MESSAGE_SECRET);
     NT::fr::serialize_to_buffer(secret_hash, output);
 }
 

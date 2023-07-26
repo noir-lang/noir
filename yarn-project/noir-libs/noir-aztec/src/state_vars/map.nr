@@ -9,6 +9,7 @@ impl<V> Map<V> {
     }
 
     fn at(self, key: Field) -> V {
+        // TODO(#1204): use a generator index for the storage slot
         let derived_storage_slot = dep::std::hash::pedersen([
             self.storage_slot, 
             key,

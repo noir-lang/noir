@@ -2,6 +2,7 @@ use dep::std::hash::{pedersen, pedersen_with_separator};
 use crate::constants_gen::{GENERATOR_INDEX__UNIQUE_COMMITMENT, GENERATOR_INDEX__OUTER_COMMITMENT};
 
 fn compute_inner_hash(storage_slot: Field, note_hash: Field) -> Field {
+    // TODO(#1205) Do we need a generator index here?
     pedersen([storage_slot, note_hash])[0]
 }
 

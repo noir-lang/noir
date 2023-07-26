@@ -35,7 +35,7 @@ struct EntrypointPayload {
 }
 
 impl EntrypointPayload {
-  // TODO hash_index
+  // TODO(#1207) Do we need a generator index?
   fn hash(self) -> Field {
     dep::std::hash::pedersen(self.serialize())[0]
   }
