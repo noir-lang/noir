@@ -47,4 +47,16 @@ describe('AztecRpcServer', function () {
 
     await expect(rpcServer.addAccount(privateKey, address, partialAddress)).rejects.toThrowError(/cannot be derived/);
   });
+
+  it('cannot add the same account twice', async () => {
+    const keyPair = ConstantKeyPair.random(await Grumpkin.new());
+    const pubKey = keyPair.getPublicKey();
+    const partialAddress = Fr.random();
+    const address = computeContractAddressFromPartial(wasm, pubKey, partialAddress);
+
+    await rpcServer.addAccount(await keyPair.getPrivateKey(), address, partialAddress);
+    await expect(async () =>
+      rpcServer.addAccount(await keyPair.getPrivateKey(), address, partialAddress),
+    ).rejects.toThrow(`Account ${address} already exists`);
+  });
 });

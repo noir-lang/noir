@@ -44,7 +44,11 @@ export class ContractFunctionInteraction {
     protected contractAddress: AztecAddress,
     protected functionDao: FunctionAbi,
     protected args: any[],
-  ) {}
+  ) {
+    if (args.some(arg => arg === undefined || arg === null)) {
+      throw new Error('All function interaction arguments must be defined and not null. Received: ' + args);
+    }
+  }
 
   /**
    * Create an Aztec transaction instance by combining the transaction request and its signature.

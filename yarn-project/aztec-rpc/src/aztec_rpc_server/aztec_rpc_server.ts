@@ -370,12 +370,12 @@ export class AztecRPCServer implements AztecRPC {
   ): Promise<ExecutionRequest> {
     const contract = await this.db.getContract(to);
     if (!contract) {
-      throw new Error('Unknown contract.');
+      throw new Error(`Unknown contract ${to}: add it to Aztec RPC server by calling server.addContracts(...)`);
     }
 
     const functionDao = contract.functions.find(f => f.name === functionName);
     if (!functionDao) {
-      throw new Error('Unknown function.');
+      throw new Error(`Unknown function ${functionName} in contract ${contract.name}.`);
     }
 
     const flatArgs = encodeArguments(functionDao, args);

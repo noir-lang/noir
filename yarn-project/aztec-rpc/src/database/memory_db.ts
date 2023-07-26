@@ -183,6 +183,9 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     publicKey: PublicKey,
     partialAddress: PartialContractAddress,
   ): Promise<void> {
+    if (this.publicKeys.has(address.toBigInt())) {
+      throw new Error(`Account ${address} already exists`);
+    }
     this.publicKeys.set(address.toBigInt(), [publicKey, partialAddress]);
     return Promise.resolve();
   }

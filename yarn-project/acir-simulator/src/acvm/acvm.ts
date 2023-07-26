@@ -78,13 +78,13 @@ export async function acvm(
       logger(`Oracle callback ${name}`);
       const oracleFunction = callback[name as ORACLE_NAMES];
       if (!oracleFunction) {
-        throw new Error(`Callback ${name} not found`);
+        throw new Error(`Oracle callback ${name} not found`);
       }
 
       const result = await oracleFunction.call(callback, ...args);
       return [result];
     } catch (err: any) {
-      logger(`Error in ACVM callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
+      logger(`Error in oracle callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
       throw err;
     }
   });

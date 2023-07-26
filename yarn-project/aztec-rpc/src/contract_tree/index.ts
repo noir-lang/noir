@@ -119,7 +119,13 @@ export class ContractTree {
   public getFunctionAbi(functionSelector: Buffer) {
     const abi = this.contract.functions.find(f => f.selector.equals(functionSelector));
     if (!abi) {
-      throw new Error(`Unknown function: ${functionSelector.toString('hex')}.`);
+      throw new Error(
+        `Unknown function. Selector ${functionSelector.toString(
+          'hex',
+        )} not found in the ABI of contract ${this.contract.address.toString()}. Expected one of: ${this.contract.functions
+          .map(f => f.selector.toString('hex'))
+          .join(', ')}`,
+      );
     }
     return abi;
   }

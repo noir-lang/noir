@@ -6,9 +6,9 @@ import { DeployMethod } from './deploy_method.js';
 
 /**
  * A class for deploying contract.
+ * @remarks Keeping this around even though we have noir contract types because it can be useful for non-TS users.
  */
 export class ContractDeployer {
-  // TODO: remove this?
   constructor(private abi: ContractAbi, private arc: AztecRPC, private publicKey?: PublicKey) {}
 
   /**
