@@ -1,15 +1,19 @@
 
 
-use super::{NargoConfig, backend_vendor_cmd::{BackendOptions, ProofArtifact}};
+use super::arguments::VerificationKeyArtifact;
+use super::backend_vendor_cmd::{BackendOptions};
+use crate::cli::arguments::ProofArtifact;
+use crate::cli::arguments::NargoConfig;
 use crate::{
     constants::{self},
-    errors::CliError, cli::backend_vendor_cmd::{execute_backend_cmd, VerificationKeyArtifact},
+    errors::CliError, cli::backend_vendor_cmd::{execute_backend_cmd},
 };
 
 use acvm::Backend;
 // use acvm::Backend;
 use clap::Args;
 
+use nameof::name_of;
 use tracing::debug;
 
 use super::backend_vendor_cmd;
@@ -29,14 +33,18 @@ pub(crate) struct VerifyCommand {
 
 pub(crate) fn run<B: Backend>(
     _backend: &B,
-    args: BackendOptions,
+    args: VerifyCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {    
 
     debug!("Supplied Prove arguments: {:?}", args);
 
-    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args)?;
-    let mut raw_pass_through= args.backend_arguments.unwrap_or_default();
+    let mut mut_config = config.clone();
+    if Option::None == mut_config.nargo_proof_path {
+        mut_config.nargo_proof_path = Some(args.proof_options.nargo_proof_path);
+    }
+    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args.backend_options)?;
+    let mut raw_pass_through= args.backend_options.backend_arguments.unwrap_or_default();
     let mut backend_args = vec![String::from(constants::VERIFY_SUB_CMD)];
     backend_args.append(&mut raw_pass_through);
 

@@ -1,10 +1,11 @@
 
 
-use super::{NargoConfig, backend_vendor_cmd::{BackendOptions, ContractArtifact}};
+use super::{backend_vendor_cmd::{BackendOptions}, arguments::{VerificationKeyArtifact, ContractArtifact}};
 use crate::{
     constants::{self},
-    errors::CliError, cli::backend_vendor_cmd::{execute_backend_cmd, VerificationKeyArtifact},
+    errors::CliError, cli::backend_vendor_cmd::{execute_backend_cmd},
 };
+use crate::cli::arguments::NargoConfig;
 
 use acvm::Backend;
 use clap::Args;
@@ -29,14 +30,12 @@ pub(crate) struct CodegenVerifierCommand {
 
 pub(crate) fn run<B: Backend>(
     _backend: &B,
-    args: BackendOptions,
+    args: CodegenVerifierCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {    
 
-    debug!("Supplied arguments: {:?}", args);
-
-    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args)?;
-    let mut raw_pass_through= args.backend_arguments.unwrap_or_default();
+    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args.backend_options)?;
+    let mut raw_pass_through= args.backend_options.backend_arguments.unwrap_or_default();
     let mut backend_args = vec![String::from(constants::CONTRACT_SUB_CMD)];
     backend_args.append(&mut raw_pass_through);
 

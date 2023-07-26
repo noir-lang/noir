@@ -15,6 +15,9 @@ pub(crate) const TARGET_DIR: &str = "target";
 pub(crate) const PROVER_INPUT_FILE: &str = "Prover";
 /// The file from which Nargo pulls verifier inputs
 pub(crate) const VERIFIER_INPUT_FILE: &str = "Verifier";
+/// The file from which Nargo pulls verifier inputs
+pub(crate) const META_INPUT_EXT: &str = "toml";
+
 /// The package definition file for a Noir project.
 pub(crate) const PKG_FILE: &str = "Nargo.toml";
 /// Global config file name

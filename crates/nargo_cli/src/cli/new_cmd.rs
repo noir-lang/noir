@@ -4,7 +4,8 @@ use crate::{
 };
 
 use super::fs::{create_named_dir, write_to_file};
-use super::{NargoConfig, CARGO_PKG_VERSION};
+use super::{CARGO_PKG_VERSION};
+use crate::cli::arguments::NargoConfig;
 use acvm::Backend;
 use clap::Args;
 use const_format::formatcp;

@@ -9,7 +9,7 @@ use noirc_frontend::{graph::CrateId, hir::Context};
 use std::path::{Path, PathBuf};
 
 use super::fs::write_to_file;
-use super::NargoConfig;
+use crate::cli::arguments::NargoConfig;
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors

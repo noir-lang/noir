@@ -7,10 +7,11 @@ use color_eyre::eyre;
 
 use crate::{find_package_root, cli::fs::global_config};
 
-use self::{backend_vendor_cmd::{BackendOptions}, install_cmd::InstallBackendCommand};
+use self::{backend_vendor_cmd::{BackendOptions}, install_cmd::InstallBackendCommand, prove_cmd::ProveCommand, verify_cmd::VerifyCommand, gates_cmd::GatesCommand, codegen_verifier_cmd::CodegenVerifierCommand};
 
 mod fs;
 
+mod arguments;
 mod backend_vendor_cmd;
 mod check_cmd;
 mod codegen_verifier_cmd;
@@ -38,59 +39,25 @@ struct NargoCli {
     command: NargoCommand,
 
     #[clap(flatten)]
-    config: NargoConfig,
-}
-
-#[non_exhaustive]
-#[derive(Args, Clone, Debug)]
-pub(crate) struct NargoConfig {
-    #[arg(env, long, default_value_os_t = std::env::current_dir().unwrap())]
-    nargo_package_root: PathBuf,
-
-    #[arg(env, long,  hide=true)]
-    nargo_target_dir: Option<PathBuf>,
-
-    #[arg(env, long, hide=true)]
-    nargo_artifact_name: Option<String>,
-
-    /// Path to nargo artifact containing ACIR. Defaults to $NARGO_TARGET_DIR/target/${parent_folder_name}.acir.json
-    #[arg(env, long)]
-    nargo_artifact_path: Option<PathBuf>,
-
-    /// Path to solved wintess. Defaults to $NARGO_TARGET_DIR/target/${parent_folder_name}.tr
-    #[arg(env, long)]
-    pub(crate) nargo_witness_path: Option<PathBuf>,
-
-    /// Path to proof artifact. Defaults to $NARGO_TARGET_DIR/target/${parent_folder_name}.proof
-    #[arg(env, long)]
-    pub(crate) nargo_proof_path: Option<PathBuf>,
-
-    /// Path to proof verification key. Defaults to $NARGO_TARGET_DIR/target/${parent_folder_name}.vk
-    #[arg(env, long)]
-    pub(crate) nargo_verification_key_path: Option<PathBuf>,
-
-    /// Path to solved wintess. Defaults to $NARGO_TARGET_DIR/target/${parent_folder_name}.sol
-    #[arg(env, long)]
-    pub(crate) nargo_contract_path: Option<PathBuf>,
-
+    config: arguments::NargoConfig,
 }
 
 #[non_exhaustive]
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
-    CodegenVerifier(BackendOptions),
+    CodegenVerifier(CodegenVerifierCommand),
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Execute(execute_cmd::ExecuteCommand),
     /// Create proof for this program
-    Prove(BackendOptions),
+    Prove(ProveCommand),
     /// Given a proof and a program, verify whether the proof is valid
-    Verify(BackendOptions),
+    Verify(VerifyCommand),
     Test(test_cmd::TestCommand),
     /// Counts the occurrences of different gates in circuit
-    Gates(BackendOptions),
+    Gates(GatesCommand),
     Lsp(lsp_cmd::LspCommand),
     /// Execute arbitrary backend subcommand, pass args behind `--`
     Backend(BackendOptions),
@@ -98,6 +65,7 @@ enum NargoCommand {
 }
 
 pub fn start_cli() -> eyre::Result<()> {
+
     let NargoCli { command, mut config } = NargoCli::parse();
 
     let global_config = global_config::read_global_config_file();

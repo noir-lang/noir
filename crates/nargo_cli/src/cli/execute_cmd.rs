@@ -11,8 +11,9 @@ use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic};
 use noirc_frontend::hir::Context;
 
+use super::arguments;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
-use super::NargoConfig;
+use crate::cli::arguments::NargoConfig;
 use crate::{
     cli::compile_cmd::compile_circuit,
     constants::{PROVER_INPUT_FILE, TARGET_DIR},
@@ -23,8 +24,9 @@ use crate::{
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ExecuteCommand {
     /// The name of the toml file which contains the inputs for the prover
-    #[clap(long, short, default_value = PROVER_INPUT_FILE)]
-    nargo_proof_meta_file: String,
+    #[clap(flatten)]
+    nargo_proof_meta_options: arguments::ProverMetaArtifact,
+    
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -35,13 +37,13 @@ pub(crate) fn run<B: Backend>(
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
     let (return_value, solved_witness) =
-        execute_with_path(backend, &config.nargo_package_root, args.nargo_proof_meta_file, &args.compile_options)?;
+        execute_with_path(backend, &config.nargo_package_root, args.nargo_proof_meta_options.nargo_prover_meta_path.as_os_str().to_string_lossy().to_string(), &args.compile_options)?;
 
     println!("Circuit witness successfully solved");
     if let Some(return_value) = return_value {
         println!("Circuit output: {return_value:?}");
     }
-    if let Some(witness_name) = config.nargo_artifact_name {
+    if let witness_name = config.nargo_artifact_name {
         let witness_dir = config.nargo_package_root.join(TARGET_DIR);
 
         let witness_path = save_witness_to_dir(solved_witness, &witness_name, witness_dir)?;

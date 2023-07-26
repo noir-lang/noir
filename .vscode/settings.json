@@ -17,4 +17,10 @@
         "https://json.schemastore.org/github-workflow.json": "${workspaceRoot}/.github/workflows/*.yml"
     },
     "rust-analyzer.check.features": null,
+    "rust-analyzer.hover.actions.references.enable": true,
+    "rust-analyzer.lens.references.adt.enable": true,
+    "rust-analyzer.lens.references.enumVariant.enable": true,
+    "rust-analyzer.lens.references.method.enable": true,
+    "rust-analyzer.lens.references.trait.enable": true,
+    "rust-analyzer.references.excludeImports": true,
 }

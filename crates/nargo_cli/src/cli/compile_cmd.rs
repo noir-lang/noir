@@ -23,7 +23,7 @@ use super::fs::{
     },
     program::{save_contract_to_file, save_program_to_file},
 };
-use super::NargoConfig;
+use crate::cli::arguments::NargoConfig;
 
 // TODO(#1388): pull this from backend.
 const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
@@ -96,7 +96,7 @@ pub(crate) fn run<B: Backend>(
         for contract in preprocessed_contracts? {
             save_contract_to_file(
                 &contract,
-                &format!("{}-{}", &config.nargo_artifact_name.as_ref().unwrap(), contract.name),
+                &format!("{}-{}", &config.nargo_artifact_name, contract.name),
                 &circuit_dir,
             );
         }

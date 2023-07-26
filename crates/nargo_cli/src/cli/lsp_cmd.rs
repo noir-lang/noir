@@ -9,7 +9,7 @@ use noirc_driver::CompileOptions;
 use tokio::io::BufReader;
 use tower::ServiceBuilder;
 
-use super::NargoConfig;
+use crate::cli::arguments::NargoConfig;
 use crate::errors::CliError;
 
 #[derive(Debug, Clone, Args)]

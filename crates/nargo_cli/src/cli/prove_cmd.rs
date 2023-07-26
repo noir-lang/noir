@@ -5,7 +5,8 @@ use tracing::debug;
 
 use clap::Args;
 
-use super::{NargoConfig, backend_vendor_cmd::{BackendOptions, ProofArtifact, WitnessArtifact, VerificationKeyArtifact}};
+use super::{backend_vendor_cmd::{BackendOptions}, arguments::{ProofArtifact, VerificationKeyArtifact, WitnessArtifact, ProverMetaArtifact, VerifierMetaArtifact}};
+use crate::cli::arguments::NargoConfig;
 
 use crate::{
     errors::CliError, cli::backend_vendor_cmd::{self, execute_backend_cmd}, constants,
@@ -16,16 +17,12 @@ use crate::{
 pub(crate) struct ProveCommand {
 
     /// The name of the toml file which contains the inputs for the prover
-    #[clap(long, default_value = constants::PROVER_INPUT_FILE)]
-    nargo_prover_meta: String,
+    #[clap(flatten)]
+    nargo_prover_meta: ProverMetaArtifact,
 
     /// The name of the toml file which contains the inputs for the verifier
-    #[clap(long, default_value = constants::VERIFIER_INPUT_FILE)]
-    nargo_verifier_meta: String,
-
-    /// Verify proof after proving
-    // #[arg(short, long)]
-    // verify: bool,
+    #[clap(flatten)]
+    nargo_verifier_meta: VerifierMetaArtifact,
 
     #[clap(flatten)]
     pub(crate) proof_options: ProofArtifact,
@@ -45,15 +42,15 @@ pub(crate) struct ProveCommand {
 
 pub(crate) fn run<B: acvm::Backend>(
     _backend: &B,
-    args: BackendOptions,
+    args: ProveCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {    
 
 
     debug!("Supplied arguments: {:?}", args);
 
-    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args)?;
-    let mut raw_pass_through= args.backend_arguments.unwrap_or_default();
+    let backend_executable_path = backend_vendor_cmd::resolve_backend(&args.backend_options)?;
+    let mut raw_pass_through= args.backend_options.backend_arguments.unwrap_or_default();
     let mut backend_args = vec![String::from(constants::PROVE_SUB_CMD)];
     backend_args.append(&mut raw_pass_through);
 

@@ -1,3 +1,4 @@
+use crate::cli::arguments::ContractArtifact;
 use crate::errors::{BackendVendorError, CliError};
 use crate::{constants};
 use acvm::Backend;
@@ -13,8 +14,9 @@ use std::process::{Command, Stdio};
 use tracing::debug;
 use which::which;
 
+use super::arguments::NargoConfig;
 use super::fs::global_config;
-use super::NargoConfig;
+
 
 fn default_backend_path() -> PathBuf {
     let backend_assumed_path_buf = home_dir()
@@ -48,39 +50,6 @@ pub(crate) struct BackendOptions {
     pub(crate) backend_arguments: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Args)]
-pub(crate) struct ProofArtifact {
-    #[arg(env, long, hide = true)]
-    pub(crate) nargo_default_proof_dir: Option<PathBuf>,
-
-    #[arg(env, long, hide = true)]
-    pub(crate) nargo_default_proof_name: Option<String>,
-
-    /// ACIR file desired location path
-    #[arg(env, long)]
-    pub(crate) nargo_proof_path: Option<PathBuf>,
-}
-
-#[derive(Debug, Clone, Args)]
-pub(crate) struct VerificationKeyArtifact {
-    /// Witness file desired location path
-    #[arg(env, long)]
-    pub(crate) nargo_verification_key_path: Option<PathBuf>,
-}
-
-#[derive(Debug, Clone, Args)]
-pub(crate) struct WitnessArtifact {
-    /// Witness file desired location path
-    #[arg(env, long)]
-    pub(crate) nargo_witness_path: Option<PathBuf>,
-}
-
-#[derive(Debug, Clone, Args)]
-pub(crate) struct ContractArtifact {
-    /// Witness file desired location path
-    #[arg(env, long)]
-    pub(crate) nargo_contract_path: Option<PathBuf>,
-}
 
 pub(crate) fn resolve_backend<'a>(args: &'a BackendOptions) -> Result<PathBuf, BackendVendorError> {
     match which(&args.backend_executable) {
@@ -108,10 +77,10 @@ pub(crate) fn execute_backend_cmd(
         name_of!(nargo_witness_path in NargoConfig).to_uppercase(),
         String::from(config.nargo_witness_path.clone().unwrap().as_os_str().to_str().unwrap()),
     );
-    envs.insert(
-        name_of!(nargo_proof_path in NargoConfig).to_uppercase(),
-        String::from(config.nargo_proof_path.clone().unwrap().as_os_str().to_str().unwrap()),
-    );
+    // envs.insert(
+    //     name_of!(nargo_proof_path in NargoConfig).to_uppercase(),
+    //     String::from(config.nargo_proof_path.clone().as_os_str().to_str().unwrap()),
+    // );
     envs.insert(
         name_of!(nargo_verification_key_path in NargoConfig).to_uppercase(),
         String::from(
@@ -180,17 +149,17 @@ pub(crate) fn run<B: Backend>(
 
 pub(crate) fn set_default_paths(config: &mut NargoConfig) {
     // We default a nargo_artifact_name to parent folder name
-    config.nargo_artifact_name = Some(config.nargo_artifact_name.clone().unwrap_or_else(|| {
-        // String::from("main")
-        config
-            .nargo_package_root
-            .components()
-            .last()
-            .unwrap()
-            .as_os_str()
-            .to_string_lossy()
-            .to_string()
-    }));
+    // config.nargo_artifact_name = Some(config.nargo_artifact_name.clone().unwrap_or_else(|| {
+    //     // String::from("main")
+    //     config
+    //         .nargo_package_root
+    //         .components()
+    //         .last()
+    //         .unwrap()
+    //         .as_os_str()
+    //         .to_string_lossy()
+    //         .to_string()
+    // }));
     // We default a NARGO_TARGET_DIR to NARGO_PACKAGE_ROOT + `/target`
     config.nargo_target_dir = Some(config.nargo_target_dir.clone().unwrap_or_else(|| {
         let mut target = config.nargo_package_root.clone();
@@ -202,8 +171,8 @@ pub(crate) fn set_default_paths(config: &mut NargoConfig) {
         derive_default_path(&config, config.nargo_artifact_path.clone(), constants::ACIR_EXT);
     config.nargo_witness_path =
         derive_default_path(&config, config.nargo_witness_path.clone(), constants::WITNESS_EXT);
-    config.nargo_proof_path =
-        derive_default_path(&config, config.nargo_proof_path.clone(), constants::PROOF_EXT);
+    // config.nargo_proof_path =
+        // derive_default_path(&config, config.nargo_proof_path.clone(), constants::PROOF_EXT);
     config.nargo_verification_key_path = derive_default_path(
         &config,
         config.nargo_verification_key_path.clone(),
@@ -220,7 +189,7 @@ fn derive_default_path(
 ) -> Option<PathBuf> {
     Some(current_path.clone().unwrap_or_else(|| {
         let mut target = config.nargo_target_dir.as_ref().unwrap().clone();
-        let mut nargo_witness_name = config.nargo_artifact_name.as_ref().unwrap().clone();
+        let mut nargo_witness_name = config.nargo_artifact_name.clone();
         nargo_witness_name.push('.');
         nargo_witness_name.push_str(ext);
         target.push(nargo_witness_name);

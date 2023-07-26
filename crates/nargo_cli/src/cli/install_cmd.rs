@@ -14,7 +14,7 @@ use trauma::{
 
 use crate::{cli::fs::global_config, constants, errors::CliError};
 
-use super::NargoConfig;
+use crate::cli::arguments::NargoConfig;
 
 /// Install a backend handling proof creation and verification
 #[derive(Debug, Clone, Args)]
