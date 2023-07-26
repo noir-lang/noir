@@ -30,6 +30,17 @@ fn main(mut x: Field) {
     };
     *c.bar.array = [3, 4];
     assert(*c.bar.array == [3, 4]);
+
+    regression_2054();
+}
+
+// Ensure that mutating a variable does not also mutate its copy
+fn regression_2054() {
+    let mut x = 2;
+    let z = x;
+
+    x += 1;
+    assert(z == 2);
 }
 
 fn add1(x: &mut Field) {
