@@ -99,7 +99,7 @@ fn msg_u8_to_u32(msg: [u8; 64]) -> [u32; 16]
 }
 
 // SHA-256 hash function
-fn digest<N>(msg: [u8; N]) -> [u8; 32] {
+fn digest(msg: [u8]) -> [u8; 32] {
     let mut msg_block: [u8; 64] = [0; 64];
     let mut h: [u32; 8] = [1779033703,3144134277,1013904242,2773480762,1359893119,2600822924,528734635,1541459225]; // Intermediate hash, starting with the canonical initial value
     let mut c: [u32; 8] = [0; 8]; // Compression of current message block as sequence of u32

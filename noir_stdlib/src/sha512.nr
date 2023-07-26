@@ -98,7 +98,7 @@ fn msg_u8_to_u64(msg: [u8; 128]) -> [u64; 16]
 }
 
 // SHA-512 hash function
-fn digest<N>(msg: [u8; N]) -> [u8; 64]
+fn digest(msg: [u8]) -> [u8; 64]
 {
     let mut msg_block: [u8; 128] = [0; 128];
     let mut h: [u64; 8] = [7640891576956012808, 13503953896175478587, 4354685564936845355, 11912009170470909681, 5840696475078001361, 11170449401992604703, 2270897969802886507, 6620516959819538809]; // Intermediate hash, starting with the canonical initial value
