@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.4](https://github.com/AztecProtocol/barretenberg/compare/barretenberg-v0.3.3...barretenberg-v0.3.4) (2023-07-25)
+
+
+### Features
+
+* Add Goblin Ultra Circuit builder ([#587](https://github.com/AztecProtocol/barretenberg/issues/587)) ([2d38c25](https://github.com/AztecProtocol/barretenberg/commit/2d38c252de8b867955da661181e51f1a5f28cbc6))
+* Modify bb.js to be compatible with next.js ([#544](https://github.com/AztecProtocol/barretenberg/issues/544)) ([d384089](https://github.com/AztecProtocol/barretenberg/commit/d384089f60d1a6d5baeb0d3459556a310b790366))
+* Support public inputs in Ultra Honk ([#581](https://github.com/AztecProtocol/barretenberg/issues/581)) ([9cd0a06](https://github.com/AztecProtocol/barretenberg/commit/9cd0a064b8258bf4f72dd9e1c5e8f85b074d1bbc))
+
 ## [0.3.3](https://github.com/AztecProtocol/barretenberg/compare/barretenberg-v0.3.2...barretenberg-v0.3.3) (2023-07-17)
 
 

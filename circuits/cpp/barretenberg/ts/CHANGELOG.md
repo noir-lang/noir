@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.3...barretenberg.js-v0.3.4) (2023-07-25)
+
+
+### Features
+
+* Modify bb.js to be compatible with next.js ([#544](https://github.com/AztecProtocol/barretenberg/issues/544)) ([d384089](https://github.com/AztecProtocol/barretenberg/commit/d384089f60d1a6d5baeb0d3459556a310b790366))
+
 ## [0.3.3](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.2...barretenberg.js-v0.3.3) (2023-07-17)
 
 
