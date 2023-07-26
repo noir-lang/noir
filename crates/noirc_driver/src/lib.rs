@@ -195,7 +195,7 @@ pub fn compile_main(
     let compiled_program = compile_no_check(context, true, options, main)?;
 
     if options.print_acir {
-        println!("Compiled ACIR for main:");
+        println!("Compiled ACIR for main (unoptimized):");
         println!("{}", compiled_program.circuit);
     }
 
@@ -228,7 +228,7 @@ pub fn compile_contracts(
             for compiled_contract in &compiled_contracts {
                 for contract_function in &compiled_contract.functions {
                     println!(
-                        "Compiled ACIR for {}::{}:",
+                        "Compiled ACIR for {}::{} (unoptimized):",
                         compiled_contract.name, contract_function.name
                     );
                     println!("{}", contract_function.bytecode);
@@ -304,11 +304,6 @@ pub fn compile_no_check(
 
     let (circuit, debug, abi) =
         create_circuit(program, options.show_ssa, options.show_brillig, show_output)?;
-
-    if options.print_acir {
-        println!("Unoptimised ACIR for main:");
-        println!("{}", circuit);
-    }
 
     Ok(CompiledProgram { circuit, debug, abi })
 }
