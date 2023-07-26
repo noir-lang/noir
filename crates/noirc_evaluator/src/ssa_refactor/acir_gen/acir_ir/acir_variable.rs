@@ -97,7 +97,7 @@ pub(crate) struct AcirContext {
     /// Two-way map that links `AcirVar` to `AcirVarData`.
     ///
     /// The vars object is an instance of the `TwoWayMap`, which provides a bidirectional mapping between `AcirVar` and `AcirVarData`.
-    pub vars: HashMap<AcirVar, AcirVarData>,
+    vars: HashMap<AcirVar, AcirVarData>,
 
     /// An in-memory representation of ACIR.
     ///
@@ -1025,7 +1025,7 @@ impl AcirContext {
 /// Enum representing the possible values that a
 /// Variable can be given.
 #[derive(Debug, Eq, Clone)]
-pub enum AcirVarData {
+enum AcirVarData {
     Witness(Witness),
     Expr(Expression),
     Const(FieldElement),
