@@ -244,10 +244,7 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let (word, start, end) = self.eat_while(None, |ch| {
-            (ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_' || ch == '(' || ch == ')')
-                && (ch != ']')
-        });
+        let (word, start, end) = self.eat_while(None, |ch| ch != ']');
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {

@@ -82,7 +82,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(Attribute::Test) => FunctionKind::Normal,
             Some(Attribute::Oracle(_)) => FunctionKind::Oracle,
-            Some(Attribute::Deprecated) | None => FunctionKind::Normal,
+            Some(Attribute::Deprecated(_)) | None => FunctionKind::Normal,
         };
 
         NoirFunction { def: fd, kind }

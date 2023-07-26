@@ -95,7 +95,7 @@ pub enum TypeCheckError {
     #[error("Cannot infer type of expression, type annotations needed before this point")]
     TypeAnnotationsNeeded { span: Span },
     #[error("use of deprecated function {name}")]
-    CallDeprecated { name: String, span: Span },
+    CallDeprecated { name: String, note: Option<String>, span: Span },
     #[error("{0}")]
     ResolverError(ResolverError),
 }
@@ -207,8 +207,14 @@ impl From<TypeCheckError> for Diagnostic {
 
                 Diagnostic::simple_error(message, String::new(), span)
             }
-            TypeCheckError::CallDeprecated { span, .. } => {
-                Diagnostic::simple_warning(error.to_string(), String::new(), span)
+            TypeCheckError::CallDeprecated { span, ref note, .. } => {
+                let mut message = error.to_string();
+
+                if let Some(note) = note {
+                    message += &format!(": {note}");
+                }
+
+                Diagnostic::simple_warning(message, String::new(), span)
             }
         }
     }

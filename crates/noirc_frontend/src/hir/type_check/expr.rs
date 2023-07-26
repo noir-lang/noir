@@ -26,11 +26,12 @@ impl<'interner> TypeChecker<'interner> {
                     self.interner.try_definition(id)?.kind
                 {
                     let meta = self.interner.function_meta(&func_id);
-                    if let crate::token::Attribute::Deprecated = meta.attributes? {
+                    if let crate::token::Attribute::Deprecated(note) = meta.attributes? {
                         let name = self.interner.definition_name(id);
 
                         self.errors.push(TypeCheckError::CallDeprecated {
                             name: name.to_string(),
+                            note,
                             span: location.span,
                         });
                     }
