@@ -32,28 +32,28 @@ checkout: &checkout
   run:
     name: "Checkout code"
     command: |
+      function retry_10() {
+        # Retries up to 10 times with 10 second intervals
+        for i in $(seq 1 10); do
+          "$@" && return || sleep 10
+        done
+        echo "$@ failed after 10 attempts"
+        exit 1
+      }
       cd $HOME
-      mkdir -p .ssh
-      chmod 0700 .ssh
-      ssh-keyscan -t rsa github.com >> .ssh/known_hosts
-
-      # A read only key for cloning the repository.
-      echo $GIT_CHECKOUT_KEY | base64 -d > .ssh/id_rsa
-
-      chmod 0600 .ssh/id_rsa
 
       # IF YOU'RE CHANGING THIS, YOU ALSO WANT TO CHANGE: build-system/remote_build/remote_build
       # Shallow checkout this commit.
       mkdir -p project
       cd project
       git init
-      git remote add origin $CIRCLE_REPOSITORY_URL
+      git remote add origin https://github.com/AztecProtocol/aztec-packages
 
       # Only download metadata when fetching.
-      git fetch --depth 50 --filter=blob:none origin $CIRCLE_SHA1
+      retry_10 git fetch --depth 50 --filter=blob:none origin $CIRCLE_SHA1
       git checkout FETCH_HEAD
       # Initialize submodules recursively (retry 10 times on failure)
-      for i in $(seq 1 10); do git submodule update --init --recursive && s=0 && break || s=$? && sleep 10; done; (exit $s)
+      retry_10 git submodule update --init --recursive
 
 # This build step checks out the code from the benchmark-archive repository. The key is saved in CircleCi environment in base64 format.
 # Initially it just fetches the latest version.
