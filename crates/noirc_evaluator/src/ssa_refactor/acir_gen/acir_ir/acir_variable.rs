@@ -855,18 +855,9 @@ impl AcirContext {
                 AcirValue::Var(var, output.clone())
             }
             AcirType::Array(element_types, size) => {
-                let mut witnesses = Vec::new();
-                let mut array_values = im::Vector::new();
-                for _ in 0..size {
-                    for element_type in &element_types {
-                        let witness_index = self.acir_ir.next_witness_index();
-                        witnesses.push(witness_index);
-                        let var = self.add_data(AcirVarData::Witness(witness_index));
-                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
-                    }
-                }
+                let (acir_value, witnesses) = self.brillig_array_output(&element_types, size);
                 b_outputs.push(BrilligOutputs::Array(witnesses));
-                AcirValue::Array(array_values)
+                acir_value
             }
         });
         let predicate = self.vars[&predicate].to_expression().into_owned();
@@ -904,6 +895,36 @@ impl AcirContext {
                 }
             }
         }
+    }
+
+    /// Recursively create acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
+    /// A singular array of witnesses is collected for a top level array, by deflattening the assigned witnesses at each level.
+    fn brillig_array_output(
+        &mut self,
+        element_types: &[AcirType],
+        size: usize,
+    ) -> (AcirValue, Vec<Witness>) {
+        let mut witnesses = Vec::new();
+        let mut array_values = im::Vector::new();
+        for _ in 0..size {
+            for element_type in element_types {
+                match element_type {
+                    AcirType::Array(nested_element_types, nested_size) => {
+                        let (nested_acir_value, mut nested_witnesses) =
+                            self.brillig_array_output(nested_element_types, *nested_size);
+                        witnesses.append(&mut nested_witnesses);
+                        array_values.push_back(nested_acir_value);
+                    }
+                    AcirType::NumericType(_) => {
+                        let witness_index = self.acir_ir.next_witness_index();
+                        witnesses.push(witness_index);
+                        let var = self.add_data(AcirVarData::Witness(witness_index));
+                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
+                    }
+                }
+            }
+        }
+        (AcirValue::Array(array_values), witnesses)
     }
 
     /// Generate output variables that are constrained to be the sorted inputs
