@@ -413,9 +413,7 @@ impl<'a> Resolver<'a> {
             }
 
             // resolve generics in type aliases
-            let typ = type_alias_type.get_type(&args);
-
-            return typ;
+            return type_alias_type.get_type(&args);
         }
 
         match self.lookup_struct_or_error(path) {

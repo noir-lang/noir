@@ -386,10 +386,7 @@ fn resolve_type_aliases(
                 .resolve_type_aliases(unresolved_typ.type_alias_def);
         extend_errors(all_errors, file, errors);
 
-        context.def_interner.update_type_alias(type_id, |type_alias_def| {
-            type_alias_def.set_type(typ);
-            type_alias_def.generics = generics;
-        });
+        context.def_interner.set_type_alias(type_id, typ, generics);
     }
 }
 

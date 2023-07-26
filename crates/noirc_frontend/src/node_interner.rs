@@ -17,7 +17,9 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
+use crate::{
+    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
+};
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -56,7 +58,7 @@ pub struct NodeInterner {
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    type_aliases: HashMap<TypeAliasId, TypeAliasType>,
+    type_aliases: Vec<TypeAliasType>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -144,11 +146,11 @@ impl StructId {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct TypeAliasId(pub ModuleId);
+pub struct TypeAliasId(pub usize);
 
 impl TypeAliasId {
     pub fn dummy_id() -> TypeAliasId {
-        TypeAliasId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+        TypeAliasId(std::usize::MAX)
     }
 }
 
@@ -263,7 +265,7 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
-            type_aliases: HashMap::new(),
+            type_aliases: Vec::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
@@ -328,19 +330,16 @@ impl NodeInterner {
     }
 
     pub fn push_empty_type_alias(&mut self, type_id: TypeAliasId, typ: &UnresolvedTypeAlias) {
-        self.type_aliases.insert(
+        self.type_aliases.push(TypeAliasType::new(
             type_id,
-            TypeAliasType::new(
-                type_id,
-                typ.type_alias_def.name.clone(),
-                typ.type_alias_def.span,
-                Type::Error,
-                vecmap(&typ.type_alias_def.generics, |_| {
-                    let id = TypeVariableId(0);
-                    (id, Shared::new(TypeBinding::Unbound(id)))
-                }),
-            ),
-        );
+            typ.type_alias_def.name.clone(),
+            typ.type_alias_def.span,
+            Type::Error,
+            vecmap(&typ.type_alias_def.generics, |_| {
+                let id = TypeVariableId(0);
+                (id, Shared::new(TypeBinding::Unbound(id)))
+            }),
+        ));
     }
 
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
@@ -348,9 +347,9 @@ impl NodeInterner {
         f(&mut value);
     }
 
-    pub fn update_type_alias(&mut self, type_id: TypeAliasId, f: impl FnOnce(&mut TypeAliasType)) {
-        let value = self.type_aliases.get_mut(&type_id).unwrap();
-        f(value);
+    pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
+        let type_alias_type = &mut self.type_aliases[type_id.0];
+        type_alias_type.set_type_and_generics(typ, generics);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -550,7 +549,7 @@ impl NodeInterner {
     }
 
     pub fn get_type_alias(&self, id: TypeAliasId) -> TypeAliasType {
-        self.type_aliases[&id].clone()
+        self.type_aliases[id.0].clone()
     }
 
     pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {

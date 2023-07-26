@@ -264,9 +264,10 @@ impl TypeAliasType {
         TypeAliasType { id, typ, name, span, generics }
     }
 
-    pub fn set_type(&mut self, new_typ: Type) {
+    pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
         assert_eq!(self.typ, Type::Error);
         self.typ = new_typ;
+        self.generics = new_generics;
     }
 
     // Returns all the fields of this type, after being applied to the given generic arguments.
