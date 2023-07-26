@@ -1,4 +1,5 @@
 [package]
+name = "brillig_blake2s"
 authors = [""]
 compiler_version = "0.1"
 

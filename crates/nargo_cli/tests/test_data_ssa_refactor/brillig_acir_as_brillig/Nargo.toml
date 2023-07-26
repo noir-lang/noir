@@ -1,4 +1,5 @@
 [package]
+name = "brillig_acir_as_brillig"
 authors = [""]
 compiler_version = "0.1"
 

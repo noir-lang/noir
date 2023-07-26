@@ -64,8 +64,8 @@ pub struct WorkspaceConfig {
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
-    pub name: Option<String>,
-    // Note: a package name is not needed unless there is a registry
+    pub name: String,
+    description: Option<String>,
     authors: Vec<String>,
     // If not compiler version is supplied, the latest is used
     // For now, we state that all packages must be compiled under the same
@@ -91,6 +91,7 @@ fn parse_standard_toml() {
     let src = r#"
 
         [package]
+        name = "test"
         authors = ["kev", "foo"]
         compiler_version = "0.1"
 

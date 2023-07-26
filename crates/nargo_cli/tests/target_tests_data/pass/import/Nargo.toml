@@ -1,4 +1,5 @@
 [package]
+name = "pass_import"
 authors = [""]
 compiler_version = "0.1"
 

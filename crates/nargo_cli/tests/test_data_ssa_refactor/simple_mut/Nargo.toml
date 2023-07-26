@@ -1,4 +1,5 @@
 [package]
+name = "simple_mut"
 authors = [""]
 compiler_version = "0.6.0"
 

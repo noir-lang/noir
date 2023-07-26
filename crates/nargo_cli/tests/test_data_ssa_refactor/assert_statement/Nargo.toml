@@ -1,4 +1,5 @@
 [package]
+name = "assert_statement"
 authors = [""]
 compiler_version = "0.1"
 
