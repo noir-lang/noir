@@ -294,6 +294,20 @@ impl TypeBinding {
     pub fn is_unbound(&self) -> bool {
         matches!(self, TypeBinding::Unbound(_))
     }
+
+    pub fn bind_to(&mut self, binding: Type, span: Span) -> Result<(), TypeCheckError> {
+        match self {
+            TypeBinding::Bound(_) => panic!("Tried to bind an already bound type variable!"),
+            TypeBinding::Unbound(id) => {
+                if binding.occurs(*id) {
+                    Err(TypeCheckError::TypeAnnotationsNeeded { span })
+                } else {
+                    *self = TypeBinding::Bound(binding);
+                    Ok(())
+                }
+            }
+        }
+    }
 }
 
 /// A unique ID used to differentiate different type variables
@@ -896,12 +910,10 @@ impl Type {
 
         match (expected.is_comp_time(), err_span) {
             (true, SpanKind::NotCompTime(span)) => {
-                let msg = "The value is non-comptime because of this expression, which uses another non-comptime value".into();
-                errors.push(TypeCheckError::Unstructured { msg, span });
+                errors.push(TypeCheckError::NotCompTime { span });
             }
             (false, SpanKind::CompTime(span)) => {
-                let msg = "The value is comptime because of this expression, which forces the value to be comptime".into();
-                errors.push(TypeCheckError::Unstructured { msg, span });
+                errors.push(TypeCheckError::CompTime { span });
             }
             _ => (),
         }

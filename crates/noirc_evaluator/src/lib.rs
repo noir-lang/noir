@@ -65,7 +65,7 @@ pub struct Evaluator {
 // Some of these could have been removed due to optimizations. We need this number because the
 // Standard format requires the number of witnesses. The max number is also fine.
 // If we had a composer object, we would not need it
-pub fn create_circuit(
+pub fn legacy_create_circuit(
     program: Program,
     enable_logging: bool,
     show_output: bool,

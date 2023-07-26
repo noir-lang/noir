@@ -103,10 +103,10 @@ impl CrateDefMap {
             // only the unconstrained one. Otherwise we want to keep only the constrained one.
             ast.functions.retain(|func| {
                 func.def.name.0.contents.as_str() != "println"
-                    || func.def.is_unconstrained == context.def_interner.experimental_ssa
+                    || func.def.is_unconstrained != context.def_interner.legacy_ssa
             });
 
-            if !context.def_interner.experimental_ssa {
+            if context.def_interner.legacy_ssa {
                 ast.module_decls.retain(|ident| {
                     ident.0.contents != "slice" && ident.0.contents != "collections"
                 });

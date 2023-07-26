@@ -21,7 +21,7 @@ for dir in ./*; do
   dir_name=$(basename "$dir")
   if [[ ! " ${exclude_fail_dirs[@]} " =~ " ${dir_name} " ]]; then
       cd $dir
-      nargo compile --experimental-ssa main && nargo execute --experimental-ssa witness
+      nargo compile main && nargo execute witness
       cd ..
   fi
 done
