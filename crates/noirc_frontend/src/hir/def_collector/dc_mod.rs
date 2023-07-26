@@ -3,8 +3,8 @@ use noirc_errors::FileDiagnostic;
 
 use crate::{
     graph::CrateId, hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait}, node_interner::{StructId, TraitId},
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule, NoirTrait, TraitImpl,
-    TypeImpl, TraitImplItem,
+    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule, NoirTrait, TraitImpl, TraitConstraint,
+    TypeImpl, TraitImplItem,TraitItem, UnresolvedType,
 };
 
 use super::{
@@ -69,6 +69,97 @@ pub fn collect_defs(
     collector.collect_impls(context, ast.impls);
 }
 
+fn check_trait_method_implementation_generics(
+    _generics: &Vec<Ident>,
+    _noir_function: &NoirFunction,
+    _trait_name: &String,
+) -> Result<(), DefCollectorErrorKind> {
+    Ok(())
+}
+
+fn check_trait_method_implementation_parameters(
+    _parameters: &Vec<(Ident, UnresolvedType)>,
+    _noir_function: &NoirFunction,
+    _trait_name: &String,
+) -> Result<(), DefCollectorErrorKind> {
+    Ok(())
+}
+
+fn check_trait_method_implementation_trait_constains(
+    _where_clause: &Vec<TraitConstraint>,
+    _noir_function: &NoirFunction,
+    _trait_name: &String,
+) -> Result<(), DefCollectorErrorKind> {
+    Ok(())
+}
+
+fn check_trait_method_implementation_return_type(
+    return_type: &UnresolvedType,
+    noir_function: &NoirFunction,
+    trait_name: &String,
+) -> Result<(), DefCollectorErrorKind> {
+    if return_type != &noir_function.return_type() {
+        Err(DefCollectorErrorKind::SimpleError {
+            primary_message: format!(
+                "mismatch return type of method with name {} that implemetns trait {}",
+                noir_function.name(),
+                trait_name
+            ),
+            secondary_message: "".to_string(),
+            span: noir_function.name_ident().span(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
+fn check_trait_method_implementation(
+    r#trait: &NoirTrait,
+    noir_function: &NoirFunction,
+) -> Result<(), DefCollectorErrorKind> {
+    for item in &r#trait.items {
+        match item {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
+                if name.0.contents == noir_function.def.name.0.contents {
+                    // name matches, check for parameters, return type and where clause
+                    check_trait_method_implementation_generics(
+                        generics,
+                        &noir_function,
+                        &r#trait.name.0.contents,
+                    )?;
+                    check_trait_method_implementation_parameters(
+                        parameters,
+                        &noir_function,
+                        &r#trait.name.0.contents,
+                    )?;
+                    check_trait_method_implementation_trait_constains(
+                        where_clause,
+                        &noir_function,
+                        &r#trait.name.0.contents,
+                    )?;
+                    check_trait_method_implementation_return_type(
+                        return_type,
+                        &noir_function,
+                        &r#trait.name.0.contents,
+                    )?;
+                    return Ok(());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Err(DefCollectorErrorKind::SimpleError {
+        primary_message: format!(
+            "method with name {} is not part of trait {}, therefore it can't be implemented",
+            noir_function.name(),
+            r#trait.name.0.contents
+        ),
+        secondary_message: "".to_string(),
+        span: noir_function.name_ident().span(),
+    })
+}
+
 impl<'a> ModCollector<'a> {
     fn collect_globals(
         &mut self,
@@ -131,20 +222,37 @@ impl<'a> ModCollector<'a> {
             let module = &self.def_collector.def_map.modules[self.module_id.0];
             match module.find_name(&trait_name).types {
                 Some((module_def_id, _visibility)) => match module_def_id {
-                    ModuleDefId::TraitId(_trait_id) => {
+                    ModuleDefId::TraitId(trait_id) => {
                         for item in r#impl.items {
                             match item {
                                 TraitImplItem::Function(noir_function) => {
-                                    let func_id = context.def_interner.push_empty_fn();
-                                    context.def_interner.push_function_definition(
-                                        noir_function.name().to_owned(),
-                                        func_id,
-                                    );
-                                    unresolved_functions.push_fn(
-                                        self.module_id,
-                                        func_id,
-                                        noir_function,
-                                    );
+                                    if let Some(unresolved_trait) =
+                                        self.def_collector.collected_traits.get(&trait_id)
+                                    {
+                                        match check_trait_method_implementation(
+                                            &unresolved_trait.trait_def,
+                                            &noir_function,
+                                        ) {
+                                            Ok(()) => {
+                                                let func_id = context.def_interner.push_empty_fn();
+                                                context.def_interner.push_function_definition(
+                                                    noir_function.name().to_owned(),
+                                                    func_id,
+                                                );
+                                                unresolved_functions.push_fn(
+                                                    self.module_id,
+                                                    func_id,
+                                                    noir_function,
+                                                );
+                                            }
+                                            Err(error) => {
+                                                errors
+                                                    .push(error.into_file_diagnostic(self.file_id));
+                                            }
+                                        }
+                                    } else {
+                                        // ??
+                                    }
                                 }
                                 TraitImplItem::Constant(_name, _typ, _value) => {
                                     // TODO: Implement this
@@ -161,7 +269,7 @@ impl<'a> ModCollector<'a> {
                             r#impl.object_type_span,
                             unresolved_functions,
                         ));
-                    },
+                    }
                     _ => {
                         let error = DefCollectorErrorKind::SimpleError {
                             primary_message: format!(
