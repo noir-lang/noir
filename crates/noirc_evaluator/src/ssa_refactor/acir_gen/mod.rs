@@ -325,6 +325,7 @@ impl Context {
                                 let code = self.gen_brillig_for(func, brillig);
 
                                 let outputs: Vec<AcirType> = vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
+                                
                                 let output_values = self.acir_context.brillig(self.current_side_effects_enabled_var, code, inputs, outputs);
 
                                 // Compiler sanity check
