@@ -334,7 +334,7 @@ impl Context {
                                 for result in result_ids.iter().zip(output_values) {
                                     if let  AcirValue::Array(values) = &result.1 {
                                         let block_id = BlockId(dfg.resolve(*result.0).to_usize() as u32);
-                                        let values: Vec<AcirValue> = values.iter().map(|i| i.clone()).collect();
+                                        let values: Vec<AcirValue> = values.iter().cloned().collect();
                                         self.initialize_array(block_id, values.len(), Some(&values));
                                     }
                                     self.ssa_values.insert(*result.0, result.1);
