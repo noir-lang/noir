@@ -200,7 +200,6 @@ impl<'a> ModCollector<'a> {
         for type_alias in type_aliases {
             let name = type_alias.name.clone();
 
-            // let ty_alias_id = context.def_interner.push_type_alias();
             let ty_alias_id =
                 match self.push_child_module(&name, self.file_id, false, false, errors) {
                     Some(local_id) => TypeAliasId(ModuleId { krate, local_id }),
