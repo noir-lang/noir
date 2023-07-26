@@ -205,8 +205,12 @@ Alternatively you can build separate test binaries, e.g. honk_tests or numeric_t
 
 A default configuration for VS Code is provided by the file [`barretenberg.code-workspace`](barretenberg.code-workspace). These settings can be overridden by placing configuration files in `.vscode/`.
 
-### Integration tests with Aztec Circuits
+### Integration tests with Aztec in Monorepo
+
+CI will automatically run integration tests against Aztec. The tests in `circuits/cpp` folder use the embedded barretenberg, and can be used to integration test it.
+
+### Integration tests with Aztec in Barretenberg Standalone Repo
 
 CI will automatically run integration tests against Aztec's circuits which live [here](https://github.com/AztecProtocol/aztec-packages/tree/master/circuits). To change which Aztec branch or commit for CI to test against, modify [`.aztec-packages-commit`](./cpp/.aztec-packages-commit).
 
-When working on a PR, you may want to point this file to a adifferent Aztec branch or commit, but then it should probably be pointed back to master before merging.
+When working on a PR, you may want to point this file to a different Aztec branch or commit, but then it should probably be pointed back to master before merging.
