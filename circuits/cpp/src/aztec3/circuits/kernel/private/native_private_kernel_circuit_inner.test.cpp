@@ -479,7 +479,7 @@ TEST_F(native_private_kernel_inner_tests, native_read_requests_less_than_witness
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_read_requests_less_than_witnesses");
-    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code,
@@ -506,7 +506,7 @@ TEST_F(native_private_kernel_inner_tests, native_read_requests_more_than_witness
     private_inputs.private_call.read_request_membership_witnesses = read_request_membership_witnesses;
 
     DummyBuilder builder = DummyBuilder("native_private_kernel_inner_tests__native_read_requests_more_than_witnesses");
-    auto const& public_inputs = native_private_kernel_circuit_inner(builder, private_inputs);
+    native_private_kernel_circuit_inner(builder, private_inputs);
 
     ASSERT_TRUE(builder.failed());
     ASSERT_EQ(builder.get_first_failure().code,

@@ -6,6 +6,7 @@ import {
   CircuitsWasm,
   ConstantBaseRollupData,
   GlobalVariables,
+  HISTORIC_BLOCKS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_HEIGHT,
   L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   MembershipWitness,
@@ -91,6 +92,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       startTreeOfHistoricContractTreeRootsSnapshot,
       startL1ToL2MessageTreeSnapshot,
       startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
+      // startHistoricBlocksTreeSnapshot,
     ] = await Promise.all(
       [
         MerkleTreeId.PRIVATE_DATA_TREE,
@@ -101,6 +103,7 @@ export class SoloBlockBuilder implements BlockBuilder {
         MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
         MerkleTreeId.L1_TO_L2_MESSAGES_TREE,
         MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
+        MerkleTreeId.BLOCKS_TREE,
       ].map(tree => this.getTreeSnapshot(tree)),
     );
 
@@ -119,6 +122,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       endTreeOfHistoricContractTreeRootsSnapshot,
       endL1ToL2MessageTreeSnapshot,
       endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
+      // endHistoricBlocksTreeSnapshot
     } = circuitsOutput;
 
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
@@ -523,6 +527,18 @@ export class SoloBlockBuilder implements BlockBuilder {
     );
   }
 
+  protected getHistoricTreesMembershipWitnessFor(tx: ProcessedTx) {
+    // TODO(MADDIAA): Currently stubbed until logic is implemented
+    // https://github.com/AztecProtocol/aztec-packages/issues/1162
+    void tx;
+    return Promise.resolve(this.makeEmptyMembershipWitness(HISTORIC_BLOCKS_TREE_HEIGHT));
+    // return this.getMembershipWitnessFor(
+    //   tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.historicBlocksTreeRoot,
+    //   MerkleTreeId.HISTORIC_BLOCKS_TREE,
+    //   HISTORIC_BLOCKS_TREE_HEIGHT,
+    // );
+  }
+
   protected async getConstantBaseRollupData(globalVariables: GlobalVariables): Promise<ConstantBaseRollupData> {
     return ConstantBaseRollupData.from({
       baseRollupVkHash: DELETE_FR,
@@ -536,6 +552,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       startTreeOfHistoricL1ToL2MsgTreeRootsSnapshot: await this.getTreeSnapshot(
         MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
       ),
+      startHistoricBlocksTreeRootsSnapshot: await this.getTreeSnapshot(MerkleTreeId.BLOCKS_TREE),
       globalVariables,
     });
   }
@@ -610,6 +627,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     const startContractTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.CONTRACT_TREE);
     const startPrivateDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
     const startPublicDataTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE);
+    const startHistoricBlocksTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.BLOCKS_TREE);
 
     // Get the subtree sibling paths for the circuit
     const newCommitmentsSubtreeSiblingPath = await this.getSubtreeSiblingPath(
@@ -674,6 +692,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       startContractTreeSnapshot,
       startPrivateDataTreeSnapshot,
       startPublicDataTreeRoot: startPublicDataTreeSnapshot.root,
+      startHistoricBlocksTreeSnapshot,
       newCommitmentsSubtreeSiblingPath,
       newContractsSubtreeSiblingPath,
       newNullifiersSubtreeSiblingPath: newNullifiersSubtreeSiblingPath.toFieldArray(),
@@ -696,6 +715,10 @@ export class SoloBlockBuilder implements BlockBuilder {
       historicL1ToL2MsgTreeRootMembershipWitnesses: [
         await this.getL1ToL2MessageMembershipWitnessFor(left),
         await this.getL1ToL2MessageMembershipWitnessFor(right),
+      ],
+      historicBlocksTreeRootMembershipWitnesses: [
+        await this.getHistoricTreesMembershipWitnessFor(left),
+        await this.getHistoricTreesMembershipWitnessFor(right),
       ],
     });
   }

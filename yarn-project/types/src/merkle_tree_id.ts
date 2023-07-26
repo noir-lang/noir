@@ -10,6 +10,7 @@ export enum MerkleTreeId {
   PUBLIC_DATA_TREE = 5,
   L1_TO_L2_MESSAGES_TREE = 6,
   L1_TO_L2_MESSAGES_ROOTS_TREE = 7,
+  BLOCKS_TREE = 8,
 }
 
 export const merkleTreeIds = () => {

@@ -13,7 +13,6 @@ contract SchnorrSingleKeyAccount {
     use dep::aztec::context::Context;
     use dep::aztec::types::vec::BoundedVec;
     use dep::aztec::types::point::Point;
-    use dep::aztec::oracle::debug_log::debug_log_format;
     use dep::aztec::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;
 
     fn entrypoint(

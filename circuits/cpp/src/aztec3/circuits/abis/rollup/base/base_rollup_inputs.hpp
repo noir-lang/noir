@@ -20,6 +20,7 @@ template <typename NCT> struct BaseRollupInputs {
     AppendOnlyTreeSnapshot<NCT> start_nullifier_tree_snapshot;
     AppendOnlyTreeSnapshot<NCT> start_contract_tree_snapshot;
     fr start_public_data_tree_root;
+    AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot;
 
     std::array<NullifierLeafPreimage<NCT>, 2 * MAX_NEW_NULLIFIERS_PER_TX> low_nullifier_leaf_preimages;
     std::array<MembershipWitness<NCT, NULLIFIER_TREE_HEIGHT>, 2 * MAX_NEW_NULLIFIERS_PER_TX>
@@ -41,6 +42,7 @@ template <typename NCT> struct BaseRollupInputs {
         historic_contract_tree_root_membership_witnesses;
     std::array<MembershipWitness<NCT, L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>, 2>
         historic_l1_to_l2_msg_tree_root_membership_witnesses;
+    std::array<MembershipWitness<NCT, HISTORIC_BLOCKS_TREE_HEIGHT>, 2> historic_blocks_tree_root_membership_witnesses;
 
     ConstantRollupData<NCT> constants;
 
@@ -50,6 +52,7 @@ template <typename NCT> struct BaseRollupInputs {
                    start_nullifier_tree_snapshot,
                    start_contract_tree_snapshot,
                    start_public_data_tree_root,
+                   start_historic_blocks_tree_snapshot,
                    low_nullifier_leaf_preimages,
                    low_nullifier_membership_witness,
                    new_commitments_subtree_sibling_path,
@@ -60,6 +63,7 @@ template <typename NCT> struct BaseRollupInputs {
                    historic_private_data_tree_root_membership_witnesses,
                    historic_contract_tree_root_membership_witnesses,
                    historic_l1_to_l2_msg_tree_root_membership_witnesses,
+                   historic_blocks_tree_root_membership_witnesses,
                    constants);
     bool operator==(BaseRollupInputs<NCT> const&) const = default;
 };
@@ -76,6 +80,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupInp
               << obj.start_contract_tree_snapshot << "\n"
               << "start_public_data_tree_root:\n"
               << obj.start_public_data_tree_root << "\n"
+              << "start_historic_blocks_tree_snapshot:\n"
+              << obj.start_historic_blocks_tree_snapshot << "\n"
               << "low_nullifier_leaf_preimages:\n"
               << obj.low_nullifier_leaf_preimages << "\n"
               << "low_nullifier_membership_witness:\n"
@@ -96,6 +102,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupInp
               << obj.historic_contract_tree_root_membership_witnesses << "\n"
               << "historic_l1_to_l2_msg_tree_root_membership_witnesses:\n"
               << obj.historic_l1_to_l2_msg_tree_root_membership_witnesses << "\n"
+              << "historic_blocks_tree_root_membership_witnesses:\n"
+              << obj.historic_blocks_tree_root_membership_witnesses << "\n"
               << "constants:\n"
               << obj.constants << "\n";
 }

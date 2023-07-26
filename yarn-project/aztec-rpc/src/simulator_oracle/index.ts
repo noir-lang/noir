@@ -145,6 +145,7 @@ export class SimulatorOracle implements DBOracle {
       contractTreeRoot: roots[MerkleTreeId.CONTRACT_TREE],
       nullifierTreeRoot: roots[MerkleTreeId.NULLIFIER_TREE],
       l1ToL2MessagesTreeRoot: roots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      blocksTreeRoot: roots[MerkleTreeId.BLOCKS_TREE],
     });
   }
 }

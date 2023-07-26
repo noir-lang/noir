@@ -27,6 +27,10 @@ export class PrivateHistoricTreeRoots {
      */
     public l1ToL2MessagesTreeRoot: Fr,
     /**
+     * Root of the historic blocks tree at the time of when this information was assembled.
+     */
+    public blocksTreeRoot: Fr,
+    /**
      * Root of the private kernel vk tree at the time of when this information was assembled.
      */
     public privateKernelVkTreeRoot: Fr, // future enhancement
@@ -42,6 +46,7 @@ export class PrivateHistoricTreeRoots {
       fields.nullifierTreeRoot,
       fields.contractTreeRoot,
       fields.l1ToL2MessagesTreeRoot,
+      fields.blocksTreeRoot,
       fields.privateKernelVkTreeRoot,
     ] as const;
   }
@@ -60,6 +65,7 @@ export class PrivateHistoricTreeRoots {
       this.nullifierTreeRoot.isZero() &&
       this.contractTreeRoot.isZero() &&
       this.l1ToL2MessagesTreeRoot.isZero() &&
+      this.blocksTreeRoot.isZero() &&
       this.privateKernelVkTreeRoot.isZero()
     );
   }
@@ -77,6 +83,7 @@ export class PrivateHistoricTreeRoots {
       reader.readFr(),
       reader.readFr(),
       reader.readFr(),
+      reader.readFr(),
     );
   }
 
@@ -85,7 +92,7 @@ export class PrivateHistoricTreeRoots {
   }
 
   static empty() {
-    return new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO);
+    return new PrivateHistoricTreeRoots(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO);
   }
 }
 

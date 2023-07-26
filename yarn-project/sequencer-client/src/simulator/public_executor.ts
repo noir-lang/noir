@@ -132,6 +132,7 @@ export class WorldStateDB implements CommitmentsDB {
       contractTreeRoot: Fr.fromBuffer(roots.contractDataTreeRoot),
       nullifierTreeRoot: Fr.fromBuffer(roots.nullifierTreeRoot),
       l1ToL2MessagesTreeRoot: Fr.fromBuffer(roots.l1Tol2MessagesTreeRoot),
+      blocksTreeRoot: Fr.fromBuffer(roots.blocksTreeRoot),
     });
   }
 }

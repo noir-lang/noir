@@ -75,6 +75,8 @@ export type CurrentCommitmentTreeRoots = {
   l1Tol2MessagesTreeRoot: Buffer;
   /** Nullifier data tree root. */
   nullifierTreeRoot: Buffer;
+  /** Blocks tree root. */
+  blocksTreeRoot: Buffer;
 };
 
 /**

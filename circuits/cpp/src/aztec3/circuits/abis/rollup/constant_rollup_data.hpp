@@ -14,6 +14,7 @@ template <typename NCT> struct ConstantRollupData {
     AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_private_data_tree_roots_snapshot{};
     AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_contract_tree_roots_snapshot{};
     AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_l1_to_l2_msg_tree_roots_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_roots_snapshot{};
 
     // Some members of this struct tbd:
     fr private_kernel_vk_tree_root = 0;
@@ -26,6 +27,7 @@ template <typename NCT> struct ConstantRollupData {
     MSGPACK_FIELDS(start_tree_of_historic_private_data_tree_roots_snapshot,
                    start_tree_of_historic_contract_tree_roots_snapshot,
                    start_tree_of_historic_l1_to_l2_msg_tree_roots_snapshot,
+                   start_historic_blocks_tree_roots_snapshot,
                    private_kernel_vk_tree_root,
                    public_kernel_vk_tree_root,
                    base_rollup_vk_hash,
@@ -43,6 +45,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, ConstantRollu
               << obj.start_tree_of_historic_contract_tree_roots_snapshot << "\n"
               << "tree_of_historic_l1_to_l2_msg_tree_roots_snapshot:\n"
               << obj.start_tree_of_historic_l1_to_l2_msg_tree_roots_snapshot << "\n"
+              << "start_historic_blocks_tree_roots_snapshot:\n"
+              << obj.start_historic_blocks_tree_roots_snapshot << "\n"
               << "private_kernel_vk_tree_root: " << obj.private_kernel_vk_tree_root << "\n"
               << "public_kernel_vk_tree_root: " << obj.public_kernel_vk_tree_root << "\n"
               << "base_rollup_vk_hash: " << obj.base_rollup_vk_hash << "\n"

@@ -90,18 +90,19 @@ impl PrivateCallStackItem {
                     nullifier_tree_root : fields[48],
                     contract_tree_root : fields[49],
                     l1_to_l2_messages_tree_root : fields[50],
+                    blocks_tree_root : fields[51],
                 },
                 contract_deployment_data: ContractDeploymentData {
-                    deployer_public_key: Point::new(fields[51], fields[52]),
-                    constructor_vk_hash : fields[53],
-                    function_tree_root : fields[54],
-                    contract_address_salt : fields[55],
-                    portal_contract_address : fields[56],
+                    deployer_public_key: Point::new(fields[52], fields[53]),
+                    constructor_vk_hash : fields[54],
+                    function_tree_root : fields[55],
+                    contract_address_salt : fields[56],
+                    portal_contract_address : fields[57],
                 },
-                chain_id: fields[57],
-                version: fields[58],
+                chain_id: fields[58],
+                version: fields[59],
             },
-            is_execution_request: fields[59] as bool,
+            is_execution_request: fields[60] as bool,
         };
         assert(contract_address == item.contract_address);
         assert(function_selector == item.function_data.function_selector);

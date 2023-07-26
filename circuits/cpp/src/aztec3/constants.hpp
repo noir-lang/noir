@@ -82,6 +82,7 @@ constexpr size_t L1_TO_L2_MSG_TREE_HEIGHT = 16;
 constexpr size_t PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT = 16;
 constexpr size_t CONTRACT_TREE_ROOTS_TREE_HEIGHT = 16;
 constexpr size_t L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT = 16;
+constexpr size_t HISTORIC_BLOCKS_TREE_HEIGHT = 16;
 constexpr size_t ROLLUP_VK_TREE_HEIGHT = 8;  // TODO: update
 
 
@@ -205,7 +206,7 @@ constexpr size_t MAX_NOTES_PER_PAGE = 10;
 constexpr size_t VIEW_NOTE_ORACLE_RETURN_LENGTH = MAX_NOTES_PER_PAGE * (MAX_NOTE_FIELDS_LENGTH + 1) + 2;
 
 constexpr size_t CALL_CONTEXT_LENGTH = 6;
-constexpr size_t COMMITMENT_TREES_ROOTS_LENGTH = 4;
+constexpr size_t COMMITMENT_TREES_ROOTS_LENGTH = 5;
 constexpr size_t FUNCTION_DATA_LENGTH = 3;
 constexpr size_t CONTRACT_DEPLOYMENT_DATA_LENGTH = 6;
 

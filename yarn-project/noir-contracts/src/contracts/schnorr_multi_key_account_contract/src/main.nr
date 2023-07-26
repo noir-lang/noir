@@ -17,7 +17,6 @@ contract SchnorrMultiKeyAccount {
     use dep::aztec::oracle::get_public_key::get_public_key;
     use dep::aztec::types::vec::BoundedVec;
     use dep::aztec::types::point::Point;
-    use dep::aztec::oracle::debug_log::debug_log_format;
     use dep::aztec::note::utils::compute_note_hash_and_nullifier;
     use dep::aztec::note::note_header::NoteHeader;
     use dep::aztec::constants_gen::MAX_NOTE_FIELDS_LENGTH;

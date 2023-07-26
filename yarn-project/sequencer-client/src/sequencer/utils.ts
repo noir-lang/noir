@@ -12,6 +12,7 @@ export async function getCombinedHistoricTreeRoots(db: MerkleTreeOperations) {
       Fr.fromBuffer((await db.getTreeInfo(MerkleTreeId.NULLIFIER_TREE)).root),
       Fr.fromBuffer((await db.getTreeInfo(MerkleTreeId.CONTRACT_TREE)).root),
       Fr.fromBuffer((await db.getTreeInfo(MerkleTreeId.L1_TO_L2_MESSAGES_TREE)).root),
+      Fr.fromBuffer((await db.getTreeInfo(MerkleTreeId.BLOCKS_TREE)).root),
       Fr.ZERO,
     ),
   );

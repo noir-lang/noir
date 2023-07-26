@@ -46,6 +46,9 @@ template <typename NCT> struct RootRollupPublicInputs {
     AppendOnlyTreeSnapshot<NCT> start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot;
     AppendOnlyTreeSnapshot<NCT> end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot;
 
+    AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot;
+    AppendOnlyTreeSnapshot<NCT> end_historic_blocks_tree_snapshot;
+
     std::array<fr, NUM_FIELDS_PER_SHA256> calldata_hash;
     std::array<fr, NUM_FIELDS_PER_SHA256> l1_to_l2_messages_hash;
 
@@ -64,6 +67,7 @@ template <typename NCT> struct RootRollupPublicInputs {
         write(buf, start_public_data_tree_root);
         write(buf, start_l1_to_l2_messages_tree_snapshot);
         write(buf, start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
+        write(buf, start_historic_blocks_tree_snapshot);
         write(buf, end_private_data_tree_snapshot);
         write(buf, end_nullifier_tree_snapshot);
         write(buf, end_contract_tree_snapshot);
@@ -72,6 +76,7 @@ template <typename NCT> struct RootRollupPublicInputs {
         write(buf, end_public_data_tree_root);
         write(buf, end_l1_to_l2_messages_tree_snapshot);
         write(buf, end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
+        write(buf, end_historic_blocks_tree_snapshot);
 
         // Stitching calldata hash together
         auto high_buffer = calldata_hash[0].to_buffer();
@@ -121,6 +126,8 @@ template <typename NCT> void read(uint8_t const*& it, RootRollupPublicInputs<NCT
     read(it, obj.end_l1_to_l2_messages_tree_snapshot);
     read(it, obj.start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
     read(it, obj.end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
+    read(it, obj.start_historic_blocks_tree_snapshot);
+    read(it, obj.end_historic_blocks_tree_snapshot);
     read(it, obj.calldata_hash);
     read(it, obj.l1_to_l2_messages_hash);
 };
@@ -147,6 +154,8 @@ template <typename NCT> void write(std::vector<uint8_t>& buf, RootRollupPublicIn
     write(buf, obj.end_l1_to_l2_messages_tree_snapshot);
     write(buf, obj.start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
     write(buf, obj.end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot);
+    write(buf, obj.start_historic_blocks_tree_snapshot);
+    write(buf, obj.end_historic_blocks_tree_snapshot);
     write(buf, obj.calldata_hash);
     write(buf, obj.l1_to_l2_messages_hash);
 };
@@ -177,6 +186,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, RootRollupPub
               << obj.start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot << "\n"
               << "end_tree_of_historic_l1_tol2_messages_tree_roots_snapshot: "
               << obj.end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot << "\n"
+              << "start_historic_blocks_tree_snapshot: " << obj.start_historic_blocks_tree_snapshot << "\n"
+              << "end_historic_blocks_tree_snapshot: " << obj.end_historic_blocks_tree_snapshot << "\n"
               << "calldata_hash: " << obj.calldata_hash << "\n"
               << "l1_to_l2_messages_hash: " << obj.l1_to_l2_messages_hash << "\n";
     ;

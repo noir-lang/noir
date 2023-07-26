@@ -368,7 +368,8 @@ historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 l1_to_l2_messages_tree_root: 0x104
-private_kernel_vk_tree_root: 0x105
+blocks_tree_root: 0x105
+private_kernel_vk_tree_root: 0x106
 
 
 tx_context: is_fee_payment_tx: 0
@@ -460,6 +461,7 @@ historic_private_data_tree_root: 0x1e11
 historic_nullifier_tree_root: 0x1f11
 historic_contract_tree_root: 0x1d11
 historic_l1_to_l2_messages_tree_root: 0x2011
+historic_blocks_tree_root: 0x2111
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -468,8 +470,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2111
-version: 0x2211
+chain_id: 0x2211
+version: 0x2311
 
 is_execution_request: 0
 
@@ -503,6 +505,7 @@ historic_private_data_tree_root: 0x1e21
 historic_nullifier_tree_root: 0x1f21
 historic_contract_tree_root: 0x1d21
 historic_l1_to_l2_messages_tree_root: 0x2021
+historic_blocks_tree_root: 0x2121
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -511,8 +514,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2121
-version: 0x2221
+chain_id: 0x2221
+version: 0x2321
 
 is_execution_request: 0
  contract_address: 0x1012
@@ -544,6 +547,7 @@ historic_private_data_tree_root: 0x1e22
 historic_nullifier_tree_root: 0x1f22
 historic_contract_tree_root: 0x1d22
 historic_l1_to_l2_messages_tree_root: 0x2022
+historic_blocks_tree_root: 0x2122
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -552,8 +556,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2122
-version: 0x2222
+chain_id: 0x2222
+version: 0x2322
 
 is_execution_request: 0
  contract_address: 0x1013
@@ -585,6 +589,7 @@ historic_private_data_tree_root: 0x1e23
 historic_nullifier_tree_root: 0x1f23
 historic_contract_tree_root: 0x1d23
 historic_l1_to_l2_messages_tree_root: 0x2023
+historic_blocks_tree_root: 0x2123
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -593,8 +598,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2123
-version: 0x2223
+chain_id: 0x2223
+version: 0x2323
 
 is_execution_request: 0
  contract_address: 0x1014
@@ -626,6 +631,7 @@ historic_private_data_tree_root: 0x1e24
 historic_nullifier_tree_root: 0x1f24
 historic_contract_tree_root: 0x1d24
 historic_l1_to_l2_messages_tree_root: 0x2024
+historic_blocks_tree_root: 0x2124
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -634,8 +640,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2124
-version: 0x2224
+chain_id: 0x2224
+version: 0x2324
 
 is_execution_request: 0
  ]
@@ -869,7 +875,8 @@ historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 l1_to_l2_messages_tree_root: 0x104
-private_kernel_vk_tree_root: 0x105
+blocks_tree_root: 0x105
+private_kernel_vk_tree_root: 0x106
 
 
 tx_context: is_fee_payment_tx: 0
@@ -935,6 +942,7 @@ historic_private_data_tree_root: 0x1e11
 historic_nullifier_tree_root: 0x1f11
 historic_contract_tree_root: 0x1d11
 historic_l1_to_l2_messages_tree_root: 0x2011
+historic_blocks_tree_root: 0x2111
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -943,8 +951,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2111
-version: 0x2211
+chain_id: 0x2211
+version: 0x2311
 
 is_execution_request: 0
 
@@ -978,6 +986,7 @@ historic_private_data_tree_root: 0x1e21
 historic_nullifier_tree_root: 0x1f21
 historic_contract_tree_root: 0x1d21
 historic_l1_to_l2_messages_tree_root: 0x2021
+historic_blocks_tree_root: 0x2121
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -986,8 +995,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2121
-version: 0x2221
+chain_id: 0x2221
+version: 0x2321
 
 is_execution_request: 0
  contract_address: 0x1012
@@ -1019,6 +1028,7 @@ historic_private_data_tree_root: 0x1e22
 historic_nullifier_tree_root: 0x1f22
 historic_contract_tree_root: 0x1d22
 historic_l1_to_l2_messages_tree_root: 0x2022
+historic_blocks_tree_root: 0x2122
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -1027,8 +1037,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2122
-version: 0x2222
+chain_id: 0x2222
+version: 0x2322
 
 is_execution_request: 0
  contract_address: 0x1013
@@ -1060,6 +1070,7 @@ historic_private_data_tree_root: 0x1e23
 historic_nullifier_tree_root: 0x1f23
 historic_contract_tree_root: 0x1d23
 historic_l1_to_l2_messages_tree_root: 0x2023
+historic_blocks_tree_root: 0x2123
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -1068,8 +1079,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2123
-version: 0x2223
+chain_id: 0x2223
+version: 0x2323
 
 is_execution_request: 0
  contract_address: 0x1014
@@ -1101,6 +1112,7 @@ historic_private_data_tree_root: 0x1e24
 historic_nullifier_tree_root: 0x1f24
 historic_contract_tree_root: 0x1d24
 historic_l1_to_l2_messages_tree_root: 0x2024
+historic_blocks_tree_root: 0x2124
 contract_deployment_data: deployer_public_key: x: 0x1
 y: 0x2
 
@@ -1109,8 +1121,8 @@ function_tree_root: 0x3
 contract_address_salt: 0x4
 portal_contract_address: 0x505050505050505050505050505050505050505
 
-chain_id: 0x2124
-version: 0x2224
+chain_id: 0x2224
+version: 0x2324
 
 is_execution_request: 0
  ]
@@ -1343,7 +1355,8 @@ historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 l1_to_l2_messages_tree_root: 0x104
-private_kernel_vk_tree_root: 0x105
+blocks_tree_root: 0x105
+private_kernel_vk_tree_root: 0x106
 
 
 tx_context: is_fee_payment_tx: 0
@@ -1552,7 +1565,8 @@ historic_tree_roots: private_historic_tree_roots: private_data_tree_root: 0x101
 nullifier_tree_root: 0x102
 contract_tree_root: 0x103
 l1_to_l2_messages_tree_root: 0x104
-private_kernel_vk_tree_root: 0x105
+blocks_tree_root: 0x105
+private_kernel_vk_tree_root: 0x106
 
 
 tx_context: is_fee_payment_tx: 0

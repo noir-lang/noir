@@ -447,6 +447,7 @@ export class AztecRPCServer implements AztecRPC {
       nullifierTreeRoot: currentRoots[MerkleTreeId.NULLIFIER_TREE],
       privateDataTreeRoot: currentRoots[MerkleTreeId.PRIVATE_DATA_TREE],
       l1ToL2MessagesTreeRoot: currentRoots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      blocksTreeRoot: currentRoots[MerkleTreeId.BLOCKS_TREE],
       privateKernelVkTreeRoot: Fr.ZERO,
     });
 

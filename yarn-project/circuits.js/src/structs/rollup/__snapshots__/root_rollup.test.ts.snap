@@ -30,14 +30,18 @@ tree_of_historic_l1_to_l2_msg_tree_roots_snapshot:
 root: 0x400
 next_available_leaf_index: 400
 
-private_kernel_vk_tree_root: 0x501
-public_kernel_vk_tree_root: 0x502
-base_rollup_vk_hash: 0x503
-merge_rollup_vk_hash: 0x504
-global_variables: chain_id: 0x505
-version: 0x506
-block_number: 0x507
-timestamp: 0x508
+start_historic_blocks_tree_roots_snapshot:
+root: 0x500
+next_available_leaf_index: 500
+
+private_kernel_vk_tree_root: 0x601
+public_kernel_vk_tree_root: 0x602
+base_rollup_vk_hash: 0x603
+merge_rollup_vk_hash: 0x604
+global_variables: chain_id: 0x605
+version: 0x606
+block_number: 0x607
+timestamp: 0x608
 
 
 start_private_data_tree_snapshot:
@@ -113,14 +117,18 @@ tree_of_historic_l1_to_l2_msg_tree_roots_snapshot:
 root: 0x1400
 next_available_leaf_index: 1400
 
-private_kernel_vk_tree_root: 0x1501
-public_kernel_vk_tree_root: 0x1502
-base_rollup_vk_hash: 0x1503
-merge_rollup_vk_hash: 0x1504
-global_variables: chain_id: 0x1505
-version: 0x1506
-block_number: 0x1507
-timestamp: 0x1508
+start_historic_blocks_tree_roots_snapshot:
+root: 0x1500
+next_available_leaf_index: 1500
+
+private_kernel_vk_tree_root: 0x1601
+public_kernel_vk_tree_root: 0x1602
+base_rollup_vk_hash: 0x1603
+merge_rollup_vk_hash: 0x1604
+global_variables: chain_id: 0x1605
+version: 0x1606
+block_number: 0x1607
+timestamp: 0x1608
 
 
 start_private_data_tree_snapshot:
@@ -242,6 +250,12 @@ next_available_leaf_index: 4096
 
 end_tree_of_historic_l1_tol2_messages_tree_roots_snapshot: root: 0x1100
 next_available_leaf_index: 4352
+
+start_historic_blocks_tree_snapshot: root: 0x1200
+next_available_leaf_index: 4608
+
+end_historic_blocks_tree_snapshot: root: 0x1300
+next_available_leaf_index: 4864
 
 calldata_hash: [ 0x1 0x2 ]
 l1_to_l2_messages_hash: [ 0x3 0x4 ]

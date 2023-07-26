@@ -576,6 +576,7 @@ interface MsgpackPrivateHistoricTreeRoots {
   nullifier_tree_root: Buffer;
   contract_tree_root: Buffer;
   l1_to_l2_messages_tree_root: Buffer;
+  blocks_tree_root: Buffer;
   private_kernel_vk_tree_root: Buffer;
 }
 
@@ -592,6 +593,9 @@ export function toPrivateHistoricTreeRoots(o: MsgpackPrivateHistoricTreeRoots): 
   if (o.l1_to_l2_messages_tree_root === undefined) {
     throw new Error('Expected l1_to_l2_messages_tree_root in PrivateHistoricTreeRoots deserialization');
   }
+  if (o.blocks_tree_root === undefined) {
+    throw new Error('Expected blocks_tree_root in PrivateHistoricTreeRoots deserialization');
+  }
   if (o.private_kernel_vk_tree_root === undefined) {
     throw new Error('Expected private_kernel_vk_tree_root in PrivateHistoricTreeRoots deserialization');
   }
@@ -600,6 +604,7 @@ export function toPrivateHistoricTreeRoots(o: MsgpackPrivateHistoricTreeRoots): 
     Fr.fromBuffer(o.nullifier_tree_root),
     Fr.fromBuffer(o.contract_tree_root),
     Fr.fromBuffer(o.l1_to_l2_messages_tree_root),
+    Fr.fromBuffer(o.blocks_tree_root),
     Fr.fromBuffer(o.private_kernel_vk_tree_root),
   );
 }
@@ -617,6 +622,9 @@ export function fromPrivateHistoricTreeRoots(o: PrivateHistoricTreeRoots): Msgpa
   if (o.l1ToL2MessagesTreeRoot === undefined) {
     throw new Error('Expected l1ToL2MessagesTreeRoot in PrivateHistoricTreeRoots serialization');
   }
+  if (o.blocksTreeRoot === undefined) {
+    throw new Error('Expected blocksTreeRoot in PrivateHistoricTreeRoots serialization');
+  }
   if (o.privateKernelVkTreeRoot === undefined) {
     throw new Error('Expected privateKernelVkTreeRoot in PrivateHistoricTreeRoots serialization');
   }
@@ -625,6 +633,7 @@ export function fromPrivateHistoricTreeRoots(o: PrivateHistoricTreeRoots): Msgpa
     nullifier_tree_root: toBuffer(o.nullifierTreeRoot),
     contract_tree_root: toBuffer(o.contractTreeRoot),
     l1_to_l2_messages_tree_root: toBuffer(o.l1ToL2MessagesTreeRoot),
+    blocks_tree_root: toBuffer(o.blocksTreeRoot),
     private_kernel_vk_tree_root: toBuffer(o.privateKernelVkTreeRoot),
   };
 }

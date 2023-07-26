@@ -19,6 +19,8 @@ template <typename NCT> struct CombinedHistoricTreeRoots {
     using boolean = typename NCT::boolean;
 
     PrivateHistoricTreeRoots<NCT> private_historic_tree_roots{};
+
+
     // for serialization, update with new fields
     MSGPACK_FIELDS(private_historic_tree_roots);
 

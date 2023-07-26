@@ -4,6 +4,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 import {
   CONTRACT_TREE_HEIGHT,
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
+  HISTORIC_BLOCKS_TREE_HEIGHT,
   L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_CONTRACTS_PER_TX,
@@ -69,6 +70,10 @@ export class ConstantBaseRollupData {
      * Snapshot of the L1-to-L2 message tree roots tree at the start of the rollup.
      */
     public startTreeOfHistoricL1ToL2MsgTreeRootsSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the historic blocks roots tree at the start of the rollup.
+     */
+    public startHistoricBlocksTreeRootsSnapshot: AppendOnlyTreeSnapshot,
 
     /**
      * Root of the private kernel verification key tree.
@@ -102,6 +107,7 @@ export class ConstantBaseRollupData {
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
       reader.readObject(AppendOnlyTreeSnapshot),
+      reader.readObject(AppendOnlyTreeSnapshot),
       reader.readFr(),
       reader.readFr(),
       reader.readFr(),
@@ -115,6 +121,7 @@ export class ConstantBaseRollupData {
       fields.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
       fields.startTreeOfHistoricContractTreeRootsSnapshot,
       fields.startTreeOfHistoricL1ToL2MsgTreeRootsSnapshot,
+      fields.startHistoricBlocksTreeRootsSnapshot,
       fields.privateKernelVkTreeRoot,
       fields.publicKernelVkTreeRoot,
       fields.baseRollupVkHash,
@@ -168,6 +175,10 @@ export class BaseRollupInputs {
      * Root of the public data tree at the start of the base rollup circuit.
      */
     public startPublicDataTreeRoot: Fr,
+    /**
+     * Snapshot of the historic blocks tree at the start of the base rollup circuit.
+     */
+    public startHistoricBlocksTreeSnapshot: AppendOnlyTreeSnapshot,
 
     /**
      * The nullifiers which need to be updated to perform the batch insertion of the new nullifiers.
@@ -225,6 +236,13 @@ export class BaseRollupInputs {
       MembershipWitness<typeof L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>,
       MembershipWitness<typeof L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>,
     ],
+    /**
+     * Membership witnesses of historic blocks referred by each of the 2 kernels.
+     */
+    public historicBlocksTreeRootMembershipWitnesses: [
+      MembershipWitness<typeof HISTORIC_BLOCKS_TREE_HEIGHT>,
+      MembershipWitness<typeof HISTORIC_BLOCKS_TREE_HEIGHT>,
+    ],
 
     /**
      * Data which is not modified by the base rollup circuit.
@@ -265,6 +283,7 @@ export class BaseRollupInputs {
       fields.startNullifierTreeSnapshot,
       fields.startContractTreeSnapshot,
       fields.startPublicDataTreeRoot,
+      fields.startHistoricBlocksTreeSnapshot,
       fields.lowNullifierLeafPreimages,
       fields.lowNullifierMembershipWitness,
       fields.newCommitmentsSubtreeSiblingPath,
@@ -275,6 +294,7 @@ export class BaseRollupInputs {
       fields.historicPrivateDataTreeRootMembershipWitnesses,
       fields.historicContractsTreeRootMembershipWitnesses,
       fields.historicL1ToL2MsgTreeRootMembershipWitnesses,
+      fields.historicBlocksTreeRootMembershipWitnesses,
       fields.constants,
     ] as const;
   }
