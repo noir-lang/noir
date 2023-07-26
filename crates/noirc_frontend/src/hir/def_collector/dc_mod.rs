@@ -2,9 +2,12 @@ use fm::FileId;
 use noirc_errors::FileDiagnostic;
 
 use crate::{
-    graph::CrateId, hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait}, node_interner::{StructId, TraitId},
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule, NoirTrait, TraitImpl, TraitConstraint,
-    TypeImpl, TraitImplItem,TraitItem, UnresolvedType,
+    graph::CrateId,
+    hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
+    node_interner::{StructId, TraitId},
+    parser::SubModule,
+    Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, NoirTrait, ParsedModule, TraitConstraint,
+    TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnresolvedType,
 };
 
 use super::{
@@ -74,6 +77,7 @@ fn check_trait_method_implementation_generics(
     _noir_function: &NoirFunction,
     _trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
+    // TODO 
     Ok(())
 }
 
@@ -82,6 +86,7 @@ fn check_trait_method_implementation_parameters(
     _noir_function: &NoirFunction,
     _trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
+    // TODO 
     Ok(())
 }
 
@@ -90,6 +95,7 @@ fn check_trait_method_implementation_trait_constains(
     _noir_function: &NoirFunction,
     _trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
+    // TODO 
     Ok(())
 }
 
@@ -119,7 +125,7 @@ fn check_trait_method_implementation(
 ) -> Result<(), DefCollectorErrorKind> {
     for item in &r#trait.items {
         match item {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body:_} => {
                 if name.0.contents == noir_function.def.name.0.contents {
                     // name matches, check for parameters, return type and where clause
                     check_trait_method_implementation_generics(
