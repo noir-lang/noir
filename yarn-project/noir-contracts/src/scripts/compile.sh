@@ -66,9 +66,9 @@ for CONTRACT_NAME in "$@"; do
   # If VERBOSE is not set, compile with 'nargo' and redirect standard error (stderr) to /dev/null and standard output (stdout) to /dev/null.
   # If the compilation fails, rerun the compilation with 'nargo' and show the compiler output.
   if [[ -z "${VERBOSE:-}" ]]; then
-    "$NARGO_COMMAND" compile main --experimental-ssa --contracts 2> /dev/null > /dev/null  || (echo "Error compiling contract. Re-running as verbose to show compiler output:"; "$NARGO_COMMAND" compile main --experimental-ssa --contracts);
+    "$NARGO_COMMAND" compile main --contracts 2> /dev/null > /dev/null  || (echo "Error compiling contract. Re-running as verbose to show compiler output:"; "$NARGO_COMMAND" compile main --contracts);
   else
-    "$NARGO_COMMAND" compile main --experimental-ssa --contracts
+    "$NARGO_COMMAND" compile main --contracts
   fi
 
   cd $ROOT
