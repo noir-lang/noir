@@ -37,12 +37,7 @@ fn check_from_path<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let (mut context, crate_id) = resolve_root_manifest(program_dir, None)?;
-    check_crate_and_report_errors(
-        &mut context,
-        crate_id,
-        compile_options.deny_warnings,
-        compile_options.legacy_ssa,
-    )?;
+    check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 
     // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
     if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
@@ -220,9 +215,7 @@ pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
-    legacy_ssa: bool,
 ) -> Result<(), ReportedErrors> {
-    let result =
-        check_crate(context, crate_id, deny_warnings, legacy_ssa).map(|warnings| ((), warnings));
+    let result = check_crate(context, crate_id, deny_warnings).map(|warnings| ((), warnings));
     super::compile_cmd::report_errors(result, context, deny_warnings)
 }

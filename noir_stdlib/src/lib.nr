@@ -15,10 +15,6 @@ mod unsafe;
 mod collections;
 mod compat;
 
-// TODO(#1850): Remove this builtin to use the foreign call based println
-#[builtin(println)]
-fn println<T>(_input : T) {}
-
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident 
 #[oracle(println)]

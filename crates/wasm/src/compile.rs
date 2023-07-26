@@ -93,7 +93,7 @@ pub fn compile(args: JsValue) -> JsValue {
         add_noir_lib(&mut context, dependency.as_str());
     }
 
-    check_crate(&mut context, crate_id, false, false).expect("Crate check failed");
+    check_crate(&mut context, crate_id, false).expect("Crate check failed");
 
     if options.contracts {
         let compiled_contracts =

@@ -8,22 +8,25 @@ use crate::errors::CliError;
 
 use super::NargoConfig;
 
-/// Counts the occurrences of different gates in circuit
+/// Provides detailed informaton on a circuit
+/// Current information provided:
+/// 1. The number of ACIR opcodes
+/// 2. Counts the final number gates in the circuit used by a backend
 #[derive(Debug, Clone, Args)]
-pub(crate) struct GatesCommand {
+pub(crate) struct InfoCommand {
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
 pub(crate) fn run<B: Backend>(
     backend: &B,
-    args: GatesCommand,
+    args: InfoCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    count_gates_with_path(backend, config.program_dir, &args.compile_options)
+    count_opcodes_and_gates_with_path(backend, config.program_dir, &args.compile_options)
 }
 
-fn count_gates_with_path<B: Backend, P: AsRef<Path>>(
+fn count_opcodes_and_gates_with_path<B: Backend, P: AsRef<Path>>(
     backend: &B,
     program_dir: P,
     compile_options: &CompileOptions,
