@@ -5,7 +5,7 @@ import { ExecutionRequest, PackedArguments, TxExecutionRequest } from '@aztec/ty
 
 import partition from 'lodash.partition';
 
-import SchnorrSingleKeyAccountContractAbi from '../abis/schnorr_account_contract.json' assert { type: 'json' };
+import SchnorrSingleKeyAccountContractAbi from '../abis/schnorr_single_key_account_contract.json' assert { type: 'json' };
 import { generatePublicKey } from '../index.js';
 import { buildPayload, hashPayload } from './entrypoint_payload.js';
 import { AccountImplementation } from './index.js';

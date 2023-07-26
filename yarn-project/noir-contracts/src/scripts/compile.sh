@@ -51,10 +51,12 @@ done
 # Check if at least one CONTRACT_NAME is provided, if not, display usage information.
 if [ $# -eq 0 ]; then
   usage
+  exit 0
 fi
 
 echo "Using $($NARGO_COMMAND --version)"
 
+# Build contracts
 for CONTRACT_NAME in "$@"; do
   CONTRACT_FOLDER="${CONTRACT_NAME}_contract"
   echo "Compiling $CONTRACT_NAME..."
@@ -76,5 +78,14 @@ for CONTRACT_NAME in "$@"; do
   echo "Formatting contract folders"
   yarn run -T prettier -w ./src/artifacts/$CONTRACT_FOLDER.json ../aztec.js/src/abis/*.json ./src/types/*.ts
   echo -e "Done\n"
-  
+
+done
+
+# Check for stale artifacts
+for json_path in src/artifacts/*.json; do
+  json_file="$(basename "$json_path")";
+  contract_name="${json_file%.json}";
+  if [ ! -d "./src/contracts/$contract_name" ]; then
+    echo "WARN: Source code for artifact '$contract_name' not found. Consider deleting the artifact.";
+  fi
 done
