@@ -31,5 +31,5 @@ jobs:
           # to continue to replay. If we still hit issues such as this
           # action failing due to upstream changes, a manual resolution
           # PR with ./scripts/git_subrepo.sh pull will be needed.
-          ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=main
+          ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=master
           git push # update .gitrepo on master
