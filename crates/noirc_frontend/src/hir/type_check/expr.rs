@@ -17,6 +17,31 @@ use crate::{
 use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
+    fn maybe_deprecated(&mut self, expr: &ExprId) {
+        let mut try_block = || -> Option<()> {
+            if let HirExpression::Ident(expr::HirIdent { location, id }) =
+                self.interner.expression(expr)
+            {
+                if let crate::node_interner::DefinitionKind::Function(func_id) =
+                    self.interner.try_definition(id)?.kind
+                {
+                    let meta = self.interner.function_meta(&func_id);
+                    if let crate::token::Attribute::Deprecated = meta.attributes? {
+                        let name = self.interner.definition_name(id);
+
+                        self.errors.push(TypeCheckError::CallDeprecated {
+                            name: name.to_string(),
+                            span: location.span,
+                        });
+                    }
+                }
+            }
+
+            None
+        };
+
+        try_block();
+    }
     /// Infers a type for a given expression, and return this type.
     /// As a side-effect, this function will also remember this type in the NodeInterner
     /// for the given expr_id key.
@@ -106,6 +131,8 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::Index(index_expr) => self.check_index_expression(index_expr),
             HirExpression::Call(call_expr) => {
+                self.maybe_deprecated(&call_expr.func);
+
                 let function = self.check_expression(&call_expr.func);
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);

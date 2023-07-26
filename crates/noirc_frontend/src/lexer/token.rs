@@ -322,6 +322,7 @@ pub enum Attribute {
     Foreign(String),
     Builtin(String),
     Oracle(String),
+    Deprecated,
     Test,
 }
 
@@ -332,6 +333,7 @@ impl fmt::Display for Attribute {
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
             Attribute::Test => write!(f, "#[test]"),
+            Attribute::Deprecated => write!(f, "#[deprecated]"),
         }
     }
 }
@@ -345,29 +347,19 @@ impl Attribute {
             .filter(|string_segment| !string_segment.is_empty())
             .collect();
 
-        if word_segments.len() != 2 {
-            if word_segments.len() == 1 && word_segments[0] == "test" {
-                return Ok(Token::Attribute(Attribute::Test));
-            } else {
-                return Err(LexerErrorKind::MalformedFuncAttribute {
-                    span,
-                    found: word.to_owned(),
-                });
-            }
-        }
+        let attribute = match &word_segments[..] {
+            ["foreign", name] => Attribute::Foreign(name.to_string()),
+            ["builtin", name] => Attribute::Builtin(name.to_string()),
+            ["oracle", name] => Attribute::Oracle(name.to_string()),
+            ["deprecated"] => Attribute::Deprecated,
 
-        let attribute_type = word_segments[0];
-        let attribute_name = word_segments[1];
-
-        let tok = match attribute_type {
-            "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
-            "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
-            "oracle" => Token::Attribute(Attribute::Oracle(attribute_name.to_string())),
+            ["test"] => Attribute::Test,
             _ => {
                 return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
             }
         };
-        Ok(tok)
+
+        Ok(Token::Attribute(attribute))
     }
 
     pub fn builtin(self) -> Option<String> {
@@ -399,7 +391,7 @@ impl AsRef<str> for Attribute {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
             Attribute::Oracle(string) => string,
-            Attribute::Test => "",
+            Attribute::Test | Attribute::Deprecated => "",
         }
     }
 }
