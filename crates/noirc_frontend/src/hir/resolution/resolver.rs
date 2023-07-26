@@ -623,9 +623,7 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if !self.in_contract()
-            && !self.pub_allowed(func)
-            && func.def.return_visibility == noirc_abi::AbiVisibility::Public
+        if !self.pub_allowed(func) && func.def.return_visibility == noirc_abi::AbiVisibility::Public
         {
             self.push_err(ResolverError::UnnecessaryPub {
                 ident: func.name_ident().clone(),
@@ -680,7 +678,7 @@ impl<'a> Resolver<'a> {
     /// True if the 'pub' keyword is allowed on parameters in this function
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
         if self.in_contract() {
-            !func.def.is_unconstrained && !func.def.is_open
+            !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
         }
