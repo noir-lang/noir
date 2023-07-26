@@ -29,7 +29,7 @@ fn main() {
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
-    let destination = Path::new(&out_dir).join("prove_and_verify.rs");
+    let destination = Path::new(&out_dir).join("execute.rs");
     let mut test_file = File::create(destination).unwrap();
 
     generate_tests(&mut test_file);
@@ -92,7 +92,7 @@ fn generate_tests(test_file: &mut File) {
             r#"
 {exclude_macro}
 #[test]
-fn prove_and_verify_{test_sub_dir}_{test_name}() {{
+fn execute_{test_sub_dir}_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
