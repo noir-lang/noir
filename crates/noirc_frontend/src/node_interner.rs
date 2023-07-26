@@ -338,7 +338,7 @@ impl NodeInterner {
                 type_id,
                 typ.type_alias_def.name.clone(),
                 typ.type_alias_def.span,
-                Type::Unit,
+                Type::Error,
                 vecmap(&typ.type_alias_def.generics, |_| {
                     let id = TypeVariableId(0);
                     (id, Shared::new(TypeBinding::Unbound(id)))

@@ -265,7 +265,7 @@ impl TypeAliasType {
     }
 
     pub fn set_type(&mut self, new_typ: Type) {
-        assert_eq!(self.typ, Type::Unit);
+        assert_eq!(self.typ, Type::Error);
         self.typ = new_typ;
     }
 
