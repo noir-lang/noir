@@ -1,0 +1,12 @@
+[submodule "sol/lib/forge-std"]
+	path = sol/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "sol/lib/solidity-stringutils"]
+	path = sol/lib/solidity-stringutils
+	url = https://github.com/Arachnid/solidity-stringutils
+[submodule "sol/lib/openzeppelin-contracts"]
+	path = sol/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "build-system"]
+	path = build-system
+	url = git@github.com:AztecProtocol/build-system.git

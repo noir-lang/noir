@@ -13,3 +13,12 @@
 [submodule "l1-contracts/lib/forge-std"]
 	path = l1-contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "circuits/cpp/barretenberg/sol/lib/forge-std"]
+	path = circuits/cpp/barretenberg/sol/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "circuits/cpp/barretenberg/sol/lib/solidity-stringutils"]
+	path = circuits/cpp/barretenberg/sol/lib/solidity-stringutils
+	url = https://github.com/Arachnid/solidity-stringutils
+[submodule "circuits/cpp/barretenberg/sol/lib/openzeppelin-contracts"]
+	path = circuits/cpp/barretenberg/sol/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
