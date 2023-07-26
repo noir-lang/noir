@@ -897,6 +897,8 @@ impl AcirContext {
         }
     }
 
+    /// Recursively create acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
+    /// A singular array of witnesses is collected for a top level array, by deflattening the assigned witnesses at each level.
     fn brillig_array_output(
         &mut self,
         element_types: &[AcirType],
