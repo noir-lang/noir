@@ -966,12 +966,7 @@ impl AcirContext {
         let value_read_witness = self.var_to_witness(value_read_var);
 
         // Add the memory read operation to the list of opcodes
-        let read_op = Expression::zero();
-        let op = MemOp {
-            operation: read_op,
-            index: index_witness.into(),
-            value: value_read_witness.into(),
-        };
+        let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
         self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
 
         value_read_var
@@ -987,12 +982,7 @@ impl AcirContext {
         let value_write_witness = self.var_to_witness(*value);
 
         // Add the memory write operation to the list of opcodes
-        let write_op = Expression::one();
-        let op = MemOp {
-            operation: write_op,
-            index: index_witness.into(),
-            value: value_write_witness.into(),
-        };
+        let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
         self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
     }
 
