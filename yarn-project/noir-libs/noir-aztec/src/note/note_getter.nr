@@ -90,8 +90,7 @@ fn get_notes<Note, N, S, P>(
     (context, notes)
 }
 
-// TODO: Should be unconstrained.
-fn get_note_internal<Note, N>(
+unconstrained fn get_note_internal<Note, N>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
 ) -> Note {
@@ -110,8 +109,7 @@ fn get_note_internal<Note, N>(
     )[0]
 }
 
-// TODO: Should be unconstrained.
-fn get_notes_internal<Note, N, S, P>(
+unconstrained fn get_notes_internal<Note, N, S, P>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     options: NoteGetterOptions<Note, N, S, P>,
@@ -142,8 +140,7 @@ fn get_notes_internal<Note, N, S, P>(
     filter(notes, filter_args)
 }
 
-// TODO: Should be unconstrained.
-fn view_notes<Note, N>(
+unconstrained fn view_notes<Note, N>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     limit: u32,

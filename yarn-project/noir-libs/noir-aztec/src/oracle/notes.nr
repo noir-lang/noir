@@ -55,8 +55,7 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     get_notes_oracle(storage_slot, sort_by, sort_order, limit, offset, return_size, fields)
 }
 
-// TODO: Should be unconstrained.
-fn get_notes<Note, N, M, S, NS>(
+unconstrained fn get_notes<Note, N, M, S, NS>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     sort_by: [u8; M],

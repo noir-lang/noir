@@ -232,11 +232,10 @@ contract PendingCommitments {
     //) -> distinct pub abi::PrivateCircuitPublicInputs {
     //}
 
-    /// ABI stev type "unconstrained"
     // stev function needs to be defined by every contract producing logs. Having it in all the contracts gives us the ability to
     // compute the note hash and nullifier differently for different kind of notes.
     // Note: "stev" is just a placeholder name before we come up with a better one.
-    fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> pub [Field; 4] {
+    unconstrained fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> pub [Field; 4] {
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
         compute_note_hash_and_nullifier(ValueNoteInterface, note_header, preimage)
     }

@@ -16,7 +16,7 @@ fn l1_to_l2_message_getter_len() -> comptime Field {
     L1_TO_L2_MESSAGE_LENGTH + 1 + L1_TO_L2_MSG_TREE_HEIGHT + 1
 }
 
-fn make_l1_to_l2_message_getter_data(fields: [Field], start: comptime Field, secret: Field) -> L1ToL2MessageGetterData {
+fn make_l1_to_l2_message_getter_data<N>(fields: [Field; N], start: comptime Field, secret: Field) -> L1ToL2MessageGetterData {
     L1ToL2MessageGetterData {
         message: L1ToL2Message::deserialize(arr_copy_slice(fields, [0; L1_TO_L2_MESSAGE_LENGTH], start), secret, fields[start + L1_TO_L2_MESSAGE_LENGTH]),
         leaf_index: fields[start + L1_TO_L2_MESSAGE_LENGTH],

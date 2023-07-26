@@ -295,7 +295,7 @@ describe('Private Execution test suite', () => {
       expect(newNullifiers).toEqual(consumedNotes.map(n => n.nullifier));
 
       expect(result.preimages.newNotes).toHaveLength(2);
-      const [recipientNote, changeNote] = result.preimages.newNotes;
+      const [changeNote, recipientNote] = result.preimages.newNotes;
       expect(recipientNote.storageSlot).toEqual(recipientStorageSlot);
 
       const newCommitments = result.callStackItem.publicInputs.newCommitments.filter(field => !field.equals(Fr.ZERO));
@@ -338,7 +338,7 @@ describe('Private Execution test suite', () => {
       expect(newNullifiers).toEqual(consumedNotes.map(n => n.nullifier));
 
       expect(result.preimages.newNotes).toHaveLength(2);
-      const [recipientNote, changeNote] = result.preimages.newNotes;
+      const [changeNote, recipientNote] = result.preimages.newNotes;
       expect(recipientNote.preimage[0]).toEqual(new Fr(amountToTransfer));
       expect(changeNote.preimage[0]).toEqual(new Fr(balance - amountToTransfer));
     });
