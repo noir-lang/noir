@@ -1,1 +1,1 @@
-{"backend":"acvm-backend-barretenberg","abi":{"parameters":[{"name":"x","type":{"kind":"field"},"visibility":"private"}],"param_witnesses":{"x":[1]},"return_type":null,"return_witnesses":[]},"bytecode":"H4sIAAAAAAAA/2NiwA0A040bgxwAAAA=","proving_key":null,"verification_key":null}
+{"backend":"acvm-backend-barretenberg","abi":{"parameters":[{"name":"x","type":{"kind":"field"},"visibility":"private"}],"param_witnesses":{"x":[1]},"return_type":null,"return_witnesses":[]},"bytecode":"H4sIAAAAAAAA/2NiQABGNBoZAAAl2cYIKAAAAA==","proving_key":null,"verification_key":null}
