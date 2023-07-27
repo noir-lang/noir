@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use fm::FileId;
 use noirc_errors::FileDiagnostic;
 
@@ -77,16 +79,45 @@ fn check_trait_method_implementation_generics(
     _noir_function: &NoirFunction,
     _trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
-    // TODO 
+    // TODO
     Ok(())
 }
 
 fn check_trait_method_implementation_parameters(
-    _parameters: &Vec<(Ident, UnresolvedType)>,
-    _noir_function: &NoirFunction,
-    _trait_name: &String,
+    parameters: &Vec<(Ident, UnresolvedType)>,
+    noir_function: &NoirFunction,
+    trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
-    // TODO 
+    if noir_function.def.parameters.len() != parameters.len() {
+        return Err(DefCollectorErrorKind::SimpleError {
+            primary_message: format!("Mismatch signature [Number of parameters] of method with name `{}` that implemetns trait `{}`", noir_function.name(), trait_name),
+            secondary_message: "".to_string(),
+            span: noir_function.name_ident().span(),
+        });
+    }
+    let mut count = 0;
+    for (pattern, typ, _abi_vis) in &noir_function.def.parameters {
+        let (expected_name, expected_type) = &parameters[count];
+        if pattern.name_ident().0.contents != expected_name.0.contents {
+            // we allow different namings of parameters
+        }
+        if typ != expected_type {
+            return Err(DefCollectorErrorKind::SimpleError {
+                primary_message: format!(
+                    "Mismatch signature of method {} that implemtns trait {}",
+                    noir_function.name(),
+                    trait_name,
+                ),
+                secondary_message: format!(
+                    "`{}: {}` expected",
+                    pattern.name_ident().0.contents,
+                    expected_type.to_string(),
+                ),
+                span: pattern.name_ident().span(),
+            });
+        }
+        count = count + 1;
+    }
     Ok(())
 }
 
@@ -95,7 +126,7 @@ fn check_trait_method_implementation_trait_constains(
     _noir_function: &NoirFunction,
     _trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
-    // TODO 
+    // TODO
     Ok(())
 }
 
@@ -125,7 +156,14 @@ fn check_trait_method_implementation(
 ) -> Result<(), DefCollectorErrorKind> {
     for item in &r#trait.items {
         match item {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause, body:_} => {
+            TraitItem::Function {
+                name,
+                generics,
+                parameters,
+                return_type,
+                where_clause,
+                body: _,
+            } => {
                 if name.0.contents == noir_function.def.name.0.contents {
                     // name matches, check for parameters, return type and where clause
                     check_trait_method_implementation_generics(
