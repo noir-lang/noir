@@ -36,8 +36,7 @@ fi
 git checkout -b "$BRANCH"
 
 echo "(branch migrate) Pulling from upstream barretenberg repo. If this doesn't work, your barretenberg branch may need to merge barretenberg master."
-# note: we use force with the assumption that people don't care about their subrepo stash branch
-if ! scripts/git_subrepo.sh pull "$SUBREPO_PATH" --branch=$BRANCH --force; then
+if ! scripts/git_subrepo.sh pull "$SUBREPO_PATH" --branch=$BRANCH; then
     echo "Error: Failed to pull from upstream barretenberg repo. Check your branch name or network connection."
     exit 1
 fi
