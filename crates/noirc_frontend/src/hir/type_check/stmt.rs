@@ -8,7 +8,7 @@ use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, StmtId};
 use crate::CompTime;
 
-use super::errors::TypeCheckError;
+use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
 
 impl<'interner> TypeChecker<'interner> {
@@ -109,11 +109,12 @@ impl<'interner> TypeChecker<'interner> {
 
         let span = self.interner.expr_span(&assign_stmt.expression);
         self.make_subtype_of(&expr_type, &lvalue_type, span, || {
-            let msg = format!(
-                "Cannot assign an expression of type {expr_type} to a value of type {lvalue_type}"
-            );
-
-            TypeCheckError::Unstructured { msg, span }
+            TypeCheckError::TypeMismatchWithSource {
+                rhs: expr_type.clone(),
+                lhs: lvalue_type.clone(),
+                span,
+                source: Source::Assignment,
+            }
         });
     }
 
@@ -130,11 +131,8 @@ impl<'interner> TypeChecker<'interner> {
 
                     if let Some(definition) = self.interner.try_definition(ident.id) {
                         if !definition.mutable && !matches!(typ, Type::MutableReference(_)) {
-                            self.errors.push(TypeCheckError::Unstructured {
-                                msg: format!(
-                                    "Variable {} must be mutable to be assigned to",
-                                    definition.name
-                                ),
+                            self.errors.push(TypeCheckError::VariableMustBeMutable {
+                                name: definition.name.clone(),
                                 span: ident.location.span,
                             });
                         }

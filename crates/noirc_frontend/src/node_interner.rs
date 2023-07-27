@@ -70,11 +70,6 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
-
-    /// TODO(#1850): This is technical debt that should be removed once we fully move over
-    /// to the new SSA pass which has certain frontend features enabled
-    /// such as slices and the removal of aos_to_soa
-    pub experimental_ssa: bool,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -254,7 +249,6 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
-            experimental_ssa: false,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
