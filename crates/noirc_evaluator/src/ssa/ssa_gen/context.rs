@@ -218,7 +218,7 @@ impl<'a> FunctionContext<'a> {
             }
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
-            ast::Type::Function(_, _) => Type::Function,
+            ast::Type::Function(_, _, _) => Type::Function,
             ast::Type::Slice(element) => {
                 let element_types = Self::convert_type(element).flatten();
                 Type::Slice(Rc::new(element_types))

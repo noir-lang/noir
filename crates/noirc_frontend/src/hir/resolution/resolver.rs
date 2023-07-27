@@ -364,7 +364,8 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Function(args, ret) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
-                Type::Function(args, ret)
+                let env = Box::new(Type::Unit);
+                Type::Function(args, ret, env)
             }
             UnresolvedType::MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
@@ -706,7 +707,7 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        let mut typ = Type::Function(parameter_types, return_type);
+        let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
 
         if !generics.is_empty() {
             typ = Type::Forall(generics, Box::new(typ));
@@ -839,13 +840,12 @@ impl<'a> Resolver<'a> {
                 }
             }
 
-            Type::Function(parameters, return_type) => {
+            Type::Function(parameters, return_type, _env) => {
                 for parameter in parameters {
                     Self::find_numeric_generics_in_type(parameter, found);
                 }
                 Self::find_numeric_generics_in_type(return_type, found);
             }
-            Type::Closure(func) => Self::find_numeric_generics_in_type(func, found),
 
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
@@ -964,7 +964,7 @@ impl<'a> Resolver<'a> {
                         // If this was a fresh capture, we added it to the end of
                         // the captures vector:
                         self.lambda_stack[lambda_index].captures.len() - 1,
-                    ))
+                    ));
                 }
             }
         }
@@ -1139,8 +1139,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Lambda(lambda) => self.in_new_scope(|this| {
                 let scope_index = this.scopes.current_scope_index();
 
-                this.lambda_stack
-                    .push(LambdaContext { captures: Vec::new(), scope_index: scope_index });
+                this.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
 
                 let parameters = vecmap(lambda.parameters, |(pattern, typ)| {
                     let parameter = DefinitionKind::Local(None);
@@ -1478,10 +1477,14 @@ mod test {
     use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
     use crate::hir::resolution::errors::ResolverError;
     use crate::hir::resolution::import::PathResolutionError;
+    use crate::hir::resolution::resolver::StmtId;
 
     use crate::graph::CrateId;
+    use crate::hir_def::expr::HirExpression;
     use crate::hir_def::function::HirFunction;
+    use crate::hir_def::stmt::HirStatement;
     use crate::node_interner::{FuncId, NodeInterner};
+    use crate::ParsedModule;
     use crate::{
         hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
         parse_program, Path,
@@ -1491,30 +1494,23 @@ mod test {
 
     // func_namespace is used to emulate the fact that functions can be imported
     // and functions can be forward declared
-    fn resolve_src_code(src: &str, func_namespace: Vec<&str>) -> Vec<ResolverError> {
+    fn init_src_code_resolution(
+        src: &str,
+    ) -> (ParsedModule, NodeInterner, HashMap<CrateId, CrateDefMap>, FileId, TestPathResolver) {
         let (program, errors) = parse_program(src);
         if !errors.is_empty() {
             panic!("Unexpected parse errors in test code: {:?}", errors);
         }
 
-        let mut interner = NodeInterner::default();
-
-        let func_ids = vecmap(&func_namespace, |name| {
-            let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.to_string(), id);
-            id
-        });
-
-        let mut path_resolver = TestPathResolver(HashMap::new());
-        for (name, id) in func_namespace.into_iter().zip(func_ids) {
-            path_resolver.insert_func(name.to_owned(), id);
-        }
+        let interner: NodeInterner = NodeInterner::default();
 
         let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
         modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+
+        let path_resolver = TestPathResolver(HashMap::new());
 
         def_maps.insert(
             CrateId::dummy_id(),
@@ -1526,16 +1522,111 @@ mod test {
             },
         );
 
+        (program, interner, def_maps, file, path_resolver)
+    }
+
+    // func_namespace is used to emulate the fact that functions can be imported
+    // and functions can be forward declared
+    fn resolve_src_code(src: &str, func_namespace: Vec<&str>) -> Vec<ResolverError> {
+        let (program, mut interner, def_maps, file, mut path_resolver) =
+            init_src_code_resolution(src);
+
+        let func_ids = vecmap(&func_namespace, |name| {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(name.to_string(), id);
+            id
+        });
+
+        for (name, id) in func_namespace.into_iter().zip(func_ids) {
+            path_resolver.insert_func(name.to_owned(), id);
+        }
+
         let mut errors = Vec::new();
         for func in program.functions {
             let id = interner.push_fn(HirFunction::empty());
             interner.push_function_definition(func.name().to_string(), id);
+
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
             let (_, _, err) = resolver.resolve_function(func, id, ModuleId::dummy_id());
             errors.extend(err);
         }
 
         errors
+    }
+
+    fn get_program_captures(src: &str) -> Vec<Vec<String>> {
+        let (program, mut interner, def_maps, file, mut path_resolver) =
+            init_src_code_resolution(src);
+
+        let mut all_captures: Vec<Vec<String>> = Vec::new();
+        for func in program.functions {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(func.name().clone().to_string(), id);
+            path_resolver.insert_func(func.name().to_owned(), id);
+
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
+            let (hir_func, _, _) = resolver.resolve_function(func, id, ModuleId::dummy_id());
+
+            // Iterate over function statements and apply filtering function
+            parse_statement_blocks(
+                hir_func.block(&interner).statements(),
+                &interner,
+                &mut all_captures,
+            );
+        }
+        all_captures
+    }
+
+    fn parse_statement_blocks(
+        stmts: &[StmtId],
+        interner: &NodeInterner,
+        result: &mut Vec<Vec<String>>,
+    ) {
+        let mut expr: HirExpression;
+
+        for stmt_id in stmts.iter() {
+            let hir_stmt = interner.statement(stmt_id);
+            match hir_stmt {
+                HirStatement::Expression(expr_id) => {
+                    expr = interner.expression(&expr_id);
+                }
+                HirStatement::Let(let_stmt) => {
+                    expr = interner.expression(&let_stmt.expression);
+                }
+                HirStatement::Assign(assign_stmt) => {
+                    expr = interner.expression(&assign_stmt.expression);
+                }
+                HirStatement::Constrain(constr_stmt) => {
+                    expr = interner.expression(&constr_stmt.0);
+                }
+                HirStatement::Semi(semi_expr) => {
+                    expr = interner.expression(&semi_expr);
+                }
+                HirStatement::Error => panic!("Invalid HirStatement!"),
+            }
+            get_lambda_captures(expr, &interner, result); // TODO: dyn filter function as parameter
+        }
+    }
+
+    fn get_lambda_captures(
+        expr: HirExpression,
+        interner: &NodeInterner,
+        result: &mut Vec<Vec<String>>,
+    ) {
+        if let HirExpression::Lambda(lambda_expr) = expr {
+            let mut cur_capture = Vec::new();
+
+            for capture in lambda_expr.captures.iter() {
+                cur_capture.push(interner.definition(capture.ident.id).name.clone());
+            }
+            result.push(cur_capture);
+
+            // Check for other captures recursively within the lambda body
+            let hir_body_expr = interner.expression(&lambda_expr.body);
+            if let HirExpression::Block(block_expr) = hir_body_expr.clone() {
+                parse_statement_blocks(block_expr.statements(), interner, result);
+            }
+        }
     }
 
     #[test]
@@ -1771,8 +1862,27 @@ mod test {
             println!("Unexpected errors: {:?}", errors);
             assert!(false); // there should be no errors
         }
-    }
 
+        let expected_captures = vec![
+            vec![],
+            vec!["x".to_string()],
+            vec!["b".to_string()],
+            vec!["x".to_string(), "b".to_string(), "a".to_string()],
+            vec![
+                "x".to_string(),
+                "b".to_string(),
+                "a".to_string(),
+                "y".to_string(),
+                "d".to_string(),
+            ],
+            vec!["x".to_string(), "b".to_string()],
+        ];
+
+        let parsed_captures = get_program_captures(src);
+
+        assert_eq!(expected_captures, parsed_captures);
+    }
+  
     #[test]
     fn resolve_fmt_strings() {
         let src = r#"
@@ -1806,9 +1916,8 @@ mod test {
         }
     }
 
-    // TODO: Create a more sophisticated set of search functions over the HIR, so we can check
+    // possible TODO: Create a more sophisticated set of search functions over the HIR, so we can check
     //       that the correct variables are captured in each closure
-
 
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
         match err {

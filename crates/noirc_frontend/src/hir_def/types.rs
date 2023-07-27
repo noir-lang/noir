@@ -70,13 +70,11 @@ pub enum Type {
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
     NamedGeneric(TypeVariable, Rc<String>),
 
-    /// A functions with arguments, and a return type.
-    Function(Vec<Type>, Box<Type>),
-
-    /// A closure (a pair of a function pointer and a tuple of captured variables).
-    /// Stores the underlying function type, which has been modifies such that the
-    /// first parameter is the type of the captured variables tuple.
-    Closure(Box<Type>),
+    /// A functions with arguments, a return type and environment.
+    /// the environment should be `Unit` by default,
+    /// for closures it should contain a `Tuple` type with the captured
+    /// variable types.
+    Function(Vec<Type>, Box<Type>, Box<Type>),
 
     /// &mut T
     MutableReference(Box<Type>),
@@ -702,11 +700,10 @@ impl Type {
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
-            Type::Function(parameters, return_type) => {
+            Type::Function(parameters, return_type, _env) => {
                 parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
                     || return_type.contains_numeric_typevar(target_id)
             }
-            Type::Closure(func) => func.contains_numeric_typevar(target_id),
             Type::Struct(struct_type, generics) => {
                 generics.iter().enumerate().any(|(i, generic)| {
                     if named_generic_id_matches_target(generic) {
@@ -803,12 +800,9 @@ impl std::fmt::Display for Type {
                 let typevars = vecmap(typevars, |(var, _)| var.to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret) => {
+            Type::Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
-                write!(f, "fn({}) -> {}", args.join(", "), ret)
-            }
-            Type::Closure(func) => {
-                write!(f, "closure {}", func) // i.e. we produce a string such as "closure fn(args) -> ret"
+                write!(f, "fn({}) -> {} [{}]", args.join(", "), ret, env)
             }
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
@@ -1205,13 +1199,14 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
+            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
                 if params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b) {
                         a.try_unify(b, span)?;
                     }
 
-                    ret_b.try_unify(ret_a, span)
+                    ret_b.try_unify(ret_a, span)?;
+                    env_a.try_unify(env_b, span)
                 } else {
                     Err(SpanKind::None)
                 }
@@ -1412,9 +1407,16 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
-                if params_a.len() == params_b.len() {
-                    for (a, b) in params_a.iter().zip(params_b) {
+            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, _env_b)) => {
+                let skip_params = match *env_a.clone() {
+                    Type::Unit => 0,
+                    Type::Tuple(_) => {
+                        1 // closure env
+                    }
+                    _ => unreachable!("function env internal type should be either Unit or Tuple"),
+                };
+                if params_a.len() - skip_params == params_b.len() {
+                    for (a, b) in params_a.iter().skip(skip_params).zip(params_b) {
                         a.is_subtype_of(b, span)?;
                     }
 
@@ -1514,8 +1516,7 @@ impl Type {
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(_, _) => unreachable!(),
-            Type::Closure(_) => unreachable!(),
+            Type::Function(_, _, _) => unreachable!(),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
             Type::NotConstant => unreachable!(),
         }
@@ -1630,14 +1631,11 @@ impl Type {
                 let typ = Box::new(typ.substitute(type_bindings));
                 Type::Forall(typevars.clone(), typ)
             }
-            Type::Function(args, ret) => {
+            Type::Function(args, ret, env) => {
                 let args = vecmap(args, |arg| arg.substitute(type_bindings));
                 let ret = Box::new(ret.substitute(type_bindings));
-                Type::Function(args, ret)
-            }
-            Type::Closure(func) => {
-                let func = Box::new(func.substitute(type_bindings));
-                Type::Closure(func)
+                let env = Box::new(env.substitute(type_bindings));
+                Type::Function(args, ret, env)
             }
             Type::MutableReference(element) => {
                 Type::MutableReference(Box::new(element.substitute(type_bindings)))
@@ -1674,10 +1672,11 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|(id, _)| *id == target_id) && typ.occurs(target_id)
             }
-            Type::Function(args, ret) => {
-                args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
+            Type::Function(args, ret, env) => {
+                args.iter().any(|arg| arg.occurs(target_id))
+                    || ret.occurs(target_id)
+                    || env.occurs(target_id)
             }
-            Type::Closure(func) => func.occurs(target_id),
             Type::MutableReference(element) => element.occurs(target_id),
 
             Type::FieldElement(_)
@@ -1721,12 +1720,12 @@ impl Type {
                 self.clone()
             }
 
-            Function(args, ret) => {
+            Function(args, ret, env) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 let ret = Box::new(ret.follow_bindings());
-                Function(args, ret)
+                let env = Box::new(env.follow_bindings());
+                Function(args, ret, env)
             }
-            Closure(func) => Closure(Box::new(func.follow_bindings())),
 
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
@@ -1768,7 +1767,7 @@ fn convert_array_expression_to_slice(
     interner.push_expr_location(func, location.span, location.file);
 
     interner.push_expr_type(&call, target_type.clone());
-    interner.push_expr_type(&func, Type::Function(vec![array_type], Box::new(target_type)));
+    interner.push_expr_type(&func, Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit)));
 }
 
 impl BinaryTypeOperator {

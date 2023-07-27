@@ -279,13 +279,11 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Tuple(vecmap(&elements, |elem| self.check_expression(elem)))
             }
             HirExpression::Lambda(lambda) => {
-                let captured_vars = vecmap(lambda.captures, |capture| {
-                    let typ = self.interner.id_type(capture.ident.id);
-                    typ
-                });
+                let captured_vars =
+                    vecmap(lambda.captures, |capture| self.interner.id_type(capture.ident.id));
 
                 let env_type = Type::Tuple(captured_vars);
-                let mut params = vec![env_type];
+                let mut params = vec![env_type.clone()];
 
                 for (pattern, typ) in lambda.parameters {
                     self.bind_pattern(&pattern, typ.clone());
@@ -303,8 +301,9 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 });
 
-                let function_type = Type::Function(params, Box::new(lambda.return_type));
-                Type::Closure(Box::new(function_type))
+                let function_type =
+                    Type::Function(params, Box::new(lambda.return_type), Box::new(env_type));
+                function_type
             }
         };
 
@@ -329,9 +328,9 @@ impl<'interner> TypeChecker<'interner> {
         argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
     ) {
         let expected_object_type = match function_type {
-            Type::Function(args, _) => args.get(0),
+            Type::Function(args, _, _) => args.get(0),
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(args, _) => args.get(0),
+                Type::Function(args, _, _) => args.get(0),
                 typ => unreachable!("Unexpected type for function: {typ}"),
             },
             typ => unreachable!("Unexpected type for function: {typ}"),
@@ -891,10 +890,10 @@ impl<'interner> TypeChecker<'interner> {
         let real_fn_params_count = fn_params.len() - skip_params;
 
         if real_fn_params_count != callsite_args.len() {
-            self.errors.push(TypeCheckError::ParameterCountMismatch { 
+            self.errors.push(TypeCheckError::ParameterCountMismatch {
                 expected: real_fn_params_count,
-                found: callsite_args.len(), 
-                span: span
+                found: callsite_args.len(),
+                span: span,
             });
             return Type::Error;
         }
@@ -928,22 +927,30 @@ impl<'interner> TypeChecker<'interner> {
 
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
-                let expected = Type::Function(args, Box::new(ret.clone()));
+                let expected = Type::Function(args, Box::new(ret.clone()), Box::new(Type::Unit));
 
                 if let Err(error) = binding.borrow_mut().bind_to(expected, span) {
                     self.errors.push(error);
                 }
                 ret
             }
-            Type::Function(parameters, ret) => {
+            Type::Function(parameters, ret, env) => {
                 self.bind_function_type_impl(
                     parameters.as_ref(),
                     ret.as_ref(),
                     args.as_ref(),
                     span,
-                    0,
+                    match *env {
+                        Type::Unit => 0,
+                        Type::Tuple(_) => {
+                            1 // closure env
+                        }
+                        _ => unreachable!(
+                            "function env internal type should be either Unit or Tuple"
+                        ),
+                    },
                 )
-            },
+            }
             Type::Error => Type::Error,
             found => {
                 self.errors.push(TypeCheckError::ExpectedFunction { found, span });

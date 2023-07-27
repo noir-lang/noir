@@ -581,8 +581,19 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
                 let typ = Self::convert_type(&typ);
-                let ident = ast::Ident { location, mutable, definition, name, typ };
-                ast::Expression::Ident(ident)
+                let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
+                let ident_expression = ast::Expression::Ident(ident).clone();
+                if self.is_function_closure_type(&typ) {
+                    ast::Expression::Tuple(vec![
+                        ast::Expression::ExtractTupleField(
+                            Box::new(ident_expression.clone()),
+                            0usize,
+                        ),
+                        ast::Expression::ExtractTupleField(Box::new(ident_expression), 1usize),
+                    ])
+                } else {
+                    ident_expression
+                }
             }
             DefinitionKind::Global(expr_id) => self.expr(*expr_id),
             DefinitionKind::Local(_) => self.lookup_captured(ident.id).unwrap_or_else(|| {
@@ -674,23 +685,11 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(fields)
             }
 
-            HirType::Function(args, ret) => {
+            HirType::Function(args, ret, env) => {
                 let args = vecmap(args, Self::convert_type);
                 let ret = Box::new(Self::convert_type(ret));
-                ast::Type::Function(args, ret)
-            }
-
-            HirType::Closure(func) => {
-                match func.as_ref() {
-                    HirType::Function(arguments, return_type) => {
-                        let converted_args = vecmap(arguments, Self::convert_type);
-                        let converted_ret = Box::new(Self::convert_type(&return_type));
-                        let fn_type = ast::Type::Function(converted_args, converted_ret);
-                        let env_type = ast::Type::Tuple(vec![]); // TODO compute this
-                        ast::Type::Tuple(vec![env_type, fn_type])
-                    }
-                    _ => unreachable!("Unexpected closure type {}", func),
-                }
+                let env = Box::new(Self::convert_type(env));
+                ast::Type::Function(args, ret, env)
             }
 
             HirType::MutableReference(element) => {
@@ -708,7 +707,27 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn is_function_closure(&self, func: &ast::Expression) -> bool {
-        matches!(ast::type_of(func), ast::Type::Tuple(_))
+        let t = func.type_of();
+        if self.is_function_closure_type(&t) {
+            true
+        } else if let ast::Type::Tuple(elements) = t {
+            if elements.len() == 2 {
+                matches!(elements[1], ast::Type::Function(_, _, _))
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
+    fn is_function_closure_type(&self, t: &ast::Type) -> bool {
+        if let ast::Type::Function(_, _, env) = t {
+            let e = (*env).clone();
+            matches!(*e, ast::Type::Tuple(_captures))
+        } else {
+            false
+        }
     }
 
     fn function_call(
@@ -716,9 +735,10 @@ impl<'interner> Monomorphizer<'interner> {
         call: HirCallExpression,
         id: node_interner::ExprId,
     ) -> ast::Expression {
-        let original_func = Box::new(self.expr(call.func));
+        let original_func = Box::new(self.expr((call.func).clone()));
         let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+        let func: Box<ast::Expression>;
         let return_type = self.interner.id_type(id);
         let return_type = Self::convert_type(&return_type);
         let location = call.location;
@@ -733,25 +753,42 @@ impl<'interner> Monomorphizer<'interner> {
             }
         }
 
-        let is_closure = self.is_function_closure(&*original_func);
+        let mut block_expressions = vec![];
 
-        let func = if is_closure {
-            Box::new(ast::Expression::ExtractTupleField(Box::new((*original_func).clone()), 1usize))
+        let is_closure = self.is_function_closure(&original_func);
+        if is_closure {
+            let extracted_func: ast::Expression;
+            let hir_call_func = self.interner.expression(&call.func);
+            if let HirExpression::Lambda(l) = hir_call_func {
+                let (setup, closure_variable) = self.lambda_with_setup(l);
+                block_expressions.push(setup);
+                extracted_func = closure_variable;
+            } else {
+                extracted_func = *original_func;
+            }
+            func = Box::new(ast::Expression::ExtractTupleField(
+                Box::new(extracted_func.clone()),
+                1usize,
+            ));
+            let env_argument = ast::Expression::ExtractTupleField(Box::new(extracted_func), 0usize);
+            arguments.insert(0, env_argument);
         } else {
-            original_func.clone()
+            func = original_func.clone()
         };
 
-        if is_closure {
-            let env_argument =
-                ast::Expression::ExtractTupleField(Box::new((*original_func).clone()), 0usize);
-            arguments.insert(0, env_argument);
-        }
-        self.try_evaluate_call(&func, &return_type).unwrap_or(ast::Expression::Call(ast::Call {
+        let call = self.try_evaluate_call(&func, &return_type).unwrap_or(ast::Expression::Call(ast::Call {
             func,
             arguments,
             return_type,
             location,
-        }))
+        }));
+
+        if !block_expressions.is_empty() {
+            block_expressions.push(call);
+            ast::Expression::Block(block_expressions)
+        } else {
+            call
+        }
     }
 
     /// Adds a function argument that contains type metadata that is required to tell
@@ -961,7 +998,21 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn lambda(&mut self, lambda: HirLambda) -> ast::Expression {
+    fn lambda_with_setup(&mut self, lambda: HirLambda) -> (ast::Expression, ast::Expression) {
+        // returns (<closure setup>, <closure variable>)
+        //   which can be used directly in callsites or transformed
+        //   directly to a single `Expression`
+        // for other cases by `lambda` which is called by `expr`
+        //
+        // it solves the problem of detecting special cases where
+        // we call something like
+        // `{let env$.. = ..;}.1({let env$.. = ..;}.0, ..)`
+        // which was leading to redefinition errors
+        //
+        // instead of detecting and extracting
+        // patterns in the resulting tree,
+        // which seems more fragile, we directly reuse the return parameters
+        // of this function in those cases
         let ret_type = Self::convert_type(&lambda.return_type);
         let lambda_name = "lambda";
         let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
@@ -996,7 +1047,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
         }));
-        let env_typ = ast::type_of(&env_tuple);
+        let env_typ = (&env_tuple).type_of();
 
         let env_let_stmt = ast::Expression::Let(ast::Let {
             id: env_local_id,
@@ -1024,17 +1075,18 @@ impl<'interner> Monomorphizer<'interner> {
         let body = self.expr(lambda.body);
         self.lambda_envs_stack.pop();
 
-        let lambda_fn_typ: ast::Type = ast::Type::Function(parameter_types, Box::new(ret_type));
+        let lambda_fn_typ: ast::Type =
+            ast::Type::Function(parameter_types, Box::new(ret_type), Box::new(env_typ.clone()));
         let lambda_fn = ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(id),
             mutable: false,
             location: None, // TODO: This should match the location of the lambda expression
             name: name.clone(),
-            typ: lambda_fn_typ,
+            typ: lambda_fn_typ.clone(),
         });
 
         let mut parameters = vec![];
-        parameters.push((env_local_id, true, env_name.to_string(), env_typ));
+        parameters.push((env_local_id, true, env_name.to_string(), env_typ.clone()));
         parameters.append(&mut converted_parameters);
 
         let unconstrained = false;
@@ -1042,7 +1094,32 @@ impl<'interner> Monomorphizer<'interner> {
         self.push_function(id, function);
 
         let lambda_value = ast::Expression::Tuple(vec![env_ident, lambda_fn]);
-        ast::Expression::Block(vec![env_let_stmt, lambda_value])
+        let block_local_id = self.next_local_id();
+        let block_ident_name = "closure_variable";
+        let block_let_stmt = ast::Expression::Let(ast::Let {
+            id: block_local_id,
+            mutable: false,
+            name: block_ident_name.to_string(),
+            expression: Box::new(ast::Expression::Block(vec![env_let_stmt, lambda_value])),
+        });
+
+        let closure_definition = Definition::Local(block_local_id);
+
+        let closure_ident = ast::Expression::Ident(ast::Ident {
+            location,
+            mutable: false,
+            definition: closure_definition,
+            name: block_ident_name.to_string(),
+            typ: ast::Type::Tuple(vec![env_typ, lambda_fn_typ]),
+        });
+
+        (block_let_stmt, closure_ident)
+        // ast::Expression::Block(vec![block_let_stmt, closure_ident])
+    }
+
+    fn lambda(&mut self, lambda: HirLambda) -> ast::Expression {
+        let (setup, closure_variable) = self.lambda_with_setup(lambda);
+        ast::Expression::Block(vec![setup, closure_variable])
     }
 
     /// Implements std::unsafe::zeroed by returning an appropriate zeroed
@@ -1082,8 +1159,8 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::Tuple(fields) => {
                 ast::Expression::Tuple(vecmap(fields, |field| self.zeroed_value_of_type(field)))
             }
-            ast::Type::Function(parameter_types, ret_type) => {
-                self.create_zeroed_function(parameter_types, ret_type)
+            ast::Type::Function(parameter_types, ret_type, env) => {
+                self.create_zeroed_function(parameter_types, ret_type, env)
             }
             ast::Type::Slice(element_type) => {
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
@@ -1110,6 +1187,7 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         parameter_types: &[ast::Type],
         ret_type: &ast::Type,
+        env_type: &ast::Type,
     ) -> ast::Expression {
         let lambda_name = "zeroed_lambda";
 
@@ -1132,7 +1210,11 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name: lambda_name.to_owned(),
-            typ: ast::Type::Function(parameter_types.to_owned(), Box::new(ret_type.clone())),
+            typ: ast::Type::Function(
+                parameter_types.to_owned(),
+                Box::new(ret_type.clone()),
+                Box::new(env_type.clone()),
+            ),
         })
     }
 }
@@ -1237,7 +1319,8 @@ mod tests {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, _resolver_errors) = resolver.resolve_function(nf, main_id);
+            let (hir_func, func_meta, _resolver_errors) =
+                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
             // TODO: not sure why, we do get an error here,
             // but otherwise seem to get an ok monomorphization result
             // assert_eq!(resolver_errors, vec![]);
