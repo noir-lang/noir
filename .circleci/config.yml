@@ -654,192 +654,209 @@ jobs:
           command: build rollup-provider
 
   e2e-2-rpc-servers:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_2_rpc_servers.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_2_rpc_servers.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-multiple-accounts-1-enc-key:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_multiple_accounts_1_enc_key.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_multiple_accounts_1_enc_key.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-deploy-contract:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_deploy_contract.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_deploy_contract.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-lending-contract:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_lending_contract.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_lending_contract.test.ts
+          working_directory: yarn-project/end-to-end
 
 
   e2e-zk-token-contract:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_zk_token_contract.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_zk_token_contract.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-block-building:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_block_building.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_block_building.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-nested-contract:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_nested_contract.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_nested_contract.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-non-contract-account:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_non_contract_account.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_non_contract_account.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-cross-chain-messaging:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_cross_chain_messaging.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_cross_chain_messaging.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-public-cross-chain-messaging:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_public_cross_chain_messaging.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_public_cross_chain_messaging.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-public-to-private-messaging:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_public_to_private_messaging.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_public_to_private_messaging.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-account-contracts:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_account_contracts.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_account_contracts.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-pending-commitments-contract:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_pending_commitments_contract.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_pending_commitments_contract.test.ts
+          working_directory: yarn-project/end-to-end
 
   uniswap-trade-on-l1-from-l2:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end uniswap_trade_on_l1_from_l2.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local uniswap_trade_on_l1_from_l2.test.ts
+          working_directory: yarn-project/end-to-end
 
   integration-archiver-l1-to-l2:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end integration_archiver_l1_to_l2.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local integration_archiver_l1_to_l2.test.ts
+          working_directory: yarn-project/end-to-end
 
   integration-l1-publisher:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end integration_l1_publisher.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local integration_l1_publisher.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-public-token-contract:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Test"
-          command: cond_spot_run_tests end-to-end e2e_public_token_contract.test.ts
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_public_token_contract.test.ts
+          working_directory: yarn-project/end-to-end
 
   e2e-p2p:
     docker:
