@@ -19,7 +19,25 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
 {
     // Offset for starting to write selectors is zero row offset + num public inputs
     const size_t zero_row_offset = Flavor::has_zero_row ? 1 : 0;
-    const size_t gate_offset = zero_row_offset + circuit_constructor.public_inputs.size();
+    size_t gate_offset = zero_row_offset + circuit_constructor.public_inputs.size();
+
+    // If Goblin, (1) update the conventional gate offset to account for ecc op gates at the top of the execution trace,
+    // and (2) construct ecc op gate selector polynomial.
+    // Note 1: All other selectors will be automatically and correctly initialized to 0 on this domain.
+    // Note 2: If applicable, the ecc op gates are shifted down by 1 to account for a zero row.
+    // TODO(luke): Move this out of this function and directly into compute_proving_key?
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        const size_t num_ecc_op_gates = circuit_constructor.num_ecc_op_gates;
+        gate_offset += num_ecc_op_gates;
+        const size_t op_gate_offset = zero_row_offset;
+        // The op gate selector is simply the indicator on the domain [offset, num_ecc_op_gates + offset - 1]
+        barretenberg::polynomial selector_poly_lagrange(proving_key->circuit_size);
+        for (size_t i = 0; i < num_ecc_op_gates; ++i) {
+            selector_poly_lagrange[i + op_gate_offset] = 1;
+        }
+        proving_key->lagrange_ecc_op = selector_poly_lagrange;
+    }
+
     // TODO(#398): Loose coupling here! Would rather build up pk from arithmetization
     size_t selector_idx = 0; // TODO(#391) zip
     for (auto& selector_values : circuit_constructor.selectors) {
@@ -46,8 +64,12 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
 /**
  * @brief Construct the witness polynomials from the witness vectors in the circuit constructor.
  *
- * @details The first two witness polynomials begin with the public input values.
- *
+ * @details We can think of the entries in the wire polynomials as reflecting the structure of the circuit execution
+ * trace. The execution trace is broken up into several distinct blocks, depending on Flavor. For example, for Goblin
+ * Ultra Honk, the order is: leading zero row, ECC op gates, public inputs, conventional wires. The actual values used
+ * to populate the wire polynomials are determined by corresponding arrays of indices into the variables vector of the
+ * circuit builder, and their location in the polynomials is determined by applying the appropriate "offset" for the
+ * corresponding block.
  *
  * @tparam Flavor provides the circuit constructor type and the number of wires.
  * @param circuit_constructor
@@ -59,35 +81,55 @@ template <typename Flavor>
 std::vector<barretenberg::polynomial> construct_wire_polynomials_base(
     const typename Flavor::CircuitBuilder& circuit_constructor, const size_t dyadic_circuit_size)
 {
-    const size_t zero_row_offset = Flavor::has_zero_row ? 1 : 0;
+    // Determine size of each block of data in the wire polynomials
+    const size_t num_zero_rows = Flavor::has_zero_row ? 1 : 0;
+    const size_t num_gates = circuit_constructor.num_gates;
     std::span<const uint32_t> public_inputs = circuit_constructor.public_inputs;
     const size_t num_public_inputs = public_inputs.size();
+    size_t num_ecc_op_gates = 0;
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        num_ecc_op_gates = circuit_constructor.num_ecc_op_gates;
+    }
+
+    // Define offsets at which to start writing different blocks of data
+    size_t op_gate_offset = num_zero_rows;
+    size_t pub_input_offset = num_zero_rows + num_ecc_op_gates;
+    size_t gate_offset = num_zero_rows + num_ecc_op_gates + num_public_inputs;
 
     std::vector<barretenberg::polynomial> wire_polynomials;
-    // Note: randomness is added to 3 of the last 4 positions in plonk/proof_system/prover/prover.cpp
-    // StandardProverBase::execute_preamble_round().
-    size_t wire_idx = 0; // TODO(#391) zip
-    for (auto& wire : circuit_constructor.wires) {
-        // Initialize the polynomial with all the actual copies variable values
+
+    // Populate the wire polynomials with values from ecc op gates, public inputs and conventional wires
+    for (size_t wire_idx = 0; wire_idx < Flavor::NUM_WIRES; ++wire_idx) {
+
         // Expect all values to be set to 0 initially
         barretenberg::polynomial w_lagrange(dyadic_circuit_size);
 
-        // Place all public inputs at the start of the first two wires, possibly offset by a zero row.
-        // All selectors at these indices are set to 0, so these values are not constrained at all.
-        const size_t pub_input_offset = zero_row_offset; // offset at which to start writing pub inputs
+        // Insert leading zero row into wire poly (for clarity; not stricly necessary due to zero-initialization)
+        for (size_t i = 0; i < num_zero_rows; ++i) {
+            w_lagrange[i] = circuit_constructor.get_variable(circuit_constructor.zero_idx);
+        }
+
+        // Insert ECC op wire values into wire polynomial
+        if constexpr (IsGoblinFlavor<Flavor>) {
+            for (size_t i = 0; i < num_ecc_op_gates; ++i) {
+                auto& op_wire = circuit_constructor.ecc_op_wires[wire_idx];
+                w_lagrange[i + op_gate_offset] = circuit_constructor.get_variable(op_wire[i]);
+            }
+        }
+
+        // Insert public inputs (first two wire polynomials only)
         if (wire_idx < 2) {
             for (size_t i = 0; i < num_public_inputs; ++i) {
                 w_lagrange[i + pub_input_offset] = circuit_constructor.get_variable(public_inputs[i]);
             }
-            ++wire_idx;
         }
 
-        // Assign the variable values (which are pointed-to by the `w_` wire_polynomials) to the wire witness
-        // polynomials `poly_w_`, shifted to make room for public inputs and the specified offset (possibly 0).
-        const size_t gate_offset = num_public_inputs + pub_input_offset; // offset at which to start writing gates
-        for (size_t i = 0; i < circuit_constructor.num_gates; ++i) {
+        // Insert conventional gate wire values into the wire polynomial
+        for (size_t i = 0; i < num_gates; ++i) {
+            auto& wire = circuit_constructor.wires[wire_idx];
             w_lagrange[i + gate_offset] = circuit_constructor.get_variable(wire[i]);
         }
+
         wire_polynomials.push_back(std::move(w_lagrange));
     }
     return wire_polynomials;

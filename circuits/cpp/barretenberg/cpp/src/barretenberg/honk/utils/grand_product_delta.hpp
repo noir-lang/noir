@@ -11,13 +11,16 @@ namespace proof_system::honk {
  * @param beta random linear-combination term to combine both (wʲ, IDʲ) and (wʲ, σʲ)
  * @param gamma Schwartz-Zippel random evaluation to ensure ∏ᵢ (γ + Sᵢ) = ∏ᵢ (γ + Tᵢ)
  * @param domain_size Total number of rows required for the circuit (power of 2)
+ * @param offset Extent to which PI are offset from the 0th index in the wire polynomials, for example, due to inclusion
+ * of a leading zero row or Goblin style ECC op gates at the top of the execution trace.
  * @return Field Public input Δ
  */
 template <typename Flavor>
 typename Flavor::FF compute_public_input_delta(std::span<const typename Flavor::FF> public_inputs,
                                                const typename Flavor::FF& beta,
                                                const typename Flavor::FF& gamma,
-                                               const size_t domain_size)
+                                               const size_t domain_size,
+                                               size_t offset = 0)
 {
     using Field = typename Flavor::FF;
     Field numerator = Field::one();
@@ -42,9 +45,9 @@ typename Flavor::FF compute_public_input_delta(std::span<const typename Flavor::
     //      denominator_acc = γ - β⋅(1+i) = γ - β   - β⋅i
     // at the end of the loop, add and subtract β to each term respectively to
     // set the expected value for the start of iteration i+1.
-    // Note: If a zero row is included at the start of the execution
-    // trace, the indices of the PI are offset by 1.
-    const size_t offset = Flavor::has_zero_row ? 1 : 0;
+    // Note: The public inputs may be offset from the 0th index of the wires, for example due to the inclusion of an
+    // initial zero row or Goblin-stlye ECC op gates. Accordingly, the indices i in the above formulas are given by i =
+    // [0, m-1] + offset, i.e. i = offset, 1 + offset, …, m - 1 + offset.
     Field numerator_acc = gamma + (beta * Field(domain_size + offset));
     Field denominator_acc = gamma - beta * Field(1 + offset);
 

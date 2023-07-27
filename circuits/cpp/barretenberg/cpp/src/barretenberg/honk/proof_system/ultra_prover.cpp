@@ -74,27 +74,25 @@ UltraProver_<Flavor>::UltraProver_(std::shared_ptr<typename Flavor::ProvingKey> 
     prover_polynomials.w_r_shift = key->w_r.shifted();
     prover_polynomials.w_o_shift = key->w_o.shifted();
 
-    // Add public inputs to transcript from the second wire polynomial; The PI have been written into the wires at the
-    // 0th or 1st index depending on whether or not a zero row is utilized.
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        prover_polynomials.ecc_op_wire_1 = key->ecc_op_wire_1;
+        prover_polynomials.ecc_op_wire_2 = key->ecc_op_wire_2;
+        prover_polynomials.ecc_op_wire_3 = key->ecc_op_wire_3;
+        prover_polynomials.ecc_op_wire_4 = key->ecc_op_wire_4;
+        prover_polynomials.lagrange_ecc_op = key->lagrange_ecc_op;
+    }
+
+    // Add public inputs to transcript from the second wire polynomial; This requires determination of the offset at
+    // which the PI have been written into the wires relative to the 0th index.
     std::span<FF> public_wires_source = prover_polynomials.w_r;
-    const size_t pub_input_offset = Flavor::has_zero_row ? 1 : 0;
+    pub_inputs_offset = Flavor::has_zero_row ? 1 : 0;
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        pub_inputs_offset += key->num_ecc_op_gates;
+    }
 
     for (size_t i = 0; i < key->num_public_inputs; ++i) {
-        size_t idx = i + pub_input_offset;
+        size_t idx = i + pub_inputs_offset;
         public_inputs.emplace_back(public_wires_source[idx]);
-    }
-}
-
-/**
- * @brief Commit to the first three wires only
- *
- */
-template <UltraFlavor Flavor> void UltraProver_<Flavor>::compute_wire_commitments()
-{
-    auto wire_polys = key->get_wires();
-    auto labels = commitment_labels.get_wires();
-    for (size_t idx = 0; idx < 3; ++idx) {
-        queue.add_commitment(wire_polys[idx], labels[idx]);
     }
 }
 
@@ -109,6 +107,7 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_preamble_round(
 
     transcript.send_to_verifier("circuit_size", circuit_size);
     transcript.send_to_verifier("public_input_size", num_public_inputs);
+    transcript.send_to_verifier("pub_inputs_offset", static_cast<uint32_t>(pub_inputs_offset));
 
     for (size_t i = 0; i < key->num_public_inputs; ++i) {
         auto public_input_i = public_inputs[i];
@@ -122,10 +121,20 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_preamble_round(
  */
 template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_wire_commitments_round()
 {
+    // Commit to the first three wire polynomials; the fourth is committed to after the addition of memory records.
     auto wire_polys = key->get_wires();
     auto labels = commitment_labels.get_wires();
     for (size_t idx = 0; idx < 3; ++idx) {
         queue.add_commitment(wire_polys[idx], labels[idx]);
+    }
+
+    // If Goblin, commit to the ECC op wire polynomials
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        auto op_wire_polys = key->get_ecc_op_wires();
+        auto labels = commitment_labels.get_ecc_op_wires();
+        for (size_t idx = 0; idx < Flavor::NUM_WIRES; ++idx) {
+            queue.add_commitment(op_wire_polys[idx], labels[idx]);
+        }
     }
 }
 
@@ -162,7 +171,8 @@ template <UltraFlavor Flavor> void UltraProver_<Flavor>::execute_grand_product_c
     // Compute and store parameters required by relations in Sumcheck
     auto [beta, gamma] = transcript.get_challenges("beta", "gamma");
 
-    auto public_input_delta = compute_public_input_delta<Flavor>(public_inputs, beta, gamma, key->circuit_size);
+    auto public_input_delta =
+        compute_public_input_delta<Flavor>(public_inputs, beta, gamma, key->circuit_size, pub_inputs_offset);
     auto lookup_grand_product_delta = compute_lookup_grand_product_delta(beta, gamma, key->circuit_size);
 
     relation_parameters.beta = beta;
@@ -338,5 +348,6 @@ template <UltraFlavor Flavor> plonk::proof& UltraProver_<Flavor>::construct_proo
 
 template class UltraProver_<honk::flavor::Ultra>;
 template class UltraProver_<honk::flavor::UltraGrumpkin>;
+template class UltraProver_<honk::flavor::GoblinUltra>;
 
 } // namespace proof_system::honk

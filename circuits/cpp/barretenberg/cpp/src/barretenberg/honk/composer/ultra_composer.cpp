@@ -21,14 +21,16 @@ void UltraComposer_<Flavor>::compute_circuit_size_parameters(CircuitBuilder& cir
         lookups_size += table.lookup_gates.size();
     }
 
+    // Get num conventional gates, num public inputs and num Goblin style ECC op gates
+    const size_t num_gates = circuit_constructor.num_gates;
     num_public_inputs = circuit_constructor.public_inputs.size();
+    num_ecc_op_gates = circuit_constructor.num_ecc_op_gates;
 
     // minimum circuit size due to the length of lookups plus tables
-    const size_t minimum_circuit_size_due_to_lookups = tables_size + lookups_size + zero_row_offset;
+    const size_t minimum_circuit_size_due_to_lookups = tables_size + lookups_size + num_zero_rows;
 
     // number of populated rows in the execution trace
-    const size_t num_rows_populated_in_execution_trace =
-        circuit_constructor.num_gates + circuit_constructor.public_inputs.size() + zero_row_offset;
+    size_t num_rows_populated_in_execution_trace = num_zero_rows + num_ecc_op_gates + num_public_inputs + num_gates;
 
     // The number of gates is max(lookup gates + tables, rows already populated in trace) + 1, where the +1 is due to
     // addition of a "zero row" at top of the execution trace to ensure wires and other polys are shiftable.
@@ -48,15 +50,7 @@ template <UltraFlavor Flavor> void UltraComposer_<Flavor>::compute_witness(Circu
         return;
     }
 
-    // At this point, the wires have been populated with as many values as rows in the execution trace. We need to pad
-    // with zeros up to the full length, i.e. total_num_gates = already populated rows of execution trace + tables_size.
-    for (size_t i = 0; i < tables_size; ++i) {
-        circuit_constructor.w_l.emplace_back(circuit_constructor.zero_idx);
-        circuit_constructor.w_r.emplace_back(circuit_constructor.zero_idx);
-        circuit_constructor.w_o.emplace_back(circuit_constructor.zero_idx);
-        circuit_constructor.w_4.emplace_back(circuit_constructor.zero_idx);
-    }
-
+    // Construct the conventional wire polynomials
     auto wire_polynomials = construct_wire_polynomials_base<Flavor>(circuit_constructor, dyadic_circuit_size);
 
     proving_key->w_l = wire_polynomials[0];
@@ -64,24 +58,23 @@ template <UltraFlavor Flavor> void UltraComposer_<Flavor>::compute_witness(Circu
     proving_key->w_o = wire_polynomials[2];
     proving_key->w_4 = wire_polynomials[3];
 
+    // If Goblin, construct the ECC op queue wire polynomials
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        construct_ecc_op_wire_polynomials(wire_polynomials);
+    }
+
+    // Construct the sorted concatenated list polynomials for the lookup argument
     polynomial s_1(dyadic_circuit_size);
     polynomial s_2(dyadic_circuit_size);
     polynomial s_3(dyadic_circuit_size);
     polynomial s_4(dyadic_circuit_size);
-    // TODO(luke): The +1 size for z_lookup is not necessary and can lead to confusion. Resolve.
-    polynomial z_lookup(dyadic_circuit_size + 1); // Only instantiated in this function; nothing assigned.
 
-    // TODO(kesha): Look at this once we figure out how we do ZK (previously we had roots cut out, so just added
-    // randomness)
-    // The size of empty space in sorted polynomials
-    size_t count = dyadic_circuit_size - tables_size - lookups_size;
-    ASSERT(count > 0); // We need at least 1 row of zeroes for the permutation argument
-    for (size_t i = 0; i < count; ++i) {
-        s_1[i] = 0;
-        s_2[i] = 0;
-        s_3[i] = 0;
-        s_4[i] = 0;
-    }
+    // The sorted list polynomials have (tables_size + lookups_size) populated entries. We define the index below so
+    // that these entries are written into the last indices of the polynomials. The values on the first
+    // dyadic_circuit_size - (tables_size + lookups_size) indices are automatically initialized to zero via the
+    // polynomial constructor.
+    size_t s_index = dyadic_circuit_size - tables_size - lookups_size;
+    ASSERT(s_index > 0); // We need at least 1 row of zeroes for the permutation argument
 
     for (auto& table : circuit_constructor.lookup_tables) {
         const fr table_index(table.table_index);
@@ -120,11 +113,11 @@ template <UltraFlavor Flavor> void UltraComposer_<Flavor>::compute_witness(Circu
 
         for (const auto& entry : lookup_gates) {
             const auto components = entry.to_sorted_list_components(table.use_twin_keys);
-            s_1[count] = components[0];
-            s_2[count] = components[1];
-            s_3[count] = components[2];
-            s_4[count] = table_index;
-            ++count;
+            s_1[s_index] = components[0];
+            s_2[s_index] = components[1];
+            s_3[s_index] = components[2];
+            s_4[s_index] = table_index;
+            ++s_index;
         }
     }
 
@@ -137,11 +130,10 @@ template <UltraFlavor Flavor> void UltraComposer_<Flavor>::compute_witness(Circu
     // Copy memory read/write record data into proving key. Prover needs to know which gates contain a read/write
     // 'record' witness on the 4th wire. This wire value can only be fully computed once the first 3 wire polynomials
     // have been committed to. The 4th wire on these gates will be a random linear combination of the first 3 wires,
-    // using the plookup challenge `eta`. We need to update the records with an offset Because we shift the gates by
-    // the number of public inputs plus an additional offset for a zero row.
-    auto add_public_inputs_offset = [this](uint32_t gate_index) {
-        return gate_index + num_public_inputs + zero_row_offset;
-    };
+    // using the plookup challenge `eta`. We need to update the records with an offset Because we shift the gates to
+    // account for everything that comes before them in the execution trace, e.g. public inputs, a zero row, etc.
+    size_t offset = num_ecc_op_gates + num_public_inputs + num_zero_rows;
+    auto add_public_inputs_offset = [offset](uint32_t gate_index) { return gate_index + offset; };
     proving_key->memory_read_records = std::vector<uint32_t>();
     proving_key->memory_write_records = std::vector<uint32_t>();
 
@@ -155,6 +147,38 @@ template <UltraFlavor Flavor> void UltraComposer_<Flavor>::compute_witness(Circu
                    add_public_inputs_offset);
 
     computed_witness = true;
+}
+
+/**
+ * @brief Construct Goblin style ECC op wire polynomials
+ * @details The Ecc op wire values are assumed to have already been stored in the corresponding block of the
+ * conventional wire polynomials. The values for the ecc op wire polynomials are set based on those values.
+ *
+ * @tparam Flavor
+ * @param wire_polynomials
+ */
+template <UltraFlavor Flavor> void UltraComposer_<Flavor>::construct_ecc_op_wire_polynomials(auto& wire_polynomials)
+{
+    std::array<polynomial, Flavor::NUM_WIRES> op_wire_polynomials;
+    for (auto& poly : op_wire_polynomials) {
+        poly = polynomial(dyadic_circuit_size);
+    }
+
+    // The ECC op wires are constructed to contain the op data on the appropriate range and to vanish everywhere else.
+    // The op data is assumed to have already been stored at the correct location in the convetional wires so the data
+    // can simply be copied over directly.
+    const size_t op_wire_offset = Flavor::has_zero_row ? 1 : 0;
+    for (size_t poly_idx = 0; poly_idx < Flavor::NUM_WIRES; ++poly_idx) {
+        for (size_t i = 0; i < num_ecc_op_gates; ++i) {
+            size_t idx = i + op_wire_offset;
+            op_wire_polynomials[poly_idx][idx] = wire_polynomials[poly_idx][idx];
+        }
+    }
+
+    proving_key->ecc_op_wire_1 = op_wire_polynomials[0];
+    proving_key->ecc_op_wire_2 = op_wire_polynomials[1];
+    proving_key->ecc_op_wire_3 = op_wire_polynomials[2];
+    proving_key->ecc_op_wire_4 = op_wire_polynomials[3];
 }
 
 template <UltraFlavor Flavor>
@@ -258,6 +282,10 @@ std::shared_ptr<typename Flavor::ProvingKey> UltraComposer_<Flavor>::compute_pro
 
     proving_key->contains_recursive_proof = contains_recursive_proof;
 
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        proving_key->num_ecc_op_gates = num_ecc_op_gates;
+    }
+
     return proving_key;
 }
 
@@ -308,6 +336,12 @@ std::shared_ptr<typename Flavor::VerificationKey> UltraComposer_<Flavor>::comput
     verification_key->lagrange_first = commitment_key->commit(proving_key->lagrange_first);
     verification_key->lagrange_last = commitment_key->commit(proving_key->lagrange_last);
 
+    // TODO(luke): Similar to the lagrange_first/last polynomials, we dont really need to commit to this polynomial due
+    // to its simple structure. Handling it in the same way as the lagrange polys for now for simplicity.
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        verification_key->lagrange_ecc_op = commitment_key->commit(proving_key->lagrange_ecc_op);
+    }
+
     // // See `add_recusrive_proof()` for how this recursive data is assigned.
     // verification_key->recursive_proof_public_input_indices =
     //     std::vector<uint32_t>(recursive_proof_public_input_indices.begin(),
@@ -319,5 +353,6 @@ std::shared_ptr<typename Flavor::VerificationKey> UltraComposer_<Flavor>::comput
 }
 template class UltraComposer_<honk::flavor::Ultra>;
 template class UltraComposer_<honk::flavor::UltraGrumpkin>;
+template class UltraComposer_<honk::flavor::GoblinUltra>;
 
 } // namespace proof_system::honk

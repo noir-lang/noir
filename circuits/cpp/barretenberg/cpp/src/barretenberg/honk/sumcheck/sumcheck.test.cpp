@@ -630,8 +630,9 @@ TEST_F(SumcheckTests, RealCircuitUltra)
 
     // Compute public input delta
     const auto public_inputs = circuit_constructor.get_public_inputs();
-    auto public_input_delta =
-        honk::compute_public_input_delta<Flavor>(public_inputs, beta, gamma, prover.key->circuit_size);
+    size_t pub_inputs_offset = Flavor::has_zero_row ? 1 : 0;
+    auto public_input_delta = honk::compute_public_input_delta<Flavor>(
+        public_inputs, beta, gamma, prover.key->circuit_size, pub_inputs_offset);
     auto lookup_grand_product_delta =
         honk::compute_lookup_grand_product_delta<FF>(beta, gamma, prover.key->circuit_size);
 

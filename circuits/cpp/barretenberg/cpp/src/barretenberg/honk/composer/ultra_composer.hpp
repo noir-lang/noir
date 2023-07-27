@@ -3,6 +3,7 @@
 #include "barretenberg/honk/proof_system/ultra_prover.hpp"
 #include "barretenberg/honk/proof_system/ultra_verifier.hpp"
 #include "barretenberg/proof_system/composer/composer_lib.hpp"
+#include "barretenberg/proof_system/flavor/flavor.hpp"
 #include "barretenberg/srs/factories/file_crs_factory.hpp"
 
 #include <cstddef>
@@ -22,7 +23,7 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     using PCSVerificationKey = typename PCSParams::VerificationKey;
 
     // offset due to placing zero wires at the start of execution trace
-    static constexpr size_t zero_row_offset = Flavor::has_zero_row ? 1 : 0;
+    static constexpr size_t num_zero_rows = Flavor::has_zero_row ? 1 : 0;
 
     static constexpr std::string_view NAME_STRING = "UltraHonk";
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
@@ -43,6 +44,7 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     size_t lookups_size = 0;        // total number of lookup gates
     size_t tables_size = 0;         // total number of table entries
     size_t num_public_inputs = 0;
+    size_t num_ecc_op_gates = 0;
 
     UltraComposer_()
         : crs_factory_(barretenberg::srs::get_crs_factory()){};
@@ -69,6 +71,8 @@ template <UltraFlavor Flavor> class UltraComposer_ {
 
     void compute_witness(CircuitBuilder& circuit_constructor);
 
+    void construct_ecc_op_wire_polynomials(auto&);
+
     UltraProver_<Flavor> create_prover(CircuitBuilder& circuit_constructor);
     UltraVerifier_<Flavor> create_verifier(const CircuitBuilder& circuit_constructor);
 
@@ -81,7 +85,9 @@ template <UltraFlavor Flavor> class UltraComposer_ {
 };
 extern template class UltraComposer_<honk::flavor::Ultra>;
 extern template class UltraComposer_<honk::flavor::UltraGrumpkin>;
+extern template class UltraComposer_<honk::flavor::GoblinUltra>;
 // TODO(#532): this pattern is weird; is this not instantiating the templates?
 using UltraComposer = UltraComposer_<honk::flavor::Ultra>;
 using UltraGrumpkinComposer = UltraComposer_<honk::flavor::UltraGrumpkin>;
+using GoblinUltraComposer = UltraComposer_<honk::flavor::GoblinUltra>;
 } // namespace proof_system::honk

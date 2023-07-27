@@ -11,6 +11,7 @@
 #include "barretenberg/plonk/proof_system/proving_key/proving_key.hpp"
 #include "barretenberg/polynomials/iterate_over_domain.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/proof_system/flavor/flavor.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -64,6 +65,7 @@ namespace {
  * the witness wires that must have the same value.
  *
  * @tparam program_width Program width
+ *
  * */
 template <typename Flavor>
 std::vector<CyclicPermutation> compute_wire_copy_cycles(const typename Flavor::CircuitBuilder& circuit_constructor)
@@ -72,10 +74,6 @@ std::vector<CyclicPermutation> compute_wire_copy_cycles(const typename Flavor::C
     const size_t num_gates = circuit_constructor.num_gates;
     std::span<const uint32_t> public_inputs = circuit_constructor.public_inputs;
     const size_t num_public_inputs = public_inputs.size();
-
-    // Define offsets for placement of public inputs and gates in execution trace
-    const size_t pub_inputs_offset = Flavor::has_zero_row ? 1 : 0;
-    const size_t gates_offset = num_public_inputs + pub_inputs_offset;
 
     // Each variable represents one cycle
     const size_t number_of_cycles = circuit_constructor.variables.size();
@@ -87,12 +85,40 @@ std::vector<CyclicPermutation> compute_wire_copy_cycles(const typename Flavor::C
 
     // For some flavors, we need to ensure the value in the 0th index of each wire is 0 to allow for left-shift by 1. To
     // do this, we add the wires of the first gate in the execution trace to the "zero index" copy cycle.
-    if (Flavor::has_zero_row) {
+    if constexpr (Flavor::has_zero_row) {
         for (size_t wire_idx = 0; wire_idx < Flavor::NUM_WIRES; ++wire_idx) {
             const auto wire_index = static_cast<uint32_t>(wire_idx);
             const uint32_t gate_index = 0;                          // place zeros at 0th index
             const uint32_t zero_idx = circuit_constructor.zero_idx; // index of constant zero in variables
             copy_cycles[zero_idx].emplace_back(cycle_node{ wire_index, gate_index });
+        }
+    }
+
+    // Define offsets for placement of public inputs and gates in execution trace
+    const size_t num_zero_rows = Flavor::has_zero_row ? 1 : 0;
+    size_t pub_inputs_offset = num_zero_rows;
+    size_t gates_offset = num_public_inputs + num_zero_rows;
+
+    // If Goblin, adjust offsets to account for ecc op gates and update copy cycles to include these gates
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        // Set ecc op gate offset and update offsets for PI and conventional gates
+        const size_t op_gates_offset = num_zero_rows;
+        const size_t num_ecc_op_gates = circuit_constructor.num_ecc_op_gates;
+        pub_inputs_offset += num_ecc_op_gates;
+        gates_offset += num_ecc_op_gates;
+
+        const auto& op_wires = circuit_constructor.ecc_op_wires;
+        // Iterate over all variables of the ecc op gates, and add a corresponding node to the cycle for that variable
+        for (size_t i = 0; i < num_ecc_op_gates; ++i) {
+            // Note: We exclude the first op wire since it contains the op codes which are not stored in variables
+            // TODO(luke): Kesha pointed out that we may need to constrain the op code values in some way, either with a
+            // copy cycle that constrains them to a constant or with a relation. Resolve this.
+            for (size_t op_wire_idx = 1; op_wire_idx < 4; ++op_wire_idx) {
+                const uint32_t var_index = circuit_constructor.real_variable_index[op_wires[op_wire_idx][i]];
+                const auto wire_index = static_cast<uint32_t>(op_wire_idx);
+                const auto gate_idx = static_cast<uint32_t>(i + op_gates_offset);
+                copy_cycles[var_index].emplace_back(cycle_node{ wire_index, gate_idx });
+            }
         }
     }
 
@@ -224,9 +250,14 @@ PermutationMapping<Flavor::NUM_WIRES> compute_permutation_mapping(
     const auto num_public_inputs = static_cast<uint32_t>(circuit_constructor.public_inputs.size());
 
     // The public inputs are placed at the top of the execution trace, potentially offset by a zero row.
-    const size_t zero_row_offset = Flavor::has_zero_row ? 1 : 0;
+    const size_t num_zero_rows = Flavor::has_zero_row ? 1 : 0;
+    size_t pub_input_offset = num_zero_rows;
+    // If Goblin, PI are further offset by number of ecc op gates
+    if constexpr (IsGoblinFlavor<Flavor>) {
+        pub_input_offset += circuit_constructor.num_ecc_op_gates;
+    }
     for (size_t i = 0; i < num_public_inputs; ++i) {
-        size_t idx = i + zero_row_offset;
+        size_t idx = i + pub_input_offset;
         mapping.sigmas[0][idx].row_index = static_cast<uint32_t>(idx);
         mapping.sigmas[0][idx].column_index = 0;
         mapping.sigmas[0][idx].is_public_input = true;

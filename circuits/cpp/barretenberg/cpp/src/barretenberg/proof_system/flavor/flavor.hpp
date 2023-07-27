@@ -275,6 +275,7 @@ class Standard;
 class StandardGrumpkin;
 class Ultra;
 class UltraGrumpkin;
+class GoblinUltra;
 } // namespace proof_system::honk::flavor
 
 // Forward declare plonk flavors
@@ -293,17 +294,24 @@ namespace proof_system {
  * @tparam U A parameter pack of types being checked against T.
  */
 // clang-format off
+
 template <typename T>
 concept IsPlonkFlavor = IsAnyOf<T, plonk::flavor::Standard, plonk::flavor::Turbo, plonk::flavor::Ultra>;
 
 template <typename T> 
-concept IsHonkFlavor = IsAnyOf<T, honk::flavor::Standard, honk::flavor::Ultra, honk::flavor::StandardGrumpkin, honk::flavor::UltraGrumpkin>;
+concept IsHonkFlavor = IsAnyOf<T, honk::flavor::Standard, honk::flavor::Ultra, honk::flavor::StandardGrumpkin, honk::flavor::UltraGrumpkin, honk::flavor::GoblinUltra>;
+
+template <typename T> 
+concept IsUltraFlavor = IsAnyOf<T, honk::flavor::Ultra, honk::flavor::UltraGrumpkin, honk::flavor::GoblinUltra>;
+
+template <typename T> 
+concept IsGoblinFlavor = IsAnyOf<T, honk::flavor::GoblinUltra>;
 
 template <typename T> concept IsGrumpkinFlavor = IsAnyOf<T, honk::flavor::StandardGrumpkin, honk::flavor::UltraGrumpkin>;
 
 template <typename T> concept StandardFlavor = IsAnyOf<T, honk::flavor::Standard,  honk::flavor::StandardGrumpkin>;
 
-template <typename T> concept UltraFlavor = IsAnyOf<T, honk::flavor::Ultra, honk::flavor::UltraGrumpkin>;
+template <typename T> concept UltraFlavor = IsAnyOf<T, honk::flavor::Ultra, honk::flavor::UltraGrumpkin, honk::flavor::GoblinUltra>;
 
 // clang-format on
 } // namespace proof_system

@@ -51,15 +51,14 @@ template <typename FF> void UltraCircuitBuilder_<FF>::finalize_circuit()
 }
 
 /**
- * @brief Avoid zero-polynomials and ensure first coeff of wire polynomials is 0
+ * @brief Ensure all polynomials have at least one non-zero coefficient to avoid commiting to the zero-polynomial
  *
  * @param in Structure containing variables and witness selectors
  */
 // TODO(#423): This function adds valid (but arbitrary) gates to ensure that the circuit which includes
 // them will not result in any zero-polynomials. It also ensures that the first coefficient of the wire
 // polynomials is zero, which is required for them to be shiftable.
-// TODO(#423)(luke): Add 0 as a PI since PI always start at the 0th index of the wire polynomials?
-// TODO(luke): may need to reevaluate once aux relation is implemented
+// TODO(luke): Add ECC op gate to ensure op wires are non-zero?
 template <typename FF> void UltraCircuitBuilder_<FF>::add_gates_to_ensure_all_polys_are_non_zero()
 {
     // First add a gate to simultaneously ensure first entries of all wires is zero and to add a non
