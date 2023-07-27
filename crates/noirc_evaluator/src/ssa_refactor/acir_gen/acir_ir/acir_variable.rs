@@ -1014,7 +1014,13 @@ impl AcirContext {
         block_id: BlockId,
         len: usize,
         optional_values: Option<&[AcirValue]>,
-    ) {
+    ) -> bool {
+        // Nested will be true if the array we want to initialise contains nested arrays
+        // in that case, we do not initialize the array
+        // Note that array initialization is only required for dynamic array accesses
+        // which does not support nested arrays for now. So not initializing the array
+        // is not an issue as long as the array is not used with witness indices
+        let mut nested = false;
         // If the optional values are supplied, then we fill the initialized
         // array with those values. If not, then we fill it with zeros.
         let initialized_values = match optional_values {
@@ -1023,13 +1029,27 @@ impl AcirContext {
                 let zero_witness = self.var_to_witness(zero);
                 vec![zero_witness; len]
             }
-            Some(optional_values) => vecmap(optional_values, |value| {
-                let value = value.clone().into_var();
-                self.var_to_witness(value)
-            }),
+            Some(optional_values) => {
+                let mut witness_values = Vec::new();
+                for value in optional_values {
+                    let value = match value {
+                        AcirValue::Var(_, _) => value.clone().into_var(),
+                        AcirValue::Array(_) | AcirValue::DynamicArray(_) => {
+                            nested = true;
+                            break;
+                        }
+                    };
+                    witness_values.push(self.var_to_witness(value));
+                }
+                witness_values
+            }
         };
-
-        self.acir_ir.opcodes.push(Opcode::MemoryInit { block_id, init: initialized_values });
+        if nested {
+            false
+        } else {
+            self.acir_ir.opcodes.push(Opcode::MemoryInit { block_id, init: initialized_values });
+            true
+        }
     }
 }
 
