@@ -1,4 +1,5 @@
 [package]
+name = "distinct_keyword"
 authors = [""]
 compiler_version = "0.1"
 

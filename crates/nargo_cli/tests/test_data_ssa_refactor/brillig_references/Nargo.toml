@@ -1,4 +1,5 @@
 [package]
+name = "brillig_references"
 authors = [""]
 compiler_version = "0.5.1"
 

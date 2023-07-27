@@ -1,4 +1,5 @@
 [package]
+name = "strings"
 authors = [""]
 compiler_version = "0.1"
 

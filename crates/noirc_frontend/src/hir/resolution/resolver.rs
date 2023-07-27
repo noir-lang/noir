@@ -778,11 +778,9 @@ impl<'a> Resolver<'a> {
             | Type::String(_)
             | Type::Unit
             | Type::Error
-            | Type::TypeVariable(_)
-            | Type::PolymorphicInteger(_, _)
+            | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
-            | Type::MaybeConstant(_, _)
             | Type::NotConstant
             | Type::Forall(_, _) => (),
 

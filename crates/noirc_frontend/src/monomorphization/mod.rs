@@ -22,7 +22,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
-    CompTime, ContractFunctionType, FunctionKind, TypeBinding, TypeBindings,
+    ContractFunctionType, FunctionKind, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -598,23 +598,38 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
 
-            HirType::PolymorphicInteger(_, binding)
-            | HirType::TypeVariable(binding)
-            | HirType::NamedGeneric(binding, _) => {
+            HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return Self::convert_type(binding);
                 }
 
-                // Default any remaining unbound type variables to Field.
+                // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
                 // NOTE: Make sure to review this if there is ever type-directed dispatch,
                 // like automatic solving of traits. It should be fine since it is strictly
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
-                *binding.borrow_mut() =
-                    TypeBinding::Bound(HirType::FieldElement(CompTime::No(None)));
+                *binding.borrow_mut() = TypeBinding::Bound(HirType::field(None));
                 ast::Type::Field
+            }
+
+            HirType::TypeVariable(binding, kind) => {
+                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                    return Self::convert_type(binding);
+                }
+
+                // Default any remaining unbound type variables.
+                // This should only happen if the variable in question is unused
+                // and within a larger generic type.
+                // NOTE: Make sure to review this if there is ever type-directed dispatch,
+                // like automatic solving of traits. It should be fine since it is strictly
+                // after type checking, but care should be taken that it doesn't change which
+                // impls are chosen.
+                let default = kind.default_type();
+                let monomorphized_default = Self::convert_type(&default);
+                *binding.borrow_mut() = TypeBinding::Bound(default);
+                monomorphized_default
             }
 
             HirType::Struct(def, args) => {
@@ -641,7 +656,6 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirType::Forall(_, _)
             | HirType::Constant(_)
-            | HirType::MaybeConstant(..)
             | HirType::NotConstant
             | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
@@ -968,7 +982,7 @@ impl<'interner> Monomorphizer<'interner> {
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     match typ {
         HirType::Tuple(fields) => fields.clone(),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
@@ -979,7 +993,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
 fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
     match typ {
         HirType::Struct(def, args) => def.borrow().get_fields(args),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_struct_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
@@ -990,7 +1004,7 @@ fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
 fn unwrap_array_element_type(typ: &HirType) -> HirType {
     match typ {
         HirType::Array(_, elem) => *elem.clone(),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },

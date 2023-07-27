@@ -1,4 +1,5 @@
 [package]
+name = "pass_basic"
 authors = [""]
 compiler_version = "0.1"
 

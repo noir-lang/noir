@@ -1,4 +1,5 @@
 [package]
+name = "let_stmt"
 authors = [""]
 compiler_version = "0.8.0"
 
