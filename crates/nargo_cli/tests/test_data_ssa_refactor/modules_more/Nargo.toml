@@ -1,4 +1,5 @@
 [package]
+name = "modules_more"
 authors = [""]
 compiler_version = "0.1"
 

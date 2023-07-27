@@ -64,8 +64,9 @@ pub struct WorkspaceConfig {
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
-    pub name: Option<String>,
-    // Note: a package name is not needed unless there is a registry
+    #[serde(default = "panic_missing_name")]
+    pub name: String,
+    description: Option<String>,
     authors: Vec<String>,
     // If not compiler version is supplied, the latest is used
     // For now, we state that all packages must be compiled under the same
@@ -75,6 +76,26 @@ pub struct PackageMetadata {
     compiler_version: Option<String>,
     backend: Option<String>,
     license: Option<String>,
+}
+
+// TODO: Remove this after a couple of breaking releases (added in 0.10.0)
+fn panic_missing_name() -> String {
+    panic!(
+        r#"
+
+Failed to parse `Nargo.toml`.
+    
+`Nargo.toml` now requires a "name" field for Noir packages.
+
+```toml
+[package]
+name = "package_name"
+```
+
+Modify your `Nargo.toml` similarly to above and rerun the command.
+
+"#
+    )
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -91,6 +112,7 @@ fn parse_standard_toml() {
     let src = r#"
 
         [package]
+        name = "test"
         authors = ["kev", "foo"]
         compiler_version = "0.1"
 

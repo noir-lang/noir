@@ -1,4 +1,5 @@
 [package]
+name = "brillig_to_bytes_integration"
 authors = [""]
 compiler_version = "0.1"
 

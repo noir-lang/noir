@@ -1,4 +1,5 @@
 [package]
+name = "brillig_nested_arrays"
 authors = [""]
 compiler_version = "0.6.0"
 

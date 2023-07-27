@@ -1,4 +1,5 @@
 [package]
+name = "brillig_field_binary_operations"
 authors = [""]
 compiler_version = "0.1"
 

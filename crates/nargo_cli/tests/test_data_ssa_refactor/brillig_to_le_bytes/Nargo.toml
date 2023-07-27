@@ -1,4 +1,5 @@
 [package]
+name = "brillig_to_le_bytes"
 authors = [""]
 compiler_version = "0.1"
 

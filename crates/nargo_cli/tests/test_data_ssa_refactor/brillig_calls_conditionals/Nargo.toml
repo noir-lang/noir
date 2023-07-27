@@ -1,4 +1,5 @@
 [package]
+name = "brillig_calls_conditionals"
 authors = [""]
 compiler_version = "0.1"
 
