@@ -619,7 +619,7 @@ impl<'interner> TypeChecker<'interner> {
             // Avoid reporting errors multiple times
             (Error, _) | (_, Error) => Ok(Bool(CompTime::Yes(None))),
 
-            // Matches on PolymorphicInteger and TypeVariable must be first to follow any type
+            // Matches on TypeVariable must be first to follow any type
             // bindings.
             (var @ TypeVariable(int, _), other) | (other, var @ TypeVariable(int, _)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
@@ -860,7 +860,7 @@ impl<'interner> TypeChecker<'interner> {
             // An error type on either side will always return an error
             (Error, _) | (_, Error) => Ok(Error),
 
-            // Matches on PolymorphicInteger and TypeVariable must be first so that we follow any type
+            // Matches on TypeVariable must be first so that we follow any type
             // bindings.
             (var @ TypeVariable(int, _), other) | (other, var @ TypeVariable(int, _)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {

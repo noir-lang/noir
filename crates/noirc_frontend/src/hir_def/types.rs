@@ -276,7 +276,7 @@ pub enum TypeVariableKind {
     /// Can bind to any type
     Normal,
     /// A generic integer or field type. This is a more specific kind of TypeVariable
-    /// that can only be bound to Type::Field, Type::Integer, or other PolymorphicIntegers.
+    /// that can only be bound to Type::Field, Type::Integer, or other polymorphic integers.
     /// This is the type of undecorated integer literals like `46`. Typing them in this way
     /// allows them to be polymorphic over the actual integer/field type used without requiring
     /// type annotations on each integer literal.
@@ -650,7 +650,7 @@ impl std::fmt::Display for Type {
             },
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField(_)) => {
                 if let TypeBinding::Unbound(_) = &*binding.borrow() {
-                    // Show a Field by default if this PolymorphicInteger is unbound, since that is
+                    // Show a Field by default if this TypeVariableKind::IntegerOrField is unbound, since that is
                     // what they bind to by default anyway. It is less confusing than displaying it
                     // as a generic.
                     write!(f, "Field")
