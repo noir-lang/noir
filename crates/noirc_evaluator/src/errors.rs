@@ -4,7 +4,7 @@
 //!
 //! [InternalError]s that are used for checking internal logics of the SSA
 //!
-//! An Error of the former is a user Error
+//! An Error of the former is an user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
 use acvm::FieldElement;
