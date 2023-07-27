@@ -528,9 +528,11 @@ fn constant_to_radix(
     while limbs.len() < limb_count_with_padding as usize {
         limbs.push(FieldElement::zero());
     }
-    let result_constants =
+    let result_constants: im::Vector<ValueId> =
         limbs.into_iter().map(|limb| dfg.make_constant(limb, Type::unsigned(bit_size))).collect();
-    dfg.make_array(result_constants, Rc::new(vec![Type::unsigned(bit_size)]))
+
+    let typ = Type::Array(Rc::new(vec![Type::unsigned(bit_size)]), result_constants.len());
+    dfg.make_array(result_constants, typ)
 }
 
 /// The possible return values for Instruction::return_types
