@@ -1,7 +1,7 @@
 use dep::std::hash::sha256;
 
 // Computes a content hash of a deposit/mint message.
-fn get_mint_content_hash(amount: Field, owner_address: Field, canceller: Field) -> pub Field {
+fn get_mint_content_hash(amount: Field, owner_address: Field, canceller: Field) -> Field {
     let mut hash_bytes: [u8; 100] = [0; 100];
     let amount_bytes = amount.to_be_bytes(32);
     let recipient_bytes = owner_address.to_be_bytes(32);
@@ -38,7 +38,7 @@ fn get_mint_content_hash(amount: Field, owner_address: Field, canceller: Field) 
 }
 
 // Computes a content hash of a withdraw message.
-fn get_withdraw_content_hash(amount: Field, recipient: Field, callerOnL1: Field) -> pub Field {
+fn get_withdraw_content_hash(amount: Field, recipient: Field, callerOnL1: Field) -> Field {
     // Compute the content hash
     // Compute sha256(selector || amount || recipient)
     // then convert to a single field element

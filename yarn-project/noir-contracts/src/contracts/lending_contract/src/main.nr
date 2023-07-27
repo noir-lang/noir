@@ -111,7 +111,7 @@ contract Lending {
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> Field {
+    ) -> pub Field {
         // @todo @LHerskind Transfer tokens into this contract. We can't do it now because too few writes.
     
         call_public_function(inputs.call_context.storage_contract_address, 3009041984, [owner, amount])[0]
@@ -121,7 +121,7 @@ contract Lending {
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> Field {
+    ) -> pub Field {
         let _void = call_public_function_no_args(inputs.call_context.storage_contract_address, 1259373467)[0];
 
         let storage = Storage::init();
@@ -159,7 +159,7 @@ contract Lending {
     open fn withdraw_public(
         inputs: PublicContextInputs,
         amount: Field
-    ) -> Field {
+    ) -> pub Field {
         // @todo @LHerskind Transfer tokens into this contract. We can't do it now because too few writes.
     
         call_public_function(inputs.call_context.storage_contract_address, 1065861440, [inputs.call_context.msg_sender, amount])[0]
@@ -170,7 +170,7 @@ contract Lending {
         owner: Field,
         // recipient: Field,
         amount: Field
-    ) -> Field {
+    ) -> pub Field {
         // Access control.
         let _void = call_public_function_no_args(inputs.call_context.storage_contract_address, 1259373467)[0];
 
@@ -217,7 +217,7 @@ contract Lending {
     open fn borrow_public(
         inputs: PublicContextInputs,
         amount: Field
-    ) -> Field {
+    ) -> pub Field {
         call_public_function(inputs.call_context.storage_contract_address, 1462609836, [inputs.call_context.msg_sender, amount])[0]
     }
 
@@ -225,7 +225,7 @@ contract Lending {
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> Field {
+    ) -> pub Field {
         // Access control.
         let _void = call_public_function_no_args(inputs.call_context.storage_contract_address, 1259373467)[0];
 
@@ -283,7 +283,7 @@ contract Lending {
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> Field {
+    ) -> pub Field {
         // @todo @LHerskind Transfer tokens from msg.sender to this contract.
         call_public_function(inputs.call_context.storage_contract_address, 3985016136, [owner, amount])[0]
     }
@@ -292,7 +292,7 @@ contract Lending {
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> Field {
+    ) -> pub Field {
         let _void = call_public_function_no_args(inputs.call_context.storage_contract_address, 1259373467)[0];
 
         let storage = Storage::init();

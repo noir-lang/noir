@@ -92,7 +92,7 @@ contract EasyZkToken {
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).
     unconstrained fn getBalance(
         owner: Field,
-    ) -> pub Field {
+    ) -> Field {
         let storage = Storage::init();
         let balances = storage.balances;
 
@@ -100,7 +100,7 @@ contract EasyZkToken {
         balance_utils::get_balance(balances.at(owner).storage_slot)
     }
 
-    unconstrained fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> pub [Field; 4] {
+    unconstrained fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
         compute_note_hash_and_nullifier(ValueNoteInterface, note_header, preimage)
     }

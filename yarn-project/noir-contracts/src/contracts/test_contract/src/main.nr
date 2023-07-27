@@ -50,7 +50,7 @@ contract Test {
         _inputs: PublicContextInputs,
         amount: Field,
         secretHash: Field,
-    ) -> Field {
+    ) -> pub Field {
     
         // Create a commitment to the amount
         let note = DummyNote::new(amount, secretHash);

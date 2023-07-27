@@ -116,7 +116,7 @@ contract PokeableToken {
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).
     unconstrained fn getBalance(
         sender: Field,
-    ) -> pub Field {
+    ) -> Field {
         let storage = Storage::init();
 
         // Get the set of notes owned by the user.
@@ -129,7 +129,7 @@ contract PokeableToken {
     // stev function needs to be defined by every contract producing logs. Having it in all the contracts gives us the ability to
     // compute the note hash and nullifier differently for different kind of notes.
     // Note: "stev" is just a placeholder name before we come up with a better one.
-    unconstrained fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> pub [Field; 4] {
+    unconstrained fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
         if (storage_slot == 1) | (storage_slot == 2) {
             compute_note_hash_and_nullifier(AddressNoteInterface, note_header, preimage)
