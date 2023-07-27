@@ -661,11 +661,11 @@ impl AcirContext {
             BlackBoxFunc::Pedersen => {
                 // The last argument of pedersen is the domain separator, which must be a constant
                 let domain_var = match inputs.pop() {
-                    Some(domian_var) => domian_var.into_var()?,
+                    Some(domain_var) => domain_var.into_var()?,
                     None => {
                         return Err(RuntimeError::InternalError(InternalError::MissingArg {
                             name: "pedersen call".to_string(),
-                            arg: "domain seperator".to_string(),
+                            arg: "domain separator".to_string(),
                             location: self.get_location(),
                         }))
                     }

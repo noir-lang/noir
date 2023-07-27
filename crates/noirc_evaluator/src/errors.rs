@@ -36,16 +36,16 @@ pub enum RuntimeError {
 pub enum InternalError {
     #[error("ICE: Both expressions should have degree<=1")]
     DegreeNotReduced { location: Option<Location> },
+    #[error("Try to get element from empty array")]
+    EmptyArray { location: Option<Location> },
     #[error("ICE: {message:?}")]
     General { message: String, location: Option<Location> },
     #[error("ICE: {name:?} missing {arg:?} arg")]
     MissingArg { name: String, arg: String, location: Option<Location> },
     #[error("ICE: {name:?} should be a constant")]
     NotAConstant { name: String, location: Option<Location> },
-    #[error("{name:?} is not implmented yet")]
+    #[error("{name:?} is not implemented yet")]
     NotImplemented { name: String, location: Option<Location> },
-    #[error("Try to get element from empty array")]
-    UmptyArray { location: Option<Location> },
     #[error("ICE: Undeclared AcirVar")]
     UndeclaredAcirVar { location: Option<Location> },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
@@ -57,11 +57,11 @@ impl From<RuntimeError> for FileDiagnostic {
         match error {
             RuntimeError::InternalError(ref ice_error) => match ice_error {
                 InternalError::DegreeNotReduced { location }
+                | InternalError::EmptyArray { location }
                 | InternalError::General { location, .. }
                 | InternalError::MissingArg { location, .. }
                 | InternalError::NotAConstant { location, .. }
                 | InternalError::NotImplemented { location, .. }
-                | InternalError::UmptyArray { location }
                 | InternalError::UndeclaredAcirVar { location }
                 | InternalError::UnExpected { location, .. } => {
                     let file_id = location.map(|loc| loc.file).unwrap();

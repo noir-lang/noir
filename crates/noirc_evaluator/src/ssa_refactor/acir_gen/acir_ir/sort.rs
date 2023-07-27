@@ -50,7 +50,7 @@ impl GeneratedAcir {
         if n % 2 == 1 {
             in_sub2.push(match in_expr.last() {
                 Some(in_expr) => in_expr.clone(),
-                None => return Err(InternalError::UmptyArray { location: self.current_location }),
+                None => return Err(InternalError::EmptyArray { location: self.current_location }),
             });
         }
         let mut out_expr = Vec::new();
@@ -70,12 +70,12 @@ impl GeneratedAcir {
         if n % 2 == 0 {
             out_expr.push(match b1.last() {
                 Some(b1) => b1.clone(),
-                None => return Err(InternalError::UmptyArray { location: self.current_location }),
+                None => return Err(InternalError::EmptyArray { location: self.current_location }),
             });
         }
         out_expr.push(match b2.last() {
             Some(b2) => b2.clone(),
-            None => return Err(InternalError::UmptyArray { location: self.current_location }),
+            None => return Err(InternalError::EmptyArray { location: self.current_location }),
         });
         conf.extend(w1);
         conf.extend(w2);
