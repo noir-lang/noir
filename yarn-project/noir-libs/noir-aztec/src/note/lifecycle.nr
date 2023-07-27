@@ -15,7 +15,6 @@ fn create_note<Note, N>(
 ) -> Context {
     let mut inner_note_hash = 0;
     let is_dummy = note_interface.is_dummy;
-    let mut notify_result = 0; // TODO(https://github.com/noir-lang/noir/pull/1729): remove me (more below)
     if is_dummy(note) == false {
         let contract_address = context.inputs.call_context.storage_contract_address;
         let header = NoteHeader { contract_address, storage_slot, nonce: 0 };
@@ -25,13 +24,8 @@ fn create_note<Note, N>(
 
         let serialise = note_interface.serialise;
         let preimage = serialise(note);
-
-        notify_result = notify_created_note(storage_slot, preimage, inner_note_hash);
-        assert(notify_result == 0); // TODO(https://github.com/noir-lang/noir/pull/1729): combine with above line (more below)
+        assert(notify_created_note(storage_slot, preimage, inner_note_hash) == 0);
     }
-    // TODO(https://github.com/noir-lang/noir/pull/1729): remove when stepwise execution of acir is complete
-    // replace with: `assert(notify_created_note(storage_slot, preimage) == 0);`
-    context.oracle_connector = notify_result; // to force dependency/ordering between oracle calls
 
     context.push_new_note_hash(inner_note_hash)
 }

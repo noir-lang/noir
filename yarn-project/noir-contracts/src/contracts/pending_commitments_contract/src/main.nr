@@ -66,15 +66,8 @@ contract PendingCommitments {
         // Insert note and emit encrypted note preimage via oracle call
         context = owner_balance.insert(context, note);
 
-        // Hack: we add the return value from `notifyCreatedNote` oracle call
-        // to the sort option to `getNotes` oracle call to force a dependency
-        // and therefore ordering between these two oracles
-        // TODO(https://github.com/noir-lang/noir/pull/1729): remove when stepwise execution of acir is complete
-        // replace with `let options = NoteGetterOptions::with_filter(get_2_notes, 0);`
-        let mut sorting = [Sort::nada(); VALUE_NOTE_LEN];
-        sorting[0] = Sort::new(0, context.oracle_connector as u8);
-        let options = NoteGetterOptions::new(get_2_notes, 0, sorting , 0);
-
+        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
+        // get note inserted above
         let (context_tmp, got_notes) = owner_balance.get_notes(context, options);
         context = context_tmp;
 
@@ -102,15 +95,7 @@ contract PendingCommitments {
 
         let owner_balance = storage.balances.at(owner);
 
-        // Hack: we add the return value from `notifyCreatedNote` oracle call
-        // to the sort option to `getNotes` oracle call to force a dependency
-        // and therefore ordering between these two oracles
-        // TODO(https://github.com/noir-lang/noir/pull/1729): remove when stepwise execution of acir is complete
-        // replace with `let options = NoteGetterOptions::with_filter(get_2_notes, 0);`
-        let mut sorting = [Sort::nada(); VALUE_NOTE_LEN];
-        sorting[0] = Sort::new(0, context.oracle_connector as u8);
-        let options = NoteGetterOptions::new(get_2_notes, 0, sorting , 0);
-
+        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
         // get note (note inserted at bottom of function shouldn't exist yet)
         let (context_tmp, got_notes) = owner_balance.get_notes(context, options);
         context = context_tmp;
@@ -163,15 +148,7 @@ contract PendingCommitments {
 
         let owner_balance = storage.balances.at(owner);
 
-        // Hack: we add the return value from `notifyCreatedNote` oracle call
-        // to the sort option to `getNotes` oracle call to force a dependency
-        // and therefore ordering between these two oracles
-        // TODO(https://github.com/noir-lang/noir/pull/1729): remove when stepwise execution of acir is complete
-        // replace with `let options = NoteGetterOptions::with_filter(get_2_notes, 0);`
-        let mut sorting = [Sort::nada(); VALUE_NOTE_LEN];
-        sorting[0] = Sort::new(0, context.oracle_connector as u8);
-        let options = NoteGetterOptions::new(get_2_notes, 0, sorting , 0);
-
+        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
         let (context_tmp, got_notes) = owner_balance.get_notes(context, options);
         context = context_tmp;
 
