@@ -82,7 +82,7 @@ impl AcirValue {
         match self {
             AcirValue::Var(var, _) => Ok(var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => {
-                return Err(ICEError::General { message: "".to_string(), location: None })
+                Err(ICEError::General { message: "".to_string(), location: None })
             }
         }
     }
@@ -729,13 +729,11 @@ impl Context {
                     location: self.acir_context.get_location(),
                 })
             }
-            AcirValue::DynamicArray(_) => {
-                return Err(ICEError::UnExpected {
-                    expected: "a numeric value".to_string(),
-                    found: "an array".to_string(),
-                    location: self.acir_context.get_location(),
-                })
-            }
+            AcirValue::DynamicArray(_) => Err(ICEError::UnExpected {
+                expected: "a numeric value".to_string(),
+                found: "an array".to_string(),
+                location: self.acir_context.get_location(),
+            }),
         }
     }
 

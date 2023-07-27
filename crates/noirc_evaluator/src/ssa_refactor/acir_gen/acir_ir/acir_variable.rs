@@ -1072,7 +1072,7 @@ impl AcirContext {
             }
             Some(optional_values) => try_vecmap(optional_values, |value| {
                 let value = value.clone().into_var()?;
-                Ok(self.var_to_witness(value)?)
+                self.var_to_witness(value)
             })?,
         };
 

@@ -837,12 +837,10 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Result<Option<usize
         // TODO(#1570): Generate ACIR for recursive aggregation
         // RecursiveAggregation has variable inputs and we could return `None` here,
         // but as it is not fully implemented we return an ICE error for now
-        BlackBoxFunc::RecursiveAggregation => {
-            return Err(ICEError::NotImplemented {
-                name: "recursive aggregation".to_string(),
-                location: None,
-            })
-        }
+        BlackBoxFunc::RecursiveAggregation => Err(ICEError::NotImplemented {
+            name: "recursive aggregation".to_string(),
+            location: None,
+        }),
     }
 }
 
