@@ -1,3 +1,5 @@
+use crate::errors::ICEError;
+
 use super::generated_acir::GeneratedAcir;
 use acvm::acir::native_types::{Expression, Witness};
 
@@ -13,10 +15,10 @@ impl GeneratedAcir {
         in_expr: &[Expression],
         bits: &[Witness],
         generate_witness: bool,
-    ) -> (Vec<Witness>, Vec<Expression>) {
+    ) -> Result<(Vec<Witness>, Vec<Expression>), ICEError> {
         let n = in_expr.len();
         if n == 1 {
-            return (Vec::new(), in_expr.to_vec());
+            return Ok((Vec::new(), in_expr.to_vec()));
         }
         let n1 = n / 2;
 
@@ -39,7 +41,7 @@ impl GeneratedAcir {
             let intermediate = self.mul_with_witness(
                 &Expression::from(conf[i]),
                 &(&in_expr[2 * i + 1] - &in_expr[2 * i]),
-            );
+            )?;
             //b1=a1+q
             in_sub1.push(&intermediate + &in_expr[2 * i]);
             //b2=a2-q
@@ -51,14 +53,14 @@ impl GeneratedAcir {
         let mut out_expr = Vec::new();
         // compute results for the sub networks
         let bits1 = if generate_witness { bits } else { &bits[n1 + (n - 1) / 2..] };
-        let (w1, b1) = self.permutation_layer(&in_sub1, bits1, generate_witness);
+        let (w1, b1) = self.permutation_layer(&in_sub1, bits1, generate_witness)?;
         let bits2 = if generate_witness { bits } else { &bits[n1 + (n - 1) / 2 + w1.len()..] };
-        let (w2, b2) = self.permutation_layer(&in_sub2, bits2, generate_witness);
+        let (w2, b2) = self.permutation_layer(&in_sub2, bits2, generate_witness)?;
         // apply the output switches
         for i in 0..(n - 1) / 2 {
             let c = if generate_witness { self.next_witness_index() } else { bits[n1 + i] };
             conf.push(c);
-            let intermediate = self.mul_with_witness(&Expression::from(c), &(&b2[i] - &b1[i]));
+            let intermediate = self.mul_with_witness(&Expression::from(c), &(&b2[i] - &b1[i]))?;
             out_expr.push(&intermediate + &b1[i]);
             out_expr.push(&b2[i] - &intermediate);
         }
@@ -68,6 +70,6 @@ impl GeneratedAcir {
         out_expr.push(b2.last().unwrap().clone());
         conf.extend(w1);
         conf.extend(w2);
-        (conf, out_expr)
+        Ok((conf, out_expr))
     }
 }

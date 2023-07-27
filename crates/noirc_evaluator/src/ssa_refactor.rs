@@ -19,7 +19,7 @@ use noirc_frontend::monomorphization::ast::Program;
 use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ir::function::RuntimeType, ssa_gen::Ssa};
 
 mod abi_gen;
-mod acir_gen;
+pub(crate) mod acir_gen;
 pub mod ir;
 mod opt;
 mod ssa_builder;

@@ -2,9 +2,11 @@
 //! program as it is being converted from SSA form.
 use std::collections::HashMap;
 
-use crate::brillig::brillig_gen::brillig_directive;
+use crate::{
+    brillig::brillig_gen::brillig_directive,
+    errors::{ICEError, RuntimeError},
+};
 
-use super::errors::AcirGenError;
 use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::{
@@ -119,10 +121,10 @@ impl GeneratedAcir {
         func_name: BlackBoxFunc,
         mut inputs: Vec<FunctionInput>,
         constants: Vec<FieldElement>,
-    ) -> Vec<Witness> {
-        intrinsics_check_inputs(func_name, &inputs);
+    ) -> Result<Vec<Witness>, ICEError> {
+        intrinsics_check_inputs(func_name, &inputs)?;
 
-        let output_count = black_box_expected_output_size(func_name);
+        let output_count = black_box_expected_output_size(func_name)?;
         let outputs = vecmap(0..output_count, |_| self.next_witness_index());
 
         // clone is needed since outputs is moved when used in blackbox function.
@@ -179,18 +181,30 @@ impl GeneratedAcir {
                 outputs: (outputs[0], outputs[1]),
             },
             BlackBoxFunc::Keccak256 => {
-                let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
+                let var_message_size = match inputs.pop() {
+                    Some(var_message_size) => var_message_size,
+                    None => {
+                        return Err(ICEError::MissingArg {
+                            name: "".to_string(),
+                            arg: "message_size".to_string(),
+                            location: self.current_location,
+                        });
+                    }
+                };
                 BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
             }
             // TODO(#1570): Generate ACIR for recursive aggregation
             BlackBoxFunc::RecursiveAggregation => {
-                panic!("ICE: Cannot generate ACIR for recursive aggregation")
+                return Err(ICEError::NotImplemented {
+                    name: "recursive aggregation".to_string(),
+                    location: None,
+                })
             }
         };
 
         self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
 
-        outputs_clone
+        Ok(outputs_clone)
     }
 
     /// Takes an input expression and returns witnesses that are constrained to be limbs
@@ -203,7 +217,7 @@ impl GeneratedAcir {
         radix: u32,
         limb_count: u32,
         bit_size: u32,
-    ) -> Result<Vec<Witness>, AcirGenError> {
+    ) -> Result<Vec<Witness>, RuntimeError> {
         let radix_big = BigUint::from(radix);
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
@@ -263,15 +277,26 @@ impl GeneratedAcir {
     ///
     /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
     /// which is what you get when you multiply two degree-1 univariate polynomials.
-    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
+    pub(crate) fn mul_with_witness(
+        &mut self,
+        lhs: &Expression,
+        rhs: &Expression,
+    ) -> Result<Expression, ICEError> {
         use std::borrow::Cow;
         let lhs_is_linear = lhs.is_linear();
         let rhs_is_linear = rhs.is_linear();
 
         // Case 1: Both expressions have at most a total degree of 1 in each term
         if lhs_is_linear && rhs_is_linear {
-            return (lhs * rhs)
-                .expect("one of the expressions is a constant and so this should not fail");
+            match lhs * rhs {
+                Some(expr) => return Ok(expr),
+                None => {
+                    return Err(ICEError::NotAConstant {
+                        name: "one of the expressions".to_string(),
+                        location: self.current_location,
+                    })
+                }
+            }
         }
 
         // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
@@ -284,8 +309,10 @@ impl GeneratedAcir {
         // If the lhs and rhs are the same, then we do not need to reduce
         // rhs, we only need to square the lhs.
         if lhs == rhs {
-            return (&*lhs_reduced * &*lhs_reduced)
-                .expect("Both expressions are reduced to be degree<=1");
+            match &*lhs_reduced * &*lhs_reduced {
+                Some(expr) => return Ok(expr),
+                None => return Err(ICEError::DegreeNotReduced { location: self.current_location }),
+            }
         };
 
         let rhs_reduced = if rhs_is_linear {
@@ -294,7 +321,10 @@ impl GeneratedAcir {
             Cow::Owned(self.get_or_create_witness(rhs).into())
         };
 
-        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree<=1")
+        match &*lhs_reduced * &*rhs_reduced {
+            Some(expr) => Ok(expr),
+            None => Err(ICEError::DegreeNotReduced { location: self.current_location }),
+        }
     }
 
     /// Signed division lhs /  rhs
@@ -310,7 +340,7 @@ impl GeneratedAcir {
         lhs: &Expression,
         rhs: &Expression,
         max_bit_size: u32,
-    ) -> Result<(Expression, Expression), AcirGenError> {
+    ) -> Result<(Expression, Expression), RuntimeError> {
         // 2^{max_bit size-1}
         let max_power_of_two =
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
@@ -367,7 +397,7 @@ impl GeneratedAcir {
         rhs: &Expression,
         max_bit_size: u32,
         predicate: &Expression,
-    ) -> Result<(Witness, Witness), AcirGenError> {
+    ) -> Result<(Witness, Witness), RuntimeError> {
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
@@ -399,9 +429,9 @@ impl GeneratedAcir {
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into()) + r_witness;
-        let div_euclidean = &self.mul_with_witness(lhs, predicate)
-            - &self.mul_with_witness(&rhs_constraint, predicate);
+        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into())? + r_witness;
+        let div_euclidean = &self.mul_with_witness(lhs, predicate)?
+            - &self.mul_with_witness(&rhs_constraint, predicate)?;
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
@@ -425,7 +455,7 @@ impl GeneratedAcir {
         rhs: &Expression,
         offset: &Expression,
         bits: u32,
-    ) -> Result<(), AcirGenError> {
+    ) -> Result<(), RuntimeError> {
         const fn num_bits<T>() -> usize {
             std::mem::size_of::<T>() * 8
         }
@@ -625,11 +655,11 @@ impl GeneratedAcir {
         &mut self,
         witness: Witness,
         num_bits: u32,
-    ) -> Result<(), AcirGenError> {
+    ) -> Result<(), RuntimeError> {
         // We class this as an error because users should instead
         // do `as Field`.
         if num_bits >= FieldElement::max_num_bits() {
-            return Err(AcirGenError::InvalidRangeConstraint {
+            return Err(RuntimeError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
                 location: self.current_location,
             });
@@ -653,7 +683,7 @@ impl GeneratedAcir {
         predicate: Option<Expression>,
         q_max_bits: u32,
         r_max_bits: u32,
-    ) -> Result<(Witness, Witness), AcirGenError> {
+    ) -> Result<(Witness, Witness), RuntimeError> {
         let q_witness = self.next_witness_index();
         let r_witness = self.next_witness_index();
 
@@ -681,7 +711,7 @@ impl GeneratedAcir {
         b: &Expression,
         max_bits: u32,
         predicate: Expression,
-    ) -> Result<Witness, AcirGenError> {
+    ) -> Result<Witness, RuntimeError> {
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
         // TODO: perhaps this should be a user error, instead of an assert
@@ -750,7 +780,11 @@ impl GeneratedAcir {
     ///
     /// n.b. A sorting network is a predetermined set of switches,
     /// the control bits indicate the configuration of each switch: false for pass-through and true for cross-over
-    pub(crate) fn permutation(&mut self, in_expr: &[Expression], out_expr: &[Expression]) {
+    pub(crate) fn permutation(
+        &mut self,
+        in_expr: &[Expression],
+        out_expr: &[Expression],
+    ) -> Result<(), RuntimeError> {
         let mut bits_len = 0;
         for i in 0..in_expr.len() {
             bits_len += ((i + 1) as f32).log2().ceil() as u32;
@@ -764,77 +798,82 @@ impl GeneratedAcir {
             bits: bits.clone(),
             sort_by: vec![0],
         }));
-        let (_, b) = self.permutation_layer(in_expr, &bits, false);
+        let (_, b) = self.permutation_layer(in_expr, &bits, false)?;
 
         // Constrain the network output to out_expr
         for (b, o) in b.iter().zip(out_expr) {
             self.push_opcode(AcirOpcode::Arithmetic(b - o));
         }
+        Ok(())
     }
 }
 
 /// This function will return the number of inputs that a blackbox function
 /// expects. Returning `None` if there is no expectation.
-fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
+fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Result<Option<usize>, ICEError> {
     match name {
         // Bitwise opcodes will take in 2 parameters
-        BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(2),
+        BlackBoxFunc::AND | BlackBoxFunc::XOR => Ok(Some(2)),
         // All of the hash/cipher methods will take in a
         // variable number of inputs.
         BlackBoxFunc::Keccak256
         | BlackBoxFunc::SHA256
         | BlackBoxFunc::Blake2s
         | BlackBoxFunc::Pedersen
-        | BlackBoxFunc::HashToField128Security => None,
+        | BlackBoxFunc::HashToField128Security => Ok(None),
 
         // Can only apply a range constraint to one
         // witness at a time.
-        BlackBoxFunc::RANGE => Some(1),
+        BlackBoxFunc::RANGE => Ok(Some(1)),
 
         // Signature verification algorithms will take in a variable
         // number of inputs, since the message/hashed-message can vary in size.
         BlackBoxFunc::SchnorrVerify
         | BlackBoxFunc::EcdsaSecp256k1
-        | BlackBoxFunc::EcdsaSecp256r1 => None,
+        | BlackBoxFunc::EcdsaSecp256r1 => Ok(None),
         // Inputs for fixed based scalar multiplication
         // is just a scalar
-        BlackBoxFunc::FixedBaseScalarMul => Some(1),
+        BlackBoxFunc::FixedBaseScalarMul => Ok(Some(1)),
         // TODO(#1570): Generate ACIR for recursive aggregation
         // RecursiveAggregation has variable inputs and we could return `None` here,
-        // but as it is not fully implemented we panic for now
+        // but as it is not fully implemented we return an ICE error for now
         BlackBoxFunc::RecursiveAggregation => {
-            panic!("ICE: Cannot generate ACIR for recursive aggregation")
+            return Err(ICEError::NotImplemented {
+                name: "recursive aggregation".to_string(),
+                location: None,
+            })
         }
     }
 }
 
 /// This function will return the number of outputs that a blackbox function
 /// expects. Returning `None` if there is no expectation.
-fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
+fn black_box_expected_output_size(name: BlackBoxFunc) -> Result<u32, ICEError> {
     match name {
         // Bitwise opcodes will return 1 parameter which is the output
         // or the operation.
-        BlackBoxFunc::AND | BlackBoxFunc::XOR => 1,
+        BlackBoxFunc::AND | BlackBoxFunc::XOR => Ok(1),
         // 32 byte hash algorithms
-        BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => 32,
+        BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => Ok(32),
         // Hash to field returns a field element
-        BlackBoxFunc::HashToField128Security => 1,
+        BlackBoxFunc::HashToField128Security => Ok(1),
         // Pedersen returns a point
-        BlackBoxFunc::Pedersen => 2,
+        BlackBoxFunc::Pedersen => Ok(2),
         // Can only apply a range constraint to one
         // witness at a time.
-        BlackBoxFunc::RANGE => 0,
+        BlackBoxFunc::RANGE => Ok(0),
         // Signature verification algorithms will return a boolean
         BlackBoxFunc::SchnorrVerify
         | BlackBoxFunc::EcdsaSecp256k1
-        | BlackBoxFunc::EcdsaSecp256r1 => 1,
+        | BlackBoxFunc::EcdsaSecp256r1 => Ok(1),
         // Output of fixed based scalar mul over the embedded curve
         // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul => 2,
+        BlackBoxFunc::FixedBaseScalarMul => Ok(2),
         // TODO(#1570): Generate ACIR for recursive aggregation
-        BlackBoxFunc::RecursiveAggregation => {
-            panic!("ICE: Cannot generate ACIR for recursive aggregation")
-        }
+        BlackBoxFunc::RecursiveAggregation => Err(ICEError::NotImplemented {
+            name: "recursive aggregation".to_string(),
+            location: None,
+        }),
     }
 }
 
@@ -853,12 +892,13 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
 /// #[foreign(sha256)]
 /// fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 /// ``
-fn intrinsics_check_inputs(name: BlackBoxFunc, inputs: &[FunctionInput]) {
-    let expected_num_inputs = match black_box_func_expected_input_size(name) {
+fn intrinsics_check_inputs(name: BlackBoxFunc, inputs: &[FunctionInput]) -> Result<(), ICEError> {
+    let expected_num_inputs = match black_box_func_expected_input_size(name)? {
         Some(expected_num_inputs) => expected_num_inputs,
-        None => return,
+        None => return Ok(()),
     };
     let got_num_inputs = inputs.len();
 
     assert_eq!(expected_num_inputs,inputs.len(),"Tried to call black box function {name} with {got_num_inputs} inputs, but this function's definition requires {expected_num_inputs} inputs");
+    Ok(())
 }
