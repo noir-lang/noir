@@ -4,6 +4,7 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import ChildJson from './child_contract.json' assert { type: 'json' };
 import EasyZkTokenContractJson from './easy_zk_token_contract.json' assert { type: 'json' };
 import EcdsaAccountContractJson from './ecdsa_account_contract.json' assert { type: 'json' };
+import LendingContractJson from './lending_contract.json' assert { type: 'json' };
 import NonNativeTokenContractJson from './non_native_token_contract.json' assert { type: 'json' };
 import ParentJson from './parent_contract.json' assert { type: 'json' };
 import PendingCommitmentsContractJson from './pending_commitments_contract.json' assert { type: 'json' };
@@ -28,3 +29,4 @@ export const SchnorrSingleKeyAccountContractAbi = SchnorrSingleKeyAccountContrac
 export const UniswapContractAbi = UniswapContractJson as ContractAbi;
 export const PendingCommitmentsContractAbi = PendingCommitmentsContractJson as ContractAbi;
 export const PokeableTokenContractAbi = PokeableTokenContractJson as ContractAbi;
+export const LendingContractAbi = LendingContractJson as ContractAbi;

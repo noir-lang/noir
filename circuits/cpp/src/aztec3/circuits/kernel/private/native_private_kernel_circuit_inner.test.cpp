@@ -64,6 +64,26 @@ TEST_F(native_private_kernel_inner_tests, private_function_zero_storage_contract
               "contract address can't be 0 for non-contract deployment related transactions");
 }
 
+
+TEST_F(native_private_kernel_inner_tests, private_function_incorrect_is_internal)
+{
+    auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
+
+    // Make the call internal but msg_sender != storage_contract_address.
+    private_inputs.private_call.call_stack_item.function_data.is_internal = true;
+    private_inputs.private_call.call_stack_item.public_inputs.call_context.msg_sender = 1;
+    private_inputs.private_call.call_stack_item.public_inputs.call_context.storage_contract_address = 2;
+
+    // Invoke the native private kernel circuit
+    DummyBuilder builder = DummyBuilder("private_kernel_tests__private_function_incorrect_contract_tree_root_fails");
+    native_private_kernel_circuit_inner(builder, private_inputs);
+
+    // Assertion checks
+    EXPECT_TRUE(builder.failed());
+    EXPECT_EQ(builder.get_first_failure().code, CircuitErrorCode::PRIVATE_KERNEL__IS_INTERNAL_BUT_NOT_SELF_CALL);
+    EXPECT_EQ(builder.get_first_failure().message, "call is internal, but msg_sender is not self");
+}
+
 TEST_F(native_private_kernel_inner_tests, private_function_incorrect_contract_tree_root_fails)
 {
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());

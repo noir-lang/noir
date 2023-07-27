@@ -21,7 +21,7 @@ export class EthAddress {
   constructor(private buffer: Buffer) {
     if (buffer.length === 32) {
       if (!buffer.slice(0, 12).equals(Buffer.alloc(12))) {
-        throw new Error('Invalid address buffer.');
+        throw new Error(`Invalid address buffer: ${buffer.toString('hex')}`);
       } else {
         this.buffer = buffer.slice(12);
       }

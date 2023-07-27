@@ -16,6 +16,10 @@ export class FunctionLeafPreimage {
      */
     public functionSelector: Buffer,
     /**
+     * Indicates whether the function is only callable by self or not.
+     */
+    public isInternal: boolean,
+    /**
      * Indicates whether the function is private or public.
      */
     public isPrivate: boolean,
@@ -50,7 +54,7 @@ export class FunctionLeafPreimage {
    */
   toBuffer(): Buffer {
     this.assertFunctionSelectorLength(this.functionSelector);
-    return serializeToBuffer(this.functionSelector, this.isPrivate, this.vkHash, this.acirHash);
+    return serializeToBuffer(this.functionSelector, this.isInternal, this.isPrivate, this.vkHash, this.acirHash);
   }
 
   /**
@@ -60,6 +64,12 @@ export class FunctionLeafPreimage {
    */
   static fromBuffer(buffer: Buffer | BufferReader): FunctionLeafPreimage {
     const reader = BufferReader.asReader(buffer);
-    return new FunctionLeafPreimage(reader.readBytes(4), reader.readBoolean(), reader.readFr(), reader.readFr());
+    return new FunctionLeafPreimage(
+      reader.readBytes(4),
+      reader.readBoolean(),
+      reader.readBoolean(),
+      reader.readFr(),
+      reader.readFr(),
+    );
   }
 }

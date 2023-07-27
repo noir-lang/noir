@@ -63,7 +63,7 @@ describe('ACIR public execution simulator', () => {
       it('should run the mint function', async () => {
         const contractAddress = AztecAddress.random();
         const mintAbi = PublicTokenContractAbi.functions.find(f => f.name === 'mint')!;
-        const functionData = new FunctionData(Buffer.alloc(4), false, false);
+        const functionData = new FunctionData(Buffer.alloc(4), false, false, false);
         const args = encodeArguments(mintAbi, [140, recipient]);
 
         const callContext = CallContext.from({
@@ -110,7 +110,7 @@ describe('ACIR public execution simulator', () => {
       beforeEach(() => {
         contractAddress = AztecAddress.random();
         abi = PublicTokenContractAbi.functions.find(f => f.name === 'transfer')!;
-        functionData = new FunctionData(Buffer.alloc(4), false, false);
+        functionData = new FunctionData(Buffer.alloc(4), false, false, false);
         args = encodeArguments(abi, [140, recipient]);
         sender = AztecAddress.random();
 
@@ -198,7 +198,7 @@ describe('ACIR public execution simulator', () => {
 
       const initialValue = 3n;
 
-      const functionData = new FunctionData(parentEntryPointFnSelector, false, false);
+      const functionData = new FunctionData(parentEntryPointFnSelector, false, false, false);
       const args = encodeArguments(parentEntryPointFn, [
         childContractAddress.toField().value,
         toBigInt(childValueFnSelector),
@@ -250,7 +250,7 @@ describe('ACIR public execution simulator', () => {
 
     beforeEach(async () => {
       contractAddress = AztecAddress.random();
-      functionData = new FunctionData(Buffer.alloc(4), false, false);
+      functionData = new FunctionData(Buffer.alloc(4), false, false, false);
       amount = new Fr(140);
       params = [amount, Fr.random()];
       wasm = await CircuitsWasm.get();

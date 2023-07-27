@@ -115,6 +115,10 @@ export interface FunctionAbi {
    */
   functionType: FunctionType;
   /**
+   * Whether the function is internal.
+   */
+  isInternal: boolean;
+  /**
    * Function parameters.
    */
   parameters: ABIParameter[];

@@ -192,6 +192,15 @@ void common_validate_inputs(DummyBuilder& builder, KernelInput const& public_ker
     builder.do_assert(public_kernel_inputs.public_call.bytecode_hash != 0,
                       "Bytecode hash must be non-zero",
                       CircuitErrorCode::PUBLIC_KERNEL__BYTECODE_HASH_INVALID);
+
+    if (this_call_stack_item.function_data.is_internal) {
+        auto const target = this_call_stack_item.contract_address;
+        auto const sender = this_call_stack_item.public_inputs.call_context.msg_sender;
+
+        builder.do_assert(target == sender,
+                          "call is internal, but msg_sender is not self",
+                          CircuitErrorCode::PUBLIC_KERNEL__IS_INTERNAL_BUT_NOT_SELF_CALL);
+    }
 }
 
 template <typename KernelInput, typename Builder>

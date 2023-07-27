@@ -10,3 +10,4 @@ export * from './schnorr_single_key_account.js';
 export * from './test.js';
 export * from './uniswap.js';
 export * from './zk_token.js';
+export * from './lending.js';

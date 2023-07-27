@@ -607,6 +607,22 @@ TEST(public_kernel_tests, no_bytecode_hash_should_fail)
     ASSERT_EQ(dummyBuilder.get_first_failure().code, CircuitErrorCode::PUBLIC_KERNEL__BYTECODE_HASH_INVALID);
 }
 
+
+TEST(public_kernel_tests, invalid_is_internal)
+{
+    DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__no_bytecode_hash_should_fail");
+    PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
+
+    // Make the call internal but msg_sender != storage_contract_address.
+    inputs.public_call.call_stack_item.function_data.is_internal = true;
+    inputs.public_call.call_stack_item.public_inputs.call_context.msg_sender = 1;
+    inputs.public_call.call_stack_item.public_inputs.call_context.storage_contract_address = 2;
+
+    auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
+    ASSERT_TRUE(dummyBuilder.failed());
+    ASSERT_EQ(dummyBuilder.get_first_failure().code, CircuitErrorCode::PUBLIC_KERNEL__IS_INTERNAL_BUT_NOT_SELF_CALL);
+}
+
 TEST(public_kernel_tests, contract_address_must_be_valid)
 {
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__contract_address_must_be_valid");

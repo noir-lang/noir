@@ -254,6 +254,7 @@ void check_membership(Builder& builder,
  *
  * @tparam NCT (native or circuit)
  * @param function_selector in leaf preimage
+ * @param is_internal in leaf preimage
  * @param is_private in leaf preimage
  * @param vk_hash in leaf preimage
  * @param acir_hash in leaf preimage
@@ -263,6 +264,7 @@ void check_membership(Builder& builder,
  */
 template <typename NCT> typename NCT::fr function_tree_root_from_siblings(
     typename NCT::uint32 const& function_selector,
+    typename NCT::boolean const& is_internal,
     typename NCT::boolean const& is_private,
     typename NCT::fr const& vk_hash,
     typename NCT::fr const& acir_hash,
@@ -271,6 +273,7 @@ template <typename NCT> typename NCT::fr function_tree_root_from_siblings(
 {
     const auto function_leaf_preimage = FunctionLeafPreimage<NCT>{
         .function_selector = function_selector,
+        .is_internal = is_internal,
         .is_private = is_private,
         .vk_hash = vk_hash,
         .acir_hash = acir_hash,

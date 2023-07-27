@@ -99,7 +99,7 @@ describe('Private Execution test suite', () => {
     const txRequest = TxExecutionRequest.from({
       origin,
       argsHash: packedArguments.hash,
-      functionData: new FunctionData(Buffer.alloc(4), true, isConstructor),
+      functionData: new FunctionData(Buffer.alloc(4), false, true, isConstructor),
       txContext: TxContext.from({ ...txContextFields, ...txContext }),
       packedArguments: [packedArguments],
     });
@@ -500,7 +500,7 @@ describe('Private Execution test suite', () => {
   });
 
   describe('enqueued calls', () => {
-    it('parent should enqueue call to child', async () => {
+    it.each([false, true])('parent should enqueue call to child', async isInternal => {
       const parentAbi = ParentContractAbi.functions.find(f => f.name === 'enqueueCallToChild')!;
       const childAddress = AztecAddress.random();
       const childPortalContractAddress = EthAddress.random();
@@ -508,6 +508,7 @@ describe('Private Execution test suite', () => {
       const parentAddress = AztecAddress.random();
 
       oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(childPortalContractAddress));
+      oracle.getFunctionABI.mockImplementation(() => Promise.resolve({ ...ChildContractAbi.functions[0], isInternal }));
 
       const args = [Fr.fromBuffer(childAddress.toBuffer()), Fr.fromBuffer(childSelector), 42n];
       const result = await runSimulator({
@@ -519,7 +520,7 @@ describe('Private Execution test suite', () => {
 
       const publicCallRequest = PublicCallRequest.from({
         contractAddress: childAddress,
-        functionData: new FunctionData(childSelector, false, false),
+        functionData: new FunctionData(childSelector, isInternal, false, false),
         args: [new Fr(42n)],
         callContext: CallContext.from({
           msgSender: parentAddress,

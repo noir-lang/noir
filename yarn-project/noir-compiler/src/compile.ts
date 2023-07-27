@@ -51,6 +51,7 @@ export class ContractCompiler {
       functions: contract.functions.map(noirFn => ({
         name: noirFn.name,
         functionType: noirFn.function_type.toLowerCase() as FunctionType,
+        isInternal: noirFn.is_internal,
         parameters: noirFn.abi.parameters,
         returnTypes: [noirFn.abi.return_type],
         bytecode: Buffer.from(noirFn.bytecode).toString('hex'),

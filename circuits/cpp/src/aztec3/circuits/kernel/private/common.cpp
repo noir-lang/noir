@@ -365,16 +365,24 @@ void common_contract_logic(DummyBuilder& builder,
 
         /* We need to compute the root of the contract tree, starting from the function's VK:
          * - Compute the vk_hash (done above)
-         * - Compute the function_leaf: hash(function_selector, is_private, vk_hash, acir_hash)
+         * - Compute the function_leaf: hash(function_selector, is_internal, is_private, vk_hash, acir_hash)
          * - Hash the function_leaf with the function_leaf's sibling_path to get the function_tree_root
          * - Compute the contract_leaf: hash(contract_address, portal_contract_address, function_tree_root)
          * - Hash the contract_leaf with the contract_leaf's sibling_path to get the contract_tree_root
          */
 
-        // The logic below ensures that the contract exists in the contracts tree
+        // Ensures that if the function is internal, only the contract itself can call it
+        if (private_call.call_stack_item.function_data.is_internal) {
+            builder.do_assert(
+                storage_contract_address == private_call.call_stack_item.public_inputs.call_context.msg_sender,
+                "call is internal, but msg_sender is not self",
+                CircuitErrorCode::PRIVATE_KERNEL__IS_INTERNAL_BUT_NOT_SELF_CALL);
+        }
 
+        // The logic below ensures that the contract exists in the contracts tree
         auto const& computed_function_tree_root =
             function_tree_root_from_siblings<NT>(private_call.call_stack_item.function_data.function_selector,
+                                                 private_call.call_stack_item.function_data.is_internal,
                                                  true,  // is_private
                                                  private_call_vk_hash,
                                                  private_call.acir_hash,

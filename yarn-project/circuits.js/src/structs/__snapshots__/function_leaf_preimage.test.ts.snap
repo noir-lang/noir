@@ -2,6 +2,7 @@
 
 exports[`basic FunctionLeafPreimage serialization serializes a trivial Function Leaf Preimage and prints it 1`] = `
 "function_selector: 123
+is_internal: 0
 is_private: 1
 vk_hash: 0x0
 acir_hash: 0x0

@@ -18,15 +18,16 @@ template <typename NCT> struct FunctionData {
     using fr = typename NCT::fr;
 
     uint32 function_selector;  // e.g. 1st 4-bytes of abi-encoding of function.
+    boolean is_internal = false;
     boolean is_private = false;
     boolean is_constructor = false;
 
-    MSGPACK_FIELDS(function_selector, is_private, is_constructor);
+    MSGPACK_FIELDS(function_selector, is_internal, is_private, is_constructor);
 
     boolean operator==(FunctionData<NCT> const& other) const
     {
-        return function_selector == other.function_selector && is_private == other.is_private &&
-               is_constructor == other.is_constructor;
+        return function_selector == other.function_selector && is_internal == other.is_internal &&
+               is_private == other.is_private && is_constructor == other.is_constructor;
     };
 
     template <typename Builder> FunctionData<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
@@ -38,6 +39,7 @@ template <typename NCT> struct FunctionData {
 
         FunctionData<CircuitTypes<Builder>> function_data = {
             to_ct(function_selector),
+            to_ct(is_internal),
             to_ct(is_private),
             to_ct(is_constructor),
         };
@@ -52,6 +54,7 @@ template <typename NCT> struct FunctionData {
 
         FunctionData<NativeTypes> function_data = {
             to_nt(function_selector),
+            to_nt(is_internal),
             to_nt(is_private),
             to_nt(is_constructor),
         };
@@ -64,6 +67,7 @@ template <typename NCT> struct FunctionData {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
         fr(function_selector).set_public();
+        fr(is_internal).set_public();
         fr(is_private).set_public();
         fr(is_constructor).set_public();
     }
@@ -73,6 +77,7 @@ template <typename NCT> struct FunctionData {
     {
         std::vector<fr> const inputs = {
             fr(function_selector),
+            fr(is_internal),
             fr(is_private),
             fr(is_constructor),
         };
@@ -84,6 +89,7 @@ template <typename NCT> struct FunctionData {
 template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionData<NCT> const& function_data)
 {
     return os << "function_selector: " << function_data.function_selector << "\n"
+              << "is_internal: " << function_data.is_internal << "\n"
               << "is_private: " << function_data.is_private << "\n"
               << "is_constructor: " << function_data.is_constructor << "\n";
 }

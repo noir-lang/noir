@@ -219,6 +219,7 @@ export function fromNewContractData(o: NewContractData): MsgpackNewContractData 
 
 interface MsgpackFunctionData {
   function_selector: number;
+  is_internal: boolean;
   is_private: boolean;
   is_constructor: boolean;
 }
@@ -227,18 +228,24 @@ export function toFunctionData(o: MsgpackFunctionData): FunctionData {
   if (o.function_selector === undefined) {
     throw new Error('Expected function_selector in FunctionData deserialization');
   }
+  if (o.is_internal === undefined) {
+    throw new Error('Expected is_internal in FunctionData deserialization');
+  }
   if (o.is_private === undefined) {
     throw new Error('Expected is_private in FunctionData deserialization');
   }
   if (o.is_constructor === undefined) {
     throw new Error('Expected is_constructor in FunctionData deserialization');
   }
-  return new FunctionData(o.function_selector, o.is_private, o.is_constructor);
+  return new FunctionData(o.function_selector, o.is_internal, o.is_private, o.is_constructor);
 }
 
 export function fromFunctionData(o: FunctionData): MsgpackFunctionData {
   if (o.functionSelector === undefined) {
     throw new Error('Expected functionSelector in FunctionData serialization');
+  }
+  if (o.isInternal === undefined) {
+    throw new Error('Expected isInternal in FunctionData serialization');
   }
   if (o.isPrivate === undefined) {
     throw new Error('Expected isPrivate in FunctionData serialization');
@@ -248,6 +255,7 @@ export function fromFunctionData(o: FunctionData): MsgpackFunctionData {
   }
   return {
     function_selector: o.functionSelector,
+    is_internal: o.isInternal,
     is_private: o.isPrivate,
     is_constructor: o.isConstructor,
   };

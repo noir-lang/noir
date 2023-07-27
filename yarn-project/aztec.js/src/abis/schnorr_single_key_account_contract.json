@@ -4,12 +4,14 @@
     {
       "name": "constructor",
       "functionType": "secret",
+      "isInternal": false,
       "parameters": [],
       "returnTypes": []
     },
     {
       "name": "entrypoint",
       "functionType": "secret",
+      "isInternal": false,
       "parameters": [
         {
           "name": "payload",

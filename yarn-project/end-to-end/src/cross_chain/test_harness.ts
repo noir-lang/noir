@@ -30,7 +30,6 @@ export class CrossChainTestHarness {
   ): Promise<CrossChainTestHarness> {
     const walletClient = deployL1ContractsValues.walletClient;
     const publicClient = deployL1ContractsValues.publicClient;
-
     const ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
     const [ownerAddress, receiver] = accounts;
     const ownerPub = await aztecRpcServer.getPublicKey(ownerAddress);

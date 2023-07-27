@@ -4,6 +4,7 @@
     {
       "name": "constructor",
       "functionType": "secret",
+      "isInternal": false,
       "parameters": [
         {
           "name": "initial_supply",
@@ -29,6 +30,7 @@
     {
       "name": "getBalance",
       "functionType": "unconstrained",
+      "isInternal": false,
       "parameters": [
         {
           "name": "owner",
@@ -49,6 +51,7 @@
     {
       "name": "mint",
       "functionType": "secret",
+      "isInternal": false,
       "parameters": [
         {
           "name": "amount",
@@ -74,6 +77,7 @@
     {
       "name": "stev",
       "functionType": "unconstrained",
+      "isInternal": false,
       "parameters": [
         {
           "name": "contract_address",
@@ -123,6 +127,7 @@
     {
       "name": "transfer",
       "functionType": "secret",
+      "isInternal": false,
       "parameters": [
         {
           "name": "amount",

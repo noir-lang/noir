@@ -46,14 +46,14 @@ describe('abis wasm bindings', () => {
   });
 
   it('computes a function leaf', () => {
-    const leaf = new FunctionLeafPreimage(Buffer.from([0, 0, 0, 123]), true, Fr.ZERO, Fr.ZERO);
+    const leaf = new FunctionLeafPreimage(Buffer.from([0, 0, 0, 123]), false, true, Fr.ZERO, Fr.ZERO);
     const res = computeFunctionLeaf(wasm, leaf);
     expect(res).toMatchSnapshot();
   });
 
   it('compute function leaf should revert if buffer is over 4 bytes', () => {
     expect(() => {
-      new FunctionLeafPreimage(Buffer.from([0, 0, 0, 0, 123]), true, Fr.ZERO, Fr.ZERO);
+      new FunctionLeafPreimage(Buffer.from([0, 0, 0, 0, 123]), false, true, Fr.ZERO, Fr.ZERO);
     }).toThrow('Function selector must be 4 bytes long, got 5 bytes.');
   });
 
@@ -61,7 +61,7 @@ describe('abis wasm bindings', () => {
     const initBuffer = Buffer.from([0, 0, 0, 123]);
     const largerBuffer = Buffer.from([0, 0, 0, 0, 123]);
     expect(() => {
-      const leaf = new FunctionLeafPreimage(initBuffer, true, Fr.ZERO, Fr.ZERO);
+      const leaf = new FunctionLeafPreimage(initBuffer, false, true, Fr.ZERO, Fr.ZERO);
       leaf.functionSelector = largerBuffer;
       leaf.toBuffer();
     }).toThrow('Function selector must be 4 bytes long, got 5 bytes.');
@@ -73,7 +73,7 @@ describe('abis wasm bindings', () => {
   });
 
   it('hashes constructor info', () => {
-    const functionData = new FunctionData(Buffer.alloc(4), true, true);
+    const functionData = new FunctionData(Buffer.alloc(4), false, true, true);
     const argsHash = new Fr(42);
     const vkHash = Buffer.alloc(32);
     const res = hashConstructor(wasm, functionData, argsHash, vkHash);

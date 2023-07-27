@@ -172,7 +172,7 @@ describe('public_processor', () => {
         makePublicExecutionResult({
           from: publicExecutionResult.execution.contractAddress,
           to: makeAztecAddress(30),
-          functionData: new FunctionData(makeSelector(5), false, false),
+          functionData: new FunctionData(makeSelector(5), false, false, false),
           args: new Array(ARGS_LENGTH).fill(Fr.ZERO),
         }),
       ];

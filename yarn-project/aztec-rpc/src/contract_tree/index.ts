@@ -90,7 +90,7 @@ export class ContractTree {
     const leaves = generateFunctionLeaves(functions, wasm);
     const root = computeFunctionTreeRoot(wasm, leaves);
     const constructorSelector = generateFunctionSelector(constructorAbi.name, constructorAbi.parameters);
-    const functionData = new FunctionData(constructorSelector, true, true);
+    const functionData = new FunctionData(constructorSelector, false, true, true);
     const vkHash = hashVKStr(constructorAbi.verificationKey, wasm);
     const argsHash = await computeVarArgsHash(wasm, args);
     const constructorHash = hashConstructor(wasm, functionData, argsHash, vkHash);
@@ -157,11 +157,11 @@ export class ContractTree {
       const { address, portalContract } = this.contract;
       const root = await this.getFunctionTreeRoot();
       const newContractData = new NewContractData(address, portalContract, root);
-      const committment = computeContractLeaf(this.wasm, newContractData);
-      const index = await this.contractCommitmentProvider.findContractIndex(committment.toBuffer());
+      const commitment = computeContractLeaf(this.wasm, newContractData);
+      const index = await this.contractCommitmentProvider.findContractIndex(commitment.toBuffer());
       if (index === undefined) {
         throw new Error(
-          `Failed to find contract at ${address} with portal ${portalContract} resulting in commitment ${committment}.`,
+          `Failed to find contract at ${address} with portal ${portalContract} resulting in commitment ${commitment}.`,
         );
       }
 

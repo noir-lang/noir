@@ -25,6 +25,10 @@ interface NoirFunctionEntry {
   name: string;
   /** The type of the function. */
   function_type: NoirFunctionType;
+  /**
+   * Whether the function is internal.
+   */
+  is_internal: boolean;
   /** The ABI of the function. */
   abi: NoirFunctionAbi;
   /** The bytecode of the function. */

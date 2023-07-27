@@ -48,7 +48,7 @@ export class SingleKeyAccountContract implements AccountImplementation {
     const txRequest = TxExecutionRequest.from({
       argsHash: packedArgs.hash,
       origin: this.address,
-      functionData: new FunctionData(selector, true, false),
+      functionData: new FunctionData(selector, abi.isInternal, true, false),
       txContext,
       packedArguments: [...callsPackedArguments, packedArgs],
     });

@@ -27,6 +27,7 @@ describe('Contract Class', () => {
       {
         name: 'bar',
         functionType: FunctionType.SECRET,
+        isInternal: false,
         parameters: [
           {
             name: 'value',
@@ -49,6 +50,7 @@ describe('Contract Class', () => {
       {
         name: 'baz',
         functionType: FunctionType.OPEN,
+        isInternal: false,
         parameters: [],
         returnTypes: [],
         bytecode: '0be',
@@ -56,6 +58,7 @@ describe('Contract Class', () => {
       {
         name: 'qux',
         functionType: FunctionType.UNCONSTRAINED,
+        isInternal: false,
         parameters: [
           {
             name: 'value',

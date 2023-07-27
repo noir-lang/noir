@@ -8,27 +8,10 @@ use crate::types::vec::BoundedVec;
 use crate::types::point::Point;
 use crate::utils::arr_copy_slice;
 use crate::constants_gen;
-use crate::constants_gen::GENERATOR_INDEX__FUNCTION_DATA;
-use crate::constants_gen::GENERATOR_INDEX__CALL_STACK_ITEM;
+use crate::abi::FunctionData;
 
 use crate::oracle::call_private_function::call_private_function_internal;
 use crate::oracle::arguments;
-
-struct FunctionData {
-    function_selector: Field,
-    is_private: bool,
-    is_constructor: bool,
-}
-
-impl FunctionData {
-    fn hash(self) -> Field {
-        dep::std::hash::pedersen_with_separator([
-            self.function_selector,
-            self.is_private as Field,
-            self.is_constructor as Field,
-        ], GENERATOR_INDEX__FUNCTION_DATA)[0]
-    }
-}
 
 struct PrivateCallStackItem {
     contract_address: Field,
@@ -58,52 +41,53 @@ impl PrivateCallStackItem {
             contract_address: fields[0],
             function_data: FunctionData {
                 function_selector: fields[1],
-                is_private: fields[2] as bool,
-                is_constructor: fields[3] as bool,
+                is_internal: fields[2] as bool,
+                is_private: fields[3] as bool,
+                is_constructor: fields[4] as bool,
             },
             public_inputs: PrivateCircuitPublicInputs {
                 call_context: CallContext {
-                    msg_sender : fields[4],
-                    storage_contract_address : fields[5],
-                    portal_contract_address : fields[6],
+                    msg_sender : fields[5],
+                    storage_contract_address : fields[6],
+                    portal_contract_address : fields[7],
                     
-                    is_delegate_call : fields[7] as bool,
-                    is_static_call : fields[8] as bool,
-                    is_contract_deployment: fields[9] as bool,
+                    is_delegate_call : fields[8] as bool,
+                    is_static_call : fields[9] as bool,
+                    is_contract_deployment: fields[10] as bool,
                 },
                 // TODO handle the offsets as a variable incremented during extraction?
-                args_hash: fields[10],
-                return_values: arr_copy_slice(fields, [0; constants_gen::RETURN_VALUES_LENGTH], 11),
-                read_requests: arr_copy_slice(fields, [0; constants_gen::MAX_READ_REQUESTS_PER_CALL], 15),
-                new_commitments: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_COMMITMENTS_PER_CALL], 19),
-                new_nullifiers: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_NULLIFIERS_PER_CALL], 23),
-                nullified_commitments: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_NULLIFIERS_PER_CALL], 27),
-                private_call_stack: arr_copy_slice(fields, [0; constants_gen::MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL], 31),
-                public_call_stack: arr_copy_slice(fields, [0; constants_gen::MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL], 35),
-                new_l2_to_l1_msgs: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_L2_TO_L1_MSGS_PER_CALL], 39),
-                encrypted_logs_hash: arr_copy_slice(fields, [0; constants_gen::NUM_FIELDS_PER_SHA256], 41),
-                unencrypted_logs_hash: arr_copy_slice(fields, [0; constants_gen::NUM_FIELDS_PER_SHA256], 43),
-                encrypted_log_preimages_length: fields[45],
-                unencrypted_log_preimages_length: fields[46],
+                args_hash: fields[11],
+                return_values: arr_copy_slice(fields, [0; constants_gen::RETURN_VALUES_LENGTH], 12),
+                read_requests: arr_copy_slice(fields, [0; constants_gen::MAX_READ_REQUESTS_PER_CALL], 16),
+                new_commitments: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_COMMITMENTS_PER_CALL], 20),
+                new_nullifiers: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_NULLIFIERS_PER_CALL], 24),
+                nullified_commitments: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_NULLIFIERS_PER_CALL], 28),
+                private_call_stack: arr_copy_slice(fields, [0; constants_gen::MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL], 32),
+                public_call_stack: arr_copy_slice(fields, [0; constants_gen::MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL], 36),
+                new_l2_to_l1_msgs: arr_copy_slice(fields, [0; constants_gen::MAX_NEW_L2_TO_L1_MSGS_PER_CALL], 40),
+                encrypted_logs_hash: arr_copy_slice(fields, [0; constants_gen::NUM_FIELDS_PER_SHA256], 42),
+                unencrypted_logs_hash: arr_copy_slice(fields, [0; constants_gen::NUM_FIELDS_PER_SHA256], 44),
+                encrypted_log_preimages_length: fields[46],
+                unencrypted_log_preimages_length: fields[47],
                 commitment_trees_roots: CommitmentTreesRoots {
                     // Must match order in `private_circuit_public_inputs.hpp`
-                    private_data_tree_root : fields[47],
-                    nullifier_tree_root : fields[48],
-                    contract_tree_root : fields[49],
-                    l1_to_l2_messages_tree_root : fields[50],
-                    blocks_tree_root : fields[51],
+                    private_data_tree_root : fields[48],
+                    nullifier_tree_root : fields[49],
+                    contract_tree_root : fields[50],
+                    l1_to_l2_messages_tree_root : fields[51],
+                    blocks_tree_root : fields[52],
                 },
                 contract_deployment_data: ContractDeploymentData {
-                    deployer_public_key: Point::new(fields[52], fields[53]),
-                    constructor_vk_hash : fields[54],
-                    function_tree_root : fields[55],
-                    contract_address_salt : fields[56],
-                    portal_contract_address : fields[57],
+                    deployer_public_key: Point::new(fields[53], fields[54]),
+                    constructor_vk_hash : fields[55],
+                    function_tree_root : fields[56],
+                    contract_address_salt : fields[57],
+                    portal_contract_address : fields[58],
                 },
-                chain_id: fields[58],
-                version: fields[59],
+                chain_id: fields[59],
+                version: fields[60],
             },
-            is_execution_request: fields[60] as bool,
+            is_execution_request: fields[61] as bool,
         };
         assert(contract_address == item.contract_address);
         assert(function_selector == item.function_data.function_selector);
@@ -132,6 +116,6 @@ impl PrivateCallStackItem {
             self.contract_address,
             self.function_data.hash(),
             self.public_inputs.hash(),
-        ], GENERATOR_INDEX__CALL_STACK_ITEM)[0]
+        ], constants_gen::GENERATOR_INDEX__CALL_STACK_ITEM)[0]
     }
 }

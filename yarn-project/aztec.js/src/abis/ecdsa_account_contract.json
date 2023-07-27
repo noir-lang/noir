@@ -4,6 +4,7 @@
     {
       "name": "constructor",
       "functionType": "secret",
+      "isInternal": false,
       "parameters": [
         {
           "name": "signing_pub_key_x",
@@ -37,6 +38,7 @@
     {
       "name": "entrypoint",
       "functionType": "secret",
+      "isInternal": false,
       "parameters": [
         {
           "name": "payload",
@@ -102,6 +104,7 @@
     {
       "name": "stev",
       "functionType": "unconstrained",
+      "isInternal": false,
       "parameters": [
         {
           "name": "contract_address",

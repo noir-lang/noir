@@ -2,7 +2,7 @@
 src = 'src'
 out = 'out'
 libs = ['lib']
-solc = "0.8.18"
+solc = "0.8.21"
 
 remappings = [
   "@oz/=lib/openzeppelin-contracts/contracts/",

@@ -110,6 +110,7 @@ optionally_revealed_data:
 [ call_stack_item_hash: 0xc00
 function_data:
 function_selector: c01
+is_internal: 0
 is_private: 1
 is_constructor: 1
 
@@ -122,6 +123,7 @@ called_from_public_l2: 0
  call_stack_item_hash: 0xc01
 function_data:
 function_selector: c02
+is_internal: 0
 is_private: 1
 is_constructor: 1
 
@@ -134,6 +136,7 @@ called_from_public_l2: 0
  call_stack_item_hash: 0xc02
 function_data:
 function_selector: c03
+is_internal: 0
 is_private: 1
 is_constructor: 1
 
@@ -146,6 +149,7 @@ called_from_public_l2: 0
  call_stack_item_hash: 0xc03
 function_data:
 function_selector: c04
+is_internal: 0
 is_private: 1
 is_constructor: 1
 
@@ -329,6 +333,7 @@ optionally_revealed_data:
 [ call_stack_item_hash: 0xd00
 function_data:
 function_selector: d01
+is_internal: 0
 is_private: 1
 is_constructor: 1
 
@@ -341,6 +346,7 @@ called_from_public_l2: 0
  call_stack_item_hash: 0xd01
 function_data:
 function_selector: d02
+is_internal: 0
 is_private: 1
 is_constructor: 1
 
@@ -353,6 +359,7 @@ called_from_public_l2: 0
  call_stack_item_hash: 0xd02
 function_data:
 function_selector: d03
+is_internal: 0
 is_private: 1
 is_constructor: 1
 
@@ -365,6 +372,7 @@ called_from_public_l2: 0
  call_stack_item_hash: 0xd03
 function_data:
 function_selector: d04
+is_internal: 0
 is_private: 1
 is_constructor: 1
 

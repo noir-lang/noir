@@ -205,6 +205,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
         call_context.storage_contract_address = contract_address;
     } else {
         const NT::fr& function_tree_root = function_tree_root_from_siblings<NT>(function_data.function_selector,
+                                                                                function_data.is_internal,
                                                                                 function_data.is_private,
                                                                                 private_circuit_vk_hash,
                                                                                 acir_hash,

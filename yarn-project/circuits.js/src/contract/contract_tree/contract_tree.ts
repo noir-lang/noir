@@ -70,6 +70,7 @@ export function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: C
   for (let i = 0; i < targetFunctions.length; i++) {
     const f = targetFunctions[i];
     const selector = generateFunctionSelector(f.name, f.parameters);
+    const isInternal = f.isInternal;
     const isPrivate = f.functionType === FunctionType.SECRET;
     // All non-unconstrained functions have vks
     const vkHash = hashVKStr(f.verificationKey!, wasm);
@@ -80,6 +81,7 @@ export function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: C
 
     const fnLeafPreimage = new FunctionLeafPreimage(
       selector,
+      isInternal,
       isPrivate,
       Fr.fromBuffer(vkHash),
       Fr.fromBuffer(acirHash),

@@ -42,7 +42,7 @@ export async function getContractDeploymentInfo(
   const leaves = generateFunctionLeaves(functions, wasm);
   const functionTreeRoot = computeFunctionTreeRoot(wasm, leaves);
   const constructorSelector = generateFunctionSelector(constructorAbi.name, constructorAbi.parameters);
-  const functionData = new FunctionData(constructorSelector, true, true);
+  const functionData = new FunctionData(constructorSelector, false, true, true);
   const flatArgs = encodeArguments(constructorAbi, args);
   const argsHash = await computeVarArgsHash(wasm, flatArgs);
   const constructorHash = hashConstructor(wasm, functionData, argsHash, constructorVkHash.toBuffer());
