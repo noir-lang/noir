@@ -966,8 +966,6 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
             BinaryOp::And => BinaryIntOp::And,
             BinaryOp::Or => BinaryIntOp::Or,
             BinaryOp::Xor => BinaryIntOp::Xor,
-            BinaryOp::Shl => BinaryIntOp::Shl,
-            BinaryOp::Shr => BinaryIntOp::Shr,
         };
 
         BrilligBinaryOp::Integer { op: operation, bit_size }

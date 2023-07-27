@@ -733,13 +733,6 @@ impl Context {
                 bit_count,
                 self.current_side_effects_enabled_var,
             ),
-            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type),
-            BinaryOp::Shr => self.acir_context.shift_right_var(
-                lhs,
-                rhs,
-                binary_type,
-                self.current_side_effects_enabled_var,
-            ),
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),

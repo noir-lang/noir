@@ -73,8 +73,9 @@ impl DebugToString for BinaryIntOp {
             BinaryIntOp::And => "&&".into(),
             BinaryIntOp::Or => "||".into(),
             BinaryIntOp::Xor => "^".into(),
-            BinaryIntOp::Shl => "<<".into(),
-            BinaryIntOp::Shr => ">>".into(),
+            BinaryIntOp::Shl | BinaryIntOp::Shr => {
+                unreachable!("bit shift should haver been replaced")
+            }
         }
     }
 }
