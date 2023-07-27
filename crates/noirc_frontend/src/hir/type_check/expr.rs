@@ -86,7 +86,7 @@ impl<'interner> TypeChecker<'interner> {
                                 let typevar_id = self.interner.next_type_variable_id();
                                 let typevar = Shared::new(TypeBinding::Unbound(typevar_id));
                                 Type::MaybeConstant(typevar, length)
-                            },
+                            }
                             other => other,
                         };
                         Type::Array(Box::new(length), Box::new(elem_type))

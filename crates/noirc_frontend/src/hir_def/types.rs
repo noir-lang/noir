@@ -800,6 +800,10 @@ impl Type {
                 *var.borrow_mut() = TypeBinding::Bound(self.clone());
                 Ok(())
             }
+            Type::NotConstant => {
+                *var.borrow_mut() = TypeBinding::Bound(Type::NotConstant);
+                Ok(())
+            }
             Type::MaybeConstant(binding, length) if *length == target_length => {
                 let borrow = binding.borrow();
                 match &*borrow {

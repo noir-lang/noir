@@ -22,7 +22,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
-    CompTime, ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings,
+    CompTime, ContractFunctionType, FunctionKind, TypeBinding, TypeBindings,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -589,7 +589,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(length, element) => {
-                let element = Box::new(self.convert_type(element.as_ref()));
+                let element = Box::new(Self::convert_type(element.as_ref()));
 
                 if let Some(length) = length.evaluate_to_u64() {
                     ast::Type::Array(length, element)
@@ -671,8 +671,12 @@ impl<'interner> Monomorphizer<'interner> {
             }
         }
 
-        self.try_evaluate_call(&func, &call.arguments, &return_type)
-            .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
+        self.try_evaluate_call(&func, &return_type).unwrap_or(ast::Expression::Call(ast::Call {
+            func,
+            arguments,
+            return_type,
+            location,
+        }))
     }
 
     /// Adds a function argument that contains type metadata that is required to tell
@@ -711,25 +715,12 @@ impl<'interner> Monomorphizer<'interner> {
     fn try_evaluate_call(
         &mut self,
         func: &ast::Expression,
-        arguments: &[node_interner::ExprId],
         result_type: &ast::Type,
     ) -> Option<ast::Expression> {
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
                 // TODO(#1736): Move this builtin to the SSA pass
                 return match opcode.as_str() {
-                    "array_len" => {
-                        let typ = self.interner.id_type(arguments[0]);
-                        if let Type::Array(_, _) = typ {
-                            let len = typ.evaluate_to_u64().unwrap();
-                            Some(ast::Expression::Literal(ast::Literal::Integer(
-                                (len as u128).into(),
-                                ast::Type::Field,
-                            )))
-                        } else {
-                            None
-                        }
-                    }
                     "modulus_num_bits" => Some(ast::Expression::Literal(ast::Literal::Integer(
                         (FieldElement::max_num_bits() as u128).into(),
                         ast::Type::Field,
