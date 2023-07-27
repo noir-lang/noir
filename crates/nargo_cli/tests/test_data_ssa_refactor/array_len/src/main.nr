@@ -1,14 +1,14 @@
 use dep::std;
 
-fn len_plus_1<T>(array: [T]) -> Field {
+fn len_plus_1<T, N>(array: [T; N]) -> Field {
     array.len() + 1
 }
 
-fn add_lens<T>(a: [T], b: [Field]) -> Field {
+fn add_lens<T, N, M>(a: [T; N], b: [Field; M]) -> Field {
     a.len() + b.len()
 }
 
-fn nested_call(b: [Field]) -> Field {
+fn nested_call<N>(b: [Field; N]) -> Field {
     len_plus_1(b)
 }
 
