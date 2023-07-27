@@ -49,7 +49,7 @@ use crate::hir_def::{
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 
-use super::errors::ResolverError;
+use super::errors::{PubPosition, ResolverError};
 
 const SELF_TYPE_NAME: &str = "Self";
 
@@ -617,7 +617,10 @@ impl<'a> Resolver<'a> {
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
             if visibility == noirc_abi::AbiVisibility::Public && !self.pub_allowed(func) {
-                self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() });
+                self.push_err(ResolverError::UnnecessaryPub {
+                    ident: func.name_ident().clone(),
+                    position: PubPosition::Parameter,
+                });
             }
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
@@ -630,6 +633,14 @@ impl<'a> Resolver<'a> {
         let return_type = Box::new(self.resolve_type(func.return_type()));
 
         self.declare_numeric_generics(&parameter_types, &return_type);
+
+        if !self.pub_allowed(func) && func.def.return_visibility == noirc_abi::AbiVisibility::Public
+        {
+            self.push_err(ResolverError::UnnecessaryPub {
+                ident: func.name_ident().clone(),
+                position: PubPosition::ReturnType,
+            });
+        }
 
         // 'pub_allowed' also implies 'pub' is required on return types
         if self.pub_allowed(func)
@@ -679,7 +690,7 @@ impl<'a> Resolver<'a> {
     /// True if the 'pub' keyword is allowed on parameters in this function
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
         if self.in_contract() {
-            !func.def.is_unconstrained && !func.def.is_open
+            !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
         }

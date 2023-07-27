@@ -163,7 +163,7 @@ fn resolve_package_manifest(
 }
 
 fn crate_name(name: Option<CrateName>) -> String {
-    name.map(|name| name.as_string()).unwrap_or_else(|| "[unnamed]".to_string())
+    name.map(|name| name.into()).unwrap_or_else(|| "[unnamed]".to_string())
 }
 
 fn resolve_workspace_manifest(
@@ -191,8 +191,7 @@ fn resolve_workspace_manifest(
                     .package
                     .name
                     .map(|name| {
-                        CrateName::new(&name)
-                            .map_err(|_name| DependencyResolutionError::InvalidPackageName)
+                        name.parse().map_err(|_name| DependencyResolutionError::InvalidPackageName)
                     })
                     .transpose()?;
 
@@ -201,7 +200,7 @@ fn resolve_workspace_manifest(
                 }
 
                 if local_package.is_none() && workspace.default_member.as_ref() == Some(member) {
-                    local_package = name.as_ref().map(CrateName::as_string);
+                    local_package = name.map(Into::into);
                 }
             }
             Manifest::Workspace(_) => {
@@ -214,7 +213,8 @@ fn resolve_workspace_manifest(
     }
 
     let local_package = match local_package {
-        Some(local_package) => CrateName::new(&local_package)
+        Some(local_package) => local_package
+            .parse::<CrateName>()
             .map_err(|_| DependencyResolutionError::InvalidPackageName)?
             .into(),
         None => packages.keys().last().expect("non-empty packages").clone(),

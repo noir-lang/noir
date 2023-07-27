@@ -7,7 +7,7 @@ use noirc_driver::{
     propagate_dep, CompileOptions, CompiledContract,
 };
 use noirc_frontend::{
-    graph::{CrateGraph, CrateName, CrateType},
+    graph::{CrateGraph, CrateType},
     hir::Context,
 };
 use serde::{Deserialize, Serialize};
@@ -65,7 +65,7 @@ fn add_noir_lib(context: &mut Context, crate_name: &str) {
     let path_to_lib = Path::new(&crate_name).join("lib.nr");
     let library_crate = create_non_local_crate(context, &path_to_lib, CrateType::Library);
 
-    propagate_dep(context, library_crate, &CrateName::new(crate_name).unwrap());
+    propagate_dep(context, library_crate, &crate_name.parse().unwrap());
 }
 
 #[wasm_bindgen]

@@ -22,7 +22,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
-    CompTime, FunctionKind, Type, TypeBinding, TypeBindings,
+    CompTime, ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -191,7 +191,8 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = Self::convert_type(meta.return_type());
         let parameters = self.parameters(meta.parameters);
         let body = self.expr(*self.interner.function(&f).as_expr());
-        let unconstrained = meta.is_unconstrained;
+        let unconstrained = meta.is_unconstrained
+            || matches!(meta.contract_function_type, Some(ContractFunctionType::Open));
 
         let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
