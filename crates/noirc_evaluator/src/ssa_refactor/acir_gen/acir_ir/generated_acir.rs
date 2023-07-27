@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::{
     brillig::brillig_gen::brillig_directive,
-    errors::{ICEError, RuntimeError},
+    errors::{InternalError, RuntimeError},
 };
 
 use acvm::acir::{
@@ -121,7 +121,7 @@ impl GeneratedAcir {
         func_name: BlackBoxFunc,
         mut inputs: Vec<FunctionInput>,
         constants: Vec<FieldElement>,
-    ) -> Result<Vec<Witness>, ICEError> {
+    ) -> Result<Vec<Witness>, InternalError> {
         intrinsics_check_inputs(func_name, &inputs)?;
 
         let output_count = black_box_expected_output_size(func_name)?;
@@ -184,7 +184,7 @@ impl GeneratedAcir {
                 let var_message_size = match inputs.pop() {
                     Some(var_message_size) => var_message_size,
                     None => {
-                        return Err(ICEError::MissingArg {
+                        return Err(InternalError::MissingArg {
                             name: "".to_string(),
                             arg: "message_size".to_string(),
                             location: self.current_location,
@@ -195,7 +195,7 @@ impl GeneratedAcir {
             }
             // TODO(#1570): Generate ACIR for recursive aggregation
             BlackBoxFunc::RecursiveAggregation => {
-                return Err(ICEError::NotImplemented {
+                return Err(InternalError::NotImplemented {
                     name: "recursive aggregation".to_string(),
                     location: None,
                 })
@@ -259,12 +259,14 @@ impl GeneratedAcir {
         lhs: &Expression,
         leading: Witness,
         max_bit_size: u32,
-    ) -> Result<Expression, ICEError> {
+    ) -> Result<Expression, InternalError> {
         let max_power_of_two =
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
         let inter = match &(&Expression::from_field(max_power_of_two) - lhs) * &leading.into() {
             Some(inter) => inter,
-            None => return Err(ICEError::DegreeNotReduced { location: self.current_location }),
+            None => {
+                return Err(InternalError::DegreeNotReduced { location: self.current_location })
+            }
         };
         Ok(lhs.add_mul(FieldElement::from(2_i128), &inter))
     }
@@ -284,7 +286,7 @@ impl GeneratedAcir {
         &mut self,
         lhs: &Expression,
         rhs: &Expression,
-    ) -> Result<Expression, ICEError> {
+    ) -> Result<Expression, InternalError> {
         use std::borrow::Cow;
         let lhs_is_linear = lhs.is_linear();
         let rhs_is_linear = rhs.is_linear();
@@ -294,7 +296,7 @@ impl GeneratedAcir {
             match lhs * rhs {
                 Some(expr) => return Ok(expr),
                 None => {
-                    return Err(ICEError::NotAConstant {
+                    return Err(InternalError::NotAConstant {
                         name: "one of the expressions".to_string(),
                         location: self.current_location,
                     })
@@ -314,7 +316,9 @@ impl GeneratedAcir {
         if lhs == rhs {
             match &*lhs_reduced * &*lhs_reduced {
                 Some(expr) => return Ok(expr),
-                None => return Err(ICEError::DegreeNotReduced { location: self.current_location }),
+                None => {
+                    return Err(InternalError::DegreeNotReduced { location: self.current_location })
+                }
             }
         };
 
@@ -326,7 +330,7 @@ impl GeneratedAcir {
 
         match &*lhs_reduced * &*rhs_reduced {
             Some(expr) => Ok(expr),
-            None => Err(ICEError::DegreeNotReduced { location: self.current_location }),
+            None => Err(InternalError::DegreeNotReduced { location: self.current_location }),
         }
     }
 
@@ -385,7 +389,7 @@ impl GeneratedAcir {
             match &(&Expression::from(lhs_leading) * &Expression::from(rhs_leading)) {
                 Some(expr) => expr,
                 None => {
-                    return Err(RuntimeError::ICEError(ICEError::DegreeNotReduced {
+                    return Err(RuntimeError::InternalError(InternalError::DegreeNotReduced {
                         location: self.current_location,
                     }))
                 }
@@ -820,7 +824,7 @@ impl GeneratedAcir {
 
 /// This function will return the number of inputs that a blackbox function
 /// expects. Returning `None` if there is no expectation.
-fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Result<Option<usize>, ICEError> {
+fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Result<Option<usize>, InternalError> {
     match name {
         // Bitwise opcodes will take in 2 parameters
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Ok(Some(2)),
@@ -847,7 +851,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Result<Option<usize
         // TODO(#1570): Generate ACIR for recursive aggregation
         // RecursiveAggregation has variable inputs and we could return `None` here,
         // but as it is not fully implemented we return an ICE error for now
-        BlackBoxFunc::RecursiveAggregation => Err(ICEError::NotImplemented {
+        BlackBoxFunc::RecursiveAggregation => Err(InternalError::NotImplemented {
             name: "recursive aggregation".to_string(),
             location: None,
         }),
@@ -856,7 +860,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Result<Option<usize
 
 /// This function will return the number of outputs that a blackbox function
 /// expects. Returning `None` if there is no expectation.
-fn black_box_expected_output_size(name: BlackBoxFunc) -> Result<u32, ICEError> {
+fn black_box_expected_output_size(name: BlackBoxFunc) -> Result<u32, InternalError> {
     match name {
         // Bitwise opcodes will return 1 parameter which is the output
         // or the operation.
@@ -878,7 +882,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Result<u32, ICEError> {
         // will be 2 field elements representing the point.
         BlackBoxFunc::FixedBaseScalarMul => Ok(2),
         // TODO(#1570): Generate ACIR for recursive aggregation
-        BlackBoxFunc::RecursiveAggregation => Err(ICEError::NotImplemented {
+        BlackBoxFunc::RecursiveAggregation => Err(InternalError::NotImplemented {
             name: "recursive aggregation".to_string(),
             location: None,
         }),
@@ -900,7 +904,10 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Result<u32, ICEError> {
 /// #[foreign(sha256)]
 /// fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 /// ``
-fn intrinsics_check_inputs(name: BlackBoxFunc, inputs: &[FunctionInput]) -> Result<(), ICEError> {
+fn intrinsics_check_inputs(
+    name: BlackBoxFunc,
+    inputs: &[FunctionInput],
+) -> Result<(), InternalError> {
     let expected_num_inputs = match black_box_func_expected_input_size(name)? {
         Some(expected_num_inputs) => expected_num_inputs,
         None => return Ok(()),

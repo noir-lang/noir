@@ -20,7 +20,7 @@ use super::{
 };
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
-use crate::errors::{ICEError, RuntimeError};
+use crate::errors::{InternalError, RuntimeError};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
     acir::{brillig::Opcode, circuit::opcodes::BlockId, native_types::Expression},
@@ -78,11 +78,11 @@ pub(crate) enum AcirValue {
 }
 
 impl AcirValue {
-    fn into_var(self) -> Result<AcirVar, ICEError> {
+    fn into_var(self) -> Result<AcirVar, InternalError> {
         match self {
             AcirValue::Var(var, _) => Ok(var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => {
-                Err(ICEError::General { message: "".to_string(), location: None })
+                Err(InternalError::General { message: "".to_string(), location: None })
             }
         }
     }
@@ -393,7 +393,11 @@ impl Context {
         Ok(())
     }
 
-    fn gen_brillig_for(&self, func: &Function, brillig: &Brillig) -> Result<Vec<Opcode>, ICEError> {
+    fn gen_brillig_for(
+        &self,
+        func: &Function,
+        brillig: &Brillig,
+    ) -> Result<Vec<Opcode>, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             BrilligFunctionContext::parameters(func),
@@ -406,7 +410,7 @@ impl Context {
             let artifact = match artifact {
                 Some(artifact) => artifact,
                 None => {
-                    return Err(ICEError::General {
+                    return Err(InternalError::General {
                         message: format!("Cannot find linked fn {unresolved_fn_label}"),
                         location: None,
                     })
@@ -433,7 +437,7 @@ impl Context {
 
         match self.convert_value(array, dfg) {
             AcirValue::Var(acir_var, _) => {
-                return Err(RuntimeError::ICEError(ICEError::UnExpected {
+                return Err(RuntimeError::InternalError(InternalError::UnExpected {
                     expected: "an array value".to_string(),
                     found: format!("{acir_var:?}"),
                     location: self.acir_context.get_location(),
@@ -549,7 +553,7 @@ impl Context {
         index: ValueId,
         store_value: ValueId,
         dfg: &DataFlowGraph,
-    ) -> Result<(), ICEError> {
+    ) -> Result<(), InternalError> {
         // Fetch the internal SSA ID for the array
         let array = dfg.resolve(array);
         let array_ssa_id = array.to_usize() as u32;
@@ -576,7 +580,7 @@ impl Context {
                     self.initialize_array(block_id, array.len(), Some(&values))?;
                 }
                 _ => {
-                    return Err(ICEError::General {
+                    return Err(InternalError::General {
                         message: format!("Array {array} should be initialized"),
                         location: self.acir_context.get_location(),
                     })
@@ -625,7 +629,7 @@ impl Context {
         array: BlockId,
         len: usize,
         values: Option<&[AcirValue]>,
-    ) -> Result<(), ICEError> {
+    ) -> Result<(), InternalError> {
         self.acir_context.initialize_array(array, len, values)?;
         self.initialized_arrays.insert(array);
         Ok(())
@@ -659,7 +663,7 @@ impl Context {
         &mut self,
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
-    ) -> Result<(), ICEError> {
+    ) -> Result<(), InternalError> {
         let return_values = match terminator {
             TerminatorInstruction::Return { return_values } => return_values,
             _ => unreachable!("ICE: Program must have a singular return"),
@@ -719,17 +723,17 @@ impl Context {
         &mut self,
         value_id: ValueId,
         dfg: &DataFlowGraph,
-    ) -> Result<AcirVar, ICEError> {
+    ) -> Result<AcirVar, InternalError> {
         match self.convert_value(value_id, dfg) {
             AcirValue::Var(acir_var, _) => Ok(acir_var),
             AcirValue::Array(array) => {
-                return Err(ICEError::UnExpected {
+                return Err(InternalError::UnExpected {
                     expected: "a numeric value".to_string(),
                     found: format!("{array:?}"),
                     location: self.acir_context.get_location(),
                 })
             }
-            AcirValue::DynamicArray(_) => Err(ICEError::UnExpected {
+            AcirValue::DynamicArray(_) => Err(InternalError::UnExpected {
                 expected: "a numeric value".to_string(),
                 found: "an array".to_string(),
                 location: self.acir_context.get_location(),

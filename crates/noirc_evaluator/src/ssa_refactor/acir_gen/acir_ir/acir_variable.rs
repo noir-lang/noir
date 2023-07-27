@@ -1,6 +1,6 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
-use crate::errors::{ICEError, RuntimeError};
+use crate::errors::{InternalError, RuntimeError};
 use crate::ssa_refactor::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa_refactor::ir::types::Type as SsaType;
 use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
@@ -545,10 +545,10 @@ impl AcirContext {
 
     /// Converts the `AcirVar` to a `Witness` if it hasn't been already, and appends it to the
     /// `GeneratedAcir`'s return witnesses.
-    pub(crate) fn return_var(&mut self, acir_var: AcirVar) -> Result<(), ICEError> {
+    pub(crate) fn return_var(&mut self, acir_var: AcirVar) -> Result<(), InternalError> {
         let acir_var_data = match self.vars.get(&acir_var) {
             Some(acir_var_data) => acir_var_data,
-            None => return Err(ICEError::UndeclaredAcirVar { location: self.get_location() }),
+            None => return Err(InternalError::UndeclaredAcirVar { location: self.get_location() }),
         };
         // TODO: Add caching to prevent expressions from being needlessly duplicated
         let witness = match acir_var_data {
@@ -663,7 +663,7 @@ impl AcirContext {
                 let domain_var = match inputs.pop() {
                     Some(domian_var) => domian_var.into_var()?,
                     None => {
-                        return Err(RuntimeError::ICEError(ICEError::MissingArg {
+                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
                             name: "pedersen call".to_string(),
                             arg: "domain seperator".to_string(),
                             location: self.get_location(),
@@ -674,7 +674,7 @@ impl AcirContext {
                 let domain_constant = match self.vars[&domain_var].as_constant() {
                     Some(domain_constant) => domain_constant,
                     None => {
-                        return Err(RuntimeError::ICEError(ICEError::NotAConstant {
+                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                             name: "domain separator".to_string(),
                             location: self.get_location(),
                         }))
@@ -741,7 +741,7 @@ impl AcirContext {
         let radix = match self.vars[&radix_var].as_constant() {
             Some(radix) => radix.to_u128() as u32,
             None => {
-                return Err(RuntimeError::ICEError(ICEError::NotAConstant {
+                return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),
                     location: self.get_location(),
                 }));
@@ -751,7 +751,7 @@ impl AcirContext {
         let limb_count = match self.vars[&limb_count_var].as_constant() {
             Some(limb_count) => limb_count.to_u128() as u32,
             None => {
-                return Err(RuntimeError::ICEError(ICEError::NotAConstant {
+                return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "limb_size".to_string(),
                     location: self.get_location(),
                 }));
@@ -856,7 +856,7 @@ impl AcirContext {
         code: Vec<BrilligOpcode>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
-    ) -> Result<Vec<AcirValue>, ICEError> {
+    ) -> Result<Vec<AcirValue>, InternalError> {
         let b_inputs = try_vecmap(inputs, |i| match i {
             AcirValue::Var(var, _) => {
                 Ok(BrilligInputs::Single(self.vars[&var].to_expression().into_owned()))
@@ -899,7 +899,7 @@ impl AcirContext {
         &mut self,
         var_expressions: &mut Vec<Expression>,
         input: AcirValue,
-    ) -> Result<(), ICEError> {
+    ) -> Result<(), InternalError> {
         match input {
             AcirValue::Var(var, _) => {
                 var_expressions.push(self.vars[&var].to_expression().into_owned());
@@ -993,10 +993,10 @@ impl AcirContext {
         Ok(outputs_var)
     }
     /// Converts an AcirVar to a Witness
-    fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, ICEError> {
+    fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
-            None => return Err(ICEError::UndeclaredAcirVar { location: self.get_location() }),
+            None => return Err(InternalError::UndeclaredAcirVar { location: self.get_location() }),
         };
         Ok(self.acir_ir.get_or_create_witness(&var_data.to_expression()))
     }
@@ -1019,7 +1019,7 @@ impl AcirContext {
         &mut self,
         block_id: BlockId,
         index: &AcirVar,
-    ) -> Result<AcirVar, ICEError> {
+    ) -> Result<AcirVar, InternalError> {
         // Fetch the witness corresponding to the index
         let index_witness = self.var_to_witness(*index)?;
 
@@ -1040,7 +1040,7 @@ impl AcirContext {
         block_id: BlockId,
         index: &AcirVar,
         value: &AcirVar,
-    ) -> Result<(), ICEError> {
+    ) -> Result<(), InternalError> {
         // Fetch the witness corresponding to the index
         //
         let index_witness = self.var_to_witness(*index)?;
@@ -1061,7 +1061,7 @@ impl AcirContext {
         block_id: BlockId,
         len: usize,
         optional_values: Option<&[AcirValue]>,
-    ) -> Result<(), ICEError> {
+    ) -> Result<(), InternalError> {
         // If the optional values are supplied, then we fill the initialized
         // array with those values. If not, then we fill it with zeros.
         let initialized_values = match optional_values {

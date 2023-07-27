@@ -2,7 +2,7 @@
 //!
 //! [RuntimeError] that should be displayed to the user
 //!
-//! Internal Consistency Evaluators Errors [ICEError]
+//! Internal Errors [InternalError]
 //! that are used for checking internal logics of the SSA
 //!
 //! An Error of the former is a user Error
@@ -20,7 +20,7 @@ pub enum RuntimeError {
     #[error("Failed constraint")]
     FailedConstraint { lhs: FieldElement, rhs: FieldElement, location: Option<Location> },
     #[error(transparent)]
-    ICEError(#[from] ICEError),
+    InternalError(#[from] InternalError),
     #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
     IndexOutOfBounds { index: usize, array_size: usize, location: Option<Location> },
     #[error("All Witnesses are by default u{num_bits:?} Applying this type does not apply any constraints.\n We also currently do not allow integers of size more than {num_bits:?}, this will be handled by BigIntegers.")]
@@ -34,7 +34,7 @@ pub enum RuntimeError {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
-pub enum ICEError {
+pub enum InternalError {
     #[error("ICE: Both expressions should have degree<=1")]
     DegreeNotReduced { location: Option<Location> },
     #[error("ICE: {message:?}")]
@@ -56,15 +56,15 @@ pub enum ICEError {
 impl From<RuntimeError> for FileDiagnostic {
     fn from(error: RuntimeError) -> Self {
         match error {
-            RuntimeError::ICEError(ref ice_error) => match ice_error {
-                ICEError::DegreeNotReduced { location }
-                | ICEError::General { location, .. }
-                | ICEError::MissingArg { location, .. }
-                | ICEError::NotAConstant { location, .. }
-                | ICEError::NotImplemented { location, .. }
-                | ICEError::UmptyArray { location }
-                | ICEError::UndeclaredAcirVar { location }
-                | ICEError::UnExpected { location, .. } => {
+            RuntimeError::InternalError(ref ice_error) => match ice_error {
+                InternalError::DegreeNotReduced { location }
+                | InternalError::General { location, .. }
+                | InternalError::MissingArg { location, .. }
+                | InternalError::NotAConstant { location, .. }
+                | InternalError::NotImplemented { location, .. }
+                | InternalError::UmptyArray { location }
+                | InternalError::UndeclaredAcirVar { location }
+                | InternalError::UnExpected { location, .. } => {
                     let file_id = location.map(|loc| loc.file).unwrap();
                     FileDiagnostic { file_id, diagnostic: error.into() }
                 }
@@ -85,7 +85,7 @@ impl From<RuntimeError> for FileDiagnostic {
 impl From<RuntimeError> for Diagnostic {
     fn from(error: RuntimeError) -> Diagnostic {
         match error {
-            RuntimeError::ICEError(_) => Diagnostic::simple_error(
+            RuntimeError::InternalError(_) => Diagnostic::simple_error(
                 "Internal Consistency Evaluators Errors \n This is likely a bug. Consider Openning an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                 "".to_string(),
                 noirc_errors::Span::new(0..0)
