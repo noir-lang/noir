@@ -185,6 +185,29 @@ contract PendingCommitments {
         context.finish()
     }
 
+    // Nested/inner function to get a note and confirms that none is returned
+    fn get_note_zero_balance(
+        //*********************************/
+        // Should eventually be hidden:
+        inputs: PrivateContextInputs,
+        //*********************************/
+        owner: Field,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        let storage = Storage::init();
+        let mut context = Context::new(inputs, abi::hash_args([owner]));
+
+        let owner_balance = storage.balances.at(owner);
+
+        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
+        let (context_tmp, got_notes) = owner_balance.get_notes(context, options);
+        context = context_tmp;
+
+        assert(!got_notes[0].is_real);
+        assert(!got_notes[1].is_real);
+
+        context.finish()
+    }
+
     // Test pending commitments with note insertion done in a nested call
     // and "read" / get of that pending note/commitment in another nested call
     fn test_insert_then_get_then_nullify_all_in_nested_calls(
@@ -196,8 +219,9 @@ contract PendingCommitments {
         owner: Field,
         insert_fn_selector: Field,
         get_then_nullify_fn_selector: Field,
+        get_note_zero_fn_selector: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector]));
+        let mut context = Context::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector, get_note_zero_fn_selector]));
 
         // args for nested calls
         let mut args = [0; ARGS_LENGTH];
@@ -210,6 +234,9 @@ contract PendingCommitments {
         // nested call to read that note / pending commitment
         let (_callStackItem2, mut context_tmp1) = PrivateCallStackItem::call(inputs.call_context.storage_contract_address, get_then_nullify_fn_selector, args, context);
         context = context_tmp1;
+         // nested call to confirm that balance is zero
+         let (_callStackItem3, mut context_tmp2) = PrivateCallStackItem::call(inputs.call_context.storage_contract_address, get_note_zero_fn_selector, [owner], context);
+         context = context_tmp2;
 
         context.finish()
     }

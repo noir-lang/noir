@@ -67,11 +67,12 @@ export class SimulatorOracle implements DBOracle {
    */
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr) {
     const noteDaos = await this.db.getNoteSpendingInfo(contractAddress, storageSlot);
-    return noteDaos.map(({ contractAddress, storageSlot, nonce, notePreimage, index }) => ({
+    return noteDaos.map(({ contractAddress, storageSlot, nonce, notePreimage, nullifier, index }) => ({
       contractAddress,
       storageSlot,
       nonce,
       preimage: notePreimage.items,
+      nullifier,
       // RPC Client can use this index to get full MembershipWitness
       index,
     }));

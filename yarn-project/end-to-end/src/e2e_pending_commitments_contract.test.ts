@@ -65,6 +65,7 @@ describe('e2e_pending_commitments_contract', () => {
         owner,
         Fr.fromBuffer(deployedContract.methods.insert_note.selector),
         Fr.fromBuffer(deployedContract.methods.get_then_nullify_note.selector),
+        Fr.fromBuffer(deployedContract.methods.get_note_zero_balance.selector),
       )
       .send({ origin: owner });
 
@@ -77,4 +78,6 @@ describe('e2e_pending_commitments_contract', () => {
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/892): test expected kernel failures if transient reads (or their hints) don't match
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/836): test expected kernel failures if nullifiers (or their hints) don't match
   // TODO(https://github.com/AztecProtocol/aztec-packages/issues/839): test creation, getting, nullifying of multiple notes
+  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1242): test nullifying a note created in a previous transaction and
+  //                                                                    get_notes in the same transaction should not return it.
 });

@@ -11,7 +11,7 @@ import {
   toAcvmL1ToL2MessageLoadOracleInputs,
 } from '../acvm/index.js';
 import { PackedArgsCache } from '../packed_args_cache.js';
-import { DBOracle, NoteData } from './db_oracle.js';
+import { DBOracle, PendingNoteData } from './db_oracle.js';
 import { pickNotes } from './pick_notes.js';
 
 /**
@@ -34,8 +34,12 @@ export class ClientTxExecutionContext {
     public historicRoots: PrivateHistoricTreeRoots,
     /** The cache of packed arguments */
     public packedArgsCache: PackedArgsCache,
-    /** Pending commitments created (and not nullified) up to current point in execution **/
-    private pendingNotes: NoteData[] = [],
+    /** Pending notes created (and not nullified) up to current point in execution.
+     *  If a nullifier for a note in this list is emitted, the note will be REMOVED. */
+    private pendingNotes: PendingNoteData[] = [],
+    /** The list of nullifiers created in this transaction. The commitment/note which is nullified
+     *  might be pending or not (i.e., was generated in a previous transaction) */
+    private pendingNullifiers: Set<Fr> = new Set<Fr>(),
   ) {}
 
   /**
@@ -50,6 +54,7 @@ export class ClientTxExecutionContext {
       this.historicRoots,
       this.packedArgsCache,
       this.pendingNotes,
+      this.pendingNullifiers,
     );
   }
 
@@ -114,14 +119,17 @@ export class ClientTxExecutionContext {
   ): Promise<ACVMField[]> {
     const storageSlotField = fromACVMField(storageSlot);
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/920): don't 'get' notes nullified in pendingNullifiers
     const pendingNotes = this.pendingNotes.filter(
       n => n.contractAddress.equals(contractAddress) && n.storageSlot.equals(storageSlotField),
     );
 
     const dbNotes = await this.db.getNotes(contractAddress, storageSlotField);
 
-    const notes = pickNotes([...pendingNotes, ...dbNotes], {
+    // Remove notes which were already nullified during this transaction.
+    const dbNotesFiltered = dbNotes.filter(n => !this.pendingNullifiers.has(n.nullifier as Fr));
+
+    // Nullified pending notes are already removed from the list.
+    const notes = pickNotes([...dbNotesFiltered, ...pendingNotes], {
       sortBy: sortBy.map(field => +field),
       sortOrder: sortOrder.map(field => +field),
       limit,
@@ -171,15 +179,56 @@ export class ClientTxExecutionContext {
    * @param contractAddress - The contract address.
    * @param storageSlot - The storage slot.
    * @param preimage - new note preimage.
+   * @param nullifier - note nullifier
+   * @param innerNoteHash - inner note hash
    */
-  public async pushNewNote(contractAddress: AztecAddress, storageSlot: ACVMField, preimage: ACVMField[]) {
+  public async pushNewNote(contractAddress: AztecAddress, storageSlot: Fr, preimage: Fr[], innerNoteHash: Fr) {
     const wasm = await CircuitsWasm.get();
     const nonce = computeCommitmentNonce(wasm, this.txNullifier, this.pendingNotes.length);
     this.pendingNotes.push({
       contractAddress,
-      storageSlot: fromACVMField(storageSlot),
+      storageSlot: storageSlot,
       nonce,
-      preimage: preimage.map(f => fromACVMField(f)),
+      preimage,
+      innerNoteHash,
     });
+  }
+
+  /**
+   * Adding a nullifier into the current set of all pending nullifiers created
+   * within the current transaction/execution.
+   * @param nullifier - The pending nullifier to add in the list.
+   */
+  public pushPendingNullifier(nullifier: Fr) {
+    this.pendingNullifiers.add(nullifier);
+  }
+
+  /**
+   * Update the list of pending notes by chopping a note which is nullified.
+   * The identifier used to determine matching is the inner note hash value.
+   * However, we adopt a defensive approach and ensure that the contract address
+   * and storage slot do match.
+   * Note that this method might be called with an innerNoteHash referring to
+   * a note created in a previous transaction which will result in this array
+   * of pending notes left unchanged.
+   * @param innerNoteHash - The inner note hash value to which note will be chopped.
+   * @param contractAddress - The contract address
+   * @param storageSlot - The storage slot as a Field Fr element
+   */
+  public nullifyPendingNotes(innerNoteHash: Fr, contractAddress: AztecAddress, storageSlot: Fr) {
+    // IMPORTANT: We do need an in-place array mutation of this.pendingNotes as this array is shared
+    // by reference among the nested calls. That is the main reason for 'splice' usage below.
+    this.pendingNotes.splice(
+      0,
+      this.pendingNotes.length,
+      ...this.pendingNotes.filter(
+        n =>
+          !(
+            n.innerNoteHash.equals(innerNoteHash) &&
+            n.contractAddress.equals(contractAddress) &&
+            n.storageSlot.equals(storageSlot)
+          ),
+      ),
+    );
   }
 }

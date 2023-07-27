@@ -174,7 +174,7 @@ describe('Private Execution test suite', () => {
     const buildNote = (amount: bigint, owner: AztecAddress, storageSlot = Fr.random()) => {
       const nonce = new Fr(currentNoteIndex);
       const preimage = [new Fr(amount), owner.toField(), Fr.random(), new Fr(1n)];
-      return { contractAddress, storageSlot, index: currentNoteIndex++, nonce, preimage };
+      return { contractAddress, storageSlot, index: currentNoteIndex++, nonce, nullifier: new Fr(0), preimage };
     };
 
     beforeEach(async () => {
@@ -359,6 +359,7 @@ describe('Private Execution test suite', () => {
           storageSlot,
           nonce,
           preimage: [new Fr(amount), secret],
+          nullifier: new Fr(0),
           index: 1n,
         },
       ]);
@@ -624,13 +625,15 @@ describe('Private Execution test suite', () => {
       )!;
       const insertAbi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'insert_note')!;
       const getThenNullifyAbi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'get_then_nullify_note')!;
+      const getZeroAbi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'get_note_zero_balance')!;
 
       const insertFnSelector = generateFunctionSelector(insertAbi.name, insertAbi.parameters);
       const getThenNullifyFnSelector = generateFunctionSelector(getThenNullifyAbi.name, getThenNullifyAbi.parameters);
+      const getZeroFnSelector = generateFunctionSelector(getZeroAbi.name, getZeroAbi.parameters);
 
       oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(EthAddress.ZERO));
 
-      const args = [amountToTransfer, owner, insertFnSelector, getThenNullifyFnSelector];
+      const args = [amountToTransfer, owner, insertFnSelector, getThenNullifyFnSelector, getZeroFnSelector];
       const result = await runSimulator({
         args: args,
         abi: abi,
@@ -640,6 +643,7 @@ describe('Private Execution test suite', () => {
 
       const execInsert = result.nestedExecutions[0];
       const execGetThenNullify = result.nestedExecutions[1];
+      const getNotesAfterNullify = result.nestedExecutions[2];
 
       expect(execInsert.preimages.newNotes).toHaveLength(1);
       const note = execInsert.preimages.newNotes[0];
@@ -668,6 +672,10 @@ describe('Private Execution test suite', () => {
       expect(nullifier).toEqual(
         await acirSimulator.computeNullifier(contractAddress, nonce, note.storageSlot, note.preimage),
       );
+
+      // check that the last get_notes call return no note
+      const afterNullifyingNoteValue = getNotesAfterNullify.callStackItem.publicInputs.returnValues[0].value;
+      expect(afterNullifyingNoteValue).toEqual(0n);
     });
 
     it('cant read a commitment that is inserted later in same call', async () => {
