@@ -64,6 +64,7 @@ pub struct WorkspaceConfig {
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
+    #[serde(default = "panic_missing_name")]
     pub name: String,
     description: Option<String>,
     authors: Vec<String>,
@@ -75,6 +76,26 @@ pub struct PackageMetadata {
     compiler_version: Option<String>,
     backend: Option<String>,
     license: Option<String>,
+}
+
+// TODO: Remove this after a couple of breaking releases (added in 0.10.0)
+fn panic_missing_name() -> String {
+    panic!(
+        r#"
+
+Failed to parse `Nargo.toml`.
+    
+`Nargo.toml` now requires a "name" field for Noir packages.
+
+```toml
+[package]
+name = "package_name"
+```
+
+Modify your `Nargo.toml` similarly to above and rerun the command.
+
+"#
+    )
 }
 
 #[derive(Debug, Deserialize, Clone)]
