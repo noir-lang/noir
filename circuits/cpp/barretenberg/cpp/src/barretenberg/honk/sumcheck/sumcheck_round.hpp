@@ -481,9 +481,8 @@ template <typename Flavor> class SumcheckRound {
     template <typename... T>
     static constexpr void add_tuples(std::tuple<T...>& tuple_1, const std::tuple<T...>& tuple_2)
     {
-        [&]<std::size_t... I>(std::index_sequence<I...>) {
-            ((std::get<I>(tuple_1) += std::get<I>(tuple_2)), ...);
-        }(std::make_index_sequence<sizeof...(T)>{});
+        [&]<std::size_t... I>(std::index_sequence<I...>) { ((std::get<I>(tuple_1) += std::get<I>(tuple_2)), ...); }
+        (std::make_index_sequence<sizeof...(T)>{});
     }
 
     /**

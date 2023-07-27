@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include <array>
 #include <barretenberg/common/slab_allocator.hpp>
 #include <cstddef>
@@ -172,5 +173,11 @@ template <typename _FF> class Ultra : public Arithmetization</*NUM_WIRES =*/4, /
         // Selectors& operator=(Selectors&& other) = default;
         // ~Selectors() = default;
     };
+};
+class GoblinTranslator : public Arithmetization</*NUM_WIRES =*/78, /*num_selectors =*/0> {
+  public:
+    // Dirty hack
+    using Selectors = bool;
+    using FF = curve::BN254::ScalarField;
 };
 } // namespace arithmetization

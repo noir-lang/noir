@@ -44,8 +44,7 @@
 __extension__ using uint128_t = unsigned __int128;
 #endif
 
-template <typename T>
-concept IntegralOrEnum = std::integral<T> || std::is_enum_v<T>;
+template <typename T> concept IntegralOrEnum = std::integral<T> || std::is_enum_v<T>;
 
 namespace serialize {
 // Forward declare derived msgpack methods

@@ -61,8 +61,11 @@ template <typename Arithmetization> class CircuitBuilderBase {
         prev_var_index.reserve(size_hint * 3);
         real_variable_index.reserve(size_hint * 3);
         real_variable_tags.reserve(size_hint * 3);
-        for (auto& p : selectors) {
-            p.reserve(size_hint);
+        // We set selectors type to bool, when we don't actually use them
+        if constexpr (!std::is_same<typename Arithmetization::Selectors, bool>::value) {
+            for (auto& p : selectors) {
+                p.reserve(size_hint);
+            }
         }
     }
 
