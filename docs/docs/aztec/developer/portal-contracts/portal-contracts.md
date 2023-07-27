@@ -1,5 +1,5 @@
 # Portal Contracts
 
-## What is a portal contract?
+<!-- Please focus on HOW to write, test, deploy, and interact with portal contracts, and how to test them in the context of an Aztec dapp. -->
 
-## How to write a portal contract
+Please use the [TUTORIAL-TEMPLATE](../../TUTORIAL-TEMPLATE.md) for standalone guides / tutorials.

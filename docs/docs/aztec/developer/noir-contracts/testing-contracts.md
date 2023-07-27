@@ -1,5 +1,7 @@
 # Testing contracts
 
+Please use the [TUTORIAL-TEMPLATE](../../TUTORIAL-TEMPLATE.md) for standalone guides / tutorials.
+
 ## Testing in Noir
 
 Individual functions can be tested much like [how 'regular Noir' functions can be tested](https://noir-lang.org/nargo/testing).

@@ -1,5 +1,7 @@
 # Getting started
 
+Please consider using the [TUTORIAL-TEMPLATE](../../TUTORIAL-TEMPLATE.md) for standalone guides / tutorials.
+
 ## Installing Noir
 
 To write a Noir Contract, you need to write Noir, and to write Noir, you need to [install Nargo](https://noir-lang.org/getting_started/nargo_installation).

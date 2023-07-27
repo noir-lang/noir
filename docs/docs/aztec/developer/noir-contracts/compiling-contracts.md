@@ -1,5 +1,6 @@
 # Compiling contracts
 
+Please use the [TUTORIAL-TEMPLATE](../../TUTORIAL-TEMPLATE.md) for standalone guides / tutorials.
 ## Compiling a Noir Contract
 
 You can use the `master` branch of Noir/nargo (hooray).
