@@ -1,4 +1,4 @@
-import { AztecAddress, EthAddress, Fr, PartialContractAddress, PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr, PartialContractAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import {
   ContractData,
@@ -51,7 +51,7 @@ export type NodeInfo = {
  */
 export interface AztecRPC {
   addAccount(
-    privKey: Buffer,
+    privKey: PrivateKey,
     address: AztecAddress,
     partialContractAddress: PartialContractAddress,
   ): Promise<AztecAddress>;

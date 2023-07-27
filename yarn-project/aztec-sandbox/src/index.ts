@@ -1,5 +1,6 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { createAztecRPCServer, getHttpRpcServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
+import { PrivateKey } from '@aztec/circuits.js';
 import { deployL1Contracts } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
@@ -61,7 +62,7 @@ async function main() {
   const privKey = hdAccount.getHdKey().privateKey;
 
   const deployedL1Contracts = await waitThenDeploy(aztecNodeConfig.rpcUrl, hdAccount);
-  aztecNodeConfig.publisherPrivateKey = Buffer.from(privKey!);
+  aztecNodeConfig.publisherPrivateKey = new PrivateKey(Buffer.from(privKey!));
   aztecNodeConfig.rollupContract = deployedL1Contracts.rollupAddress;
   aztecNodeConfig.contractDeploymentEmitterContract = deployedL1Contracts.contractDeploymentEmitterAddress;
   aztecNodeConfig.inboxContract = deployedL1Contracts.inboxAddress;

@@ -1,13 +1,11 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, BaseWallet, Wallet, generatePublicKey } from '@aztec/aztec.js';
-import { CircuitsWasm, Fr, TxContext } from '@aztec/circuits.js';
+import { CircuitsWasm, Fr, PrivateKey, TxContext } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { PokeableTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, ExecutionRequest, PackedArguments, TxExecutionRequest, TxStatus } from '@aztec/types';
-
-import { randomBytes } from 'crypto';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './utils.js';
 
@@ -56,7 +54,7 @@ describe('e2e_non_contract_account', () => {
     sender = accounts[0];
     recipient = accounts[1];
 
-    const pokerPrivKey = randomBytes(32);
+    const pokerPrivKey = PrivateKey.random();
     const pokerPubKey = await generatePublicKey(pokerPrivKey);
     poker = AztecAddress.fromBuffer(pokerPubKey.x.toBuffer());
     pokerWallet = new SignerlessWallet(aztecRpcServer);

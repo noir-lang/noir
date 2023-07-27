@@ -1,7 +1,6 @@
-import { Fr, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { Fr, PrivateKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
@@ -15,7 +14,7 @@ import { AccountCollection, ContractDeployer, SingleKeyAccountContract, generate
 export async function createAccounts(
   aztecRpcClient: AztecRPC,
   accountContractAbi: ContractAbi,
-  privateKey?: Buffer,
+  privateKey?: PrivateKey,
   salt = Fr.random(),
   numberOfAccounts = 1,
   logger = createDebugLogger('aztec:aztec.js:accounts'),
@@ -24,7 +23,7 @@ export async function createAccounts(
 
   for (let i = 0; i < numberOfAccounts; ++i) {
     // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key
-    const privKey = i == 0 && privateKey ? privateKey : randomBytes(32);
+    const privKey = i == 0 && privateKey ? privateKey : PrivateKey.random();
     const publicKey = await generatePublicKey(privKey);
     const deploymentInfo = await getContractDeploymentInfo(accountContractAbi, [], salt, publicKey);
     await aztecRpcClient.addAccount(privKey, deploymentInfo.address, deploymentInfo.partialAddress);
@@ -59,7 +58,7 @@ export async function createAccounts(
 export async function getAccountWallet(
   aztecRpcClient: AztecRPC,
   accountContractAbi: ContractAbi,
-  privateKey: Buffer,
+  privateKey: PrivateKey,
   salt: Fr,
 ) {
   const accountCollection = new AccountCollection();

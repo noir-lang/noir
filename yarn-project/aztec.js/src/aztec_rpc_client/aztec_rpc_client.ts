@@ -1,4 +1,4 @@
-import { AztecAddress, EthAddress, Fr, Point } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr, Point, PrivateKey } from '@aztec/circuits.js';
 import { createJsonRpcClient, defaultFetch } from '@aztec/foundation/json-rpc';
 import {
   AztecRPC,
@@ -22,6 +22,7 @@ export const createAztecRpcClient = (url: string, fetch = defaultFetch): AztecRP
       TxHash,
       EthAddress,
       Point,
+      PrivateKey,
       Fr,
     },
     { Tx, ContractDeploymentTx, TxReceipt },

@@ -1,4 +1,11 @@
-import { AztecAddress, CircuitsWasm, FunctionData, PartialContractAddress, TxContext } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  CircuitsWasm,
+  FunctionData,
+  PartialContractAddress,
+  PrivateKey,
+  TxContext,
+} from '@aztec/circuits.js';
 import { Signer } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
 import { ExecutionRequest, PackedArguments, TxExecutionRequest } from '@aztec/types';
@@ -19,7 +26,7 @@ export class SingleKeyAccountContract implements AccountImplementation {
   constructor(
     private address: AztecAddress,
     private partialContractAddress: PartialContractAddress,
-    private privateKey: Buffer,
+    private privateKey: PrivateKey,
     private signer: Signer,
   ) {}
 

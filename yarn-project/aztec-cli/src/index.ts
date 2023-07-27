@@ -10,11 +10,10 @@ import {
   getAccountWallet,
 } from '@aztec/aztec.js';
 import { StructType } from '@aztec/foundation/abi';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { createConsoleLogger, createDebugLogger } from '@aztec/foundation/log';
 import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
-import { ContractData, L2BlockL2Logs, TxHash } from '@aztec/types';
+import { ContractData, L2BlockL2Logs, PrivateKey, TxHash } from '@aztec/types';
 
 import { Command } from 'commander';
 import { mnemonicToAccount } from 'viem/accounts';
@@ -74,7 +73,7 @@ async function main() {
         const acc = mnemonicToAccount(options.mnemonic);
         privKey = Buffer.from(acc.getHdKey().privateKey!).toString('hex');
       } else {
-        privKey = randomBytes(32).toString('hex');
+        privKey = PrivateKey.random().toString();
       }
       log(`\n${privKey}\n`);
     });
@@ -280,7 +279,7 @@ async function main() {
       const wallet = await getAccountWallet(
         client,
         SchnorrSingleKeyAccountContractAbi,
-        Buffer.from(options.privateKey, 'hex'),
+        PrivateKey.fromString(options.privateKey),
         accountCreationSalt,
       );
       const contract = new Contract(contractAddress, contractAbi, wallet);

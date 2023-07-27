@@ -774,7 +774,7 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_public_to_private_messaging.test.ts
 
-  e2e-account-contract:
+  e2e-account-contracts:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -1138,7 +1138,7 @@ workflows:
       - e2e-cross-chain-messaging: *e2e_test
       - e2e-public-cross-chain-messaging: *e2e_test
       - e2e-public-to-private-messaging: *e2e_test
-      - e2e-account-contract: *e2e_test
+      - e2e-account-contracts: *e2e_test
       - e2e-pending-commitments-contract: *e2e_test
       - uniswap-trade-on-l1-from-l2: *e2e_test
       - integration-l1-publisher: *e2e_test
@@ -1160,7 +1160,7 @@ workflows:
             - e2e-cross-chain-messaging
             - e2e-public-cross-chain-messaging
             - e2e-public-to-private-messaging
-            - e2e-account-contract
+            - e2e-account-contracts
             - e2e-pending-commitments-contract
             - uniswap-trade-on-l1-from-l2
             - integration-l1-publisher

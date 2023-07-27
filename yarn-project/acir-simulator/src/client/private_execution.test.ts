@@ -8,6 +8,7 @@ import {
   MAX_NEW_COMMITMENTS_PER_CALL,
   PRIVATE_DATA_TREE_HEIGHT,
   PrivateHistoricTreeRoots,
+  PrivateKey,
   PublicCallRequest,
   TxContext,
 } from '@aztec/circuits.js';
@@ -63,7 +64,7 @@ describe('Private Execution test suite', () => {
   let logger: DebugLogger;
 
   const defaultContractAddress = AztecAddress.random();
-  const ownerPk = Buffer.from('5e30a2f886b4b6a11aea03bf4910fbd5b24e61aa27ea4d05c393b3ab592a8d33', 'hex');
+  const ownerPk = PrivateKey.fromString('5e30a2f886b4b6a11aea03bf4910fbd5b24e61aa27ea4d05c393b3ab592a8d33');
 
   const treeHeights: { [name: string]: number } = {
     privateData: PRIVATE_DATA_TREE_HEIGHT,
@@ -165,7 +166,7 @@ describe('Private Execution test suite', () => {
 
   describe('zk token contract', () => {
     const contractAddress = defaultContractAddress;
-    const recipientPk = Buffer.from('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec', 'hex');
+    const recipientPk = PrivateKey.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
     let owner: AztecAddress;
     let recipient: AztecAddress;
     let currentNoteIndex = 0n;
@@ -219,7 +220,9 @@ describe('Private Execution test suite', () => {
       );
       const uniqueNoteHash = computeUniqueCommitment(circuitsWasm, note.nonce, innerNoteHash);
       const siloedNoteHash = siloCommitment(circuitsWasm, contractAddress, uniqueNoteHash);
-      const nullifier = Fr.fromBuffer(pedersenPlookupCommitInputs(circuitsWasm, [siloedNoteHash.toBuffer(), ownerPk]));
+      const nullifier = Fr.fromBuffer(
+        pedersenPlookupCommitInputs(circuitsWasm, [siloedNoteHash.toBuffer(), ownerPk.value]),
+      );
 
       const result = await acirSimulator.computeNoteHashAndNullifier(
         contractAddress,
@@ -414,7 +417,7 @@ describe('Private Execution test suite', () => {
 
   describe('consuming Messages', () => {
     const contractAddress = defaultContractAddress;
-    const recipientPk = Buffer.from('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec', 'hex');
+    const recipientPk = PrivateKey.fromString('0c9ed344548e8f9ba8aa3c9f8651eaa2853130f6c1e9c050ccf198f7ea18a7ec');
 
     let recipient: AztecAddress;
 

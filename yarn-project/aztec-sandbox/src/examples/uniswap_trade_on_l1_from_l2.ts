@@ -8,6 +8,7 @@ import {
   createAztecRpcClient,
   getL1ContractAddresses,
 } from '@aztec/aztec.js';
+import { PrivateKey } from '@aztec/circuits.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
@@ -36,7 +37,7 @@ const aztecRpcUrl = 'http://localhost:8080';
 const ethRpcUrl = 'http://localhost:8545';
 
 const hdAccount = mnemonicToAccount(MNEMONIC);
-const privateKey = Buffer.from(hdAccount.getHdKey().privateKey!);
+const privateKey = new PrivateKey(Buffer.from(hdAccount.getHdKey().privateKey!));
 
 const walletClient = createWalletClient({
   account: hdAccount,

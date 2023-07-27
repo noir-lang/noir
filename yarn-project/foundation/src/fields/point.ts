@@ -8,6 +8,7 @@ import { Fr } from './fields.js';
  */
 export class Point {
   static ZERO = new Point(Fr.ZERO, Fr.ZERO);
+  static SIZE_IN_BYTES = Fr.SIZE_IN_BYTES * 2;
 
   /** Used to differentiate this class from AztecAddress */
   public readonly kind = 'point';

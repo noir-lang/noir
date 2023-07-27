@@ -1,6 +1,4 @@
-import { randomBytes } from '@aztec/foundation/crypto';
-
-import { CircuitsWasm } from '../../../index.js';
+import { CircuitsWasm, PrivateKey } from '../../../index.js';
 import { Ecdsa } from '../ecdsa/index.js';
 import { Secp256k1 } from './index.js';
 
@@ -15,7 +13,7 @@ describe('secp256k1', () => {
   });
 
   it('should correctly compute public key', () => {
-    const privateKey = randomBytes(32);
+    const privateKey = PrivateKey.random();
     const lhs = secp256k1.mul(Secp256k1.generator, privateKey);
     const rhs = ecdsa.computePublicKey(privateKey);
     expect(lhs).toEqual(rhs);

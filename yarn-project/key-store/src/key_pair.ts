@@ -1,6 +1,5 @@
+import { PrivateKey } from '@aztec/circuits.js';
 import { Curve } from '@aztec/circuits.js/barretenberg';
-import { randomBytes } from '@aztec/foundation/crypto';
-import { Point } from '@aztec/foundation/fields';
 import { KeyPair, PublicKey } from '@aztec/types';
 
 /**
@@ -17,8 +16,8 @@ export class ConstantKeyPair implements KeyPair {
    * @returns A randomly generated ConstantKeyPair instance.
    */
   public static random(curve: Curve) {
-    const privateKey = randomBytes(32);
-    const publicKey = Point.fromBuffer(curve.mul(curve.generator(), privateKey));
+    const privateKey = PrivateKey.random();
+    const publicKey = curve.mul(curve.generator(), privateKey);
     return new ConstantKeyPair(publicKey, privateKey);
   }
 
@@ -29,12 +28,12 @@ export class ConstantKeyPair implements KeyPair {
    * @param privateKey - The private key.
    * @returns A new instance.
    */
-  public static fromPrivateKey(curve: Curve, privateKey: Buffer) {
-    const publicKey = Point.fromBuffer(curve.mul(curve.generator(), privateKey));
+  public static fromPrivateKey(curve: Curve, privateKey: PrivateKey) {
+    const publicKey = curve.mul(curve.generator(), privateKey);
     return new ConstantKeyPair(publicKey, privateKey);
   }
 
-  constructor(private publicKey: PublicKey, private privateKey: Buffer) {}
+  constructor(private publicKey: PublicKey, private privateKey: PrivateKey) {}
 
   /**
    * Retrieve the public key from the KeyPair instance.
@@ -42,7 +41,7 @@ export class ConstantKeyPair implements KeyPair {
    *
    * @returns The public key as an elliptic curve point.
    */
-  public getPublicKey() {
+  public getPublicKey(): PublicKey {
     return this.publicKey;
   }
 

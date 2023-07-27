@@ -1,10 +1,9 @@
-import { AztecAddress, CircuitsWasm, Fr } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, Fr, PrivateKey } from '@aztec/circuits.js';
 import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { ConstantKeyPair, TestKeyStore } from '@aztec/key-store';
 import { AztecNode } from '@aztec/types';
 
-import { randomBytes } from 'crypto';
 import { MockProxy, mock } from 'jest-mock-extended';
 
 import { MemoryDB } from '../database/memory_db.js';
@@ -41,7 +40,7 @@ describe('AztecRpcServer', function () {
 
   // TODO(#1007)
   it.skip('refuses to add an account with incorrect address for given partial address and pubkey', async () => {
-    const privateKey = randomBytes(32);
+    const privateKey = PrivateKey.random();
     const partialAddress = Fr.random();
     const address = AztecAddress.random();
 

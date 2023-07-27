@@ -1,3 +1,4 @@
+import { PrivateKey } from '@aztec/circuits.js';
 import { L1Addresses } from '@aztec/types';
 
 /**
@@ -7,7 +8,7 @@ export interface TxSenderConfig extends L1Addresses {
   /**
    * The private key to be used by the publisher.
    */
-  publisherPrivateKey: Buffer;
+  publisherPrivateKey: PrivateKey;
 
   /**
    * The RPC Url of the ethereum host.

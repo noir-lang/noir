@@ -1,6 +1,6 @@
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AccountWallet, Fr, SingleKeyAccountContract, StoredKeyAccountContract } from '@aztec/aztec.js';
-import { AztecAddress, PartialContractAddress, Point } from '@aztec/circuits.js';
+import { AztecAddress, PartialContractAddress, Point, PrivateKey, PublicKey } from '@aztec/circuits.js';
 import { Ecdsa, Schnorr } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigInt } from '@aztec/foundation/serialize';
@@ -10,8 +10,6 @@ import {
   SchnorrSingleKeyAccountContractAbi,
 } from '@aztec/noir-contracts/artifacts';
 import { ChildContract } from '@aztec/noir-contracts/types';
-
-import { randomBytes } from 'crypto';
 
 import { CreateAccountImplFn, createNewAccount, deployContract, setup } from './utils.js';
 
@@ -26,11 +24,11 @@ function itShouldBehaveLikeAnAccountContract(
     let address: AztecAddress;
     let partialAddress: PartialContractAddress;
     let wallet: AccountWallet;
-    let encryptionPrivateKey: Buffer;
+    let encryptionPrivateKey: PrivateKey;
 
     beforeEach(async () => {
       context = await setup();
-      encryptionPrivateKey = randomBytes(32);
+      encryptionPrivateKey = PrivateKey.random();
       const { aztecRpcServer } = context;
       ({ wallet, address, partialAddress } = await createNewAccount(
         aztecRpcServer,
@@ -86,44 +84,53 @@ describe('e2e_account_contracts', () => {
       address: AztecAddress,
       useProperKey: boolean,
       partial: PartialContractAddress,
-      privateKey: Buffer,
+      privateKey: PrivateKey,
     ) =>
-      new SingleKeyAccountContract(address, partial, useProperKey ? privateKey : randomBytes(32), await Schnorr.new());
+      new SingleKeyAccountContract(
+        address,
+        partial,
+        useProperKey ? privateKey : PrivateKey.random(),
+        await Schnorr.new(),
+      );
 
     itShouldBehaveLikeAnAccountContract(SchnorrSingleKeyAccountContractAbi, () => [], createWallet);
   });
 
   describe('schnorr multi-key account', () => {
-    let signingPrivateKey: Buffer;
-    let signingPublicKey: Buffer;
+    let signingPrivateKey: PrivateKey;
+    let signingPublicKey: PublicKey;
     let createArgs: any[];
 
     const createWallet = async (address: AztecAddress, useProperKey: boolean) =>
-      new StoredKeyAccountContract(address, useProperKey ? signingPrivateKey : randomBytes(32), await Schnorr.new());
+      new StoredKeyAccountContract(
+        address,
+        useProperKey ? signingPrivateKey : PrivateKey.random(),
+        await Schnorr.new(),
+      );
 
     beforeAll(async () => {
-      signingPrivateKey = randomBytes(32);
+      signingPrivateKey = PrivateKey.random();
       const schnorr = await Schnorr.new();
       signingPublicKey = schnorr.computePublicKey(signingPrivateKey);
-      createArgs = [Fr.fromBuffer(signingPublicKey.subarray(0, 32)), Fr.fromBuffer(signingPublicKey.subarray(32, 64))];
+      createArgs = [signingPublicKey.x, signingPublicKey.y];
     });
 
     itShouldBehaveLikeAnAccountContract(SchnorrMultiKeyAccountContractAbi, () => createArgs, createWallet);
   });
 
   describe('ecdsa stored-key account', () => {
-    let ecdsaPrivateKey: Buffer;
-    let ecdsaPublicKey: Buffer;
+    let ecdsaPrivateKey: PrivateKey;
+    let ecdsaPublicKey: PublicKey;
     let ecdsaCreateArgs: any[];
 
     const createWallet = async (address: AztecAddress, useProperKey: boolean) =>
-      new StoredKeyAccountContract(address, useProperKey ? ecdsaPrivateKey : randomBytes(32), await Ecdsa.new());
+      new StoredKeyAccountContract(address, useProperKey ? ecdsaPrivateKey : PrivateKey.random(), await Ecdsa.new());
 
     beforeAll(async () => {
-      ecdsaPrivateKey = randomBytes(32);
+      ecdsaPrivateKey = PrivateKey.random();
       const ecdsa = await Ecdsa.new();
       ecdsaPublicKey = ecdsa.computePublicKey(ecdsaPrivateKey);
-      ecdsaCreateArgs = [ecdsaPublicKey.subarray(0, 32), ecdsaPublicKey.subarray(32, 64)];
+      ecdsaCreateArgs = [ecdsaPublicKey.x.toBuffer(), ecdsaPublicKey.y.toBuffer()];
     });
 
     itShouldBehaveLikeAnAccountContract(EcdsaAccountContractAbi, () => ecdsaCreateArgs, createWallet);

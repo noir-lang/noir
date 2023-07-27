@@ -1,4 +1,4 @@
-import { PublicKey } from '@aztec/circuits.js';
+import { PrivateKey, PublicKey } from '@aztec/circuits.js';
 
 /**
  * Represents a cryptographic public-private key pair.
@@ -6,5 +6,5 @@ import { PublicKey } from '@aztec/circuits.js';
  */
 export interface KeyPair {
   getPublicKey(): PublicKey;
-  getPrivateKey(): Promise<Buffer>;
+  getPrivateKey(): Promise<PrivateKey>;
 }

@@ -1,6 +1,4 @@
-import { PublicKey } from '@aztec/circuits.js';
-
-export { PublicKey } from '@aztec/circuits.js';
+import { PrivateKey, PublicKey } from '@aztec/circuits.js';
 
 /**
  * Represents a secure storage for managing keys.
@@ -8,7 +6,7 @@ export { PublicKey } from '@aztec/circuits.js';
  */
 export interface KeyStore {
   createAccount(): Promise<PublicKey>;
-  addAccount(privKey: Buffer): PublicKey;
+  addAccount(privKey: PrivateKey): PublicKey;
   getAccounts(): Promise<PublicKey[]>;
-  getAccountPrivateKey(pubKey: PublicKey): Promise<Buffer>;
+  getAccountPrivateKey(pubKey: PublicKey): Promise<PrivateKey>;
 }

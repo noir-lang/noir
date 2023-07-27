@@ -1,10 +1,10 @@
-import { CircuitsWasm, FunctionData, PrivateHistoricTreeRoots } from '@aztec/circuits.js';
+import { CircuitsWasm, FunctionData, PrivateHistoricTreeRoots, PrivateKey } from '@aztec/circuits.js';
 import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
-import { Fr, Point } from '@aztec/foundation/fields';
+import { Fr } from '@aztec/foundation/fields';
 import { ZkTokenContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ExecutionRequest } from '@aztec/types';
 
@@ -28,7 +28,7 @@ describe('Unconstrained Execution test suite', () => {
   });
 
   describe('zk token contract', () => {
-    const ownerPk: Buffer = Buffer.from('5e30a2f886b4b6a11aea03bf4910fbd5b24e61aa27ea4d05c393b3ab592a8d33', 'hex');
+    const ownerPk = PrivateKey.fromString('5e30a2f886b4b6a11aea03bf4910fbd5b24e61aa27ea4d05c393b3ab592a8d33');
 
     let owner: AztecAddress;
 
@@ -36,9 +36,9 @@ describe('Unconstrained Execution test suite', () => {
       return [new Fr(amount), owner, Fr.random(), new Fr(1n)];
     };
 
-    const calculateAddress = (privateKey: Buffer) => {
+    const calculateAddress = (privateKey: PrivateKey) => {
       const grumpkin = new Grumpkin(bbWasm);
-      const pubKey = Point.fromBuffer(grumpkin.mul(Grumpkin.generator, privateKey));
+      const pubKey = grumpkin.mul(Grumpkin.generator, privateKey);
       const partialAddress = Fr.random();
       const address = computeContractAddressFromPartial(bbWasm, pubKey, partialAddress);
       return [address, partialAddress, pubKey] as const;

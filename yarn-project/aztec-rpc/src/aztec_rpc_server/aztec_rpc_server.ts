@@ -8,6 +8,7 @@ import {
   FunctionData,
   PartialContractAddress,
   PrivateHistoricTreeRoots,
+  PrivateKey,
   PublicKey,
 } from '@aztec/circuits.js';
 import { FunctionType, encodeArguments } from '@aztec/foundation/abi';
@@ -93,7 +94,7 @@ export class AztecRPCServer implements AztecRPC {
    * @param partialContractAddress - The partially computed address of the account contract.
    * @returns The address of the account contract.
    */
-  public async addAccount(privKey: Buffer, address: AztecAddress, partialContractAddress: PartialContractAddress) {
+  public async addAccount(privKey: PrivateKey, address: AztecAddress, partialContractAddress: PartialContractAddress) {
     const pubKey = this.keyStore.addAccount(privKey);
     // TODO(#1007): ECDSA contract breaks this check, since the ecdsa public key does not match the one derived from the keystore.
     // Once we decouple the ecdsa contract signing and encryption keys, we can re-enable this check.

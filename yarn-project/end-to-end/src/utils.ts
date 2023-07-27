@@ -20,6 +20,7 @@ import {
   CircuitsWasm,
   DeploymentInfo,
   PartialContractAddress,
+  PrivateKey,
   PublicKey,
   getContractDeploymentInfo,
 } from '@aztec/circuits.js';
@@ -27,7 +28,6 @@ import { Schnorr, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barrete
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { Fr } from '@aztec/foundation/fields';
 import { mustSucceedFetch } from '@aztec/foundation/json-rpc';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
@@ -149,7 +149,7 @@ type TxContext = {
   /**
    * The user's private key.
    */
-  privateKey: Buffer;
+  privateKey: PrivateKey;
   /**
    * The fully derived deployment data.
    */
@@ -168,7 +168,7 @@ type TxContext = {
 export async function setupAztecRPCServer(
   numberOfAccounts: number,
   aztecNode: AztecNodeService | undefined,
-  firstPrivKey: Uint8Array | null = null,
+  firstPrivKey: PrivateKey | null = null,
   logger = getLogger(),
   useLogSuffix = false,
 ): Promise<{
@@ -202,7 +202,7 @@ export async function setupAztecRPCServer(
     // We use the well-known private key and the validating account contract for the first account,
     // and generate random key pairs for the rest.
     // TODO(#662): Let the aztec rpc server generate the key pair rather than hardcoding the private key
-    const privateKey = i === 0 && firstPrivKey !== null ? Buffer.from(firstPrivKey!) : randomBytes(32);
+    const privateKey = i === 0 && firstPrivKey !== null ? firstPrivKey! : PrivateKey.random();
     const publicKey = await generatePublicKey(privateKey);
     const salt = Fr.random();
     const deploymentData = await getContractDeploymentInfo(SchnorrSingleKeyAccountContractAbi, [], salt, publicKey);
@@ -306,9 +306,10 @@ export async function setup(numberOfAccounts = 1): Promise<{
   const hdAccount = mnemonicToAccount(MNEMONIC);
 
   const deployL1ContractsValues = await setupL1Contracts(config.rpcUrl, hdAccount, logger);
-  const privKey = hdAccount.getHdKey().privateKey;
+  const privKeyRaw = hdAccount.getHdKey().privateKey;
+  const privKey = privKeyRaw === null ? null : new PrivateKey(Buffer.from(privKeyRaw));
 
-  config.publisherPrivateKey = Buffer.from(privKey!);
+  config.publisherPrivateKey = privKey!;
   config.rollupContract = deployL1ContractsValues.rollupAddress;
   config.contractDeploymentEmitterContract = deployL1ContractsValues.contractDeploymentEmitterAddress;
   config.inboxContract = deployL1ContractsValues.inboxAddress;
@@ -366,7 +367,7 @@ export type CreateAccountImplFn = (
   address: AztecAddress,
   useProperKey: boolean,
   partialAddress: PartialContractAddress,
-  encryptionPrivateKey: Buffer,
+  encryptionPrivateKey: PrivateKey,
 ) => Promise<AccountImplementation>;
 
 /**
@@ -383,7 +384,7 @@ export async function createNewAccount(
   aztecRpcServer: AztecRPC,
   abi: ContractAbi,
   args: any[],
-  encryptionPrivateKey: Buffer,
+  encryptionPrivateKey: PrivateKey,
   useProperKey: boolean,
   createAccountImpl: CreateAccountImplFn,
 ) {

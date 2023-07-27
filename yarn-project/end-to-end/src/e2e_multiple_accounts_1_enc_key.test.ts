@@ -1,13 +1,12 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecRPCServer, Fr } from '@aztec/aztec-rpc';
+import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, StoredKeyAccountContract, Wallet, generatePublicKey } from '@aztec/aztec.js';
+import { PrivateKey } from '@aztec/circuits.js';
 import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { SchnorrMultiKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ZkTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
-
-import { randomBytes } from 'crypto';
 
 import {
   createNewAccount,
@@ -31,19 +30,20 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, logger } = await setup(0));
 
-    const encryptionPrivateKey = randomBytes(32);
+    const encryptionPrivateKey = PrivateKey.random();
     for (let i = 0; i < numAccounts; i++) {
       logger(`Deploying account contract ${i}/3...`);
-      const signingPrivateKey = randomBytes(32);
+      const signingPrivateKey = PrivateKey.random();
       const createWallet = async (address: AztecAddress, useProperKey: boolean) =>
-        new StoredKeyAccountContract(address, useProperKey ? signingPrivateKey : randomBytes(32), await Schnorr.new());
+        new StoredKeyAccountContract(
+          address,
+          useProperKey ? signingPrivateKey : PrivateKey.random(),
+          await Schnorr.new(),
+        );
 
       const schnorr = await Schnorr.new();
       const signingPublicKey = schnorr.computePublicKey(signingPrivateKey);
-      const constructorArgs = [
-        Fr.fromBuffer(signingPublicKey.subarray(0, 32)),
-        Fr.fromBuffer(signingPublicKey.subarray(32, 64)),
-      ];
+      const constructorArgs = [signingPublicKey.x, signingPublicKey.y];
 
       const { wallet, address } = await createNewAccount(
         aztecRpcServer,

@@ -1,7 +1,7 @@
 import { numToUInt32BE } from '@aztec/foundation/serialize';
 import { IWasmModule } from '@aztec/foundation/wasm';
 
-import { CircuitsWasm } from '../../../index.js';
+import { CircuitsWasm, Point, PrivateKey, PublicKey } from '../../../index.js';
 import { Signer } from '../index.js';
 import { SchnorrSignature } from './signature.js';
 
@@ -26,10 +26,10 @@ export class Schnorr implements Signer {
    * @param privateKey - The private key.
    * @returns A grumpkin public key.
    */
-  public computePublicKey(privateKey: Uint8Array) {
-    this.wasm.writeMemory(0, privateKey);
+  public computePublicKey(privateKey: PrivateKey): PublicKey {
+    this.wasm.writeMemory(0, privateKey.value);
     this.wasm.call('schnorr_compute_public_key', 0, 32);
-    return Buffer.from(this.wasm.getMemorySlice(32, 96));
+    return Point.fromBuffer(Buffer.from(this.wasm.getMemorySlice(32, 96)));
   }
 
   /**
@@ -38,9 +38,9 @@ export class Schnorr implements Signer {
    * @param privateKey - The private key of the signer.
    * @returns A Schnorr signature of the form (s, e).
    */
-  public constructSignature(msg: Uint8Array, privateKey: Uint8Array) {
+  public constructSignature(msg: Uint8Array, privateKey: PrivateKey) {
     const mem = this.wasm.call('bbmalloc', msg.length + 4);
-    this.wasm.writeMemory(0, privateKey);
+    this.wasm.writeMemory(0, privateKey.value);
     this.wasm.writeMemory(mem, Buffer.concat([numToUInt32BE(msg.length), msg]));
     this.wasm.call('schnorr_construct_signature', mem, 0, 32, 64);
 
@@ -54,9 +54,9 @@ export class Schnorr implements Signer {
    * @param sig - The Schnorr signature.
    * @returns True or false.
    */
-  public verifySignature(msg: Uint8Array, pubKey: Uint8Array, sig: SchnorrSignature) {
+  public verifySignature(msg: Uint8Array, pubKey: PublicKey, sig: SchnorrSignature) {
     const mem = this.wasm.call('bbmalloc', msg.length + 4);
-    this.wasm.writeMemory(0, pubKey);
+    this.wasm.writeMemory(0, pubKey.toBuffer());
     this.wasm.writeMemory(64, sig.s);
     this.wasm.writeMemory(96, sig.e);
     this.wasm.writeMemory(mem, Buffer.concat([numToUInt32BE(msg.length), msg]));

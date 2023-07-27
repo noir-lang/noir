@@ -70,7 +70,7 @@ export class ClientTxExecutionContext {
    */
   public async getSecretKey(contractAddress: AztecAddress, ownerX: ACVMField, ownerY: ACVMField) {
     return toACVMField(
-      await this.db.getSecretKey(contractAddress, new Point(fromACVMField(ownerX), fromACVMField(ownerY))),
+      (await this.db.getSecretKey(contractAddress, new Point(fromACVMField(ownerX), fromACVMField(ownerY)))).value,
     );
   }
 
