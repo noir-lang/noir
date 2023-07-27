@@ -171,7 +171,7 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::UnnecessaryPub { ident, position } => {
                 let name = &ident.0.contents;
 
-                let mut diag = Diagnostic::simple_error(
+                let mut diag = Diagnostic::simple_warning(
                     format!("unnecessary pub keyword on {position} for function {name}"),
                     format!("unnecessary pub {position}"),
                     ident.0.span(),
