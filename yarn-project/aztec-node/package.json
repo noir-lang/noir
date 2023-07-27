@@ -4,9 +4,9 @@
   "main": "dest/index.js",
   "type": "module",
   "exports": "./dest/index.js",
-  "typedoc": {
-    "entryPoint": "./src/index.ts",
-    "displayName": "Aztec Node",
+  "typedocOptions": {
+    "entryPoints": ["./src/index.ts"],
+    "name": "Aztec Node",
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {

@@ -5,8 +5,8 @@
   "exports": {
     ".": "./dest/index.js"
   },
-  "typedoc": {
-    "entryPoint": "./generated/index.ts",
+  "typedocOptions": {
+    "entryPoints": "./generated/index.ts",
     "displayName": "L1 Contracts",
     "tsconfig": "./tsconfig.json"
   },

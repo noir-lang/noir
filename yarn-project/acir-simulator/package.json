@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "exports": "./dest/index.js",
-  "typedoc": {
-    "entryPoint": "./src/index.ts",
-    "displayName": "Acir Simulator",
+  "typedocOptions": {
+    "entryPoints": ["./src/index.ts"],
+    "name": "Acir Simulator",
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {

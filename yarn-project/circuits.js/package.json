@@ -10,9 +10,9 @@
     "./utils": "./dest/utils/index.js",
     "./types": "./dest/types/index.js"
   },
-  "typedoc": {
-    "entryPoint": "./src/index.ts",
-    "displayName": "Circuits.js",
+  "typedocOptions": {
+    "entryPoints": ["./src/index.ts"],
+    "name": "Circuits.js",
     "tsconfig": "./tsconfig.json"
   },
   "scripts": {

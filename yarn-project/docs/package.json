@@ -4,6 +4,7 @@
   "packageManager": "yarn@3.2.2",
   "scripts": {
     "prepare": "",
+    "build": "vite build",
     "serve": "vite preview --port 8080 --host 0.0.0.0"
   },
   "devDependencies": {

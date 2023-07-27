@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "type": "module",
   "exports": "./dest/index.js",
+  "typedocOptions": {
+    "entryPoints": ["./src/index.ts"],
+    "name": "Merkle Tree",
+    "tsconfig": "./tsconfig.json"
+  },
   "scripts": {
     "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
     "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",

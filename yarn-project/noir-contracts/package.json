@@ -7,11 +7,6 @@
     "./artifacts": "./dest/artifacts/index.js",
     "./types": "./dest/types/index.js"
   },
-  "typedoc": {
-    "entryPoint": "./src/index.ts",
-    "displayName": "Noir contracts",
-    "tsconfig": "./tsconfig.json"
-  },
   "scripts": {
     "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
     "prepare:check": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json --check",
