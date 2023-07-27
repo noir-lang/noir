@@ -35,7 +35,7 @@ pub enum RuntimeError {
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum ICEError {
-    #[error("ICE: Both expressions are reduced to be degree<=1")]
+    #[error("ICE: Both expressions should have degree<=1")]
     DegreeNotReduced { location: Option<Location> },
     #[error("ICE: {message:?}")]
     General { message: String, location: Option<Location> },
@@ -45,6 +45,8 @@ pub enum ICEError {
     NotAConstant { name: String, location: Option<Location> },
     #[error("{name:?} is not implmented yet")]
     NotImplemented { name: String, location: Option<Location> },
+    #[error("Try to get element from empty array")]
+    UmptyArray { location: Option<Location> },
     #[error("ICE: Undeclared AcirVar")]
     UndeclaredAcirVar { location: Option<Location> },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
@@ -60,6 +62,7 @@ impl From<RuntimeError> for FileDiagnostic {
                 | ICEError::MissingArg { location, .. }
                 | ICEError::NotAConstant { location, .. }
                 | ICEError::NotImplemented { location, .. }
+                | ICEError::UmptyArray { location }
                 | ICEError::UndeclaredAcirVar { location }
                 | ICEError::UnExpected { location, .. } => {
                     let file_id = location.map(|loc| loc.file).unwrap();

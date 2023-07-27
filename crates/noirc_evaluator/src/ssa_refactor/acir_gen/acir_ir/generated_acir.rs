@@ -259,11 +259,14 @@ impl GeneratedAcir {
         lhs: &Expression,
         leading: Witness,
         max_bit_size: u32,
-    ) -> Expression {
+    ) -> Result<Expression, ICEError> {
         let max_power_of_two =
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
-        let inter = &(&Expression::from_field(max_power_of_two) - lhs) * &leading.into();
-        lhs.add_mul(FieldElement::from(2_i128), &inter.unwrap())
+        let inter = match &(&Expression::from_field(max_power_of_two) - lhs) * &leading.into() {
+            Some(inter) => inter,
+            None => return Err(ICEError::DegreeNotReduced { location: self.current_location }),
+        };
+        Ok(lhs.add_mul(FieldElement::from(2_i128), &inter))
     }
 
     /// Returns an expression which represents `lhs * rhs`
@@ -362,8 +365,8 @@ impl GeneratedAcir {
         )?;
 
         // Signed to unsigned:
-        let unsigned_lhs = self.two_complement(lhs, lhs_leading, max_bit_size);
-        let unsigned_rhs = self.two_complement(rhs, rhs_leading, max_bit_size);
+        let unsigned_lhs = self.two_complement(lhs, lhs_leading, max_bit_size)?;
+        let unsigned_rhs = self.two_complement(rhs, rhs_leading, max_bit_size)?;
         let unsigned_l_witness = self.get_or_create_witness(&unsigned_lhs);
         let unsigned_r_witness = self.get_or_create_witness(&unsigned_rhs);
 
@@ -379,11 +382,18 @@ impl GeneratedAcir {
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
         let q_sign = (&Expression::from(lhs_leading) + &Expression::from(rhs_leading)).add_mul(
             -FieldElement::from(2_i128),
-            &(&Expression::from(lhs_leading) * &Expression::from(rhs_leading)).unwrap(),
+            match &(&Expression::from(lhs_leading) * &Expression::from(rhs_leading)) {
+                Some(expr) => expr,
+                None => {
+                    return Err(RuntimeError::ICEError(ICEError::DegreeNotReduced {
+                        location: self.current_location,
+                    }))
+                }
+            },
         );
         let q_sign_witness = self.get_or_create_witness(&q_sign);
-        let quotient = self.two_complement(&q1.into(), q_sign_witness, max_bit_size);
-        let remainder = self.two_complement(&r1.into(), lhs_leading, max_bit_size);
+        let quotient = self.two_complement(&q1.into(), q_sign_witness, max_bit_size)?;
+        let remainder = self.two_complement(&r1.into(), lhs_leading, max_bit_size)?;
         Ok((quotient, remainder))
     }
 
