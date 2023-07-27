@@ -287,14 +287,14 @@ describe('L1Publisher integration', () => {
         expect(await outbox.read.contains([block.newL2ToL1Msgs[j].toString(true)])).toBeFalsy();
       }
 
-      /*// Useful for sol tests block generation
-      const encoded = block.encode();
+      // Useful for sol tests block generation
+      /* const encoded = block.encode();
       console.log(`Size (${encoded.length}): ${encoded.toString('hex')}`);
       console.log(`calldata hash: 0x${block.getCalldataHash().toString('hex')}`);
       console.log(`l1 to l2 message hash: 0x${block.getL1ToL2MessagesHash().toString('hex')}`);
       console.log(`start state hash: 0x${block.getStartStateHash().toString('hex')}`);
       console.log(`end state hash: 0x${block.getEndStateHash().toString('hex')}`);
-      console.log(`public inputs hash: 0x${block.getPublicInputsHash().toBuffer().toString('hex')}`);*/
+      console.log(`public inputs hash: 0x${block.getPublicInputsHash().toBuffer().toString('hex')}`); */
 
       await publisher.processL2Block(block);
 

@@ -240,6 +240,8 @@ describe('sequencer/solo_block_builder', () => {
       startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot:
         rootRollupOutput.startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
       endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot: rootRollupOutput.endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
+      startHistoricBlocksTreeSnapshot: rootRollupOutput.startHistoricBlocksTreeSnapshot,
+      endHistoricBlocksTreeSnapshot: rootRollupOutput.endHistoricBlocksTreeSnapshot,
       newCommitments,
       newNullifiers,
       newContracts,

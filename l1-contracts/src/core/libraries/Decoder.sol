@@ -39,34 +39,37 @@ import {Hash} from "@aztec/core/libraries/Hash.sol";
  *  | 0x0174                                                 | 0x04       | startL1ToL2MessagesTreeSnapshot.nextAvailableLeafIndex
  *  | 0x0178                                                 | 0x20       | startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.root
  *  | 0x0198                                                 | 0x04       | startTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0x019c                                                 | 0x20       | endPrivateDataTreeSnapshot.root
- *  | 0x01bc                                                 | 0x04       | endPrivateDataTreeSnapshot.nextAvailableLeafIndex
- *  | 0x01c0                                                 | 0x20       | endNullifierTreeSnapshot.root
- *  | 0x01e0                                                 | 0x04       | endNullifierTreeSnapshot.nextAvailableLeafIndex
- *  | 0x01e4                                                 | 0x20       | endContractTreeSnapshot.root
- *  | 0x0204                                                 | 0x04       | endContractTreeSnapshot.nextAvailableLeafIndex
- *  | 0x0208                                                 | 0x20       | endTreeOfHistoricPrivateDataTreeRootsSnapshot.root
- *  | 0x0228                                                 | 0x04       | endTreeOfHistoricPrivateDataTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0x022c                                                 | 0x20       | endTreeOfHistoricContractTreeRootsSnapshot.root
- *  | 0x024c                                                 | 0x04       | endTreeOfHistoricContractTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0x0250                                                 | 0x20       | endPublicDataTreeRoot
- *  | 0x0270                                                 | 0x20       | endL1ToL2MessagesTreeSnapshot.root
- *  | 0x0290                                                 | 0x04       | endL1ToL2MessagesTreeSnapshot.nextAvailableLeafIndex
- *  | 0x0294                                                 | 0x20       | endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.root
- *  | 0x02b4                                                 | 0x04       | endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.nextAvailableLeafIndex
- *  | 0x02b8                                                 | 0x04       | len(newCommitments) denoted a
- *  | 0x02bc                                                 | a * 0x20   | newCommitments (each element 32 bytes)
- *  | 0x02bc + a * 0x20                                      | 0x04       | len(newNullifiers) denoted b
- *  | 0x02c0 + a * 0x20                                      | b * 0x20   | newNullifiers (each element 32 bytes)
- *  | 0x02c0 + (a + b) * 0x20                                | 0x04       | len(newPublicDataWrites) denoted c
- *  | 0x02c4 + (a + b) * 0x20                                | c * 0x40   | newPublicDataWrites (each element 64 bytes)
- *  | 0x02c4 + (a + b) * 0x20 + c * 0x40                     | 0x04       | len(newL2ToL1msgs) denoted d
- *  | 0x02c8 + (a + b) * 0x20 + c * 0x40                     | d * 0x20   | newL2ToL1msgs (each element 32 bytes)
- *  | 0x02c8 + (a + b + d) * 0x20 + c * 0x40                 | 0x04       | len(newContracts) denoted e
- *  | 0x02cc + (a + b + d) * 0x20 + c * 0x40                 | e * 0x20   | newContracts (each element 32 bytes)
- *  | 0x02cc + (a + b + d) * 0x20 + c * 0x40 + e * 0x20      | e * 0x34   | newContractData (each element 52 bytes)
- *  | 0x02cc + (a + b + d) * 0x20 + c * 0x40 + e * 0x54      | 0x04       | len(l1ToL2Messages) denoted f
- *  | K := 0x02cc + (a + b + d) * 0x20 + c * 0x40 + e * 0x54 | f * 0x20   | l1ToL2Messages (each element 32 bytes)
+ *  | 0x019c                                                 | 0x20       | startBlocksTreeSnapshot.root
+ *  | 0x01bc                                                 | 0x04       | startBlocksTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x01c0                                                 | 0x20       | endPrivateDataTreeSnapshot.root
+ *  | 0x01e0                                                 | 0x04       | endPrivateDataTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x01e4                                                 | 0x20       | endNullifierTreeSnapshot.root
+ *  | 0x0204                                                 | 0x04       | endNullifierTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x0208                                                 | 0x20       | endContractTreeSnapshot.root
+ *  | 0x0228                                                 | 0x04       | endContractTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x022c                                                 | 0x20       | endTreeOfHistoricPrivateDataTreeRootsSnapshot.root
+ *  | 0x024c                                                 | 0x04       | endTreeOfHistoricPrivateDataTreeRootsSnapshot.nextAvailableLeafIndex
+ *  | 0x0250                                                 | 0x20       | endTreeOfHistoricContractTreeRootsSnapshot.root
+ *  | 0x0270                                                 | 0x04       | endTreeOfHistoricContractTreeRootsSnapshot.nextAvailableLeafIndex
+ *  | 0x0274                                                 | 0x20       | endPublicDataTreeRoot
+ *  | 0x0294                                                 | 0x20       | endL1ToL2MessagesTreeSnapshot.root
+ *  | 0x02b4                                                 | 0x04       | endL1ToL2MessagesTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x0300                                                 | 0x20       | endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.root
+ *  | 0x02d8                                                 | 0x04       | endTreeOfHistoricL1ToL2MessagesTreeRootsSnapshot.nextAvailableLeafIndex
+ *  | 0x02dc                                                 | 0x20       | endBlocksTreeSnapshot.root
+ *  | 0x02fc                                                 | 0x04       | endBlocksTreeSnapshot.nextAvailableLeafIndex
+ *  | 0x0300                                                 | a * 0x20   | newCommitments (each element 32 bytes)
+ *  | 0x0300 + a * 0x20                                      | 0x04       | len(newNullifiers) denoted b
+ *  | 0x0304 + a * 0x20                                      | b * 0x20   | newNullifiers (each element 32 bytes)
+ *  | 0x0304 + (a + b) * 0x20                                | 0x04       | len(newPublicDataWrites) denoted c
+ *  | 0x0308 + (a + b) * 0x20                                | c * 0x40   | newPublicDataWrites (each element 64 bytes)
+ *  | 0x0308 + (a + b) * 0x20 + c * 0x40                     | 0x04       | len(newL2ToL1msgs) denoted d
+ *  | 0x030c + (a + b) * 0x20 + c * 0x40                     | d * 0x20   | newL2ToL1msgs (each element 32 bytes)
+ *  | 0x030c + (a + b + d) * 0x20 + c * 0x40                 | 0x04       | len(newContracts) denoted e
+ *  | 0x0310 + (a + b + d) * 0x20 + c * 0x40                 | e * 0x20   | newContracts (each element 32 bytes)
+ *  | 0x0310 + (a + b + d) * 0x20 + c * 0x40 + e * 0x20      | e * 0x34   | newContractData (each element 52 bytes)
+ *  | 0x0310 + (a + b + d) * 0x20 + c * 0x40 + e * 0x54      | 0x04       | len(l1ToL2Messages) denoted f
+ *  | K := 0x0310 + (a + b + d) * 0x20 + c * 0x40 + e * 0x54 | f * 0x20   | l1ToL2Messages (each element 32 bytes)
  *  | K + f * 0x20                                           | 0x04       | byteLen(newEncryptedLogs) denoted g
  *  | K + f * 0x20 + 0x04                                    | g          | newEncryptedLogs
  *  | K + f * 0x20 + 0x04 + g                                | 0x04       | byteLen(newUnencryptedLogs) denoted h
@@ -108,6 +111,21 @@ library Decoder {
     bytes32 unencryptedLogsHashKernel2;
   }
 
+  // DECODING OFFSET CONSTANTS
+  // Where the start of trees metadata begins in the block
+  uint256 private constant START_TREES_BLOCK_HEADER_OFFSET = 0x80;
+
+  // The size of the block header elements
+  uint256 private constant TREES_BLOCK_HEADER_SIZE = 0x140;
+
+  // Where the end of trees metadata begns in the block
+  uint256 private constant END_TREES_BLOCK_HEADER_OFFSET =
+    START_TREES_BLOCK_HEADER_OFFSET + TREES_BLOCK_HEADER_SIZE;
+
+  // Where the metadata ends and the block data begins.
+  // This is really (START_TREES_BLOCK_HEADER_OFFSET + 2 * TREES_BLOCK_HEADER_SIZE) but assembly doesnt allow comptime constant use
+  uint256 private constant BLOCK_HEADER_OFFSET = 0x0300;
+
   /**
    * @notice Decodes the inputs and computes values to check state against
    * @param _l2Block - The L2 block calldata.
@@ -133,8 +151,8 @@ library Decoder {
     l2BlockNumber = getL2BlockNumber(_l2Block);
     // Note, for startStateHash to match the storage, the l2 block number must be new - 1.
     // Only jumping 1 block at a time.
-    startStateHash = computeStateHash(l2BlockNumber - 1, 0x80, _l2Block);
-    endStateHash = computeStateHash(l2BlockNumber, 0x19c, _l2Block);
+    startStateHash = computeStateHash(l2BlockNumber - 1, START_TREES_BLOCK_HEADER_OFFSET, _l2Block);
+    endStateHash = computeStateHash(l2BlockNumber, END_TREES_BLOCK_HEADER_OFFSET, _l2Block);
 
     bytes32 diffRoot;
     bytes32 l1ToL2MsgsHash;
@@ -155,11 +173,11 @@ library Decoder {
     bytes32 _diffRoot,
     bytes32 _l1ToL2MsgsHash
   ) internal pure returns (bytes32) {
-    bytes memory temp = new bytes(0x02b8 + 0x20 + 0x20);
+    bytes memory temp = new bytes(BLOCK_HEADER_OFFSET + 0x20 + 0x20);
     assembly {
-      calldatacopy(add(temp, 0x20), _l2Block.offset, 0x02b8)
-      mstore(add(temp, add(0x20, 0x02b8)), _diffRoot)
-      mstore(add(temp, add(0x40, 0x02b8)), _l1ToL2MsgsHash)
+      calldatacopy(add(temp, 0x20), _l2Block.offset, BLOCK_HEADER_OFFSET)
+      mstore(add(temp, add(0x20, BLOCK_HEADER_OFFSET)), _diffRoot)
+      mstore(add(temp, add(0x40, BLOCK_HEADER_OFFSET)), _l1ToL2MsgsHash)
     }
     return Hash.sha256ToField(temp);
   }
@@ -190,14 +208,14 @@ library Decoder {
     pure
     returns (bytes32)
   {
-    // 0x20 for the block number + 0x11c for the header elements
-    bytes memory temp = new bytes(0x20 + 0x11c);
+    // 0x20 for the block number + TREES_BLOCK_HEADER_SIZE for the header elements
+    bytes memory temp = new bytes(0x20 + TREES_BLOCK_HEADER_SIZE);
 
     assembly {
       // Copy block number
       mstore(add(temp, 0x20), _l2BlockNumber)
       // Copy header elements (not including block number) for start or end
-      calldatacopy(add(temp, 0x40), add(_l2Block.offset, _offset), 0x11c)
+      calldatacopy(add(temp, 0x40), add(_l2Block.offset, _offset), TREES_BLOCK_HEADER_SIZE)
     }
 
     return sha256(temp);
@@ -222,7 +240,7 @@ library Decoder {
     ArrayOffsets memory offsets;
     {
       assembly {
-        let offset := add(_l2Block.offset, 0x02b8)
+        let offset := add(_l2Block.offset, BLOCK_HEADER_OFFSET)
         let commitmentCount := and(shr(224, calldataload(offset)), 0xffffffff)
         offset := add(add(offset, 0x4), mul(commitmentCount, 0x20))
         let nullifierCount := and(shr(224, calldataload(offset)), 0xffffffff)
@@ -253,7 +271,7 @@ library Decoder {
 
     ConsumablesVars memory vars;
     vars.baseLeaves = new bytes32[](
-            lengths.commitmentCount / (Constants.COMMITMENTS_PER_KERNEL * 2)
+            lengths.commitmentCount / (Constants.COMMITMENTS_PER_TX * 2)
         );
     vars.l2ToL1Msgs = new bytes32[](
             lengths.l2ToL1MsgsCount
@@ -261,7 +279,7 @@ library Decoder {
 
     // Data starts after header. Look at L2 Block Data specification at the top of this file.
     {
-      offsets.commitmentOffset = 0x02bc;
+      offsets.commitmentOffset = BLOCK_HEADER_OFFSET + 0x4;
       offsets.nullifierOffset = offsets.commitmentOffset + 0x4 + lengths.commitmentCount * 0x20;
       offsets.publicDataOffset = offsets.nullifierOffset + 0x4 + lengths.nullifierCount * 0x20;
       offsets.l2ToL1MsgsOffset = offsets.publicDataOffset + 0x4 + lengths.dataWritesCount * 0x40;
@@ -282,10 +300,10 @@ library Decoder {
         )
       }
 
-      // Create the leaf to contain commitments (2 * COMMITMENTS_PER_KERNEL * 0x20) + nullifiers (2 * NULLIFIERS_PER_KERNEL * 0x20)
+      // Create the leaf to contain commitments (2 * COMMITMENTS_PER_TX * 020) + nullifiers (2 * NULLIFIERS_PER_TX * 0x20)
       // + new public data writes (8 * 0x40) + contract deployments (2 * 0x60) + logs hashes (2 * 4 * 0x20)
       vars.baseLeaf =
-      new bytes(2 * Constants.COMMITMENTS_PER_KERNEL * 0x20 + 2 * Constants.NULLIFIERS_PER_KERNEL * 0x20 + 2 * Constants.PUBLIC_DATA_WRITES_PER_KERNEL * 0x40 + 2 * Constants.CONTRACTS_PER_KERNEL * 0x60 + 2 * 4 * 0x20);
+      new bytes(2 * Constants.COMMITMENTS_PER_TX * 0x20 + 2 * Constants.NULLIFIERS_PER_TX * 0x20 + 2 * Constants.PUBLIC_DATA_WRITES_PER_TX * 0x40 + 2 * Constants.CONTRACTS_PER_TX * 0x60 + 2 * 4 * 0x20);
 
       for (uint256 i = 0; i < vars.baseLeaves.length; i++) {
         /*
@@ -328,8 +346,8 @@ library Decoder {
         (vars.unencryptedLogsHashKernel2, offsets.unencryptedLogsOffset) =
           computeKernelLogsHash(offsets.unencryptedLogsOffset, _l2Block);
 
-        uint256 commitmentsPerBase = 2 * Constants.COMMITMENTS_PER_KERNEL;
-        uint256 nullifiersPerBase = 2 * Constants.NULLIFIERS_PER_KERNEL;
+        uint256 commitmentsPerBase = 2 * Constants.COMMITMENTS_PER_TX;
+        uint256 nullifiersPerBase = 2 * Constants.NULLIFIERS_PER_TX;
 
         assembly {
           let baseLeaf := mload(add(vars, 0x40)) // Load the pointer to `vars.baseLeaf`
@@ -394,10 +412,10 @@ library Decoder {
           mstore(dstPtr, mload(add(vars, 0xc0))) // `unencryptedLogsHashKernel2` starts at 0xc0 in `vars`
         }
 
-        offsets.commitmentOffset += 2 * Constants.COMMITMENTS_PER_KERNEL * 0x20;
-        offsets.nullifierOffset += 2 * Constants.NULLIFIERS_PER_KERNEL * 0x20;
-        offsets.publicDataOffset += 2 * Constants.PUBLIC_DATA_WRITES_PER_KERNEL * 0x40;
-        offsets.l2ToL1MsgsOffset += 2 * Constants.L2_TO_L1_MSGS_PER_KERNEL * 0x20;
+        offsets.commitmentOffset += 2 * Constants.COMMITMENTS_PER_TX * 0x20;
+        offsets.nullifierOffset += 2 * Constants.NULLIFIERS_PER_TX * 0x20;
+        offsets.publicDataOffset += 2 * Constants.PUBLIC_DATA_WRITES_PER_TX * 0x40;
+        offsets.l2ToL1MsgsOffset += 2 * Constants.L2_TO_L1_MSGS_PER_TX * 0x20;
         offsets.contractOffset += 2 * 0x20;
         offsets.contractDataOffset += 2 * 0x34;
 

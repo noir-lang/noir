@@ -14,10 +14,10 @@ library Constants {
 
   // Constants used for decoding rollup blocks
   // TODO(962): Make this constant consistent across the codebase.
-  uint256 internal constant COMMITMENTS_PER_KERNEL = 16;
-  uint256 internal constant NULLIFIERS_PER_KERNEL = 16;
-  uint256 internal constant PUBLIC_DATA_WRITES_PER_KERNEL = 4;
-  uint256 internal constant CONTRACTS_PER_KERNEL = 1;
-  uint256 internal constant L2_TO_L1_MSGS_PER_KERNEL = 2;
+  uint256 internal constant COMMITMENTS_PER_TX = 16;
+  uint256 internal constant NULLIFIERS_PER_TX = 16;
+  uint256 internal constant PUBLIC_DATA_WRITES_PER_TX = 4;
+  uint256 internal constant CONTRACTS_PER_TX = 1;
+  uint256 internal constant L2_TO_L1_MSGS_PER_TX = 2;
   uint256 internal constant L1_TO_L2_MSGS_PER_ROLLUP = 16;
 }
