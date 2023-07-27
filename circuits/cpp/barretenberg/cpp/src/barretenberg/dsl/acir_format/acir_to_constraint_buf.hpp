@@ -209,31 +209,6 @@ void handle_blackbox_func_call(Circuit::Opcode::BlackBoxFuncCall const& arg, aci
         arg.value.value);
 }
 
-void handle_memory(Circuit::MemoryBlock const& mem_block, bool is_ram, acir_format& af)
-{
-    std::vector<poly_triple> init;
-    std::vector<MemOp> trace;
-    auto len = mem_block.len;
-    for (size_t i = 0; i < len; ++i) {
-        init.push_back(serialize_arithmetic_gate(mem_block.trace[i].value));
-    }
-    for (size_t i = len; i < mem_block.trace.size(); ++i) {
-        auto index = serialize_arithmetic_gate(mem_block.trace[i].index);
-        auto value = serialize_arithmetic_gate(mem_block.trace[i].value);
-        auto op = mem_block.trace[i].operation;
-        if (!(op.mul_terms.empty() && op.linear_combinations.empty())) {
-            throw_or_abort("Expected constant.");
-        }
-        bool access_type(uint256_t(op.q_c));
-        trace.push_back(MemOp{
-            .access_type = static_cast<uint8_t>(access_type),
-            .index = index,
-            .value = value,
-        });
-    }
-    af.block_constraints.push_back(BlockConstraint{ .init = init, .trace = trace, .type = (BlockType)is_ram });
-}
-
 BlockConstraint handle_memory_init(Circuit::Opcode::MemoryInit const& mem_init)
 {
     BlockConstraint block{ .init = {}, .trace = {}, .type = BlockType::ROM };
@@ -256,10 +231,16 @@ BlockConstraint handle_memory_init(Circuit::Opcode::MemoryInit const& mem_init)
     return block;
 }
 
+bool is_rom(Circuit::MemOp const& mem_op)
+{
+    return mem_op.operation.mul_terms.size() == 0 && mem_op.operation.linear_combinations.size() == 0 &&
+           uint256_t(mem_op.operation.q_c) == 0;
+}
+
 void handle_memory_op(Circuit::Opcode::MemoryOp const& mem_op, BlockConstraint& block)
 {
     uint8_t access_type = 1;
-    if (mem_op.op.is_rom()) {
+    if (is_rom(mem_op.op)) {
         access_type = 0;
     }
     if (block.type == BlockType::ROM && access_type == 1) {
@@ -289,10 +270,6 @@ acir_format circuit_buf_to_acir_format(std::vector<uint8_t> const& buf)
                     handle_arithmetic(arg, af);
                 } else if constexpr (std::is_same_v<T, Circuit::Opcode::BlackBoxFuncCall>) {
                     handle_blackbox_func_call(arg, af);
-                } else if constexpr (std::is_same_v<T, Circuit::Opcode::RAM>) {
-                    handle_memory(arg.value, true, af);
-                } else if constexpr (std::is_same_v<T, Circuit::Opcode::ROM>) {
-                    handle_memory(arg.value, false, af);
                 } else if constexpr (std::is_same_v<T, Circuit::Opcode::MemoryInit>) {
                     auto block = handle_memory_init(arg);
                     uint32_t block_id = arg.block_id.value;
