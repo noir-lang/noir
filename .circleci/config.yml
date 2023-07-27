@@ -1008,6 +1008,7 @@ workflows:
       - barretenberg-stdlib-recursion-turbo-tests: *bb_test
       - barretenberg-stdlib-recursion-ultra-tests: *bb_test
       - barretenberg-join-split-tests: *bb_test
+      # TODO(#1236): Reinstate this test once Noir support recursion again.
       # - bb-bin-tests: *bb_test
       - barretenberg-benchmark-aggregator:
           requires:
