@@ -1,9 +1,8 @@
 //! Noir Evaluator has two types of errors
 //!
-//! [RuntimeError] that should be displayed to the user
+//! [RuntimeError]s that should be displayed to the user
 //!
-//! Internal Errors [InternalError]
-//! that are used for checking internal logics of the SSA
+//! [InternalError]s that are used for checking internal logics of the SSA
 //!
 //! An Error of the former is a user Error
 //!
