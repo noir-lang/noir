@@ -81,9 +81,10 @@ impl AcirValue {
     fn into_var(self) -> Result<AcirVar, InternalError> {
         match self {
             AcirValue::Var(var, _) => Ok(var),
-            AcirValue::DynamicArray(_) | AcirValue::Array(_) => {
-                Err(InternalError::General { message: "".to_string(), location: None })
-            }
+            AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
+                message: "Called AcirValue::into_var on an array".to_string(),
+                location: None,
+            }),
         }
     }
 
