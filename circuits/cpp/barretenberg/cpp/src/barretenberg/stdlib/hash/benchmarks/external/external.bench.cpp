@@ -35,14 +35,15 @@ void generate_test_sha256_plonk_circuit(Builder& builder, size_t num_iterations)
     for (size_t i = 0; i < 32; ++i) {
         in[i] = 0;
     }
+
     proof_system::plonk::stdlib::packed_byte_array<Builder> input(&builder, in);
     for (size_t i = 0; i < num_iterations; i++) {
         input = proof_system::plonk::stdlib::sha256<Builder>(input);
     }
 }
 
-Builder external_builders[NUM_PROOFS];
-Composer external_composers[NUM_PROOFS];
+void* external_builders[NUM_PROOFS];
+void* external_composers[NUM_PROOFS];
 Prover external_provers[NUM_PROOFS];
 Verifier external_verifiers[NUM_PROOFS];
 plonk::proof external_proofs[NUM_PROOFS];
@@ -55,15 +56,15 @@ plonk::proof external_proofs[NUM_PROOFS];
 void generate_sha256_proof_bench(State& state) noexcept
 {
     for (auto _ : state) {
-
         size_t idx = static_cast<size_t>(state.range(0));
         size_t num_iterations = 1;
         for (size_t i = 0; i < idx; i++) {
             num_iterations *= PROOF_COUNT_LOG;
         }
-        external_composers[idx] = Composer();
-        generate_test_sha256_plonk_circuit(external_builders[idx], num_iterations);
-        external_provers[idx] = external_composers[idx].create_prover(external_builders[idx]);
+        external_composers[idx] = (void*)new Composer();
+        external_builders[idx] = (void*)new Builder();
+        generate_test_sha256_plonk_circuit(*(Builder*)external_builders[idx], num_iterations);
+        external_provers[idx] = ((Composer*)external_composers[idx])->create_prover(*(Builder*)external_builders[idx]);
         external_proofs[idx] = external_provers[idx].construct_proof();
         // info("Proof Size for SHA256 hash count ", num_iterations, ": ", external_proofs[idx].proof_data.size());
     }
@@ -85,7 +86,7 @@ static void generate_sha256_verifier(const State& state)
 {
 
     size_t idx = static_cast<size_t>(state.range(0));
-    external_verifiers[idx] = external_composers[idx].create_verifier(external_builders[idx]);
+    external_verifiers[idx] = ((Composer*)external_composers[idx])->create_verifier(*(Builder*)external_builders[idx]);
 }
 /**
  * @brief Benchmark sha256 verification
@@ -136,9 +137,9 @@ void generate_blake3s_proof_bench(State& state) noexcept
         for (size_t i = 0; i < idx; i++) {
             num_iterations *= PROOF_COUNT_LOG;
         }
-        external_composers[idx] = Composer();
-        generate_test_blake3s_plonk_circuit(external_builders[idx], num_iterations);
-        external_provers[idx] = external_composers[idx].create_prover(external_builders[idx]);
+        external_composers[idx] = new Composer();
+        generate_test_blake3s_plonk_circuit(*(Builder*)external_builders[idx], num_iterations);
+        external_provers[idx] = ((Composer*)external_composers[idx])->create_prover(*(Builder*)external_builders[idx]);
         external_proofs[idx] = external_provers[idx].construct_proof();
         // Proof size with no public inputs is always 2144
         // info("Proof Size for Blake3s hash count ", num_iterations, ": ", external_proofs[idx].proof_data.size());
@@ -158,7 +159,7 @@ static void generate_blake3s_verifier(const State& state)
 {
 
     size_t idx = static_cast<size_t>(state.range(0));
-    external_verifiers[idx] = external_composers[idx].create_verifier(external_builders[idx]);
+    external_verifiers[idx] = ((Composer*)external_composers[idx])->create_verifier(*(Builder*)external_builders[idx]);
 }
 
 /**

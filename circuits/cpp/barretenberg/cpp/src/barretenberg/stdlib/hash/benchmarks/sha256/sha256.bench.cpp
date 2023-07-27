@@ -30,8 +30,8 @@ void generate_test_plonk_circuit(Builder& builder, size_t num_bytes)
     proof_system::plonk::stdlib::sha256<Builder>(input);
 }
 
-Builder builders[NUM_HASHES];
-Composer composers[NUM_HASHES];
+void* builders[NUM_HASHES];
+void* composers[NUM_HASHES];
 Prover provers[NUM_HASHES];
 Verifier verifiers[NUM_HASHES];
 plonk::proof proofs[NUM_HASHES];
@@ -40,8 +40,8 @@ void construct_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
         size_t idx = (static_cast<size_t>((state.range(0))) - START_BYTES) / BYTES_PER_CHUNK;
-        builders[idx] = Builder();
-        generate_test_plonk_circuit(builders[idx], static_cast<size_t>(state.range(0)));
+        builders[idx] = (void*)new Builder();
+        generate_test_plonk_circuit(*(Builder*)builders[idx], static_cast<size_t>(state.range(0)));
     }
 }
 BENCHMARK(construct_witnesses_bench)->DenseRange(START_BYTES, MAX_BYTES, BYTES_PER_CHUNK);
@@ -50,8 +50,8 @@ void preprocess_witnesses_bench(State& state) noexcept
 {
     for (auto _ : state) {
         size_t idx = (static_cast<size_t>((state.range(0))) - START_BYTES) / BYTES_PER_CHUNK;
-        composers[idx] = Composer();
-        provers[idx] = composers[idx].create_prover(builders[idx]);
+        composers[idx] = (void*)new Composer();
+        provers[idx] = ((Composer*)composers[idx])->create_prover(*(Builder*)builders[idx]);
         std::cout << "prover subgroup size = " << provers[idx].key->small_domain.size << std::endl;
         // printf("num bytes = %" PRIx64 ", num gates = %zu\n", state.range(0), composers[idx].get_num_gates());
     }
@@ -62,7 +62,7 @@ void construct_instances_bench(State& state) noexcept
 {
     for (auto _ : state) {
         size_t idx = (static_cast<size_t>((state.range(0))) - START_BYTES) / BYTES_PER_CHUNK;
-        verifiers[idx] = composers[idx].create_verifier(builders[idx]);
+        verifiers[idx] = ((Composer*)composers[idx])->create_verifier(*(Builder*)builders[idx]);
     }
 }
 BENCHMARK(construct_instances_bench)->DenseRange(START_BYTES, MAX_BYTES, BYTES_PER_CHUNK);
