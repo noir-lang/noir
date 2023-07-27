@@ -17,7 +17,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
+use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind};
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -624,7 +624,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Array(_, _) => Some(Array),
         Type::Slice(_) => Some(Slice),
         Type::Integer(_, _, _) => Some(FieldOrInt),
-        Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::IntegerOrField(_)) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),
         Type::String(_) => Some(String),
         Type::Unit => Some(Unit),
@@ -633,7 +633,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
-        Type::TypeVariable(_)
+        Type::TypeVariable(_, _)
         | Type::NamedGeneric(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)
