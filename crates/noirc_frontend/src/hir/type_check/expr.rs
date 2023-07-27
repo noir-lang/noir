@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId},
-    CompTime, Shared, TypeBinding, UnaryOp,
+    CompTime, Shared, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -185,7 +185,10 @@ impl<'interner> TypeChecker<'interner> {
                 };
                 let fresh_id = self.interner.next_type_variable_id();
                 let type_variable = Shared::new(TypeBinding::Unbound(fresh_id));
-                let expected_type = Type::PolymorphicInteger(expected_comptime, type_variable);
+                let expected_type = Type::TypeVariable(
+                    type_variable,
+                    TypeVariableKind::IntegerOrField(expected_comptime),
+                );
 
                 self.unify(&start_range_type, &expected_type, range_span, || {
                     TypeCheckError::TypeCannotBeUsed {
@@ -343,8 +346,8 @@ impl<'interner> TypeChecker<'interner> {
         let is_comp_time = match from.follow_bindings() {
             Type::Integer(is_comp_time, ..) => is_comp_time,
             Type::FieldElement(is_comp_time) => is_comp_time,
-            Type::PolymorphicInteger(is_comp_time, _) => is_comp_time,
-            Type::TypeVariable(_) => {
+            Type::TypeVariable(_, TypeVariableKind::IntegerOrField(is_comp_time)) => is_comp_time,
+            Type::TypeVariable(_, _) => {
                 self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
                 return Type::Error;
             }
@@ -616,12 +619,9 @@ impl<'interner> TypeChecker<'interner> {
             // Avoid reporting errors multiple times
             (Error, _) | (_, Error) => Ok(Bool(CompTime::Yes(None))),
 
-            // Matches on PolymorphicInteger and TypeVariable must be first to follow any type
+            // Matches on TypeVariable must be first to follow any type
             // bindings.
-            (var @ PolymorphicInteger(_, int), other)
-            | (other, var @ PolymorphicInteger(_, int))
-            | (var @ TypeVariable(int), other)
-            | (other, var @ TypeVariable(int)) => {
+            (var @ TypeVariable(int, _), other) | (other, var @ TypeVariable(int, _)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
@@ -798,7 +798,7 @@ impl<'interner> TypeChecker<'interner> {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
         match function {
-            Type::TypeVariable(binding) => {
+            Type::TypeVariable(binding, TypeVariableKind::Normal) => {
                 if let TypeBinding::Bound(typ) = &*binding.borrow() {
                     return self.bind_function_type(typ.clone(), args, span);
                 }
@@ -860,12 +860,9 @@ impl<'interner> TypeChecker<'interner> {
             // An error type on either side will always return an error
             (Error, _) | (_, Error) => Ok(Error),
 
-            // Matches on PolymorphicInteger and TypeVariable must be first so that we follow any type
+            // Matches on TypeVariable must be first so that we follow any type
             // bindings.
-            (var @ PolymorphicInteger(_, int), other)
-            | (other, var @ PolymorphicInteger(_, int))
-            | (var @ TypeVariable(int), other)
-            | (other, var @ TypeVariable(int)) => {
+            (var @ TypeVariable(int, _), other) | (other, var @ TypeVariable(int, _)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
