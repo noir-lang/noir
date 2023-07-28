@@ -11,6 +11,7 @@ library Constants {
   // Prime field modulus
   uint256 internal constant P =
     21888242871839275222246405745257275088548364400416034343698204186575808495617;
+  uint256 internal constant MAX_FIELD_VALUE = P - 1;
 
   // Constants used for decoding rollup blocks
   // TODO(962): Make this constant consistent across the codebase.

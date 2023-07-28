@@ -7,6 +7,7 @@ import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
 import {IRegistry} from "@aztec/core/interfaces/messagebridge/IRegistry.sol";
 
 // Libraries
+import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
 import {Errors} from "@aztec/core/libraries/Errors.sol";
 import {Hash} from "@aztec/core/libraries/Hash.sol";
@@ -53,7 +54,16 @@ contract Inbox is IInbox {
     bytes32 _content,
     bytes32 _secretHash
   ) external payable override(IInbox) returns (bytes32) {
+    if (uint256(_recipient.actor) > Constants.MAX_FIELD_VALUE) {
+      revert Errors.Inbox__ActorTooLarge(_recipient.actor);
+    }
     if (_deadline <= block.timestamp) revert Errors.Inbox__DeadlineBeforeNow();
+    if (uint256(_content) > Constants.MAX_FIELD_VALUE) {
+      revert Errors.Inbox__ContentTooLarge(_content);
+    }
+    if (uint256(_secretHash) > Constants.MAX_FIELD_VALUE) {
+      revert Errors.Inbox__SecretHashTooLarge(_secretHash);
+    }
     // `fee` is uint64 for slot packing of the Entry struct. uint64 caps at ~18.4 ETH which should be enough.
     // we revert here to safely cast msg.value into uint64.
     if (msg.value > type(uint64).max) revert Errors.Inbox__FeeTooHigh();

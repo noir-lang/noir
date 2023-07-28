@@ -29,7 +29,7 @@ interface IInbox {
    * @dev Will emit `MessageAdded` with data for easy access by the sequencer
    * @dev msg.value - The fee provided to sequencer for including the entry
    * @param _recipient - The recipient of the entry
-   * @param _deadline - The deadline to consume a message. Only after it, can a message be cancalled.
+   * @param _deadline - The deadline to consume a message. Only after it, can a message be cancelled.
    * @param _content - The content of the entry (application specific)
    * @param _secretHash - The secret hash of the entry (make it possible to hide when a specific entry is consumed on L2)
    * @return The key of the entry in the set

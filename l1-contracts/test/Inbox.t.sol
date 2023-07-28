@@ -6,6 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
 import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
 import {Registry} from "@aztec/core/messagebridge/Registry.sol";
+import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {Errors} from "@aztec/core/libraries/Errors.sol";
 
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
@@ -39,11 +40,11 @@ contract InboxTest is Test {
     return DataStructures.L1ToL2Msg({
       sender: DataStructures.L1Actor({actor: address(this), chainId: block.chainid}),
       recipient: DataStructures.L2Actor({
-        actor: 0x2000000000000000000000000000000000000000000000000000000000000000,
+        actor: 0x1000000000000000000000000000000000000000000000000000000000000000,
         version: 1
       }),
-      content: 0x3000000000000000000000000000000000000000000000000000000000000000,
-      secretHash: 0x4000000000000000000000000000000000000000000000000000000000000000,
+      content: 0x2000000000000000000000000000000000000000000000000000000000000000,
+      secretHash: 0x3000000000000000000000000000000000000000000000000000000000000000,
       fee: 5,
       deadline: uint32(block.timestamp + 100)
     });
@@ -52,9 +53,15 @@ contract InboxTest is Test {
   function testFuzzSendL2Msg(DataStructures.L1ToL2Msg memory _message) public {
     // fix message.sender and deadline:
     _message.sender = DataStructures.L1Actor({actor: address(this), chainId: block.chainid});
+    // ensure actor fits in a field
+    _message.recipient.actor = bytes32(uint256(_message.recipient.actor) % Constants.P);
     if (_message.deadline <= block.timestamp) {
       _message.deadline = uint32(block.timestamp + 100);
     }
+    // ensure content fits in a field
+    _message.content = bytes32(uint256(_message.content) % Constants.P);
+    // ensure secret hash fits in a field
+    _message.secretHash = bytes32(uint256(_message.secretHash) % Constants.P);
     bytes32 expectedEntryKey = inbox.computeEntryKey(_message);
     vm.expectEmit(true, true, true, true);
     // event we expect
@@ -97,6 +104,37 @@ contract InboxTest is Test {
     assertEq(inbox.get(entryKey1).count, 3);
     assertEq(inbox.get(entryKey1).fee, 5);
     assertEq(inbox.get(entryKey1).deadline, message.deadline);
+  }
+
+  function testRevertIfActorTooLarge() public {
+    DataStructures.L1ToL2Msg memory message = _fakeMessage();
+    message.recipient.actor = bytes32(Constants.MAX_FIELD_VALUE + 1);
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Inbox__ActorTooLarge.selector, message.recipient.actor)
+    );
+    inbox.sendL2Message{value: message.fee}(
+      message.recipient, message.deadline, message.content, message.secretHash
+    );
+  }
+
+  function testRevertIfContentTooLarge() public {
+    DataStructures.L1ToL2Msg memory message = _fakeMessage();
+    message.content = bytes32(Constants.MAX_FIELD_VALUE + 1);
+    vm.expectRevert(abi.encodeWithSelector(Errors.Inbox__ContentTooLarge.selector, message.content));
+    inbox.sendL2Message{value: message.fee}(
+      message.recipient, message.deadline, message.content, message.secretHash
+    );
+  }
+
+  function testRevertIfSecretHashTooLarge() public {
+    DataStructures.L1ToL2Msg memory message = _fakeMessage();
+    message.secretHash = bytes32(Constants.MAX_FIELD_VALUE + 1);
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Inbox__SecretHashTooLarge.selector, message.secretHash)
+    );
+    inbox.sendL2Message{value: message.fee}(
+      message.recipient, message.deadline, message.content, message.secretHash
+    );
   }
 
   function testRevertIfCancellingMessageFromDifferentAddress() public {
@@ -220,9 +258,15 @@ contract InboxTest is Test {
       DataStructures.L1ToL2Msg memory message = _messages[i];
       // fix message.sender and deadline to be more than current time:
       message.sender = DataStructures.L1Actor({actor: address(this), chainId: block.chainid});
+      // ensure actor fits in a field
+      message.recipient.actor = bytes32(uint256(message.recipient.actor) % Constants.P);
       if (message.deadline <= block.timestamp) {
         message.deadline = uint32(block.timestamp + 100);
       }
+      // ensure content fits in a field
+      message.content = bytes32(uint256(message.content) % Constants.P);
+      // ensure secret hash fits in a field
+      message.secretHash = bytes32(uint256(message.secretHash) % Constants.P);
       expectedTotalFee += message.fee;
       entryKeys[i] = inbox.sendL2Message{value: message.fee}(
         message.recipient, message.deadline, message.content, message.secretHash
