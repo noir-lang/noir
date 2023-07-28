@@ -25,7 +25,7 @@ jobs:
       - name: Build wasm package
         run: |
           nix build -L .#wasm
-      
+
       - name: Dereference symlink
         run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
@@ -58,10 +58,8 @@ jobs:
           path: /tmp/nix-cache
           key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
 
-      # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
       - name: Copy cache into nix store
         if: steps.nix-store-cache.outputs.cache-hit == 'true'
-        # We don't check the signature because we're the one that created the cache
         run: |
           for narinfo in /tmp/nix-cache/*.narinfo; do
             path=$(head -n 1 "$narinfo" | awk '{print $2}')
@@ -71,7 +69,7 @@ jobs:
       - name: Build nargo
         run: |
           nix build -L .
-      
+
       - name: Dereference symlink
         run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
@@ -108,16 +106,15 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: nargo
-          path: ./src/noir-script
+          path: ./nargo
 
-      - name: Run noir-wasm-testing program 
-        working-directory: ./src/noir-script/
+      - name: Run noir-wasm-testing program
         run: |
           ls -l
-          ls -l ./bin
-          chmod +x ./bin/nargo
-          ls -l ./bin
-          ./bin/nargo compile noir-wasm-testing
+          ls -l ./nargo
+          chmod +x ./nargo/nargo
+          ls -l ./nargo
+          ${{ github.workspace }}/nargo/nargo -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
 
       - name: Install dependencies
         run: npm install
