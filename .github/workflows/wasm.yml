@@ -110,12 +110,16 @@ jobs:
 
       - name: Run noir-wasm-testing program
         run: |
-          ls -l
-          ls -l ./nargo
-          ls -l ./nargo/bin
-          chmod +x ./nargo/bin/nargo
-          ls -l ./nargo/bin
-          ${{ github.workspace }}/nargo/bin/nargo -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
+          ls -R
+          nargo_binary=$(find . -name "nargo")
+          chmod +x $nargo_binary
+          if [ -f "$nargo_binary" ]; then
+            echo "nargo binary found at $nargo_binary."
+            $nargo_binary -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
+          else
+            echo "nargo binary NOT found."
+            exit 1
+          fi
 
       - name: Install dependencies
         run: npm install
