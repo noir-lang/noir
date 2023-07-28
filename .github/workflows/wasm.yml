@@ -87,15 +87,22 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-
       - name: Checkout noir-wasm-testing
         uses: actions/checkout@v3
         with:
           repository: noir-lang/noir-wasm-testing
           ref: use-injected-nargo
-          path: noir-wasm-testing
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noir_wasm
+          path: ./@noir-lang_noir_wasm
+
+      - name: Inject built wasm into noir-wasm-testing
+        run: |
+          jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./package.json > ./package.json.tmp
+          mv ./package.json.tmp ./package.json
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -103,29 +110,17 @@ jobs:
           name: nargo
           path: ./nargo
 
-      - name: Download wasm package artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: noir_wasm
-          path: ./noir-wasm-testing/@noir-lang_noir_wasm
-
-      - name: Inject built wasm into noir-wasm-testing
-        run: |
-          jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
-          mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
-
       - name: Run noir-wasm-testing program 
         run: |
           ls -l
           ls -l ./nargo
           ls -l ./nargo/bin
           chmod +x ./nargo/bin/nargo
-          ./nargo/bin/nargo -p "./noir-wasm-testing/src/noir-script" compile noir-wasm-testing
+          ls -l ./nargo/bin
+          ./nargo/bin/nargo -p "./src/noir-script" compile noir-wasm-testing
 
       - name: Install dependencies
-        working-directory: ./noir-wasm-testing
         run: npm install
 
       - name: Run tests
-        working-directory: ./noir-wasm-testing
         run: npm test
