@@ -1,4 +1,5 @@
 [package]
+name = "fail_dup_func"
 authors = [""]
 compiler_version = "0.1"
 

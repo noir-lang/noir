@@ -1,0 +1,6 @@
+[package]
+name = "blackbox_func_simple_call"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

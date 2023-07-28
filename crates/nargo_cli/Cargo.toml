@@ -48,7 +48,7 @@ color-eyre = "0.6.2"
 tokio = { version = "1.0", features = ["io-std"] }
 
 # Backends
-acvm-backend-barretenberg = { version = "0.9.1", default-features = false }
+acvm-backend-barretenberg = { version = "0.10.0", default-features = false }
 
 [dev-dependencies]
 tempdir = "0.3.7"

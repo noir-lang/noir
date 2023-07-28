@@ -1,4 +1,5 @@
 [package]
+name = "sha2_byte"
 authors = [""]
 compiler_version = "0.1"
 
