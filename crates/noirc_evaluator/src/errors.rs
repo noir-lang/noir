@@ -85,7 +85,8 @@ impl From<RuntimeError> for Diagnostic {
     fn from(error: RuntimeError) -> Diagnostic {
         match error {
             RuntimeError::InternalError(_) => Diagnostic::simple_error(
-                "Internal Consistency Evaluators Errors \n This is likely a bug. Consider Openning an issue at https://github.com/noir-lang/noir/issues".to_owned(),
+                "Internal Consistency Evaluators Errors: \n 
+                This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                 "".to_string(),
                 noirc_errors::Span::new(0..0)
             ),

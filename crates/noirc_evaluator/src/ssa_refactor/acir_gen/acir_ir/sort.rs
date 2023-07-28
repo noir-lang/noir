@@ -41,7 +41,7 @@ impl GeneratedAcir {
             let intermediate = self.mul_with_witness(
                 &Expression::from(conf[i]),
                 &(&in_expr[2 * i + 1] - &in_expr[2 * i]),
-            )?;
+            );
             //b1=a1+q
             in_sub1.push(&intermediate + &in_expr[2 * i]);
             //b2=a2-q
@@ -63,7 +63,7 @@ impl GeneratedAcir {
         for i in 0..(n - 1) / 2 {
             let c = if generate_witness { self.next_witness_index() } else { bits[n1 + i] };
             conf.push(c);
-            let intermediate = self.mul_with_witness(&Expression::from(c), &(&b2[i] - &b1[i]))?;
+            let intermediate = self.mul_with_witness(&Expression::from(c), &(&b2[i] - &b1[i]));
             out_expr.push(&intermediate + &b1[i]);
             out_expr.push(&b2[i] - &intermediate);
         }

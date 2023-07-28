@@ -282,26 +282,15 @@ impl GeneratedAcir {
     ///
     /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
     /// which is what you get when you multiply two degree-1 univariate polynomials.
-    pub(crate) fn mul_with_witness(
-        &mut self,
-        lhs: &Expression,
-        rhs: &Expression,
-    ) -> Result<Expression, InternalError> {
+    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
         use std::borrow::Cow;
         let lhs_is_linear = lhs.is_linear();
         let rhs_is_linear = rhs.is_linear();
 
         // Case 1: Both expressions have at most a total degree of 1 in each term
         if lhs_is_linear && rhs_is_linear {
-            match lhs * rhs {
-                Some(expr) => return Ok(expr),
-                None => {
-                    return Err(InternalError::NotAConstant {
-                        name: "one of the expressions".to_string(),
-                        location: self.current_location,
-                    })
-                }
-            }
+            return (lhs * rhs)
+                .expect("one of the expressions is a constant and so this should not fail");
         }
 
         // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
@@ -314,12 +303,8 @@ impl GeneratedAcir {
         // If the lhs and rhs are the same, then we do not need to reduce
         // rhs, we only need to square the lhs.
         if lhs == rhs {
-            match &*lhs_reduced * &*lhs_reduced {
-                Some(expr) => return Ok(expr),
-                None => {
-                    return Err(InternalError::DegreeNotReduced { location: self.current_location })
-                }
-            }
+            return (&*lhs_reduced * &*lhs_reduced)
+                .expect("Both expressions are reduced to be degree<=1");
         };
 
         let rhs_reduced = if rhs_is_linear {
@@ -328,10 +313,7 @@ impl GeneratedAcir {
             Cow::Owned(self.get_or_create_witness(rhs).into())
         };
 
-        match &*lhs_reduced * &*rhs_reduced {
-            Some(expr) => Ok(expr),
-            None => Err(InternalError::DegreeNotReduced { location: self.current_location }),
-        }
+        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree<=1")
     }
 
     /// Signed division lhs /  rhs
@@ -443,9 +425,9 @@ impl GeneratedAcir {
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into())? + r_witness;
-        let div_euclidean = &self.mul_with_witness(lhs, predicate)?
-            - &self.mul_with_witness(&rhs_constraint, predicate)?;
+        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into()) + r_witness;
+        let div_euclidean = &self.mul_with_witness(lhs, predicate)
+            - &self.mul_with_witness(&rhs_constraint, predicate);
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
