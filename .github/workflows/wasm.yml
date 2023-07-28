@@ -104,7 +104,9 @@ jobs:
           path: ./nargo
 
       - name: Add nargo to path
-        run: echo "./nargo" >> $GITHUB_PATH
+        run: |
+          chmod +x ./nargo/bin
+          echo "./nargo/bin" >> $GITHUB_PATH
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
