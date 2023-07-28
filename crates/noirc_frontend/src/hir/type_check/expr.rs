@@ -301,9 +301,7 @@ impl<'interner> TypeChecker<'interner> {
                     }
                 });
 
-                let function_type =
-                    Type::Function(params, Box::new(lambda.return_type), Box::new(env_type));
-                function_type
+                Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
         };
 
@@ -893,7 +891,7 @@ impl<'interner> TypeChecker<'interner> {
             self.errors.push(TypeCheckError::ParameterCountMismatch {
                 expected: real_fn_params_count,
                 found: callsite_args.len(),
-                span: span,
+                span,
             });
             return Type::Error;
         }

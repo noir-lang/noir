@@ -582,7 +582,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
                 let typ = Self::convert_type(&typ);
                 let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
-                let ident_expression = ast::Expression::Ident(ident).clone();
+                let ident_expression = ast::Expression::Ident(ident);
                 if self.is_function_closure_type(&typ) {
                     ast::Expression::Tuple(vec![
                         ast::Expression::ExtractTupleField(
@@ -735,7 +735,7 @@ impl<'interner> Monomorphizer<'interner> {
         call: HirCallExpression,
         id: node_interner::ExprId,
     ) -> ast::Expression {
-        let original_func = Box::new(self.expr((call.func).clone()));
+        let original_func = Box::new(self.expr(call.func));
         let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let func: Box<ast::Expression>;
@@ -773,7 +773,7 @@ impl<'interner> Monomorphizer<'interner> {
             let env_argument = ast::Expression::ExtractTupleField(Box::new(extracted_func), 0usize);
             arguments.insert(0, env_argument);
         } else {
-            func = original_func.clone()
+            func = original_func.clone();
         };
 
         let call = self.try_evaluate_call(&func, &return_type).unwrap_or(ast::Expression::Call(ast::Call {
@@ -1047,7 +1047,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
         }));
-        let env_typ = (&env_tuple).type_of();
+        let env_typ = env_tuple.type_of();
 
         let env_let_stmt = ast::Expression::Let(ast::Let {
             id: env_local_id,

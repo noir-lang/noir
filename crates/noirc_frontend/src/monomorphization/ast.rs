@@ -258,13 +258,13 @@ impl Expression {
                 Type::Tuple(elements.iter().map(|e| e.type_of()).collect())
             }
             Expression::ExtractTupleField(tuple, index) => match tuple.as_ref() {
-                Expression::Tuple(fields) => (&fields[*index]).type_of(),
+                Expression::Tuple(fields) => fields[*index].type_of(),
                 _ => unreachable!("ICE: Tuple field access on non-tuple type"),
             },
             Expression::Call(call) => call.return_type.clone(),
             Expression::Let(let_stmt) => let_stmt.expression.as_ref().type_of(),
             Expression::Constrain(constraint, _) => constraint.as_ref().type_of(),
-            Expression::Assign(assign) => (&assign.lvalue).type_of(),
+            Expression::Assign(assign) => assign.lvalue.type_of(),
             Expression::Semi(_expr) => Type::Unit,
         }
     }
