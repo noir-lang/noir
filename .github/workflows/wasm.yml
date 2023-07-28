@@ -38,7 +38,7 @@ jobs:
       - name: Install nargo
         run: | 
           curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
-          noirup -p ./
+          $HOME/.nargo/bin/noirup -p ./
 
       - name: Inject built wasm into noir-wasm-testing
         run: |
