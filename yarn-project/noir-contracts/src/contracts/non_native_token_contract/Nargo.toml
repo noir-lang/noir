@@ -1,4 +1,5 @@
 [package]
+name = "non-native-token-contract"
 authors = [""]
 compiler_version = "0.1"
 

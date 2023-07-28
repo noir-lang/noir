@@ -1,4 +1,5 @@
 [package]
+name = "zk-token-contract"
 authors = [""]
 compiler_version = "0.1"
 

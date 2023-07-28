@@ -1,4 +1,5 @@
 [package]
+name = "uniswap-contract"
 authors = [""]
 compiler_version = "0.1"
 

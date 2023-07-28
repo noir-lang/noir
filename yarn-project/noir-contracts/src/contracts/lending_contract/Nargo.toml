@@ -1,4 +1,5 @@
 [package]
+name = "lending-contract"
 authors = [""]
 compiler_version = "0.1"
 
