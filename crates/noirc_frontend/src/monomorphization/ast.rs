@@ -231,62 +231,6 @@ impl Type {
     }
 }
 
-impl Expression {
-    pub fn type_of(&self) -> Type {
-        match self {
-            Expression::Ident(ident) => ident.typ.clone(),
-            Expression::Literal(lit) => match lit {
-                Literal::Integer(_, typ) => typ.clone(),
-                Literal::Bool(_) => Type::Bool,
-                Literal::Str(str) => Type::String(str.len() as u64),
-                Literal::Array(array) => {
-                    // temp
-                    Type::Array(array.contents.len() as u64, Box::new(Type::Unit))
-                },
-                Literal::FmtStr(_, _, _) => unimplemented!()
-            },
-            Expression::Block(stmts) => (stmts.last().unwrap()).type_of(),
-            Expression::Unary(unary) => unary.result_type.clone(),
-            Expression::Binary(_binary) => {
-                unreachable!("TODO: How do we get the type of a Binary op")
-            }
-            Expression::Index(index) => index.element_type.clone(),
-            Expression::Cast(cast) => cast.r#type.clone(),
-            Expression::For(_for_expr) => Type::Unit,
-            Expression::If(if_expr) => if_expr.typ.clone(),
-            Expression::Tuple(elements) => {
-                Type::Tuple(elements.iter().map(|e| e.type_of()).collect())
-            }
-            Expression::ExtractTupleField(tuple, index) => match tuple.as_ref() {
-                Expression::Tuple(fields) => fields[*index].type_of(),
-                _ => unreachable!("ICE: Tuple field access on non-tuple type"),
-            },
-            Expression::Call(call) => call.return_type.clone(),
-            Expression::Let(let_stmt) => let_stmt.expression.as_ref().type_of(),
-            Expression::Constrain(constraint, _) => constraint.as_ref().type_of(),
-            Expression::Assign(assign) => assign.lvalue.type_of(),
-            Expression::Semi(_expr) => Type::Unit,
-        }
-    }
-}
-
-impl LValue {
-    pub fn type_of(&self) -> Type {
-        match self {
-            LValue::Ident(ident) => ident.typ.clone(),
-            LValue::Index { element_type, .. } => element_type.clone(),
-            LValue::MemberAccess { object, field_index } => {
-                let tuple_type = object.as_ref().type_of();
-                match tuple_type {
-                    Type::Tuple(fields) => fields[*field_index].clone(),
-                    _ => unreachable!("ICE: Member access on non-tuple type"),
-                }
-            }
-            LValue::Dereference { element_type, .. } => element_type.clone(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Program {
     pub functions: Vec<Function>,

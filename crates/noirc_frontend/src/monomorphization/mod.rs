@@ -19,6 +19,7 @@ use crate::{
         expr::*,
         function::{FuncMeta, Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
+        types
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
@@ -356,7 +357,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirExpression::Constructor(constructor) => self.constructor(constructor, expr),
 
-            HirExpression::Lambda(lambda) => self.lambda(lambda),
+            HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
             HirExpression::MethodCall(_) => {
                 unreachable!("Encountered HirExpression::MethodCall during monomorphization")
@@ -706,8 +707,8 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn is_function_closure(&self, func: &ast::Expression) -> bool {
-        let t = func.type_of();
+    fn is_function_closure(&self, raw_func_id: node_interner::ExprId) -> bool {
+        let t = Self::convert_type(&self.interner.id_type(raw_func_id));
         if self.is_function_closure_type(&t) {
             true
         } else if let ast::Type::Tuple(elements) = t {
@@ -755,12 +756,12 @@ impl<'interner> Monomorphizer<'interner> {
 
         let mut block_expressions = vec![];
 
-        let is_closure = self.is_function_closure(&original_func);
+        let is_closure = self.is_function_closure(call.func);
         if is_closure {
             let extracted_func: ast::Expression;
             let hir_call_func = self.interner.expression(&call.func);
             if let HirExpression::Lambda(l) = hir_call_func {
-                let (setup, closure_variable) = self.lambda_with_setup(l);
+                let (setup, closure_variable) = self.lambda_with_setup(l, call.func);
                 block_expressions.push(setup);
                 extracted_func = closure_variable;
             } else {
@@ -998,7 +999,11 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn lambda_with_setup(&mut self, lambda: HirLambda) -> (ast::Expression, ast::Expression) {
+    fn lambda_with_setup(
+        &mut self,
+        lambda: HirLambda,
+        expr: node_interner::ExprId,
+    ) -> (ast::Expression, ast::Expression) {
         // returns (<closure setup>, <closure variable>)
         //   which can be used directly in callsites or transformed
         //   directly to a single `Expression`
@@ -1047,7 +1052,12 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
         }));
-        let env_typ = env_tuple.type_of();
+        let expr_type = self.interner.id_type(expr);
+        let env_typ = if let types::Type::Function(_, _, function_env_type) = expr_type {
+            Self::convert_type(&function_env_type)
+        } else {
+            unreachable!("expected a Function type for a Lambda node")
+        };
 
         let env_let_stmt = ast::Expression::Let(ast::Let {
             id: env_local_id,
@@ -1117,8 +1127,8 @@ impl<'interner> Monomorphizer<'interner> {
         // ast::Expression::Block(vec![block_let_stmt, closure_ident])
     }
 
-    fn lambda(&mut self, lambda: HirLambda) -> ast::Expression {
-        let (setup, closure_variable) = self.lambda_with_setup(lambda);
+    fn lambda(&mut self, lambda: HirLambda, expr: node_interner::ExprId) -> ast::Expression {
+        let (setup, closure_variable) = self.lambda_with_setup(lambda, expr);
         ast::Expression::Block(vec![setup, closure_variable])
     }
 
