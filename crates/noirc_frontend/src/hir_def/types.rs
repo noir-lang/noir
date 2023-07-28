@@ -1187,7 +1187,7 @@ impl Type {
             if matches!(size1, Type::Constant(_)) && matches!(size2, Type::NotConstant) {
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in make_subtype_of_with_coercions
-                if element1.is_subtype_of(&element2, span).is_ok() {
+                if element1.is_subtype_of(element2, span).is_ok() {
                     convert_array_expression_to_slice(expression, this, target, interner);
                     return true;
                 }
