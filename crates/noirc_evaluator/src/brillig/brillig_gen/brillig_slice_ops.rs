@@ -150,6 +150,7 @@ impl<'block> BrilligBlock<'block> {
                 BinaryIntOp::Add,
             );
             self.retrieve_variable_from_array(source_vector.pointer, target_index, *variable);
+            self.brillig_context.deallocate_register(target_index);
         }
     }
 

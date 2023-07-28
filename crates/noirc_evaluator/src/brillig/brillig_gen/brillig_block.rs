@@ -665,6 +665,7 @@ impl<'block> BrilligBlock<'block> {
 
                 let target_vector = self.function_context.extract_heap_vector(target_variable);
 
+                // TODO: Remove after https://github.com/noir-lang/noir/issues/2083 is fixed
                 let user_index = self.convert_ssa_register_value(arguments[1], dfg);
 
                 let converted_index = self
@@ -693,6 +694,7 @@ impl<'block> BrilligBlock<'block> {
                     self.function_context.create_variable(self.brillig_context, target_id, dfg);
                 let target_vector = self.function_context.extract_heap_vector(target_variable);
 
+                // TODO: Remove after https://github.com/noir-lang/noir/issues/2083 is fixed
                 let user_index = self.convert_ssa_register_value(arguments[1], dfg);
 
                 let converted_index = self
@@ -919,6 +921,9 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
+    /// Gets the number of subitems an array item has.
+    /// This allows operations like returning the user-defined length of an array where every item has multiple fields.
+    /// Such as an array/slice of structs.
     fn get_ssa_item_size(&self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
         let array_type = dfg[array_id].get_type();
         match array_type {
