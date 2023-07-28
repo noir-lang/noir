@@ -5,12 +5,17 @@ use std::{
     rc::Rc,
 };
 
-use crate::{hir::type_check::TypeCheckError, node_interner::NodeInterner};
+use crate::{
+    hir::type_check::TypeCheckError,
+    node_interner::{ExprId, NodeInterner},
+};
 use iter_extended::vecmap;
 use noirc_abi::AbiType;
 use noirc_errors::Span;
 
 use crate::{node_interner::StructId, Ident, Signedness};
+
+use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Type {
@@ -1141,7 +1146,60 @@ impl Type {
         }
     }
 
-    fn is_subtype_of(&self, other: &Type, span: Span) -> Result<(), SpanKind> {
+    /// Similar to `make_subtype_of` but if the check fails this will attempt to coerce the
+    /// argument to the target type. When this happens, the given expression is wrapped in
+    /// a new expression to convert its type. E.g. `array` -> `array.as_slice()`
+    ///
+    /// Currently the only type coercion in Noir is `[T; N]` into `[T]` via `.as_slice()`.
+    pub fn make_subtype_with_coercions(
+        &self,
+        expected: &Type,
+        expression: ExprId,
+        interner: &mut NodeInterner,
+        errors: &mut Vec<TypeCheckError>,
+        make_error: impl FnOnce() -> TypeCheckError,
+    ) {
+        let span = interner.expr_span(&expression);
+        if let Err(err_span) = self.is_subtype_of(expected, span) {
+            if !self.try_array_to_slice_coercion(expected, expression, span, interner) {
+                Self::issue_errors(expected, err_span, errors, make_error);
+            }
+        }
+    }
+
+    /// Try to apply the array to slice coercion to this given type pair and expression.
+    /// If self can be converted to target this way, do so and return true to indicate success.
+    fn try_array_to_slice_coercion(
+        &self,
+        target: &Type,
+        expression: ExprId,
+        span: Span,
+        interner: &mut NodeInterner,
+    ) -> bool {
+        let this = self.follow_bindings();
+        let target = target.follow_bindings();
+
+        if let (Type::Array(size1, element1), Type::Array(size2, element2)) = (&this, &target) {
+            let size1 = size1.follow_bindings();
+            let size2 = size2.follow_bindings();
+
+            // If we have an array and our target is a slice
+            if matches!(size1, Type::Constant(_)) && matches!(size2, Type::NotConstant) {
+                // Still have to ensure the element types match.
+                // Don't need to issue an error here if not, it will be done in make_subtype_of_with_coercions
+                if element1.is_subtype_of(element2, span).is_ok() {
+                    convert_array_expression_to_slice(expression, this, target, interner);
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Checks if self is a subtype of `other`. Returns Ok(()) if it is and Err(_) if not.
+    /// Note that this function may permanently bind type variables regardless of whether it
+    /// returned Ok or Err.
+    pub fn is_subtype_of(&self, other: &Type, span: Span) -> Result<(), SpanKind> {
         use Type::*;
         match (self, other) {
             (Error, _) | (_, Error) => Ok(()),
@@ -1556,6 +1614,33 @@ impl Type {
             | NotConstant => self.clone(),
         }
     }
+}
+
+/// Wraps a given `expression` in `expression.as_slice()`
+fn convert_array_expression_to_slice(
+    expression: ExprId,
+    array_type: Type,
+    target_type: Type,
+    interner: &mut NodeInterner,
+) {
+    let as_slice_method = interner
+        .lookup_primitive_method(&array_type, "as_slice")
+        .expect("Expected 'as_slice' method to be present in Noir's stdlib");
+
+    let as_slice_id = interner.function_definition_id(as_slice_method);
+    let location = interner.expr_location(&expression);
+    let as_slice = HirExpression::Ident(HirIdent { location, id: as_slice_id });
+    let func = interner.push_expr(as_slice);
+
+    let arguments = vec![expression];
+    let call = HirExpression::Call(HirCallExpression { func, arguments, location });
+    let call = interner.push_expr(call);
+
+    interner.push_expr_location(call, location.span, location.file);
+    interner.push_expr_location(func, location.span, location.file);
+
+    interner.push_expr_type(&call, target_type.clone());
+    interner.push_expr_type(&func, Type::Function(vec![array_type], Box::new(target_type)));
 }
 
 impl BinaryTypeOperator {
