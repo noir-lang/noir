@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - jb/noir-testing-workflow
+      - tom/noir-wasm-testing
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
@@ -31,7 +32,13 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: noir-lang/noir-wasm-testing
+          ref: use-injected-nargo
           path: noir-wasm-testing
+
+      - name: Install nargo
+        run: | 
+          curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
+          noirup -p ./
 
       - name: Inject built wasm into noir-wasm-testing
         run: |
