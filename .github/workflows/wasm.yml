@@ -112,6 +112,7 @@ jobs:
         run: |
           ls -R
           nargo_binary=$(find . -name "nargo")
+          nargo_binary=$(realpath $nargo_binary)
           chmod +x $nargo_binary
           if [ -f "$nargo_binary" ]; then
             echo "nargo binary found at $nargo_binary."
