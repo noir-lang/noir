@@ -108,16 +108,16 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: nargo
-          path: ./nargo
+          path: ./src/noir-script
 
       - name: Run noir-wasm-testing program 
+        working-directory: ./src/noir-script/
         run: |
           ls -l
-          ls -l ./nargo
-          ls -l ./nargo/bin
-          chmod +x ./nargo/bin/nargo
-          ls -l ./nargo/bin
-          ${{ github.workspace }}/nargo/bin/nargo -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
+          ls -l ./bin
+          chmod +x ./bin/nargo
+          ls -l ./bin
+          ./bin/nargo compile noir-wasm-testing
 
       - name: Install dependencies
         run: npm install
