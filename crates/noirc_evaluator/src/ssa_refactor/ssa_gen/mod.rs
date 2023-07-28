@@ -189,7 +189,7 @@ impl<'a> FunctionContext<'a> {
                 self.builder.insert_binary(zero, BinaryOp::Sub, rhs).into()
             }
             noirc_frontend::UnaryOp::MutableReference => {
-                self.codegen_reference_lhs(&unary.rhs).map(|rhs| {
+                self.codegen_reference(&unary.rhs).map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let alloc = self.builder.insert_allocate();
@@ -209,11 +209,11 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    fn codegen_reference_lhs(&mut self, expr: &Expression) -> Values {
+    fn codegen_reference(&mut self, expr: &Expression) -> Values {
         match expr {
             Expression::Ident(ident) => self.codegen_ident_reference(ident),
             Expression::ExtractTupleField(tuple, index) => {
-                let tuple = self.codegen_reference_lhs(tuple);
+                let tuple = self.codegen_reference(tuple);
                 Self::get_field(tuple, *index)
             }
             other => self.codegen_expression(other),
