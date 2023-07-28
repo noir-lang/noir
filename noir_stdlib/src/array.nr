@@ -22,6 +22,15 @@ impl<T, N> [T; N] {
         a
     }
 
+    // Converts an array into a slice.
+    fn as_slice(self) -> [T] {
+        let mut slice = [];
+        for elem in self {
+            slice = slice.push_back(elem);
+        }
+        slice
+    }
+
     // Apply a function to each element of an array, returning a new array
     // containing the mapped elements.
     fn map<U>(self, f: fn(T) -> U) -> [U; N] {

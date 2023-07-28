@@ -1,4 +1,4 @@
-use std::{borrow::Cow, rc::Rc};
+use std::borrow::Cow;
 
 use acvm::FieldElement;
 use noirc_errors::Location;
@@ -17,7 +17,6 @@ use super::{
         dfg::InsertInstructionResult,
         function::RuntimeType,
         instruction::{InstructionId, Intrinsic},
-        types::CompositeType,
     },
     ssa_gen::Ssa,
 };
@@ -115,12 +114,8 @@ impl FunctionBuilder {
     }
 
     /// Insert an array constant into the current function with the given element values.
-    pub(crate) fn array_constant(
-        &mut self,
-        elements: im::Vector<ValueId>,
-        element_types: Rc<CompositeType>,
-    ) -> ValueId {
-        self.current_function.dfg.make_array(elements, element_types)
+    pub(crate) fn array_constant(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
+        self.current_function.dfg.make_array(elements, typ)
     }
 
     /// Returns the type of the given value.

@@ -420,15 +420,9 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
         Intrinsic::ArrayLen => {
             let slice = dfg.get_array_constant(arguments[0]);
             if let Some((slice, _)) = slice {
-                let slice_len =
-                    dfg.make_constant(FieldElement::from(slice.len() as u128), Type::field());
-                SimplifiedTo(slice_len)
-            } else if let Some((_, slice_len)) = dfg.get_array_parameter_type(arguments[0]) {
-                let slice_len = dfg.make_constant(
-                    FieldElement::from(slice_len as u128),
-                    Type::Numeric(NumericType::NativeField),
-                );
-                SimplifiedTo(slice_len)
+                SimplifiedTo(dfg.make_constant((slice.len() as u128).into(), Type::field()))
+            } else if let Some(length) = dfg.try_get_array_length(arguments[0]) {
+                SimplifiedTo(dfg.make_constant((length as u128).into(), Type::field()))
             } else {
                 None
             }
@@ -534,9 +528,11 @@ fn constant_to_radix(
     while limbs.len() < limb_count_with_padding as usize {
         limbs.push(FieldElement::zero());
     }
-    let result_constants =
+    let result_constants: im::Vector<ValueId> =
         limbs.into_iter().map(|limb| dfg.make_constant(limb, Type::unsigned(bit_size))).collect();
-    dfg.make_array(result_constants, Rc::new(vec![Type::unsigned(bit_size)]))
+
+    let typ = Type::Array(Rc::new(vec![Type::unsigned(bit_size)]), result_constants.len());
+    dfg.make_array(result_constants, typ)
 }
 
 /// The possible return values for Instruction::return_types
