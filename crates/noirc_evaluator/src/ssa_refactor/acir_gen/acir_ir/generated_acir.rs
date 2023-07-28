@@ -248,8 +248,11 @@ impl GeneratedAcir {
     ) -> Expression {
         let max_power_of_two =
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
-        let inter = &(&Expression::from_field(max_power_of_two) - lhs) * &leading.into();
-        lhs.add_mul(FieldElement::from(2_i128), &inter.unwrap())
+
+        let intermediate =
+            self.mul_with_witness(&(&Expression::from(max_power_of_two) - lhs), &leading.into());
+
+        lhs.add_mul(FieldElement::from(2_i128), &intermediate)
     }
 
     /// Returns an expression which represents `lhs * rhs`
