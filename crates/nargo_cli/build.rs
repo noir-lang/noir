@@ -60,8 +60,7 @@ fn generate_tests(test_file: &mut File) {
         Ok(dir) => PathBuf::from(dir),
         Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
     };
-    // Choose the test directory depending on whether we are in the legacy SSA module or not
-    let test_sub_dir = "test_data_ssa_refactor";
+    let test_sub_dir = "test_data";
     let test_data_dir = manifest_dir.join("tests").join(test_sub_dir);
     let config_path = test_data_dir.join("config.toml");
 

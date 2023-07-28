@@ -162,10 +162,6 @@ fn resolve_package_manifest(
     Ok(())
 }
 
-fn crate_name(name: Option<CrateName>) -> String {
-    name.map(|name| name.into()).unwrap_or_else(|| "[unnamed]".to_string())
-}
-
 fn resolve_workspace_manifest(
     context: &mut Context,
     mut local_package: Option<String>,
@@ -187,20 +183,18 @@ fn resolve_workspace_manifest(
 
         match member_manifest {
             Manifest::Package(inner) => {
-                let name = inner
+                let name: CrateName = inner
                     .package
                     .name
-                    .map(|name| {
-                        name.parse().map_err(|_name| DependencyResolutionError::InvalidPackageName)
-                    })
-                    .transpose()?;
+                    .parse()
+                    .map_err(|_name| DependencyResolutionError::InvalidPackageName)?;
 
                 if packages.insert(name.clone(), member_path).is_some() {
-                    return Err(DependencyResolutionError::PackageCollision(crate_name(name)));
+                    return Err(DependencyResolutionError::PackageCollision(name.into()));
                 }
 
                 if local_package.is_none() && workspace.default_member.as_ref() == Some(member) {
-                    local_package = name.map(Into::into);
+                    local_package = Some(name.into());
                 }
             }
             Manifest::Workspace(_) => {
@@ -213,16 +207,15 @@ fn resolve_workspace_manifest(
     }
 
     let local_package = match local_package {
-        Some(local_package) => local_package
-            .parse::<CrateName>()
-            .map_err(|_| DependencyResolutionError::InvalidPackageName)?
-            .into(),
+        Some(local_package) => {
+            local_package.parse().map_err(|_| DependencyResolutionError::InvalidPackageName)?
+        }
         None => packages.keys().last().expect("non-empty packages").clone(),
     };
 
     let local_crate = packages
         .remove(&local_package)
-        .ok_or_else(|| DependencyResolutionError::PackageNotFound(crate_name(local_package)))?;
+        .ok_or_else(|| DependencyResolutionError::PackageNotFound(local_package.into()))?;
 
     let (entry_path, _crate_type) = super::lib_or_bin(local_crate)?;
     let crate_id = create_local_crate(context, &entry_path, CrateType::Workspace);

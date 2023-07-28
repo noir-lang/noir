@@ -7,8 +7,13 @@
 //! This module heavily borrows from Cranelift
 #![allow(dead_code)]
 
+use std::collections::BTreeSet;
+
 use crate::errors::RuntimeError;
-use acvm::acir::circuit::{Circuit, PublicInputs};
+use acvm::acir::{
+    circuit::{Circuit, PublicInputs},
+    native_types::Witness,
+};
 
 use noirc_errors::debug_info::DebugInfo;
 
@@ -80,9 +85,20 @@ pub fn create_circuit(
 
     let public_parameters =
         PublicInputs(public_abi.param_witnesses.values().flatten().copied().collect());
+
+    let all_parameters: BTreeSet<Witness> =
+        abi.param_witnesses.values().flatten().copied().collect();
+    let private_parameters = all_parameters.difference(&public_parameters.0).copied().collect();
+
     let return_values = PublicInputs(return_witnesses.into_iter().collect());
 
-    let circuit = Circuit { current_witness_index, opcodes, public_parameters, return_values };
+    let circuit = Circuit {
+        current_witness_index,
+        opcodes,
+        private_parameters,
+        public_parameters,
+        return_values,
+    };
     let debug_info = DebugInfo::new(locations);
 
     Ok((circuit, debug_info, abi))
