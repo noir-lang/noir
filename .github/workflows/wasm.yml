@@ -112,9 +112,10 @@ jobs:
         run: |
           ls -l
           ls -l ./nargo
-          chmod +x ./nargo/nargo
-          ls -l ./nargo
-          ${{ github.workspace }}/nargo/nargo -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
+          ls -l ./nargo/bin
+          chmod +x ./nargo/bin/nargo
+          ls -l ./nargo/bin
+          ${{ github.workspace }}/nargo/bin/nargo -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
 
       - name: Install dependencies
         run: npm install
