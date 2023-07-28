@@ -28,8 +28,9 @@ impl Workspace {
         self.target_directory_path().join(name)
     }
 
-    pub fn contracts_directory_path(&self) -> PathBuf {
-        self.root_dir.join(CONTRACT_DIR)
+    pub fn contracts_directory_path(&self, package: &Package) -> PathBuf {
+        let name: String = package.name.clone().into();
+        self.root_dir.join(CONTRACT_DIR).join(name)
     }
 
     pub fn proofs_directory_path(&self) -> PathBuf {

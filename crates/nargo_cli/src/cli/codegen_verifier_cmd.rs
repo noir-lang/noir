@@ -49,7 +49,7 @@ pub(crate) fn run<B: Backend>(
             &args.compile_options,
         )?;
 
-        let contract_dir = workspace.contracts_directory_path();
+        let contract_dir = workspace.contracts_directory_path(package);
         create_named_dir(&contract_dir, "contract");
         let contract_path = contract_dir.join("plonk_vk").with_extension("sol");
 
