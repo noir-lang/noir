@@ -1408,11 +1408,14 @@ mod tests {
         "#;
 
         let expected_rewrite = r#"fn main$f0() -> Field {
-    let closure$2 = {
-        let env$1 = ();
-        (env$l1, lambda$f1)
+    let closure$3 = {
+        let closure_variable$2 = {
+            let env$1 = ();
+            (env$l1, lambda$f1)
+        };
+        closure_variable$l2
     };
-    closure$l2.1(closure$l2.0, 0)
+    closure$l3.1(closure$l3.0, 0)
 }
 fn lambda$f1(mut env$l1: (), x$l0: Field) -> Field {
     x$l0
