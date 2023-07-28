@@ -21,7 +21,7 @@ fn dyn_array(mut x: [u32; 5], y: Field, z: Field) {
     assert(x[y] == 111);
     assert(x[z] == 101);
     x[z] = 0;
-    assert(x[y] == 111);
+   assert(x[y] == 111);
     assert(x[1] == 0);
     if y as u32 < 10 {
       x[y] = x[y] - 2;

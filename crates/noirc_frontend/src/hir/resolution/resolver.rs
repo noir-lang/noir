@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
+use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
@@ -49,7 +49,7 @@ use crate::hir_def::{
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 
-use super::errors::ResolverError;
+use super::errors::{PubPosition, ResolverError};
 
 const SELF_TYPE_NAME: &str = "Self";
 
@@ -137,6 +137,7 @@ impl<'a> Resolver<'a> {
         mut self,
         func: NoirFunction,
         func_id: FuncId,
+        module_id: ModuleId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
 
@@ -145,7 +146,7 @@ impl<'a> Resolver<'a> {
 
         self.add_generics(&func.def.generics);
 
-        let (hir_func, func_meta) = self.intern_function(func, func_id);
+        let (hir_func, func_meta) = self.intern_function(func, func_id, module_id);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
@@ -304,8 +305,13 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
-        let func_meta = self.extract_meta(&func, id);
+    fn intern_function(
+        &mut self,
+        func: NoirFunction,
+        id: FuncId,
+        module_id: ModuleId,
+    ) -> (HirFunction, FuncMeta) {
+        let func_meta = self.extract_meta(&func, id, module_id);
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
@@ -327,7 +333,7 @@ impl<'a> Resolver<'a> {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                if self.interner.experimental_ssa && size.is_none() {
+                if size.is_none() {
                     return Type::Slice(elem);
                 }
                 let resolved_size = self.resolve_array_size(size, new_variables);
@@ -586,7 +592,12 @@ impl<'a> Resolver<'a> {
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: self.add_generics() has already been called with the given
     /// function's generics, including any generics from the impl, if any.
-    fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
+    fn extract_meta(
+        &mut self,
+        func: &NoirFunction,
+        func_id: FuncId,
+        module_id: ModuleId,
+    ) -> FuncMeta {
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent { id, location };
@@ -606,7 +617,10 @@ impl<'a> Resolver<'a> {
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
             if visibility == noirc_abi::AbiVisibility::Public && !self.pub_allowed(func) {
-                self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() });
+                self.push_err(ResolverError::UnnecessaryPub {
+                    ident: func.name_ident().clone(),
+                    position: PubPosition::Parameter,
+                });
             }
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
@@ -619,6 +633,14 @@ impl<'a> Resolver<'a> {
         let return_type = Box::new(self.resolve_type(func.return_type()));
 
         self.declare_numeric_generics(&parameter_types, &return_type);
+
+        if !self.pub_allowed(func) && func.def.return_visibility == noirc_abi::AbiVisibility::Public
+        {
+            self.push_err(ResolverError::UnnecessaryPub {
+                ident: func.name_ident().clone(),
+                position: PubPosition::ReturnType,
+            });
+        }
 
         // 'pub_allowed' also implies 'pub' is required on return types
         if self.pub_allowed(func)
@@ -652,6 +674,7 @@ impl<'a> Resolver<'a> {
             name: name_ident,
             kind: func.kind,
             attributes,
+            module_id,
             contract_function_type: self.handle_function_type(func),
             is_internal: self.handle_is_function_internal(func),
             is_unconstrained: func.def.is_unconstrained,
@@ -667,7 +690,7 @@ impl<'a> Resolver<'a> {
     /// True if the 'pub' keyword is allowed on parameters in this function
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
         if self.in_contract() {
-            !func.def.is_unconstrained && !func.def.is_open
+            !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
         }
@@ -754,8 +777,7 @@ impl<'a> Resolver<'a> {
             | Type::String(_)
             | Type::Unit
             | Type::Error
-            | Type::TypeVariable(_)
-            | Type::PolymorphicInteger(_, _)
+            | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::Forall(_, _) => (),
@@ -1361,7 +1383,7 @@ mod test {
             let id = interner.push_fn(HirFunction::empty());
             interner.push_function_definition(func.name().to_string(), id);
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (_, _, err) = resolver.resolve_function(func, id);
+            let (_, _, err) = resolver.resolve_function(func, id, ModuleId::dummy_id());
             errors.extend(err);
         }
 

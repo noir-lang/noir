@@ -1,4 +1,5 @@
 [package]
+name = "keccak256"
 authors = [""]
 compiler_version = "0.1"
 
