@@ -40,12 +40,7 @@ fn tomlgen<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let (mut context, crate_id) = resolve_root_manifest(program_dir, None)?;
-    check_crate_and_report_errors(
-        &mut context,
-        crate_id,
-        compile_options.deny_warnings,
-        compile_options.experimental_ssa,
-    )?;
+    check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
     if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
         // XXX: The root config should return an enum to determine if we are looking for .json or .toml
         // For now it is hard-coded to be toml.
