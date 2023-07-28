@@ -1,10 +1,8 @@
 use dep::std;
 
-fn main(x : Field, _y: Field)  {
-    // The result of this byte array will be big-endian
+fn main(x : Field, a: Field)  {
     let y: Field = 2040124;
     let be_byte_array = y.to_be_bytes(31);
-    // The result of this byte array will be little-endian
     let le_byte_array = x.to_le_bytes(31);
     
     assert(le_byte_array[0] == 60);
@@ -23,5 +21,5 @@ fn main(x : Field, _y: Field)  {
     assert(z_bits[0] == 0);
     assert(p_bits[100] == z_bits[100]);
 
-   _y.to_le_bits(std::field::modulus_num_bits() as u32);
+    a.to_le_bits(std::field::modulus_num_bits() as u32);
 }

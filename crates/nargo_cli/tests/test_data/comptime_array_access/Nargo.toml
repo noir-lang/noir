@@ -1,4 +1,5 @@
 [package]
+name = "comptime_array_access"
 authors = [""]
 compiler_version = "0.1"
 

@@ -11,12 +11,7 @@ noirc_frontend.workspace = true
 noirc_errors.workspace = true
 noirc_abi.workspace = true
 acvm.workspace = true
-arena.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
 num-bigint = "0.4"
-num-traits = "0.2.8"
 im = "15.1"
-
-[dev-dependencies]
-rand="0.8.5"

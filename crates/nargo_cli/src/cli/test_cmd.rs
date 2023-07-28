@@ -46,12 +46,7 @@ fn run_tests<B: Backend>(
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let (mut context, crate_id) = resolve_root_manifest(program_dir, None)?;
-    check_crate_and_report_errors(
-        &mut context,
-        crate_id,
-        compile_options.deny_warnings,
-        compile_options.experimental_ssa,
-    )?;
+    check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 
     let test_functions = match context.crate_graph.crate_type(crate_id) {
         noirc_frontend::graph::CrateType::Workspace => {
