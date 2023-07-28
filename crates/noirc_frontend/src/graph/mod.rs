@@ -40,6 +40,11 @@ impl From<CrateName> for String {
         crate_name.0.into()
     }
 }
+impl From<&CrateName> for String {
+    fn from(crate_name: &CrateName) -> Self {
+        crate_name.0.clone().into()
+    }
+}
 
 /// Creates a new CrateName rejecting any crate name that
 /// has a character on the blacklist.

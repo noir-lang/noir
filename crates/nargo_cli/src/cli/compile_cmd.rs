@@ -33,9 +33,6 @@ const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CompileCommand {
-    /// The name of the ACIR file
-    circuit_name: String,
-
     /// Include Proving and Verification keys in the build artifacts.
     #[arg(long)]
     include_keys: bool,
@@ -103,7 +100,7 @@ pub(crate) fn run<B: Backend>(
             for contract in preprocessed_contracts? {
                 save_contract_to_file(
                     &contract,
-                    &format!("{}-{}", &args.circuit_name, contract.name),
+                    &format!("{}-{}", package.name, contract.name),
                     &circuit_dir,
                 );
             }
@@ -120,7 +117,7 @@ pub(crate) fn run<B: Backend>(
             let (preprocessed_program, _) =
                 preprocess_program(backend, args.include_keys, &common_reference_string, program)
                     .map_err(CliError::ProofSystemCompilerError)?;
-            save_program_to_file(&preprocessed_program, &args.circuit_name, &circuit_dir);
+            save_program_to_file(&preprocessed_program, &package.name, &circuit_dir);
         }
     }
 
