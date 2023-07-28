@@ -673,8 +673,20 @@ impl GeneratedAcir {
     /// - `1` if lhs >= rhs
     /// - `0` otherwise
     ///
-    /// See [R1CS Workshop - Section 10](https://github.com/mir-protocol/r1cs-workshop/blob/master/workshop.pdf)
-    /// for an explanation.
+    /// We essentially computes the sign bit of b-a
+    /// For this we sign-extend b-a with c = 2^{max_bits} - (b - a), since both a and b are < 2^{max_bits}
+    /// Then we get the bit sign of c, the 2-complement representation of (b-a), which is a max_bits+1 integer,
+    /// by doing the euclidian division c / 2^{max_bits}
+    ///
+    /// To see why it really works;
+    /// We first note that c is an integer of (max_bits+1) bits. Therfore,
+    /// if b-a>0, then c < 2^{max_bits}, so the division by 2^{max_bits} will give 0
+    /// If b-a<=0, then c >= 2^{max_bits}, so the division by 2^{max_bits} will give 1.
+    ///
+    /// In other words, 1 means a >= b and 0 means b > a.
+    /// The important thing here is that c does not overflow nor underflow the field;
+    /// - By construction we have c >= 0, so there is no underflow
+    /// - We assert at the begining that 2^{max_bits+1} does not overflow the field, so neither c.
     pub(crate) fn more_than_eq_comparison(
         &mut self,
         a: &Expression,
