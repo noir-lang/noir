@@ -11,8 +11,59 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build Wasm
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build wasm package
+        run: |
+          nix build -L .#wasm
+      
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noir_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+  build-nargo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build nargo
+        run: |
+          nix build -L .
+      
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+  test:
+    needs: [build-wasm, build-nargo]
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -24,10 +75,6 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build wasm package
-        run: |
-          nix build -L .#wasm
-
       - name: Checkout noir-wasm-testing
         uses: actions/checkout@v3
         with:
@@ -35,17 +82,25 @@ jobs:
           ref: use-injected-nargo
           path: noir-wasm-testing
 
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Add nargo to path
+        run: echo "./nargo" >> $GITHUB_PATH
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noir_wasm
+          path: ./noir-wasm-testing/@noir-lang_noir_wasm
+
       - name: Inject built wasm into noir-wasm-testing
         run: |
-          mkdir ./noir-wasm-testing/@noir-lang_noir_wasm
-          cp -r -L ./result/* ./noir-wasm-testing/@noir-lang_noir_wasm
           jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
-
-      - name: Install nargo
-        run: | 
-          nix build .
-          echo ./result/bin" >> $GITHUB_PATH
 
       - name: Run build.sh in noir-wasm-testing
         working-directory: ./noir-wasm-testing
