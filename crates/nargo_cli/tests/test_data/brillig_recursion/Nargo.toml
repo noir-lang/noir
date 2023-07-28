@@ -1,0 +1,6 @@
+[package]
+name = "brillig_recursion"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

@@ -21,11 +21,7 @@ pub(crate) fn convert_ssa_function(func: &Function, enable_debug_trace: bool) ->
     let mut function_context =
         FunctionContext { function_id: func.id(), ssa_value_to_brillig_variable: HashMap::new() };
 
-    let mut brillig_context = BrilligContext::new(
-        FunctionContext::parameters(func),
-        FunctionContext::return_values(func),
-        enable_debug_trace,
-    );
+    let mut brillig_context = BrilligContext::new(enable_debug_trace);
 
     brillig_context.enter_context(FunctionContext::function_id_to_function_label(func.id()));
     for block in reverse_post_order {

@@ -1,4 +1,5 @@
 [package]
+name = "array_len"
 authors = [""]
 compiler_version = "0.1"
 

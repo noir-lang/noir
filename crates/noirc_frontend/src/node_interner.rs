@@ -18,8 +18,9 @@ use crate::hir_def::{
     stmt::HirStatement,
 };
 use crate::{
-    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
+    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind
 };
+
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -78,11 +79,6 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
-
-    /// TODO(#1850): This is technical debt that should be removed once we fully move over
-    /// to the new SSA pass which has certain frontend features enabled
-    /// such as slices and the removal of aos_to_soa
-    pub experimental_ssa: bool,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -272,7 +268,6 @@ impl Default for NodeInterner {
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
-            experimental_ssa: false,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -670,7 +665,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::Array(_, _) => Some(Array),
         Type::Slice(_) => Some(Slice),
         Type::Integer(_, _, _) => Some(FieldOrInt),
-        Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::IntegerOrField(_)) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),
         Type::String(_) => Some(String),
         Type::Unit => Some(Unit),
@@ -679,7 +674,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
-        Type::TypeVariable(_)
+        Type::TypeVariable(_, _)
         | Type::NamedGeneric(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)

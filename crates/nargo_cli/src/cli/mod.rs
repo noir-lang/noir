@@ -12,7 +12,7 @@ mod check_cmd;
 mod codegen_verifier_cmd;
 mod compile_cmd;
 mod execute_cmd;
-mod gates_cmd;
+mod info_cmd;
 mod init_cmd;
 mod lsp_cmd;
 mod new_cmd;
@@ -57,7 +57,7 @@ enum NargoCommand {
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
-    Gates(gates_cmd::GatesCommand),
+    Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),
 }
 
@@ -80,7 +80,7 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
-        NargoCommand::Gates(args) => gates_cmd::run(&backend, args, config),
+        NargoCommand::Info(args) => info_cmd::run(&backend, args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
     }?;
@@ -112,7 +112,7 @@ mod tests {
         let mut context = Context::new(fm, graph);
         let crate_id = create_local_crate(&mut context, root_file, CrateType::Binary);
 
-        let result = check_crate(&mut context, crate_id, false, false);
+        let result = check_crate(&mut context, crate_id, false);
         let success = result.is_ok();
 
         let errors = match result {
