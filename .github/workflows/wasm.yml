@@ -116,6 +116,9 @@ jobs:
 
       - name: Run noir-wasm-testing program 
         run: |
+          ls -l
+          ls -l ./nargo
+          ls -l ./nargo/bin
           chmod +x ./nargo/bin/nargo
           ./nargo/bin/nargo -p "./noir-wasm-testing/src/noir-script" compile noir-wasm-testing
 
