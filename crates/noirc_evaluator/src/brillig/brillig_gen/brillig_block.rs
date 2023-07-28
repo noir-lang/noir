@@ -659,31 +659,64 @@ impl<'block> BrilligBlock<'block> {
             }
             Value::Intrinsic(Intrinsic::SliceInsert) => {
                 let results = dfg.instruction_results(instruction_id);
-                let index = self.convert_ssa_register_value(arguments[1], dfg);
+                let target_id = results[0];
+                let target_variable =
+                    self.function_context.create_variable(self.brillig_context, target_id, dfg);
+
+                let target_vector = self.function_context.extract_heap_vector(target_variable);
+
+                let user_index = self.convert_ssa_register_value(arguments[1], dfg);
+
+                let converted_index = self
+                    .brillig_context
+                    .make_constant(self.get_ssa_item_size(target_id, dfg).into());
+
+                self.brillig_context.memory_op(
+                    converted_index,
+                    user_index,
+                    converted_index,
+                    BinaryIntOp::Mul,
+                );
 
                 let items = vecmap(&arguments[2..subitem_count + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                let target_variable =
-                    self.function_context.create_variable(self.brillig_context, results[0], dfg);
-
-                let target_vector = self.function_context.extract_heap_vector(target_variable);
-                self.slice_insert_operation(target_vector, source_vector, index, &items);
+                self.slice_insert_operation(target_vector, source_vector, converted_index, &items);
+                self.brillig_context.deallocate_register(converted_index);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) => {
                 let results = dfg.instruction_results(instruction_id);
-                let index = self.convert_ssa_register_value(arguments[1], dfg);
+                let target_id = results[0];
 
                 let target_variable =
-                    self.function_context.create_variable(self.brillig_context, results[0], dfg);
+                    self.function_context.create_variable(self.brillig_context, target_id, dfg);
                 let target_vector = self.function_context.extract_heap_vector(target_variable);
+
+                let user_index = self.convert_ssa_register_value(arguments[1], dfg);
+
+                let converted_index = self
+                    .brillig_context
+                    .make_constant(self.get_ssa_item_size(target_id, dfg).into());
+                self.brillig_context.memory_op(
+                    converted_index,
+                    user_index,
+                    converted_index,
+                    BinaryIntOp::Mul,
+                );
 
                 let removed_items = vecmap(&results[1..subitem_count + 1], |result| {
                     self.function_context.create_variable(self.brillig_context, *result, dfg)
                 });
 
-                self.slice_remove_operation(target_vector, source_vector, index, &removed_items);
+                self.slice_remove_operation(
+                    target_vector,
+                    source_vector,
+                    converted_index,
+                    &removed_items,
+                );
+
+                self.brillig_context.deallocate_register(converted_index);
             }
             _ => unreachable!("ICE: Slice operation not supported"),
         }

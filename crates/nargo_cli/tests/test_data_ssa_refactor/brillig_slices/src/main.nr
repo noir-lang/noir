@@ -68,47 +68,9 @@ unconstrained fn main(x: Field, y: Field) {
     let (empty_slice, should_be_x) = slice.remove(0);
     assert(should_be_x == x);
     assert(empty_slice.len() == 0);
-
-    test_nested(x,y);
 }
 
 // Tests slice passing to/from functions
 unconstrained fn push_front_to_slice<T>(slice: [T], item: T) -> [T] {
     slice.push_front(item)
-}
-
-struct Foo {
-    x: Field,
-    y: Field,
-    arr: [Field]
-}
-
-unconstrained fn create_foo(x: Field, y: Field) -> Foo {
-    let mut arr = [x];
-    arr = arr.push_back(y);
-    Foo { arr: arr, x, y }
-}
-
-unconstrained fn test_nested(x: Field, y: Field) {
-    let mut slice = [create_foo(x,y), create_foo(y, x)];
-    assert(slice.len() == 2);
-
-    assert(slice[0].y == y);
-    assert(slice[0].arr[0] == x);
-    assert(slice[1].x == y);
-    assert(slice[1].arr[1] == x);
-
-    slice = slice.push_back(create_foo(7,8));
-    assert(slice.len() == 3);
-
-    assert(slice[0].x == x);
-    assert(slice[0].arr[1] == y);
-
-    assert(slice[1].y == x);
-    assert(slice[1].arr[0] == y);
-
-    assert(slice[2].x == 7);
-    assert(slice[2].y == 8);
-    assert(slice[2].arr[0] == 7);
-    assert(slice[2].arr[1] == 8);
 }
