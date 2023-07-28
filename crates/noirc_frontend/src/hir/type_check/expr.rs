@@ -333,7 +333,7 @@ impl<'interner> TypeChecker<'interner> {
     /// Given a method object: `(*foo).bar` of a method call `(*foo).bar.baz()`, remove the
     /// implicitly added dereference operator if one is found.
     ///
-    /// Returns true if a dereference was removed.
+    /// Returns Some(()) if a dereference was removed and None otherwise.
     fn try_remove_implicit_dereference(&mut self, object: ExprId) -> Option<()> {
         match self.interner.expression(&object) {
             HirExpression::MemberAccess(access) => {
