@@ -112,9 +112,9 @@ jobs:
         run: |
           ls -R
           nargo_binary=$(find $(pwd) -name "nargo")
-          chmod +x $nargo_binary
+          echo "nargo binary found at $nargo_binary."
           if [ -x "$nargo_binary" ]; then
-            echo "nargo binary found at $nargo_binary."
+            chmod +x $nargo_binary
             $nargo_binary -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
           else
             echo "nargo binary NOT found."
