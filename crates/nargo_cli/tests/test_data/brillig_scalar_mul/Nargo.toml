@@ -1,0 +1,6 @@
+[package]
+name = "brillig_scalar_mul"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

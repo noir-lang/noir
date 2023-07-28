@@ -23,6 +23,7 @@ use crate::{
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
     CompTime, ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings,
+    TypeVariableKind,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -599,9 +600,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Slice(Box::new(element))
             }
 
-            HirType::PolymorphicInteger(_, binding)
-            | HirType::TypeVariable(binding)
-            | HirType::NamedGeneric(binding, _) => {
+            HirType::TypeVariable(binding, _) | HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return Self::convert_type(binding);
                 }
@@ -974,7 +973,7 @@ impl<'interner> Monomorphizer<'interner> {
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     match typ {
         HirType::Tuple(fields) => fields.clone(),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
@@ -985,7 +984,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
 fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
     match typ {
         HirType::Struct(def, args) => def.borrow().get_fields(args),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_struct_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
@@ -997,7 +996,7 @@ fn unwrap_array_element_type(typ: &HirType) -> HirType {
     match typ {
         HirType::Array(_, elem) => *elem.clone(),
         HirType::Slice(elem) => *elem.clone(),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
