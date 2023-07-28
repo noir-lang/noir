@@ -47,6 +47,27 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - uses: cachix/cachix-action@v12
+        with:
+          name: barretenberg
+
+      - name: Restore nix store cache
+        id: nix-store-cache
+        uses: actions/cache@v3
+        with:
+          path: /tmp/nix-cache
+          key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
+
+      # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
+      - name: Copy cache into nix store
+        if: steps.nix-store-cache.outputs.cache-hit == 'true'
+        # We don't check the signature because we're the one that created the cache
+        run: |
+          for narinfo in /tmp/nix-cache/*.narinfo; do
+            path=$(head -n 1 "$narinfo" | awk '{print $2}')
+            nix copy --no-check-sigs --from "file:///tmp/nix-cache" "$path"
+          done
+
       - name: Build nargo
         run: |
           nix build -L .
