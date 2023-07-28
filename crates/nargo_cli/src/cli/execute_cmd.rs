@@ -49,15 +49,14 @@ pub(crate) fn run<B: Backend>(
         let (return_value, solved_witness) =
             execute_package(backend, package, &args.prover_name, &args.compile_options)?;
 
-        // TODO: Print the package name at the beginning?
-        println!("Circuit witness successfully solved");
+        println!("[{}] Circuit witness successfully solved", package.name);
         if let Some(return_value) = return_value {
-            println!("Circuit output: {return_value:?}");
+            println!("[{}] Circuit output: {return_value:?}", package.name);
         }
         if let Some(witness_name) = &args.witness_name {
             let witness_path = save_witness_to_dir(solved_witness, witness_name, witness_dir)?;
 
-            println!("Witness saved to {}", witness_path.display());
+            println!("[{}] Witness saved to {}", package.name, witness_path.display());
         }
     }
     Ok(())

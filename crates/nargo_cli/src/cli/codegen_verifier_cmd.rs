@@ -54,7 +54,7 @@ pub(crate) fn run<B: Backend>(
         let contract_path = contract_dir.join("plonk_vk").with_extension("sol");
 
         let path = write_to_file(smart_contract_string.as_bytes(), &contract_path);
-        println!("Contract successfully created and located at {path}");
+        println!("[{}] Contract successfully created and located at {path}", package.name);
     }
 
     Ok(())

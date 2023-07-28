@@ -49,9 +49,9 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
 
     let num_opcodes = compiled_program.circuit.opcodes.len();
 
-    // TODO: Print the package name at the beginning?
     println!(
-        "Total ACIR opcodes generated for language {:?}: {}",
+        "[{}] Total ACIR opcodes generated for language {:?}: {}",
+        package.name,
         backend.np_language(),
         num_opcodes
     );
@@ -59,7 +59,7 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
     let exact_circuit_size = backend
         .get_exact_circuit_size(&compiled_program.circuit)
         .map_err(CliError::ProofSystemCompilerError)?;
-    println!("Backend circuit size: {exact_circuit_size}");
+    println!("[{}] Backend circuit size: {exact_circuit_size}", package.name);
 
     Ok(())
 }

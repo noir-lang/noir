@@ -34,8 +34,7 @@ pub(crate) fn run<B: Backend>(
 
     for package in &workspace {
         check_package(package, &args.compile_options)?;
-        // TODO: Print package name at beginning?
-        println!("Constraint system successfully built!");
+        println!("[{}] Constraint system successfully built!", package.name);
     }
     Ok(())
 }

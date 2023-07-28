@@ -60,36 +60,40 @@ fn run_tests<B: Backend>(
 
     let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, test_name);
 
-    println!("Running {} test functions...", test_functions.len());
+    println!("[{}] Running {} test functions", package.name, test_functions.len());
     let mut failing = 0;
 
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
     for (test_name, test_function) in test_functions {
-        writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
-        writer.flush().ok();
+        write!(writer, "[{}] Testing {test_name}... ", package.name)
+            .expect("Failed to write to stdout");
+        writer.flush().expect("Failed to flush writer");
 
         match run_test(backend, &test_name, test_function, &context, show_output, compile_options) {
             Ok(_) => {
-                writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
-                writeln!(writer, "ok").ok();
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
+                    .expect("Failed to set color");
+                writeln!(writer, "ok").expect("Failed to write to stdout");
             }
             // Assume an error was already printed to stdout
             Err(_) => failing += 1,
         }
-        writer.reset().ok();
+        writer.reset().expect("Failed to reset writer");
     }
 
     if failing == 0 {
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).unwrap();
-        writeln!(writer, "All tests passed").ok();
+        write!(writer, "[{}] ", package.name).expect("Failed to write to stdout");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
+        writeln!(writer, "All tests passed").expect("Failed to write to stdout");
     } else {
         let plural = if failing == 1 { "" } else { "s" };
-        return Err(CliError::Generic(format!("{failing} test{plural} failed")));
+        return Err(CliError::Generic(format!("[{}] {failing} test{plural} failed", package.name)));
     }
 
-    writer.reset().ok();
+    writer.reset().expect("Failed to reset writer");
     Ok(())
 }
 
