@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId},
-    CompTime, Shared, TypeBinding, TypeVariableKind, UnaryOp,
+    CompTime, Shared, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -916,8 +916,14 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     });
                 }
-                let comptime = comptime_x.and(comptime_y, op.location.span);
-                Ok(Integer(comptime, *sign_x, *bit_width_x))
+                if op.is_bit_shift()
+                    && (*sign_x != Signedness::Unsigned || *sign_y != Signedness::Unsigned)
+                {
+                    Err(TypeCheckError::InvalidInfixOp { kind: "Signed integer", span })
+                } else {
+                    let comptime = comptime_x.and(comptime_y, op.location.span);
+                    Ok(Integer(comptime, *sign_x, *bit_width_x))
+                }
             }
             (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
                 Err(TypeCheckError::IntegerAndFieldBinaryOperation { span })
