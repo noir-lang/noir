@@ -103,11 +103,6 @@ jobs:
           name: nargo
           path: ./nargo
 
-      - name: Add nargo to path
-        run: |
-          chmod +x ./nargo/bin
-          echo "./nargo/bin" >> $GITHUB_PATH
-
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
         with:
@@ -119,9 +114,8 @@ jobs:
           jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
 
-      - name: Run noir-wasm-testing program
-        working-directory: ./noir-wasm-testing/src/noir-script
-        run: nargo compile noir-wasm-testing
+      - name: Run noir-wasm-testing program 
+        run: ./nargo/bin/nargo -p "./noir-wasm-testing/src/noir-script" compile noir-wasm-testing
 
       - name: Install dependencies
         working-directory: ./noir-wasm-testing
