@@ -35,17 +35,17 @@ jobs:
           ref: use-injected-nargo
           path: noir-wasm-testing
 
-      - name: Install nargo
-        run: | 
-          curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
-          $HOME/.nargo/bin/noirup -p ./
-
       - name: Inject built wasm into noir-wasm-testing
         run: |
           mkdir ./noir-wasm-testing/@noir-lang_noir_wasm
           cp -r -L ./result/* ./noir-wasm-testing/@noir-lang_noir_wasm
           jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
           mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
+
+      - name: Install nargo
+        run: | 
+          nix build .
+          echo ./result/bin" >> $GITHUB_PATH
 
       - name: Run build.sh in noir-wasm-testing
         working-directory: ./noir-wasm-testing
