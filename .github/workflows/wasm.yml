@@ -90,12 +90,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v22
-        with:
-          nix_path: nixpkgs=channel:nixos-22.11
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Checkout noir-wasm-testing
         uses: actions/checkout@v3
         with:
