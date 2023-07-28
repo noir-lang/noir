@@ -8,10 +8,8 @@ rm -rf ./build-wasm
 # Install formatting git hook.
 HOOKS_DIR=$(git rev-parse --git-path hooks)
 # The pre-commit script will live in a barretenberg-specific hooks directory
-# That may be just in the top level of this repository,
-# or may be in a .git/modules/barretenberg subdirectory when this is actually a submodule
-# Either way, running `git rev-parse --show-toplevel` from the hooks directory gives the path to barretenberg
-echo "cd \$(git rev-parse --show-toplevel)/cpp && ./format.sh staged" > $HOOKS_DIR/pre-commit
+# Find it based on the current working directory.
+echo "cd $(pwd)/cpp && ./format.sh staged" > $HOOKS_DIR/pre-commit
 chmod +x $HOOKS_DIR/pre-commit
 
 # Determine system.
