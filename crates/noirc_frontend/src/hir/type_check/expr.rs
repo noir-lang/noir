@@ -115,7 +115,7 @@ impl<'interner> TypeChecker<'interner> {
                 let function = self.check_expression(&call_expr.func);
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
-                    (typ, self.interner.expr_span(arg))
+                    (typ, *arg, self.interner.expr_span(arg))
                 });
                 let span = self.interner.expr_span(expr_id);
                 self.bind_function_type(function, args, span)
@@ -125,14 +125,16 @@ impl<'interner> TypeChecker<'interner> {
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_id) => {
-                        let mut args =
-                            vec![(object_type, self.interner.expr_span(&method_call.object))];
+                        let mut args = vec![(
+                            object_type,
+                            method_call.object,
+                            self.interner.expr_span(&method_call.object),
+                        )];
 
-                        let mut arg_types = vecmap(&method_call.arguments, |arg| {
+                        for arg in &method_call.arguments {
                             let typ = self.check_expression(arg);
-                            (typ, self.interner.expr_span(arg))
-                        });
-                        args.append(&mut arg_types);
+                            args.push((typ, *arg, self.interner.expr_span(arg)));
+                        }
 
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
@@ -282,7 +284,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         method_call: &mut HirMethodCallExpression,
         function_type: &Type,
-        argument_types: &mut [(Type, noirc_errors::Span)],
+        argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
     ) {
         let expected_object_type = match function_type {
             Type::Function(args, _) => args.get(0),
@@ -405,7 +407,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         function_ident_id: &ExprId,
         func_id: &FuncId,
-        arguments: Vec<(Type, Span)>,
+        arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
         if func_id == &FuncId::dummy_id() {
@@ -799,7 +801,12 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn bind_function_type(&mut self, function: Type, args: Vec<(Type, Span)>, span: Span) -> Type {
+    fn bind_function_type(
+        &mut self,
+        function: Type,
+        args: Vec<(Type, ExprId, Span)>,
+        span: Span,
+    ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
         match function {
@@ -809,7 +816,7 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let ret = self.interner.next_type_variable();
-                let args = vecmap(args, |(arg, _)| arg);
+                let args = vecmap(args, |(arg, _, _)| arg);
                 let expected = Type::Function(args, Box::new(ret.clone()));
 
                 if let Err(error) = binding.borrow_mut().bind_to(expected, span) {
@@ -827,14 +834,18 @@ impl<'interner> TypeChecker<'interner> {
                     return Type::Error;
                 }
 
-                for (param, (arg, arg_span)) in parameters.iter().zip(args) {
-                    arg.make_subtype_of(param, arg_span, &mut self.errors, || {
-                        TypeCheckError::TypeMismatch {
+                for (param, (arg, arg_id, arg_span)) in parameters.iter().zip(args) {
+                    arg.make_subtype_with_coercions(
+                        param,
+                        arg_id,
+                        self.interner,
+                        &mut self.errors,
+                        || TypeCheckError::TypeMismatch {
                             expected_typ: param.to_string(),
                             expr_typ: arg.to_string(),
                             expr_span: arg_span,
-                        }
-                    });
+                        },
+                    );
                 }
 
                 *ret
