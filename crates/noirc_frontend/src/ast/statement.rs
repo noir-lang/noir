@@ -456,7 +456,7 @@ impl LValue {
             })),
             LValue::Dereference(lvalue) => {
                 ExpressionKind::Prefix(Box::new(crate::PrefixExpression {
-                    operator: crate::UnaryOp::Dereference,
+                    operator: crate::UnaryOp::Dereference { implicitly_added: false },
                     rhs: lvalue.as_expression(span),
                 }))
             }
