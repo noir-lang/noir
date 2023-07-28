@@ -108,7 +108,7 @@ impl<'interner> TypeChecker<'interner> {
         });
 
         let span = self.interner.expr_span(&assign_stmt.expression);
-        self.make_subtype_of(&expr_type, &lvalue_type, span, || {
+        self.make_subtype_of(&expr_type, &lvalue_type, assign_stmt.expression, || {
             TypeCheckError::TypeMismatchWithSource {
                 rhs: expr_type.clone(),
                 lhs: lvalue_type.clone(),
@@ -259,7 +259,7 @@ impl<'interner> TypeChecker<'interner> {
             // Now check if LHS is the same type as the RHS
             // Importantly, we do not coerce any types implicitly
             let expr_span = self.interner.expr_span(&rhs_expr);
-            self.make_subtype_of(&expr_type, &annotated_type, expr_span, || {
+            self.make_subtype_of(&expr_type, &annotated_type, rhs_expr, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: annotated_type.to_string(),
                     expr_typ: expr_type.to_string(),

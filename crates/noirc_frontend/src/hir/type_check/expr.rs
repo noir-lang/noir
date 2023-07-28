@@ -504,7 +504,7 @@ impl<'interner> TypeChecker<'interner> {
                 let arg_type = self.check_expression(&arg);
 
                 let span = self.interner.expr_span(expr_id);
-                self.make_subtype_of(&arg_type, &param_type, span, || {
+                self.make_subtype_of(&arg_type, &param_type, arg, || {
                     TypeCheckError::TypeMismatch {
                         expected_typ: param_type.to_string(),
                         expr_typ: arg_type.to_string(),
