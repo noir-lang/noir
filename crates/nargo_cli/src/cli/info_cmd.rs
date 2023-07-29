@@ -18,7 +18,7 @@ use super::NargoConfig;
 /// 2. Counts the final number gates in the circuit used by a backend
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InfoCommand {
-    /// Get information of each contract function used within the program
+    /// Get information of all contracts used within the program
     #[arg(short, long)]
     contracts: bool,
 
