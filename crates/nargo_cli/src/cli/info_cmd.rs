@@ -1,18 +1,14 @@
-use acvm::Backend;
-use clap::Args;
-
-use noirc_driver::{compile_contracts, CompileOptions};
-use std::path::Path;
-
+use super::compile_cmd::report_errors;
+use super::NargoConfig;
 use crate::cli::compile_cmd::compile_circuit;
 use crate::errors::CliError;
 use crate::resolver::resolve_root_manifest;
+use acvm::Backend;
+use clap::Args;
+use noirc_driver::{compile_contracts, CompileOptions};
+use std::path::Path;
 
-use super::compile_cmd::report_errors;
-
-use super::NargoConfig;
-
-/// Provides detailed informaton on a circuit
+/// Provides detailed information on a circuit
 /// Current information provided:
 /// 1. The number of ACIR opcodes
 /// 2. Counts the final number gates in the circuit used by a backend
