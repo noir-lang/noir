@@ -31,11 +31,14 @@ library MessageBox {
     mapping(bytes32 entryKey => DataStructures.Entry entry) storage _self,
     bytes32 _entryKey,
     uint64 _fee,
+    uint32 _version,
     uint32 _deadline,
     function(
     bytes32,
     uint64,
     uint64,
+    uint32,
+    uint32,
     uint32,
     uint32 
     ) pure _err
@@ -43,13 +46,15 @@ library MessageBox {
     DataStructures.Entry memory entry = _self[_entryKey];
     if (
       (entry.fee != 0 && entry.fee != _fee) || (entry.deadline != 0 && entry.deadline != _deadline)
+        || (entry.version != 0 && entry.version != _version)
     ) {
-      // this should never happen as it is trying to overwrite `fee` and `deadline` with different values
+      // this should never happen as it is trying to overwrite `fee`, `version` and `deadline` with different values
       // even though the entryKey (a hash) is the same! Pass all arguments to the error message for debugging.
-      _err(_entryKey, entry.fee, _fee, entry.deadline, _deadline);
+      _err(_entryKey, entry.fee, _fee, entry.version, _version, entry.deadline, _deadline);
     }
     entry.count += 1;
     entry.fee = _fee;
+    entry.version = _version;
     entry.deadline = _deadline;
     _self[_entryKey] = entry;
   }

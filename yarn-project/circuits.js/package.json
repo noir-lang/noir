@@ -11,7 +11,9 @@
     "./types": "./dest/types/index.js"
   },
   "typedocOptions": {
-    "entryPoints": ["./src/index.ts"],
+    "entryPoints": [
+      "./src/index.ts"
+    ],
     "name": "Circuits.js",
     "tsconfig": "./tsconfig.json"
   },

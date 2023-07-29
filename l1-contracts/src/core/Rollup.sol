@@ -67,11 +67,9 @@ contract Rollup is IRollup {
     lastBlockTs = block.timestamp;
 
     // @todo (issue #605) handle fee collector
-    // @todo: (issue #624) handle different versions
     IInbox inbox = REGISTRY.getInbox();
     inbox.batchConsume(l1ToL2Msgs, msg.sender);
 
-    // @todo: (issue #624) handle different versions
     IOutbox outbox = REGISTRY.getOutbox();
     outbox.sendL1Messages(l2ToL1Msgs);
 

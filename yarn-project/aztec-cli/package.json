@@ -7,7 +7,9 @@
     "azti": "./dest/index.js"
   },
   "typedocOptions": {
-    "entryPoints": ["./src/index.ts"],
+    "entryPoints": [
+      "./src/index.ts"
+    ],
     "name": "Aztec CLI",
     "tsconfig": "./tsconfig.json"
   },

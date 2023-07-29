@@ -10,12 +10,15 @@ pragma solidity >=0.8.18;
 library DataStructures {
   /**
    * @notice Entry struct - Done as struct to easily support extensions if needed
-   * @param count - The occurrence of the entry in the dataset
    * @param fee - The fee provided to sequencer for including in the inbox. 0 if Outbox (as not applicable).
+   * @param count - The occurrence of the entry in the dataset
+   * @param version - The version of the entry
+   * @param deadline - The deadline to consume a message. Only after it, can a message be cancelled.
    */
   struct Entry {
-    uint64 count;
     uint64 fee;
+    uint32 count;
+    uint32 version;
     uint32 deadline;
   }
 

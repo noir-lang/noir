@@ -26,12 +26,6 @@ contract Outbox is IOutbox {
 
   mapping(bytes32 entryKey => DataStructures.Entry entry) internal entries;
 
-  modifier onlyRollup() {
-    // @todo: (issue #624) handle different versions
-    if (msg.sender != address(REGISTRY.getRollup())) revert Errors.Outbox__Unauthorized();
-    _;
-  }
-
   constructor(address _registry) {
     REGISTRY = IRegistry(_registry);
   }
@@ -41,10 +35,12 @@ contract Outbox is IOutbox {
    * @dev Only callable by the rollup contract
    * @param _entryKeys - Array of entry keys (hash of the message) - computed by the L2 counterpart and sent to L1 via rollup block
    */
-  function sendL1Messages(bytes32[] memory _entryKeys) external override(IOutbox) onlyRollup {
+  function sendL1Messages(bytes32[] memory _entryKeys) external override(IOutbox) {
+    // This MUST revert if not called by a listed rollup contract
+    uint32 version = uint32(REGISTRY.getVersionFor(msg.sender));
     for (uint256 i = 0; i < _entryKeys.length; i++) {
       if (_entryKeys[i] == bytes32(0)) continue;
-      entries.insert(_entryKeys[i], 0, 0, _errIncompatibleEntryArguments);
+      entries.insert(_entryKeys[i], 0, version, 0, _errIncompatibleEntryArguments);
       emit MessageAdded(_entryKeys[i]);
     }
   }
@@ -65,6 +61,11 @@ contract Outbox is IOutbox {
     if (block.chainid != _message.recipient.chainId) revert Errors.Outbox__InvalidChainId();
 
     entryKey = computeEntryKey(_message);
+    DataStructures.Entry memory entry = entries.get(entryKey, _errNothingToConsume);
+    if (entry.version != _message.sender.version) {
+      revert Errors.Outbox__InvalidVersion(entry.version, _message.sender.version);
+    }
+
     entries.consume(entryKey, _errNothingToConsume);
     emit MessageConsumed(entryKey, msg.sender);
   }
@@ -121,6 +122,8 @@ contract Outbox is IOutbox {
    * @param _entryKey - The key to lookup
    * @param _storedFee - The fee stored in the entry
    * @param _feePassed - The fee passed into the insertion
+   * @param _storedVersion - The version stored in the entry
+   * @param _versionPassed - The version passed into the insertion
    * @param _storedDeadline - The deadline stored in the entry
    * @param _deadlinePassed - The deadline passed into the insertion
    */
@@ -128,11 +131,19 @@ contract Outbox is IOutbox {
     bytes32 _entryKey,
     uint64 _storedFee,
     uint64 _feePassed,
+    uint32 _storedVersion,
+    uint32 _versionPassed,
     uint32 _storedDeadline,
     uint32 _deadlinePassed
   ) internal pure {
     revert Errors.Outbox__IncompatibleEntryArguments(
-      _entryKey, _storedFee, _feePassed, _storedDeadline, _deadlinePassed
+      _entryKey,
+      _storedFee,
+      _feePassed,
+      _storedVersion,
+      _versionPassed,
+      _storedDeadline,
+      _deadlinePassed
     );
   }
 }

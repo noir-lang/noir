@@ -27,13 +27,15 @@ contract InboxTest is Test {
 
   event L1ToL2MessageCancelled(bytes32 indexed entryKey);
 
-  Inbox inbox;
+  Registry internal registry;
+  Inbox internal inbox;
+  uint256 internal version = 0;
 
   function setUp() public {
     address rollup = address(this);
-    Registry registry = new Registry();
+    registry = new Registry();
     inbox = new Inbox(address(registry));
-    registry.upgrade(rollup, address(inbox), address(0x0));
+    version = registry.upgrade(rollup, address(inbox), address(0x0));
   }
 
   function _fakeMessage() internal view returns (DataStructures.L1ToL2Msg memory) {
@@ -41,7 +43,7 @@ contract InboxTest is Test {
       sender: DataStructures.L1Actor({actor: address(this), chainId: block.chainid}),
       recipient: DataStructures.L2Actor({
         actor: 0x1000000000000000000000000000000000000000000000000000000000000000,
-        version: 1
+        version: version
       }),
       content: 0x2000000000000000000000000000000000000000000000000000000000000000,
       secretHash: 0x3000000000000000000000000000000000000000000000000000000000000000,
@@ -195,7 +197,9 @@ contract InboxTest is Test {
     vm.prank(address(0x1));
     bytes32[] memory entryKeys = new bytes32[](1);
     entryKeys[0] = bytes32("random");
-    vm.expectRevert(Errors.Inbox__Unauthorized.selector);
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Registry__RollupNotRegistered.selector, address(1))
+    );
     inbox.batchConsume(entryKeys, address(0x1));
   }
 
@@ -248,6 +252,25 @@ contract InboxTest is Test {
     inbox.batchConsume(entryKeys, feeCollector);
   }
 
+  function testRevertIfConsumingFromWrongRollup() public {
+    address wrongRollup = address(0xbeeffeed);
+    uint256 wrongVersion = registry.upgrade(wrongRollup, address(inbox), address(0x0));
+
+    DataStructures.L1ToL2Msg memory message = _fakeMessage();
+    address feeCollector = address(0x1);
+    bytes32 entryKey = inbox.sendL2Message{value: message.fee}(
+      message.recipient, message.deadline, message.content, message.secretHash
+    );
+    bytes32[] memory entryKeys = new bytes32[](1);
+    entryKeys[0] = entryKey;
+
+    vm.prank(wrongRollup);
+    vm.expectRevert(
+      abi.encodeWithSelector(Errors.Inbox__InvalidVersion.selector, version, wrongVersion)
+    );
+    inbox.batchConsume(entryKeys, feeCollector);
+  }
+
   function testFuzzBatchConsume(DataStructures.L1ToL2Msg[] memory _messages) public {
     bytes32[] memory entryKeys = new bytes32[](_messages.length);
     uint256 expectedTotalFee = 0;
@@ -267,6 +290,8 @@ contract InboxTest is Test {
       message.content = bytes32(uint256(message.content) % Constants.P);
       // ensure secret hash fits in a field
       message.secretHash = bytes32(uint256(message.secretHash) % Constants.P);
+      // update version
+      message.recipient.version = version;
       expectedTotalFee += message.fee;
       entryKeys[i] = inbox.sendL2Message{value: message.fee}(
         message.recipient, message.deadline, message.content, message.secretHash
