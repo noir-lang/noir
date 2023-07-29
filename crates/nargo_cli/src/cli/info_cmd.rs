@@ -79,11 +79,8 @@ fn count_opcodes_and_gates_with_path<B: Backend, P: AsRef<Path>>(
 
             for info in function_info {
                 println!(
-                    "Total ACIR opcodes generated of function {} for language {:?} in contract {}: {}",
-                    info.0,
-                    backend.np_language(),
-                    contract.name,
-                    info.1,
+                    "Total ACIR opcodes generated for function {} in contract {}: {}",
+                    info.0, contract.name, info.1,
                 );
                 println!(
                     "Backend circuit size for function {} in contract {}: {}",
@@ -94,12 +91,12 @@ fn count_opcodes_and_gates_with_path<B: Backend, P: AsRef<Path>>(
 
         println!();
         println!(
-            "Total ACIR opcodes generated for language {:?} in all contracts: {}",
+            "Total ACIR opcodes generated for language {:?} in All Contracts: {}",
             backend.np_language(),
             total_num_opcodes_in_all_contracts
         );
         println!(
-            "Backend circuit size for all contracts: {total_num_circuit_size_in_all_contracts}"
+            "Backend circuit size for All Contracts: {total_num_circuit_size_in_all_contracts}"
         );
     } else if args.contract.is_some() {
         let contract_name = args.contract.unwrap();
@@ -136,11 +133,8 @@ fn count_opcodes_and_gates_with_path<B: Backend, P: AsRef<Path>>(
 
                 for info in function_info {
                     println!(
-                        "Total ACIR opcodes generated of function {} for language {:?} in contract {}: {}",
-                        info.0,
-                        backend.np_language(),
-                        contract.name,
-                        info.1,
+                        "Total ACIR opcodes generated for function {} in contract {}: {}",
+                        info.0, contract.name, info.1,
                     );
                     println!(
                         "Backend circuit size for function {} in contract {}: {}",
