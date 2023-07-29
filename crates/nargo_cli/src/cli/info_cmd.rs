@@ -151,7 +151,7 @@ fn count_opcodes_and_gates_with_path<B: Backend, P: AsRef<Path>>(
                 break;
             }
 
-            println!("Cannot find contract.")
+            println!("Cannot find contract.");
         }
     } else {
         let (compiled_program, _) =
