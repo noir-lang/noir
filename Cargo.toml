@@ -17,14 +17,14 @@ default-members = ["crates/nargo_cli"]
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.8.0"
+version = "0.9.0"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.19.1"
+acvm = "0.21.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }

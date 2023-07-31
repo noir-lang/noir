@@ -1,4 +1,5 @@
 [package]
+name = "if_else_chain"
 authors = [""]
 compiler_version = "0.1"
 

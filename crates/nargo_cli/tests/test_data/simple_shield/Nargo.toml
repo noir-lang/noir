@@ -1,4 +1,5 @@
 [package]
+name = "simple_shield"
 authors = [""]
 compiler_version = "0.1"
 
