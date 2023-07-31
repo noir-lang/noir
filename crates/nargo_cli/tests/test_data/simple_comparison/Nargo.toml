@@ -1,5 +1,6 @@
 [package]
 name = "simple_comparison"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

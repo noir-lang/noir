@@ -11,7 +11,7 @@ use fm::FileManager;
 use nargo::package::{Dependency, Package};
 use noirc_driver::{add_dep, prepare_crate};
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateName, CrateType},
+    graph::{CrateGraph, CrateId, CrateName},
     hir::Context,
 };
 use std::{
@@ -54,35 +54,12 @@ fn find_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> 
         .ok_or_else(|| ManifestError::MissingFile(current_path.to_path_buf()))
 }
 
-fn lib_or_bin(root_dir: impl AsRef<Path>) -> Result<(PathBuf, CrateType), ManifestError> {
-    let current_path = root_dir.as_ref();
-    // A library has a lib.nr and a binary has a main.nr
-    // You cannot have both.
-    let src_path = find_dir(current_path, "src")
-        .ok_or_else(|| ManifestError::NoSourceDir(current_path.to_path_buf()))?;
-
-    let lib_nr_path = find_file(&src_path, "lib", "nr");
-    let bin_nr_path = find_file(&src_path, "main", "nr");
-    match (lib_nr_path, bin_nr_path) {
-        (Some(_), Some(_)) => Err(ManifestError::ContainsMultipleCrates),
-        (None, Some(path)) => Ok((path, CrateType::Binary)),
-        (Some(path), None) => Ok((path, CrateType::Library)),
-        (None, None) => Err(ManifestError::ContainsZeroCrates),
-    }
-}
-
 // Looks for file named `file_name` in path
 fn find_file<P: AsRef<Path>>(path: P, file_name: &str, extension: &str) -> Option<PathBuf> {
     let entries = list_files_and_folders_in(path)?;
     let file_name = format!("{file_name}.{extension}");
 
     find_artifact(entries, &file_name)
-}
-
-// Looks for directory named `dir_name` in path
-fn find_dir<P: AsRef<Path>>(path: P, dir_name: &str) -> Option<PathBuf> {
-    let entries = list_files_and_folders_in(path)?;
-    find_artifact(entries, dir_name)
 }
 
 // There is no distinction between files and folders
@@ -107,7 +84,7 @@ fn prepare_dependencies(
     for (dep_name, dep) in dependencies.into_iter() {
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
-                let crate_id = prepare_crate(context, &package.entry_path, package.crate_type);
+                let crate_id = prepare_crate(context, &package.entry_path);
                 add_dep(context, parent_crate, crate_id, dep_name);
                 prepare_dependencies(context, crate_id, package.dependencies.to_owned());
             }
@@ -120,7 +97,7 @@ fn prepare_package(package: &Package) -> (Context, CrateId) {
     let graph = CrateGraph::default();
     let mut context = Context::new(fm, graph);
 
-    let crate_id = prepare_crate(&mut context, &package.entry_path, package.crate_type);
+    let crate_id = prepare_crate(&mut context, &package.entry_path);
 
     prepare_dependencies(&mut context, crate_id, package.dependencies.to_owned());
 

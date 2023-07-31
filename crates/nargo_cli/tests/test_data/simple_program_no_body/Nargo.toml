@@ -1,5 +1,6 @@
 [package]
 name = "simple_program_no_body"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 
