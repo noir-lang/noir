@@ -337,7 +337,7 @@ impl GeneratedAcir {
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
 
         // Get the sign bit of rhs by computing rhs / max_power_of_two
-        let (rhs_leading, _) = self.euclidean_division(
+        let (rhs_leading_witness, _) = self.euclidean_division(
             rhs,
             &max_power_of_two.into(),
             max_bit_size,
@@ -345,7 +345,7 @@ impl GeneratedAcir {
         )?;
 
         // Get the sign bit of lhs by computing lhs / max_power_of_two
-        let (lhs_leading, _) = self.euclidean_division(
+        let (lhs_leading_witness, _) = self.euclidean_division(
             lhs,
             &max_power_of_two.into(),
             max_bit_size,
@@ -353,8 +353,8 @@ impl GeneratedAcir {
         )?;
 
         // Signed to unsigned:
-        let unsigned_lhs = self.two_complement(lhs, lhs_leading, max_bit_size);
-        let unsigned_rhs = self.two_complement(rhs, rhs_leading, max_bit_size);
+        let unsigned_lhs = self.two_complement(lhs, lhs_leading_witness, max_bit_size);
+        let unsigned_rhs = self.two_complement(rhs, rhs_leading_witness, max_bit_size);
         let unsigned_l_witness = self.get_or_create_witness(&unsigned_lhs);
         let unsigned_r_witness = self.get_or_create_witness(&unsigned_rhs);
 
@@ -368,20 +368,16 @@ impl GeneratedAcir {
 
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
-        let q_sign = (&Expression::from(lhs_leading) + &Expression::from(rhs_leading)).add_mul(
-            -FieldElement::from(2_i128),
-            match &(&Expression::from(lhs_leading) * &Expression::from(rhs_leading)) {
-                Some(expr) => expr,
-                None => {
-                    return Err(RuntimeError::InternalError(InternalError::DegreeNotReduced {
-                        location: self.current_location,
-                    }))
-                }
-            },
-        );
+        let sign_sum =
+            &Expression::from(lhs_leading_witness) + &Expression::from(rhs_leading_witness);
+        let sign_prod = (&Expression::from(lhs_leading_witness)
+            * &Expression::from(rhs_leading_witness))
+            .expect("Product of two witnesses so result is degree 2");
+        let q_sign = sign_sum.add_mul(-FieldElement::from(2_i128), &sign_prod);
+
         let q_sign_witness = self.get_or_create_witness(&q_sign);
         let quotient = self.two_complement(&q1.into(), q_sign_witness, max_bit_size);
-        let remainder = self.two_complement(&r1.into(), lhs_leading, max_bit_size);
+        let remainder = self.two_complement(&r1.into(), lhs_leading_witness, max_bit_size);
         Ok((quotient, remainder))
     }
 
