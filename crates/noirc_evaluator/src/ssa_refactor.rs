@@ -77,10 +77,16 @@ pub fn create_circuit(
     show_output: bool,
 ) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
-    let GeneratedAcir { current_witness_index, opcodes, return_witnesses, locations, .. } =
-        optimize_into_acir(program, show_output, enable_ssa_logging, enable_brillig_logging)?;
+    let GeneratedAcir {
+        current_witness_index,
+        opcodes,
+        return_witnesses,
+        locations,
+        input_witnesses,
+        ..
+    } = optimize_into_acir(program, show_output, enable_ssa_logging, enable_brillig_logging)?;
 
-    let abi = gen_abi(func_sig, return_witnesses.clone());
+    let abi = gen_abi(func_sig, return_witnesses.clone(), &input_witnesses);
     let public_abi = abi.clone().public_abi();
 
     let public_parameters =
