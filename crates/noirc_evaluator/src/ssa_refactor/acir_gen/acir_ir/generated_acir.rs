@@ -42,6 +42,9 @@ pub(crate) struct GeneratedAcir {
     /// abi's return type.
     pub(crate) return_witnesses: Vec<Witness>,
 
+    /// All witness indices which are inputs to the main function
+    pub(crate) input_witnesses: Vec<Witness>,
+
     /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
     pub(crate) locations: HashMap<usize, Location>,
 

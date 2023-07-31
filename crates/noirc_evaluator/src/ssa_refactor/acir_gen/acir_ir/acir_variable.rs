@@ -110,6 +110,26 @@ pub(crate) struct AcirContext {
 }
 
 impl AcirContext {
+    pub(crate) fn current_witness_index(&self) -> Witness {
+        self.acir_ir.current_witness_index()
+    }
+
+    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<u32> {
+        inputs
+            .iter()
+            .flat_map(|value| value.clone().flatten())
+            .map(|value| {
+                self.vars
+                    .get(&value.0)
+                    .expect("ICE: undeclared AcirVar")
+                    .to_expression()
+                    .to_witness()
+                    .expect("ICE - cannot extract a witness")
+                    .0
+            })
+            .collect()
+    }
+
     /// Adds a constant to the context and assigns a Variable to represent it
     pub(crate) fn add_constant(&mut self, constant: FieldElement) -> AcirVar {
         let constant_data = AcirVarData::Const(constant);
@@ -837,7 +857,8 @@ impl AcirContext {
     }
 
     /// Terminates the context and takes the resulting `GeneratedAcir`
-    pub(crate) fn finish(self) -> GeneratedAcir {
+    pub(crate) fn finish(mut self, inputs: Vec<u32>) -> GeneratedAcir {
+        self.acir_ir.input_witnesses = vecmap(inputs, Witness);
         self.acir_ir
     }
 
