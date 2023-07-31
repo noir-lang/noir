@@ -44,8 +44,6 @@ pub enum InternalError {
     MissingArg { name: String, arg: String, location: Option<Location> },
     #[error("ICE: {name:?} should be a constant")]
     NotAConstant { name: String, location: Option<Location> },
-    #[error("{name:?} is not implemented yet")]
-    NotImplemented { name: String, location: Option<Location> },
     #[error("ICE: Undeclared AcirVar")]
     UndeclaredAcirVar { location: Option<Location> },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
@@ -61,7 +59,6 @@ impl From<RuntimeError> for FileDiagnostic {
                 | InternalError::General { location, .. }
                 | InternalError::MissingArg { location, .. }
                 | InternalError::NotAConstant { location, .. }
-                | InternalError::NotImplemented { location, .. }
                 | InternalError::UndeclaredAcirVar { location }
                 | InternalError::UnExpected { location, .. } => {
                     let file_id = location.map(|loc| loc.file).unwrap();
