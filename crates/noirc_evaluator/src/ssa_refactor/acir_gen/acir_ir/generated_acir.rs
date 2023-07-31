@@ -266,7 +266,7 @@ impl GeneratedAcir {
         let intermediate =
             self.mul_with_witness(&(&Expression::from(max_power_of_two) - lhs), &leading.into());
 
-        lhs.add_mul(FieldElement::from(2_i128), &intermediate)
+        Ok(lhs.add_mul(FieldElement::from(2_i128), &intermediate))
     }
 
     /// Returns an expression which represents `lhs * rhs`
