@@ -46,6 +46,7 @@ using aztec3::circuits::abis::StorageSlotGeneratorIndexPacker;
 using aztec3::circuits::abis::TxContext;
 using aztec3::circuits::abis::TxRequest;
 using NT = aztec3::utils::types::NativeTypes;
+using aztec3::circuits::abis::PrivateTypes;
 using aztec3::circuits::abis::PublicTypes;
 
 // Cbind helper functions
@@ -459,7 +460,14 @@ WASM_EXPORT void abis__compute_transaction_hash(uint8_t const* tx_request_buf, u
     NT::fr::serialize_to_buffer(to_write, output);
 }
 
-WASM_EXPORT void abis__compute_call_stack_item_hash(uint8_t const* call_stack_item_buf, uint8_t* output)
+WASM_EXPORT void abis__compute_private_call_stack_item_hash(uint8_t const* call_stack_item_buf, uint8_t* output)
+{
+    CallStackItem<NT, PrivateTypes> call_stack_item;
+    serialize::read(call_stack_item_buf, call_stack_item);
+    NT::fr::serialize_to_buffer(call_stack_item.hash(), output);
+}
+
+WASM_EXPORT void abis__compute_public_call_stack_item_hash(uint8_t const* call_stack_item_buf, uint8_t* output)
 {
     CallStackItem<NT, PublicTypes> call_stack_item;
     serialize::read(call_stack_item_buf, call_stack_item);

@@ -14,6 +14,7 @@ use crate::constants_gen::{
     CONTRACT_DEPLOYMENT_DATA_LENGTH,
     CALL_CONTEXT_LENGTH,
     PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
+    PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
     CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH,
     CONTRACT_STORAGE_READ_LENGTH,
     PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,
@@ -24,6 +25,7 @@ use crate::constants_gen::{
     GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST,
     GENERATOR_INDEX__CALL_CONTEXT,
     GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS,
+    GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA,
 };
 
 use crate::oracle::debug_log;
@@ -119,6 +121,10 @@ impl ContractDeploymentData {
             self.portal_contract_address,
         ]
     }
+
+    fn hash(self) -> Field {
+        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA)[0]
+    }
 }
 
 struct PrivateGlobalVariables {
@@ -188,7 +194,27 @@ struct PrivateCircuitPublicInputs {
 
 impl PrivateCircuitPublicInputs {
     fn hash(self) -> Field {
-        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)[0]
+        let mut fields: BoundedVec<Field, PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0); 
+        fields = fields.push(self.call_context.hash());
+        fields = fields.push(self.args_hash);
+        fields = fields.push_array(self.return_values);
+        fields = fields.push_array(self.read_requests);
+        fields = fields.push_array(self.new_commitments);
+        fields = fields.push_array(self.new_nullifiers);
+        fields = fields.push_array(self.nullified_commitments);
+        fields = fields.push_array(self.private_call_stack);
+        fields = fields.push_array(self.public_call_stack);
+        fields = fields.push_array(self.new_l2_to_l1_msgs);
+        fields = fields.push_array(self.encrypted_logs_hash);
+        fields = fields.push_array(self.unencrypted_logs_hash);
+        fields = fields.push(self.encrypted_log_preimages_length);
+        fields = fields.push(self.unencrypted_log_preimages_length);
+        fields = fields.push_array(self.commitment_trees_roots.serialize());
+        fields = fields.push(self.contract_deployment_data.hash());
+        fields = fields.push(self.chain_id);
+        fields = fields.push(self.version);
+
+        dep::std::hash::pedersen_with_separator(fields.storage, GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)[0]
     }
 
     fn serialize(self) -> [Field; PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH] {

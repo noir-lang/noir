@@ -81,7 +81,8 @@ struct ConstantsPacker {
                  GET_NOTES_ORACLE_RETURN_LENGTH,
                  EMPTY_NULLIFIED_COMMITMENT,
                  CALL_PRIVATE_FUNCTION_RETURN_SIZE,
-                 PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH));  // <-- Add names of new constants here
+                 PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
+                 PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH));  // <-- Add names of new constants here
     }
 };
 

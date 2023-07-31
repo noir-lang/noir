@@ -384,6 +384,7 @@ describe('Private Execution test suite', () => {
 
   describe('nested calls', () => {
     const privateIncrement = txContextFields.chainId.value + txContextFields.version.value;
+
     it('child function should be callable', async () => {
       const initialValue = 100n;
       const abi = ChildContractAbi.functions.find(f => f.name === 'value')!;
@@ -413,6 +414,11 @@ describe('Private Execution test suite', () => {
       expect(oracle.getPortalContractAddress.mock.calls[0]).toEqual([childAddress]);
       expect(result.nestedExecutions).toHaveLength(1);
       expect(result.nestedExecutions[0].callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(privateIncrement));
+
+      // check that Noir calculated the call stack item hash like cpp does
+      const wasm = await CircuitsWasm.get();
+      const expectedCallStackItemHash = computeCallStackItemHash(wasm, result.nestedExecutions[0].callStackItem);
+      expect(result.callStackItem.publicInputs.privateCallStack[0]).toEqual(expectedCallStackItemHash);
     });
   });
 

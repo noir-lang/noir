@@ -1,6 +1,7 @@
 use crate::abi::CallContext;
 use crate::abi::hash_args;
 use crate::abi::ContractDeploymentData;
+use crate::abi::FunctionData;
 use crate::context::Context;
 use crate::abi::PrivateCircuitPublicInputs;
 use crate::abi::CommitmentTreesRoots;
@@ -8,7 +9,6 @@ use crate::types::vec::BoundedVec;
 use crate::types::point::Point;
 use crate::utils::arr_copy_slice;
 use crate::constants_gen;
-use crate::abi::FunctionData;
 
 use crate::oracle::call_private_function::call_private_function_internal;
 use crate::oracle::arguments;

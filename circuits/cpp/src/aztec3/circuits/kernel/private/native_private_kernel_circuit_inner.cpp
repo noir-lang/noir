@@ -66,7 +66,11 @@ void validate_this_private_call_hash(DummyBuilder& builder,
 
     builder.do_assert(
         popped_private_call_hash == calculated_this_private_call_hash,
-        "calculated private_call_hash does not match provided private_call_hash at the top of the call stack",
+        format("calculated private_call_hash (",
+               calculated_this_private_call_hash,
+               ") does not match provided private_call_hash (",
+               popped_private_call_hash,
+               ") at the top of the call stack"),
         CircuitErrorCode::PRIVATE_KERNEL__CALCULATED_PRIVATE_CALL_HASH_AND_PROVIDED_PRIVATE_CALL_HASH_MISMATCH);
 };
 

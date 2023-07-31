@@ -203,6 +203,9 @@ template <typename NCT> class PrivateCircuitPublicInputs {
         inputs.push_back(chain_id);
         inputs.push_back(version);
 
+        if (inputs.size() != PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH) {
+            throw_or_abort("Incorrect number of input fields when hashing PrivateCircuitPublicInputs");
+        }
         return NCT::hash(inputs, GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS);
     }
 

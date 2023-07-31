@@ -9,6 +9,7 @@
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/native_types.hpp"
 
+#include "barretenberg/common/throw_or_abort.hpp"
 #include <barretenberg/barretenberg.hpp>
 
 namespace aztec3::circuits::abis {
@@ -123,6 +124,9 @@ template <typename NCT> struct PublicCircuitPublicInputs {
         inputs.push_back(historic_public_data_tree_root);
         inputs.push_back(prover_address);
 
+        if (inputs.size() != PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH) {
+            throw_or_abort("Incorrect number of input fields when hashing PublicCircuitPublicInputs");
+        }
         return NCT::hash(inputs, GeneratorIndex::PUBLIC_CIRCUIT_PUBLIC_INPUTS);
     }
 

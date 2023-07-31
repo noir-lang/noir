@@ -17,6 +17,7 @@ import {
   FunctionData,
   FunctionLeafPreimage,
   NewContractData,
+  PrivateCallStackItem,
   PublicCallStackItem,
   PublicKey,
   TxRequest,
@@ -359,9 +360,40 @@ export function computeTxHash(wasm: IWasmModule, txRequest: TxRequest): Fr {
  * @param callStackItem - The call stack item.
  * @returns The call stack item hash.
  */
-export function computeCallStackItemHash(wasm: IWasmModule, callStackItem: PublicCallStackItem): Fr {
+export function computeCallStackItemHash(
+  wasm: IWasmModule,
+  callStackItem: PrivateCallStackItem | PublicCallStackItem,
+): Fr {
+  if (callStackItem instanceof PrivateCallStackItem) {
+    return computePrivateCallStackItemHash(wasm, callStackItem);
+  } else if (callStackItem instanceof PublicCallStackItem) {
+    return computePublicCallStackItemHash(wasm, callStackItem);
+  } else {
+    throw new Error(`Unexpected call stack item type`);
+  }
+}
+
+/**
+ * Computes a call stack item hash.
+ * @param wasm - Relevant WASM wrapper.
+ * @param callStackItem - The call stack item.
+ * @returns The call stack item hash.
+ */
+export function computePrivateCallStackItemHash(wasm: IWasmModule, callStackItem: PrivateCallStackItem): Fr {
   wasm.call('pedersen__init');
-  const value = wasmSyncCall(wasm, 'abis__compute_call_stack_item_hash', callStackItem, 32);
+  const value = wasmSyncCall(wasm, 'abis__compute_private_call_stack_item_hash', callStackItem, 32);
+  return Fr.fromBuffer(value);
+}
+
+/**
+ * Computes a call stack item hash.
+ * @param wasm - Relevant WASM wrapper.
+ * @param callStackItem - The call stack item.
+ * @returns The call stack item hash.
+ */
+export function computePublicCallStackItemHash(wasm: IWasmModule, callStackItem: PublicCallStackItem): Fr {
+  wasm.call('pedersen__init');
+  const value = wasmSyncCall(wasm, 'abis__compute_public_call_stack_item_hash', callStackItem, 32);
   return Fr.fromBuffer(value);
 }
 
