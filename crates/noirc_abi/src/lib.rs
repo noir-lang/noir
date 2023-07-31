@@ -368,7 +368,7 @@ impl Abi {
     }
 }
 
-pub fn decode_value(
+fn decode_value(
     field_iterator: &mut impl Iterator<Item = FieldElement>,
     value_type: &AbiType,
 ) -> Result<InputValue, AbiError> {

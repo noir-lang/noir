@@ -4,7 +4,7 @@ fn main(x : Field, y : pub Field) {
     /// TODO(#1889): Using slices in if statements where the condition is a witness
     /// is not yet supported
 
-    let mut slice: [Field] = [0; 2];
+    let mut slice = [0; 2];
     assert(slice[0] == 0);
     assert(slice[0] != 1);
     slice[0] = x;
@@ -15,7 +15,7 @@ fn main(x : Field, y : pub Field) {
     assert(slice_plus_10[2] != 8);
     assert(slice_plus_10.len() == 3);
 
-    let mut new_slice: [Field] = [];
+    let mut new_slice = [];
     for i in 0..5 {
         new_slice = new_slice.push_back(i);
     }

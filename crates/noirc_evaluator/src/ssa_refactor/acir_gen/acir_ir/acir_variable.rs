@@ -579,6 +579,8 @@ impl AcirContext {
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}
+    /// In order to do this, we simply perform euclidian division of lhs by 2^{rhs}
+    /// The remainder of the division is then lhs mod 2^{rhs}
     pub(crate) fn truncate_var(
         &mut self,
         lhs: AcirVar,
