@@ -185,7 +185,9 @@ impl<'a> FunctionContext<'a> {
                     }
                 })
             }
-            noirc_frontend::UnaryOp::Dereference => self.dereference(&rhs, &unary.result_type),
+            noirc_frontend::UnaryOp::Dereference { .. } => {
+                self.dereference(&rhs, &unary.result_type)
+            }
         }
     }
 

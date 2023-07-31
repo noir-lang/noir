@@ -271,7 +271,14 @@ pub enum UnaryOp {
     Minus,
     Not,
     MutableReference,
-    Dereference,
+
+    /// If implicitly_added is true, this operation was implicitly added by the compiler for a
+    /// field dereference. The compiler may undo some of these implicitly added dereferences if
+    /// the reference later turns out to be needed (e.g. passing a field by reference to a function
+    /// requiring an &mut parameter).
+    Dereference {
+        implicitly_added: bool,
+    },
 }
 
 impl UnaryOp {
@@ -496,7 +503,7 @@ impl Display for UnaryOp {
             UnaryOp::Minus => write!(f, "-"),
             UnaryOp::Not => write!(f, "!"),
             UnaryOp::MutableReference => write!(f, "&mut"),
-            UnaryOp::Dereference => write!(f, "*"),
+            UnaryOp::Dereference { .. } => write!(f, "*"),
         }
     }
 }
