@@ -64,20 +64,20 @@ export class PokeableTokenContract extends Contract {
 
   /** Type-safe wrappers for the public methods exposed by the contract. */
   public methods!: {
-    /** getBalance(sender: field) */
-    getBalance: ((sender: Fr | bigint | number | { toField: () => Fr }) => ContractFunctionInteraction) &
-      Pick<ContractMethod, 'selector'>;
-
-    /** poke() */
-    poke: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
-
-    /** stev(contract_address: field, nonce: field, storage_slot: field, preimage: array) */
-    stev: ((
+    /** compute_note_hash_and_nullifier(contract_address: field, nonce: field, storage_slot: field, preimage: array) */
+    compute_note_hash_and_nullifier: ((
       contract_address: Fr | bigint | number | { toField: () => Fr },
       nonce: Fr | bigint | number | { toField: () => Fr },
       storage_slot: Fr | bigint | number | { toField: () => Fr },
       preimage: (Fr | bigint | number | { toField: () => Fr })[],
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
+
+    /** getBalance(sender: field) */
+    getBalance: ((sender: Fr | bigint | number | { toField: () => Fr }) => ContractFunctionInteraction) &
+      Pick<ContractMethod, 'selector'>;
+
+    /** poke() */
+    poke: (() => ContractFunctionInteraction) & Pick<ContractMethod, 'selector'>;
   };
 }

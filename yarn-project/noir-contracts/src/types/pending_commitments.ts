@@ -51,6 +51,15 @@ export class PendingCommitmentsContract extends Contract {
 
   /** Type-safe wrappers for the public methods exposed by the contract. */
   public methods!: {
+    /** compute_note_hash_and_nullifier(contract_address: field, nonce: field, storage_slot: field, preimage: array) */
+    compute_note_hash_and_nullifier: ((
+      contract_address: Fr | bigint | number | { toField: () => Fr },
+      nonce: Fr | bigint | number | { toField: () => Fr },
+      storage_slot: Fr | bigint | number | { toField: () => Fr },
+      preimage: (Fr | bigint | number | { toField: () => Fr })[],
+    ) => ContractFunctionInteraction) &
+      Pick<ContractMethod, 'selector'>;
+
     /** get_note_zero_balance(owner: field) */
     get_note_zero_balance: ((owner: Fr | bigint | number | { toField: () => Fr }) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
@@ -66,15 +75,6 @@ export class PendingCommitmentsContract extends Contract {
     insert_note: ((
       amount: Fr | bigint | number | { toField: () => Fr },
       owner: Fr | bigint | number | { toField: () => Fr },
-    ) => ContractFunctionInteraction) &
-      Pick<ContractMethod, 'selector'>;
-
-    /** stev(contract_address: field, nonce: field, storage_slot: field, preimage: array) */
-    stev: ((
-      contract_address: Fr | bigint | number | { toField: () => Fr },
-      nonce: Fr | bigint | number | { toField: () => Fr },
-      storage_slot: Fr | bigint | number | { toField: () => Fr },
-      preimage: (Fr | bigint | number | { toField: () => Fr })[],
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 

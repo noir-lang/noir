@@ -22,7 +22,7 @@ contract PendingCommitments {
         note_getter::NoteGetterOptions,
         note_getter_options::Sort,
         note_header::NoteHeader,
-        utils::compute_note_hash_and_nullifier,
+        utils as note_utils,
     };
     use dep::aztec::types::point::Point;
     use dep::aztec::state_vars::map::Map;
@@ -236,11 +236,11 @@ contract PendingCommitments {
     //) -> distinct pub abi::PrivateCircuitPublicInputs {
     //}
 
-    // stev function needs to be defined by every contract producing logs. Having it in all the contracts gives us the ability to
-    // compute the note hash and nullifier differently for different kind of notes.
-    // Note: "stev" is just a placeholder name before we come up with a better one.
-    unconstrained fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
+    // Computes note hash and nullifier.
+    // Note 1: Needs to be defined by every contract producing logs.
+    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
-        compute_note_hash_and_nullifier(ValueNoteInterface, note_header, preimage)
+        note_utils::compute_note_hash_and_nullifier(ValueNoteInterface, note_header, preimage)
     }
 }

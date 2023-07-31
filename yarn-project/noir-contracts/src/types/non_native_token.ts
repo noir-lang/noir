@@ -67,6 +67,15 @@ export class NonNativeTokenContract extends Contract {
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 
+    /** compute_note_hash_and_nullifier(contract_address: field, nonce: field, storage_slot: field, preimage: array) */
+    compute_note_hash_and_nullifier: ((
+      contract_address: Fr | bigint | number | { toField: () => Fr },
+      nonce: Fr | bigint | number | { toField: () => Fr },
+      storage_slot: Fr | bigint | number | { toField: () => Fr },
+      preimage: (Fr | bigint | number | { toField: () => Fr })[],
+    ) => ContractFunctionInteraction) &
+      Pick<ContractMethod, 'selector'>;
+
     /** getBalance(owner: field) */
     getBalance: ((owner: Fr | bigint | number | { toField: () => Fr }) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
@@ -103,15 +112,6 @@ export class NonNativeTokenContract extends Contract {
     shield: ((
       amount: Fr | bigint | number | { toField: () => Fr },
       secretHash: Fr | bigint | number | { toField: () => Fr },
-    ) => ContractFunctionInteraction) &
-      Pick<ContractMethod, 'selector'>;
-
-    /** stev(contract_address: field, nonce: field, storage_slot: field, preimage: array) */
-    stev: ((
-      contract_address: Fr | bigint | number | { toField: () => Fr },
-      nonce: Fr | bigint | number | { toField: () => Fr },
-      storage_slot: Fr | bigint | number | { toField: () => Fr },
-      preimage: (Fr | bigint | number | { toField: () => Fr })[],
     ) => ContractFunctionInteraction) &
       Pick<ContractMethod, 'selector'>;
 

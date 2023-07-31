@@ -2,6 +2,54 @@
   "name": "EcdsaAccount",
   "functions": [
     {
+      "name": "compute_note_hash_and_nullifier",
+      "functionType": "unconstrained",
+      "isInternal": false,
+      "parameters": [
+        {
+          "name": "contract_address",
+          "type": {
+            "kind": "field"
+          },
+          "visibility": "private"
+        },
+        {
+          "name": "nonce",
+          "type": {
+            "kind": "field"
+          },
+          "visibility": "private"
+        },
+        {
+          "name": "storage_slot",
+          "type": {
+            "kind": "field"
+          },
+          "visibility": "private"
+        },
+        {
+          "name": "preimage",
+          "type": {
+            "kind": "array",
+            "length": 5,
+            "type": {
+              "kind": "field"
+            }
+          },
+          "visibility": "private"
+        }
+      ],
+      "returnTypes": [
+        {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "field"
+          }
+        }
+      ]
+    },
+    {
       "name": "constructor",
       "functionType": "secret",
       "isInternal": false,
@@ -100,54 +148,6 @@
         }
       ],
       "returnTypes": []
-    },
-    {
-      "name": "stev",
-      "functionType": "unconstrained",
-      "isInternal": false,
-      "parameters": [
-        {
-          "name": "contract_address",
-          "type": {
-            "kind": "field"
-          },
-          "visibility": "private"
-        },
-        {
-          "name": "nonce",
-          "type": {
-            "kind": "field"
-          },
-          "visibility": "private"
-        },
-        {
-          "name": "storage_slot",
-          "type": {
-            "kind": "field"
-          },
-          "visibility": "private"
-        },
-        {
-          "name": "preimage",
-          "type": {
-            "kind": "array",
-            "length": 5,
-            "type": {
-              "kind": "field"
-            }
-          },
-          "visibility": "private"
-        }
-      ],
-      "returnTypes": [
-        {
-          "kind": "array",
-          "length": 4,
-          "type": {
-            "kind": "field"
-          }
-        }
-      ]
     }
   ]
 }

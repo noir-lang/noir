@@ -20,8 +20,10 @@ contract EcdsaAccount {
     use dep::aztec::types::point::Point;
 
     use dep::aztec::constants_gen::MAX_NOTE_FIELDS_LENGTH;
-    use dep::aztec::note::utils::compute_note_hash_and_nullifier;
-    use dep::aztec::note::note_header::NoteHeader;
+    use dep::aztec::note::{
+        note_header::{NoteHeader},
+        utils as note_utils,
+    };
 
     use crate::storage::Storage;
     use crate::ecdsa_public_key_note::EcdsaPublicKeyNote;
@@ -92,9 +94,12 @@ contract EcdsaAccount {
         context.finish()
     }
 
-    unconstrained fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> [Field; 4] {
+    // Computes note hash and nullifier.
+    // Note 1: Needs to be defined by every contract producing logs.
+    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> [Field; 4] {
         assert(storage_slot == 1);
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
-        compute_note_hash_and_nullifier(EcdsaPublicKeyNoteInterface, note_header, preimage)
+        note_utils::compute_note_hash_and_nullifier(EcdsaPublicKeyNoteInterface, note_header, preimage)
     }
 }

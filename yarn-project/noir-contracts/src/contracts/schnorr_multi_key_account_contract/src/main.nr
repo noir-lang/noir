@@ -17,7 +17,7 @@ contract SchnorrMultiKeyAccount {
     use dep::aztec::oracle::get_public_key::get_public_key;
     use dep::aztec::types::vec::BoundedVec;
     use dep::aztec::types::point::Point;
-    use dep::aztec::note::utils::compute_note_hash_and_nullifier;
+    use dep::aztec::note::utils as note_utils;
     use dep::aztec::note::note_header::NoteHeader;
     use dep::aztec::constants_gen::MAX_NOTE_FIELDS_LENGTH;
     use dep::aztec::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;
@@ -85,9 +85,12 @@ contract SchnorrMultiKeyAccount {
         context.finish()
     }
 
-    unconstrained fn stev(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; PUBLIC_KEY_NOTE_LEN]) -> [Field; 4] {
+    // Computes notes hash and nullifier.
+    // Note 1: Needs to be defined by every contract producing logs.
+    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
+    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; PUBLIC_KEY_NOTE_LEN]) -> [Field; 4] {
         assert(storage_slot == 1);
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
-        compute_note_hash_and_nullifier(PublicKeyNoteInterface, note_header, preimage)
+        note_utils::compute_note_hash_and_nullifier(PublicKeyNoteInterface, note_header, preimage)
     }
 }
