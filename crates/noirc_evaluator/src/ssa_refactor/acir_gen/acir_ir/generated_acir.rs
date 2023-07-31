@@ -259,14 +259,14 @@ impl GeneratedAcir {
         lhs: &Expression,
         leading: Witness,
         max_bit_size: u32,
-    ) -> Result<Expression, InternalError> {
+    ) -> Expression {
         let max_power_of_two =
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
 
         let intermediate =
             self.mul_with_witness(&(&Expression::from(max_power_of_two) - lhs), &leading.into());
 
-        Ok(lhs.add_mul(FieldElement::from(2_i128), &intermediate))
+        lhs.add_mul(FieldElement::from(2_i128), &intermediate)
     }
 
     /// Returns an expression which represents `lhs * rhs`
@@ -353,8 +353,8 @@ impl GeneratedAcir {
         )?;
 
         // Signed to unsigned:
-        let unsigned_lhs = self.two_complement(lhs, lhs_leading, max_bit_size)?;
-        let unsigned_rhs = self.two_complement(rhs, rhs_leading, max_bit_size)?;
+        let unsigned_lhs = self.two_complement(lhs, lhs_leading, max_bit_size);
+        let unsigned_rhs = self.two_complement(rhs, rhs_leading, max_bit_size);
         let unsigned_l_witness = self.get_or_create_witness(&unsigned_lhs);
         let unsigned_r_witness = self.get_or_create_witness(&unsigned_rhs);
 
@@ -380,8 +380,8 @@ impl GeneratedAcir {
             },
         );
         let q_sign_witness = self.get_or_create_witness(&q_sign);
-        let quotient = self.two_complement(&q1.into(), q_sign_witness, max_bit_size)?;
-        let remainder = self.two_complement(&r1.into(), lhs_leading, max_bit_size)?;
+        let quotient = self.two_complement(&q1.into(), q_sign_witness, max_bit_size);
+        let remainder = self.two_complement(&r1.into(), lhs_leading, max_bit_size);
         Ok((quotient, remainder))
     }
 
