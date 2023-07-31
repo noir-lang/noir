@@ -800,10 +800,29 @@ impl<'block> BrilligBlock<'block> {
                     value_id,
                     dfg,
                 );
-                let heap_array = self.function_context.extract_heap_array(new_variable);
 
-                self.brillig_context
-                    .allocate_fixed_length_array(heap_array.pointer, heap_array.size);
+                // Initialize the variable
+                let pointer = match new_variable {
+                    RegisterOrMemory::HeapArray(heap_array) => {
+                        self.brillig_context
+                            .allocate_fixed_length_array(heap_array.pointer, array.len());
+
+                        heap_array.pointer
+                    }
+                    RegisterOrMemory::HeapVector(heap_vector) => {
+                        self.brillig_context
+                            .const_instruction(heap_vector.size, array.len().into());
+                        self.brillig_context
+                            .allocate_array_instruction(heap_vector.pointer, heap_vector.size);
+
+                        heap_vector.pointer
+                    }
+                    _ => unreachable!(
+                        "ICE: Cannot initialize array value created as {new_variable:?}"
+                    ),
+                };
+
+                // Write the items
 
                 // Allocate a register for the iterator
                 let iterator_register = self.brillig_context.make_constant(0_usize.into());
@@ -811,11 +830,7 @@ impl<'block> BrilligBlock<'block> {
                 for element_id in array.iter() {
                     let element_variable = self.convert_ssa_value(*element_id, dfg);
                     // Store the item in memory
-                    self.store_variable_in_array(
-                        heap_array.pointer,
-                        iterator_register,
-                        element_variable,
-                    );
+                    self.store_variable_in_array(pointer, iterator_register, element_variable);
                     // Increment the iterator
                     self.brillig_context.usize_op_in_place(iterator_register, BinaryIntOp::Add, 1);
                 }

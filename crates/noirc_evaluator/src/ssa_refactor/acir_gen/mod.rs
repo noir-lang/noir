@@ -1050,7 +1050,8 @@ mod tests {
         let one = builder.field_constant(FieldElement::one());
 
         let element_type = Rc::new(vec![Type::field()]);
-        let array = builder.array_constant(im::Vector::unit(one), element_type);
+        let array_type = Type::Array(element_type, 1);
+        let array = builder.array_constant(im::Vector::unit(one), array_type);
 
         builder.terminate_with_return(vec![array]);
 
