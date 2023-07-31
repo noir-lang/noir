@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
+use std::ops::RangeInclusive;
 
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::{
@@ -172,8 +173,7 @@ impl Context {
     ) -> Result<GeneratedAcir, AcirGenError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
-
-        self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
+        let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
 
         for instruction_id in entry_block.instructions() {
             self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, allow_log_ops)?;
@@ -181,7 +181,7 @@ impl Context {
 
         self.convert_ssa_return(entry_block.unwrap_terminator(), dfg);
 
-        Ok(self.acir_context.finish())
+        Ok(self.acir_context.finish(input_witness.collect()))
     }
 
     fn convert_brillig_main(
@@ -195,6 +195,7 @@ impl Context {
             let typ = dfg.type_of_value(*param_id);
             self.create_value_from_type(&typ, &mut |this, _| Ok(this.acir_context.add_variable()))
         })?;
+        let witness_inputs = self.acir_context.extract_witness(&inputs);
 
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
@@ -213,7 +214,7 @@ impl Context {
             self.acir_context.return_var(acir_var);
         }
 
-        Ok(self.acir_context.finish())
+        Ok(self.acir_context.finish(witness_inputs))
     }
 
     /// Adds and binds `AcirVar`s for each numeric block parameter or block parameter array element.
@@ -221,7 +222,9 @@ impl Context {
         &mut self,
         params: &[ValueId],
         dfg: &DataFlowGraph,
-    ) -> Result<(), AcirGenError> {
+    ) -> Result<RangeInclusive<u32>, AcirGenError> {
+        // The first witness (if any) is the next one
+        let start_witness = self.acir_context.current_witness_index().0 + 1;
         for param_id in params {
             let typ = dfg.type_of_value(*param_id);
             let value = self.convert_ssa_block_param(&typ)?;
@@ -238,7 +241,8 @@ impl Context {
             }
             self.ssa_values.insert(*param_id, value);
         }
-        Ok(())
+        let end_witness = self.acir_context.current_witness_index().0;
+        Ok(start_witness..=end_witness)
     }
 
     fn convert_ssa_block_param(&mut self, param_type: &Type) -> Result<AcirValue, AcirGenError> {
