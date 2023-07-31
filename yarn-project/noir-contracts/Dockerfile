@@ -1,15 +1,20 @@
-FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
+# Running on ubuntu until noir supports an alpine build
 
+# Builder stage to build the noir artifacts
+FROM ubuntu:kinetic
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    sed
+
+WORKDIR /usr/src/yarn-project
 COPY . .
 
-WORKDIR /usr/src/yarn-project/noir-contracts
-RUN yarn build && yarn formatting && yarn test
+WORKDIR /usr/src/yarn-project/noir-contracts 
 
-# Prune dev dependencies. See comment in base image.
-RUN yarn cache clean
-RUN yarn workspaces focus --production > /dev/null
+# Download and extract nargo
+RUN ./scripts/install_noir.sh
+ENV PATH="/usr/src/yarn-project/noir-contracts/.nargo/bin:${PATH}"
 
-FROM node:18-alpine
-COPY --from=builder /usr/src/yarn-project/noir-contracts /usr/src/yarn-project/noir-contracts
-WORKDIR /usr/src/yarn-project/noir-contracts
-ENTRYPOINT ["yarn"]
+RUN ./scripts/compile_ci.sh

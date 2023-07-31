@@ -1,0 +1,6 @@
+src/artifacts/*
+src/types/*
+Dockerfile.build
+Dockerfile.lint
+Dockerfile.types
+README.md

@@ -1,4 +1,6 @@
+artifacts/
 target/
 proofs/
+types/
 Prover.toml
 Verifier.toml

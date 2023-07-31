@@ -489,15 +489,15 @@ jobs:
           command: build key-store
 
   noir-contracts:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
     steps:
       - *checkout
       - *setup_env
       - run:
           name: "Build and test"
-          command: build noir-contracts
+          command: cond_spot_run_build noir-contracts 32
 
   noir-compiler:
     machine:
@@ -700,7 +700,6 @@ jobs:
           name: "Test"
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_lending_contract.test.ts
           working_directory: yarn-project/end-to-end
-
 
   e2e-zk-token-contract:
     machine:
@@ -918,12 +917,6 @@ jobs:
             deploy_ecr circuits.js
             deploy_npm circuits.js
       - run:
-          name: "noir-contracts"
-          working_directory: noir-contracts
-          command: |
-            deploy_ecr noir-contracts
-            deploy_npm noir-contracts
-      - run:
           name: "l1-artifacts"
           working_directory: l1-artifacts
           command: |
@@ -1024,7 +1017,7 @@ circuits-x86_64-test: &circuits-x86_64-test
 workflows:
   system:
     when:
-      equal: [ system, << pipeline.parameters.workflow >> ]
+      equal: [system, << pipeline.parameters.workflow >>]
     jobs:
       - barretenberg-x86_64-linux-gcc: *defaults
       - barretenberg-x86_64-linux-clang: *defaults
@@ -1088,11 +1081,13 @@ workflows:
           <<: *defaults
 
       - l1-contracts: *defaults
+      - noir-contracts: *defaults
 
       - yarn-project-base:
           requires:
             - circuits-wasm-linux-clang
             - l1-contracts
+            - noir-contracts
           <<: *defaults
 
       - aztec-js: *yarn_project
@@ -1110,7 +1105,6 @@ workflows:
       - p2p: *yarn_project
       - p2p-bootstrap: *yarn_project
       - l1-artifacts: *yarn_project
-      - noir-contracts: *yarn_project
       - noir-compiler: *yarn_project
       - sequencer-client: *yarn_project
       - types: *yarn_project
@@ -1135,7 +1129,6 @@ workflows:
             - p2p
             - p2p-bootstrap
             - l1-artifacts
-            - noir-contracts
             - noir-compiler
             - sequencer-client
             - types
