@@ -236,17 +236,6 @@ pub(crate) fn resolve_workspace_from_toml(
     toml_to_workspace(nargo_toml, selected_package)
 }
 
-/// Recursively resolves filesystem locations and turns them into `Package` structs
-pub(crate) fn resolve_workspace_in_directory(
-    dir_path: &Path,
-    selected_package: Option<CrateName>,
-) -> Result<Workspace, ManifestError> {
-    let toml_path = super::find_package_manifest(dir_path)?;
-    let nargo_toml = read_toml(&toml_path)?;
-
-    toml_to_workspace(nargo_toml, selected_package)
-}
-
 #[test]
 fn parse_standard_toml() {
     let src = r#"

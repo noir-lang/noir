@@ -15,8 +15,8 @@ use clap::Args;
 use nargo::ops::{preprocess_contract_function, preprocess_program};
 
 use crate::errors::CliError;
-use crate::manifest::resolve_workspace_in_directory;
-use crate::prepare_package;
+use crate::manifest::resolve_workspace_from_toml;
+use crate::{find_package_manifest, prepare_package};
 
 use super::fs::{
     common_reference_string::{
@@ -54,7 +54,8 @@ pub(crate) fn run<B: Backend>(
     args: CompileCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
     let circuit_dir = workspace.target_directory_path();
 
     let mut common_reference_string = read_cached_common_reference_string();

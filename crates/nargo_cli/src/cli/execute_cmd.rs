@@ -16,8 +16,8 @@ use super::compile_cmd::compile_circuit;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::errors::CliError;
-use crate::manifest::resolve_workspace_in_directory;
-use crate::prepare_package;
+use crate::manifest::resolve_workspace_from_toml;
+use crate::{find_package_manifest, prepare_package};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -42,7 +42,8 @@ pub(crate) fn run<B: Backend>(
     args: ExecuteCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
     let witness_dir = &workspace.target_directory_path();
 
     for package in &workspace {

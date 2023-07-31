@@ -5,8 +5,8 @@ use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 
 use crate::{
-    cli::compile_cmd::compile_circuit, errors::CliError, manifest::resolve_workspace_in_directory,
-    prepare_package,
+    cli::compile_cmd::compile_circuit, errors::CliError, find_package_manifest,
+    manifest::resolve_workspace_from_toml, prepare_package,
 };
 
 use super::NargoConfig;
@@ -30,7 +30,8 @@ pub(crate) fn run<B: Backend>(
     args: InfoCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
 
     for package in &workspace {
         count_opcodes_and_gates_in_package(backend, package, &args.compile_options)?;

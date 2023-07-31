@@ -21,9 +21,9 @@ use super::fs::{
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
-use crate::manifest::resolve_workspace_in_directory;
-use crate::prepare_package;
+use crate::manifest::resolve_workspace_from_toml;
 use crate::{cli::execute_cmd::execute_program, errors::CliError};
+use crate::{find_package_manifest, prepare_package};
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
@@ -56,7 +56,8 @@ pub(crate) fn run<B: Backend>(
     args: ProveCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
     let proof_dir = workspace.proofs_directory_path();
 
     for package in &workspace {

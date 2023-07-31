@@ -8,8 +8,8 @@ use noirc_frontend::{graph::CrateName, hir::Context, node_interner::FuncId};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{
-    cli::check_cmd::check_crate_and_report_errors, errors::CliError,
-    manifest::resolve_workspace_in_directory, prepare_package,
+    cli::check_cmd::check_crate_and_report_errors, errors::CliError, find_package_manifest,
+    manifest::resolve_workspace_from_toml, prepare_package,
 };
 
 use super::{compile_cmd::optimize_circuit, NargoConfig};
@@ -39,7 +39,8 @@ pub(crate) fn run<B: Backend>(
 ) -> Result<(), CliError<B>> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
-    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
 
     for package in &workspace {
         run_tests(backend, package, &test_name, args.show_output, &args.compile_options)?;

@@ -10,8 +10,8 @@ use super::fs::{
 };
 use super::NargoConfig;
 use crate::errors::CliError;
-use crate::manifest::resolve_workspace_in_directory;
-use crate::prepare_package;
+use crate::manifest::resolve_workspace_from_toml;
+use crate::{find_package_manifest, prepare_package};
 
 use acvm::Backend;
 use clap::Args;
@@ -46,7 +46,8 @@ pub(crate) fn run<B: Backend>(
     args: VerifyCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
     let proofs_dir = workspace.proofs_directory_path();
     let proof_path = proofs_dir.join(&args.proof).with_extension(PROOF_EXT);
 

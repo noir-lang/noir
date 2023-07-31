@@ -1,4 +1,6 @@
-use crate::{errors::CliError, manifest::resolve_workspace_in_directory, prepare_package};
+use crate::{
+    errors::CliError, find_package_manifest, manifest::resolve_workspace_from_toml, prepare_package,
+};
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
@@ -30,7 +32,8 @@ pub(crate) fn run<B: Backend>(
     args: CheckCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
 
     for package in &workspace {
         check_package(package, &args.compile_options)?;
@@ -110,7 +113,7 @@ mod tests {
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
     use noirc_driver::CompileOptions;
 
-    use crate::manifest::resolve_workspace_in_directory;
+    use crate::{find_package_manifest, manifest::resolve_workspace_from_toml};
 
     use super::create_input_toml_template;
 
@@ -165,7 +168,8 @@ d2 = ["", "", ""]
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            let workspace = resolve_workspace_in_directory(&path, None).unwrap();
+            let toml_path = find_package_manifest(&path).unwrap();
+            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
             for package in &workspace {
                 assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
             }
@@ -182,7 +186,8 @@ d2 = ["", "", ""]
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            let workspace = resolve_workspace_in_directory(&path, None).unwrap();
+            let toml_path = find_package_manifest(&path).unwrap();
+            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
             for package in &workspace {
                 assert!(
                     super::check_package(package, &config).is_err(),
@@ -203,7 +208,8 @@ d2 = ["", "", ""]
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            let workspace = resolve_workspace_in_directory(&path, None).unwrap();
+            let toml_path = find_package_manifest(&path).unwrap();
+            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
             for package in &workspace {
                 assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
             }

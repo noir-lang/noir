@@ -11,7 +11,7 @@ use super::fs::{
 };
 use super::NargoConfig;
 use crate::{cli::compile_cmd::compile_circuit, errors::CliError};
-use crate::{manifest::resolve_workspace_in_directory, prepare_package};
+use crate::{find_package_manifest, manifest::resolve_workspace_from_toml, prepare_package};
 use acvm::Backend;
 use clap::Args;
 use nargo::{
@@ -37,7 +37,8 @@ pub(crate) fn run<B: Backend>(
     args: CodegenVerifierCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let workspace = resolve_workspace_in_directory(&config.program_dir, args.package)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
 
     for package in &workspace {
         let circuit_build_path = workspace.package_build_path(package);
