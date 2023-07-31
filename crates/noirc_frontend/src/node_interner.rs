@@ -549,6 +549,10 @@ impl NodeInterner {
         self.type_aliases[id.0].clone()
     }
 
+    pub fn get_all_type_aliases(&self) -> &Vec<Rc<RefCell<TypeAliasType>>> {
+        &self.type_aliases
+    }
+
     pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {
         self.globals.get(stmt_id).cloned()
     }
