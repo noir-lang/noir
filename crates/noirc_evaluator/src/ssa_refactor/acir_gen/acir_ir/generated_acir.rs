@@ -2,9 +2,11 @@
 //! program as it is being converted from SSA form.
 use std::collections::HashMap;
 
-use crate::brillig::brillig_gen::brillig_directive;
+use crate::{
+    brillig::brillig_gen::brillig_directive,
+    errors::{InternalError, RuntimeError},
+};
 
-use super::errors::AcirGenError;
 use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::{
@@ -39,6 +41,9 @@ pub(crate) struct GeneratedAcir {
     /// Note: This may contain repeated indices, which is necessary for later mapping into the
     /// abi's return type.
     pub(crate) return_witnesses: Vec<Witness>,
+
+    /// All witness indices which are inputs to the main function
+    pub(crate) input_witnesses: Vec<Witness>,
 
     /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
     pub(crate) locations: HashMap<usize, Location>,
@@ -120,7 +125,7 @@ impl GeneratedAcir {
         inputs: &[Vec<FunctionInput>],
         constants: Vec<FieldElement>,
         output_count: usize,
-    ) -> Vec<Witness> {
+    ) -> Result<Vec<Witness>, InternalError> {
         let input_count = inputs.iter().fold(0usize, |sum, val| sum + val.len());
         intrinsics_check_inputs(func_name, input_count);
         intrinsics_check_outputs(func_name, output_count);
@@ -184,8 +189,16 @@ impl GeneratedAcir {
                 outputs: (outputs[0], outputs[1]),
             },
             BlackBoxFunc::Keccak256 => {
-                let var_message_size =
-                    inputs.to_vec().pop().expect("ICE: Missing message_size arg")[0];
+                let var_message_size = match inputs.to_vec().pop() {
+                    Some(var_message_size) => var_message_size[0],
+                    None => {
+                        return Err(InternalError::MissingArg {
+                            name: "".to_string(),
+                            arg: "message_size".to_string(),
+                            location: self.current_location,
+                        });
+                    }
+                };
                 BlackBoxFuncCall::Keccak256VariableLength {
                     inputs: inputs[0].clone(),
                     var_message_size,
@@ -200,11 +213,8 @@ impl GeneratedAcir {
                     )
                 });
 
-                let input_aggregation_object = if !has_previous_aggregation {
-                    None
-                } else {
-                    Some(inputs[4].clone())
-                };
+                let input_aggregation_object =
+                    if !has_previous_aggregation { None } else { Some(inputs[4].clone()) };
 
                 BlackBoxFuncCall::RecursiveAggregation {
                     verification_key: inputs[0].clone(),
@@ -219,7 +229,7 @@ impl GeneratedAcir {
 
         self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
 
-        outputs_clone
+        Ok(outputs_clone)
     }
 
     /// Takes an input expression and returns witnesses that are constrained to be limbs
@@ -232,7 +242,7 @@ impl GeneratedAcir {
         radix: u32,
         limb_count: u32,
         bit_size: u32,
-    ) -> Result<Vec<Witness>, AcirGenError> {
+    ) -> Result<Vec<Witness>, RuntimeError> {
         let radix_big = BigUint::from(radix);
         assert_eq!(
             BigUint::from(2u128).pow(bit_size),
@@ -346,13 +356,13 @@ impl GeneratedAcir {
         lhs: &Expression,
         rhs: &Expression,
         max_bit_size: u32,
-    ) -> Result<(Expression, Expression), AcirGenError> {
+    ) -> Result<(Expression, Expression), RuntimeError> {
         // 2^{max_bit size-1}
         let max_power_of_two =
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
 
         // Get the sign bit of rhs by computing rhs / max_power_of_two
-        let (rhs_leading, _) = self.euclidean_division(
+        let (rhs_leading_witness, _) = self.euclidean_division(
             rhs,
             &max_power_of_two.into(),
             max_bit_size,
@@ -360,7 +370,7 @@ impl GeneratedAcir {
         )?;
 
         // Get the sign bit of lhs by computing lhs / max_power_of_two
-        let (lhs_leading, _) = self.euclidean_division(
+        let (lhs_leading_witness, _) = self.euclidean_division(
             lhs,
             &max_power_of_two.into(),
             max_bit_size,
@@ -368,8 +378,8 @@ impl GeneratedAcir {
         )?;
 
         // Signed to unsigned:
-        let unsigned_lhs = self.two_complement(lhs, lhs_leading, max_bit_size);
-        let unsigned_rhs = self.two_complement(rhs, rhs_leading, max_bit_size);
+        let unsigned_lhs = self.two_complement(lhs, lhs_leading_witness, max_bit_size);
+        let unsigned_rhs = self.two_complement(rhs, rhs_leading_witness, max_bit_size);
         let unsigned_l_witness = self.get_or_create_witness(&unsigned_lhs);
         let unsigned_r_witness = self.get_or_create_witness(&unsigned_rhs);
 
@@ -383,13 +393,16 @@ impl GeneratedAcir {
 
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
-        let q_sign = (&Expression::from(lhs_leading) + &Expression::from(rhs_leading)).add_mul(
-            -FieldElement::from(2_i128),
-            &(&Expression::from(lhs_leading) * &Expression::from(rhs_leading)).unwrap(),
-        );
+        let sign_sum =
+            &Expression::from(lhs_leading_witness) + &Expression::from(rhs_leading_witness);
+        let sign_prod = (&Expression::from(lhs_leading_witness)
+            * &Expression::from(rhs_leading_witness))
+            .expect("Product of two witnesses so result is degree 2");
+        let q_sign = sign_sum.add_mul(-FieldElement::from(2_i128), &sign_prod);
+
         let q_sign_witness = self.get_or_create_witness(&q_sign);
         let quotient = self.two_complement(&q1.into(), q_sign_witness, max_bit_size);
-        let remainder = self.two_complement(&r1.into(), lhs_leading, max_bit_size);
+        let remainder = self.two_complement(&r1.into(), lhs_leading_witness, max_bit_size);
         Ok((quotient, remainder))
     }
 
@@ -403,7 +416,7 @@ impl GeneratedAcir {
         rhs: &Expression,
         max_bit_size: u32,
         predicate: &Expression,
-    ) -> Result<(Witness, Witness), AcirGenError> {
+    ) -> Result<(Witness, Witness), RuntimeError> {
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
@@ -461,7 +474,7 @@ impl GeneratedAcir {
         rhs: &Expression,
         offset: &Expression,
         bits: u32,
-    ) -> Result<(), AcirGenError> {
+    ) -> Result<(), RuntimeError> {
         const fn num_bits<T>() -> usize {
             std::mem::size_of::<T>() * 8
         }
@@ -661,11 +674,11 @@ impl GeneratedAcir {
         &mut self,
         witness: Witness,
         num_bits: u32,
-    ) -> Result<(), AcirGenError> {
+    ) -> Result<(), RuntimeError> {
         // We class this as an error because users should instead
         // do `as Field`.
         if num_bits >= FieldElement::max_num_bits() {
-            return Err(AcirGenError::InvalidRangeConstraint {
+            return Err(RuntimeError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
                 location: self.current_location,
             });
@@ -689,7 +702,7 @@ impl GeneratedAcir {
         predicate: Option<Expression>,
         q_max_bits: u32,
         r_max_bits: u32,
-    ) -> Result<(Witness, Witness), AcirGenError> {
+    ) -> Result<(Witness, Witness), RuntimeError> {
         let q_witness = self.next_witness_index();
         let r_witness = self.next_witness_index();
 
@@ -717,7 +730,7 @@ impl GeneratedAcir {
         b: &Expression,
         max_bits: u32,
         predicate: Expression,
-    ) -> Result<Witness, AcirGenError> {
+    ) -> Result<Witness, RuntimeError> {
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
         // TODO: perhaps this should be a user error, instead of an assert
@@ -786,7 +799,11 @@ impl GeneratedAcir {
     ///
     /// n.b. A sorting network is a predetermined set of switches,
     /// the control bits indicate the configuration of each switch: false for pass-through and true for cross-over
-    pub(crate) fn permutation(&mut self, in_expr: &[Expression], out_expr: &[Expression]) {
+    pub(crate) fn permutation(
+        &mut self,
+        in_expr: &[Expression],
+        out_expr: &[Expression],
+    ) -> Result<(), RuntimeError> {
         let mut bits_len = 0;
         for i in 0..in_expr.len() {
             bits_len += ((i + 1) as f32).log2().ceil() as u32;
@@ -800,12 +817,13 @@ impl GeneratedAcir {
             bits: bits.clone(),
             sort_by: vec![0],
         }));
-        let (_, b) = self.permutation_layer(in_expr, &bits, false);
+        let (_, b) = self.permutation_layer(in_expr, &bits, false)?;
 
         // Constrain the network output to out_expr
         for (b, o) in b.iter().zip(out_expr) {
             self.push_opcode(AcirOpcode::Arithmetic(b - o));
         }
+        Ok(())
     }
 }
 
