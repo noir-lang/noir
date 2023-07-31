@@ -398,8 +398,8 @@ impl<'a> Resolver<'a> {
         }
 
         let span = path.span();
+        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
         if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
-            let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
             let expected_generic_count = type_alias_type.borrow().generics.len();
 
             if args.len() != expected_generic_count {
@@ -420,7 +420,6 @@ impl<'a> Resolver<'a> {
 
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
-                let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let expected_generic_count = struct_type.borrow().generics.len();
 
                 if args.len() != expected_generic_count {
