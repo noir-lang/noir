@@ -77,15 +77,10 @@ contract Rollup is IRollup {
   }
 
   function _constrainGlobals(bytes calldata _l2Block) internal view {
-    uint256 chainId;
-    uint256 version;
-    uint256 ts;
+    uint256 chainId = uint256(bytes32(_l2Block[:0x20]));
+    uint256 version = uint256(bytes32(_l2Block[0x20:0x40]));
+    uint256 ts = uint256(bytes32(_l2Block[0x60:0x80]));
     // block number already constrained by start state hash
-    assembly {
-      chainId := calldataload(_l2Block.offset)
-      version := calldataload(add(_l2Block.offset, 0x20))
-      ts := calldataload(add(_l2Block.offset, 0x60))
-    }
 
     if (block.chainid != chainId) {
       revert Errors.Rollup__InvalidChainId(chainId, block.chainid);
