@@ -18,6 +18,7 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -399,12 +400,12 @@ impl<'a> Resolver<'a> {
         let span = path.span();
         if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
             let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
-            let expected_generic_count = type_alias_type.generics.len();
+            let expected_generic_count = type_alias_type.borrow().generics.len();
 
             if args.len() != expected_generic_count {
                 self.push_err(ResolverError::IncorrectGenericCount {
                     span,
-                    struct_type: type_alias_type.to_string(),
+                    struct_type: type_alias_type.borrow().to_string(),
                     actual: args.len(),
                     expected: expected_generic_count,
                 });
@@ -414,7 +415,7 @@ impl<'a> Resolver<'a> {
             }
 
             // resolve generics in type aliases
-            return type_alias_type.get_type(&args);
+            return type_alias_type.borrow().get_type(&args);
         }
 
         match self.lookup_struct_or_error(path) {
@@ -1203,7 +1204,7 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_type_alias(&self, type_alias_id: TypeAliasId) -> TypeAliasType {
+    pub fn get_type_alias(&self, type_alias_id: TypeAliasId) -> Rc<RefCell<TypeAliasType>> {
         self.interner.get_type_alias(type_alias_id)
     }
 
@@ -1269,7 +1270,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn lookup_type_alias(&mut self, path: Path) -> Option<TypeAliasType> {
+    fn lookup_type_alias(&mut self, path: Path) -> Option<Rc<RefCell<TypeAliasType>>> {
         match self.lookup(path) {
             Ok(type_alias_id) => Some(self.get_type_alias(type_alias_id)),
             Err(_) => None,

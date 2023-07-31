@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use arena::{Arena, Index};
 use fm::FileId;
@@ -18,9 +20,9 @@ use crate::hir_def::{
     stmt::HirStatement,
 };
 use crate::{
-    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind
+    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
+    TypeVariableKind,
 };
-
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -59,7 +61,7 @@ pub struct NodeInterner {
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    type_aliases: Vec<TypeAliasType>,
+    type_aliases: Vec<Rc<RefCell<TypeAliasType>>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -325,7 +327,7 @@ impl NodeInterner {
     }
 
     pub fn push_empty_type_alias(&mut self, type_id: TypeAliasId, typ: &UnresolvedTypeAlias) {
-        self.type_aliases.push(TypeAliasType::new(
+        self.type_aliases.push(Rc::new(RefCell::new(TypeAliasType::new(
             type_id,
             typ.type_alias_def.name.clone(),
             typ.type_alias_def.span,
@@ -334,7 +336,7 @@ impl NodeInterner {
                 let id = TypeVariableId(0);
                 (id, Shared::new(TypeBinding::Unbound(id)))
             }),
-        ));
+        ))));
     }
 
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
@@ -343,7 +345,7 @@ impl NodeInterner {
     }
 
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
-        let type_alias_type = &mut self.type_aliases[type_id.0];
+        let type_alias_type = &mut self.type_aliases[type_id.0].borrow_mut();
         type_alias_type.set_type_and_generics(typ, generics);
     }
 
@@ -543,7 +545,7 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_type_alias(&self, id: TypeAliasId) -> TypeAliasType {
+    pub fn get_type_alias(&self, id: TypeAliasId) -> Rc<RefCell<TypeAliasType>> {
         self.type_aliases[id.0].clone()
     }
 
