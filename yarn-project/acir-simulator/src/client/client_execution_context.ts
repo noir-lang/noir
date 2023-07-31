@@ -2,6 +2,7 @@ import { CircuitsWasm, PrivateHistoricTreeRoots, ReadRequestMembershipWitness, T
 import { computeCommitmentNonce } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
+import { createDebugLogger } from '@aztec/foundation/log';
 
 import {
   ACVMField,
@@ -22,6 +23,9 @@ export class ClientTxExecutionContext {
   // are meant to be maintained on a per-call basis as they should mirror read requests
   // output by an app circuit via public inputs.
   private readRequestPartialWitnesses: ReadRequestMembershipWitness[] = [];
+
+  /** Logger instance */
+  private logger = createDebugLogger('aztec:simulator:execution_context');
 
   constructor(
     /**  The database oracle. */
@@ -135,6 +139,12 @@ export class ClientTxExecutionContext {
       limit,
       offset,
     });
+
+    this.logger(
+      `Returning ${notes.length} notes for ${contractAddress} at ${storageSlotField}: ${notes
+        .map(n => `${n.nonce.toString()}:[${n.preimage.map(i => i.toString()).join(',')}]`)
+        .join(', ')}`,
+    );
 
     // Combine pending and db preimages into a single flattened array.
     const preimages = notes.flatMap(({ nonce, preimage }) => [nonce, ...preimage]);

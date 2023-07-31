@@ -23,8 +23,8 @@ contract SchnorrSingleKeyAccount {
         partial_address: pub Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         // Initialize context
-        // 136 = ENTRYPOINT_PAYLOAD_SIZE(7) + 64 + 64 + 1
-        let mut args: BoundedVec<Field, 136> = BoundedVec::new(0);
+        // ENTRYPOINT_PAYLOAD_SIZE(13) + 64 + 64 + 1
+        let mut args: BoundedVec<Field, 142> = BoundedVec::new(0);
         args.push_array(payload.serialize());
         for byte in owner { args.push(byte as Field); }
         for byte in signature { args.push(byte as Field); }

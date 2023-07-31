@@ -38,8 +38,8 @@ contract EcdsaAccount {
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         
         // Initialise context
-        // 71 = ENTRYPOINT_PAYLOAD_SIZE(7) + 64
-        let mut args: BoundedVec<Field, 71> = BoundedVec::new(0);
+        // ENTRYPOINT_PAYLOAD_SIZE(13) + 64
+        let mut args: BoundedVec<Field, 77> = BoundedVec::new(0);
         args.push_array(payload.serialize());
         for byte in signature { args.push(byte as Field); }
         let mut context = Context::new(inputs, abi::hash_args(args.storage));

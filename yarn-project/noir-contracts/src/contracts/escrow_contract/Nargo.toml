@@ -1,0 +1,7 @@
+[package]
+name = "escrow-contract"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]
+aztec = { path = "../../../../noir-libs/noir-aztec" }

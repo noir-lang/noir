@@ -3,8 +3,9 @@ import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
 import { ExecutionRequest, PackedArguments, emptyExecutionRequest } from '@aztec/types';
 
-const ACCOUNT_MAX_PRIVATE_CALLS = 1;
-const ACCOUNT_MAX_PUBLIC_CALLS = 1;
+// These must match the values defined in yarn-project/noir-libs/noir-aztec/src/entrypoint.nr
+const ACCOUNT_MAX_PRIVATE_CALLS = 2;
+const ACCOUNT_MAX_PUBLIC_CALLS = 2;
 
 /** Encoded payload for the account contract entrypoint */
 export type EntrypointPayload = {

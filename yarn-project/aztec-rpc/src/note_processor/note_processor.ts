@@ -239,13 +239,21 @@ export class NoteProcessor {
     if (noteSpendingInfoDaosBatch.length) {
       await this.db.addNoteSpendingInfoBatch(noteSpendingInfoDaosBatch);
       noteSpendingInfoDaosBatch.forEach(noteSpendingInfo => {
-        this.log(`Added note spending info with nullifier ${noteSpendingInfo.nullifier.toString()}}`);
+        this.log(
+          `Added note spending info for contract ${noteSpendingInfo.contractAddress} at slot ${
+            noteSpendingInfo.storageSlot
+          } with nullifier ${noteSpendingInfo.nullifier.toString()}`,
+        );
       });
     }
     if (txDaos.length) await this.db.addTxs(txDaos);
     const removedNoteSpendingInfo = await this.db.removeNullifiedNoteSpendingInfo(newNullifiers, this.publicKey);
     removedNoteSpendingInfo.forEach(noteSpendingInfo => {
-      this.log(`Removed note spending info with nullifier ${noteSpendingInfo.nullifier.toString()}}`);
+      this.log(
+        `Removed note spending info for contract ${noteSpendingInfo.contractAddress} at slot ${
+          noteSpendingInfo.storageSlot
+        } with nullifier ${noteSpendingInfo.nullifier.toString()}`,
+      );
     });
   }
 }

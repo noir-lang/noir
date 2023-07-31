@@ -84,6 +84,16 @@ export class ContractFunctionInteraction {
     return this.tx;
   }
 
+  /**
+   * Returns an execution request that represents this operation. Useful as a building
+   * block for constructing batch requests.
+   * @param options - An optional object containing additional configuration for the transaction.
+   * @returns An execution request.
+   */
+  public request(options: SendMethodOptions = {}): ExecutionRequest {
+    return this.getExecutionRequest(this.contractAddress, options.origin);
+  }
+
   protected getExecutionRequest(to: AztecAddress, from?: AztecAddress): ExecutionRequest {
     const flatArgs = encodeArguments(this.functionDao, this.args);
     from = from ?? this.wallet.getAddress();

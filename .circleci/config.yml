@@ -797,6 +797,17 @@ jobs:
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_account_contracts.test.ts
           working_directory: yarn-project/end-to-end
 
+  e2e-escrow-contract:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end e2e_escrow_contract.test.ts
+
   e2e-pending-commitments-contract:
     machine:
       image: ubuntu-2004:202010-01
@@ -1150,6 +1161,7 @@ workflows:
       - e2e-public-cross-chain-messaging: *e2e_test
       - e2e-public-to-private-messaging: *e2e_test
       - e2e-account-contracts: *e2e_test
+      - e2e-escrow-contract: *e2e_test
       - e2e-pending-commitments-contract: *e2e_test
       - uniswap-trade-on-l1-from-l2: *e2e_test
       - integration-l1-publisher: *e2e_test
@@ -1172,6 +1184,7 @@ workflows:
             - e2e-public-cross-chain-messaging
             - e2e-public-to-private-messaging
             - e2e-account-contracts
+            - e2e-escrow-contract
             - e2e-pending-commitments-contract
             - uniswap-trade-on-l1-from-l2
             - integration-l1-publisher

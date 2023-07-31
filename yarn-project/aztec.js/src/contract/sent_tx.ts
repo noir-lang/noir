@@ -6,7 +6,7 @@ import { AztecRPC, TxHash, TxReceipt, TxStatus } from '@aztec/types';
  * its hash, receipt, and mining status.
  */
 export class SentTx {
-  constructor(private arc: AztecRPC, private txHashPromise: Promise<TxHash>) {}
+  constructor(protected arc: AztecRPC, protected txHashPromise: Promise<TxHash>) {}
 
   /**
    * Retrieves the transaction hash of the SentTx instance.
@@ -31,6 +31,19 @@ export class SentTx {
   }
 
   /**
+   * Awaits for a tx to be mined and returns the receipt. Throws if tx is not mined.
+   * @param timeout - The maximum time (in seconds) to wait for the transaction to be mined. A value of 0 means no timeout.
+   * @param interval - The time interval (in seconds) between retries to fetch the transaction receipt.
+   * @returns The transaction receipt.
+   */
+  public async wait(timeout = 0, interval = 1): Promise<TxReceipt> {
+    const receipt = await this.waitForReceipt(timeout, interval);
+    if (receipt.status !== TxStatus.MINED)
+      throw new Error(`Transaction ${await this.getTxHash()} was ${receipt.status}`);
+    return receipt;
+  }
+
+  /**
    * Checks whether the transaction is mined or not within the specified timeout and retry interval.
    * Resolves to true if the transaction status is 'MINED', false otherwise.
    * Throws an error if the transaction receipt cannot be fetched after the given timeout.
@@ -40,8 +53,13 @@ export class SentTx {
    * @returns A Promise that resolves to a boolean indicating if the transaction is mined or not.
    */
   public async isMined(timeout = 0, interval = 1): Promise<boolean> {
+    const receipt = await this.waitForReceipt(timeout, interval);
+    return receipt.status === TxStatus.MINED;
+  }
+
+  protected async waitForReceipt(timeout = 0, interval = 1): Promise<TxReceipt> {
     const txHash = await this.getTxHash();
-    const receipt = await retryUntil(
+    return await retryUntil(
       async () => {
         const txReceipt = await this.arc.getTxReceipt(txHash);
         return txReceipt.status != TxStatus.PENDING ? txReceipt : undefined;
@@ -50,6 +68,5 @@ export class SentTx {
       timeout,
       interval,
     );
-    return receipt.status === TxStatus.MINED;
   }
 }
