@@ -9,8 +9,8 @@ use crate::{
 
 #[derive(Clone)]
 pub enum Dependency {
-    Local { entry_path: PathBuf, crate_type: CrateType, workspace: Workspace },
-    Remote { entry_path: PathBuf, crate_type: CrateType, workspace: Workspace },
+    Local { workspace: Workspace },
+    Remote { workspace: Workspace },
 }
 
 #[derive(Clone)]

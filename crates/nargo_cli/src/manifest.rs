@@ -24,8 +24,8 @@ impl PackageConfig {
 
         let mut dependencies: BTreeMap<CrateName, package::Dependency> = BTreeMap::new();
         for (name, dep) in self.dependencies.iter() {
-            let name = name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
-            let resolved_dep = dep.to_dependency(root_dir)?;
+            let name: CrateName = name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
+            let resolved_dep = dep.to_dependency(root_dir, name.clone())?;
 
             dependencies.insert(name, resolved_dep);
         }
@@ -125,26 +125,44 @@ Modify your `Nargo.toml` similarly to above and rerun the command.
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
 enum DependencyConfig {
-    Github { git: String, tag: String },
-    Path { path: String },
+    Github { git: String, tag: String, package: Option<String> },
+    Path { path: String, package: Option<String> },
 }
 
 impl DependencyConfig {
-    fn to_dependency(&self, pkg_root: &Path) -> Result<package::Dependency, ManifestError> {
+    fn to_dependency(
+        &self,
+        pkg_root: &Path,
+        crate_name: CrateName,
+    ) -> Result<package::Dependency, ManifestError> {
         match self {
-            Self::Github { git, tag } => {
+            Self::Github { git, tag, package } => {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
-                let (entry_path, crate_type) = super::lib_or_bin(&dir_path)?;
                 let toml_path = dir_path.join("Nargo.toml");
-                let workspace = resolve_workspace_from_toml(&toml_path, None)?;
-                Ok(package::Dependency::Remote { entry_path, crate_type, workspace })
+                let selected_package = match package {
+                    Some(name) => {
+                        let crate_name =
+                            name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
+                        Some(crate_name)
+                    }
+                    None => Some(crate_name),
+                };
+                let workspace = resolve_workspace_from_toml(&toml_path, selected_package)?;
+                Ok(package::Dependency::Remote { workspace })
             }
-            Self::Path { path } => {
+            Self::Path { path, package } => {
                 let dir_path = pkg_root.join(path);
-                let (entry_path, crate_type) = super::lib_or_bin(&dir_path)?;
                 let toml_path = dir_path.join("Nargo.toml");
-                let workspace = resolve_workspace_from_toml(&toml_path, None)?;
-                Ok(package::Dependency::Local { entry_path, crate_type, workspace })
+                let selected_package = match package {
+                    Some(name) => {
+                        let crate_name =
+                            name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
+                        Some(crate_name)
+                    }
+                    None => Some(crate_name),
+                };
+                let workspace = resolve_workspace_from_toml(&toml_path, selected_package)?;
+                Ok(package::Dependency::Local { workspace })
             }
         }
     }

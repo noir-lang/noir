@@ -4,5 +4,5 @@ authors = [""]
 compiler_version = "0.7.1"
 
 [dependencies]
-dep1 = { path = "../../test_libraries/diamond_deps_1" }
-dep2 = { path = "../../test_libraries/diamond_deps_2" }
+dep1 = { path = "../../test_libraries/diamond_deps_1", package = "diamond_deps_1" }
+dep2 = { path = "../../test_libraries/diamond_deps_2", package = "diamond_deps_2" }
