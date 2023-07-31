@@ -63,13 +63,17 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.make_subtype_of(&declared_return_type, func_span, &mut errors, || {
-            TypeCheckError::TypeMismatch {
+        function_last_type.make_subtype_with_coercions(
+            &declared_return_type,
+            *function_body_id,
+            interner,
+            &mut errors,
+            || TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
                 expr_typ: function_last_type.to_string(),
                 expr_span: func_span,
-            }
-        });
+            },
+        );
     }
 
     errors
@@ -130,10 +134,16 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         actual: &Type,
         expected: &Type,
-        span: Span,
+        expression: ExprId,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        actual.make_subtype_of(expected, span, &mut self.errors, make_error);
+        actual.make_subtype_with_coercions(
+            expected,
+            expression,
+            self.interner,
+            &mut self.errors,
+            make_error,
+        );
     }
 }
 
@@ -229,6 +239,7 @@ mod test {
         let func_meta = FuncMeta {
             name,
             kind: FunctionKind::Normal,
+            module_id: ModuleId::dummy_id(),
             attributes: None,
             location,
             contract_function_type: None,
@@ -378,7 +389,8 @@ mod test {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
+            let (hir_func, func_meta, resolver_errors) =
+                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
         });

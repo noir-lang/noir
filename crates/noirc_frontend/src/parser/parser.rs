@@ -683,7 +683,16 @@ where
 
 fn pattern() -> impl NoirParser<Pattern> {
     recursive(|pattern| {
-        let ident_pattern = ident().map(Pattern::Identifier);
+        let ident_pattern = ident().map(Pattern::Identifier).map_err(|mut error| {
+            if matches!(error.found(), Token::IntType(..)) {
+                error = ParserError::with_reason(
+                    ParserErrorReason::ExpectedPatternButFoundType(error.found().clone()),
+                    error.span(),
+                );
+            }
+
+            error
+        });
 
         let mut_pattern = keyword(Keyword::Mut)
             .ignore_then(pattern.clone())
@@ -1275,7 +1284,7 @@ where
 {
     just(Token::Star)
         .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference, rhs))
+        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference { implicitly_added: false }, rhs))
 }
 
 /// Atoms are parameterized on whether constructor expressions are allowed or not.

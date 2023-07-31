@@ -92,6 +92,8 @@ impl Context {
 
 #[cfg(test)]
 mod test {
+    use std::rc::Rc;
+
     use crate::ssa_refactor::{
         ir::{
             function::RuntimeType,
@@ -176,8 +178,9 @@ mod test {
         let v0 = builder.add_parameter(Type::field());
         let one = builder.field_constant(1u128);
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let arr =
-            builder.current_function.dfg.make_array(vec![v1].into(), vec![Type::field()].into());
+
+        let array_type = Type::Array(Rc::new(vec![Type::field()]), 1);
+        let arr = builder.current_function.dfg.make_array(vec![v1].into(), array_type);
         builder.terminate_with_return(vec![arr]);
 
         let ssa = builder.finish().fold_constants();

@@ -1,0 +1,6 @@
+[package]
+name = "regression_method_cannot_be_found"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

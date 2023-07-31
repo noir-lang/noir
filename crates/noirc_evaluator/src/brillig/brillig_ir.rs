@@ -8,8 +8,10 @@ pub(crate) mod artifact;
 pub(crate) mod debug_show;
 pub(crate) mod registers;
 
+mod entry_point;
+
 use self::{
-    artifact::{BrilligArtifact, BrilligParameter, UnresolvedJumpLocation},
+    artifact::{BrilligArtifact, UnresolvedJumpLocation},
     registers::BrilligRegistersContext,
 };
 use acvm::{
@@ -90,13 +92,9 @@ pub(crate) struct BrilligContext {
 
 impl BrilligContext {
     /// Initial context state
-    pub(crate) fn new(
-        arguments: Vec<BrilligParameter>,
-        return_parameters: Vec<BrilligParameter>,
-        enable_debug_trace: bool,
-    ) -> BrilligContext {
+    pub(crate) fn new(enable_debug_trace: bool) -> BrilligContext {
         BrilligContext {
-            obj: BrilligArtifact::new(arguments, return_parameters),
+            obj: BrilligArtifact::default(),
             registers: BrilligRegistersContext::new(),
             context_label: String::default(),
             section_label: 0,
@@ -966,7 +964,7 @@ pub(crate) enum BrilligBinaryOp {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::vec;
 
     use acvm::acir::brillig::{
@@ -978,9 +976,10 @@ mod tests {
 
     use crate::brillig::brillig_ir::BrilligContext;
 
+    use super::artifact::BrilligParameter;
     use super::{BrilligOpcode, ReservedRegisters};
 
-    struct DummyBlackBoxSolver;
+    pub(crate) struct DummyBlackBoxSolver;
 
     impl BlackBoxFunctionSolver for DummyBlackBoxSolver {
         fn schnorr_verify(
@@ -1007,6 +1006,44 @@ mod tests {
         }
     }
 
+    pub(crate) fn create_context() -> BrilligContext {
+        let mut context = BrilligContext::new(true);
+        context.enter_context("test");
+        context
+    }
+
+    pub(crate) fn create_entry_point_bytecode(
+        context: BrilligContext,
+        arguments: Vec<BrilligParameter>,
+        returns: Vec<BrilligParameter>,
+    ) -> Vec<BrilligOpcode> {
+        let artifact = context.artifact();
+        let mut entry_point_artifact =
+            BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
+        entry_point_artifact.link_with(&artifact);
+        entry_point_artifact.finish()
+    }
+
+    pub(crate) fn create_and_run_vm(
+        memory: Vec<Value>,
+        param_registers: Vec<Value>,
+        context: BrilligContext,
+        arguments: Vec<BrilligParameter>,
+        returns: Vec<BrilligParameter>,
+    ) -> VM<'static, DummyBlackBoxSolver> {
+        let mut vm = VM::new(
+            Registers { inner: param_registers },
+            memory,
+            create_entry_point_bytecode(context, arguments, returns),
+            vec![],
+            &DummyBlackBoxSolver,
+        );
+
+        let status = vm.process_opcodes();
+        assert_eq!(status, VMStatus::Finished);
+        vm
+    }
+
     /// Test a Brillig foreign call returning a vector
     #[test]
     fn test_brillig_ir_foreign_call_return_vector() {
@@ -1020,7 +1057,7 @@ mod tests {
         //   let the_sequence = get_number_sequence(12);
         //   assert(the_sequence.len() == 12);
         // }
-        let mut context = BrilligContext::new(vec![], vec![], true);
+        let mut context = BrilligContext::new(true);
         let r_stack = ReservedRegisters::stack_pointer();
         // Start stack pointer at 0
         context.const_instruction(r_stack, Value::from(0_usize));

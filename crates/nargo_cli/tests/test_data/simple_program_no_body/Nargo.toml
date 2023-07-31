@@ -1,0 +1,6 @@
+[package]
+name = "simple_program_no_body"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

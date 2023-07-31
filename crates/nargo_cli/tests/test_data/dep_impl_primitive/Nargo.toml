@@ -1,4 +1,5 @@
 [package]
+name = "dep_impl_primitive"
 authors = [""]
 compiler_version = "0.8.0"
 

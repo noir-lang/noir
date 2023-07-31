@@ -120,7 +120,7 @@ pub struct Cast {
 #[derive(Debug, Clone)]
 pub struct ArrayLiteral {
     pub contents: Vec<Expression>,
-    pub element_type: Type,
+    pub typ: Type,
 }
 
 #[derive(Debug, Clone)]

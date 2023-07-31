@@ -3,7 +3,7 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
 };
 use iter_extended::vecmap;
-use noirc_abi::{decode_string_value, decode_value, input_parser::json::JsonTypes, AbiType};
+use noirc_abi::{decode_string_value, input_parser::InputValueDisplay, AbiType};
 use regex::{Captures, Regex};
 
 use crate::errors::ForeignCallError;
@@ -88,10 +88,10 @@ fn convert_string_inputs(foreign_call_inputs: &[Vec<Value>]) -> Result<String, F
     let mut input_values_as_fields =
         input_values.iter().flat_map(|values| vecmap(values, |value| value.to_field()));
 
-    let decoded_value = decode_value(&mut input_values_as_fields, &abi_type)?;
-    let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)?;
+    let input_value_display =
+        InputValueDisplay::try_from_fields(&mut input_values_as_fields, abi_type)?;
 
-    Ok(json_value.to_string())
+    Ok(input_value_display.to_string())
 }
 
 fn convert_fmt_string_inputs(
@@ -123,10 +123,10 @@ fn convert_fmt_string_inputs(
             .iter()
             .flat_map(|values| vecmap(values, |value| value.to_field()));
 
-        let decoded_value = decode_value(&mut input_values_as_fields, abi_type)?;
+        let input_value_display =
+            InputValueDisplay::try_from_fields(&mut input_values_as_fields, abi_type.clone())?;
 
-        let json_value = JsonTypes::try_from_input_value(&decoded_value, abi_type)?;
-        output_strings.push(json_value.to_string());
+        output_strings.push(input_value_display.to_string());
     }
 
     let mut output_strings_iter = output_strings.into_iter();

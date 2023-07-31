@@ -1,4 +1,5 @@
 [package]
+name = "hash_to_field"
 authors = [""]
 compiler_version = "0.1"
 
