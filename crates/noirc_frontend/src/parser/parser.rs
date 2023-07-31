@@ -545,7 +545,7 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
         .then(generic_type_args(parse_type()))
         .validate(|((typ, trait_name), trait_generics), span, emit| {
             emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
-            TraitConstraint { typ, trait_name, trait_generics}
+            TraitConstraint { typ, trait_name, trait_generics }
         });
 
     keyword(Keyword::Where)
