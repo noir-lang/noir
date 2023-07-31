@@ -913,7 +913,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         function: Type,
         args: Vec<(Type, ExprId, Span)>,
-        span: Span
+        span: Span,
     ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.

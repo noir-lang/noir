@@ -19,7 +19,7 @@ use crate::{
         expr::*,
         function::{FuncMeta, Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
-        types
+        types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
@@ -777,12 +777,9 @@ impl<'interner> Monomorphizer<'interner> {
             func = original_func.clone();
         };
 
-        let call = self.try_evaluate_call(&func, &return_type).unwrap_or(ast::Expression::Call(ast::Call {
-            func,
-            arguments,
-            return_type,
-            location,
-        }));
+        let call = self
+            .try_evaluate_call(&func, &return_type)
+            .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }));
 
         if !block_expressions.is_empty() {
             block_expressions.push(call);

@@ -1767,7 +1767,10 @@ fn convert_array_expression_to_slice(
     interner.push_expr_location(func, location.span, location.file);
 
     interner.push_expr_type(&call, target_type.clone());
-    interner.push_expr_type(&func, Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit)));
+    interner.push_expr_type(
+        &func,
+        Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit)),
+    );
 }
 
 impl BinaryTypeOperator {
