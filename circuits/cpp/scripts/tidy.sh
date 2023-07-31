@@ -66,7 +66,7 @@ echo "Before running clang-tidy, MD5 of all C++ files was: $BEFORE_MD5"
 echo "*************************************************************************"
 
 # Need run-clang-tidy version 15, but it doesn't have a --version flag
-RUN_TIDY=$(which run-clang-tidy-15 || which run-clang-tidy)
+RUN_TIDY=$(which run-clang-tidy-15 || which run-clang-tidy || which run-clang-tidy-mp-15)
 # tidy all sources
 $RUN_TIDY -p $BUILD_DIR $SOURCES $FIX_OPT -use-color || {\
   echo "Errors encountered when running clang-tidy!" &&
