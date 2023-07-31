@@ -192,7 +192,6 @@ impl GeneratedAcir {
                     outputs,
                 }
             }
-            // TODO(#1570): Generate ACIR for recursive aggregation
             BlackBoxFunc::RecursiveAggregation => {
                 let has_previous_aggregation = self.opcodes.iter().any(|op| {
                     matches!(
@@ -843,37 +842,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
 /// This function will return the number of outputs that a blackbox function
 /// expects. Returning `None` if there is no expectation.
-fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
-    match name {
-        // Bitwise opcodes will return 1 parameter which is the output
-        // or the operation.
-        BlackBoxFunc::AND | BlackBoxFunc::XOR => 1,
-        // 32 byte hash algorithms
-        BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => 32,
-        // Hash to field returns a field element
-        BlackBoxFunc::HashToField128Security => 1,
-        // Pedersen returns a point
-        BlackBoxFunc::Pedersen => 2,
-        // Can only apply a range constraint to one
-        // witness at a time.
-        BlackBoxFunc::RANGE => 0,
-        // Signature verification algorithms will return a boolean
-        BlackBoxFunc::SchnorrVerify
-        | BlackBoxFunc::EcdsaSecp256k1
-        | BlackBoxFunc::EcdsaSecp256r1 => 1,
-        // Output of fixed based scalar mul over the embedded curve
-        // will be 2 field elements representing the point.
-        BlackBoxFunc::FixedBaseScalarMul => 2,
-        // TODO(#1570): Generate ACIR for recursive aggregation
-        BlackBoxFunc::RecursiveAggregation => {
-            panic!("ICE: Cannot generate ACIR for recursive aggregation")
-        }
-    }
-}
-
-/// This function will return the number of outputs that a blackbox function
-/// expects. Returning `None` if there is no expectation.
-fn black_box_expected_output_size_new(name: BlackBoxFunc) -> Option<usize> {
+fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
     match name {
         // Bitwise opcodes will return 1 parameter which is the output
         // or the operation.
@@ -945,7 +914,7 @@ fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
 /// ) -> [Field; N] {}
 /// ``
 fn intrinsics_check_outputs(name: BlackBoxFunc, output_count: usize) {
-    let expected_num_outputs = match black_box_expected_output_size_new(name) {
+    let expected_num_outputs = match black_box_expected_output_size(name) {
         Some(expected_num_inputs) => expected_num_inputs,
         None => return,
     };
