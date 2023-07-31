@@ -4,7 +4,7 @@ use std::{
 };
 
 use nargo::{
-    package::{self, Package},
+    package::{Dependency, Package},
     workspace::Workspace,
 };
 use noirc_frontend::graph::CrateName;
@@ -22,7 +22,7 @@ impl PackageConfig {
     fn to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
         let name = self.package.name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
 
-        let mut dependencies: BTreeMap<CrateName, package::Dependency> = BTreeMap::new();
+        let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep) in self.dependencies.iter() {
             let name = name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
             let resolved_dep = dep.to_dependency(root_dir)?;
@@ -130,34 +130,22 @@ enum DependencyConfig {
 }
 
 impl DependencyConfig {
-    fn to_dependency(&self, pkg_root: &Path) -> Result<package::Dependency, ManifestError> {
+    fn to_dependency(&self, pkg_root: &Path) -> Result<Dependency, ManifestError> {
         match self {
             Self::Github { git, tag } => {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
-                let (entry_path, crate_type) = super::lib_or_bin(&dir_path)?;
                 let toml_path = dir_path.join("Nargo.toml");
-                let workspace = resolve_workspace_from_toml(&toml_path, None)?;
-                Ok(package::Dependency::Remote { entry_path, crate_type, workspace })
+                let package = resolve_package_from_toml(&toml_path)?;
+                Ok(Dependency::Remote { package })
             }
             Self::Path { path } => {
                 let dir_path = pkg_root.join(path);
-                let (entry_path, crate_type) = super::lib_or_bin(&dir_path)?;
                 let toml_path = dir_path.join("Nargo.toml");
-                let workspace = resolve_workspace_from_toml(&toml_path, None)?;
-                Ok(package::Dependency::Local { entry_path, crate_type, workspace })
+                let package = resolve_package_from_toml(&toml_path)?;
+                Ok(Dependency::Local { package })
             }
         }
     }
-}
-
-fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
-    let toml_as_string = std::fs::read_to_string(toml_path)
-        .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?;
-    let root_dir = toml_path.parent().ok_or(ManifestError::MissingParent)?;
-    let nargo_toml =
-        NargoToml { root_dir: root_dir.to_path_buf(), config: toml_as_string.try_into()? };
-
-    Ok(nargo_toml)
 }
 
 fn toml_to_workspace(
@@ -181,30 +169,24 @@ fn toml_to_workspace(
             let mut members = Vec::new();
             let mut selected_package_index = None;
             for (index, member_path) in workspace_config.members.into_iter().enumerate() {
-                let package_toml_path = nargo_toml.root_dir.join(&member_path).join("Nargo.toml");
-                let nargo_toml = read_toml(&package_toml_path)?;
-                match nargo_toml.config {
-                    Config::Workspace { .. } => {
-                        return Err(ManifestError::AdditionalWorkspace(member_path))
-                    }
-                    Config::Package { package_config } => {
-                        let member = package_config.to_package(&nargo_toml.root_dir)?;
-                        match selected_package.as_ref() {
-                            Some(selected_name) => {
-                                if &member.name == selected_name {
-                                    selected_package_index = Some(index);
-                                }
-                            }
-                            None => {
-                                if Some(&member_path) == workspace_config.default_member.as_ref() {
-                                    selected_package_index = Some(index);
-                                }
-                            }
-                        }
+                let package_root_dir = nargo_toml.root_dir.join(&member_path);
+                let package_toml_path = package_root_dir.join("Nargo.toml");
+                let member = resolve_package_from_toml(&package_toml_path)?;
 
-                        members.push(member);
+                match selected_package.as_ref() {
+                    Some(selected_name) => {
+                        if &member.name == selected_name {
+                            selected_package_index = Some(index);
+                        }
+                    }
+                    None => {
+                        if Some(&member_path) == workspace_config.default_member.as_ref() {
+                            selected_package_index = Some(index);
+                        }
                     }
                 }
+
+                members.push(member);
             }
 
             // If the selected_package_index is still `None` but we have see a default_member or selected package,
@@ -225,8 +207,29 @@ fn toml_to_workspace(
     Ok(workspace)
 }
 
+fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
+    let toml_as_string = std::fs::read_to_string(toml_path)
+        .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?;
+    let root_dir = toml_path.parent().ok_or(ManifestError::MissingParent)?;
+    let nargo_toml =
+        NargoToml { root_dir: root_dir.to_path_buf(), config: toml_as_string.try_into()? };
+
+    Ok(nargo_toml)
+}
+
+/// Resolves a Nargo.toml file into a `Package` struct as defined by our `nargo` core.
+fn resolve_package_from_toml(toml_path: &Path) -> Result<Package, ManifestError> {
+    let nargo_toml = read_toml(toml_path)?;
+
+    match nargo_toml.config {
+        Config::Package { package_config } => package_config.to_package(&nargo_toml.root_dir),
+        Config::Workspace { .. } => {
+            Err(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
+        }
+    }
+}
+
 /// Resolves a Nargo.toml file into a `Workspace` struct as defined by our `nargo` core.
-/// Recursively resolves filesystem locations and turns them into `Package` structs
 pub(crate) fn resolve_workspace_from_toml(
     toml_path: &Path,
     selected_package: Option<CrateName>,

@@ -99,9 +99,8 @@ pub(crate) enum ManifestError {
     #[error("Nargo.toml is badly formed, could not parse.\n\n {0}")]
     MalformedFile(#[from] toml::de::Error),
 
-    /// Additional workspace definition found in the workspace
-    #[error("additional workspace definition found in the workspace:\n{0}")]
-    AdditionalWorkspace(PathBuf),
+    #[error("Unxpected workspace definition found in {0}")]
+    UnexpectedWorkspace(PathBuf),
 
     /// Package does not contain Noir source files.
     #[error("cannot find src directory in path {0}")]

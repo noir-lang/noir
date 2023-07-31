@@ -2,15 +2,12 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use noirc_frontend::graph::{CrateName, CrateType};
 
-use crate::{
-    constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE},
-    workspace::Workspace,
-};
+use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 #[derive(Clone)]
 pub enum Dependency {
-    Local { entry_path: PathBuf, crate_type: CrateType, workspace: Workspace },
-    Remote { entry_path: PathBuf, crate_type: CrateType, workspace: Workspace },
+    Local { package: Package },
+    Remote { package: Package },
 }
 
 #[derive(Clone)]

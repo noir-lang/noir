@@ -106,13 +106,11 @@ fn prepare_dependencies(
 ) {
     for (dep_name, dep) in dependencies.into_iter() {
         match dep {
-            Dependency::Remote { entry_path, crate_type, workspace }
-            | Dependency::Local { entry_path, crate_type, workspace } => {
-                let crate_id = create_non_local_crate(context, &entry_path, crate_type);
+            Dependency::Remote { package } | Dependency::Local { package } => {
+                let crate_id =
+                    create_non_local_crate(context, &package.entry_path, package.crate_type);
                 add_dep(context, parent_crate, crate_id, dep_name);
-                for package in &workspace {
-                    prepare_dependencies(context, crate_id, package.dependencies.to_owned());
-                }
+                prepare_dependencies(context, crate_id, package.dependencies.to_owned());
             }
         }
     }
