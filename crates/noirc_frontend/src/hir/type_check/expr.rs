@@ -894,6 +894,12 @@ impl<'interner> TypeChecker<'interner> {
                             Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
                         } else if other.is_bindable() {
                             Err(TypeCheckError::AmbiguousBitWidth { span })
+                        } else if other.is_signed() {
+                            Err(TypeCheckError::TypeCannotBeUsed {
+                                typ: other,
+                                place: "bit shift",
+                                span,
+                            })
                         } else {
                             Ok(())
                         }
