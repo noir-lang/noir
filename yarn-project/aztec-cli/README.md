@@ -1,44 +1,44 @@
 # Aztec CLI Documentation
 
-The Aztec CLI `azti` is a command-line interface (CLI) tool for interacting with Aztec. It provides various commands for deploying contracts, creating accounts, interacting with contracts, and retrieving blockchain data.
+The Aztec CLI `aztec-cli` is a command-line interface (CLI) tool for interacting with Aztec. It provides various commands for deploying contracts, creating accounts, interacting with contracts, and retrieving blockchain data.
 
 ## Installation
 
-To use `azti`, you need to have Node.js installed on your system. Follow these steps to install and set up the CLI tool:
+To use `aztec-cli`, you need to have Node.js installed on your system. Follow these steps to install and set up the CLI tool:
 
 1. Install Node.js: Visit the official Node.js website (https://nodejs.org) and download the installer for your operating system. Follow the installation instructions to install Node.js.
 
-2. Install `azti` package: Open a terminal or command prompt and run the following command to install `azti` globally on your system:
+2. Install `aztec-cli` package: Open a terminal or command prompt and run the following command to install `aztec-cli` globally on your system:
 
    ```shell
    npm install -g @aztec/cli
    ```
 
-   This will install the `azti` globally, making it accessible from any location in your terminal.
+   This will install the `aztec-cli` globally, making it accessible from any location in your terminal.
 
-3. Verify the installation: After the installation is complete, run the following command to verify that `azti` is installed correctly:
+3. Verify the installation: After the installation is complete, run the following command to verify that `aztec-cli` is installed correctly:
 
    ```shell
-   azti --version
+   aztec-cli --version
    ```
 
-   This command will display the version number of `azti` if the installation was successful.
+   This command will display the version number of `aztec-cli` if the installation was successful.
 
 ## Usage
 
-To use `azti`, open a terminal or command prompt and run the `azti` command followed by the desired command and its options.
+To use `aztec-cli`, open a terminal or command prompt and run the `aztec-cli` command followed by the desired command and its options.
 
 Here's the basic syntax for running a command:
 
 ```shell
-azti <command> [options]
+aztec-cli <command> [options]
 ```
 
 Replace `<command>` with the actual command you want to execute and `[options]` with any optional flags or parameters required by the command.
 
 ### Environment Variables
 
-Some options can be set globally as environment variables to avoid having to re-enter them every time you call `azti.`
+Some options can be set globally as environment variables to avoid having to re-enter them every time you call `aztec-cli.`
 These options are:
 
 - `PRIVATE_KEY` -> `-k, --private-key` for all commands that require a private key.
@@ -51,7 +51,7 @@ So if for example you are running your Aztec RPC server remotely you can do:
 
 ```shell
 export AZTEC_RPC_HOST=http://external.site/rpc:8080
-azti deploy my_contract.json
+aztec-cli deploy my_contract.json
 ```
 
 And this will send the request to `http://external.site/rpc:8080`.
@@ -60,7 +60,7 @@ And this will send the request to `http://external.site/rpc:8080`.
 
 ## Available Commands
 
-`azti` provides the following commands for interacting with Aztec:
+`aztec-cli` provides the following commands for interacting with Aztec:
 
 ### deploy-l1-contracts
 
@@ -69,7 +69,7 @@ Deploys all necessary Ethereum contracts for Aztec.
 Syntax:
 
 ```shell
-azti deploy-l1-contracts [rpcUrl] [options]
+aztec-cli deploy-l1-contracts [rpcUrl] [options]
 ```
 
 - `rpcUrl` (optional): URL of the Ethereum host. Chain identifiers `localhost` and `testnet` can be used. Default: `http://localhost:8545`.
@@ -85,7 +85,7 @@ This command deploys all the necessary Ethereum contracts required for Aztec. It
 Example usage:
 
 ```shell
-azti deploy-l1-contracts
+aztec-cli deploy-l1-contracts
 ```
 
 ### create-private-key
@@ -95,7 +95,7 @@ Generates a 32-byte private key.
 Syntax:
 
 ```shell
-azti create-private-key [options]
+aztec-cli create-private-key [options]
 ```
 
 Options:
@@ -107,7 +107,7 @@ This command generates a random 32-byte private key or derives one from the prov
 Example usage:
 
 ```shell
-azti create-private-key
+aztec-cli create-private-key
 ```
 
 ### create-account
@@ -117,7 +117,7 @@ Creates an Aztec account that can be used for transactions.
 Syntax:
 
 ```shell
-azti create-account [options]
+aztec-cli create-account [options]
 ```
 
 Options:
@@ -130,7 +130,7 @@ This command creates an Aztec account that can be used for transactions. It gene
 Example usage:
 
 ```shell
-azti create-account
+aztec-cli create-account
 ```
 
 ### deploy
@@ -140,7 +140,7 @@ Deploys a compiled Noir contract to Aztec.
 Syntax:
 
 ```shell
-azti deploy <contractAbi> [options]
+aztec-cli deploy <contractAbi> [options]
 ```
 
 - `contractAbi`: Path to the compiled Noir contract's ABI file in JSON format.
@@ -156,7 +156,7 @@ This command deploys a compiled Noir contract to Aztec. It requires the path to 
 Example usage:
 
 ```shell
-azti deploy path/to/contract.abi.json ...args
+aztec-cli deploy path/to/contract.abi.json ...args
 ```
 
 ### check-deploy
@@ -166,7 +166,7 @@ Checks if a contract is deployed to the specified Aztec address.
 Syntax:
 
 ```shell
-azti check-deploy <contractAddress> [options]
+aztec-cli check-deploy <contractAddress> [options]
 ```
 
 - `contractAddress`: An Aztec address to check if the contract has been deployed to.
@@ -180,7 +180,7 @@ This command checks if a contract is deployed to the specified Aztec address. It
 Example usage:
 
 ```shell
-azti check-deploy 0x123456789abcdef123456789abcdef12345678
+aztec-cli check-deploy 0x123456789abcdef123456789abcdef12345678
 ```
 
 ### get-tx-receipt
@@ -190,7 +190,7 @@ Gets the receipt for the specified transaction hash.
 Syntax:
 
 ```shell
-azti get-tx-receipt <txHash> [options]
+aztec-cli get-tx-receipt <txHash> [options]
 ```
 
 - `txHash`: A transaction hash to get the receipt for.
@@ -204,7 +204,7 @@ This command retrieves and displays the receipt for the specified transaction ha
 Example usage:
 
 ```shell
-azti get-tx-receipt 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef12345678
+aztec-cli get-tx-receipt 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef12345678
 ```
 
 ### get-contract-data
@@ -214,7 +214,7 @@ Gets information about the Aztec contract deployed at the specified address.
 Syntax:
 
 ```shell
-azti get-contract-data <contractAddress> [options]
+aztec-cli get-contract-data <contractAddress> [options]
 ```
 
 - `contractAddress`: Aztec address of the contract.
@@ -229,7 +229,7 @@ This command retrieves and displays information about the Aztec contract deploye
 Example usage:
 
 ```shell
-azti get-contract-data 0x123456789abcdef123456789abcdef12345678
+aztec-cli get-contract-data 0x123456789abcdef123456789abcdef12345678
 ```
 
 ### get-accounts
@@ -239,7 +239,7 @@ Gets all the Aztec accounts.
 Syntax:
 
 ```shell
-azti get-accounts [options]
+aztec-cli get-accounts [options]
 ```
 
 Options:
@@ -251,7 +251,7 @@ This command retrieves and displays all the Aztec accounts available in the syst
 Example usage:
 
 ```shell
-azti get-accounts
+aztec-cli get-accounts
 ```
 
 ### get-account-public-key
@@ -261,7 +261,7 @@ Gets an account's public key, given its Aztec address.
 Syntax:
 
 ```shell
-azti get-account-public-key <address> [options]
+aztec-cli get-account-public-key <address> [options]
 ```
 
 - `address`: The Aztec address to get the public key for.
@@ -275,7 +275,7 @@ This command retrieves and displays the public key of an account given its Aztec
 Example usage:
 
 ```shell
-azti get-account-public-key 0x123456789abcdef123456789abcdef12345678
+aztec-cli get-account-public-key 0x123456789abcdef123456789abcdef12345678
 ```
 
 ### call-fn
@@ -285,7 +285,7 @@ Calls a function on an Aztec contract.
 Syntax:
 
 ```shell
-azti call-fn <contractAbi> <contractAddress> <functionName> [functionArgs...] [options]
+aztec-cli call-fn <contractAbi> <contractAddress> <functionName> [functionArgs...] [options]
 ```
 
 - `contractAbi`: The compiled contract's ABI in JSON format.
@@ -303,7 +303,7 @@ This command calls a function on an Aztec contract. It requires the contract's A
 Example usage:
 
 ```shell
-azti call-fn path/to/contract.abi.json 0x123456789abcdef123456789abcdef12345678 transfer 100
+aztec-cli call-fn path/to/contract.abi.json 0x123456789abcdef123456789abcdef12345678 transfer 100
 ```
 
 ### view-fn
@@ -313,7 +313,7 @@ Simulates the execution of a view (read-only) function on a deployed contract, w
 Syntax:
 
 ```shell
-azti view-fn <contractAbi> <contractAddress> <functionName> [functionArgs...] [options]
+aztec-cli view-fn <contractAbi> <contractAddress> <functionName> [functionArgs...] [options]
 ```
 
 - `contractAbi`: The compiled contract's ABI in JSON format.
@@ -331,7 +331,7 @@ This command simulates the execution of a view function on a deployed contract w
 Example usage:
 
 ```shell
-azti view-fn path/to/contract.abi.json 0x123456789abcdef123456789abcdef12345678 balanceOf 0xabcdef1234567890abcdef1234567890abcdef12
+aztec-cli view-fn path/to/contract.abi.json 0x123456789abcdef123456789abcdef12345678 balanceOf 0xabcdef1234567890abcdef1234567890abcdef12
 ```
 
 ### parse-parameter-struct
@@ -341,7 +341,7 @@ Helper for parsing an encoded string into a contract's parameter struct.
 Syntax:
 
 ```shell
-azti parse-parameter-struct <encodedString> <contractAbi> <parameterName>
+aztec-cli parse-parameter-struct <encodedString> <contractAbi> <parameterName>
 ```
 
 - `encodedString`: The encoded hex string.
@@ -353,7 +353,7 @@ This command is a helper for parsing an encoded hex string into a contract's par
 Example usage:
 
 ```shell
-azti parse-parameter-struct 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890 path/to/contract.abi.json paramName
+aztec-cli parse-parameter-struct 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890 path/to/contract.abi.json paramName
 ```
 
 ### get-logs
@@ -363,7 +363,7 @@ Gets all the unencrypted logs from L2 blocks in the specified range.
 Syntax:
 
 ```shell
-azti get-logs <from> <take> [options]
+aztec-cli get-logs <from> <take> [options]
 ```
 
 - `from`: Block number to start fetching logs from.
@@ -378,7 +378,7 @@ This command retrieves and displays all the unencrypted logs from L2 blocks in t
 Example usage:
 
 ```shell
-azti get-logs 1000 10
+aztec-cli get-logs 1000 10
 ```
 
 ### block-num
@@ -388,7 +388,7 @@ Gets the current Aztec L2 block number.
 Syntax:
 
 ```shell
-azti block-num [options]
+aztec-cli block-num [options]
 ```
 
 Options:
@@ -400,7 +400,7 @@ This command retrieves and displays the current Aztec L2 block number.
 Example usage:
 
 ```shell
-azti block-num
+aztec-cli block-num
 ```
 
 ## Conclusion

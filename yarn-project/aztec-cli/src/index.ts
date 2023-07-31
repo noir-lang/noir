@@ -7,6 +7,7 @@ import {
   Point,
   createAccounts,
   createAztecRpcClient,
+  generatePublicKey,
   getAccountWallet,
 } from '@aztec/aztec.js';
 import { StructType } from '@aztec/foundation/abi';
@@ -25,10 +26,16 @@ const accountCreationSalt = Fr.ZERO;
 
 const debugLogger = createDebugLogger('aztec:cli');
 const log = createConsoleLogger();
+const stripLeadingHex = (hex: string) => {
+  if (hex.length > 2 && hex.startsWith('0x')) {
+    return hex.substring(2);
+  }
+  return hex;
+};
 
 const program = new Command();
 
-program.name('azti').description('CLI for interacting with Aztec.').version('0.1.0');
+program.name('aztec-cli').description('CLI for interacting with Aztec.').version('0.1.0');
 
 const { ETHEREUM_HOST, AZTEC_RPC_HOST, PRIVATE_KEY, PUBLIC_KEY, API_KEY } = process.env;
 
@@ -64,18 +71,23 @@ async function main() {
     });
 
   program
-    .command('create-private-key')
+    .command('generate-private-key')
     .description('Generates a 32-byte private key.')
     .option('-m, --mnemonic', 'A mnemonic string that can be used for the private key generation.')
-    .action(options => {
+    .action(async options => {
       let privKey;
+      let publicKey;
       if (options.mnemonic) {
         const acc = mnemonicToAccount(options.mnemonic);
-        privKey = Buffer.from(acc.getHdKey().privateKey!).toString('hex');
+        const key = Buffer.from(acc.getHdKey().privateKey!);
+        privKey = key.toString('hex');
+        publicKey = await generatePublicKey(new PrivateKey(key));
       } else {
+        const key = PrivateKey.random();
         privKey = PrivateKey.random().toString();
+        publicKey = await generatePublicKey(key);
       }
-      log(`\n${privKey}\n`);
+      log(`\nPrivate Key: ${privKey}\nPublic Key: ${publicKey.toString()}\n`);
     });
 
   program
@@ -89,11 +101,11 @@ async function main() {
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async options => {
       const client = createAztecRpcClient(options.rpcUrl);
-      const privateKey = options.privateKey && Buffer.from(options.privateKey.replace(/^0x/i, ''), 'hex');
+      const privateKey = options.privateKey && Buffer.from(stripLeadingHex(options.privateKey), 'hex');
       const wallet = await createAccounts(
         client,
         SchnorrSingleKeyAccountContractAbi,
-        privateKey,
+        new PrivateKey(privateKey),
         accountCreationSalt,
         1,
       );
@@ -236,7 +248,12 @@ async function main() {
         log('No accounts found.');
       } else {
         log(`Accounts found: \n`);
-        accounts.forEach(async acc => log(`Address: ${acc}\nPublic Key: ${await client.getPublicKey(acc)}\n`));
+        for (const address of accounts) {
+          const [pk, partialAddress] = await client.getPublicKeyAndPartialAddress(address);
+          log(
+            `Address: ${address}\nPublic Key: ${pk.toString()}\nPartial Contract Address: ${partialAddress.toString()}\n`,
+          );
+        }
       }
     });
 
@@ -248,16 +265,17 @@ async function main() {
     .action(async (_address, options) => {
       const client = createAztecRpcClient(options.rpcUrl);
       const address = AztecAddress.fromString(_address);
-      const pk = await client.getPublicKey(address);
+      const [pk, partialAddress] = await client.getPublicKeyAndPartialAddress(address);
+
       if (!pk) {
         log(`Unkown account ${_address}`);
       } else {
-        log(`Public Key: \n ${pk.toString()}`);
+        log(`Public Key: \n ${pk.toString()}\nPartial Contract Address: ${partialAddress.toString()}\n`);
       }
     });
 
   program
-    .command('call-fn')
+    .command('send')
     .description('Calls a function on an Aztec contract.')
     .argument('<contractAbi>', "The compiled contract's ABI in JSON format", undefined)
     .argument('<contractAddress>', 'Address of the contract')
@@ -297,7 +315,7 @@ async function main() {
     });
 
   program
-    .command('view-fn')
+    .command('call')
     .description(
       'Simulates the execution of a view (read-only) function on a deployed contract, without modifying state.',
     )
@@ -343,8 +361,8 @@ async function main() {
     });
 
   program
-    .command('block-num')
-    .description('Gets the current Aztec L2 number.')
+    .command('block-number')
+    .description('Gets the current Aztec L2 block number.')
     .option('-u, --rpcUrl <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async (options: any) => {
       const client = createAztecRpcClient(options.rpcUrl);
