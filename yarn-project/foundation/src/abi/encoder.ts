@@ -29,9 +29,13 @@ class ArgumentEncoder {
         } else if (typeof arg === 'object') {
           if (typeof arg.toField === 'function') {
             this.flattened.push(arg.toField());
-          } else {
+          } else if (arg instanceof Fr) {
             this.flattened.push(arg);
+          } else {
+            throw new Error('Argument cannot be serialised to a field');
           }
+        } else {
+          throw new Error(`Invalid argument "${arg}" of type ${abiType.kind}`);
         }
         break;
       case 'boolean':
