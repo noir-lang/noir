@@ -19,7 +19,7 @@ The benefits of AA are multiple. We're not going to reiterate them all here, but
 
 ### Implementing at protocol vs application layer
 
-Instead of implementing it at the protocol level as in Aztec, account abstraction can be implemented at the application layer of a network using smart accounts and meta-transactions. The transaction being sent to the network is still an Ethereum transaction, but its payload is interpreted as a "transaction execution request" that is validated and run by the smart contract wallet. 
+Instead of implementing it at the protocol level as in Aztec, account abstraction can be implemented at the application layer of a network using smart accounts and meta-transactions. When implementing account abstraction on Ethereum, the transaction being sent to the network is still an Ethereum transaction, but its payload is interpreted as a "transaction execution request" that is validated and run by the smart contract wallet. 
 
 A simple example would be Gnosis Safe (see [_Account Abstraction is NOT coming_](https://safe.mirror.xyz/9KmZjEbFkmI79s28d9xar6JWYrE50F5AHpa5CR12YGI)), where it's the multisig contract responsibility to define when an execution request is valid by checking it carries N out of M signatures, and then executing it. [Argent](https://www.argent.xyz/blog/wtf-is-account-abstraction/) has also been working on smart wallets for years, and collaborating with network teams to implement AA natively at the protocol layer.
 
@@ -82,7 +82,7 @@ This means that, unlike other protocols, Aztec does not impose any restrictions 
 
 ### Nonces and replay protection
 
-Every execution in the protocol emits the hash of the request as a nullifier, preventing the same transaction from being executed more than once. Nonces, on the other hand, are left to the account contract implementation. This allows building accounts with strictly incremental nonces or where transactions can be processed out-of-order.
+Every transaction execution considered valid by the protocol emits the hash of the transaction execution request as a nullifier, preventing the same transaction from being executed more than once. Nonces, on the other hand, are left to the account contract implementation. This allows building accounts with strictly incremental nonces or where transactions can be processed out-of-order.
 
 A side-effect of not having nonces at the protocol level is that it is not possible to cancel pending transactions by submitting a new transaction with higher fees and the same nonce.
 
@@ -90,7 +90,7 @@ A side-effect of not having nonces at the protocol level is that it is not possi
 
 Since the `entrypoint` interface is not enshrined, there is nothing that differentiates an account contract from an application one in the protocol. This means that a transaction can be initiated in any contract. This allows implementing functions that do not need to be called by any particular user and are just intended to advance the state of a contract.
 
-As an example, we can think of a lottery contract, where at some point a prize needs to be paid out to its winners. This `pay` action does not require authentication and does not need to be executed by any user in particular, so anyone could submit a transaction that defines the lottery contract itself as `origin` and `pay` as entrypoint function.  For an example implementation of a different use case, refer to the `pokeable_token_contract` in the repository.
+As an example, we can think of a lottery contract, where at some point a prize needs to be paid out to its winners. This `pay` action does not require authentication and does not need to be executed by any user in particular, so anyone could submit a transaction that defines the lottery contract itself as `origin` and `pay` as entrypoint function.  For an example implementation of a different use case, refer to the [`pokeable_token_contract`](https://github.com/AztecProtocol/aztec-packages/blob/master/yarn-project/noir-contracts/src/contracts/pokeable_token_contract/src/main.nr) in the repository.
 
 ### Account initialization
 
@@ -100,7 +100,7 @@ However, this is not required when sitting on the receiving end. A user can dete
 
 ### Encryption and nullifying keys
 
-Aztec requires users to define [encryption and nullifying keys](./keys.md) that are needed for receiving and spending private notes. Unlike transaction signing, encryption and nullifying is enshrined at the protocol. This means that there is a single scheme used for encryption and nullifying. These keys are derived from a master public key, which is committed to as part of the address.
+Aztec requires users to define [encryption and nullifying keys](./keys.md) that are needed for receiving and spending private notes. Unlike transaction signing, encryption and nullifying is enshrined at the protocol. This means that there is a single scheme used for encryption and nullifying. These keys are derived from a master public key. This master public key, in turn, is used when deterministically deriving the account's address.
 
 A side effect of committing to a master public key as part of the address is that _this key cannot be rotated_. While an account contract implementation could include methods for rotating the signing key, this is unfortunately not possible for encryption and nullifying keys (note that rotating nullifying keys also creates other challenges such as preventing double spends). We are exploring usage of the slow updates tree to enable rotating these keys.
 
