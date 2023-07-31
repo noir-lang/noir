@@ -40,14 +40,13 @@ contract EcdsaAccount {
         // Initialise context
         // 71 = ENTRYPOINT_PAYLOAD_SIZE(7) + 64
         let mut args: BoundedVec<Field, 71> = BoundedVec::new(0);
-        args = args.push_array(payload.serialize());
-        for byte in signature { args = args.push(byte as Field); }
+        args.push_array(payload.serialize());
+        for byte in signature { args.push(byte as Field); }
         let mut context = Context::new(inputs, abi::hash_args(args.storage));
 
         // Load public key from storage
         let storage = Storage::init();
-        let (context_1, public_key) = storage.public_key.get_note(context);
-        context = context_1;
+        let public_key = storage.public_key.get_note(&mut context);
 
         // Verify payload signature using Ethereum's signing scheme
         let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
@@ -61,7 +60,8 @@ contract EcdsaAccount {
         // debug_log::debug_log_array_with_prefix("challenge", challenge);
         // debug_log::debug_log_array_with_prefix("signature", signature);
 
-        context = payload.execute_calls(context);
+        payload.execute_calls(&mut context);
+
         context.finish()
     }
 
@@ -74,16 +74,16 @@ contract EcdsaAccount {
         let storage = Storage::init();
         
         let mut args: BoundedVec<Field, 64> = BoundedVec::new(0);
-        for byte in signing_pub_key_x { args = args.push(byte as Field); }
-        for byte in signing_pub_key_y { args = args.push(byte as Field); }
+        for byte in signing_pub_key_x { args.push(byte as Field); }
+        for byte in signing_pub_key_y { args.push(byte as Field); }
         let mut context = Context::new(inputs, abi::hash_args(args.storage));
         
         let this = inputs.call_context.storage_contract_address;
-        let pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);
-        context = storage.public_key.initialise(context, pub_key_note);
+        let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, inputs.call_context.storage_contract_address);
+        storage.public_key.initialise(&mut context, &mut pub_key_note);
         
-        context = emit_encrypted_log(
-            context,
+        emit_encrypted_log(
+            &mut context,
             this,
             storage.public_key.storage_slot,
             this,

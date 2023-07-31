@@ -50,7 +50,7 @@ fn compute_note_hash_and_nullifier<Note, N, S>(
     let deserialise = note_interface.deserialise;
     let set_header = note_interface.set_header;
     let mut note = deserialise(arr_copy_slice(preimage, [0; N], 0));
-    note = set_header(note, note_header);
+    set_header(&mut note, note_header);
 
     let compute_note_hash = note_interface.compute_note_hash;
     let note_hash = compute_note_hash(note);

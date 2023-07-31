@@ -36,19 +36,19 @@ impl EasyPrivateUint {
     // Very similar to `send_note`.
     fn add(
         self,
-        mut context: Context,
+        context: &mut Context,
         addend: u120,
         owner: Field,
-    ) -> Context {
+    ) {
         // Creates new note for the owner.
-        let addend_note = ValueNote::new(addend as Field, owner);
+        let mut addend_note = ValueNote::new(addend as Field, owner);
 
         // Insert the new note to the owner's set of notes.
-        context = self.set.insert(context, addend_note);
+        self.set.insert(context, &mut addend_note);
 
         // Emit the newly created encrypted note preimages via oracle calls.
         let owner_key = get_public_key(owner);
-        context = emit_encrypted_log(
+        emit_encrypted_log(
             context,
             context.inputs.call_context.storage_contract_address,
             self.set.storage_slot,
@@ -56,20 +56,17 @@ impl EasyPrivateUint {
             owner_key,
             addend_note.serialise(),
         );
-
-        context
     }
 
     // Very similar to `spend_note`.
     fn sub(
         self,
-        mut context: Context,
+        context: &mut Context,
         subtrahend: u120,
         owner: Field,
-    ) -> Context {
+    ) {
         let options = NoteGetterOptions::with_filter(get_2_notes, 0);
-        let (mut new_context, notes) = self.set.get_notes(context, options);
-        context = new_context;
+        let notes = self.set.get_notes(context, options);
         let note1 = notes[0];
         let note2 = notes[1];
 
@@ -89,13 +86,13 @@ impl EasyPrivateUint {
         assert(minuend >= subtrahend);
 
         // Removes the 2 notes from the owner's set of notes.
-        context = self.set.remove(context, note1);
-        context = self.set.remove(context, note2);
+        self.set.remove(context, note1);
+        self.set.remove(context, note2);
 
         // Creates change note for the owner.
         let result = minuend - subtrahend;
-        let result_note = ValueNote::new(result as Field, owner);
-        context = self.set.insert(context, result_note);
+        let mut result_note = ValueNote::new(result as Field, owner);
+        self.set.insert(context, &mut result_note);
 
         // Emit the newly created encrypted note preimages via oracle calls.
         let mut encrypted_data = [0; VALUE_NOTE_LEN];
@@ -105,7 +102,7 @@ impl EasyPrivateUint {
 
         let owner_key = get_public_key(owner);
 
-        context = emit_encrypted_log(
+        emit_encrypted_log(
             context,
             context.inputs.call_context.storage_contract_address,
             self.set.storage_slot,
@@ -113,8 +110,6 @@ impl EasyPrivateUint {
             owner_key,
             encrypted_data,
         );
-
-        context
     }
 }
 

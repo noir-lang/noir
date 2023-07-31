@@ -38,17 +38,17 @@ contract PokeableToken {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([initial_supply, sender, recipient, poker]));
 
-        let sender_note = AddressNote::new(sender);
-        let recipient_note = AddressNote::new(recipient);
+        let mut sender_note = AddressNote::new(sender);
+        let mut recipient_note = AddressNote::new(recipient);
 
-        context = storage.sender.initialise(context, sender_note);
-        context = storage.recipient.initialise(context, recipient_note);
+        storage.sender.initialise(&mut context, &mut sender_note);
+        storage.recipient.initialise(&mut context, &mut recipient_note);
 
         let pokerEncPubKey = get_public_key_non_contract_account(poker);
 
         let this = inputs.call_context.storage_contract_address;
-        context = emit_encrypted_log(
-            context,
+        emit_encrypted_log(
+            &mut context,
             this,
             storage.sender.storage_slot,
             poker,
@@ -56,8 +56,8 @@ contract PokeableToken {
             sender_note.serialise(),
         );
 
-        context = emit_encrypted_log(
-            context,
+        emit_encrypted_log(
+            &mut context,
             this,
             storage.recipient.storage_slot,
             poker,
@@ -67,7 +67,7 @@ contract PokeableToken {
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let sender_balance = storage.balances.at(sender);
-        context = send_note(context, sender_balance, initial_supply, sender);
+        send_note(&mut context, sender_balance, initial_supply, sender);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -83,18 +83,15 @@ contract PokeableToken {
         let mut context = Context::new(inputs, 0); // Since there are no arguments, we can just 0 as the args hash.
         let storage = Storage::init();
 
-        let (context_1, sender) = storage.sender.get_note(context);
-        context = context_1;
+        let sender = storage.sender.get_note(&mut context);
 
-        let (context_2, recipient) = storage.recipient.get_note(context);
-        context = context_2;
+        let recipient = storage.recipient.get_note(&mut context);
 
         // Pick from the set of sender's notes.
         let sender_balance = storage.balances.at(sender.address);
 
         let options = NoteGetterOptions::with_filter(get_2_notes, 0);
-        let (mut new_context, notes) = sender_balance.get_notes(context, options);
-        context = new_context;
+        let notes = sender_balance.get_notes(&mut context, options);
 
         let note1 = notes[0];
         let note2 = notes[1];
@@ -102,12 +99,12 @@ contract PokeableToken {
         let note_sum = note1.value + note2.value;
 
         // Removes the 2 notes from the sender's set of notes.
-        context = sender_balance.remove(context, note1);
-        context = sender_balance.remove(context, note2);
+        sender_balance.remove(&mut context, note1);
+        sender_balance.remove(&mut context, note2);
 
         // Create new note for the recipient.
         let recipient_balance = storage.balances.at(recipient.address);
-        context = send_note(context, recipient_balance, note_sum, recipient.address);
+        send_note(&mut context, recipient_balance, note_sum, recipient.address);
         
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()

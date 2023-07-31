@@ -42,7 +42,7 @@ contract Uniswap {
         l1UniswapPortal: Field, // L1 address of uniswap portal contract
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut initialContext = Context::new(inputs, abi::hash_args([
+        let mut context = Context::new(inputs, abi::hash_args([
             withdrawFnSelector,
             inputAsset,
             inputAssetPortalAddress,
@@ -63,15 +63,15 @@ contract Uniswap {
         // inputAsset.withdraw(inputAmount, sender, recipient=l1UniswapPortal, callerOnL1=l1UniswapPortal) 
         // only uniswap portal can call this (done to safeguard ordering of message consumption)
         // ref: https://docs.aztec.network/aztec/how-it-works/l1-l2-messaging#designated-caller
-        let (callStackItem, mut context) = PrivateCallStackItem::call(inputAsset, withdrawFnSelector, [
+        let callStackItem = context.call_private_function(inputAsset, withdrawFnSelector, [
             inputAmount,
             sender,
             l1UniswapPortal,
             l1UniswapPortal,
-        ], initialContext);
+        ]);
         
         let result = callStackItem.public_inputs.return_values[0];
-        context.return_values = context.return_values.push(result);
+        context.return_values.push(result);
 
         // Send the swap message to L1 portal
         let content_hash = _compute_swap_content_hash(
@@ -86,7 +86,7 @@ contract Uniswap {
            cancellerForL1ToL2Message,
            callerOnL1,
         );
-        context = context.message_portal(content_hash);
+        context.message_portal(content_hash);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()

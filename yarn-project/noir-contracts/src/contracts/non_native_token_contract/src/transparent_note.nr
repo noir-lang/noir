@@ -36,12 +36,12 @@ impl TransparentNote {
         pedersen([self.amount, self.secretHash])[0]
     }
 
-    fn consume_in_secret(self: Self, mut context: Context, root: Field, secret: Field) -> Context {
+    fn consume_in_secret(self: Self, context: &mut Context, root: Field, secret: Field) {
         // Get the commitment value (before silo)
         let commitment = self.get_commitment();
 
         // Let the kernel perform the read.
-        context = context.push_read_request(commitment);
+        context.push_read_request(commitment);
 
         // Get the commitment data, (where it is in the db)
         let commitment_oracle_call = get_commitment(commitment);
@@ -50,7 +50,7 @@ impl TransparentNote {
         assert(root == commitment_data.root);
 
         // Calculate the nullifier
-        self.emit_nullifier(context, secret, commitment, commitment_data.leaf_index)
+        self.emit_nullifier(context, secret, commitment, commitment_data.leaf_index);
     }
 
     fn compute_secret_hash(secret: Field) -> Field {
@@ -63,7 +63,7 @@ impl TransparentNote {
         assert(self.secretHash == hash);
     }
 
-    fn emit_nullifier(_self: Self, mut context: Context, secret: Field, siloed_commitment: Field, index: Field) -> Context {
+    fn emit_nullifier(_self: Self, context: &mut Context, secret: Field, siloed_commitment: Field, index: Field) {
         // Create a nullifier for the message based on its index in the tree
         
         let nullifier = pedersen([secret, siloed_commitment, index])[0];

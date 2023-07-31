@@ -13,12 +13,9 @@ contract ZkToken {
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::context::Context;
     use dep::aztec::note::{
-        note_header::{NoteHeader},
+        note_header::NoteHeader,
         utils as note_utils,
     };
-    use dep::aztec::types::point::Point;
-    use dep::aztec::state_vars::map::Map;
-    use dep::aztec::state_vars::set::Set;
     use dep::aztec::log::emit_unencrypted_log;
 
     use crate::storage::Storage;
@@ -32,7 +29,7 @@ contract ZkToken {
         inputs: PrivateContextInputs,
         //*********************************/
         initial_supply: Field, 
-        owner: Field,
+        owner: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner]));
@@ -40,8 +37,8 @@ contract ZkToken {
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
         if (initial_supply != 0) {
-            context = send_note(context, owner_balance, initial_supply, owner);
-            context = emit_unencrypted_log(context, "Balance set in constructor");
+            send_note(&mut context, owner_balance, initial_supply, owner);
+            emit_unencrypted_log(&mut context, "Balance set in constructor");
         }
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
@@ -55,15 +52,15 @@ contract ZkToken {
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field, 
-        owner: Field,
+        owner: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([amount, owner]));
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
-        context = send_note(context, owner_balance, amount, owner);
-        context = emit_unencrypted_log(context, "Coins minted");
+        send_note(&mut context, owner_balance, amount, owner);
+        emit_unencrypted_log(&mut context, "Coins minted");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
@@ -84,13 +81,13 @@ contract ZkToken {
 
         // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender);
-        context = spend_notes(context, sender_balance, amount, sender);
+        spend_notes(&mut context, sender_balance, amount, sender);
 
         // Creates new note for the recipient.
         let recipient_balance = storage.balances.at(recipient);
-        context = send_note(context, recipient_balance, amount, recipient);
+        send_note(&mut context, recipient_balance, amount, recipient);
         
-        context = emit_unencrypted_log(context, "Coins transferred");
+        emit_unencrypted_log(&mut context, "Coins transferred");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
@@ -103,7 +100,7 @@ contract ZkToken {
         //*********************************/
         amounts: [Field; 2], 
         secrets: [Field; 2], 
-        sender: Field, 
+        sender: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([amounts[0], amounts[1], secrets[0], secrets[1], sender]));
@@ -111,16 +108,16 @@ contract ZkToken {
         // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender);
         let total = amounts[0] + amounts[1];
-        context = spend_notes(context, sender_balance, total, sender);
+        spend_notes(&mut context, sender_balance, total, sender);
 
         // Create claim notes.
         let claims = storage.claims;
-        let note0 = ClaimNote::new(amounts[0], secrets[0]);
-        let note1 = ClaimNote::new(amounts[1], secrets[1]);
+        let mut note0 = ClaimNote::new(amounts[0], secrets[0]);
+        let mut note1 = ClaimNote::new(amounts[1], secrets[1]);
 
         // Insert the new claim notes to the set.
-        context = claims.insert(context, note0);
-        context = claims.insert(context, note1);
+        claims.insert(&mut context, &mut note0);
+        claims.insert(&mut context, &mut note1);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
@@ -133,21 +130,19 @@ contract ZkToken {
         //*********************************/
         amount: Field,
         secret: Field,
-        owner: Field,
+        owner: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
         let mut context = Context::new(inputs, abi::hash_args([amount, secret, owner]));
 
         // Remove the claim note if it exists in the set.
         let mut note = ClaimNote::new(amount, secret);
-        let (new_context, note_with_header) = storage.claims.assert_contains(context, note);
-        context = new_context;
-        note = note_with_header;
-        context = storage.claims.remove(context, note);
+        storage.claims.assert_contains(&mut context, &mut note);
+        storage.claims.remove(&mut context, note);
 
         // Send the value note.
         let balance = storage.balances.at(owner);
-        context = send_note(context, balance, amount, owner);
+        send_note(&mut context, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()

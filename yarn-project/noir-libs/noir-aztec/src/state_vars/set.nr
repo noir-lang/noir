@@ -17,8 +17,8 @@ impl<Note, N> Set<Note, N> {
         Set { storage_slot, note_interface }
     }
 
-    fn insert(self, context: Context, mut note: Note) -> Context {
-        create_note(context, self.storage_slot, note, self.note_interface)
+    fn insert(self, context: &mut Context, note: &mut Note) {
+        create_note(context, self.storage_slot, note, self.note_interface);
     }
 
     fn insert_from_public(self, note: Note) {
@@ -27,21 +27,21 @@ impl<Note, N> Set<Note, N> {
         create_commitment(note_hash);
     }
 
-    fn assert_contains(self, context: Context, note: Note) -> (Context, Note) {
-        ensure_note_exists(context, self.storage_slot, self.note_interface, note)
+    fn assert_contains(self, context: &mut Context, note: &mut Note) {
+        ensure_note_exists(context, self.storage_slot, self.note_interface, note);
     }
 
-    fn remove(self, context: Context, note: Note) -> Context {
-        destroy_note(context, self.storage_slot, note, self.note_interface)
+    fn remove(self, context: &mut Context, note: Note) {
+        destroy_note(context, self.storage_slot, note, self.note_interface);
     }
 
     fn get_notes<S, P>(
         self,
-        mut context: Context,
+        context: &mut Context,
         options: NoteGetterOptions<Note, N, S, P>,
-    ) -> (Context, [Note; S]) {
+    ) -> [Note; S] {
         let storage_slot = self.storage_slot;
-        let (new_context, notes) = get_notes(context, storage_slot, self.note_interface, options);
-        (new_context, notes)
+        let notes = get_notes(context, storage_slot, self.note_interface, options);
+        notes
     }
 }

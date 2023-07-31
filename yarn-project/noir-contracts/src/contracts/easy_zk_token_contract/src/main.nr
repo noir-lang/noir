@@ -36,9 +36,9 @@ contract EasyZkToken {
         let storage = Storage::init();
         let balances = storage.balances;
 
-        context = balances.at(owner).add(context, initial_supply, owner);
+        balances.at(owner).add(&mut context, initial_supply, owner);
 
-        context = emit_unencrypted_log(context, "Balance set in constructor");
+        emit_unencrypted_log(&mut context, "Balance set in constructor");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -57,9 +57,9 @@ contract EasyZkToken {
         let storage = Storage::init();
         let balances = storage.balances;
 
-        context = balances.at(owner).add(context, amount, owner);
+        balances.at(owner).add(&mut context, amount, owner);
 
-        context = emit_unencrypted_log(context, "Coins minted");
+        emit_unencrypted_log(&mut context, "Coins minted");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
@@ -79,11 +79,11 @@ contract EasyZkToken {
         let storage = Storage::init();
         let balances = storage.balances;
 
-        context = balances.at(sender).sub(context, amount, sender);
+        balances.at(sender).sub(&mut context, amount, sender);
 
-        context = balances.at(recipient).add(context, amount, recipient);
+        balances.at(recipient).add(&mut context, amount, recipient);
         
-        context = emit_unencrypted_log(context, "Coins transferred");
+        emit_unencrypted_log(&mut context, "Coins transferred");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()

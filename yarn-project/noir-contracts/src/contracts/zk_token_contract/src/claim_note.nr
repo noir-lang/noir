@@ -61,9 +61,8 @@ impl ClaimNote {
         self.value == 0
     }
 
-    fn set_header(mut self: Self, header: NoteHeader) -> Self {
+    fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
-        self
     }
 }
 
@@ -95,7 +94,7 @@ fn get_header(note: ClaimNote) -> NoteHeader {
     note.header
 }
 
-fn set_header(note: ClaimNote, header: NoteHeader) -> ClaimNote {
+fn set_header(note: &mut ClaimNote, header: NoteHeader) {
     note.set_header(header)
 }
 

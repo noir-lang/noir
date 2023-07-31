@@ -83,7 +83,8 @@ unconstrained fn get_notes<Note, N, M, S, NS>(
             let preimage = arr_copy_slice(fields, [0; N], read_offset + 1);
             let mut note = deserialise(preimage);
 
-            notes[i] = set_header(note, header);
+            set_header(&mut note, header);
+            notes[i] = note;
         };
     };
     notes

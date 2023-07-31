@@ -67,7 +67,7 @@ contract NonNativeToken {
         let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner]));
 
         let balance = storage.balances.at(owner);
-        context = send_note(context, balance, initial_supply, owner);
+        send_note(&mut context, balance, initial_supply, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -97,11 +97,10 @@ contract NonNativeToken {
         let content_hash = get_mint_content_hash(amount, owner, canceller);
 
         // Get the l1 message from an oracle call
-        let updated_context = context.consume_l1_to_l2_message(inputs, msg_key, content_hash, secret);
-        context = updated_context;
+        context.consume_l1_to_l2_message(inputs, msg_key, content_hash, secret);
 
         let balance = storage.balances.at(owner);
-        context = send_note(context, balance, amount, owner);
+        send_note(&mut context, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -126,10 +125,10 @@ contract NonNativeToken {
         ]));
 
         let sender_balance = storage.balances.at(sender);
-        context = spend_notes(context, sender_balance, amount, sender);
+        spend_notes(&mut context, sender_balance, amount, sender);
 
         let content = get_withdraw_content_hash(amount, recipient, callerOnL1);
-        context = context.message_portal(content);
+        context.message_portal(content);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -215,10 +214,10 @@ contract NonNativeToken {
 
         // Gets the set of sender's notes and picks 2 of those.
         let sender_balance = storage.balances.at(sender);
-        context = spend_notes(context, sender_balance, amount, sender);
+        spend_notes(&mut context, sender_balance, amount, sender);
 
         let balance = storage.balances.at(recipient);
-        context = send_note(context, balance, amount, recipient);
+        send_note(&mut context, balance, amount, recipient);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -266,11 +265,11 @@ contract NonNativeToken {
 
         // Assert that the note exists within the tree
         let public_note = TransparentNote::new_from_secret(amount, secret);
-        context = public_note.consume_in_secret(context, inputs.roots.private_data_tree_root, secret);
+        public_note.consume_in_secret(&mut context, inputs.roots.private_data_tree_root, secret);
 
         // Mint the tokens
         let balance = storage.balances.at(owner);
-        context = send_note(context, balance, amount, owner);
+        send_note(&mut context, balance, amount, owner);
 
         context.finish()
     }
@@ -288,7 +287,7 @@ contract NonNativeToken {
 
         // Remove user balance
         let sender_balance = storage.balances.at(owner);
-        context = spend_notes(context, sender_balance, amount, owner);
+        spend_notes(&mut context, sender_balance, amount, owner);
 
         // enqueue a public function to perform the public state update.
         let thisAddress = inputs.call_context.storage_contract_address;
@@ -296,8 +295,7 @@ contract NonNativeToken {
         // addUnshieldedBalance selector (in decimal)
         // recompute by: `cast keccak addUnshieldedBalance(field,field)` -> convert to decimal
         let pubEntryPointSelector = 753269941;
-        let (_callStackItem1, mut context1) = PublicCallStackItem::call(thisAddress, pubEntryPointSelector, [amount, recipient], context);
-        context = context1;
+        let _callStackItem1 = context.call_public_function(thisAddress, pubEntryPointSelector, [amount, recipient]);
 
         context.finish()
     }

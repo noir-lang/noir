@@ -15,5 +15,5 @@ struct NoteInterface<Note, N> {
 
     get_header: fn (Note) -> NoteHeader,
 
-    set_header: fn (Note, NoteHeader) -> Note,
+    set_header: fn (&mut Note, NoteHeader) -> (),
 }

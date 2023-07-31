@@ -62,9 +62,8 @@ impl EcdsaPublicKeyNote {
         ])[0]
     }
 
-    fn set_header(mut self: Self, header: NoteHeader) -> Self {
+    fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
-        self
     }
 
     fn dummy() -> Self {
@@ -125,8 +124,8 @@ fn get_header(note: EcdsaPublicKeyNote) -> NoteHeader {
     note.header
 }
 
-fn set_header(note: EcdsaPublicKeyNote, header: NoteHeader) -> EcdsaPublicKeyNote {
-    note.set_header(header)
+fn set_header(note: &mut EcdsaPublicKeyNote, header: NoteHeader) {
+    note.set_header(header);
 }
 
 global EcdsaPublicKeyNoteInterface = NoteInterface {

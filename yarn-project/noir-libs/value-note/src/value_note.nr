@@ -87,9 +87,8 @@ impl ValueNote {
         !self.is_real
     }
 
-    fn set_header(mut self: Self, header: NoteHeader) -> Self {
+    fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
-        self
     }
 
     fn validate(self, sender: Field) {
@@ -126,7 +125,7 @@ fn get_header(note: ValueNote) -> NoteHeader {
     note.header
 }
 
-fn set_header(note: ValueNote, header: NoteHeader) -> ValueNote {
+fn set_header(note: &mut ValueNote, header: NoteHeader) {
     note.set_header(header)
 }
 

@@ -195,48 +195,47 @@ struct PrivateCircuitPublicInputs {
 impl PrivateCircuitPublicInputs {
     fn hash(self) -> Field {
         let mut fields: BoundedVec<Field, PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0); 
-        fields = fields.push(self.call_context.hash());
-        fields = fields.push(self.args_hash);
-        fields = fields.push_array(self.return_values);
-        fields = fields.push_array(self.read_requests);
-        fields = fields.push_array(self.new_commitments);
-        fields = fields.push_array(self.new_nullifiers);
-        fields = fields.push_array(self.nullified_commitments);
-        fields = fields.push_array(self.private_call_stack);
-        fields = fields.push_array(self.public_call_stack);
-        fields = fields.push_array(self.new_l2_to_l1_msgs);
-        fields = fields.push_array(self.encrypted_logs_hash);
-        fields = fields.push_array(self.unencrypted_logs_hash);
-        fields = fields.push(self.encrypted_log_preimages_length);
-        fields = fields.push(self.unencrypted_log_preimages_length);
-        fields = fields.push_array(self.commitment_trees_roots.serialize());
-        fields = fields.push(self.contract_deployment_data.hash());
-        fields = fields.push(self.chain_id);
-        fields = fields.push(self.version);
+        fields.push(self.call_context.hash());
+        fields.push(self.args_hash);
+        fields.push_array(self.return_values);
+        fields.push_array(self.read_requests);
+        fields.push_array(self.new_commitments);
+        fields.push_array(self.new_nullifiers);
+        fields.push_array(self.nullified_commitments);
+        fields.push_array(self.private_call_stack);
+        fields.push_array(self.public_call_stack);
+        fields.push_array(self.new_l2_to_l1_msgs);
+        fields.push_array(self.encrypted_logs_hash);
+        fields.push_array(self.unencrypted_logs_hash);
+        fields.push(self.encrypted_log_preimages_length);
+        fields.push(self.unencrypted_log_preimages_length);
+        fields.push_array(self.commitment_trees_roots.serialize());
+        fields.push(self.contract_deployment_data.hash());
+        fields.push(self.chain_id);
+        fields.push(self.version);
 
         dep::std::hash::pedersen_with_separator(fields.storage, GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)[0]
     }
 
     fn serialize(self) -> [Field; PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH] {
         let mut fields: BoundedVec<Field, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); 
-        fields = fields.push_array(self.call_context.serialize());
-        fields = fields.push(self.args_hash);
-        fields = fields.push_array(self.return_values);
-        fields = fields.push_array(self.read_requests);
-        fields = fields.push_array(self.new_commitments);
-        fields = fields.push_array(self.new_nullifiers);
-        fields = fields.push_array(self.nullified_commitments);
-        fields = fields.push_array(self.private_call_stack);
-        fields = fields.push_array(self.public_call_stack);
-        fields = fields.push_array(self.new_l2_to_l1_msgs);
-        fields = fields.push_array(self.encrypted_logs_hash);
-        fields = fields.push_array(self.unencrypted_logs_hash);
-        fields = fields.push(self.encrypted_log_preimages_length);
-        fields = fields.push(self.unencrypted_log_preimages_length);
-        fields = fields.push_array(self.commitment_trees_roots.serialize());
-        fields = fields.push_array(self.contract_deployment_data.serialize());
-        fields = fields.push(self.chain_id);
-        fields = fields.push(self.version);
+        fields.push_array(self.call_context.serialize());
+        fields.push(self.args_hash);
+        fields.push_array(self.return_values);
+        fields.push_array(self.read_requests);
+        fields.push_array(self.new_commitments);
+        fields.push_array(self.new_nullifiers);
+        fields.push_array(self.private_call_stack);
+        fields.push_array(self.public_call_stack);
+        fields.push_array(self.new_l2_to_l1_msgs);
+        fields.push_array(self.encrypted_logs_hash);
+        fields.push_array(self.unencrypted_logs_hash);
+        fields.push(self.encrypted_log_preimages_length);
+        fields.push(self.unencrypted_log_preimages_length);
+        fields.push_array(self.commitment_trees_roots.serialize());
+        fields.push_array(self.contract_deployment_data.serialize());
+        fields.push(self.chain_id);
+        fields.push(self.version);
         fields.storage
     }
 }
@@ -302,51 +301,51 @@ impl PublicCircuitPublicInputs {
     
     fn hash(self) -> Field {
         let mut inputs: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0);
-        inputs = inputs.push(self.call_context.hash());
-        inputs = inputs.push(self.args_hash);
-        inputs = inputs.push_array(self.return_values);
+        inputs.push(self.call_context.hash());
+        inputs.push(self.args_hash);
+        inputs.push_array(self.return_values);
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
-            inputs = inputs.push(self.contract_storage_update_requests[i].hash());
+            inputs.push(self.contract_storage_update_requests[i].hash());
         }
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
-            inputs = inputs.push(self.contract_storage_read[i].hash());
+            inputs.push(self.contract_storage_read[i].hash());
         }
-        inputs = inputs.push_array(self.public_call_stack);
-        inputs = inputs.push_array(self.new_commitments);
-        inputs = inputs.push_array(self.new_nullifiers);
-        inputs = inputs.push_array(self.new_l2_to_l1_msgs);
+        inputs.push_array(self.public_call_stack);
+        inputs.push_array(self.new_commitments);
+        inputs.push_array(self.new_nullifiers);
+        inputs.push_array(self.new_l2_to_l1_msgs);
 
         // We do not include commitment_trees_roots since it's not in the cpp hash
-        // inputs = inputs.push(self.commitment_trees_roots.hash());
+        // inputs.push(self.commitment_trees_roots.hash());
 
-        inputs = inputs.push_array(self.unencrypted_logs_hash);
-        inputs = inputs.push(self.unencrypted_log_preimages_length);
-        inputs = inputs.push(self.historic_public_data_tree_root);
-        inputs = inputs.push(self.prover_address);
+        inputs.push_array(self.unencrypted_logs_hash);
+        inputs.push(self.unencrypted_log_preimages_length);
+        inputs.push(self.historic_public_data_tree_root);
+        inputs.push(self.prover_address);
 
         dep::std::hash::pedersen_with_separator(inputs.storage, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)[0]
     }
 
     fn serialize(self) -> [Field; PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH] {
         let mut fields: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); 
-        fields = fields.push_array(self.call_context.serialize());   
-        fields = fields.push(self.args_hash);
-        fields = fields.push_array(self.return_values);
+        fields.push_array(self.call_context.serialize());   
+        fields.push(self.args_hash);
+        fields.push_array(self.return_values);
         for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {
-            fields = fields.push_array(self.contract_storage_update_requests[i].serialize());
+            fields.push_array(self.contract_storage_update_requests[i].serialize());
         }
         for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {
-            fields = fields.push_array(self.contract_storage_read[i].serialize());
+            fields.push_array(self.contract_storage_read[i].serialize());
         }
-        fields = fields.push_array(self.public_call_stack);
-        fields = fields.push_array(self.new_commitments);
-        fields = fields.push_array(self.new_nullifiers);
-        fields = fields.push_array(self.new_l2_to_l1_msgs);
-        fields = fields.push_array(self.unencrypted_logs_hash);
-        fields = fields.push(self.unencrypted_log_preimages_length);
-        fields = fields.push_array(self.commitment_trees_roots.serialize());
-        fields = fields.push(self.historic_public_data_tree_root);
-        fields = fields.push(self.prover_address);
+        fields.push_array(self.public_call_stack);
+        fields.push_array(self.new_commitments);
+        fields.push_array(self.new_nullifiers);
+        fields.push_array(self.new_l2_to_l1_msgs);
+        fields.push_array(self.unencrypted_logs_hash);
+        fields.push(self.unencrypted_log_preimages_length);
+        fields.push_array(self.commitment_trees_roots.serialize());
+        fields.push(self.historic_public_data_tree_root);
+        fields.push(self.prover_address);
         fields.storage
     }
 }

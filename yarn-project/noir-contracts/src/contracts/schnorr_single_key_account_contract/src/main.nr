@@ -25,10 +25,10 @@ contract SchnorrSingleKeyAccount {
         // Initialize context
         // 136 = ENTRYPOINT_PAYLOAD_SIZE(7) + 64 + 64 + 1
         let mut args: BoundedVec<Field, 136> = BoundedVec::new(0);
-        args = args.push_array(payload.serialize());
-        for byte in owner { args = args.push(byte as Field); }
-        for byte in signature { args = args.push(byte as Field); }
-        args = args.push(partial_address);
+        args.push_array(payload.serialize());
+        for byte in owner { args.push(byte as Field); }
+        for byte in signature { args.push(byte as Field); }
+        args.push(partial_address);
         let mut context = Context::new(inputs, abi::hash_args(args.storage));
 
         // Verify payload signature
@@ -58,7 +58,7 @@ contract SchnorrSingleKeyAccount {
         assert(reproduced_address == inputs.call_context.storage_contract_address);
 
         // Execute calls
-        context = payload.execute_calls(context);
+        payload.execute_calls(&mut context);
 
         context.finish()
     }

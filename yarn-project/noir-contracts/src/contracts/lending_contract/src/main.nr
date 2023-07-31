@@ -12,9 +12,9 @@ contract Lending {
         create_nullifier::create_nullifier,
     };
     use dep::aztec::public_call_stack_item::{
+        PublicCallStackItem,
         call_public_function,
-        call_public_function_no_args, 
-        PublicCallStackItem
+        call_public_function_no_args,
     };
     use crate::storage::{Storage, Tot, Account};
 
@@ -80,7 +80,7 @@ contract Lending {
         owner: Field,
         amount: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut initialContext = Context::new(inputs, abi::hash_args([
+        let mut context = Context::new(inputs, abi::hash_args([
             secret,
             owner,
             amount
@@ -97,11 +97,10 @@ contract Lending {
         // Unshield tokens into this contract.
 
         // _deposit(account, amount)
-        let (_callStackItem, mut context) = PublicCallStackItem::call(
+        let _callStackItem = context.call_public_function(
             inputs.call_context.storage_contract_address, 
             3009041984,
-            [account, amount], 
-            initialContext
+            [account, amount]
         );
 
         context.finish()
@@ -138,18 +137,17 @@ contract Lending {
         secret: Field,
         amount: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut initialContext = Context::new(inputs, abi::hash_args([
+        let mut context = Context::new(inputs, abi::hash_args([
             secret,
             amount
         ]));
 
         let me = inputs.call_context.msg_sender;
         let account = Account::new(me, secret).key();
-        let (_callStackItem, mut context) = PublicCallStackItem::call(
+        let _callStackItem = context.call_public_function(
             inputs.call_context.storage_contract_address, 
             1065861440,
-            [account, amount], 
-            initialContext
+            [account, amount]
         );
 
         context.finish()
@@ -196,7 +194,7 @@ contract Lending {
         secret: Field,
         amount: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut initialContext = Context::new(inputs, abi::hash_args([
+        let mut context = Context::new(inputs, abi::hash_args([
             secret,
             amount
         ]));
@@ -204,11 +202,10 @@ contract Lending {
         let me = inputs.call_context.msg_sender;
         let account = Account::new(me, secret).key();
 
-        let (_callStackItem, mut context) = PublicCallStackItem::call(
+        let _callStackItem = context.call_public_function(
             inputs.call_context.storage_contract_address, 
             1462609836,
-            [account, amount], 
-            initialContext
+            [account, amount]
         );
 
         context.finish()
@@ -253,7 +250,7 @@ contract Lending {
         owner: Field,
         amount: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut initialContext = Context::new(inputs, abi::hash_args([
+        let mut context = Context::new(inputs, abi::hash_args([
             secret,
             owner,
             amount
@@ -269,11 +266,10 @@ contract Lending {
 
         // @todo @lherskind Transfer tokens from me to this contract.
 
-        let (_callStackItem, mut context) = PublicCallStackItem::call(
+        let _callStackItem = context.call_public_function(
             inputs.call_context.storage_contract_address, 
             3985016136,
-            [account, amount], 
-            initialContext
+            [account, amount]
         );
 
         context.finish()

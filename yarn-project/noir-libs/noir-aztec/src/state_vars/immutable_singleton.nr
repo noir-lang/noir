@@ -24,19 +24,19 @@ impl<Note, N> ImmutableSingleton<Note, N> {
         oracle::notes::is_nullifier_emitted(nullifier)
     }
 
-    fn initialise(self, mut context: Context, note: Note) -> Context {
+    fn initialise(self, context: &mut Context, note: &mut Note) {
         // Nullify the storage slot.
         let nullifier = self.compute_initialisation_nullifier();
-        context = context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
+        context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
 
-        create_note(context, self.storage_slot, note, self.note_interface)
+        create_note(context, self.storage_slot, note, self.note_interface);
     }
 
     fn compute_initialisation_nullifier(self) -> Field {
         pedersen_with_separator([self.storage_slot], GENERATOR_INDEX__INITIALISATION_NULLIFIER)[0]
     }
     
-    fn get_note(self, mut context: Context) -> (Context, Note) {
+    fn get_note(self, context: &mut Context) -> Note {
         let storage_slot = self.storage_slot;
         get_note(context, storage_slot, self.note_interface)
     }

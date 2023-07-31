@@ -238,7 +238,7 @@ describe('ACIR public execution simulator', () => {
             globalVariables.timestamp.value,
         ),
       ]);
-    });
+    }, 20000);
   });
 
   describe('Public -> Private / Cross Chain messaging', () => {

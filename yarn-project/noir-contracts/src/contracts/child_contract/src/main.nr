@@ -22,7 +22,7 @@ contract Child {
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let mut context = Context::new(inputs, abi::hash_args([input]));
 
-        context.return_values = context.return_values.push(input + inputs.private_global_variables.chain_id + inputs.private_global_variables.version);
+        context.return_values.push(input + inputs.private_global_variables.chain_id + inputs.private_global_variables.version);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()

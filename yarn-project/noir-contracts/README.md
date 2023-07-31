@@ -2,6 +2,10 @@
 
 This package contains the source code and the Aztec ABIs for the example contracts used in tests.
 
+## Disclaimer
+
+Please note that any example contract set out herein is provided solely for informational purposes only and does not constitute any inducement to use or deploy. Any implementation of any such contract with an interface or any other infrastructure should be used in accordance with applicable laws and regulations.
+
 ## Setup
 
 ### Installing Noir

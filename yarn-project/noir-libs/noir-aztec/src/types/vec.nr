@@ -14,30 +14,28 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         self.storage[index]
     }
 
-    fn push(mut self: Self, elem: T) -> Self {
+    fn push(&mut self, elem: T) {
         assert(self.len as u64 < MaxLen as u64);
 
         self.storage[self.len] = elem;
         self.len += 1;
-        self
     }
 
-    fn push_array<Len>(mut self: Self, array: [T; Len]) -> Self {
+    fn push_array<Len>(&mut self, array: [T; Len]) {
         let newLen = self.len + array.len();
         assert(newLen as u64 <= MaxLen as u64);
         for i in 0..array.len() {
             self.storage[self.len + i] = array[i];
         }
         self.len = newLen;
-        self
     }
 
-    fn pop(mut self: Self) -> (Self, T) {
+    fn pop(&mut self) -> T {
         assert(self.len as u64 > 0);
 
         let elem = self.storage[self.len - 1];
         self.len -= 1;
-        (self, elem)
+        elem
     }
 }
 
