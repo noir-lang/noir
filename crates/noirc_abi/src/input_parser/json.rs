@@ -59,7 +59,7 @@ pub(crate) fn serialize_to_json(
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
-pub(crate) enum JsonTypes {
+pub(super) enum JsonTypes {
     // This is most likely going to be a hex string
     // But it is possible to support UTF-8
     String(String),
@@ -78,7 +78,7 @@ pub(crate) enum JsonTypes {
 }
 
 impl JsonTypes {
-    pub(crate) fn try_from_input_value(
+    pub(super) fn try_from_input_value(
         value: &InputValue,
         abi_type: &AbiType,
     ) -> Result<JsonTypes, InputParserError> {
