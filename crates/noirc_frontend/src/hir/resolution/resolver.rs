@@ -1815,6 +1815,7 @@ mod test {
         }
     }
 
+    #[test]
     fn resolve_basic_closure() {
         let src = r#"
             fn main(x : Field) -> pub Field {
@@ -1827,6 +1828,29 @@ mod test {
         if !errors.is_empty() {
             panic!("Unexpected errors: {:?}", errors);
         }
+    }
+
+    #[test]
+    fn resolve_simplified_closure() {
+        // based on bug https://github.com/noir-lang/noir/issues/1088
+
+        let src = r#"fn do_closure(x: Field) -> Field {
+            let y = x;
+            let ret_capture = || {
+              y
+            };
+            ret_capture()
+          }
+
+          fn main(x: Field) {
+              assert(do_closure(x) == 100);
+          }
+
+          "#;
+        let parsed_captures = get_program_captures(src);
+        let mut expected_captures = vec![];
+        expected_captures.push(vec!["y".to_string()]);
+        assert_eq!(expected_captures, parsed_captures);
     }
 
     #[test]
