@@ -1,5 +1,6 @@
 [package]
 name = "blackbox_func_simple_call"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

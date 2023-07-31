@@ -1,5 +1,6 @@
 [package]
 name = "7_function"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

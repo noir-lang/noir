@@ -1,5 +1,6 @@
 [package]
 name = "brillig_arrays"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

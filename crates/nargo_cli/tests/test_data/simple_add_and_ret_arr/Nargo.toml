@@ -1,5 +1,6 @@
 [package]
 name = "simple_add_and_ret_arr"
+type = "bin"
 authors = [""]
 compiler_version = "0.6.0"
 

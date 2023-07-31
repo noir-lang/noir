@@ -12,12 +12,12 @@ use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic};
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
 
-use super::compile_cmd::compile_circuit;
+use super::compile_cmd::compile_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::errors::CliError;
+use crate::find_package_manifest;
 use crate::manifest::resolve_workspace_from_toml;
-use crate::{find_package_manifest, prepare_package};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -69,8 +69,7 @@ fn execute_package<B: Backend>(
     prover_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
-    let (mut context, crate_id) = prepare_package(package);
-    let compiled_program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
+    let (context, compiled_program) = compile_package(backend, package, compile_options)?;
     let CompiledProgram { abi, circuit, debug } = compiled_program;
 
     // Parse the initial witness values from Prover.toml

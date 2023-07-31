@@ -1,5 +1,6 @@
 [package]
 name = "brillig_fns_as_values"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 
