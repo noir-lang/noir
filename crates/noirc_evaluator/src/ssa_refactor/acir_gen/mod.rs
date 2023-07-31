@@ -2,7 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
-use std::ops::Range;
+use std::ops::RangeInclusive;
 
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::{
@@ -222,7 +222,7 @@ impl Context {
         &mut self,
         params: &[ValueId],
         dfg: &DataFlowGraph,
-    ) -> Result<Range<u32>, AcirGenError> {
+    ) -> Result<RangeInclusive<u32>, AcirGenError> {
         // The first witness (if any) is the next one
         let start_witness = self.acir_context.current_witness_index().0 + 1;
         for param_id in params {
@@ -241,9 +241,8 @@ impl Context {
             }
             self.ssa_values.insert(*param_id, value);
         }
-        // A range does not include the last element
-        let end_witness = self.acir_context.current_witness_index().0 + 1;
-        Ok(start_witness..end_witness)
+        let end_witness = self.acir_context.current_witness_index().0;
+        Ok(start_witness..=end_witness)
     }
 
     fn convert_ssa_block_param(&mut self, param_type: &Type) -> Result<AcirValue, AcirGenError> {

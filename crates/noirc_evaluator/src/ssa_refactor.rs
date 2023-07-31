@@ -86,7 +86,7 @@ pub fn create_circuit(
         ..
     } = optimize_into_acir(program, show_output, enable_ssa_logging, enable_brillig_logging)?;
 
-    let abi = gen_abi(func_sig, return_witnesses.clone(), &input_witnesses);
+    let abi = gen_abi(func_sig, &input_witnesses, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
 
     let public_parameters =

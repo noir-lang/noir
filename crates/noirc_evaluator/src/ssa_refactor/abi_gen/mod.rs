@@ -8,8 +8,8 @@ use noirc_abi::{Abi, AbiParameter, FunctionSignature};
 /// `noirc_abi::Abi`.
 pub(crate) fn gen_abi(
     func_sig: FunctionSignature,
-    return_witnesses: Vec<Witness>,
     input_witnesses: &[Witness],
+    return_witnesses: Vec<Witness>,
 ) -> Abi {
     let (parameters, return_type) = func_sig;
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
