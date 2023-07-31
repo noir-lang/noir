@@ -1267,7 +1267,7 @@ where
 {
     just(Token::Star)
         .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference, rhs))
+        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference { implicitly_added: false }, rhs))
 }
 
 /// Atoms are parameterized on whether constructor expressions are allowed or not.

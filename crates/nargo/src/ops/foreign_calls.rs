@@ -3,7 +3,7 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
 };
 use iter_extended::vecmap;
-use noirc_abi::{decode_string_value, decode_value, input_parser::json::JsonTypes, AbiType};
+use noirc_abi::{decode_string_value, input_parser::InputValueDisplay, AbiType};
 
 use crate::errors::ForeignCallError;
 
@@ -68,11 +68,11 @@ impl ForeignCall {
         // We must use a flat map here as each value in a struct will be in a separate input value
         let mut input_values_as_fields =
             input_values.iter().flat_map(|values| values.iter().map(|value| value.to_field()));
-        let decoded_value = decode_value(&mut input_values_as_fields, &abi_type)?;
 
-        let json_value = JsonTypes::try_from_input_value(&decoded_value, &abi_type)?;
+        let input_value_display =
+            InputValueDisplay::try_from_fields(&mut input_values_as_fields, abi_type)?;
 
-        println!("{json_value}");
+        println!("{input_value_display}");
         Ok(())
     }
 }

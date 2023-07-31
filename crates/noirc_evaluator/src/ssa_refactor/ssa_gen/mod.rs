@@ -2,8 +2,6 @@ mod context;
 mod program;
 mod value;
 
-use std::rc::Rc;
-
 pub(crate) use program::Ssa;
 
 use context::SharedContext;
@@ -16,12 +14,7 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::{
-    function::RuntimeType,
-    instruction::BinaryOp,
-    types::{CompositeType, Type},
-    value::ValueId,
-};
+use super::ir::{function::RuntimeType, instruction::BinaryOp, types::Type, value::ValueId};
 
 /// Generates SSA for the given monomorphized program.
 ///
@@ -125,8 +118,8 @@ impl<'a> FunctionContext<'a> {
         match literal {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
-                let element_types = Self::convert_type(&array.element_type).flatten();
-                self.codegen_array(elements, element_types)
+                let typ = Self::convert_non_tuple_type(&array.typ);
+                self.codegen_array(elements, typ)
             }
             ast::Literal::Integer(value, typ) => {
                 let typ = Self::convert_non_tuple_type(typ);
@@ -139,7 +132,8 @@ impl<'a> FunctionContext<'a> {
                 let elements = vecmap(string.as_bytes(), |byte| {
                     self.builder.numeric_constant(*byte as u128, Type::field()).into()
                 });
-                self.codegen_array(elements, vec![Type::char()])
+                let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
+                self.codegen_array(elements, typ)
             }
         }
     }
@@ -153,7 +147,7 @@ impl<'a> FunctionContext<'a> {
     /// stored the same as the array [1, 2, 3, 4].
     ///
     /// The value returned from this function is always that of the allocate instruction.
-    fn codegen_array(&mut self, elements: Vec<Values>, element_types: CompositeType) -> Values {
+    fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
         let mut array = im::Vector::new();
 
         for element in elements {
@@ -163,7 +157,7 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        self.builder.array_constant(array, Rc::new(element_types)).into()
+        self.builder.array_constant(array, typ).into()
     }
 
     fn codegen_block(&mut self, block: &[Expression]) -> Values {
@@ -202,7 +196,7 @@ impl<'a> FunctionContext<'a> {
                     }
                 })
             }
-            noirc_frontend::UnaryOp::Dereference => {
+            noirc_frontend::UnaryOp::Dereference { .. } => {
                 let rhs = self.codegen_expression(&unary.rhs);
                 self.dereference(&rhs, &unary.result_type)
             }
