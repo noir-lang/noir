@@ -1,13 +1,14 @@
 use dep::std;
 
 fn main(mut x: Field) {
-
+    let one = 1;
     let add1 = |z| {
-        *z = *z + 1;
+        *z = *z + one;
     };
 
+    let two = 2;
     let add2 = |z| {
-        *z = *z + 2;
+        *z = *z + two;
     };
 
     add1(&mut x);
