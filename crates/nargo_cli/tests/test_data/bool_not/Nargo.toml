@@ -1,0 +1,6 @@
+[package]
+name = "bool_not"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

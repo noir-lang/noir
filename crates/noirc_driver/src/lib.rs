@@ -88,8 +88,8 @@ pub fn create_non_local_crate(
 
 /// Adds a edge in the crate graph for two crates
 pub fn add_dep(context: &mut Context, this_crate: CrateId, depends_on: CrateId, crate_name: &str) {
-    let crate_name = CrateName::new(crate_name)
-        .expect("crate name contains blacklisted characters, please remove");
+    let crate_name =
+        crate_name.parse().expect("crate name contains blacklisted characters, please remove");
 
     // Cannot depend on a binary
     if context.crate_graph.crate_type(depends_on) == CrateType::Binary {
@@ -139,7 +139,7 @@ pub fn check_crate(
     // You can add any crate type to the crate graph
     // but you cannot depend on Binaries
     let std_crate = context.crate_graph.add_stdlib(CrateType::Library, root_file_id);
-    propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
+    propagate_dep(context, std_crate, &std_crate_name.parse().unwrap());
 
     let mut errors = vec![];
     match context.crate_graph.crate_type(crate_id) {
@@ -195,7 +195,7 @@ pub fn compile_main(
     let compiled_program = compile_no_check(context, true, options, main)?;
 
     if options.print_acir {
-        println!("Compiled ACIR for main:");
+        println!("Compiled ACIR for main (unoptimized):");
         println!("{}", compiled_program.circuit);
     }
 
@@ -228,7 +228,7 @@ pub fn compile_contracts(
             for compiled_contract in &compiled_contracts {
                 for contract_function in &compiled_contract.functions {
                     println!(
-                        "Compiled ACIR for {}::{}:",
+                        "Compiled ACIR for {}::{} (unoptimized):",
                         compiled_contract.name, contract_function.name
                     );
                     println!("{}", contract_function.bytecode);

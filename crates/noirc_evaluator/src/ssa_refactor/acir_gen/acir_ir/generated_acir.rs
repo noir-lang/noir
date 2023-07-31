@@ -262,13 +262,11 @@ impl GeneratedAcir {
     ) -> Result<Expression, InternalError> {
         let max_power_of_two =
             FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
-        let inter = match &(&Expression::from_field(max_power_of_two) - lhs) * &leading.into() {
-            Some(inter) => inter,
-            None => {
-                return Err(InternalError::DegreeNotReduced { location: self.current_location })
-            }
-        };
-        Ok(lhs.add_mul(FieldElement::from(2_i128), &inter))
+
+        let intermediate =
+            self.mul_with_witness(&(&Expression::from(max_power_of_two) - lhs), &leading.into());
+
+        lhs.add_mul(FieldElement::from(2_i128), &intermediate)
     }
 
     /// Returns an expression which represents `lhs * rhs`
@@ -276,7 +274,7 @@ impl GeneratedAcir {
     /// If one has multiplicative term and the other is of degree one or more,
     /// the function creates [intermediate variables][`Witness`] accordingly.
     /// There are two cases where we can optimize the multiplication between two expressions:
-    /// 1. If both expressions have at most a total degree of 1 in each term, then we can just multiply them
+    /// 1. If the sum of the degrees of both expressions is at most 2, then we can just multiply them
     /// as each term in the result will be degree-2.
     /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
     ///
@@ -287,10 +285,14 @@ impl GeneratedAcir {
         let lhs_is_linear = lhs.is_linear();
         let rhs_is_linear = rhs.is_linear();
 
-        // Case 1: Both expressions have at most a total degree of 1 in each term
-        if lhs_is_linear && rhs_is_linear {
-            return (lhs * rhs)
-                .expect("one of the expressions is a constant and so this should not fail");
+        // Case 1: The sum of the degrees of both expressions is at most 2.
+        //
+        // If one of the expressions is constant then it does not increase the degree when multiplying by another expression.
+        // If both of the expressions are linear (degree <=1) then the product will be at most degree 2.
+        let both_are_linear = lhs_is_linear && rhs_is_linear;
+        let either_is_const = lhs.is_const() || rhs.is_const();
+        if both_are_linear || either_is_const {
+            return (lhs * rhs).expect("Both expressions are degree <= 1");
         }
 
         // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
@@ -304,7 +306,7 @@ impl GeneratedAcir {
         // rhs, we only need to square the lhs.
         if lhs == rhs {
             return (&*lhs_reduced * &*lhs_reduced)
-                .expect("Both expressions are reduced to be degree<=1");
+                .expect("Both expressions are reduced to be degree <= 1");
         };
 
         let rhs_reduced = if rhs_is_linear {
@@ -313,7 +315,7 @@ impl GeneratedAcir {
             Cow::Owned(self.get_or_create_witness(rhs).into())
         };
 
-        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree<=1")
+        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree <= 1")
     }
 
     /// Signed division lhs /  rhs

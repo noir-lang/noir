@@ -22,7 +22,7 @@ use lsp_types::{
 use noirc_driver::{check_crate, create_local_crate, create_non_local_crate, propagate_dep};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateName, CrateType},
+    graph::{CrateGraph, CrateId, CrateType},
     hir::Context,
 };
 
@@ -299,7 +299,7 @@ fn create_context_at_path(
                     .join(PathBuf::from(&dependency_path).join("src").join("lib.nr"));
                 let library_crate =
                     create_non_local_crate(&mut context, &path_to_lib, CrateType::Library);
-                propagate_dep(&mut context, library_crate, &CrateName::new(crate_name).unwrap());
+                propagate_dep(&mut context, library_crate, &crate_name.parse().unwrap());
             }
         }
     }

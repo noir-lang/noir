@@ -212,10 +212,11 @@ mod tests {
         let two = builder.field_constant(FieldElement::one());
 
         let element_type = Rc::new(vec![Type::field()]);
-        let array = builder.array_constant(vector![one, two], element_type.clone());
+        let array_type = Type::Array(element_type, 2);
+        let array = builder.array_constant(vector![one, two], array_type.clone());
 
         builder.insert_store(v0, array);
-        let v1 = builder.insert_load(v0, Type::Array(element_type, 2));
+        let v1 = builder.insert_load(v0, array_type);
         let v2 = builder.insert_array_get(v1, one, Type::field());
         builder.terminate_with_return(vec![v2]);
 

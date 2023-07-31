@@ -11,7 +11,7 @@ use crate::{
         types::Type,
     },
     node_interner::{ExprId, FuncId},
-    CompTime, Shared, TypeBinding, UnaryOp,
+    CompTime, Shared, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
@@ -48,7 +48,7 @@ impl<'interner> TypeChecker<'interner> {
                             .unwrap_or_else(|| self.interner.next_type_variable());
 
                         let arr_type = Type::Array(
-                            Box::new(Type::Constant(arr.len() as u64)),
+                            Box::new(Type::constant_variable(arr.len() as u64, self.interner)),
                             Box::new(first_elem_type.clone()),
                         );
 
@@ -78,6 +78,12 @@ impl<'interner> TypeChecker<'interner> {
                     }
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length }) => {
                         let elem_type = self.check_expression(&repeated_element);
+                        let length = match length {
+                            Type::Constant(length) => {
+                                Type::constant_variable(length, self.interner)
+                            }
+                            other => other,
+                        };
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool(CompTime::new(self.interner)),
@@ -109,7 +115,7 @@ impl<'interner> TypeChecker<'interner> {
                 let function = self.check_expression(&call_expr.func);
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
-                    (typ, self.interner.expr_span(arg))
+                    (typ, *arg, self.interner.expr_span(arg))
                 });
                 let span = self.interner.expr_span(expr_id);
                 self.bind_function_type(function, args, span)
@@ -119,14 +125,16 @@ impl<'interner> TypeChecker<'interner> {
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_id) => {
-                        let mut args =
-                            vec![(object_type, self.interner.expr_span(&method_call.object))];
+                        let mut args = vec![(
+                            object_type,
+                            method_call.object,
+                            self.interner.expr_span(&method_call.object),
+                        )];
 
-                        let mut arg_types = vecmap(&method_call.arguments, |arg| {
+                        for arg in &method_call.arguments {
                             let typ = self.check_expression(arg);
-                            (typ, self.interner.expr_span(arg))
-                        });
-                        args.append(&mut arg_types);
+                            args.push((typ, *arg, self.interner.expr_span(arg)));
+                        }
 
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
@@ -185,7 +193,10 @@ impl<'interner> TypeChecker<'interner> {
                 };
                 let fresh_id = self.interner.next_type_variable_id();
                 let type_variable = Shared::new(TypeBinding::Unbound(fresh_id));
-                let expected_type = Type::PolymorphicInteger(expected_comptime, type_variable);
+                let expected_type = Type::TypeVariable(
+                    type_variable,
+                    TypeVariableKind::IntegerOrField(expected_comptime),
+                );
 
                 self.unify(&start_range_type, &expected_type, range_span, || {
                     TypeCheckError::TypeCannotBeUsed {
@@ -273,7 +284,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         method_call: &mut HirMethodCallExpression,
         function_type: &Type,
-        argument_types: &mut [(Type, noirc_errors::Span)],
+        argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
     ) {
         let expected_object_type = match function_type {
             Type::Function(args, _) => args.get(0),
@@ -325,7 +336,6 @@ impl<'interner> TypeChecker<'interner> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
-            Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
                 let span = self.interner.expr_span(&index_expr.collection);
@@ -343,8 +353,8 @@ impl<'interner> TypeChecker<'interner> {
         let is_comp_time = match from.follow_bindings() {
             Type::Integer(is_comp_time, ..) => is_comp_time,
             Type::FieldElement(is_comp_time) => is_comp_time,
-            Type::PolymorphicInteger(is_comp_time, _) => is_comp_time,
-            Type::TypeVariable(_) => {
+            Type::TypeVariable(_, TypeVariableKind::IntegerOrField(is_comp_time)) => is_comp_time,
+            Type::TypeVariable(_, _) => {
                 self.errors.push(TypeCheckError::TypeAnnotationsNeeded { span });
                 return Type::Error;
             }
@@ -397,7 +407,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         function_ident_id: &ExprId,
         func_id: &FuncId,
-        arguments: Vec<(Type, Span)>,
+        arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
         if func_id == &FuncId::dummy_id() {
@@ -494,7 +504,7 @@ impl<'interner> TypeChecker<'interner> {
                 let arg_type = self.check_expression(&arg);
 
                 let span = self.interner.expr_span(expr_id);
-                self.make_subtype_of(&arg_type, &param_type, span, || {
+                self.make_subtype_of(&arg_type, &param_type, arg, || {
                     TypeCheckError::TypeMismatch {
                         expected_typ: param_type.to_string(),
                         expr_typ: arg_type.to_string(),
@@ -616,12 +626,9 @@ impl<'interner> TypeChecker<'interner> {
             // Avoid reporting errors multiple times
             (Error, _) | (_, Error) => Ok(Bool(CompTime::Yes(None))),
 
-            // Matches on PolymorphicInteger and TypeVariable must be first to follow any type
+            // Matches on TypeVariable must be first to follow any type
             // bindings.
-            (var @ PolymorphicInteger(_, int), other)
-            | (other, var @ PolymorphicInteger(_, int))
-            | (var @ TypeVariable(int), other)
-            | (other, var @ TypeVariable(int)) => {
+            (var @ TypeVariable(int, _), other) | (other, var @ TypeVariable(int, _)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.comparator_operand_type_rules(other, binding, op, span);
                 }
@@ -794,17 +801,22 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn bind_function_type(&mut self, function: Type, args: Vec<(Type, Span)>, span: Span) -> Type {
+    fn bind_function_type(
+        &mut self,
+        function: Type,
+        args: Vec<(Type, ExprId, Span)>,
+        span: Span,
+    ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
         match function {
-            Type::TypeVariable(binding) => {
+            Type::TypeVariable(binding, TypeVariableKind::Normal) => {
                 if let TypeBinding::Bound(typ) = &*binding.borrow() {
                     return self.bind_function_type(typ.clone(), args, span);
                 }
 
                 let ret = self.interner.next_type_variable();
-                let args = vecmap(args, |(arg, _)| arg);
+                let args = vecmap(args, |(arg, _, _)| arg);
                 let expected = Type::Function(args, Box::new(ret.clone()));
 
                 if let Err(error) = binding.borrow_mut().bind_to(expected, span) {
@@ -822,14 +834,18 @@ impl<'interner> TypeChecker<'interner> {
                     return Type::Error;
                 }
 
-                for (param, (arg, arg_span)) in parameters.iter().zip(args) {
-                    arg.make_subtype_of(param, arg_span, &mut self.errors, || {
-                        TypeCheckError::TypeMismatch {
+                for (param, (arg, arg_id, arg_span)) in parameters.iter().zip(args) {
+                    arg.make_subtype_with_coercions(
+                        param,
+                        arg_id,
+                        self.interner,
+                        &mut self.errors,
+                        || TypeCheckError::TypeMismatch {
                             expected_typ: param.to_string(),
                             expr_typ: arg.to_string(),
                             expr_span: arg_span,
-                        }
-                    });
+                        },
+                    );
                 }
 
                 *ret
@@ -860,12 +876,9 @@ impl<'interner> TypeChecker<'interner> {
             // An error type on either side will always return an error
             (Error, _) | (_, Error) => Ok(Error),
 
-            // Matches on PolymorphicInteger and TypeVariable must be first so that we follow any type
+            // Matches on TypeVariable must be first so that we follow any type
             // bindings.
-            (var @ PolymorphicInteger(_, int), other)
-            | (other, var @ PolymorphicInteger(_, int))
-            | (var @ TypeVariable(int), other)
-            | (other, var @ TypeVariable(int)) => {
+            (var @ TypeVariable(int, _), other) | (other, var @ TypeVariable(int, _)) => {
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, span);
                 }
