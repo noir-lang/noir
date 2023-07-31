@@ -58,4 +58,11 @@ describe('AztecRpcServer', function () {
       rpcServer.addAccount(await keyPair.getPrivateKey(), address, partialAddress),
     ).rejects.toThrow(`Account ${address} already exists`);
   });
+
+  it('throws when getting public storage for non-existent contract', async () => {
+    const contract = AztecAddress.random();
+    await expect(async () => await rpcServer.getPublicStorageAt(contract, new Fr(0n))).rejects.toThrow(
+      `Contract ${contract.toString()} is not deployed`,
+    );
+  });
 });

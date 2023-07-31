@@ -206,6 +206,9 @@ export class AztecRPCServer implements AztecRPC {
    * @returns A promise that resolves to an array of note preimage items, each containing its value.
    */
   public async getPublicStorageAt(contract: AztecAddress, storageSlot: Fr) {
+    if (!(await this.isContractDeployed(contract))) {
+      throw new Error(`Contract ${contract.toString()} is not deployed`);
+    }
     return await this.node.getStorageAt(contract, storageSlot.value);
   }
 
