@@ -100,7 +100,8 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
     }
 };
 
-TYPED_TEST_SUITE(GeminiTest, CommitmentSchemeParams);
+using ParamsTypes = ::testing::Types<kzg::Params, ipa::Params>;
+TYPED_TEST_SUITE(GeminiTest, ParamsTypes);
 
 TYPED_TEST(GeminiTest, Single)
 {

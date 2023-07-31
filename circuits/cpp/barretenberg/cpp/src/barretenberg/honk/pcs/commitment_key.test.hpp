@@ -23,17 +23,17 @@ template <class CK> inline std::shared_ptr<CK> CreateCommitmentKey();
 
 template <> inline std::shared_ptr<kzg::Params::CommitmentKey> CreateCommitmentKey<kzg::Params::CommitmentKey>()
 {
-    constexpr size_t n = 128;
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory(
-        new barretenberg::srs::factories::FileCrsFactory("../srs_db/ignition"));
+    constexpr size_t n = 4096;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory<kzg::Params::Curve>> crs_factory(
+        new barretenberg::srs::factories::FileCrsFactory<kzg::Params::Curve>("../srs_db/ignition", 4096));
     return std::make_shared<kzg::Params::CommitmentKey>(n, crs_factory);
 }
 // For IPA
 template <> inline std::shared_ptr<ipa::Params::CommitmentKey> CreateCommitmentKey<ipa::Params::CommitmentKey>()
 {
-    constexpr size_t n = 128;
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory(
-        new barretenberg::srs::factories::FileCrsFactory("../srs_db/ignition"));
+    constexpr size_t n = 4096;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory<ipa::Params::Curve>> crs_factory(
+        new barretenberg::srs::factories::FileCrsFactory<ipa::Params::Curve>("../srs_db/grumpkin", 4096));
     return std::make_shared<ipa::Params::CommitmentKey>(n, crs_factory);
 }
 
@@ -47,17 +47,17 @@ template <class VK> inline std::shared_ptr<VK> CreateVerificationKey();
 
 template <> inline std::shared_ptr<kzg::Params::VerificationKey> CreateVerificationKey<kzg::Params::VerificationKey>()
 {
-    constexpr size_t n = 128;
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory(
-        new barretenberg::srs::factories::FileCrsFactory("../srs_db/ignition"));
+    constexpr size_t n = 4096;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory<kzg::Params::Curve>> crs_factory(
+        new barretenberg::srs::factories::FileCrsFactory<kzg::Params::Curve>("../srs_db/ignition", 4096));
     return std::make_shared<kzg::Params::VerificationKey>(n, crs_factory);
 }
 // For IPA
 template <> inline std::shared_ptr<ipa::Params::VerificationKey> CreateVerificationKey<ipa::Params::VerificationKey>()
 {
-    constexpr size_t n = 128;
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory(
-        new barretenberg::srs::factories::FileCrsFactory("../srs_db/ignition"));
+    constexpr size_t n = 4096;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory<ipa::Params::Curve>> crs_factory(
+        new barretenberg::srs::factories::FileCrsFactory<ipa::Params::Curve>("../srs_db/grumpkin", 4096));
     return std::make_shared<ipa::Params::VerificationKey>(n, crs_factory);
 }
 template <typename VK> inline std::shared_ptr<VK> CreateVerificationKey()
@@ -72,7 +72,6 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
     using Fr = typename Params::Fr;
     using Commitment = typename Params::Commitment;
     using Polynomial = typename Params::Polynomial;
-    using Transcript = transcript::StandardTranscript;
 
   public:
     CommitmentTest()
@@ -127,6 +126,7 @@ template <typename Params> class CommitmentTest : public ::testing::Test {
         Fr y_expected = witness.evaluate(x);
         EXPECT_EQ(y, y_expected) << "OpeningClaim: evaluations mismatch";
         Commitment commitment_expected = commit(witness);
+        // found it
         EXPECT_EQ(commitment, commitment_expected) << "OpeningClaim: commitment mismatch";
     }
 

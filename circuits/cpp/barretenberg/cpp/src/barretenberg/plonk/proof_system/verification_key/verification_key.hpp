@@ -1,6 +1,7 @@
 #pragma once
 #include "barretenberg/common/streams.hpp"
 #include "barretenberg/crypto/sha256/sha256.hpp"
+#include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/plonk/proof_system/types/polynomial_manifest.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
@@ -70,10 +71,10 @@ struct verification_key {
     // default constructor needed for msgpack unpack
     verification_key() = default;
     verification_key(verification_key_data&& data,
-                     std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& crs);
+                     std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> const& crs);
     verification_key(const size_t num_gates,
                      const size_t num_inputs,
-                     std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& crs,
+                     std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> const& crs,
                      CircuitType circuit_type);
 
     verification_key(const verification_key& other);
@@ -103,7 +104,7 @@ struct verification_key {
 
     barretenberg::evaluation_domain domain;
 
-    std::shared_ptr<barretenberg::srs::factories::VerifierCrs> reference_string;
+    std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> reference_string;
 
     std::map<std::string, barretenberg::g1::affine_element> commitments;
 

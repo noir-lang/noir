@@ -7,11 +7,12 @@ namespace join_split_example {
 namespace proofs {
 namespace join_split {
 
-void init_proving_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory, bool mock);
+void init_proving_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory,
+                      bool mock);
 
 void release_proving_key();
 
-void init_verification_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory);
+void init_verification_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory);
 
 Prover new_join_split_prover(join_split_tx const& tx, bool mock);
 

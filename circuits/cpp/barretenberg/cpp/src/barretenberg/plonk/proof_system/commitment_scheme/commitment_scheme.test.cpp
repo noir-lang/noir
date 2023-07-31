@@ -35,9 +35,9 @@ TEST(commitment_scheme, kate_open)
     transcript::StandardTranscript inp_tx = transcript::StandardTranscript(transcript::Manifest());
     plonk::KateCommitmentScheme<turbo_settings> newKate;
 
-    // std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory = (new
+    // std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory = (new
     // FileReferenceStringFactory("../srs_db/ignition"));
-    auto file_crs = std::make_shared<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
+    auto file_crs = std::make_shared<barretenberg::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
     auto crs = file_crs->get_prover_crs(n);
     auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs, CircuitType::STANDARD);
     work_queue queue(circuit_proving_key.get(), &inp_tx);
@@ -94,7 +94,7 @@ TEST(commitment_scheme, kate_batch_open)
     transcript::StandardTranscript inp_tx = transcript::StandardTranscript(transcript::Manifest());
     plonk::KateCommitmentScheme<turbo_settings> newKate;
 
-    auto file_crs = std::make_shared<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
+    auto file_crs = std::make_shared<barretenberg::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
     auto crs = file_crs->get_prover_crs(n);
     auto circuit_proving_key = std::make_shared<proving_key>(n, 0, crs, CircuitType::STANDARD);
     work_queue queue(circuit_proving_key.get(), &inp_tx);

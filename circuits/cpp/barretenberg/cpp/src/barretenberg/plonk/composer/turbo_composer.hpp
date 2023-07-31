@@ -22,18 +22,18 @@ class TurboComposer {
     std::shared_ptr<plonk::verification_key> circuit_verification_key;
 
     // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory_;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory_;
 
     bool computed_witness = false;
     TurboComposer()
-        : TurboComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory>(
-              new barretenberg::srs::factories::FileCrsFactory("../srs_db/ignition")))
+        : TurboComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>>(
+              new barretenberg::srs::factories::FileCrsFactory<curve::BN254>("../srs_db/ignition")))
     {}
 
-    TurboComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
+    TurboComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
-    TurboComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory>&& crs_factory)
+    TurboComposer(std::unique_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>>&& crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
     TurboComposer(std::shared_ptr<plonk::proving_key> p_key, std::shared_ptr<plonk::verification_key> v_key)

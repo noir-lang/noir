@@ -185,8 +185,7 @@ template <typename Flavor> void create_some_elliptic_curve_addition_gates(auto& 
     uint32_t x3 = circuit_builder.add_variable(p3.x);
     uint32_t y3 = circuit_builder.add_variable(p3.y);
 
-    ecc_add_gate gate{ x1, y1, x2, y2, x3, y3, beta_scalar, -1 };
-    circuit_builder.create_ecc_add_gate(gate);
+    circuit_builder.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta_scalar, -1 });
 }
 
 template <typename Flavor> void create_some_ecc_op_queue_gates(auto& circuit_builder)

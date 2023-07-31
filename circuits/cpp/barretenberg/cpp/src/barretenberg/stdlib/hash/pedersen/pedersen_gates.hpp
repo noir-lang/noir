@@ -22,9 +22,10 @@ namespace stdlib {
  */
 template <typename Composer> class pedersen_gates {
   public:
-    using fixed_group_add_quad = proof_system::fixed_group_add_quad;
-    using fixed_group_init_quad = proof_system::fixed_group_init_quad;
-    using add_quad = proof_system::add_quad;
+    using FF = typename Composer::FF;
+    using fixed_group_add_quad = proof_system::fixed_group_add_quad_<FF>;
+    using fixed_group_init_quad = proof_system::fixed_group_init_quad_<FF>;
+    using add_quad = proof_system::add_quad_<FF>;
 
     Composer* context;
     fixed_group_add_quad previous_add_quad;

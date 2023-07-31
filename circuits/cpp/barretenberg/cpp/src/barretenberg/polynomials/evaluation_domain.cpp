@@ -5,6 +5,7 @@
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
+#include "barretenberg/proof_system/types/circuit_type.hpp"
 #include <memory.h>
 #include <memory>
 
@@ -57,8 +58,6 @@ EvaluationDomain<Fr>::EvaluationDomain(const size_t domain_size, const size_t ta
     , log2_thread_size(static_cast<size_t>(numeric::get_msb(thread_size)))
     , log2_num_threads(static_cast<size_t>(numeric::get_msb(num_threads)))
     , generator_size(target_generator_size ? target_generator_size : domain_size)
-    , root(Fr::get_root_of_unity(log2_size))
-    , root_inverse(root.invert())
     , domain(Fr{ size, 0, 0, 0 }.to_montgomery_form())
     , domain_inverse(domain.invert())
     , generator(Fr::coset_generator(0))
@@ -66,6 +65,15 @@ EvaluationDomain<Fr>::EvaluationDomain(const size_t domain_size, const size_t ta
     , four_inverse(Fr(4).invert())
     , roots(nullptr)
 {
+    // Grumpkin does not have many roots of unity and, given these are not used for Honk, we set it to one.
+    if (proof_system::IsAnyOf<Fr, grumpkin::fr>) {
+        root = Fr::one();
+    } else {
+        root = Fr::get_root_of_unity(log2_size);
+    }
+
+    root_inverse = root.invert();
+
     ASSERT((1UL << log2_size) == size || (size == 0));
     ASSERT((1UL << log2_thread_size) == thread_size || (size == 0));
     ASSERT((1UL << log2_num_threads) == num_threads || (size == 0));

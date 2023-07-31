@@ -54,19 +54,20 @@ template <typename FF> class TurboCircuitBuilder_ : public CircuitBuilderBase<ar
     };
     ~TurboCircuitBuilder_() {}
 
-    void create_add_gate(const add_triple& in);
+    void create_add_gate(const add_triple_<FF>& in);
 
-    void create_big_add_gate(const add_quad& in);
-    void create_big_add_gate_with_bit_extraction(const add_quad& in);
-    void create_big_mul_gate(const mul_quad& in);
-    void create_balanced_add_gate(const add_quad& in);
+    void create_big_add_gate(const add_quad_<FF>& in);
+    void create_big_add_gate_with_bit_extraction(const add_quad_<FF>& in);
+    void create_big_mul_gate(const mul_quad_<FF>& in);
+    void create_balanced_add_gate(const add_quad_<FF>& in);
 
-    void create_mul_gate(const mul_triple& in);
+    void create_mul_gate(const mul_triple_<FF>& in);
     void create_bool_gate(const uint32_t a);
-    void create_poly_gate(const poly_triple& in);
-    void create_fixed_group_add_gate(const fixed_group_add_quad& in);
-    void create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in, const fixed_group_init_quad& init);
-    void create_fixed_group_add_gate_final(const add_quad& in);
+    void create_poly_gate(const poly_triple_<FF>& in);
+    void create_fixed_group_add_gate(const fixed_group_add_quad_<FF>& in);
+    void create_fixed_group_add_gate_with_init(const fixed_group_add_quad_<FF>& in,
+                                               const fixed_group_init_quad_<FF>& init);
+    void create_fixed_group_add_gate_final(const add_quad_<FF>& in);
     void fix_witness(const uint32_t witness_index, const FF& witness_value);
 
     FF arithmetic_gate_evaluation(const size_t index, const FF alpha_base);
@@ -90,12 +91,12 @@ template <typename FF> class TurboCircuitBuilder_ : public CircuitBuilderBase<ar
         decompose_into_base4_accumulators(variable_index, num_bits, msg);
     }
 
-    accumulator_triple create_logic_constraint(const uint32_t a,
-                                               const uint32_t b,
-                                               const size_t num_bits,
-                                               bool is_xor_gate);
-    accumulator_triple create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
-    accumulator_triple create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
+    accumulator_triple_<FF> create_logic_constraint(const uint32_t a,
+                                                    const uint32_t b,
+                                                    const size_t num_bits,
+                                                    bool is_xor_gate);
+    accumulator_triple_<FF> create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
+    accumulator_triple_<FF> create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
 
     uint32_t put_constant_variable(const FF& variable);
 

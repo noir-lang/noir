@@ -45,7 +45,7 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
 
         // Copy the selector values for all gates, keeping the rows at which we store public inputs as 0.
         // Initializing the polynomials in this way automatically applies 0-padding to the selectors.
-        barretenberg::polynomial selector_poly_lagrange(proving_key->circuit_size);
+        typename Flavor::Polynomial selector_poly_lagrange(proving_key->circuit_size);
         for (size_t i = 0; i < selector_values.size(); ++i) {
             selector_poly_lagrange[i + gate_offset] = selector_values[i];
         }
@@ -75,10 +75,10 @@ void construct_selector_polynomials(const typename Flavor::CircuitBuilder& circu
  * @param circuit_constructor
  * @param dyadic_circuit_size Power of 2 circuit size
  *
- * @return std::vector<barretenberg::polynomial>
+ * @return std::vector<typename Flavor::Polynomial>
  * */
 template <typename Flavor>
-std::vector<barretenberg::polynomial> construct_wire_polynomials_base(
+std::vector<typename Flavor::Polynomial> construct_wire_polynomials_base(
     const typename Flavor::CircuitBuilder& circuit_constructor, const size_t dyadic_circuit_size)
 {
     // Determine size of each block of data in the wire polynomials
@@ -96,13 +96,13 @@ std::vector<barretenberg::polynomial> construct_wire_polynomials_base(
     size_t pub_input_offset = num_zero_rows + num_ecc_op_gates;
     size_t gate_offset = num_zero_rows + num_ecc_op_gates + num_public_inputs;
 
-    std::vector<barretenberg::polynomial> wire_polynomials;
+    std::vector<typename Flavor::Polynomial> wire_polynomials;
 
     // Populate the wire polynomials with values from ecc op gates, public inputs and conventional wires
     for (size_t wire_idx = 0; wire_idx < Flavor::NUM_WIRES; ++wire_idx) {
 
         // Expect all values to be set to 0 initially
-        barretenberg::polynomial w_lagrange(dyadic_circuit_size);
+        typename Flavor::Polynomial w_lagrange(dyadic_circuit_size);
 
         // Insert leading zero row into wire poly (for clarity; not stricly necessary due to zero-initialization)
         for (size_t i = 0; i < num_zero_rows; ++i) {

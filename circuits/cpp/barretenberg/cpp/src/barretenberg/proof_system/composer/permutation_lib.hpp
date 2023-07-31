@@ -62,7 +62,9 @@ namespace {
 
 /**
  * @brief Compute all CyclicPermutations of the circuit. Each CyclicPermutation represents the indices of the values in
- * the witness wires that must have the same value.
+ * the witness wires that must have the same value.    using Curve = curve::BN254;
+    using FF = Curve::ScalarField;
+    using Polynomial = barretenberg::Polynomial<FF>;
  *
  * @tparam program_width Program width
  *
@@ -284,6 +286,7 @@ void compute_honk_style_permutation_lagrange_polynomials_from_mapping(
     std::array<std::vector<permutation_subgroup_element>, Flavor::NUM_WIRES>& permutation_mappings,
     typename Flavor::ProvingKey* proving_key)
 {
+    using FF = typename Flavor::FF;
     const size_t num_gates = proving_key->circuit_size;
 
     size_t wire_index = 0;
@@ -299,16 +302,14 @@ void compute_honk_style_permutation_lagrange_polynomials_from_mapping(
             //  -(i+1) -> (n+i)
             // These indices are chosen so they can easily be computed by the verifier. They can expect the running
             // product to be equal to the "public input delta" that is computed in <honk/utils/grand_product_delta.hpp>
-            current_permutation_poly[i] =
-                -barretenberg::fr(current_mapping.row_index + 1 + num_gates * current_mapping.column_index);
+            current_permutation_poly[i] = -FF(current_mapping.row_index + 1 + num_gates * current_mapping.column_index);
         } else if (current_mapping.is_tag) {
             // Set evaluations to (arbitrary) values disjoint from non-tag values
             current_permutation_poly[i] = num_gates * Flavor::NUM_WIRES + current_mapping.row_index;
         } else {
             // For the regular permutation we simply point to the next location by setting the evaluation to its
             // index
-            current_permutation_poly[i] =
-                barretenberg::fr(current_mapping.row_index + num_gates * current_mapping.column_index);
+            current_permutation_poly[i] = FF(current_mapping.row_index + num_gates * current_mapping.column_index);
         }
         ITERATE_OVER_DOMAIN_END;
         wire_index++;

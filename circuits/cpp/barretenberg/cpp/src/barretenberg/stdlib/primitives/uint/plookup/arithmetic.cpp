@@ -10,6 +10,7 @@ namespace stdlib {
 template <typename Composer, typename Native>
 uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator+(const uint_plookup& other) const
 {
+
     ASSERT(context == other.context || (context != nullptr && other.context == nullptr) ||
            (context == nullptr && other.context != nullptr));
     Composer* ctx = (context == nullptr) ? other.context : context;
@@ -26,15 +27,15 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator+(const u
     const uint256_t overflow = sum >> width;
     const uint256_t remainder = sum & MASK;
 
-    const add_quad gate{
+    const add_quad_<FF> gate{
         is_constant() ? ctx->zero_idx : witness_index,
         other.is_constant() ? ctx->zero_idx : other.witness_index,
         ctx->add_variable(remainder),
         ctx->add_variable(overflow),
-        fr::one(),
-        fr::one(),
-        fr::neg_one(),
-        -fr(CIRCUIT_UINT_MAX_PLUS_ONE),
+        FF::one(),
+        FF::one(),
+        FF::neg_one(),
+        -FF(CIRCUIT_UINT_MAX_PLUS_ONE),
         constants,
     };
 
@@ -50,6 +51,7 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator+(const u
 template <typename Composer, typename Native>
 uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator-(const uint_plookup& other) const
 {
+
     ASSERT(context == other.context || (context != nullptr && other.context == nullptr) ||
            (context == nullptr && other.context != nullptr));
 
@@ -71,15 +73,15 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator-(const u
     const uint256_t overflow = difference >> width;
     const uint256_t remainder = difference & MASK;
 
-    const add_quad gate{
+    const add_quad_<FF> gate{
         lhs_idx,
         rhs_idx,
         ctx->add_variable(remainder),
         ctx->add_variable(overflow),
-        fr::one(),
-        fr::neg_one(),
-        fr::neg_one(),
-        -fr(CIRCUIT_UINT_MAX_PLUS_ONE),
+        FF::one(),
+        FF::neg_one(),
+        FF::neg_one(),
+        -FF(CIRCUIT_UINT_MAX_PLUS_ONE),
         CIRCUIT_UINT_MAX_PLUS_ONE + constant_term,
     };
 
@@ -95,6 +97,7 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator-(const u
 template <typename Composer, typename Native>
 uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator*(const uint_plookup& other) const
 {
+
     Composer* ctx = (context == nullptr) ? other.context : context;
 
     if (is_constant() && other.is_constant()) {
@@ -113,16 +116,16 @@ uint_plookup<Composer, Native> uint_plookup<Composer, Native>::operator*(const u
     const uint256_t overflow = product >> width;
     const uint256_t remainder = product & MASK;
 
-    const mul_quad gate{
+    const mul_quad_<FF> gate{
         witness_index,
         rhs_idx,
         ctx->add_variable(remainder),
         ctx->add_variable(overflow),
-        fr::one(),
+        FF::one(),
         other.additive_constant,
         additive_constant,
-        fr::neg_one(),
-        -fr(CIRCUIT_UINT_MAX_PLUS_ONE),
+        FF::neg_one(),
+        -FF(CIRCUIT_UINT_MAX_PLUS_ONE),
         0,
     };
 
@@ -180,12 +183,12 @@ std::pair<uint_plookup<Composer, Native>, uint_plookup<Composer, Native>> uint_p
     // We want to force the divisor to be non-zero, as this is an error state
     if (other.is_constant() && other.get_value() == 0) {
         // TODO: should have an actual error handler!
-        const uint32_t one = ctx->add_variable(fr::one());
-        ctx->assert_equal_constant(one, fr::zero());
+        const uint32_t one = ctx->add_variable(FF::one());
+        ctx->assert_equal_constant(one, FF::zero());
         ctx->failure("plookup_arithmetic: divide by zero!");
     } else if (!other.is_constant()) {
         const bool_t<Composer> is_divisor_zero = field_t<Composer>(other).is_zero();
-        ctx->assert_equal_constant(is_divisor_zero.witness_index, fr::zero(), "plookup_arithmetic: divide by zero!");
+        ctx->assert_equal_constant(is_divisor_zero.witness_index, FF::zero(), "plookup_arithmetic: divide by zero!");
     }
 
     if (is_constant() && other.is_constant()) {
@@ -210,17 +213,17 @@ std::pair<uint_plookup<Composer, Native>, uint_plookup<Composer, Native>> uint_p
     const uint32_t quotient_idx = ctx->add_variable(q);
     const uint32_t remainder_idx = ctx->add_variable(r);
 
-    const mul_quad division_gate{
+    const mul_quad_<FF> division_gate{
         quotient_idx,            // q
         divisor_idx,             // b
         dividend_idx,            // a
         remainder_idx,           // r
-        fr::one(),               // q_m.w_1.w_2 = q.b
+        FF::one(),               // q_m.w_1.w_2 = q.b
         other.additive_constant, // q_l.w_1 = q.b if b const
-        fr::zero(),              // q_2.w_2 = 0
-        fr::neg_one(),           // q_3.w_3 = -a
-        fr::one(),               // q_4.w_4 = r
-        -fr(additive_constant)   // q_c = -a if a const
+        FF::zero(),              // q_2.w_2 = 0
+        FF::neg_one(),           // q_3.w_3 = -a
+        FF::one(),               // q_4.w_4 = r
+        -FF(additive_constant)   // q_c = -a if a const
     };
     ctx->create_big_mul_gate(division_gate);
 
@@ -228,13 +231,13 @@ std::pair<uint_plookup<Composer, Native>, uint_plookup<Composer, Native>> uint_p
     const uint256_t delta = divisor - r;
 
     const uint32_t delta_idx = ctx->add_variable(delta);
-    const add_triple delta_gate{
+    const add_triple_<FF> delta_gate{
         divisor_idx,             // b
         remainder_idx,           // r
         delta_idx,               // d
-        fr::one(),               // q_l = 1
-        fr::neg_one(),           // q_r = -1
-        fr::neg_one(),           // q_o = -1
+        FF::one(),               // q_l = 1
+        FF::neg_one(),           // q_r = -1
+        FF::neg_one(),           // q_o = -1
         other.additive_constant, // q_c = d if const
     };
     ctx->create_add_gate(delta_gate);

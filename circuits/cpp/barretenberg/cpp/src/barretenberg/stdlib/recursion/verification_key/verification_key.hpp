@@ -444,7 +444,7 @@ template <typename Curve> struct verification_key {
 
     // Native data:
 
-    std::shared_ptr<barretenberg::srs::factories::VerifierCrs> reference_string;
+    std::shared_ptr<barretenberg::srs::factories::VerifierCrs<curve::BN254>> reference_string;
 
     PolynomialManifest polynomial_manifest;
     // Used to check in the circuit if a proof contains any aggregated state.

@@ -13,7 +13,7 @@ struct BuilderComposerPtrs {
 };
 
 BuilderComposerPtrs create_builder_and_composer(
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory);
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory);
 
 proof create_proof(BuilderComposerPtrs pair);
 

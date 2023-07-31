@@ -10,6 +10,7 @@ namespace stdlib {
 
 template <typename Composer, typename Native> class uint_plookup {
   public:
+    using FF = typename Composer::FF;
     static constexpr size_t width = sizeof(Native) * 8;
 
     uint_plookup(const witness_t<Composer>& other);

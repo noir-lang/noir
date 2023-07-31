@@ -644,17 +644,17 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
 
     void add_gates_to_ensure_all_polys_are_non_zero();
 
-    void create_add_gate(const add_triple& in) override;
+    void create_add_gate(const add_triple_<FF>& in) override;
 
-    void create_big_add_gate(const add_quad& in, const bool use_next_gate_w_4 = false);
-    void create_big_add_gate_with_bit_extraction(const add_quad& in);
-    void create_big_mul_gate(const mul_quad& in);
-    void create_balanced_add_gate(const add_quad& in);
+    void create_big_add_gate(const add_quad_<FF>& in, const bool use_next_gate_w_4 = false);
+    void create_big_add_gate_with_bit_extraction(const add_quad_<FF>& in);
+    void create_big_mul_gate(const mul_quad_<FF>& in);
+    void create_balanced_add_gate(const add_quad_<FF>& in);
 
-    void create_mul_gate(const mul_triple& in) override;
+    void create_mul_gate(const mul_triple_<FF>& in) override;
     void create_bool_gate(const uint32_t a) override;
-    void create_poly_gate(const poly_triple& in) override;
-    void create_ecc_add_gate(const ecc_add_gate& in);
+    void create_poly_gate(const poly_triple_<FF>& in) override;
+    void create_ecc_add_gate(const ecc_add_gate_<FF>& in);
 
     void fix_witness(const uint32_t witness_index, const FF& witness_value);
 
@@ -678,7 +678,7 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
              *    num_bits <= DEFAULT_PLOOKUP_RANGE_BITNUM is correctly enforced in the circuit.
              *    Longer term, as Zac says, we would need to refactor the composer to fix this.
              **/
-            create_poly_gate(poly_triple{
+            create_poly_gate(poly_triple_<FF>{
                 .a = variable_index,
                 .b = variable_index,
                 .c = variable_index,
@@ -694,12 +694,12 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
         }
     }
 
-    accumulator_triple create_logic_constraint(const uint32_t a,
-                                               const uint32_t b,
-                                               const size_t num_bits,
-                                               bool is_xor_gate);
-    accumulator_triple create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
-    accumulator_triple create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
+    accumulator_triple_<FF> create_logic_constraint(const uint32_t a,
+                                                    const uint32_t b,
+                                                    const size_t num_bits,
+                                                    bool is_xor_gate);
+    accumulator_triple_<FF> create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
+    accumulator_triple_<FF> create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
 
     uint32_t put_constant_variable(const FF& variable);
 
@@ -1201,5 +1201,8 @@ template <typename FF> class UltraCircuitBuilder_ : public CircuitBuilderBase<ar
     bool check_circuit();
 };
 extern template class UltraCircuitBuilder_<barretenberg::fr>;
+// TODO: template plookup to be able to be able to have UltraCircuitBuilder on Grumpkin
+// extern template class UltraCircuitBuilder_<grumpkin::fr>;
 using UltraCircuitBuilder = UltraCircuitBuilder_<barretenberg::fr>;
+// using UltraGrumpkinCircuitBuilder = UltraCircuitBuilder_<grumpkin::fr>;
 } // namespace proof_system

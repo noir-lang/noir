@@ -221,16 +221,11 @@ TEST(turbo_circuit_constructor, small_scalar_multipliers)
     }
     grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
 
-    fixed_group_init_quad init_quad{ origin_points[0].x,
-                                     (origin_points[0].x - origin_points[1].x),
-                                     origin_points[0].y,
-                                     (origin_points[0].y - origin_points[1].y) };
-
     TurboCircuitBuilder circuit_constructor = TurboCircuitBuilder();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
-        fixed_group_add_quad round_quad;
+        fixed_group_add_quad_<barretenberg::fr> round_quad;
         round_quad.d = circuit_constructor.add_variable(accumulator_transcript[i]);
         round_quad.a = circuit_constructor.add_variable(multiplication_transcript[i].x);
         round_quad.b = circuit_constructor.add_variable(multiplication_transcript[i].y);
@@ -248,20 +243,23 @@ TEST(turbo_circuit_constructor, small_scalar_multipliers)
         if (i > 0) {
             circuit_constructor.create_fixed_group_add_gate(round_quad);
         } else {
-            circuit_constructor.create_fixed_group_add_gate_with_init(round_quad, init_quad);
+            circuit_constructor.create_fixed_group_add_gate_with_init(round_quad,
+                                                                      { origin_points[0].x,
+                                                                        (origin_points[0].x - origin_points[1].x),
+                                                                        origin_points[0].y,
+                                                                        (origin_points[0].y - origin_points[1].y) });
         }
     }
 
-    add_quad add_quad{ circuit_constructor.add_variable(multiplication_transcript[num_quads].x),
-                       circuit_constructor.add_variable(multiplication_transcript[num_quads].y),
-                       circuit_constructor.add_variable(x_alpha),
-                       circuit_constructor.add_variable(accumulator_transcript[num_quads]),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero() };
-    circuit_constructor.create_big_add_gate(add_quad);
+    circuit_constructor.create_big_add_gate({ circuit_constructor.add_variable(multiplication_transcript[num_quads].x),
+                                              circuit_constructor.add_variable(multiplication_transcript[num_quads].y),
+                                              circuit_constructor.add_variable(x_alpha),
+                                              circuit_constructor.add_variable(accumulator_transcript[num_quads]),
+                                              fr::zero(),
+                                              fr::zero(),
+                                              fr::zero(),
+                                              fr::zero(),
+                                              fr::zero() });
 
     grumpkin::g1::element expected_point =
         grumpkin::g1::element(generator * scalar_multiplier.to_montgomery_form()).normalize();
@@ -345,16 +343,11 @@ TEST(turbo_circuit_constructor, large_scalar_multipliers)
     }
     grumpkin::g1::element::batch_normalize(&multiplication_transcript[0], num_quads + 1);
 
-    fixed_group_init_quad init_quad{ origin_points[0].x,
-                                     (origin_points[0].x - origin_points[1].x),
-                                     origin_points[0].y,
-                                     (origin_points[0].y - origin_points[1].y) };
-
     TurboCircuitBuilder circuit_constructor = TurboCircuitBuilder();
 
     fr x_alpha = accumulator_offset;
     for (size_t i = 0; i < num_quads; ++i) {
-        fixed_group_add_quad round_quad;
+        fixed_group_add_quad_<barretenberg::fr> round_quad;
         round_quad.d = circuit_constructor.add_variable(accumulator_transcript[i]);
         round_quad.a = circuit_constructor.add_variable(multiplication_transcript[i].x);
         round_quad.b = circuit_constructor.add_variable(multiplication_transcript[i].y);
@@ -372,20 +365,23 @@ TEST(turbo_circuit_constructor, large_scalar_multipliers)
         if (i > 0) {
             circuit_constructor.create_fixed_group_add_gate(round_quad);
         } else {
-            circuit_constructor.create_fixed_group_add_gate_with_init(round_quad, init_quad);
+            circuit_constructor.create_fixed_group_add_gate_with_init(round_quad,
+                                                                      { origin_points[0].x,
+                                                                        (origin_points[0].x - origin_points[1].x),
+                                                                        origin_points[0].y,
+                                                                        (origin_points[0].y - origin_points[1].y) });
         }
     }
 
-    add_quad add_quad{ circuit_constructor.add_variable(multiplication_transcript[num_quads].x),
-                       circuit_constructor.add_variable(multiplication_transcript[num_quads].y),
-                       circuit_constructor.add_variable(x_alpha),
-                       circuit_constructor.add_variable(accumulator_transcript[num_quads]),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero() };
-    circuit_constructor.create_big_add_gate(add_quad);
+    circuit_constructor.create_big_add_gate({ circuit_constructor.add_variable(multiplication_transcript[num_quads].x),
+                                              circuit_constructor.add_variable(multiplication_transcript[num_quads].y),
+                                              circuit_constructor.add_variable(x_alpha),
+                                              circuit_constructor.add_variable(accumulator_transcript[num_quads]),
+                                              fr::zero(),
+                                              fr::zero(),
+                                              fr::zero(),
+                                              fr::zero(),
+                                              fr::zero() });
 
     grumpkin::g1::element expected_point =
         grumpkin::g1::element(generator * scalar_multiplier.to_montgomery_form()).normalize();
@@ -474,8 +470,7 @@ TEST(turbo_circuit_constructor, and_constraint_failure)
     uint32_t right_witness_index = circuit_constructor.add_variable(right_witness_value);
 
     // 4 && 5 is 4, so 3 bits are needed, but we only constrain 2
-    accumulator_triple accumulators =
-        circuit_constructor.create_and_constraint(left_witness_index, right_witness_index, 2);
+    auto accumulators = circuit_constructor.create_and_constraint(left_witness_index, right_witness_index, 2);
 
     bool result = circuit_constructor.check_circuit();
 
@@ -504,7 +499,7 @@ TEST(turbo_circuit_constructor, and_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        accumulator_triple accumulators =
+        auto accumulators =
             circuit_constructor.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
         // circuit_constructor.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
@@ -571,8 +566,7 @@ TEST(turbo_circuit_constructor, xor_constraint_failure)
     uint32_t right_witness_index = circuit_constructor.add_variable(right_witness_value);
 
     // 4 && 1 is 5, so 3 bits are needed, but we only constrain 2
-    accumulator_triple accumulators =
-        circuit_constructor.create_and_constraint(left_witness_index, right_witness_index, 2);
+    auto accumulators = circuit_constructor.create_and_constraint(left_witness_index, right_witness_index, 2);
 
     bool result = circuit_constructor.check_circuit();
 
@@ -601,7 +595,7 @@ TEST(turbo_circuit_constructor, xor_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        accumulator_triple accumulators =
+        auto accumulators =
             circuit_constructor.create_xor_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
         for (uint32_t j = 0; j < 16; ++j) {
@@ -665,17 +659,16 @@ TEST(turbo_circuit_constructor, big_add_gate_with_bit_extract)
         uint32_t input = engine.get_random_uint32();
         uint32_t output = input + (quad_value > 1 ? 1 : 0);
 
-        add_quad gate{ circuit_constructor.add_variable(uint256_t(input)),
-                       circuit_constructor.add_variable(uint256_t(output)),
-                       right_idx,
-                       left_idx,
-                       fr(6),
-                       -fr(6),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero() };
-
-        circuit_constructor.create_big_add_gate_with_bit_extraction(gate);
+        circuit_constructor.create_big_add_gate_with_bit_extraction(
+            { circuit_constructor.add_variable(uint256_t(input)),
+              circuit_constructor.add_variable(uint256_t(output)),
+              right_idx,
+              left_idx,
+              fr(6),
+              -fr(6),
+              fr::zero(),
+              fr::zero(),
+              fr::zero() });
     };
 
     generate_constraints(0);

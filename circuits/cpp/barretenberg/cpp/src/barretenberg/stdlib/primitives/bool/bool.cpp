@@ -150,11 +150,16 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator&(const bool_t& other) 
         fr q2(i_a * (1 - 2 * i_b));
         fr q3(-1);
         fr qc(i_a * i_b);
-
-        const poly_triple gate_coefficients{
-            witness_index, other.witness_index, result.witness_index, qm, q1, q2, q3, qc,
-        };
-        context->create_poly_gate(gate_coefficients);
+        context->create_poly_gate({
+            witness_index,
+            other.witness_index,
+            result.witness_index,
+            qm,
+            q1,
+            q2,
+            q3,
+            qc,
+        });
     } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         if (other.witness_bool ^ other.witness_inverted) {
             result = bool_t<ComposerContext>(*this);
@@ -229,11 +234,14 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator|(const bool_t& other) 
             right_coefficient = barretenberg::fr::one();
             constant_coefficient = barretenberg::fr::zero();
         }
-        const poly_triple gate_coefficients{
-            witness_index,    other.witness_index, result.witness_index,        multiplicative_coefficient,
-            left_coefficient, right_coefficient,   barretenberg::fr::neg_one(), constant_coefficient
-        };
-        context->create_poly_gate(gate_coefficients);
+        context->create_poly_gate({ witness_index,
+                                    other.witness_index,
+                                    result.witness_index,
+                                    multiplicative_coefficient,
+                                    left_coefficient,
+                                    right_coefficient,
+                                    barretenberg::fr::neg_one(),
+                                    constant_coefficient });
     } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         if (other.witness_bool ^ other.witness_inverted) {
             result.witness_index = IS_CONSTANT;
@@ -289,11 +297,14 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator^(const bool_t& other) 
             right_coefficient = barretenberg::fr::neg_one();
             constant_coefficient = barretenberg::fr::one();
         }
-        const poly_triple gate_coefficients{
-            witness_index,    other.witness_index, result.witness_index,        multiplicative_coefficient,
-            left_coefficient, right_coefficient,   barretenberg::fr::neg_one(), constant_coefficient
-        };
-        context->create_poly_gate(gate_coefficients);
+        context->create_poly_gate({ witness_index,
+                                    other.witness_index,
+                                    result.witness_index,
+                                    multiplicative_coefficient,
+                                    left_coefficient,
+                                    right_coefficient,
+                                    barretenberg::fr::neg_one(),
+                                    constant_coefficient });
     } else if (witness_index != IS_CONSTANT && other.witness_index == IS_CONSTANT) {
         // witness ^ 1 = !witness
         if (other.witness_bool ^ other.witness_inverted) {
@@ -364,11 +375,14 @@ bool_t<ComposerContext> bool_t<ComposerContext>::operator==(const bool_t& other)
             right_coefficient = barretenberg::fr::one();
             constant_coefficient = barretenberg::fr::zero();
         }
-        const poly_triple gate_coefficients{
-            witness_index,    other.witness_index, result.witness_index,        multiplicative_coefficient,
-            left_coefficient, right_coefficient,   barretenberg::fr::neg_one(), constant_coefficient
-        };
-        context->create_poly_gate(gate_coefficients);
+        context->create_poly_gate({ witness_index,
+                                    other.witness_index,
+                                    result.witness_index,
+                                    multiplicative_coefficient,
+                                    left_coefficient,
+                                    right_coefficient,
+                                    barretenberg::fr::neg_one(),
+                                    constant_coefficient });
         return result;
     }
 }
@@ -538,10 +552,7 @@ template <typename ComposerContext> bool_t<ComposerContext> bool_t<ComposerConte
     barretenberg::fr q_o = barretenberg::fr::neg_one();
     barretenberg::fr q_m = barretenberg::fr::zero();
     barretenberg::fr q_r = barretenberg::fr::zero();
-
-    const poly_triple gate_coefficients{ witness_index, witness_index, new_witness, q_m, q_l, q_r, q_o, q_c };
-
-    context->create_poly_gate(gate_coefficients);
+    context->create_poly_gate({ witness_index, witness_index, new_witness, q_m, q_l, q_r, q_o, q_c });
 
     witness_index = new_witness;
     witness_bool = new_value;

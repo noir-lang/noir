@@ -59,7 +59,8 @@ join_split_tx noop_tx()
     return tx;
 }
 
-circuit_data get_circuit_data(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& srs, bool mock)
+circuit_data get_circuit_data(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& srs,
+                              bool mock)
 {
     std::cerr << "Getting join-split circuit data..." << std::endl;
 

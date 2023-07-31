@@ -24,11 +24,47 @@ TEST(standard_circuit_constructor, base_case)
 
 TEST(standard_circuit_constructor, grumpkin_base_case)
 {
-    StandardGrumpkinCircuitBuilder composer = StandardGrumpkinCircuitBuilder();
+    StandardGrumpkinCircuitBuilder circuit_constructor = StandardGrumpkinCircuitBuilder();
     grumpkin::fr a = grumpkin::fr::one();
-    composer.add_public_variable(a);
+    circuit_constructor.add_public_variable(a);
+    grumpkin::fr b = grumpkin::fr::one();
+    grumpkin::fr c = a + b;
+    grumpkin::fr d = a + c;
+    uint32_t a_idx = circuit_constructor.add_variable(a);
+    uint32_t b_idx = circuit_constructor.add_variable(b);
+    uint32_t c_idx = circuit_constructor.add_variable(c);
+    uint32_t d_idx = circuit_constructor.add_variable(d);
 
-    bool result = composer.check_circuit();
+    uint32_t w_l_2_idx = circuit_constructor.add_variable(2);
+    uint32_t w_r_2_idx = circuit_constructor.add_variable(2);
+    uint32_t w_o_2_idx = circuit_constructor.add_variable(4);
+    circuit_constructor.create_mul_gate({ w_l_2_idx, w_r_2_idx, w_o_2_idx, 1, -1, 0 });
+
+    circuit_constructor.create_add_gate({ a_idx,
+                                          b_idx,
+                                          c_idx,
+                                          grumpkin::fr::one(),
+                                          grumpkin::fr::one(),
+                                          grumpkin::fr::neg_one(),
+                                          grumpkin::fr::zero() });
+
+    circuit_constructor.create_add_gate({ d_idx,
+                                          c_idx,
+                                          a_idx,
+                                          grumpkin::fr::one(),
+                                          grumpkin::fr::neg_one(),
+                                          grumpkin::fr::neg_one(),
+                                          grumpkin::fr::zero() });
+
+    circuit_constructor.create_add_gate({ d_idx,
+                                          c_idx,
+                                          b_idx,
+                                          grumpkin::fr::one(),
+                                          grumpkin::fr::neg_one(),
+                                          grumpkin::fr::neg_one(),
+                                          grumpkin::fr::zero() });
+
+    bool result = circuit_constructor.check_circuit();
     EXPECT_EQ(result, true);
 }
 
@@ -229,7 +265,7 @@ TEST(standard_circuit_constructor, and_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        accumulator_triple accumulators =
+        auto accumulators =
             circuit_constructor.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
         // circuit_constructor.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
@@ -297,7 +333,7 @@ TEST(standard_circuit_constructor, xor_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        accumulator_triple accumulators =
+        auto accumulators =
             circuit_constructor.create_xor_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
         for (uint32_t j = 0; j < 16; ++j) {
@@ -361,17 +397,16 @@ TEST(standard_circuit_constructor, big_add_gate_with_bit_extract)
         uint32_t input = engine.get_random_uint32();
         uint32_t output = input + (quad_value > 1 ? 1 : 0);
 
-        add_quad gate{ circuit_constructor.add_variable(uint256_t(input)),
-                       circuit_constructor.add_variable(uint256_t(output)),
-                       right_idx,
-                       left_idx,
-                       fr(6),
-                       -fr(6),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero() };
-
-        circuit_constructor.create_big_add_gate_with_bit_extraction(gate);
+        circuit_constructor.create_big_add_gate_with_bit_extraction(
+            { circuit_constructor.add_variable(uint256_t(input)),
+              circuit_constructor.add_variable(uint256_t(output)),
+              right_idx,
+              left_idx,
+              fr(6),
+              -fr(6),
+              fr::zero(),
+              fr::zero(),
+              fr::zero() });
     };
 
     generate_constraints(0);

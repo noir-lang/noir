@@ -1129,17 +1129,16 @@ template <typename Composer> class stdlib_uint : public testing::Test {
 
         // constraint: qb + const_b q + 0 b - a + r - const_a == 0
         // i.e., a + const_a = q(b + const_b) + r
-        const mul_quad division_gate{ .a = quotient_idx,  // q
-                                      .b = divisor_idx,   // b
-                                      .c = dividend_idx,  // a
-                                      .d = remainder_idx, // r
-                                      .mul_scaling = fr::one(),
-                                      .a_scaling = b.get_additive_constant(),
-                                      .b_scaling = fr::zero(),
-                                      .c_scaling = fr::neg_one(),
-                                      .d_scaling = fr::one(),
-                                      .const_scaling = -a.get_additive_constant() };
-        composer.create_big_mul_gate(division_gate);
+        composer.create_big_mul_gate({ .a = quotient_idx,  // q
+                                       .b = divisor_idx,   // b
+                                       .c = dividend_idx,  // a
+                                       .d = remainder_idx, // r
+                                       .mul_scaling = fr::one(),
+                                       .a_scaling = b.get_additive_constant(),
+                                       .b_scaling = fr::zero(),
+                                       .c_scaling = fr::neg_one(),
+                                       .d_scaling = fr::one(),
+                                       .const_scaling = -a.get_additive_constant() });
 
         // set delta = (b + const_b - r)
 
@@ -1147,7 +1146,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
         const uint256_t delta = divisor - r - 1;
         const uint32_t delta_idx = composer.add_variable(delta);
 
-        const add_triple delta_gate{
+        composer.create_add_gate({
             .a = divisor_idx,   // b
             .b = remainder_idx, // r
             .c = delta_idx,     // d
@@ -1155,9 +1154,7 @@ template <typename Composer> class stdlib_uint : public testing::Test {
             .b_scaling = fr::neg_one(),
             .c_scaling = fr::neg_one(),
             .const_scaling = b.get_additive_constant(),
-        };
-
-        composer.create_add_gate(delta_gate);
+        });
 
         // validate delta is in the correct range
         stdlib::field_t<Composer>::from_witness_index(&composer, delta_idx)

@@ -15,8 +15,8 @@
  *
  */
 namespace proof_system::honk::pcs::ipa {
-
 template <typename Params> class IPA {
+    using Curve = typename Params::Curve;
     using Fr = typename Params::Fr;
     using GroupElement = typename Params::GroupElement;
     using Commitment = typename Params::Commitment;
@@ -86,15 +86,14 @@ template <typename Params> class IPA {
             // L_i = < a_vec_lo, G_vec_hi > + inner_prod_L * aux_generator
             L_elements[i] =
                 // TODO(#473)
-                barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<curve::BN254>(
+                barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
                     &a_vec[0], &G_vec_local[round_size], round_size, ck->pippenger_runtime_state);
             L_elements[i] += aux_generator * inner_prod_L;
 
             // R_i = < a_vec_hi, G_vec_lo > + inner_prod_R * aux_generator
             // TODO(#473)
-            R_elements[i] =
-                barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<curve::BN254>(
-                    &a_vec[round_size], &G_vec_local[0], round_size, ck->pippenger_runtime_state);
+            R_elements[i] = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
+                &a_vec[round_size], &G_vec_local[0], round_size, ck->pippenger_runtime_state);
             R_elements[i] += aux_generator * inner_prod_R;
 
             std::string index = std::to_string(i);
@@ -168,9 +167,8 @@ template <typename Params> class IPA {
             msm_scalars[2 * i + 1] = round_challenges_inv[i].sqr();
         }
         // TODO(#473)
-        GroupElement LR_sums =
-            barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<curve::BN254>(
-                &msm_scalars[0], &msm_elements[0], pippenger_size, vk->pippenger_runtime_state);
+        GroupElement LR_sums = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
+            &msm_scalars[0], &msm_elements[0], pippenger_size, vk->pippenger_runtime_state);
         GroupElement C_zero = C_prime + LR_sums;
 
         /**
@@ -213,7 +211,7 @@ template <typename Params> class IPA {
             G_vec_local[i >> 1] = srs_elements[i];
         }
         // TODO(#473)
-        auto G_zero = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<curve::BN254>(
+        auto G_zero = barretenberg::scalar_multiplication::pippenger_without_endomorphism_basis_points<Curve>(
             &s_vec[0], &G_vec_local[0], poly_degree, vk->pippenger_runtime_state);
 
         auto a_zero = transcript.template receive_from_prover<Fr>("IPA:a_0");

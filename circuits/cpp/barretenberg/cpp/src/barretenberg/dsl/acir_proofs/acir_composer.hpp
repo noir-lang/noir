@@ -13,16 +13,18 @@ class AcirComposer {
 
     void create_circuit(acir_format::acir_format& constraint_system);
 
-    void init_proving_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
+    void init_proving_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory,
                           acir_format::acir_format& constraint_system);
 
-    std::vector<uint8_t> create_proof(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
-                                      acir_format::acir_format& constraint_system,
-                                      acir_format::WitnessVector& witness,
-                                      bool is_recursive);
+    std::vector<uint8_t> create_proof(
+        std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory,
+        acir_format::acir_format& constraint_system,
+        acir_format::WitnessVector& witness,
+        bool is_recursive);
 
-    void load_verification_key(std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory,
-                               proof_system::plonk::verification_key_data&& data);
+    void load_verification_key(
+        std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory,
+        proof_system::plonk::verification_key_data&& data);
 
     std::shared_ptr<proof_system::plonk::verification_key> init_verification_key();
 

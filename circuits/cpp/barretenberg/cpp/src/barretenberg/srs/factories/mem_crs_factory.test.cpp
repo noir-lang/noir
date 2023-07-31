@@ -12,7 +12,7 @@ using namespace barretenberg::srs::factories;
 TEST(reference_string, mem_file_consistency)
 {
     // Load 1024 from file.
-    auto file_crs = FileCrsFactory("../srs_db/ignition", 1024);
+    auto file_crs = FileCrsFactory<curve::BN254>("../srs_db/ignition", 1024);
 
     // Use low level io lib to read 1024 from file.
     std::vector<g1::affine_element> points(1024);
@@ -42,4 +42,9 @@ TEST(reference_string, mem_file_consistency)
                      file_verifier_crs->get_precomputed_g2_lines(),
                      sizeof(barretenberg::pairing::miller_lines) * 2),
               0);
+}
+
+TEST(reference_string, grumpkin)
+{
+    auto file_crs = FileCrsFactory<curve::Grumpkin>("../srs_db/grumpkin");
 }

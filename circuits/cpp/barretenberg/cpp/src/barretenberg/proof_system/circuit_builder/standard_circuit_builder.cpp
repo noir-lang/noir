@@ -301,14 +301,14 @@ std::vector<uint32_t> StandardCircuitBuilder_<FF>::decompose_into_base4_accumula
 }
 
 template <typename FF>
-accumulator_triple StandardCircuitBuilder_<FF>::create_logic_constraint(const uint32_t a,
-                                                                        const uint32_t b,
-                                                                        const size_t num_bits,
-                                                                        const bool is_xor_gate)
+accumulator_triple_<FF> StandardCircuitBuilder_<FF>::create_logic_constraint(const uint32_t a,
+                                                                             const uint32_t b,
+                                                                             const size_t num_bits,
+                                                                             const bool is_xor_gate)
 {
     this->assert_valid_variables({ a, b });
 
-    accumulator_triple accumulators;
+    accumulator_triple_<FF> accumulators;
 
     const uint256_t left_witness_value(this->get_variable(a));
     const uint256_t right_witness_value(this->get_variable(b));
@@ -457,17 +457,17 @@ template <typename FF> uint32_t StandardCircuitBuilder_<FF>::put_constant_variab
 }
 
 template <typename FF>
-accumulator_triple StandardCircuitBuilder_<FF>::create_and_constraint(const uint32_t a,
-                                                                      const uint32_t b,
-                                                                      const size_t num_bits)
+accumulator_triple_<FF> StandardCircuitBuilder_<FF>::create_and_constraint(const uint32_t a,
+                                                                           const uint32_t b,
+                                                                           const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, false);
 }
 
 template <typename FF>
-accumulator_triple StandardCircuitBuilder_<FF>::create_xor_constraint(const uint32_t a,
-                                                                      const uint32_t b,
-                                                                      const size_t num_bits)
+accumulator_triple_<FF> StandardCircuitBuilder_<FF>::create_xor_constraint(const uint32_t a,
+                                                                           const uint32_t b,
+                                                                           const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, true);
 }
@@ -494,13 +494,16 @@ template <typename FF> bool StandardCircuitBuilder_<FF>::check_circuit()
     FF gate_sum;
     FF left, right, output;
     for (size_t i = 0; i < this->num_gates; i++) {
+
         gate_sum = FF::zero();
         left = this->get_variable(w_l[i]);
         right = this->get_variable(w_r[i]);
         output = this->get_variable(w_o[i]);
         gate_sum = q_m[i] * left * right + q_1[i] * left + q_2[i] * right + q_3[i] * output + q_c[i];
-        if (!gate_sum.is_zero())
+        if (!gate_sum.is_zero()) {
+            info("gate number", i);
             return false;
+        }
     }
     return true;
 }

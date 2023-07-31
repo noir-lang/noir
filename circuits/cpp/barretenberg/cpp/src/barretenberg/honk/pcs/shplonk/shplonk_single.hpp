@@ -20,6 +20,7 @@ template <typename Params> class SingleBatchOpeningScheme {
     using GroupElement = typename Params::GroupElement;
     using Commitment = typename Params::Commitment;
     using Polynomial = barretenberg::Polynomial<Fr>;
+    using VK = typename Params::VerificationKey;
 
   public:
     /**
@@ -123,7 +124,8 @@ template <typename Params> class SingleBatchOpeningScheme {
      * @param transcript
      * @return OpeningClaim
      */
-    static OpeningClaim<Params> reduce_verify(std::span<const OpeningClaim<Params>> claims,
+    static OpeningClaim<Params> reduce_verify(std::shared_ptr<VK> vk,
+                                              std::span<const OpeningClaim<Params>> claims,
                                               VerifierTranscript<Fr>& transcript)
     {
         const size_t num_claims = claims.size();
@@ -169,7 +171,9 @@ template <typename Params> class SingleBatchOpeningScheme {
             current_nu *= nu;
         }
         // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
-        G_commitment += GroupElement::one() * G_commitment_constant;
+
+        //  GroupElement sort_of_one{ x, y };
+        G_commitment += vk->srs->get_first_g1() * G_commitment_constant;
 
         // Return opening pair (z, 0) and commitment [G]
         return { { z_challenge, Fr::zero() }, G_commitment };

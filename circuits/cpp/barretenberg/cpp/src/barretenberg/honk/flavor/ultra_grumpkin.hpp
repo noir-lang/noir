@@ -2,6 +2,7 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/ipa/ipa.hpp"
+#include "barretenberg/honk/pcs/kzg/kzg.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 #include "barretenberg/honk/sumcheck/relations/auxiliary_relation.hpp"
@@ -25,19 +26,19 @@
 namespace proof_system::honk::flavor {
 
 class UltraGrumpkin {
-    // TODO(Mara): At the moment this class is a duplicate of the Standard flavor with a different PCS for testing
-    // purposes. This will be changed to Grumpkin once generating Honk proofs over Grumpkin has been enabled.
+    // TODO(#636): At the moment this class is a duplicate of the Ultra flavor with a different PCS for testing
+    // purposes. This can be changed to Grumpkin and IPA once UltraCircuitBuilder also works on Grumpkin.
   public:
     using CircuitBuilder = UltraCircuitBuilder;
-    using FF = barretenberg::fr;
+    using PCSParams = pcs::kzg::Params;
+    using PCS = pcs::kzg::KZG<PCSParams>;
+    using Curve = PCSParams::Curve;
+    using GroupElement = Curve::Element;
+    using Commitment = Curve::AffineElement;
+    using CommitmentHandle = Curve::AffineElement;
+    using FF = Curve::ScalarField;
     using Polynomial = barretenberg::Polynomial<FF>;
     using PolynomialHandle = std::span<FF>;
-    using G1 = barretenberg::g1;
-    using GroupElement = G1::element;
-    using Commitment = G1::affine_element;
-    using CommitmentHandle = G1::affine_element;
-    using PCSParams = pcs::ipa::Params;
-    using PCS = pcs::ipa::IPA<PCSParams>;
 
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often

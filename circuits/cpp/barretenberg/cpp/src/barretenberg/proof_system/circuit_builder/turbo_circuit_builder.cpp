@@ -33,7 +33,7 @@ TurboCircuitBuilder_<FF>::TurboCircuitBuilder_(const size_t size_hint)
  * @param in Specifies addition gate parameters:
  * w_l, w_r, w_o, q_1, q_2, q_3, q_c.
  * */
-template <typename FF> void TurboCircuitBuilder_<FF>::create_add_gate(const add_triple& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_add_gate(const add_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
@@ -64,7 +64,7 @@ template <typename FF> void TurboCircuitBuilder_<FF>::create_add_gate(const add_
  * @param in Specifies addition gate parameters:
  * w_l, w_r, w_o, w_4, q_1, q_2, q_3, q_4, q_c.
  * */
-template <typename FF> void TurboCircuitBuilder_<FF>::create_big_add_gate(const add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_big_add_gate(const add_quad_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -102,7 +102,7 @@ template <typename FF> void TurboCircuitBuilder_<FF>::create_big_add_gate(const 
  * ensure this assumption is backed by a constraint (e.g., c and d could be accumulators produced using the TurboPLONK
  * function `decompose_into_base4_accumulators`).
  * */
-template <typename FF> void TurboCircuitBuilder_<FF>::create_big_add_gate_with_bit_extraction(const add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_big_add_gate_with_bit_extraction(const add_quad_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -124,7 +124,7 @@ template <typename FF> void TurboCircuitBuilder_<FF>::create_big_add_gate_with_b
     ++this->num_gates;
 }
 
-template <typename FF> void TurboCircuitBuilder_<FF>::create_big_mul_gate(const mul_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_big_mul_gate(const mul_quad_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -163,7 +163,7 @@ template <typename FF> void TurboCircuitBuilder_<FF>::create_big_mul_gate(const 
  * @warning Even with the constraint on w_3, it is typically necessary to range constrain the wire value that will be
  * returned.
  */
-template <typename FF> void TurboCircuitBuilder_<FF>::create_balanced_add_gate(const add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_balanced_add_gate(const add_quad_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -194,7 +194,7 @@ template <typename FF> void TurboCircuitBuilder_<FF>::create_balanced_add_gate(c
  * @param in Contains the values for w_l, w_r, w_o,
  * q_m, q_3, q_c.
  * */
-template <typename FF> void TurboCircuitBuilder_<FF>::create_mul_gate(const mul_triple& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_mul_gate(const mul_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
@@ -255,7 +255,7 @@ template <typename FF> void TurboCircuitBuilder_<FF>::create_bool_gate(const uin
  * @param in Contains the values for
  * w_l, w_r, w_o, q_m, q_1, q_2, q_3, q_c.
  * */
-template <typename FF> void TurboCircuitBuilder_<FF>::create_poly_gate(const poly_triple& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_poly_gate(const poly_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
@@ -283,7 +283,7 @@ template <typename FF> void TurboCircuitBuilder_<FF>::create_poly_gate(const pol
  *
  * @param in Witnesses and values of two points.
  * */
-template <typename FF> void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate(const fixed_group_add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate(const fixed_group_add_quad_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -314,8 +314,8 @@ template <typename FF> void TurboCircuitBuilder_<FF>::create_fixed_group_add_gat
  * @param init Initialization parameters (points).
  * */
 template <typename FF>
-void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate_with_init(const fixed_group_add_quad& in,
-                                                                     const fixed_group_init_quad& init)
+void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate_with_init(const fixed_group_add_quad_<FF>& in,
+                                                                     const fixed_group_init_quad_<FF>& init)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -339,7 +339,7 @@ void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate_with_init(const fixed
     ++this->num_gates;
 }
 
-template <typename FF> void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate_final(const add_quad& in)
+template <typename FF> void TurboCircuitBuilder_<FF>::create_fixed_group_add_gate_final(const add_quad_<FF>& in)
 {
     create_big_add_gate(in);
 }
@@ -563,10 +563,10 @@ std::vector<uint32_t> TurboCircuitBuilder_<FF>::decompose_into_base4_accumulator
  * The same holds, mutatis mutandis, for T.right.
  */
 template <typename FF>
-accumulator_triple TurboCircuitBuilder_<FF>::create_logic_constraint(const uint32_t a,
-                                                                     const uint32_t b,
-                                                                     const size_t num_bits,
-                                                                     const bool is_xor_gate)
+accumulator_triple_<FF> TurboCircuitBuilder_<FF>::create_logic_constraint(const uint32_t a,
+                                                                          const uint32_t b,
+                                                                          const size_t num_bits,
+                                                                          const bool is_xor_gate)
 {
     this->assert_valid_variables({ a, b });
 
@@ -647,7 +647,7 @@ accumulator_triple TurboCircuitBuilder_<FF>::create_logic_constraint(const uint3
     const uint256_t left_witness_value(this->get_variable(a));
     const uint256_t right_witness_value(this->get_variable(b));
 
-    accumulator_triple accumulators;
+    accumulator_triple_<FF> accumulators;
     FF left_accumulator = FF::zero();
     FF right_accumulator = FF::zero();
     FF out_accumulator = FF::zero();
@@ -751,17 +751,17 @@ accumulator_triple TurboCircuitBuilder_<FF>::create_logic_constraint(const uint3
 }
 
 template <typename FF>
-accumulator_triple TurboCircuitBuilder_<FF>::create_and_constraint(const uint32_t a,
-                                                                   const uint32_t b,
-                                                                   const size_t num_bits)
+accumulator_triple_<FF> TurboCircuitBuilder_<FF>::create_and_constraint(const uint32_t a,
+                                                                        const uint32_t b,
+                                                                        const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, false);
 }
 
 template <typename FF>
-accumulator_triple TurboCircuitBuilder_<FF>::create_xor_constraint(const uint32_t a,
-                                                                   const uint32_t b,
-                                                                   const size_t num_bits)
+accumulator_triple_<FF> TurboCircuitBuilder_<FF>::create_xor_constraint(const uint32_t a,
+                                                                        const uint32_t b,
+                                                                        const size_t num_bits)
 {
     return create_logic_constraint(a, b, num_bits, true);
 }

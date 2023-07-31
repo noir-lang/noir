@@ -13,7 +13,8 @@
 namespace proof_system::honk::pcs::shplonk {
 template <class Params> class ShplonkTest : public CommitmentTest<Params> {};
 
-TYPED_TEST_SUITE(ShplonkTest, CommitmentSchemeParams);
+using ParamsTypes = ::testing::Types<kzg::Params, ipa::Params>;
+TYPED_TEST_SUITE(ShplonkTest, ParamsTypes);
 
 // Test of Shplonk prover/verifier for two polynomials of different size, each opened at a single (different) point
 TYPED_TEST(ShplonkTest, ShplonkSimple)
@@ -64,7 +65,7 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
 
     // Execute the shplonk verifier functionality
-    const auto verifier_claim = Shplonk::reduce_verify(opening_claims, verifier_transcript);
+    const auto verifier_claim = Shplonk::reduce_verify(this->vk(), opening_claims, verifier_transcript);
 
     this->verify_opening_claim(verifier_claim, shplonk_prover_witness);
 }

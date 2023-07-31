@@ -124,8 +124,8 @@ TYPED_TEST(TranscriptTests, ProverManifestConsistency)
 {
     using Flavor = TypeParam;
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
-    fr a = 1;
-    auto circuit_constructor = proof_system::StandardCircuitBuilder();
+    typename Flavor::FF a = 1;
+    auto circuit_constructor = typename Flavor::CircuitBuilder();
     circuit_constructor.add_variable(a);
     circuit_constructor.add_public_variable(a);
 
@@ -152,8 +152,8 @@ TYPED_TEST(TranscriptTests, VerifierManifestConsistency)
 {
     using Flavor = TypeParam;
     // Construct a simple circuit of size n = 8 (i.e. the minimum circuit size)
-    auto circuit_constructor = proof_system::StandardCircuitBuilder();
-    fr a = 1;
+    typename Flavor::FF a = 1;
+    auto circuit_constructor = typename Flavor::CircuitBuilder();
     circuit_constructor.add_variable(a);
     circuit_constructor.add_public_variable(a);
 

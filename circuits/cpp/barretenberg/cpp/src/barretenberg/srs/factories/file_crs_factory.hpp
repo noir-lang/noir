@@ -1,15 +1,44 @@
 #pragma once
+#include "../io.hpp"
 #include "barretenberg/ecc/curves/bn254/bn254.hpp"
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
+#include "barretenberg/ecc/scalar_multiplication/point_table.hpp"
+#include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "crs_factory.hpp"
 #include <cstddef>
 #include <utility>
 
 namespace barretenberg::srs::factories {
 
+/**
+ * Create reference strings given a path to a directory of transcript files.
+ */
+template <typename Curve> class FileCrsFactory : public CrsFactory<Curve> {
+  public:
+    FileCrsFactory(std::string path, size_t initial_degree = 0);
+    FileCrsFactory(FileCrsFactory&& other) = default;
+
+    std::shared_ptr<barretenberg::srs::factories::ProverCrs<Curve>> get_prover_crs(size_t degree) override;
+
+    std::shared_ptr<barretenberg::srs::factories::VerifierCrs<Curve>> get_verifier_crs(size_t degree = 0) override;
+
+  private:
+    std::string path_;
+    size_t degree_;
+    std::shared_ptr<barretenberg::srs::factories::ProverCrs<Curve>> prover_crs_;
+    std::shared_ptr<barretenberg::srs::factories::VerifierCrs<Curve>> verifier_crs_;
+};
+
 template <typename Curve> class FileProverCrs : public ProverCrs<Curve> {
   public:
-    FileProverCrs(const size_t num_points, std::string const& path);
+    FileProverCrs(const size_t num_points, std::string const& path)
+        : num_points(num_points)
+    {
+        monomials_ = scalar_multiplication::point_table_alloc<typename Curve::AffineElement>(num_points);
+
+        srs::IO<Curve>::read_transcript_g1(monomials_.get(), num_points, path);
+        scalar_multiplication::generate_pippenger_point_table<Curve>(monomials_.get(), monomials_.get(), num_points);
+    };
 
     typename Curve::AffineElement* get_monomial_points() { return monomials_.get(); }
 
@@ -20,38 +49,41 @@ template <typename Curve> class FileProverCrs : public ProverCrs<Curve> {
     std::shared_ptr<typename Curve::AffineElement[]> monomials_;
 };
 
-class FileVerifierCrs : public VerifierCrs {
+template <typename Curve> class FileVerifierCrs : public VerifierCrs<Curve> {
   public:
-    FileVerifierCrs(std::string const& path);
+    FileVerifierCrs(std::string const& path, const size_t num_points);
+};
 
-    ~FileVerifierCrs();
+template <> class FileVerifierCrs<curve::BN254> : public VerifierCrs<curve::BN254> {
+    using Curve = curve::BN254;
 
-    g2::affine_element get_g2x() const override;
-
-    pairing::miller_lines const* get_precomputed_g2_lines() const override;
+  public:
+    FileVerifierCrs(std::string const& path, const size_t num_points = 0);
+    virtual ~FileVerifierCrs();
+    Curve::G2AffineElement get_g2x() const override { return g2_x; };
+    pairing::miller_lines const* get_precomputed_g2_lines() const override { return precomputed_g2_lines; };
+    Curve::AffineElement get_first_g1() const override { return first_g1; };
 
   private:
-    g2::affine_element g2_x;
+    Curve::AffineElement first_g1;
+    Curve::G2AffineElement g2_x;
     pairing::miller_lines* precomputed_g2_lines;
 };
 
-/**
- * Create reference strings given a path to a directory of transcript files.
- */
-class FileCrsFactory : public CrsFactory {
+template <> class FileVerifierCrs<curve::Grumpkin> : public VerifierCrs<curve::Grumpkin> {
+    using Curve = curve::Grumpkin;
+
   public:
-    FileCrsFactory(std::string path, size_t initial_degree = 0);
-    FileCrsFactory(FileCrsFactory&& other) = default;
-
-    std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> get_prover_crs(size_t degree) override;
-
-    std::shared_ptr<barretenberg::srs::factories::VerifierCrs> get_verifier_crs() override;
+    FileVerifierCrs(std::string const& path, const size_t num_points);
+    virtual ~FileVerifierCrs() = default;
+    Curve::AffineElement* get_monomial_points() const override;
+    size_t get_monomial_size() const override;
+    Curve::AffineElement get_first_g1() const override { return first_g1; };
 
   private:
-    std::string path_;
-    size_t degree_;
-    std::shared_ptr<barretenberg::srs::factories::ProverCrs<curve::BN254>> prover_crs_;
-    std::shared_ptr<barretenberg::srs::factories::VerifierCrs> verifier_crs_;
+    Curve::AffineElement first_g1;
+    size_t num_points;
+    std::shared_ptr<Curve::AffineElement[]> monomials_;
 };
 
 extern template class FileProverCrs<curve::BN254>;

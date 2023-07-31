@@ -29,15 +29,15 @@ namespace proof_system::honk::flavor {
 class GoblinUltra {
   public:
     using CircuitBuilder = UltraCircuitBuilder;
-    using FF = barretenberg::fr;
-    using Polynomial = barretenberg::Polynomial<FF>;
-    using PolynomialHandle = std::span<FF>;
-    using G1 = barretenberg::g1;
-    using GroupElement = G1::element;
-    using Commitment = G1::affine_element;
-    using CommitmentHandle = G1::affine_element;
     using PCSParams = pcs::kzg::Params;
     using PCS = pcs::kzg::KZG<PCSParams>;
+    using Curve = PCSParams::Curve;
+    using GroupElement = Curve::Element;
+    using Commitment = Curve::AffineElement;
+    using CommitmentHandle = Curve::AffineElement;
+    using FF = Curve::ScalarField;
+    using Polynomial = barretenberg::Polynomial<FF>;
+    using PolynomialHandle = std::span<FF>;
 
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often

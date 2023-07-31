@@ -570,8 +570,7 @@ TEST_F(SumcheckTests, RealCircuitUltra)
     uint32_t x3 = circuit_constructor.add_variable(p3.x);
     uint32_t y3 = circuit_constructor.add_variable(p3.y);
 
-    ecc_add_gate gate{ x1, y1, x2, y2, x3, y3, beta_scalar, -1 };
-    circuit_constructor.create_ecc_add_gate(gate);
+    circuit_constructor.create_ecc_add_gate({ x1, y1, x2, y2, x3, y3, beta_scalar, -1 });
 
     // Add some RAM gates
     uint32_t ram_values[8]{

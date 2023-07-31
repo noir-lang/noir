@@ -17,6 +17,7 @@ class UltraComposer {
   public:
     using Flavor = flavor::Ultra;
     using CircuitBuilder = UltraCircuitBuilder;
+    using Curve = Flavor::Curve;
 
     static constexpr std::string_view NAME_STRING = "UltraPlonk";
     static constexpr CircuitType type = CircuitType::ULTRA;
@@ -26,7 +27,7 @@ class UltraComposer {
     std::shared_ptr<plonk::verification_key> circuit_verification_key;
 
     // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory_;
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory_;
 
     bool computed_witness = false;
 
@@ -40,9 +41,9 @@ class UltraComposer {
         : UltraComposer("../srs_db/ignition"){};
 
     UltraComposer(std::string const& crs_path)
-        : UltraComposer(std::make_unique<barretenberg::srs::factories::FileCrsFactory>(crs_path)){};
+        : UltraComposer(std::make_unique<barretenberg::srs::factories::FileCrsFactory<Curve>>(crs_path)){};
 
-    explicit UltraComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory> crs_factory)
+    explicit UltraComposer(std::shared_ptr<barretenberg::srs::factories::CrsFactory<Curve>> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 

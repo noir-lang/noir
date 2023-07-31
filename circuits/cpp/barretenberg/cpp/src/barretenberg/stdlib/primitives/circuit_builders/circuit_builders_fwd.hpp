@@ -18,11 +18,13 @@ class Ultra;
 
 namespace barretenberg {
 class Bn254FrParams;
+class Bn254FqParams;
 template <class Params> struct alignas(32) field;
 } // namespace barretenberg
 namespace proof_system {
 template <class FF> class StandardCircuitBuilder_;
 using StandardCircuitBuilder = StandardCircuitBuilder_<barretenberg::field<barretenberg::Bn254FrParams>>;
+using StandardGrumpkinCircuitBuilder = StandardCircuitBuilder_<barretenberg::field<barretenberg::Bn254FqParams>>;
 template <class FF> class TurboCircuitBuilder_;
 using TurboCircuitBuilder = TurboCircuitBuilder_<barretenberg::field<barretenberg::Bn254FrParams>>;
 template <class FF> class UltraCircuitBuilder_;

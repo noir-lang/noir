@@ -118,7 +118,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::add_gates_to_ensure_all_po
  *
  * @param in A structure with variable indexes and selector values for the gate.
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_add_gate(const add_triple& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_add_gate(const add_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
@@ -149,7 +149,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_add_gate(const add_
  * @param include_next_gate_w_4 Switches on/off the addition of w_4 at the next index
  */
 template <typename FF>
-void UltraCircuitBuilder_<FF>::create_big_add_gate(const add_quad& in, const bool include_next_gate_w_4)
+void UltraCircuitBuilder_<FF>::create_big_add_gate(const add_quad_<FF>& in, const bool include_next_gate_w_4)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
     w_l.emplace_back(in.a);
@@ -176,7 +176,7 @@ void UltraCircuitBuilder_<FF>::create_big_add_gate(const add_quad& in, const boo
  *
  * @param in Structure with variables and witness selector values
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_big_add_gate_with_bit_extraction(const add_quad& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_big_add_gate_with_bit_extraction(const add_quad_<FF>& in)
 {
     // This method is an artifact of a turbo plonk feature that implicitly extracts
     // a high or low bit from a base-4 quad and adds it into the arithmetic gate relationship.
@@ -239,7 +239,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_big_add_gate_with_b
  *
  * @param in Structure containing variables and witness selectors
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_big_mul_gate(const mul_quad& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_big_mul_gate(const mul_quad_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -263,7 +263,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_big_mul_gate(const 
 
 // Creates a width-4 addition gate, where the fourth witness must be a boolean.
 // Can be used to normalize a 32-bit addition
-template <typename FF> void UltraCircuitBuilder_<FF>::create_balanced_add_gate(const add_quad& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_balanced_add_gate(const add_quad_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c, in.d });
 
@@ -303,7 +303,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_balanced_add_gate(c
  *
  * @param in Structure containing variables and witness selectors
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_mul_gate(const mul_triple& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_mul_gate(const mul_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
@@ -358,7 +358,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_bool_gate(const uin
  *
  * @param in Structure containing variables and witness selectors
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_poly_gate(const poly_triple& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_poly_gate(const poly_triple_<FF>& in)
 {
     this->assert_valid_variables({ in.a, in.b, in.c });
 
@@ -391,7 +391,7 @@ template <typename FF> void UltraCircuitBuilder_<FF>::create_poly_gate(const pol
  * added, the resulting point coordinates and the selector values that describe whether the endomorphism is used on the
  * second point and whether it is negated.
  */
-template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_add_gate(const ecc_add_gate& in)
+template <typename FF> void UltraCircuitBuilder_<FF>::create_ecc_add_gate(const ecc_add_gate_<FF>& in)
 {
     /**
      * | 1  | 2  | 3  | 4  |
@@ -3535,4 +3535,7 @@ template <typename FF> bool UltraCircuitBuilder_<FF>::check_circuit()
     return result;
 }
 template class UltraCircuitBuilder_<barretenberg::fr>;
+// To enable this we need to template plookup
+// template class UltraCircuitBuilder_<grumpkin::fr>;
+
 } // namespace proof_system

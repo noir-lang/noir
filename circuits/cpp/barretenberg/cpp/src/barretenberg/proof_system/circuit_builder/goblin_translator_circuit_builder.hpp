@@ -24,10 +24,10 @@ class GoblinTranslatorCircuitBuilder : CircuitBuilderBase<arithmetization::Gobli
      * We won't need these standard gates that are defined as virtual in circuit builder base
      *
      */
-    void create_add_gate(const add_triple&) override{};
-    void create_mul_gate(const mul_triple&) override{};
+    void create_add_gate(const add_triple_<Fr>&) override{};
+    void create_mul_gate(const mul_triple_<Fr>&) override{};
     void create_bool_gate(const uint32_t) override{};
-    void create_poly_gate(const poly_triple&) override{};
+    void create_poly_gate(const poly_triple_<Fr>&) override{};
     [[nodiscard]] size_t get_num_constant_gates() const override { return 0; };
 
     /**

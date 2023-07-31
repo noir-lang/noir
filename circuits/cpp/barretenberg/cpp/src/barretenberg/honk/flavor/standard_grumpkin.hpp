@@ -23,16 +23,16 @@ class StandardGrumpkin {
     // TODO(Mara): At the moment this class is a duplicate of the Standard flavor with a different PCS for testing
     // purposes. This will be changed to Grumpkin once generating Honk proofs over Grumpkin has been enabled.
   public:
-    using CircuitBuilder = StandardCircuitBuilder;
-    using FF = barretenberg::fr;
-    using Polynomial = barretenberg::Polynomial<FF>;
-    using PolynomialHandle = std::span<FF>;
-    using G1 = barretenberg::g1;
-    using GroupElement = G1::element;
-    using Commitment = G1::affine_element;
-    using CommitmentHandle = G1::affine_element;
+    using CircuitBuilder = StandardGrumpkinCircuitBuilder;
     using PCSParams = pcs::ipa::Params;
     using PCS = pcs::ipa::IPA<PCSParams>;
+    using Curve = PCSParams::Curve;
+    using GroupElement = Curve::Element;
+    using Commitment = Curve::AffineElement;
+    using CommitmentHandle = Curve::AffineElement;
+    using FF = Curve::ScalarField;
+    using Polynomial = barretenberg::Polynomial<FF>;
+    using PolynomialHandle = std::span<FF>;
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`

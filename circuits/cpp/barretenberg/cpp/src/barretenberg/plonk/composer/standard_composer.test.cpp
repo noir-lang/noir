@@ -40,7 +40,7 @@ TEST(standard_plonk_composer, composer_from_serialized_keys)
     auto pk_data = from_buffer<plonk::proving_key_data>(pk_buf);
     auto vk_data = from_buffer<plonk::verification_key_data>(vk_buf);
 
-    auto crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
+    auto crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
     auto proving_key =
         std::make_shared<plonk::proving_key>(std::move(pk_data), crs->get_prover_crs(pk_data.circuit_size + 1));
     auto verification_key = std::make_shared<plonk::verification_key>(std::move(vk_data), crs->get_verifier_crs());
@@ -282,8 +282,7 @@ TEST(standard_plonk_composer, and_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        accumulator_triple accumulators =
-            builder.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
+        auto accumulators = builder.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
         // builder.create_and_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
         for (uint32_t j = 0; j < 16; ++j) {
@@ -354,8 +353,7 @@ TEST(standard_plonk_composer, xor_constraint)
         // include non-nice numbers of bits, that will bleed over gate boundaries
         size_t extra_bits = 2 * (i % 4);
 
-        accumulator_triple accumulators =
-            builder.create_xor_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
+        auto accumulators = builder.create_xor_constraint(left_witness_index, right_witness_index, 32 + extra_bits);
 
         for (uint32_t j = 0; j < 16; ++j) {
             uint32_t left_expected = (left_value >> (30U - (2 * j)));
@@ -422,17 +420,15 @@ TEST(standard_plonk_composer, big_add_gate_with_bit_extract)
         uint32_t input = engine.get_random_uint32();
         uint32_t output = input + (quad_value > 1 ? 1 : 0);
 
-        add_quad gate{ builder.add_variable(uint256_t(input)),
-                       builder.add_variable(uint256_t(output)),
-                       right_idx,
-                       left_idx,
-                       fr(6),
-                       -fr(6),
-                       fr::zero(),
-                       fr::zero(),
-                       fr::zero() };
-
-        builder.create_big_add_gate_with_bit_extraction(gate);
+        builder.create_big_add_gate_with_bit_extraction({ builder.add_variable(uint256_t(input)),
+                                                          builder.add_variable(uint256_t(output)),
+                                                          right_idx,
+                                                          left_idx,
+                                                          fr(6),
+                                                          -fr(6),
+                                                          fr::zero(),
+                                                          fr::zero(),
+                                                          fr::zero() });
     };
 
     generate_constraints(0);

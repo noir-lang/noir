@@ -9,6 +9,7 @@
 #include <utility>
 
 using namespace barretenberg;
+// TODO(#635): This tests should be typed to run on both barretenberg::fr and grumpkin::fr.
 
 TEST(polynomials, evaluation_domain)
 {

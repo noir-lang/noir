@@ -19,7 +19,7 @@ namespace proof_system::honk {
 template <typename Flavor>
 std::shared_ptr<typename Flavor::VerificationKey> compute_verification_key_common(
     std::shared_ptr<typename Flavor::ProvingKey> const& proving_key,
-    std::shared_ptr<barretenberg::srs::factories::VerifierCrs> const& vrs)
+    std::shared_ptr<barretenberg::srs::factories::VerifierCrs<typename Flavor::Curve>> const& vrs)
 {
     auto verification_key = std::make_shared<typename Flavor::VerificationKey>(
         proving_key->circuit_size, proving_key->num_public_inputs, vrs);

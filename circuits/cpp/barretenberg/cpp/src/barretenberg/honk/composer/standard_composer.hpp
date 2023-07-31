@@ -26,7 +26,7 @@ template <StandardFlavor Flavor> class StandardComposer_ {
     std::shared_ptr<VerificationKey> verification_key;
 
     // The crs_factory holds the path to the srs and exposes methods to extract the srs elements
-    std::shared_ptr<srs::factories::CrsFactory> crs_factory_;
+    std::shared_ptr<srs::factories::CrsFactory<typename Flavor::Curve>> crs_factory_;
 
     // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
     std::shared_ptr<PCSCommitmentKey> commitment_key;
@@ -37,15 +37,22 @@ template <StandardFlavor Flavor> class StandardComposer_ {
 
     bool computed_witness = false;
     // TODO(Luke): use make_shared
+    // TODO(#637): design the crs factory better
     StandardComposer_()
-        : StandardComposer_(
-              std::shared_ptr<srs::factories::CrsFactory>(new srs::factories::FileCrsFactory("../srs_db/ignition")))
-    {}
-    StandardComposer_(std::shared_ptr<srs::factories::CrsFactory> crs_factory)
+    {
+        if constexpr (IsGrumpkinFlavor<Flavor>) {
+            crs_factory_ = barretenberg::srs::get_grumpkin_crs_factory();
+
+        } else {
+            crs_factory_ = barretenberg::srs::get_crs_factory();
+        }
+    }
+
+    StandardComposer_(std::shared_ptr<srs::factories::CrsFactory<typename Flavor::Curve>> crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
 
-    StandardComposer_(std::unique_ptr<srs::factories::CrsFactory>&& crs_factory)
+    StandardComposer_(std::unique_ptr<srs::factories::CrsFactory<typename Flavor::Curve>>&& crs_factory)
         : crs_factory_(std::move(crs_factory))
     {}
     StandardComposer_(std::shared_ptr<ProvingKey> p_key, std::shared_ptr<VerificationKey> v_key)

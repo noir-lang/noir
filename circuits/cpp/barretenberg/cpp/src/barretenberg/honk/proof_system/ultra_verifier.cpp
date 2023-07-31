@@ -165,7 +165,7 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
                                               transcript);
 
     // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
-    auto shplonk_claim = Shplonk::reduce_verify(gemini_claim, transcript);
+    auto shplonk_claim = Shplonk::reduce_verify(pcs_verification_key, gemini_claim, transcript);
 
     // // Verify the Shplonk claim with KZG or IPA
     return PCS::verify(pcs_verification_key, shplonk_claim, transcript);

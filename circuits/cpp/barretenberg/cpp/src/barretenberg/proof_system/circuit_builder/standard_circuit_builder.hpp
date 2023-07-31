@@ -84,7 +84,7 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
                                                const fixed_group_init_quad_<FF>& init);
     void create_fixed_group_add_gate_final(const add_quad_<FF>& in);
 
-    fixed_group_add_quad previous_add_quad;
+    fixed_group_add_quad_<FF> previous_add_quad;
 
     // TODO(#216)(Adrian): This should be a virtual overridable method in the base class.
     void fix_witness(const uint32_t witness_index, const FF& witness_value);
@@ -100,12 +100,12 @@ template <typename FF> class StandardCircuitBuilder_ : public CircuitBuilderBase
         decompose_into_base4_accumulators(variable_index, num_bits, msg);
     }
 
-    accumulator_triple create_logic_constraint(const uint32_t a,
-                                               const uint32_t b,
-                                               const size_t num_bits,
-                                               bool is_xor_gate);
-    accumulator_triple create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
-    accumulator_triple create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
+    accumulator_triple_<FF> create_logic_constraint(const uint32_t a,
+                                                    const uint32_t b,
+                                                    const size_t num_bits,
+                                                    bool is_xor_gate);
+    accumulator_triple_<FF> create_and_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
+    accumulator_triple_<FF> create_xor_constraint(const uint32_t a, const uint32_t b, const size_t num_bits);
 
     // TODO(#216)(Adrian): The 2 following methods should be virtual in the base class
     uint32_t put_constant_variable(const FF& variable);

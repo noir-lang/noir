@@ -57,7 +57,7 @@ TYPED_TEST(VerificationKeyFixture, vk_data_vs_recursion_compress_native)
     verification_key_data vk_data = TestFixture::rand_vk_data();
     verification_key_data vk_data_copy = vk_data;
 
-    auto file_crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
+    auto file_crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
     auto file_verifier = file_crs->get_verifier_crs();
 
     auto native_vk = std::make_shared<verification_key>(std::move(vk_data_copy), file_verifier);
@@ -77,7 +77,7 @@ TYPED_TEST(VerificationKeyFixture, compress_vs_compress_native)
 
     verification_key_data vk_data = TestFixture::rand_vk_data();
 
-    auto file_crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory>("../srs_db/ignition");
+    auto file_crs = std::make_unique<barretenberg::srs::factories::FileCrsFactory<curve::BN254>>("../srs_db/ignition");
     auto file_verifier = file_crs->get_verifier_crs();
 
     auto native_vk = std::make_shared<verification_key>(std::move(vk_data), file_verifier);

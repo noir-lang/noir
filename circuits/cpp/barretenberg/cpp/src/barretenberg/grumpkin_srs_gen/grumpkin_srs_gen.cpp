@@ -11,7 +11,9 @@ const std::string protocol_name = "BARRETENBERG_GRUMPKIN_IPA_CRS";
 /**
  * @brief Generates a monomial basis Grumpkin SRS.
  *
- * @details We only provide functionality create a single transcript file.
+ * @details We only provide functionality to create a single transcript file.
+ * ! Note that, unlike the bn254 SRS, the first element of the Grumpkin SRS will not be equal to point one defined in
+ * grumpkin.hpp as this function finds Grumpkin points in an arbitrary order.
  *
  */
 int main(int argc, char** argv)

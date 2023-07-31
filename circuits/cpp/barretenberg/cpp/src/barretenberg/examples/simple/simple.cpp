@@ -20,7 +20,7 @@ void build_circuit(Builder& builder)
 }
 
 BuilderComposerPtrs create_builder_and_composer(
-    std::shared_ptr<barretenberg::srs::factories::CrsFactory> const& crs_factory)
+    std::shared_ptr<barretenberg::srs::factories::CrsFactory<curve::BN254>> const& crs_factory)
 {
     // WARNING: Size hint is essential to perform 512k circuits!
     auto builder = std::make_unique<Builder>(CIRCUIT_SIZE);

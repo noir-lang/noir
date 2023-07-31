@@ -14,7 +14,8 @@ class PermutationHelperTests : public ::testing::Test {
     using FF = typename Flavor::FF;
     using ProvingKey = Flavor::ProvingKey;
     Flavor::CircuitBuilder circuit_constructor;
-    barretenberg::srs::factories::CrsFactory crs_factory = barretenberg::srs::factories::CrsFactory();
+    barretenberg::srs::factories::CrsFactory<curve::BN254> crs_factory =
+        barretenberg::srs::factories::CrsFactory<curve::BN254>();
     std::shared_ptr<Flavor::ProvingKey> proving_key;
 
     virtual void SetUp()

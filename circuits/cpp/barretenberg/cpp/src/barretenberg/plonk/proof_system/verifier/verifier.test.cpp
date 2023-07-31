@@ -41,7 +41,7 @@ plonk::Verifier generate_verifier(std::shared_ptr<proving_key> circuit_proving_k
                                                            state));
     }
 
-    auto crs = std::make_shared<barretenberg::srs::factories::FileVerifierCrs>("../srs_db/ignition");
+    auto crs = std::make_shared<barretenberg::srs::factories::FileVerifierCrs<curve::BN254>>("../srs_db/ignition");
     std::shared_ptr<verification_key> circuit_verification_key =
         std::make_shared<verification_key>(circuit_proving_key->circuit_size,
                                            circuit_proving_key->num_public_inputs,
