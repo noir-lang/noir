@@ -35,7 +35,7 @@ To install the package globally for running as a terminal application:
 npm install -g @aztec/bb.js
 ```
 
-This will install `bb.js` into your path.
+Then should alias `$(npm root -g)/@aztec/bb.js/dest/node/main.js` as `bb.js` (or use that full string).
 
 ### Usage
 
