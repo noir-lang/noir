@@ -18,6 +18,22 @@ if ! git diff-index --quiet HEAD --; then
     exit 1
 fi
 
+# Check if the current branch is master
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if [ "$current_branch" != "master" ]; then
+    echo "Error: This script must be run from the 'master' branch. Current branch is '$current_branch'"
+    exit 1
+fi
+
+# Fetch the latest updates from origin
+git fetch origin
+
+# Check if master is same as origin/master
+if ! git diff --quiet master origin/master; then
+    echo "Error: Local 'master' branch is not up to date with 'origin/master'. Please pull the latest changes."
+    exit 1
+fi
+
 BRANCH="$1"
 COMMIT_MESSAGE="$2"
 SUBREPO_PATH=circuits/cpp/barretenberg # can be changed to another subrepo if useful
