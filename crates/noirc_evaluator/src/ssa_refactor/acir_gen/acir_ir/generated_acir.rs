@@ -117,12 +117,14 @@ impl GeneratedAcir {
     pub(crate) fn call_black_box(
         &mut self,
         func_name: BlackBoxFunc,
-        mut inputs: Vec<FunctionInput>,
+        inputs: &[Vec<FunctionInput>],
         constants: Vec<FieldElement>,
+        output_count: usize,
     ) -> Vec<Witness> {
-        intrinsics_check_inputs(func_name, &inputs);
+        let input_count = inputs.iter().fold(0usize, |sum, val| sum + val.len());
+        intrinsics_check_inputs(func_name, input_count);
+        intrinsics_check_outputs(func_name, output_count);
 
-        let output_count = black_box_expected_output_size(func_name);
         let outputs = vecmap(0..output_count, |_| self.next_witness_index());
 
         // clone is needed since outputs is moved when used in blackbox function.
@@ -130,61 +132,89 @@ impl GeneratedAcir {
 
         let black_box_func_call = match func_name {
             BlackBoxFunc::AND => {
-                BlackBoxFuncCall::AND { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
+                BlackBoxFuncCall::AND { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
             BlackBoxFunc::XOR => {
-                BlackBoxFuncCall::XOR { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
+                BlackBoxFuncCall::XOR { lhs: inputs[0][0], rhs: inputs[1][0], output: outputs[0] }
             }
-            BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0] },
-            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs, outputs },
-            BlackBoxFunc::Blake2s => BlackBoxFuncCall::Blake2s { inputs, outputs },
-            BlackBoxFunc::HashToField128Security => {
-                BlackBoxFuncCall::HashToField128Security { inputs, output: outputs[0] }
+            BlackBoxFunc::RANGE => BlackBoxFuncCall::RANGE { input: inputs[0][0] },
+            BlackBoxFunc::SHA256 => BlackBoxFuncCall::SHA256 { inputs: inputs[0].clone(), outputs },
+            BlackBoxFunc::Blake2s => {
+                BlackBoxFuncCall::Blake2s { inputs: inputs[0].clone(), outputs }
             }
+            BlackBoxFunc::HashToField128Security => BlackBoxFuncCall::HashToField128Security {
+                inputs: inputs[0].clone(),
+                output: outputs[0],
+            },
             BlackBoxFunc::SchnorrVerify => BlackBoxFuncCall::SchnorrVerify {
-                public_key_x: inputs[0],
-                public_key_y: inputs[1],
+                public_key_x: inputs[0][0],
+                public_key_y: inputs[1][0],
                 // Schnorr signature is an r & s, 32 bytes each
-                signature: inputs[2..66].to_vec(),
-                message: inputs[66..].to_vec(),
+                signature: inputs[2].clone(),
+                message: inputs[3].clone(),
                 output: outputs[0],
             },
             BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
-                inputs,
+                inputs: inputs[0].clone(),
                 outputs: (outputs[0], outputs[1]),
                 domain_separator: constants[0].to_u128() as u32,
             },
             BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
                 // 32 bytes for each public key co-ordinate
-                public_key_x: inputs[0..32].to_vec(),
-                public_key_y: inputs[32..64].to_vec(),
+                public_key_x: inputs[0].clone(),
+                public_key_y: inputs[1].clone(),
                 // (r,s) are both 32 bytes each, so signature
                 // takes up 64 bytes
-                signature: inputs[64..128].to_vec(),
-                hashed_message: inputs[128..].to_vec(),
+                signature: inputs[2].clone(),
+                hashed_message: inputs[3].clone(),
                 output: outputs[0],
             },
             BlackBoxFunc::EcdsaSecp256r1 => BlackBoxFuncCall::EcdsaSecp256r1 {
                 // 32 bytes for each public key co-ordinate
-                public_key_x: inputs[0..32].to_vec(),
-                public_key_y: inputs[32..64].to_vec(),
+                public_key_x: inputs[0].clone(),
+                public_key_y: inputs[1].clone(),
                 // (r,s) are both 32 bytes each, so signature
                 // takes up 64 bytes
-                signature: inputs[64..128].to_vec(),
-                hashed_message: inputs[128..].to_vec(),
+                signature: inputs[2].clone(),
+                hashed_message: inputs[3].clone(),
                 output: outputs[0],
             },
             BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
-                input: inputs[0],
+                input: inputs[0][0],
                 outputs: (outputs[0], outputs[1]),
             },
             BlackBoxFunc::Keccak256 => {
-                let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
-                BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
+                let var_message_size =
+                    inputs.to_vec().pop().expect("ICE: Missing message_size arg")[0];
+                BlackBoxFuncCall::Keccak256VariableLength {
+                    inputs: inputs[0].clone(),
+                    var_message_size,
+                    outputs,
+                }
             }
             // TODO(#1570): Generate ACIR for recursive aggregation
             BlackBoxFunc::RecursiveAggregation => {
-                panic!("ICE: Cannot generate ACIR for recursive aggregation")
+                let has_previous_aggregation = self.opcodes.iter().any(|op| {
+                    matches!(
+                        op,
+                        AcirOpcode::BlackBoxFuncCall(BlackBoxFuncCall::RecursiveAggregation { .. })
+                    )
+                });
+
+                let input_aggregation_object = if !has_previous_aggregation {
+                    None
+                } else {
+                    Some(inputs[4].clone())
+                };
+
+                BlackBoxFuncCall::RecursiveAggregation {
+                    verification_key: inputs[0].clone(),
+                    proof: inputs[1].clone(),
+                    public_inputs: inputs[2].clone(),
+                    key_hash: inputs[3][0],
+                    input_aggregation_object,
+                    output_aggregation_object: outputs,
+                }
             }
         };
 
@@ -806,12 +836,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         // Inputs for fixed based scalar multiplication
         // is just a scalar
         BlackBoxFunc::FixedBaseScalarMul => Some(1),
-        // TODO(#1570): Generate ACIR for recursive aggregation
-        // RecursiveAggregation has variable inputs and we could return `None` here,
-        // but as it is not fully implemented we panic for now
-        BlackBoxFunc::RecursiveAggregation => {
-            panic!("ICE: Cannot generate ACIR for recursive aggregation")
-        }
+        // Recursive aggregation has a variable number of inputs
+        BlackBoxFunc::RecursiveAggregation => None,
     }
 }
 
@@ -845,6 +871,34 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
     }
 }
 
+/// This function will return the number of outputs that a blackbox function
+/// expects. Returning `None` if there is no expectation.
+fn black_box_expected_output_size_new(name: BlackBoxFunc) -> Option<usize> {
+    match name {
+        // Bitwise opcodes will return 1 parameter which is the output
+        // or the operation.
+        BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
+        // 32 byte hash algorithms
+        BlackBoxFunc::Keccak256 | BlackBoxFunc::SHA256 | BlackBoxFunc::Blake2s => Some(32),
+        // Hash to field returns a field element
+        BlackBoxFunc::HashToField128Security => Some(1),
+        // Pedersen returns a point
+        BlackBoxFunc::Pedersen => Some(2),
+        // Can only apply a range constraint to one
+        // witness at a time.
+        BlackBoxFunc::RANGE => Some(0),
+        // Signature verification algorithms will return a boolean
+        BlackBoxFunc::SchnorrVerify
+        | BlackBoxFunc::EcdsaSecp256k1
+        | BlackBoxFunc::EcdsaSecp256r1 => Some(1),
+        // Output of fixed based scalar mul over the embedded curve
+        // will be 2 field elements representing the point.
+        BlackBoxFunc::FixedBaseScalarMul => Some(2),
+        // Recursive aggregation has a variable number of outputs
+        BlackBoxFunc::RecursiveAggregation => None,
+    }
+}
+
 /// Checks that the number of inputs being used to call the blackbox function
 /// is correct according to the function definition.
 ///
@@ -860,12 +914,41 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
 /// #[foreign(sha256)]
 /// fn sha256<N>(_input : [u8; N]) -> [u8; 32] {}
 /// ``
-fn intrinsics_check_inputs(name: BlackBoxFunc, inputs: &[FunctionInput]) {
+fn intrinsics_check_inputs(name: BlackBoxFunc, input_count: usize) {
     let expected_num_inputs = match black_box_func_expected_input_size(name) {
         Some(expected_num_inputs) => expected_num_inputs,
         None => return,
     };
-    let got_num_inputs = inputs.len();
 
-    assert_eq!(expected_num_inputs,inputs.len(),"Tried to call black box function {name} with {got_num_inputs} inputs, but this function's definition requires {expected_num_inputs} inputs");
+    assert_eq!(expected_num_inputs,input_count,"Tried to call black box function {name} with {input_count} inputs, but this function's definition requires {expected_num_inputs} inputs");
+}
+
+/// Checks that the number of outputs being used to call the blackbox function
+/// is correct according to the function definition.
+///
+/// Some functions expect a variable number of outputs and in such a case,
+/// this method will do nothing.  An example of this is recursive aggregation.
+/// In that case, this function will not check anything.
+///
+/// Since we expect black box functions to be called behind a Noir shim function,
+/// we trigger a compiler error if the inputs do not match.
+///
+/// An example of Noir shim function is the following:
+/// ``
+/// #[foreign(sha256)]
+/// fn verify_proof<N>(
+///     _verification_key : [Field],
+///     _proof : [Field],
+///     _public_inputs : [Field],
+///     _key_hash : Field,
+///     _input_aggregation_object : [Field; N]
+/// ) -> [Field; N] {}
+/// ``
+fn intrinsics_check_outputs(name: BlackBoxFunc, output_count: usize) {
+    let expected_num_outputs = match black_box_expected_output_size_new(name) {
+        Some(expected_num_inputs) => expected_num_inputs,
+        None => return,
+    };
+
+    assert_eq!(expected_num_outputs,output_count,"Tried to call black box function {name} with {output_count} inputs, but this function's definition requires {expected_num_outputs} inputs");
 }
