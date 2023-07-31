@@ -267,7 +267,6 @@ impl TypeAliasType {
         self.generics = new_generics;
     }
 
-    // Returns all the fields of this type, after being applied to the given generic arguments.
     pub fn get_type(&self, generic_args: &[Type]) -> Type {
         assert_eq!(self.generics.len(), generic_args.len());
 
