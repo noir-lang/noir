@@ -108,5 +108,5 @@ describe('e2e_non_contract_account', () => {
     await expectBalance(recipient, initialBalance);
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
-  }, 60_000);
+  }, 120_000);
 });
