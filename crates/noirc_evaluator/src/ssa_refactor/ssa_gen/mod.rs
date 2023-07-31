@@ -125,20 +125,17 @@ impl<'a> FunctionContext<'a> {
                 let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
                 self.codegen_array(elements, typ)
             }
-            ast::Literal::FmtStr(string, fields) => {
+            ast::Literal::FmtStr(string, number_of_fields, fields) => {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
                 let fmt_str_tuple = &[
-                    &[
-                        Expression::Literal(ast::Literal::Str(string.clone())),
-                        Expression::Literal(ast::Literal::Integer(
-                            (fields.len() as u128).into(),
-                            ast::Type::Field,
-                        )),
-                    ],
-                    &fields[..],
-                ]
-                .concat();
+                    Expression::Literal(ast::Literal::Str(string.clone())),
+                    Expression::Literal(ast::Literal::Integer(
+                        (*number_of_fields as u128).into(),
+                        ast::Type::Field,
+                    )),
+                    *fields.clone(),
+                ];
                 self.codegen_tuple(fmt_str_tuple)
             }
         }

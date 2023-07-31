@@ -96,9 +96,9 @@ impl AstPrinter {
             super::ast::Literal::Integer(x, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
-            super::ast::Literal::FmtStr(_, types) => {
+            super::ast::Literal::FmtStr(_, _, fields) => {
                 write!(f, "fmtstr<")?;
-                self.print_tuple(types, f)?;
+                self.print_expr(fields, f)?;
                 write!(f, ">")
             }
         }

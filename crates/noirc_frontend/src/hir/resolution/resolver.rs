@@ -350,8 +350,9 @@ impl<'a> Resolver<'a> {
             }
             UnresolvedType::FormatString(size, fields) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
-                let fields = vecmap(fields, |field| self.resolve_type_inner(field, new_variables));
-                Type::FmtString(Box::new(resolved_size), fields)
+                // let fields = vecmap(fields, |field| self.resolve_type_inner(field, new_variables));
+                let fields = self.resolve_type_inner(*fields, new_variables);
+                Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Error,
@@ -828,9 +829,7 @@ impl<'a> Resolver<'a> {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
-                for field in fields {
-                    Self::find_numeric_generics_in_type(field, found);
-                }
+                Self::find_numeric_generics_in_type(fields, found);
             }
         }
     }

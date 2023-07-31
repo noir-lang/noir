@@ -845,17 +845,27 @@ fn string_type() -> impl NoirParser<UnresolvedType> {
 fn format_string_type(
     type_parser: impl NoirParser<UnresolvedType>,
 ) -> impl NoirParser<UnresolvedType> {
-    let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
+    // let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
+
+    // keyword(Keyword::FormatString)
+    //     .ignore_then(
+    //         type_expression()
+    //             .or_not()
+    //             .then_ignore(just(Token::Comma))
+    //             .then(parenthesized(fields))
+    //             .delimited_by(just(Token::Less), just(Token::Greater)),
+    //     )
+    //     .map(|(size, fields)| UnresolvedType::FormatString(size, fields))
 
     keyword(Keyword::FormatString)
         .ignore_then(
             type_expression()
                 .or_not()
                 .then_ignore(just(Token::Comma))
-                .then(parenthesized(fields))
+                .then(choice((type_parser.clone(), tuple_type(type_parser))))
                 .delimited_by(just(Token::Less), just(Token::Greater)),
         )
-        .map(|(size, fields)| UnresolvedType::FormatString(size, fields))
+        .map(|(size, fields)| UnresolvedType::FormatString(size, Box::new(fields)))
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {

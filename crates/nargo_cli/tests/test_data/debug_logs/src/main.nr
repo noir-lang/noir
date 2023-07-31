@@ -12,7 +12,7 @@ fn main(x : Field, y : pub Field) {
     let fmt_str_no_type = f"i: {x}, j: {y}";
     std::println(fmt_str_no_type);
 
-    let fmt_str_generic = string_with_generic(fmt_str_no_type);
+    let fmt_str_generic = string_with_generics(fmt_str_no_type);
     std::println(fmt_str_generic);
 
     let s = myStruct { y: x, x: y };
@@ -20,7 +20,8 @@ fn main(x : Field, y : pub Field) {
 
     std::println(f"randomstring{x}{x}");
 
-    std::println(f"i: {x}, s: {s}");
+    let fmt_str = string_with_partial_generics(f"i: {x}, s: {s}");
+    std::println(fmt_str);
 
     std::println(x);
     std::println([x, y]);
@@ -44,7 +45,11 @@ fn string_identity(string: fmtstr<14, (Field, Field)>) -> fmtstr<14, (Field, Fie
     string
 }
 
-fn string_with_generic<T>(string: T) -> T {
+fn string_with_generics<N, T>(string: fmtstr<N, T>) -> fmtstr<N, T> {
+    string
+}
+
+fn string_with_partial_generics<N, T>(string: fmtstr<N, (Field, T)>) -> fmtstr<N, (Field, T)> {
     string
 }
 

@@ -41,7 +41,7 @@ pub enum Type {
 
     /// FmtString(N, Vec<E>) is an array of characters of length N that contains
     /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
-    FmtString(Box<Type>, Vec<Type>),
+    FmtString(Box<Type>, Box<Type>),
 
     /// The unit type `()`.
     Unit,
@@ -643,7 +643,7 @@ impl Type {
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
             Type::String(length) => named_generic_id_matches_target(length),
             Type::FmtString(length, elements) => {
-                elements.iter().any(|elem| elem.contains_numeric_typevar(target_id))
+                elements.contains_numeric_typevar(target_id)
                     || named_generic_id_matches_target(length)
             }
         }
@@ -713,9 +713,7 @@ impl std::fmt::Display for Type {
             Type::Bool(comp_time) => write!(f, "{comp_time}bool"),
             Type::String(len) => write!(f, "str<{len}>"),
             Type::FmtString(len, elements) => {
-                let elements = vecmap(elements, ToString::to_string);
-                let element_tuple = format!("({})", elements.join(", "));
-                write!(f, "fmtstr<{len}, {element_tuple}>")
+                write!(f, "fmtstr<{len}, {elements}>")
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
@@ -1074,14 +1072,7 @@ impl Type {
 
             (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
                 len_a.try_unify(len_b, span)?;
-                if elements_a.len() != elements_b.len() {
-                    Err(SpanKind::None)
-                } else {
-                    for (a, b) in elements_a.iter().zip(elements_b) {
-                        a.try_unify(b, span)?;
-                    }
-                    Ok(())
-                }
+                elements_a.try_unify(elements_b, span)
             }
 
             (Tuple(elements_a), Tuple(elements_b)) => {
@@ -1289,14 +1280,7 @@ impl Type {
 
             (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
                 len_a.is_subtype_of(len_b, span)?;
-                if elements_a.len() != elements_b.len() {
-                    Err(SpanKind::None)
-                } else {
-                    for (a, b) in elements_a.iter().zip(elements_b) {
-                        a.is_subtype_of(b, span)?;
-                    }
-                    Ok(())
-                }
+                elements_a.is_subtype_of(elements_b, span)
             }
 
             (Tuple(elements_a), Tuple(elements_b)) => {
@@ -1541,7 +1525,7 @@ impl Type {
             }
             Type::FmtString(size, fields) => {
                 let size = Box::new(size.substitute(type_bindings));
-                let fields = vecmap(fields, |field| field.substitute(type_bindings));
+                let fields = Box::new(fields.substitute(type_bindings));
                 Type::FmtString(size, fields)
             }
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
@@ -1592,7 +1576,7 @@ impl Type {
             Type::String(len) => len.occurs(target_id),
             Type::FmtString(len, fields) => {
                 let len_occurs = len.occurs(target_id);
-                let field_occurs = fields.iter().any(|field| field.occurs(target_id));
+                let field_occurs = fields.occurs(target_id);
                 len_occurs || field_occurs
             }
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
@@ -1636,7 +1620,7 @@ impl Type {
             String(size) => String(Box::new(size.follow_bindings())),
             FmtString(size, args) => {
                 let size = Box::new(size.follow_bindings());
-                let args = vecmap(args, |arg| arg.follow_bindings());
+                let args = Box::new(args.follow_bindings());
                 FmtString(size, args)
             }
             Struct(def, args) => {
