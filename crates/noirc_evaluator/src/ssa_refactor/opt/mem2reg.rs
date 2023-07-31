@@ -64,20 +64,39 @@ impl PerBlockContext {
         dfg: &mut DataFlowGraph,
     ) -> HashSet<AllocId> {
         let mut protected_allocations = HashSet::new();
-        let mut loads_to_substitute = HashMap::new();
         let block = &dfg[self.block_id];
+
+        // Maps Load instruction id -> value to replace the result of the load with
+        let mut loads_to_substitute = HashMap::new();
+
+        // Maps Load result id -> value to replace the result of the load with
+        let mut load_values_to_substitute = HashMap::new();
 
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
-                Instruction::Store { address, value } => {
-                    self.last_stores.insert(*address, *value);
+                Instruction::Store { mut address, value } => {
+                    if let Some(value) = load_values_to_substitute.get(&address) {
+                        address = *value;
+                    }
+
+                    self.last_stores.insert(address, *value);
                     self.store_ids.push(*instruction_id);
                 }
-                Instruction::Load { address } => {
-                    if let Some(last_value) = self.last_stores.get(address) {
+                Instruction::Load { mut address } => {
+                    if let Some(value) = load_values_to_substitute.get(&address) {
+                        address = *value;
+                    }
+
+                    if let Some(last_value) = self.last_stores.get(&address) {
+                        let result_value = *dfg
+                            .instruction_results(*instruction_id)
+                            .first()
+                            .expect("ICE: Load instructions should have single result");
+
                         loads_to_substitute.insert(*instruction_id, *last_value);
+                        load_values_to_substitute.insert(result_value, *last_value);
                     } else {
-                        protected_allocations.insert(*address);
+                        protected_allocations.insert(address);
                     }
                 }
                 Instruction::Call { arguments, .. } => {
@@ -103,12 +122,9 @@ impl PerBlockContext {
         }
 
         // Substitute load result values
-        for (instruction_id, new_value) in &loads_to_substitute {
-            let result_value = *dfg
-                .instruction_results(*instruction_id)
-                .first()
-                .expect("ICE: Load instructions should have single result");
-            dfg.set_value_from_id(result_value, *new_value);
+        for (result_value, new_value) in load_values_to_substitute {
+            let result_value = dfg.resolve(result_value);
+            dfg.set_value_from_id(result_value, new_value);
         }
 
         // Delete load instructions
@@ -196,10 +212,11 @@ mod tests {
         let two = builder.field_constant(FieldElement::one());
 
         let element_type = Rc::new(vec![Type::field()]);
-        let array = builder.array_constant(vector![one, two], element_type.clone());
+        let array_type = Type::Array(element_type, 2);
+        let array = builder.array_constant(vector![one, two], array_type.clone());
 
         builder.insert_store(v0, array);
-        let v1 = builder.insert_load(v0, Type::Array(element_type, 2));
+        let v1 = builder.insert_load(v0, array_type);
         let v2 = builder.insert_array_get(v1, one, Type::field());
         builder.terminate_with_return(vec![v2]);
 

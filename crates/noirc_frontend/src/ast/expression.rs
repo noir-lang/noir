@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
-use crate::{Ident, Path, Pattern, Recoverable, Statement, UnresolvedType};
+use crate::{Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -158,8 +158,17 @@ impl Expression {
     }
 
     pub fn call(lhs: Expression, arguments: Vec<Expression>, span: Span) -> Expression {
-        let func = Box::new(lhs);
-        let kind = ExpressionKind::Call(Box::new(CallExpression { func, arguments }));
+        // Need to check if lhs is an if expression since users can sequence if expressions
+        // with tuples without calling them. E.g. `if c { t } else { e }(a, b)` is interpreted
+        // as a sequence of { if, tuple } rather than a function call. This behavior matches rust.
+        let kind = if matches!(&lhs.kind, ExpressionKind::If(..)) {
+            ExpressionKind::Block(BlockExpression(vec![
+                Statement::Expression(lhs),
+                Statement::Expression(Expression::new(ExpressionKind::Tuple(arguments), span)),
+            ]))
+        } else {
+            ExpressionKind::Call(Box::new(CallExpression { func: Box::new(lhs), arguments }))
+        };
         Expression::new(kind, span)
     }
 }
@@ -198,7 +207,7 @@ impl BinaryOpKind {
     /// Comparator operators return a 0 or 1
     /// When seen in the middle of an infix operator,
     /// they transform the infix expression into a predicate expression
-    pub fn is_comparator(&self) -> bool {
+    pub fn is_comparator(self) -> bool {
         matches!(
             self,
             BinaryOpKind::Equal
@@ -208,6 +217,10 @@ impl BinaryOpKind {
                 | BinaryOpKind::Greater
                 | BinaryOpKind::GreaterEqual
         )
+    }
+
+    pub fn is_valid_for_field_type(self) -> bool {
+        matches!(self, BinaryOpKind::Equal | BinaryOpKind::NotEqual)
     }
 
     pub fn as_string(self) -> &'static str {
@@ -257,6 +270,15 @@ impl BinaryOpKind {
 pub enum UnaryOp {
     Minus,
     Not,
+    MutableReference,
+
+    /// If implicitly_added is true, this operation was implicitly added by the compiler for a
+    /// field dereference. The compiler may undo some of these implicitly added dereferences if
+    /// the reference later turns out to be needed (e.g. passing a field by reference to a function
+    /// requiring an &mut parameter).
+    Dereference {
+        implicitly_added: bool,
+    },
 }
 
 impl UnaryOp {
@@ -276,6 +298,7 @@ pub enum Literal {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+    Unit,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -322,6 +345,8 @@ pub struct FunctionDefinition {
     /// True if this function was defined with the 'open' keyword
     pub is_open: bool,
 
+    pub is_internal: bool,
+
     /// True if this function was defined with the 'unconstrained' keyword
     pub is_unconstrained: bool,
 
@@ -329,6 +354,7 @@ pub struct FunctionDefinition {
     pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)>,
     pub body: BlockExpression,
     pub span: Span,
+    pub where_clause: Vec<TraitConstraint>,
     pub return_type: UnresolvedType,
     pub return_visibility: noirc_abi::AbiVisibility,
     pub return_distinctness: noirc_abi::AbiDistinctness,
@@ -447,6 +473,7 @@ impl Display for Literal {
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
             Literal::Str(string) => write!(f, "\"{string}\""),
+            Literal::Unit => write!(f, "()"),
         }
     }
 }
@@ -475,6 +502,8 @@ impl Display for UnaryOp {
         match self {
             UnaryOp::Minus => write!(f, "-"),
             UnaryOp::Not => write!(f, "!"),
+            UnaryOp::MutableReference => write!(f, "&mut"),
+            UnaryOp::Dereference { .. } => write!(f, "*"),
         }
     }
 }

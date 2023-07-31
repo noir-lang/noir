@@ -4,6 +4,7 @@ use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
+use crate::hir::def_map::ModuleId;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attribute, FunctionKind};
 use crate::{ContractFunctionType, Type};
@@ -116,14 +117,21 @@ pub struct FuncMeta {
 
     pub kind: FunctionKind,
 
+    pub module_id: ModuleId,
+
     /// A function's attributes are the `#[...]` items above the function
     /// definition, if any. Currently, this is limited to a maximum of only one
     /// Attribute per function.
     pub attributes: Option<Attribute>,
 
-    /// This function's visibility in its contract.
+    /// This function's type in its contract.
     /// If this function is not in a contract, this is always 'Secret'.
     pub contract_function_type: Option<ContractFunctionType>,
+
+    /// This function's visibility.
+    /// If this function is internal can only be called by itself.
+    /// Will be None if not in contract.
+    pub is_internal: Option<bool>,
 
     pub is_unconstrained: bool,
 

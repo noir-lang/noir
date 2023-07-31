@@ -17,7 +17,7 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
+use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId, TypeVariableKind};
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -473,8 +473,18 @@ impl NodeInterner {
         }
     }
 
+    /// Retrieves the definition where the given id was defined.
+    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// any call with a possibly undefined variable.
     pub fn definition(&self, id: DefinitionId) -> &DefinitionInfo {
         &self.definitions[id.0]
+    }
+
+    /// Tries to retrieve the given id's definition.
+    /// This function should be used during name resolution or type checking when we cannot be sure
+    /// all variables have corresponding definitions (in case of an error in the user's code).
+    pub fn try_definition(&self, id: DefinitionId) -> Option<&DefinitionInfo> {
+        self.definitions.get(id.0)
     }
 
     /// Returns the name of the definition
@@ -527,8 +537,7 @@ impl NodeInterner {
     }
 
     pub fn next_type_variable(&mut self) -> Type {
-        let binding = TypeBinding::Unbound(self.next_type_variable_id());
-        Type::TypeVariable(Shared::new(binding))
+        Type::type_variable(self.next_type_variable_id())
     }
 
     pub fn store_instantiation_bindings(
@@ -604,7 +613,6 @@ enum TypeMethodKey {
     Unit,
     Tuple,
     Function,
-    Vec,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -614,20 +622,21 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::FieldElement(_) => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
         Type::Integer(_, _, _) => Some(FieldOrInt),
-        Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::IntegerOrField(_)) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),
         Type::String(_) => Some(String),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
         Type::Function(_, _) => Some(Function),
-        Type::Vec(_) => Some(Vec),
+        Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
-        Type::TypeVariable(_)
+        Type::TypeVariable(_, _)
         | Type::NamedGeneric(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
+        | Type::NotConstant
         | Type::Struct(_, _) => None,
     }
 }

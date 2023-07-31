@@ -1,11 +1,7 @@
 name: Pull Request
 
 on:
-  # merge_group:
-  # The `merge_group` event is currently broken (Feb 9th) so we use `push` and scope the branches
-  push:
-    branches:
-      - gh-readonly-queue/master/*
+  merge_group:
   pull_request_target:
     types:
       - opened

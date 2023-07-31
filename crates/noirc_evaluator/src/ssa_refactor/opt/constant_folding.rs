@@ -71,12 +71,18 @@ impl Context {
             .requires_ctrl_typevars()
             .then(|| vecmap(&old_results, |result| function.dfg.type_of_value(*result)));
 
-        let new_results =
-            match function.dfg.insert_instruction_and_results(instruction, block, ctrl_typevars) {
-                InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
-                InsertInstructionResult::Results(new_results) => new_results.to_vec(),
-                InsertInstructionResult::InstructionRemoved => vec![],
-            };
+        let location = function.dfg.get_location(&id);
+        let new_results = match function.dfg.insert_instruction_and_results(
+            instruction,
+            block,
+            ctrl_typevars,
+            location,
+        ) {
+            InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
+            InsertInstructionResult::Results(new_results) => new_results.to_vec(),
+            InsertInstructionResult::InstructionRemoved => vec![],
+        };
         assert_eq!(old_results.len(), new_results.len());
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             function.dfg.set_value_from_id(*old_result, new_result);
@@ -86,6 +92,8 @@ impl Context {
 
 #[cfg(test)]
 mod test {
+    use std::rc::Rc;
+
     use crate::ssa_refactor::{
         ir::{
             function::RuntimeType,
@@ -170,8 +178,9 @@ mod test {
         let v0 = builder.add_parameter(Type::field());
         let one = builder.field_constant(1u128);
         let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let arr =
-            builder.current_function.dfg.make_array(vec![v1].into(), vec![Type::field()].into());
+
+        let array_type = Type::Array(Rc::new(vec![Type::field()]), 1);
+        let arr = builder.current_function.dfg.make_array(vec![v1].into(), array_type);
         builder.terminate_with_return(vec![arr]);
 
         let ssa = builder.finish().fold_constants();

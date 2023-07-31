@@ -1,7 +1,6 @@
+[package]
+name = "global_consts"
+authors = [""]
+compiler_version = "0.1"
 
-        [package]
-        authors = [""]
-        compiler_version = "0.1"
-    
-        [dependencies]
-    
+[dependencies]

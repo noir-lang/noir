@@ -1,10 +1,12 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
+use std::collections::HashMap;
+
 use crate::brillig::brillig_gen::brillig_directive;
 
 use super::errors::AcirGenError;
 use acvm::acir::{
-    brillig_vm::Opcode as BrilligOpcode,
+    brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
         directives::{LogInfo, QuotientDirective},
@@ -17,7 +19,8 @@ use acvm::{
     acir::{circuit::directives::Directive, native_types::Expression},
     FieldElement,
 };
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::vecmap;
+use noirc_errors::Location;
 use num_bigint::BigUint;
 
 #[derive(Debug, Default)]
@@ -36,6 +39,16 @@ pub(crate) struct GeneratedAcir {
     /// Note: This may contain repeated indices, which is necessary for later mapping into the
     /// abi's return type.
     pub(crate) return_witnesses: Vec<Witness>,
+
+    /// All witness indices which are inputs to the main function
+    pub(crate) input_witnesses: Vec<Witness>,
+
+    /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
+    pub(crate) locations: HashMap<usize, Location>,
+
+    /// Source code location of the current instruction being processed
+    /// None if we do not know the location
+    pub(crate) current_location: Option<Location>,
 }
 
 impl GeneratedAcir {
@@ -47,6 +60,9 @@ impl GeneratedAcir {
     /// Adds a new opcode into ACIR.
     fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
+        if let Some(location) = self.current_location {
+            self.locations.insert(self.opcodes.len() - 1, location);
+        }
     }
 
     /// Updates the witness index counter and returns
@@ -73,7 +89,7 @@ impl GeneratedAcir {
     /// This means you cannot multiply an infinite amount of `Expression`s together.
     /// Once the `Expression` goes over degree-2, then it needs to be reduced to a `Witness`
     /// which has degree-1 in order to be able to continue the multiplication chain.
-    fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
+    pub(crate) fn create_witness_for_expression(&mut self, expression: &Expression) -> Witness {
         let fresh_witness = self.next_witness_index();
 
         // Create a constraint that sets them to be equal to each other
@@ -99,99 +115,6 @@ impl GeneratedAcir {
 }
 
 impl GeneratedAcir {
-    /// Computes lhs = 2^{rhs_bit_size} * q + r
-    ///
-    /// For example, if we had a u32:
-    ///     - `rhs` would be `32`
-    ///     - `max_bits` would be the size of `lhs`
-    ///
-    /// Take the following code:
-    /// ``
-    ///   fn main(x : u32) -> u32 {
-    ///     let a = x + x; (L1)
-    ///     let b = a * a; (L2)
-    ///     b + b (L3)
-    ///   }
-    /// ``
-    ///
-    ///  Call truncate only on L1:
-    ///     - `rhs` would be `32`
-    ///     - `max_bits` would be `33` due to the addition of two u32s
-    ///  Call truncate only on L2:
-    ///     - `rhs` would be `32`
-    ///     - `max_bits` would be `66` due to the multiplication of two u33s `a`
-    ///  Call truncate only on L3:
-    ///     -  `rhs` would be `32`
-    ///     - `max_bits` would be `67` due to the addition of two u66s `b`
-    ///
-    /// Truncation is done via the euclidean division formula:
-    ///
-    /// a = b * q + r
-    ///
-    /// where:
-    ///     - a = `lhs`
-    ///     - b = 2^{max_bits}
-    /// The prover will supply the quotient and the remainder, where the remainder
-    /// is the truncated value that we will return since it is enforced to be
-    /// in the range:  0 <= r < 2^{rhs_bit_size}
-    pub(crate) fn truncate(
-        &mut self,
-        lhs: &Expression,
-        rhs_bit_size: u32,
-        max_bits: u32,
-    ) -> Result<Expression, AcirGenError> {
-        assert!(max_bits > rhs_bit_size, "max_bits = {max_bits}, rhs = {rhs_bit_size} -- The caller should ensure that truncation is only called when the value needs to be truncated");
-        let exp_big = BigUint::from(2_u32).pow(rhs_bit_size);
-
-        // 0. Check for constant expression.
-        if let Some(a_c) = lhs.to_const() {
-            let mut a_big = BigUint::from_bytes_be(&a_c.to_be_bytes());
-            a_big %= exp_big;
-            return Ok(Expression::from(FieldElement::from_be_bytes_reduce(&a_big.to_bytes_be())));
-        }
-        // Note: This is doing a reduction. However, since the compiler will call
-        // `max_bits` before it overflows the modulus, this line should never do a reduction.
-        //
-        // For example, if the modulus is a 254 bit number.
-        // `max_bits` will never be 255 since `exp` will be 2^255, which will cause a reduction in the following line.
-        // TODO: We should change this from `from_be_bytes_reduce` to `from_be_bytes`
-        // TODO: the latter will return an option that we can unwrap in the compiler
-        let exp = FieldElement::from_be_bytes_reduce(&exp_big.to_bytes_be());
-
-        // 1. Generate witnesses a,b,c
-        let remainder_witness = self.next_witness_index();
-        let quotient_witness = self.next_witness_index();
-        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: lhs.clone(),
-            b: Expression::from_field(exp),
-            q: quotient_witness,
-            r: remainder_witness,
-            predicate: None,
-        })));
-
-        // According to the division theorem, the remainder needs to be 0 <= r < 2^{rhs_bit_size}
-        self.range_constraint(remainder_witness, rhs_bit_size)?;
-
-        // According to the formula above, the quotient should be within the range 0 <= q < 2^{max_bits - rhs}
-        self.range_constraint(quotient_witness, max_bits - rhs_bit_size)?;
-
-        // 2. Add the constraint a == r + (q * 2^{rhs})
-        //
-        // 2^{rhs}
-        let mut two_pow_rhs_bits = FieldElement::from(2_i128);
-        two_pow_rhs_bits = two_pow_rhs_bits.pow(&FieldElement::from(rhs_bit_size as i128));
-
-        let remainder_expr = Expression::from(remainder_witness);
-        let quotient_expr = Expression::from(quotient_witness);
-
-        let res = &remainder_expr + &(two_pow_rhs_bits * &quotient_expr);
-        let euclidean_division = &res - lhs;
-
-        self.push_opcode(AcirOpcode::Arithmetic(euclidean_division));
-
-        Ok(Expression::from(remainder_witness))
-    }
-
     /// Calls a black box function and returns the output
     /// of said blackbox function.
     pub(crate) fn call_black_box(
@@ -231,7 +154,7 @@ impl GeneratedAcir {
             },
             BlackBoxFunc::Pedersen => BlackBoxFuncCall::Pedersen {
                 inputs,
-                outputs,
+                outputs: (outputs[0], outputs[1]),
                 domain_separator: constants[0].to_u128() as u32,
             },
             BlackBoxFunc::EcdsaSecp256k1 => BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -244,9 +167,20 @@ impl GeneratedAcir {
                 hashed_message: inputs[128..].to_vec(),
                 output: outputs[0],
             },
-            BlackBoxFunc::FixedBaseScalarMul => {
-                BlackBoxFuncCall::FixedBaseScalarMul { input: inputs[0], outputs }
-            }
+            BlackBoxFunc::EcdsaSecp256r1 => BlackBoxFuncCall::EcdsaSecp256r1 {
+                // 32 bytes for each public key co-ordinate
+                public_key_x: inputs[0..32].to_vec(),
+                public_key_y: inputs[32..64].to_vec(),
+                // (r,s) are both 32 bytes each, so signature
+                // takes up 64 bytes
+                signature: inputs[64..128].to_vec(),
+                hashed_message: inputs[128..].to_vec(),
+                output: outputs[0],
+            },
+            BlackBoxFunc::FixedBaseScalarMul => BlackBoxFuncCall::FixedBaseScalarMul {
+                input: inputs[0],
+                outputs: (outputs[0], outputs[1]),
+            },
             BlackBoxFunc::Keccak256 => {
                 let var_message_size = inputs.pop().expect("ICE: Missing message_size arg");
                 BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
@@ -280,31 +214,157 @@ impl GeneratedAcir {
             "ICE: Radix must be a power of 2"
         );
 
-        let mut composed_limbs = Expression::default();
-
-        let mut radix_pow = BigUint::from(1u128);
-        let limb_witnesses = try_vecmap(0..limb_count, |_| {
-            let limb_witness = self.next_witness_index();
-            self.range_constraint(limb_witness, bit_size)?;
-
-            composed_limbs = composed_limbs.add_mul(
-                FieldElement::from_be_bytes_reduce(&radix_pow.to_bytes_be()),
-                &Expression::from(limb_witness),
-            );
-
-            radix_pow *= &radix_big;
-            Ok(limb_witness)
-        })?;
-
-        self.assert_is_zero(input_expr - &composed_limbs);
-
+        let limb_witnesses = vecmap(0..limb_count, |_| self.next_witness_index());
         self.push_opcode(AcirOpcode::Directive(Directive::ToLeRadix {
             a: input_expr.clone(),
             b: limb_witnesses.clone(),
             radix,
         }));
 
+        let mut composed_limbs = Expression::default();
+
+        let mut radix_pow = BigUint::from(1u128);
+        for limb_witness in &limb_witnesses {
+            self.range_constraint(*limb_witness, bit_size)?;
+
+            composed_limbs = composed_limbs.add_mul(
+                FieldElement::from_be_bytes_reduce(&radix_pow.to_bytes_be()),
+                &Expression::from(*limb_witness),
+            );
+
+            radix_pow *= &radix_big;
+        }
+
+        self.assert_is_zero(input_expr - &composed_limbs);
+
         Ok(limb_witnesses)
+    }
+
+    // Returns the 2-complement of lhs, using the provided sign bit in 'leading'
+    // if leading is zero, it returns lhs
+    // if leading is one, it returns 2^bit_size-lhs
+    fn two_complement(
+        &mut self,
+        lhs: &Expression,
+        leading: Witness,
+        max_bit_size: u32,
+    ) -> Expression {
+        let max_power_of_two =
+            FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
+
+        let intermediate =
+            self.mul_with_witness(&(&Expression::from(max_power_of_two) - lhs), &leading.into());
+
+        lhs.add_mul(FieldElement::from(2_i128), &intermediate)
+    }
+
+    /// Returns an expression which represents `lhs * rhs`
+    ///
+    /// If one has multiplicative term and the other is of degree one or more,
+    /// the function creates [intermediate variables][`Witness`] accordingly.
+    /// There are two cases where we can optimize the multiplication between two expressions:
+    /// 1. If the sum of the degrees of both expressions is at most 2, then we can just multiply them
+    /// as each term in the result will be degree-2.
+    /// 2. If one expression is a constant, then we can just multiply the constant with the other expression
+    ///
+    /// (1) is because an [`Expression`] can hold at most a degree-2 univariate polynomial
+    /// which is what you get when you multiply two degree-1 univariate polynomials.
+    pub(crate) fn mul_with_witness(&mut self, lhs: &Expression, rhs: &Expression) -> Expression {
+        use std::borrow::Cow;
+        let lhs_is_linear = lhs.is_linear();
+        let rhs_is_linear = rhs.is_linear();
+
+        // Case 1: The sum of the degrees of both expressions is at most 2.
+        //
+        // If one of the expressions is constant then it does not increase the degree when multiplying by another expression.
+        // If both of the expressions are linear (degree <=1) then the product will be at most degree 2.
+        let both_are_linear = lhs_is_linear && rhs_is_linear;
+        let either_is_const = lhs.is_const() || rhs.is_const();
+        if both_are_linear || either_is_const {
+            return (lhs * rhs).expect("Both expressions are degree <= 1");
+        }
+
+        // Case 2: One or both of the sides needs to be reduced to a degree-1 univariate polynomial
+        let lhs_reduced = if lhs_is_linear {
+            Cow::Borrowed(lhs)
+        } else {
+            Cow::Owned(self.get_or_create_witness(lhs).into())
+        };
+
+        // If the lhs and rhs are the same, then we do not need to reduce
+        // rhs, we only need to square the lhs.
+        if lhs == rhs {
+            return (&*lhs_reduced * &*lhs_reduced)
+                .expect("Both expressions are reduced to be degree <= 1");
+        };
+
+        let rhs_reduced = if rhs_is_linear {
+            Cow::Borrowed(rhs)
+        } else {
+            Cow::Owned(self.get_or_create_witness(rhs).into())
+        };
+
+        (&*lhs_reduced * &*rhs_reduced).expect("Both expressions are reduced to be degree <= 1")
+    }
+
+    /// Signed division lhs /  rhs
+    /// We derive the signed division from the unsigned euclidian division.
+    /// note that this is not euclidian division!
+    // if x is a signed integer, then sign(x)x >= 0
+    // so if a and b are signed integers, we can do the unsigned division:
+    // sign(a)a = q1*sign(b)b + r1
+    // => a = sign(a)sign(b)q1*b + sign(a)r1
+    // => a = qb+r, with |r|<|b| and a and r have the same sign.
+    pub(crate) fn signed_division(
+        &mut self,
+        lhs: &Expression,
+        rhs: &Expression,
+        max_bit_size: u32,
+    ) -> Result<(Expression, Expression), AcirGenError> {
+        // 2^{max_bit size-1}
+        let max_power_of_two =
+            FieldElement::from(2_i128).pow(&FieldElement::from(max_bit_size as i128 - 1));
+
+        // Get the sign bit of rhs by computing rhs / max_power_of_two
+        let (rhs_leading, _) = self.euclidean_division(
+            rhs,
+            &max_power_of_two.into(),
+            max_bit_size,
+            &Expression::one(),
+        )?;
+
+        // Get the sign bit of lhs by computing lhs / max_power_of_two
+        let (lhs_leading, _) = self.euclidean_division(
+            lhs,
+            &max_power_of_two.into(),
+            max_bit_size,
+            &Expression::one(),
+        )?;
+
+        // Signed to unsigned:
+        let unsigned_lhs = self.two_complement(lhs, lhs_leading, max_bit_size);
+        let unsigned_rhs = self.two_complement(rhs, rhs_leading, max_bit_size);
+        let unsigned_l_witness = self.get_or_create_witness(&unsigned_lhs);
+        let unsigned_r_witness = self.get_or_create_witness(&unsigned_rhs);
+
+        // Performs the division using the unsigned values of lhs and rhs
+        let (q1, r1) = self.euclidean_division(
+            &unsigned_l_witness.into(),
+            &unsigned_r_witness.into(),
+            max_bit_size - 1,
+            &Expression::one(),
+        )?;
+
+        // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
+        // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
+        let q_sign = (&Expression::from(lhs_leading) + &Expression::from(rhs_leading)).add_mul(
+            -FieldElement::from(2_i128),
+            &(&Expression::from(lhs_leading) * &Expression::from(rhs_leading)).unwrap(),
+        );
+        let q_sign_witness = self.get_or_create_witness(&q_sign);
+        let quotient = self.two_complement(&q1.into(), q_sign_witness, max_bit_size);
+        let remainder = self.two_complement(&r1.into(), lhs_leading, max_bit_size);
+        Ok((quotient, remainder))
     }
 
     /// Computes lhs/rhs by using euclidean division.
@@ -318,39 +378,40 @@ impl GeneratedAcir {
         max_bit_size: u32,
         predicate: &Expression,
     ) -> Result<(Witness, Witness), AcirGenError> {
-        let q_witness = self.next_witness_index();
-        let r_witness = self.next_witness_index();
-
         // lhs = rhs * q + r
         //
         // If predicate is zero, `q_witness` and `r_witness` will be 0
-        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: lhs.clone(),
-            b: rhs.clone(),
-            q: q_witness,
-            r: r_witness,
-            predicate: Some(predicate.clone()),
-        })));
 
-        // Constrain r to be 0 <= r < 2^{max_bit_size}
-        let r_expr = Expression::from(r_witness);
-        self.range_constraint(r_witness, max_bit_size)?;
+        // maximum bit size for q and for [r and rhs]
+        let mut max_q_bits = max_bit_size;
+        let mut max_rhs_bits = max_bit_size;
+        // when rhs is constant, we can better estimate the maximum bit sizes
+        if let Some(rhs_const) = rhs.to_const() {
+            max_rhs_bits = rhs_const.num_bits();
+            if max_rhs_bits != 0 {
+                max_q_bits = max_bit_size - max_rhs_bits + 1;
+            }
+        }
+
+        let (q_witness, r_witness) = self.quotient_directive(
+            lhs.clone(),
+            rhs.clone(),
+            Some(predicate.clone()),
+            max_q_bits,
+            max_rhs_bits,
+        )?;
+
         // Constrain r < rhs
-        self.bound_constraint_with_offset(&r_expr, rhs, predicate, max_bit_size)?;
-
-        // Constrain q to be 0 <= q < 2^{max_bit_size}
-        self.range_constraint(q_witness, max_bit_size)?;
+        self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_rhs_bits)?;
 
         // a * predicate == (b * q + r) * predicate
-        // => predicate * ( a - b * q - r) == 0
+        // => predicate * (a - b * q - r) == 0
         // When the predicate is 0, the equation always passes.
         // When the predicate is 1, the euclidean division needs to be
         // true.
-        let mut rhs_constraint = rhs * &Expression::from(q_witness);
-        rhs_constraint = &rhs_constraint + r_witness;
-        rhs_constraint = &rhs_constraint * predicate;
-        let lhs_constraint = lhs * predicate;
-        let div_euclidean = &lhs_constraint - &rhs_constraint;
+        let rhs_constraint = &self.mul_with_witness(rhs, &q_witness.into()) + r_witness;
+        let div_euclidean = &self.mul_with_witness(lhs, predicate)
+            - &self.mul_with_witness(&rhs_constraint, predicate);
 
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
@@ -412,7 +473,7 @@ impl GeneratedAcir {
             assert!(bits + bit_size < FieldElement::max_num_bits()); //we need to ensure lhs_offset + r does not overflow
             let mut aor = lhs_offset;
             aor.q_c += FieldElement::from(r);
-            let witness = self.create_witness_for_expression(&aor);
+            let witness = self.get_or_create_witness(&aor);
             // lhs_offset<=rhs_offset <=> lhs_offset + r < rhs_offset + r = 2^bit_size <=> witness < 2^bit_size
             self.range_constraint(witness, bit_size)?;
             return Ok(());
@@ -456,15 +517,15 @@ impl GeneratedAcir {
     ///
     /// Safety: It is the callers responsibility to ensure that the
     /// resulting `Witness` is constrained to be the inverse.
-    pub(crate) fn brillig_inverse(&mut self, expr: &Expression) -> Witness {
+    pub(crate) fn brillig_inverse(&mut self, expr: Expression) -> Witness {
         // Create the witness for the result
         let inverted_witness = self.next_witness_index();
 
         // Compute the inverse with brillig code
         let inverse_code = brillig_directive::directive_invert();
-        let inputs = vec![BrilligInputs::Single(expr.clone())];
+        let inputs = vec![BrilligInputs::Single(expr)];
         let outputs = vec![BrilligOutputs::Simple(inverted_witness)];
-        self.brillig(inverse_code, inputs, outputs);
+        self.brillig(Some(Expression::one()), inverse_code, inputs, outputs);
 
         inverted_witness
     }
@@ -539,16 +600,13 @@ impl GeneratedAcir {
     /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
     pub(crate) fn is_equal(&mut self, lhs: &Expression, rhs: &Expression) -> Witness {
         let t = lhs - rhs;
-
-        // This conversion is needed due to us calling Directive::Inverse;
-        //
-        // We avoid calling directive::inverse(expr) because we need
-        // the Witness representation for the Expression.
+        // We avoid passing the expression to `self.brillig_inverse` directly because we need
+        // the `Witness` representation for constructing `y_is_boolean_constraint`.
         let t_witness = self.get_or_create_witness(&t);
 
         // Call the inversion directive, since we do not apply a constraint
         // the prover can choose anything here.
-        let z = self.brillig_inverse(&Expression::from(t_witness));
+        let z = self.brillig_inverse(t_witness.into());
 
         let y = self.next_witness_index();
 
@@ -572,7 +630,7 @@ impl GeneratedAcir {
     }
 
     /// Adds a constraint which ensure thats `witness` is an
-    /// integer within the range [0, 2^{num_bits} - 1]
+    /// integer within the range `[0, 2^{num_bits} - 1]`
     pub(crate) fn range_constraint(
         &mut self,
         witness: Witness,
@@ -583,6 +641,7 @@ impl GeneratedAcir {
         if num_bits >= FieldElement::max_num_bits() {
             return Err(AcirGenError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
+                location: self.current_location,
             });
         };
 
@@ -592,6 +651,32 @@ impl GeneratedAcir {
         self.push_opcode(constraint);
 
         Ok(())
+    }
+
+    /// Adds a directive which injects witnesses with values `q = a / b` and `r = a % b`.
+    ///
+    /// Suitable range constraints are also applied to `q` and `r`.
+    pub(crate) fn quotient_directive(
+        &mut self,
+        a: Expression,
+        b: Expression,
+        predicate: Option<Expression>,
+        q_max_bits: u32,
+        r_max_bits: u32,
+    ) -> Result<(Witness, Witness), AcirGenError> {
+        let q_witness = self.next_witness_index();
+        let r_witness = self.next_witness_index();
+
+        let directive =
+            Directive::Quotient(QuotientDirective { a, b, q: q_witness, r: r_witness, predicate });
+        self.push_opcode(AcirOpcode::Directive(directive));
+
+        // Apply range constraints to injected witness values.
+        // Constrains `q` to be 0 <= q < 2^{q_max_bits}, etc.
+        self.range_constraint(q_witness, q_max_bits)?;
+        self.range_constraint(r_witness, r_max_bits)?;
+
+        Ok((q_witness, r_witness))
     }
 
     /// Returns a `Witness` that is constrained to be:
@@ -605,7 +690,7 @@ impl GeneratedAcir {
         a: &Expression,
         b: &Expression,
         max_bits: u32,
-        predicate: Option<Expression>,
+        predicate: Expression,
     ) -> Result<Witness, AcirGenError> {
         // Ensure that 2^{max_bits + 1} is less than the field size
         //
@@ -613,15 +698,16 @@ impl GeneratedAcir {
         assert!(max_bits + 1 < FieldElement::max_num_bits());
 
         // Compute : 2^{max_bits} + a - b
-        let mut comparison_evaluation = a - b;
         let two = FieldElement::from(2_i128);
-        let two_max_bits = two.pow(&FieldElement::from(max_bits as i128));
-        comparison_evaluation.q_c += two_max_bits;
+        let two_max_bits: FieldElement = two.pow(&FieldElement::from(max_bits as i128));
+        let comparison_evaluation = (a - b) + two_max_bits;
 
-        let q_witness = self.next_witness_index();
-        let r_witness = self.next_witness_index();
-
-        // Add constraint : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        // Euclidian division by 2^{max_bits}  : 2^{max_bits} + a - b = q * 2^{max_bits} + r
+        //
+        // 2^{max_bits} is of max_bits+1 bit size
+        // If a>b, then a-b is less than 2^{max_bits} - 1, so 2^{max_bits} + a - b is less than 2^{max_bits} + 2^{max_bits} - 1 = 2^{max_bits+1} - 1
+        // If a <= b, then 2^{max_bits} + a - b is less than 2^{max_bits} <= 2^{max_bits+1} - 1
+        // This means that both operands of the division have at most max_bits+1 bit size.
         //
         // case: a == b
         //
@@ -641,36 +727,18 @@ impl GeneratedAcir {
         // - 2^{max_bits} - k == q * 2^{max_bits} + r
         // - This is only the case when q == 0 and r == 2^{max_bits} - k
         //
-        let mut expr = Expression::default();
-        expr.push_addition_term(two_max_bits, q_witness);
-        expr.push_addition_term(FieldElement::one(), r_witness);
-        self.push_opcode(AcirOpcode::Arithmetic(&comparison_evaluation - &expr));
-
-        self.push_opcode(AcirOpcode::Directive(Directive::Quotient(QuotientDirective {
-            a: comparison_evaluation,
-            b: Expression::from_field(two_max_bits),
-            q: q_witness,
-            r: r_witness,
-            predicate,
-        })));
-
-        // Add constraint to ensure `r` is correctly bounded
-        // between [0, 2^{max_bits}-1]
-        self.range_constraint(r_witness, max_bits)?;
-        // Add constraint to ensure that `q` is a boolean value
-        // in particular it should be the `n` bit of the comparison_evaluation
-        // which will indicate whether a >= b
-        //
-        // In the document linked above, they mention negating the value of `q`
-        // which would tell us whether a < b. Since we do not negate `q`
-        // what we get is a boolean indicating whether a >= b.
-        self.range_constraint(q_witness, 1)?;
-
-        Ok(q_witness)
+        let (q, _) = self.euclidean_division(
+            &comparison_evaluation,
+            &Expression::from(two_max_bits),
+            max_bits + 1,
+            &predicate,
+        )?;
+        Ok(q)
     }
 
     pub(crate) fn brillig(
         &mut self,
+        predicate: Option<Expression>,
         code: Vec<BrilligOpcode>,
         inputs: Vec<BrilligInputs>,
         outputs: Vec<BrilligOutputs>,
@@ -680,9 +748,38 @@ impl GeneratedAcir {
             outputs,
             foreign_call_results: Vec::new(),
             bytecode: code,
-            predicate: None,
+            predicate,
         });
         self.push_opcode(opcode);
+    }
+
+    /// Generate gates and control bits witnesses which ensure that out_expr is a permutation of in_expr
+    /// Add the control bits of the sorting network used to generate the constrains
+    /// into the PermutationSort directive for solving in ACVM.
+    /// The directive is solving the control bits so that the outputs are sorted in increasing order.
+    ///
+    /// n.b. A sorting network is a predetermined set of switches,
+    /// the control bits indicate the configuration of each switch: false for pass-through and true for cross-over
+    pub(crate) fn permutation(&mut self, in_expr: &[Expression], out_expr: &[Expression]) {
+        let mut bits_len = 0;
+        for i in 0..in_expr.len() {
+            bits_len += ((i + 1) as f32).log2().ceil() as u32;
+        }
+
+        let bits = vecmap(0..bits_len, |_| self.next_witness_index());
+        let inputs = in_expr.iter().map(|a| vec![a.clone()]).collect();
+        self.push_opcode(AcirOpcode::Directive(Directive::PermutationSort {
+            inputs,
+            tuple: 1,
+            bits: bits.clone(),
+            sort_by: vec![0],
+        }));
+        let (_, b) = self.permutation_layer(in_expr, &bits, false);
+
+        // Constrain the network output to out_expr
+        for (b, o) in b.iter().zip(out_expr) {
+            self.push_opcode(AcirOpcode::Arithmetic(b - o));
+        }
     }
 }
 
@@ -706,7 +803,9 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Signature verification algorithms will take in a variable
         // number of inputs, since the message/hashed-message can vary in size.
-        BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => None,
+        BlackBoxFunc::SchnorrVerify
+        | BlackBoxFunc::EcdsaSecp256k1
+        | BlackBoxFunc::EcdsaSecp256r1 => None,
         // Inputs for fixed based scalar multiplication
         // is just a scalar
         BlackBoxFunc::FixedBaseScalarMul => Some(1),
@@ -736,7 +835,9 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> u32 {
         // witness at a time.
         BlackBoxFunc::RANGE => 0,
         // Signature verification algorithms will return a boolean
-        BlackBoxFunc::SchnorrVerify | BlackBoxFunc::EcdsaSecp256k1 => 1,
+        BlackBoxFunc::SchnorrVerify
+        | BlackBoxFunc::EcdsaSecp256k1
+        | BlackBoxFunc::EcdsaSecp256r1 => 1,
         // Output of fixed based scalar mul over the embedded curve
         // will be 2 field elements representing the point.
         BlackBoxFunc::FixedBaseScalarMul => 2,

@@ -217,9 +217,9 @@ impl<'function> PerFunctionContext<'function> {
             Value::ForeignFunction(function) => {
                 self.context.builder.import_foreign_function(function)
             }
-            Value::Array { array, element_type } => {
+            Value::Array { array, typ } => {
                 let elements = array.iter().map(|value| self.translate_value(*value)).collect();
-                self.context.builder.array_constant(elements, element_type.clone())
+                self.context.builder.array_constant(elements, typ.clone())
             }
         };
 
@@ -379,6 +379,7 @@ impl<'function> PerFunctionContext<'function> {
     /// function being inlined into.
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
+        let location = self.source_function.dfg.get_location(&id);
         let results = self.source_function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
 
@@ -386,6 +387,9 @@ impl<'function> PerFunctionContext<'function> {
             .requires_ctrl_typevars()
             .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
 
+        if let Some(location) = location {
+            self.context.builder.set_location(location);
+        }
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
@@ -402,6 +406,11 @@ impl<'function> PerFunctionContext<'function> {
         match new_results {
             InsertInstructionResult::SimplifiedTo(new_result) => {
                 values.insert(old_results[0], new_result);
+            }
+            InsertInstructionResult::SimplifiedToMultiple(new_results) => {
+                for (old_result, new_result) in old_results.iter().zip(new_results) {
+                    values.insert(*old_result, new_result);
+                }
             }
             InsertInstructionResult::Results(new_results) => {
                 for (old_result, new_result) in old_results.iter().zip(new_results) {

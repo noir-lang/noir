@@ -10,7 +10,7 @@ use iter_extended::vecmap;
 ///
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -18,7 +18,7 @@ pub(crate) enum NumericType {
 }
 
 /// All types representable in the IR.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
@@ -28,6 +28,9 @@ pub(crate) enum Type {
 
     /// An immutable array value with the given element type and length
     Array(Rc<CompositeType>, usize),
+
+    /// An immutable slice value with a given element type
+    Slice(Rc<CompositeType>),
 
     /// A function that may be called directly
     Function,
@@ -73,6 +76,10 @@ impl std::fmt::Display for Type {
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 write!(f, "[{}; {length}]", elements.join(", "))
+            }
+            Type::Slice(element) => {
+                let elements = vecmap(element.iter(), |element| element.to_string());
+                write!(f, "[{}]", elements.join(", "))
             }
             Type::Function => write!(f, "function"),
         }

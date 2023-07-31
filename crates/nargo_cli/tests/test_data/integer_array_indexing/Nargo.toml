@@ -1,0 +1,6 @@
+[package]
+name = "integer_array_indexing"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

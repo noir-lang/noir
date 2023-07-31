@@ -1,5 +1,6 @@
 use codespan::Span as ByteSpan;
 use fm::FileId;
+use serde::{Deserialize, Serialize};
 use std::{
     hash::{Hash, Hasher},
     ops::Range,
@@ -50,7 +51,9 @@ impl<T> std::borrow::Borrow<T> for Spanned<T> {
     }
 }
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default)]
+#[derive(
+    PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, Default, Deserialize, Serialize,
+)]
 pub struct Span(ByteSpan);
 
 impl Span {
@@ -114,7 +117,7 @@ impl chumsky::Span for Span {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Location {
     pub span: Span,
     pub file: FileId,

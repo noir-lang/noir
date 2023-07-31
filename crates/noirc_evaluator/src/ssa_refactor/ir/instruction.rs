@@ -32,6 +32,13 @@ pub(crate) type InstructionId = Id<Instruction>;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Intrinsic {
     Sort,
+    ArrayLen,
+    SlicePushBack,
+    SlicePushFront,
+    SlicePopBack,
+    SlicePopFront,
+    SliceInsert,
+    SliceRemove,
     Println,
     ToBits(Endian),
     ToRadix(Endian),
@@ -43,6 +50,13 @@ impl std::fmt::Display for Intrinsic {
         match self {
             Intrinsic::Println => write!(f, "println"),
             Intrinsic::Sort => write!(f, "arraysort"),
+            Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
+            Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
+            Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
+            Intrinsic::SlicePopFront => write!(f, "slice_pop_front"),
+            Intrinsic::SliceInsert => write!(f, "slice_insert"),
+            Intrinsic::SliceRemove => write!(f, "slice_remove"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
             Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
@@ -59,6 +73,13 @@ impl Intrinsic {
         match name {
             "println" => Some(Intrinsic::Println),
             "arraysort" => Some(Intrinsic::Sort),
+            "array_len" => Some(Intrinsic::ArrayLen),
+            "slice_push_back" => Some(Intrinsic::SlicePushBack),
+            "slice_push_front" => Some(Intrinsic::SlicePushFront),
+            "slice_pop_back" => Some(Intrinsic::SlicePopBack),
+            "slice_pop_front" => Some(Intrinsic::SlicePopFront),
+            "slice_insert" => Some(Intrinsic::SliceInsert),
+            "slice_remove" => Some(Intrinsic::SliceRemove),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
             "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
@@ -237,7 +258,10 @@ impl Instruction {
 
     /// Try to simplify this instruction. If the instruction can be simplified to a known value,
     /// that value is returned. Otherwise None is returned.
-    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph) -> SimplifyResult {
+    ///
+    /// The `block` parameter indicates the block this new instruction will be inserted into
+    /// after this call.
+    pub(crate) fn simplify(&self, dfg: &mut DataFlowGraph, block: BasicBlockId) -> SimplifyResult {
         use SimplifyResult::*;
         match self {
             Instruction::Binary(binary) => binary.simplify(dfg),
@@ -273,11 +297,9 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
-
                 if let (Some((array, _)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
-
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }
@@ -287,7 +309,6 @@ impl Instruction {
             Instruction::ArraySet { array, index, value } => {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
-
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
@@ -309,10 +330,19 @@ impl Instruction {
                 }
             }
             Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg),
+            Instruction::EnableSideEffects { condition } => {
+                if let Some(last) = dfg[block].instructions().last().copied() {
+                    let last = &mut dfg[last];
+                    if matches!(last, Instruction::EnableSideEffects { .. }) {
+                        *last = Instruction::EnableSideEffects { condition: *condition };
+                        return Remove;
+                    }
+                }
+                None
+            }
             Instruction::Allocate { .. } => None,
             Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
-            Instruction::EnableSideEffects { .. } => None,
         }
     }
 }
@@ -363,23 +393,105 @@ fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) 
         Value::Intrinsic(intrinsic) => *intrinsic,
         _ => return None,
     };
+
     let constant_args: Option<Vec<_>> =
         arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
-    let constant_args = match constant_args {
-        Some(constant_args) => constant_args,
-        Option::None => return None,
-    };
+
     match intrinsic {
         Intrinsic::ToBits(endian) => {
-            let field = constant_args[0];
-            let limb_count = constant_args[1].to_u128() as u32;
-            SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
+            if let Some(constant_args) = constant_args {
+                let field = constant_args[0];
+                let limb_count = constant_args[1].to_u128() as u32;
+                SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
+            } else {
+                None
+            }
         }
         Intrinsic::ToRadix(endian) => {
-            let field = constant_args[0];
-            let radix = constant_args[1].to_u128() as u32;
-            let limb_count = constant_args[1].to_u128() as u32;
-            SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
+            if let Some(constant_args) = constant_args {
+                let field = constant_args[0];
+                let radix = constant_args[1].to_u128() as u32;
+                let limb_count = constant_args[2].to_u128() as u32;
+                SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
+            } else {
+                None
+            }
+        }
+        Intrinsic::ArrayLen => {
+            let slice = dfg.get_array_constant(arguments[0]);
+            if let Some((slice, _)) = slice {
+                SimplifiedTo(dfg.make_constant((slice.len() as u128).into(), Type::field()))
+            } else if let Some(length) = dfg.try_get_array_length(arguments[0]) {
+                SimplifiedTo(dfg.make_constant((length as u128).into(), Type::field()))
+            } else {
+                None
+            }
+        }
+        Intrinsic::SlicePushBack => {
+            let slice = dfg.get_array_constant(arguments[0]);
+            if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
+                slice.push_back(elem);
+                let new_slice = dfg.make_array(slice, element_type);
+                SimplifiedTo(new_slice)
+            } else {
+                None
+            }
+        }
+        Intrinsic::SlicePushFront => {
+            let slice = dfg.get_array_constant(arguments[0]);
+            if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
+                slice.push_front(elem);
+                let new_slice = dfg.make_array(slice, element_type);
+                SimplifiedTo(new_slice)
+            } else {
+                None
+            }
+        }
+        Intrinsic::SlicePopBack => {
+            let slice = dfg.get_array_constant(arguments[0]);
+            if let Some((mut slice, element_type)) = slice {
+                let elem =
+                    slice.pop_back().expect("There are no elements in this slice to be removed");
+                let new_slice = dfg.make_array(slice, element_type);
+                SimplifiedToMultiple(vec![new_slice, elem])
+            } else {
+                None
+            }
+        }
+        Intrinsic::SlicePopFront => {
+            let slice = dfg.get_array_constant(arguments[0]);
+            if let Some((mut slice, element_type)) = slice {
+                let elem =
+                    slice.pop_front().expect("There are no elements in this slice to be removed");
+                let new_slice = dfg.make_array(slice, element_type);
+                SimplifiedToMultiple(vec![elem, new_slice])
+            } else {
+                None
+            }
+        }
+        Intrinsic::SliceInsert => {
+            let slice = dfg.get_array_constant(arguments[0]);
+            let index = dfg.get_numeric_constant(arguments[1]);
+            if let (Some((mut slice, element_type)), Some(index), value) =
+                (slice, index, arguments[2])
+            {
+                slice.insert(index.to_u128() as usize, value);
+                let new_slice = dfg.make_array(slice, element_type);
+                SimplifiedTo(new_slice)
+            } else {
+                None
+            }
+        }
+        Intrinsic::SliceRemove => {
+            let slice = dfg.get_array_constant(arguments[0]);
+            let index = dfg.get_numeric_constant(arguments[1]);
+            if let (Some((mut slice, element_type)), Some(index)) = (slice, index) {
+                let removed_elem = slice.remove(index.to_u128() as usize);
+                let new_slice = dfg.make_array(slice, element_type);
+                SimplifiedToMultiple(vec![new_slice, removed_elem])
+            } else {
+                None
+            }
         }
         Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,
     }
@@ -416,9 +528,11 @@ fn constant_to_radix(
     while limbs.len() < limb_count_with_padding as usize {
         limbs.push(FieldElement::zero());
     }
-    let result_constants =
+    let result_constants: im::Vector<ValueId> =
         limbs.into_iter().map(|limb| dfg.make_constant(limb, Type::unsigned(bit_size))).collect();
-    dfg.make_array(result_constants, Rc::new(vec![Type::unsigned(bit_size)]))
+
+    let typ = Type::Array(Rc::new(vec![Type::unsigned(bit_size)]), result_constants.len());
+    dfg.make_array(result_constants, typ)
 }
 
 /// The possible return values for Instruction::return_types
@@ -657,63 +771,67 @@ impl Binary {
         rhs: FieldElement,
         mut operand_type: Type,
     ) -> Option<Id<Value>> {
-        let value = match self.operator {
-            BinaryOp::Add => lhs + rhs,
-            BinaryOp::Sub => lhs - rhs,
-            BinaryOp::Mul => lhs * rhs,
-            BinaryOp::Div => lhs / rhs,
-            BinaryOp::Eq => {
-                operand_type = Type::bool();
-                (lhs == rhs).into()
+        let value = match &operand_type {
+            Type::Numeric(NumericType::NativeField) => {
+                self.operator.get_field_function()?(lhs, rhs)
             }
-            BinaryOp::Lt => {
-                operand_type = Type::bool();
-                (lhs < rhs).into()
-            }
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                let function = self.operator.get_u128_function();
 
-            // The rest of the operators we must try to convert to u128 first
-            BinaryOp::Mod => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::And => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::Or => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::Xor => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::Shl => self.eval_constant_u128_operations(lhs, rhs)?,
-            BinaryOp::Shr => self.eval_constant_u128_operations(lhs, rhs)?,
+                let lhs = truncate(lhs.try_into_u128()?, *bit_size);
+                let rhs = truncate(rhs.try_into_u128()?, *bit_size);
+                let result = function(lhs, rhs)?;
+                truncate(result, *bit_size).into()
+            }
+            _ => return None,
         };
+
+        if matches!(self.operator, BinaryOp::Eq | BinaryOp::Lt) {
+            operand_type = Type::bool();
+        }
+
         Some(dfg.make_constant(value, operand_type))
     }
+}
 
-    /// Try to evaluate the given operands as u128s for operators that are only valid on u128s,
-    /// like the bitwise operators and modulus.
-    fn eval_constant_u128_operations(
-        &self,
-        lhs: FieldElement,
-        rhs: FieldElement,
-    ) -> Option<FieldElement> {
-        let lhs = lhs.try_into_u128()?;
-        let rhs = rhs.try_into_u128()?;
-        match self.operator {
-            BinaryOp::Mod => Some((lhs % rhs).into()),
-            BinaryOp::And => Some((lhs & rhs).into()),
-            BinaryOp::Or => Some((lhs | rhs).into()),
-            BinaryOp::Shr => Some((lhs >> rhs).into()),
-            // Check for overflow and return None if anything does overflow
-            BinaryOp::Shl => {
-                let rhs = rhs.try_into().ok()?;
-                lhs.checked_shl(rhs).map(Into::into)
-            }
+fn truncate(int: u128, bit_size: u32) -> u128 {
+    let max = 2u128.pow(bit_size);
+    int % max
+}
 
-            // Converting a field xor to a u128 xor would be incorrect since we wouldn't have the
-            // extra bits of the field. So we don't optimize it here.
+impl BinaryOp {
+    fn get_field_function(self) -> Option<fn(FieldElement, FieldElement) -> FieldElement> {
+        match self {
+            BinaryOp::Add => Some(std::ops::Add::add),
+            BinaryOp::Sub => Some(std::ops::Sub::sub),
+            BinaryOp::Mul => Some(std::ops::Mul::mul),
+            BinaryOp::Div => Some(std::ops::Div::div),
+            BinaryOp::Eq => Some(|x, y| (x == y).into()),
+            BinaryOp::Lt => Some(|x, y| (x < y).into()),
+            // Bitwise operators are unsupported for Fields
+            BinaryOp::Mod => None,
+            BinaryOp::And => None,
+            BinaryOp::Or => None,
             BinaryOp::Xor => None,
+            BinaryOp::Shl => None,
+            BinaryOp::Shr => None,
+        }
+    }
 
-            op @ (BinaryOp::Add
-            | BinaryOp::Sub
-            | BinaryOp::Mul
-            | BinaryOp::Div
-            | BinaryOp::Eq
-            | BinaryOp::Lt) => panic!(
-                "eval_constant_u128_operations invalid for {op:?} use eval_constants instead"
-            ),
+    fn get_u128_function(self) -> fn(u128, u128) -> Option<u128> {
+        match self {
+            BinaryOp::Add => u128::checked_add,
+            BinaryOp::Sub => u128::checked_sub,
+            BinaryOp::Mul => u128::checked_mul,
+            BinaryOp::Div => u128::checked_div,
+            BinaryOp::Mod => u128::checked_rem,
+            BinaryOp::And => |x, y| Some(x & y),
+            BinaryOp::Or => |x, y| Some(x | y),
+            BinaryOp::Xor => |x, y| Some(x ^ y),
+            BinaryOp::Shl => |x, y| x.checked_shl(y.try_into().ok()?),
+            BinaryOp::Shr => |x, y| Some(x >> y),
+            BinaryOp::Eq => |x, y| Some((x == y) as u128),
+            BinaryOp::Lt => |x, y| Some((x < y) as u128),
         }
     }
 }
@@ -782,6 +900,11 @@ impl std::fmt::Display for BinaryOp {
 pub(crate) enum SimplifyResult {
     /// Replace this function's result with the given value
     SimplifiedTo(ValueId),
+
+    /// Replace this function's results with the given values
+    /// Used for when there are multiple return values from
+    /// a function such as a tuple
+    SimplifiedToMultiple(Vec<ValueId>),
 
     /// Remove the instruction, it is unnecessary
     Remove,

@@ -20,3 +20,7 @@ result
 *.vk
 **/Verifier.toml
 **/target
+!crates/nargo_cli/tests/test_data/*/target
+!crates/nargo_cli/tests/test_data/*/target/witness.tr
+!crates/nargo_cli/tests/test_data_ssa_refactor/*/target
+!crates/nargo_cli/tests/test_data_ssa_refactor/*/target/witness.tr

@@ -1,4 +1,5 @@
 [package]
+name = "1_mul"
 authors = [""]
 compiler_version = "0.1"
 

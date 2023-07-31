@@ -3,6 +3,7 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+pub mod debug_info;
 mod position;
 pub mod reporter;
 pub use position::{Location, Position, Span, Spanned};

@@ -1,9 +1,28 @@
 //! This is an algorithm for identifying branch starts and ends.
-use std::collections::{HashMap, HashSet};
+//!
+//! The algorithm is split into two parts:
+//! 1. The outer part:
+//!   A. An (unrolled) CFG can be though of as a linear sequence of blocks where some nodes split
+//!   off, but eventually rejoin to a new node and continue the linear sequence.
+//!   B. Follow this sequence in order, and whenever a split is found call
+//!   `find_join_point_of_branches` and then recur from the join point it returns until the
+//!   return instruction is found.
+//!
+//! 2. The inner part defined by `find_join_point_of_branches`:
+//!   A. For each of the two branches in a jmpif block:
+//!     - Check if either has multiple predecessors. If so, it is a join point.
+//!     - If not, continue to search the linear sequence of successor blocks from that block.
+//!       - If another split point is found, recur in `find_join_point_of_branches`
+//!       - If a block with multiple predecessors is found, return it.
+//!     - After, we should have identified a join point for both branches. This is expected to be
+//!       the same block for both and can be returned from here to continue iteration.
+//!
+//! This algorithm will remember each join point found in `find_join_point_of_branches` and
+//! the resulting map from each split block to each join block is returned.
+use std::collections::HashMap;
 
 use crate::ssa_refactor::ir::{
-    basic_block::BasicBlockId, cfg::ControlFlowGraph, dom::DominatorTree, function::Function,
-    post_order::PostOrder,
+    basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
 };
 
 /// Returns a `HashMap` mapping blocks that start a branch (i.e. blocks terminated with jmpif) to
@@ -16,121 +35,78 @@ pub(super) fn find_branch_ends(
     function: &Function,
     cfg: &ControlFlowGraph,
 ) -> HashMap<BasicBlockId, BasicBlockId> {
-    let post_order = PostOrder::with_function(function);
-    let dom_tree = DominatorTree::with_cfg_and_post_order(cfg, &post_order);
-    let mut stepper = Stepper::new(function.entry_block());
-    // This outer `visited` set is inconsequential, and simply here to satisfy the recursive
-    // stepper interface.
-    let mut visited = HashSet::new();
-    let mut branch_ends = HashMap::new();
-    while !stepper.finished {
-        stepper.step(cfg, &dom_tree, &mut visited, &mut branch_ends);
-    }
-    branch_ends
-}
+    let mut block = function.entry_block();
+    let mut context = Context::new(cfg);
 
-/// Returns the block at which `left` and `right` converge, at the same time identifying branch
-/// ends in any sub branches.
-///
-/// This function is called by `Stepper::step` and is thus recursive.
-fn step_until_rejoin(
-    cfg: &ControlFlowGraph,
-    dom_tree: &DominatorTree,
-    branch_ends: &mut HashMap<BasicBlockId, BasicBlockId>,
-    left: BasicBlockId,
-    right: BasicBlockId,
-) -> BasicBlockId {
-    let mut visited = HashSet::new();
-    let mut left_stepper = Stepper::new(left);
-    let mut right_stepper = Stepper::new(right);
+    loop {
+        let mut successors = cfg.successors(block);
 
-    while !left_stepper.finished || !right_stepper.finished {
-        left_stepper.step(cfg, dom_tree, &mut visited, branch_ends);
-        right_stepper.step(cfg, dom_tree, &mut visited, branch_ends);
-    }
-    let collision = match (left_stepper.collision, right_stepper.collision) {
-        (Some(collision), None) | (None, Some(collision)) => collision,
-        (Some(_),Some(_))=> unreachable!("A collision on both branches indicates a loop"), 
-        _ => unreachable!(
-            "Until we support multiple returns, branches always re-converge. Once supported this case should return `None`"
-        ),
-    };
-    collision
-}
-
-/// Tracks traversal along the arm of a branch. Steppers are progressed in pairs, such that the
-/// re-convergence point of two arms is discovered as soon as possible. The exceptional case is
-/// that of the top level stepper, which conveniently steps the whole CFG as if it were a single
-/// arm.
-struct Stepper {
-    /// The block that will be interrogated when calling `step`
-    current_block: BasicBlockId,
-    /// Indicates that the stepper has no more block successors to process, either because it has
-    /// reached the end of the CFG, or because it encountered a block already visited by its
-    /// sibling stepper.
-    finished: bool,
-    /// Once finished this option indicates whether a collision was encountered before reaching
-    /// the end of the CFG.
-    collision: Option<BasicBlockId>,
-}
-
-impl Stepper {
-    /// Creates a fresh stepper instance
-    fn new(current_block: BasicBlockId) -> Self {
-        Stepper { current_block, finished: false, collision: None }
+        if successors.len() == 2 {
+            block = context.find_join_point_of_branches(block, successors);
+        } else if successors.len() == 1 {
+            block = successors.next().unwrap();
+        } else if successors.len() == 0 {
+            // return encountered. We have nothing to join, so we're done
+            break;
+        } else {
+            unreachable!("A block can only have 0, 1, or 2 successors");
+        }
     }
 
-    /// Checks the current block to see if it has already been visited and if so marks it as a
-    /// collision. If a sub-branch is encountered `step_until_rejoin` is called to start a pair
-    /// of child steppers stepping along its arms.
-    ///
-    /// It is safe to call this even when the stepper has reached its end.
-    fn step(
+    context.branch_ends
+}
+
+struct Context<'cfg> {
+    branch_ends: HashMap<BasicBlockId, BasicBlockId>,
+    cfg: &'cfg ControlFlowGraph,
+}
+
+impl<'cfg> Context<'cfg> {
+    fn new(cfg: &'cfg ControlFlowGraph) -> Self {
+        Self { cfg, branch_ends: HashMap::new() }
+    }
+
+    fn find_join_point_of_branches(
         &mut self,
-        cfg: &ControlFlowGraph,
-        dom_tree: &DominatorTree,
-        visited: &mut HashSet<BasicBlockId>,
-        branch_ends: &mut HashMap<BasicBlockId, BasicBlockId>,
-    ) {
-        if self.finished {
-            // The caller still needs to progress the other stepper, while this one sits idle.
-            return;
-        }
-        if visited.contains(&self.current_block) {
-            // The other stepper has already visited this block - thus this block is the
-            // re.-convergence point.
-            self.collision = Some(self.current_block);
-            self.finished = true;
-        }
-        visited.insert(self.current_block);
+        start: BasicBlockId,
+        mut successors: impl Iterator<Item = BasicBlockId>,
+    ) -> BasicBlockId {
+        let left = successors.next().unwrap();
+        let right = successors.next().unwrap();
 
-        let mut successors = cfg.successors(self.current_block);
-        match successors.len() {
-            0 => {
-                // Reached the end of the CFG without a collision - this will happen in the other
-                // stepper assuming the CFG contains no early returns.
-                self.finished = true;
-            }
-            1 => {
-                // This block doesn't describe any branch starts or ends - move on.
-                self.current_block = successors.next().unwrap();
-            }
-            2 => {
-                // Sub-branch start encountered - recurse to find the end of the sub branch
-                let left = successors.next().unwrap();
-                let right = successors.next().unwrap();
-                let sub_branch_end = step_until_rejoin(cfg, dom_tree, branch_ends, left, right);
-                for collision_predecessor in cfg.predecessors(sub_branch_end) {
-                    assert!(dom_tree.dominates(self.current_block, collision_predecessor));
-                }
-                branch_ends.insert(self.current_block, sub_branch_end);
+        let left_join = self.find_join_point(left);
+        let right_join = self.find_join_point(right);
 
-                // Resume stepping though the current arm fro where the sub-branch left off
-                self.current_block = sub_branch_end;
-            }
-            _ => {
-                unreachable!("Basic blocks never have more than 2 successors")
-            }
+        assert_eq!(left_join, right_join, "Expected two blocks to join to the same block");
+        self.branch_ends.insert(start, left_join);
+
+        left_join
+    }
+
+    fn find_join_point(&mut self, block: BasicBlockId) -> BasicBlockId {
+        let predecessors = self.cfg.predecessors(block);
+        if predecessors.len() > 1 {
+            return block;
+        }
+        // The join point is not this block, so continue on
+        self.skip_then_find_join_point(block)
+    }
+
+    fn skip_then_find_join_point(&mut self, block: BasicBlockId) -> BasicBlockId {
+        let mut successors = self.cfg.successors(block);
+
+        if successors.len() == 2 {
+            let join = self.find_join_point_of_branches(block, successors);
+            // Note that we call skip_then_find_join_point here instead of find_join_point.
+            // We already know this `join` is a join point, but it cannot be for the current block
+            // since we already know it is the join point of the successors of the current block.
+            self.skip_then_find_join_point(join)
+        } else if successors.len() == 1 {
+            self.find_join_point(successors.next().unwrap())
+        } else if successors.len() == 0 {
+            unreachable!("return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jmping to a join block first")
+        } else {
+            unreachable!("A block can only have 0, 1, or 2 successors");
         }
     }
 }

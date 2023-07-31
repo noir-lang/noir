@@ -1,0 +1,6 @@
+[package]
+name = "simple_program_addition"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

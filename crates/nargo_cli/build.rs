@@ -29,11 +29,10 @@ fn main() {
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
-    let destination = Path::new(&out_dir).join("prove_and_verify.rs");
+    let destination = Path::new(&out_dir).join("execute.rs");
     let mut test_file = File::create(destination).unwrap();
 
-    generate_tests(&mut test_file, false);
-    generate_tests(&mut test_file, true);
+    generate_tests(&mut test_file);
 }
 
 fn load_conf(conf_path: &Path) -> BTreeMap<String, Vec<String>> {
@@ -54,15 +53,14 @@ fn load_conf(conf_path: &Path) -> BTreeMap<String, Vec<String>> {
     conf_data
 }
 
-fn generate_tests(test_file: &mut File, experimental_ssa: bool) {
+fn generate_tests(test_file: &mut File) {
     // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
     // is the root of the repository and append the crate path
     let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
         Ok(dir) => PathBuf::from(dir),
         Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
     };
-    // Choose the test directory depending on whether we are in the SSA refactor module or not
-    let test_sub_dir = if experimental_ssa { "test_data_ssa_refactor" } else { "test_data" };
+    let test_sub_dir = "test_data";
     let test_data_dir = manifest_dir.join("tests").join(test_sub_dir);
     let config_path = test_data_dir.join("config.toml");
 
@@ -86,32 +84,25 @@ fn generate_tests(test_file: &mut File, experimental_ssa: bool) {
             if config_data["exclude"].contains(&test_name) { "#[ignore]" } else { "" };
 
         let should_fail = config_data["fail"].contains(&test_name);
+        let is_workspace = test_dir.to_str().map_or(false, |s| s.contains("workspace"));
 
         write!(
             test_file,
             r#"
 {exclude_macro}
 #[test]
-fn prove_and_verify_{test_sub_dir}_{test_name}() {{
+fn execute_{test_sub_dir}_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
-    let verified = std::panic::catch_unwind(|| {{
-        nargo_cli::cli::prove_and_verify(&test_program_dir, {experimental_ssa})
-    }});
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg(if {is_workspace} {{ "test" }} else {{ "execute" }});
 
-    let r = match verified {{
-        Ok(result) => result,
-        Err(_) => {{
-            panic!(
-                "\n\n\nPanic occurred while running test {test_name} (ignore the following panic)"
-            );
-        }}
-    }};
 
     if {should_fail} {{
-        assert!(!r, "{test_name} should not succeed");
+        cmd.assert().failure();
     }} else {{
-        assert!(r, "verification fail for {test_name}");
+        cmd.assert().success();
     }}
 }}
             "#,

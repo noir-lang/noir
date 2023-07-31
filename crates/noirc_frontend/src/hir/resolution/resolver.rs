@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::graph::CrateId;
-use crate::hir::def_map::{ModuleDefId, TryFromModuleDefId, MAIN_FUNCTION};
+use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
     DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
@@ -34,7 +34,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, Path, Pattern, Shared,
-    StructType, Type, TypeBinding, TypeVariable, UnresolvedGenerics, UnresolvedType,
+    StructType, Type, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics, UnresolvedType,
     UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
@@ -49,7 +49,7 @@ use crate::hir_def::{
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 
-use super::errors::ResolverError;
+use super::errors::{PubPosition, ResolverError};
 
 const SELF_TYPE_NAME: &str = "Self";
 
@@ -137,6 +137,7 @@ impl<'a> Resolver<'a> {
         mut self,
         func: NoirFunction,
         func_id: FuncId,
+        module_id: ModuleId,
     ) -> (HirFunction, FuncMeta, Vec<ResolverError>) {
         self.scopes.start_function();
 
@@ -145,7 +146,7 @@ impl<'a> Resolver<'a> {
 
         self.add_generics(&func.def.generics);
 
-        let (hir_func, func_meta) = self.intern_function(func, func_id);
+        let (hir_func, func_meta) = self.intern_function(func, func_id, module_id);
         let func_scope_tree = self.scopes.end_function();
 
         self.check_for_unused_variables_in_scope_tree(func_scope_tree);
@@ -160,11 +161,12 @@ impl<'a> Resolver<'a> {
         }
 
         for unused_var in unused_vars.iter() {
-            let definition_info = self.interner.definition(unused_var.id);
-            let name = &definition_info.name;
-            if name != ERROR_IDENT && !definition_info.is_global() {
-                let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
-                self.push_err(ResolverError::UnusedVariable { ident });
+            if let Some(definition_info) = self.interner.try_definition(unused_var.id) {
+                let name = &definition_info.name;
+                if name != ERROR_IDENT && !definition_info.is_global() {
+                    let ident = Ident(Spanned::from(unused_var.location.span, name.to_owned()));
+                    self.push_err(ResolverError::UnusedVariable { ident });
+                }
             }
         }
     }
@@ -303,8 +305,13 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn intern_function(&mut self, func: NoirFunction, id: FuncId) -> (HirFunction, FuncMeta) {
-        let func_meta = self.extract_meta(&func, id);
+    fn intern_function(
+        &mut self,
+        func: NoirFunction,
+        id: FuncId,
+        module_id: ModuleId,
+    ) -> (HirFunction, FuncMeta) {
+        let func_meta = self.extract_meta(&func, id, module_id);
         let hir_func = match func.kind {
             FunctionKind::Builtin | FunctionKind::LowLevel | FunctionKind::Oracle => {
                 HirFunction::empty()
@@ -325,9 +332,13 @@ impl<'a> Resolver<'a> {
         match typ {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
-                let resolved_size = self.resolve_array_size(size, new_variables);
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                Type::Array(Box::new(resolved_size), elem)
+                let size = if size.is_none() {
+                    Type::NotConstant
+                } else {
+                    self.resolve_array_size(size, new_variables)
+                };
+                Type::Array(Box::new(size), elem)
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
             UnresolvedType::Integer(comp_time, sign, bits) => Type::Integer(comp_time, sign, bits),
@@ -348,19 +359,8 @@ impl<'a> Resolver<'a> {
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 Type::Function(args, ret)
             }
-            UnresolvedType::Vec(mut args, span) => {
-                let arg = if args.len() != 1 {
-                    self.push_err(ResolverError::IncorrectGenericCount {
-                        span,
-                        struct_type: "Vec".into(),
-                        actual: args.len(),
-                        expected: 1,
-                    });
-                    Type::Error
-                } else {
-                    self.resolve_type_inner(args.remove(0), new_variables)
-                };
-                Type::Vec(Box::new(arg))
+            UnresolvedType::MutableReference(element) => {
+                Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
         }
     }
@@ -593,7 +593,12 @@ impl<'a> Resolver<'a> {
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: self.add_generics() has already been called with the given
     /// function's generics, including any generics from the impl, if any.
-    fn extract_meta(&mut self, func: &NoirFunction, func_id: FuncId) -> FuncMeta {
+    fn extract_meta(
+        &mut self,
+        func: &NoirFunction,
+        func_id: FuncId,
+        module_id: ModuleId,
+    ) -> FuncMeta {
         let location = Location::new(func.name_ident().span(), self.file);
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent { id, location };
@@ -613,11 +618,15 @@ impl<'a> Resolver<'a> {
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
             if visibility == noirc_abi::AbiVisibility::Public && !self.pub_allowed(func) {
-                self.push_err(ResolverError::UnnecessaryPub { ident: func.name_ident().clone() });
+                self.push_err(ResolverError::UnnecessaryPub {
+                    ident: func.name_ident().clone(),
+                    position: PubPosition::Parameter,
+                });
             }
 
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
+
             parameters.push(Param(pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
@@ -625,6 +634,14 @@ impl<'a> Resolver<'a> {
         let return_type = Box::new(self.resolve_type(func.return_type()));
 
         self.declare_numeric_generics(&parameter_types, &return_type);
+
+        if !self.pub_allowed(func) && func.def.return_visibility == noirc_abi::AbiVisibility::Public
+        {
+            self.push_err(ResolverError::UnnecessaryPub {
+                ident: func.name_ident().clone(),
+                position: PubPosition::ReturnType,
+            });
+        }
 
         // 'pub_allowed' also implies 'pub' is required on return types
         if self.pub_allowed(func)
@@ -658,7 +675,9 @@ impl<'a> Resolver<'a> {
             name: name_ident,
             kind: func.kind,
             attributes,
+            module_id,
             contract_function_type: self.handle_function_type(func),
+            is_internal: self.handle_is_function_internal(func),
             is_unconstrained: func.def.is_unconstrained,
             location,
             typ,
@@ -672,7 +691,7 @@ impl<'a> Resolver<'a> {
     /// True if the 'pub' keyword is allowed on parameters in this function
     fn pub_allowed(&self, func: &NoirFunction) -> bool {
         if self.in_contract() {
-            !func.def.is_unconstrained && !func.def.is_open
+            !func.def.is_unconstrained
         } else {
             func.name() == MAIN_FUNCTION
         }
@@ -701,6 +720,19 @@ impl<'a> Resolver<'a> {
             }
         } else {
             Some(ContractFunctionType::Secret)
+        }
+    }
+
+    fn handle_is_function_internal(&mut self, func: &NoirFunction) -> Option<bool> {
+        if self.in_contract() {
+            Some(func.def.is_internal)
+        } else {
+            if func.def.is_internal {
+                self.push_err(ResolverError::ContractFunctionInternalInNormalFunction {
+                    span: func.name_ident().span(),
+                });
+            }
+            None
         }
     }
 
@@ -746,10 +778,10 @@ impl<'a> Resolver<'a> {
             | Type::String(_)
             | Type::Unit
             | Type::Error
-            | Type::TypeVariable(_)
-            | Type::PolymorphicInteger(_, _)
+            | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
+            | Type::NotConstant
             | Type::Forall(_, _) => (),
 
             Type::Array(length, _) => {
@@ -780,7 +812,7 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            Type::Vec(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
         }
     }
 
@@ -841,6 +873,10 @@ impl<'a> Resolver<'a> {
                 let index = self.resolve_expression(index);
                 HirLValue::Index { array, index, typ: Type::Error }
             }
+            LValue::Dereference(lvalue) => {
+                let lvalue = Box::new(self.resolve_lvalue(*lvalue));
+                HirLValue::Dereference { lvalue, element_type: Type::Error }
+            }
         }
     }
 
@@ -868,6 +904,7 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
                 // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -880,6 +917,13 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Prefix(prefix) => {
                 let operator = prefix.operator;
                 let rhs = self.resolve_expression(prefix.rhs);
+
+                if operator == UnaryOp::MutableReference {
+                    if let Err(error) = verify_mutable_reference(self.interner, rhs) {
+                        self.errors.push(error);
+                    }
+                }
+
                 HirExpression::Prefix(HirPrefixExpression { operator, rhs })
             }
             ExpressionKind::Infix(infix) => {
@@ -926,7 +970,7 @@ impl<'a> Resolver<'a> {
                     let decl = this.add_variable_decl(
                         identifier,
                         false,
-                        false,
+                        true,
                         DefinitionKind::Local(None),
                     );
                     (decl, this.resolve_expression(block))
@@ -1027,7 +1071,7 @@ impl<'a> Resolver<'a> {
                     (Some(_), DefinitionKind::Local(_)) => DefinitionKind::Local(None),
                     (_, other) => other,
                 };
-                let id = self.add_variable_decl(name, mutable.is_some(), false, definition);
+                let id = self.add_variable_decl(name, mutable.is_some(), true, definition);
                 HirPattern::Identifier(id)
             }
             Pattern::Mutable(pattern, span) => {
@@ -1246,6 +1290,32 @@ impl<'a> Resolver<'a> {
     }
 }
 
+/// Gives an error if a user tries to create a mutable reference
+/// to an immutable variable.
+pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<(), ResolverError> {
+    match interner.expression(&rhs) {
+        HirExpression::MemberAccess(member_access) => {
+            verify_mutable_reference(interner, member_access.lhs)
+        }
+        HirExpression::Index(_) => {
+            let span = interner.expr_span(&rhs);
+            Err(ResolverError::MutableReferenceToArrayElement { span })
+        }
+        HirExpression::Ident(ident) => {
+            if let Some(definition) = interner.try_definition(ident.id) {
+                if !definition.mutable {
+                    return Err(ResolverError::MutableReferenceToImmutableVariable {
+                        span: interner.expr_span(&rhs),
+                        variable: definition.name.clone(),
+                    });
+                }
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 // XXX: These tests repeat a lot of code
 // what we should do is have test cases which are passed to a test harness
 // A test harness will allow for more expressive and readable tests
@@ -1311,7 +1381,7 @@ mod test {
             let id = interner.push_fn(HirFunction::empty());
             interner.push_function_definition(func.name().to_string(), id);
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (_, _, err) = resolver.resolve_function(func, id);
+            let (_, _, err) = resolver.resolve_function(func, id, ModuleId::dummy_id());
             errors.extend(err);
         }
 
@@ -1472,6 +1542,25 @@ mod test {
         let src = r#"
             fn main(x : Field) {
                 let _z = foo(x);
+            }
+
+            fn foo(x : Field) -> Field {
+                x
+            }
+        "#;
+
+        let errors = resolve_src_code(src, vec!["main", "foo"]);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn resolve_shadowing() {
+        let src = r#"
+            fn main(x : Field) {
+                let x = foo(x);
+                let x = x;
+                let (x, x) = (x, x);
+                let _ = x;
             }
 
             fn foo(x : Field) -> Field {

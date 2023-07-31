@@ -101,7 +101,7 @@ fn check_security(rate: Field, width: Field, security: Field) -> bool {
 }
 
 // A*x where A is an n x n matrix in row-major order and x an n-vector
-fn apply_matrix<N>(a: [Field], x: [Field; N]) -> [Field; N] {
+fn apply_matrix<N, M>(a: [Field; M], x: [Field; N]) -> [Field; N] {
     let mut y = x;
 
     for i in 0..x.len() {

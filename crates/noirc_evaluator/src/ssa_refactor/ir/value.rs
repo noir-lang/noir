@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use acvm::FieldElement;
 
 use crate::ssa_refactor::ir::basic_block::BasicBlockId;
@@ -8,7 +6,7 @@ use super::{
     function::FunctionId,
     instruction::{InstructionId, Intrinsic},
     map::Id,
-    types::{CompositeType, Type},
+    types::Type,
 };
 
 pub(crate) type ValueId = Id<Value>;
@@ -38,7 +36,7 @@ pub(crate) enum Value {
     NumericConstant { constant: FieldElement, typ: Type },
 
     /// Represents a constant array value
-    Array { array: im::Vector<ValueId>, element_type: Rc<CompositeType> },
+    Array { array: im::Vector<ValueId>, typ: Type },
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.
@@ -64,7 +62,7 @@ impl Value {
             Value::Instruction { typ, .. } => typ.clone(),
             Value::Param { typ, .. } => typ.clone(),
             Value::NumericConstant { typ, .. } => typ.clone(),
-            Value::Array { element_type, array } => Type::Array(element_type.clone(), array.len()),
+            Value::Array { typ, .. } => typ.clone(),
             Value::Function { .. } => Type::Function,
             Value::Intrinsic { .. } => Type::Function,
             Value::ForeignFunction { .. } => Type::Function,
