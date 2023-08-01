@@ -850,7 +850,7 @@ fn format_string_type(
             type_expression()
                 .or_not()
                 .then_ignore(just(Token::Comma))
-                .then(choice((type_parser.clone(), tuple_type(type_parser))))
+                .then(type_parser)
                 .delimited_by(just(Token::Less), just(Token::Greater)),
         )
         .map(|(size, fields)| UnresolvedType::FormatString(size, Box::new(fields)))
