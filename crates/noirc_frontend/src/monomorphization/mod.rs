@@ -758,7 +758,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn append_abi_arg_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
         if let HirType::Array(size, _) = typ {
             if let HirType::NotConstant = **size {
-                unreachable!("Slices are not supported with println. Convert the slice to an array before passing it to println");
+                unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
             }
         }
         let abi_type = typ.as_abi_type();
