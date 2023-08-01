@@ -1,0 +1,23 @@
+FROM alpine:3.18 AS builder
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache \
+        build-base \
+        clang16 \
+        compiler-rt \
+        openmp-dev \
+        cmake \
+        ninja \
+        git \
+        curl \
+        perl
+
+WORKDIR /usr/src/barretenberg/cpp
+
+COPY . .
+# Build the entire project, as we want to check everything builds under clang
+RUN cmake --preset fuzzing && cmake --build --preset fuzzing
+
+FROM alpine:3.18
+RUN apk update && apk add openmp
+COPY --from=builder /usr/src/barretenberg/cpp/srs_db /usr/src/barretenberg/cpp/srs_db

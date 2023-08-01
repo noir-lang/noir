@@ -104,6 +104,17 @@ jobs:
           name: "Build"
           command: cond_spot_run_build barretenberg-x86_64-linux-clang 64
 
+  barretenberg-x86_64-linux-clang-fuzzing:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build barretenberg-x86_64-linux-clang-fuzzing 64
+
   barretenberg-x86_64-linux-clang-assert:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -1006,6 +1017,7 @@ workflows:
       - barretenberg-x86_64-linux-gcc: *defaults
       - barretenberg-x86_64-linux-clang: *defaults
       - barretenberg-x86_64-linux-clang-assert: *defaults
+      - barretenberg-x86_64-linux-clang-fuzzing: *defaults
       - barretenberg-wasm-linux-clang: *defaults
       - barretenberg-proof-system-tests: *bb_test
       - barretenberg-honk-tests: *bb_test

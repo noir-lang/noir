@@ -4,6 +4,7 @@
 #include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/stdlib/primitives/bool/bool.hpp"
 #include "barretenberg/stdlib/primitives/field/field.hpp"
+#include "cstring"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wc99-designator"
 
@@ -98,7 +99,7 @@ FastRandom VarianceRNG(0);
 
 #define OPERATION_TYPE_SIZE 1
 
-#define ELEMENT_SIZE (sizeof(fr) + 1)
+#define ELEMENT_SIZE (sizeof(barretenberg::fr) + 1)
 #define TWO_IN_ONE_OUT 3
 #define THREE_IN_ONE_OUT 4
 #define SLICE_ARGS_SIZE 6
@@ -158,17 +159,8 @@ template <typename Composer> class FieldBase {
             INVERT,
             _LAST
         };
-        Instruction& operator=(const Instruction& other) = default;
 
-        struct Element {
-            Element() = default;
-            Element(const Element& other) = default;
-            Element(const Element&& other) { value = std::move(other.value); };
-            Element(fr in)
-                : value(in){};
-            Element& operator=(const Element& other) = default;
-            fr value;
-        };
+        typedef barretenberg::fr Element;
         struct SingleArg {
             uint8_t in;
         };
@@ -212,8 +204,6 @@ template <typename Composer> class FieldBase {
             uint8_t out3;
         };
         union ArgumentContents {
-            ArgumentContents() { element = Element(fr(0)); }
-            ArgumentContents& operator=(const ArgumentContents& other) = default;
             uint32_t randomseed;
             Element element;
             SingleArg singleArg;
@@ -229,6 +219,7 @@ template <typename Composer> class FieldBase {
         OPCODE id;
         // Instruction arguments
         ArgumentContents arguments;
+
         /**
          * @brief Generate a random instruction
          *
@@ -236,13 +227,14 @@ template <typename Composer> class FieldBase {
          * @param rng PRNG used
          * @return A random instruction
          */
-        template <typename T> inline static Instruction generateRandom(T& rng) requires SimpleRng<T>
+        template <typename T>
+        inline static Instruction generateRandom(T& rng)
+            requires SimpleRng<T>
         {
             // Choose which instruction we are going to generate
             OPCODE instruction_opcode = static_cast<OPCODE>(rng.next() % (OPCODE::_LAST));
             uint8_t in1, in2, in3, lsb, msb, out, out1, out2, out3, mask_size;
             uint256_t mask, temp;
-            Instruction instr;
 
             // Depending on instruction
             switch (instruction_opcode) {
@@ -335,7 +327,8 @@ template <typename Composer> class FieldBase {
          * @return Mutated element
          */
         template <typename T>
-        inline static fr mutateFieldElement(fr e, T& rng, HavocSettings& havoc_config) requires SimpleRng<T>
+        inline static barretenberg::fr mutateFieldElement(barretenberg::fr e, T& rng, HavocSettings& havoc_config)
+            requires SimpleRng<T>
         {
             // With a certain probability, we apply changes to the Montgomery form, rather than the plain form. This
             // has merit, since the computation is performed in montgomery form and comparisons are often performed
@@ -354,9 +347,9 @@ template <typename Composer> class FieldBase {
             // Inverse conversion at the end
 #define INV_MONT_CONVERSION                                                                                            \
     if (convert_to_montgomery) {                                                                                       \
-        e = fr(value_data).from_montgomery_form();                                                                     \
+        e = barretenberg::fr(value_data).from_montgomery_form();                                                       \
     } else {                                                                                                           \
-        e = fr(value_data);                                                                                            \
+        e = barretenberg::fr(value_data);                                                                              \
     }
 
             // Pick the last value from the mutation distrivution vector
@@ -374,9 +367,9 @@ template <typename Composer> class FieldBase {
                     e = e.to_montgomery_form();
                 }
                 if (rng.next() & 1) {
-                    value_data = e + fr(rng.next() & 0xff);
+                    value_data = e + barretenberg::fr(rng.next() & 0xff);
                 } else {
-                    value_data = e - fr(rng.next() & 0xff);
+                    value_data = e - barretenberg::fr(rng.next() & 0xff);
                 }
                 if (convert_to_montgomery) {
                     e = e.from_montgomery_form();
@@ -386,31 +379,31 @@ template <typename Composer> class FieldBase {
                 MONT_CONVERSION
                 switch (rng.next() % 9) {
                 case 0:
-                    e = fr::zero();
+                    e = barretenberg::fr::zero();
                     break;
                 case 1:
-                    e = fr::one();
+                    e = barretenberg::fr::one();
                     break;
                 case 2:
-                    e = -fr::one();
+                    e = -barretenberg::fr::one();
                     break;
                 case 3:
-                    e = fr::one().sqrt().second;
+                    e = barretenberg::fr::one().sqrt().second;
                     break;
                 case 4:
-                    e = fr::one().sqrt().second.invert();
+                    e = barretenberg::fr::one().sqrt().second.invert();
                     break;
                 case 5:
-                    e = fr::get_root_of_unity(8);
+                    e = barretenberg::fr::get_root_of_unity(8);
                     break;
                 case 6:
-                    e = fr(2);
+                    e = barretenberg::fr(2);
                     break;
                 case 7:
-                    e = fr((fr::modulus - 1) / 2);
+                    e = barretenberg::fr((barretenberg::fr::modulus - 1) / 2);
                     break;
                 case 8:
-                    e = fr((fr::modulus));
+                    e = barretenberg::fr((barretenberg::fr::modulus));
                     break;
                 default:
                     abort();
@@ -431,9 +424,8 @@ template <typename Composer> class FieldBase {
          * @return Mutated instruction
          */
         template <typename T>
-        inline static Instruction mutateInstruction(Instruction instruction,
-                                                    T& rng,
-                                                    HavocSettings& havoc_config) requires SimpleRng<T>
+        inline static Instruction mutateInstruction(Instruction instruction, T& rng, HavocSettings& havoc_config)
+            requires SimpleRng<T>
         {
 #define PUT_RANDOM_BYTE_IF_LUCKY(variable)                                                                             \
     if (rng.next() & 1) {                                                                                              \
@@ -447,8 +439,8 @@ template <typename Composer> class FieldBase {
                 // If it represents pushing a value on the stack with a 50% probability randomly sample a bit_range
                 // Maybe mutate the value
                 if (rng.next() & 1) {
-                    instruction.arguments.element.value =
-                        mutateFieldElement(instruction.arguments.element.value, rng, havoc_config);
+                    instruction.arguments.element =
+                        mutateFieldElement(instruction.arguments.element, rng, havoc_config);
                 }
                 break;
             case OPCODE::ASSERT_ZERO:
@@ -510,9 +502,9 @@ template <typename Composer> class FieldBase {
     // instruction is enabled (if it is -1,it's disabled )
     class ArgSizes {
       public:
-        static constexpr size_t CONSTANT = sizeof(fr);
-        static constexpr size_t WITNESS = sizeof(fr);
-        static constexpr size_t CONSTANT_WITNESS = sizeof(fr);
+        static constexpr size_t CONSTANT = sizeof(barretenberg::fr);
+        static constexpr size_t WITNESS = sizeof(barretenberg::fr);
+        static constexpr size_t CONSTANT_WITNESS = sizeof(barretenberg::fr);
         static constexpr size_t SQR = 2;
         static constexpr size_t ASSERT_EQUAL = 2;
         static constexpr size_t ASSERT_NOT_EQUAL = 2;
@@ -594,8 +586,8 @@ template <typename Composer> class FieldBase {
                           opcode == Instruction::OPCODE::CONSTANT_WITNESS) {
                 Instruction instr;
                 instr.id = static_cast<typename Instruction::OPCODE>(opcode);
-                // instr.arguments.element.value = fr::serialize_from_buffer(Data+1);
-                instr.arguments.element.value = fr::serialize_from_buffer(Data);
+                // instr.arguments.element = fr::serialize_from_buffer(Data+1);
+                instr.arguments.element = barretenberg::fr::serialize_from_buffer(Data);
                 return instr;
             };
             if constexpr (opcode == Instruction::OPCODE::ASSERT_ZERO ||
@@ -655,9 +647,7 @@ template <typename Composer> class FieldBase {
                           instruction_opcode == Instruction::OPCODE::WITNESS ||
                           instruction_opcode == Instruction::OPCODE::CONSTANT_WITNESS) {
                 *Data = instruction.id;
-                memcpy(Data + 1,
-                       &instruction.arguments.element.value.data[0],
-                       sizeof(instruction.arguments.element.value.data));
+                memcpy(Data + 1, &instruction.arguments.element.data[0], sizeof(instruction.arguments.element.data));
             }
 
             if constexpr (instruction_opcode == Instruction::OPCODE::ASSERT_ZERO ||
@@ -777,18 +767,18 @@ template <typename Composer> class FieldBase {
         }
 
       public:
-        fr base;
+        barretenberg::fr base;
         field_t field;
         ExecutionHandler() = default;
-        ExecutionHandler(fr a, field_t b)
+        ExecutionHandler(barretenberg::fr a, field_t b)
             : base(a)
             , field(b)
         {}
-        ExecutionHandler(fr a, field_t& b)
+        ExecutionHandler(barretenberg::fr a, field_t& b)
             : base(a)
             , field(b)
         {}
-        ExecutionHandler(fr& a, field_t& b)
+        ExecutionHandler(barretenberg::fr& a, field_t& b)
             : base(a)
             , field(b)
         {}
@@ -1019,7 +1009,7 @@ template <typename Composer> class FieldBase {
 #ifdef SHOW_INFORMATION
                 std::cout << "Construct via fr" << std::endl;
 #endif
-                return construct_via_cast<fr>(fr::modulus - 1);
+                return construct_via_cast<barretenberg::fr>(barretenberg::fr::modulus - 1);
             case 6:
 #if 1
                 /* Disabled because casting to bool_t can fail.
@@ -1027,10 +1017,10 @@ template <typename Composer> class FieldBase {
                  *
                  * TEST(stdlib_field, test_construct_via_bool_t)
                  * {
-                 *     plonk::StandardPlonkComposer composer = proof_system::plonk::StandardPlonkComposer();
-                 *     field_t a(witness_t(&composer, fr(uint256_t{0xf396b678452ebf15, 0x82ae10893982638b,
-                 * 0xdf185a29c65fbf80, 0x1d18b2de99e48308}))); field_t b = a - a; field_t c(static_cast<bool_t>(b));
-                 *     std::cout << c.get_value() << std::endl;
+                 *     proof_system::StandardCircuitBuilder composer =
+                 * proof_system::proof_system::StandardCircuitBuilder(); field_t a(witness_t(&composer,
+                 * fr(uint256_t{0xf396b678452ebf15, 0x82ae10893982638b, 0xdf185a29c65fbf80, 0x1d18b2de99e48308})));
+                 * field_t b = a - a; field_t c(static_cast<bool_t>(b)); std::cout << c.get_value() << std::endl;
                  * }
                  *
                  * According to Rumata this is because the input value needs to be normalized
@@ -1071,14 +1061,15 @@ template <typename Composer> class FieldBase {
                 // const auto bits = this->f().decompose_into_bits(num_bits);
                 const auto bits = this->f().decompose_into_bits();
 
-                std::vector<fr> frs(bits.size());
+                std::vector<barretenberg::fr> frs(bits.size());
                 for (size_t i = 0; i < bits.size(); i++) {
-                    frs[i] = bits[i].get_value() ? fr(uint256_t(1) << i) : 0;
+                    frs[i] = bits[i].get_value() ? barretenberg::fr(uint256_t(1) << i) : 0;
                 }
 
                 switch (VarianceRNG.next() % 2) {
                 case 0: {
-                    const fr field_from_bits = std::accumulate(frs.begin(), frs.end(), fr(0));
+                    const barretenberg::fr field_from_bits =
+                        std::accumulate(frs.begin(), frs.end(), barretenberg::fr(0));
                     return ExecutionHandler(this->base, field_t(composer, field_from_bits));
                 }
                 case 1: {
@@ -1104,7 +1095,7 @@ template <typename Composer> class FieldBase {
             if (this->base == 0) {
                 return ExecutionHandler(this->base, this->f());
             } else {
-                return ExecutionHandler(fr(1) / this->base, this->f().invert());
+                return ExecutionHandler(barretenberg::fr(1) / this->base, this->f().invert());
             }
         }
 
@@ -1121,10 +1112,10 @@ template <typename Composer> class FieldBase {
                                               Instruction& instruction)
         {
             (void)composer;
-            stack.push_back(ExecutionHandler(instruction.arguments.element.value,
-                                             field_t(composer, instruction.arguments.element.value)));
+            stack.push_back(
+                ExecutionHandler(instruction.arguments.element, field_t(composer, instruction.arguments.element)));
 #ifdef SHOW_INFORMATION
-            std::cout << "Pushed constant value " << instruction.arguments.element.value << " to position "
+            std::cout << "Pushed constant value " << instruction.arguments.element << " to position "
                       << stack.size() - 1 << std::endl;
 #endif
             return 0;
@@ -1144,12 +1135,12 @@ template <typename Composer> class FieldBase {
         {
 
             // THis is strange
-            stack.push_back(ExecutionHandler(instruction.arguments.element.value,
-                                             witness_t(composer, instruction.arguments.element.value)));
+            stack.push_back(
+                ExecutionHandler(instruction.arguments.element, witness_t(composer, instruction.arguments.element)));
 
 #ifdef SHOW_INFORMATION
-            std::cout << "Pushed witness value " << instruction.arguments.element.value << " to position "
-                      << stack.size() - 1 << std::endl;
+            std::cout << "Pushed witness value " << instruction.arguments.element << " to position " << stack.size() - 1
+                      << std::endl;
 #endif
             return 0;
         }
@@ -1167,11 +1158,11 @@ template <typename Composer> class FieldBase {
                                                       std::vector<ExecutionHandler>& stack,
                                                       Instruction& instruction)
         {
-            auto v = field_t(witness_t(composer, instruction.arguments.element.value));
-            v.convert_constant_to_witness(composer);
-            stack.push_back(ExecutionHandler(instruction.arguments.element.value, std::move(v)));
+            auto v = field_t(witness_t(composer, instruction.arguments.element));
+            v.convert_constant_to_fixed_witness(composer);
+            stack.push_back(ExecutionHandler(instruction.arguments.element, std::move(v)));
 #ifdef SHOW_INFORMATION
-            std::cout << "Pushed constant witness value " << instruction.arguments.element.value << " to position "
+            std::cout << "Pushed constant witness value " << instruction.arguments.element << " to position "
                       << stack.size() - 1 << std::endl;
 #endif
             return 0;
@@ -1458,7 +1449,7 @@ template <typename Composer> class FieldBase {
             PRINT_TWO_ARG_INSTRUCTION(first_index, second_index, stack, "Dividing", "/")
 
             ExecutionHandler result;
-            if (fr((uint256_t(stack[second_index].f().get_value()) % fr::modulus)) == 0) {
+            if (barretenberg::fr((uint256_t(stack[second_index].f().get_value()) % barretenberg::fr::modulus)) == 0) {
                 return 0; // This is not handled by field
             }
             // TODO: FIX THIS. I can't think of an elegant fix for this field issue right now
@@ -1841,7 +1832,7 @@ template <typename Composer> class FieldBase {
         (void)composer;
         for (size_t i = 0; i < stack.size(); i++) {
             auto element = stack[i];
-            if (fr((uint256_t(element.field.get_value()) % fr::modulus)) != element.base) {
+            if (barretenberg::fr((uint256_t(element.field.get_value()) % barretenberg::fr::modulus)) != element.base) {
                 std::cerr << "Failed at " << i << " with actual value " << element.base << " and value in field "
                           << element.field.get_value() << std::endl;
                 return false;
@@ -1979,7 +1970,7 @@ extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv)
  */
 extern "C" size_t LLVMFuzzerCustomMutator(uint8_t* Data, size_t Size, size_t MaxSize, unsigned int Seed)
 {
-    using FuzzerClass = FieldBase<plonk::StandardPlonkComposer>;
+    using FuzzerClass = FieldBase<proof_system::StandardCircuitBuilder>;
     auto fast_random = FastRandom(Seed);
     auto size_occupied = ArithmeticFuzzHelper<FuzzerClass>::MutateInstructionBuffer(Data, Size, MaxSize, fast_random);
     if ((fast_random.next() % 200) < fuzzer_havoc_settings.GEN_LLVM_POST_MUTATION_PROB) {
@@ -2000,7 +1991,7 @@ extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
                                             size_t MaxOutSize,
                                             unsigned int Seed)
 {
-    using FuzzerClass = FieldBase<plonk::StandardPlonkComposer>;
+    using FuzzerClass = FieldBase<proof_system::StandardCircuitBuilder>;
     auto fast_random = FastRandom(Seed);
     auto vecA = ArithmeticFuzzHelper<FuzzerClass>::parseDataIntoInstructions(Data1, Size1);
     auto vecB = ArithmeticFuzzHelper<FuzzerClass>::parseDataIntoInstructions(Data2, Size2);

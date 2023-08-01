@@ -11,6 +11,12 @@
     "rebuildPatterns": ["^cpp/"],
     "dependencies": []
   },
+  "barretenberg-x86_64-linux-clang-fuzzing": {
+    "buildDir": "cpp",
+    "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-clang-fuzzing",
+    "rebuildPatterns": ["^cpp/"],
+    "dependencies": []
+  },
   "barretenberg-x86_64-linux-gcc": {
     "buildDir": "cpp",
     "dockerfile": "dockerfiles/Dockerfile.x86_64-linux-gcc",

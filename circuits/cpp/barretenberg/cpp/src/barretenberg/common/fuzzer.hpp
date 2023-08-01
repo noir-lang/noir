@@ -1,6 +1,6 @@
 #pragma once
-#include "barretenberg/plonk/composer/standard_composer.hpp"
-#include "barretenberg/plonk/composer/turbo_composer.hpp"
+#include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
+#include "barretenberg/proof_system/circuit_builder/turbo_circuit_builder.hpp"
 #include <concepts>
 
 #define PARENS ()
@@ -84,83 +84,80 @@ class FastRandom {
  *
  * @tparam T
  */
-template <typename T> concept SimpleRng = requires(T a)
-{
-    {
-        a.next()
-    }
-    ->std::convertible_to<uint32_t>;
-};
+template <typename T>
+concept SimpleRng = requires(T a) {
+                        {
+                            a.next()
+                            } -> std::convertible_to<uint32_t>;
+                    };
 /**
  * @brief Concept for forcing ArgumentSizes to be size_t
  *
  * @tparam T
  */
-template <typename T> concept InstructionArgumentSizes = requires
-{
-    {
-        std::make_tuple(T::CONSTANT,
-                        T::WITNESS,
-                        T::CONSTANT_WITNESS,
-                        T::ADD,
-                        T::SUBTRACT,
-                        T::MULTIPLY,
-                        T::DIVIDE,
-                        T::ADD_TWO,
-                        T::MADD,
-                        T::MULT_MADD,
-                        T::MSUB_DIV,
-                        T::SQR,
-                        T::SQR_ADD,
-                        T::SUBTRACT_WITH_CONSTRAINT,
-                        T::DIVIDE_WITH_CONSTRAINTS,
-                        T::SLICE,
-                        T::ASSERT_ZERO,
-                        T::ASSERT_NOT_ZERO)
-    }
-    ->std::same_as<std::tuple<size_t>>;
-};
+template <typename T>
+concept InstructionArgumentSizes = requires {
+                                       {
+                                           std::make_tuple(T::CONSTANT,
+                                                           T::WITNESS,
+                                                           T::CONSTANT_WITNESS,
+                                                           T::ADD,
+                                                           T::SUBTRACT,
+                                                           T::MULTIPLY,
+                                                           T::DIVIDE,
+                                                           T::ADD_TWO,
+                                                           T::MADD,
+                                                           T::MULT_MADD,
+                                                           T::MSUB_DIV,
+                                                           T::SQR,
+                                                           T::SQR_ADD,
+                                                           T::SUBTRACT_WITH_CONSTRAINT,
+                                                           T::DIVIDE_WITH_CONSTRAINTS,
+                                                           T::SLICE,
+                                                           T::ASSERT_ZERO,
+                                                           T::ASSERT_NOT_ZERO)
+                                           } -> std::same_as<std::tuple<size_t>>;
+                                   };
 
 /**
  * @brief Concept for Havoc Configurations
  *
  * @tparam T
  */
-template <typename T> concept HavocConfigConstraint = requires
-{
-    {
-        std::make_tuple(T::GEN_MUTATION_COUNT_LOG, T::GEN_STRUCTURAL_MUTATION_PROBABILITY)
-    }
-    ->std::same_as<std::tuple<size_t>>;
-    T::GEN_MUTATION_COUNT_LOG <= 7;
-};
+template <typename T>
+concept HavocConfigConstraint =
+    requires {
+        {
+            std::make_tuple(T::GEN_MUTATION_COUNT_LOG, T::GEN_STRUCTURAL_MUTATION_PROBABILITY)
+            } -> std::same_as<std::tuple<size_t>>;
+        T::GEN_MUTATION_COUNT_LOG <= 7;
+    };
 /**
  * @brief Concept specifying the class used by the fuzzer
  *
  * @tparam T
  */
-template <typename T> concept ArithmeticFuzzHelperConstraint = requires
-{
-    typename T::ArgSizes;
-    typename T::Instruction;
-    typename T::ExecutionState;
-    typename T::ExecutionHandler;
-    InstructionArgumentSizes<typename T::ArgSizes>;
-    // HavocConfigConstraint<typename T::HavocConfig>;
-};
+template <typename T>
+concept ArithmeticFuzzHelperConstraint = requires {
+                                             typename T::ArgSizes;
+                                             typename T::Instruction;
+                                             typename T::ExecutionState;
+                                             typename T::ExecutionHandler;
+                                             InstructionArgumentSizes<typename T::ArgSizes>;
+                                             // HavocConfigConstraint<typename T::HavocConfig>;
+                                         };
 
 /**
  * @brief Fuzzer uses only composers with check_circuit function
  *
  * @tparam T
  */
-template <typename T> concept CheckableComposer = requires(T a)
-{
-    {
-        a.check_circuit()
-    }
-    ->std::same_as<bool>;
-};
+template <typename T>
+concept CheckableComposer = requires(T a) {
+                                {
+                                    a.check_circuit()
+                                    } -> std::same_as<bool>;
+                            };
 
 /**
  * @brief The fuzzer can use a postprocessing function that is specific to the type being fuzzed
@@ -170,13 +167,11 @@ template <typename T> concept CheckableComposer = requires(T a)
  * @tparam Context The class containing the full context
  */
 template <typename T, typename Composer, typename Context>
-concept PostProcessingEnabled = requires(Composer composer, Context context)
-{
-    {
-        T::postProcess(&composer, context)
-    }
-    ->std::same_as<bool>;
-};
+concept PostProcessingEnabled = requires(Composer composer, Context context) {
+                                    {
+                                        T::postProcess(&composer, context)
+                                        } -> std::same_as<bool>;
+                                };
 
 /**
  * @brief This concept is used when we want to limit the number of executions of certain instructions (for example,
@@ -184,17 +179,19 @@ concept PostProcessingEnabled = requires(Composer composer, Context context)
  *
  * @tparam T
  */
-template <typename T> concept InstructionWeightsEnabled = requires
-{
-    typename T::InstructionWeights;
-    T::InstructionWeights::_LIMIT;
-};
+template <typename T>
+concept InstructionWeightsEnabled = requires {
+                                        typename T::InstructionWeights;
+                                        T::InstructionWeights::_LIMIT;
+                                    };
 /**
  * @brief A templated class containing most of the fuzzing logic for a generic Arithmetic class
  *
  * @tparam T
  */
-template <typename T> requires ArithmeticFuzzHelperConstraint<T> class ArithmeticFuzzHelper {
+template <typename T>
+    requires ArithmeticFuzzHelperConstraint<T>
+class ArithmeticFuzzHelper {
   private:
     /**
      * @brief Mutator swapping two instructions together
@@ -497,8 +494,8 @@ template <typename T> requires ArithmeticFuzzHelperConstraint<T> class Arithmeti
      * @param instructions
      */
     template <typename Composer>
-    inline static void executeInstructions(
-        std::vector<typename T::Instruction>& instructions) requires CheckableComposer<Composer>
+    inline static void executeInstructions(std::vector<typename T::Instruction>& instructions)
+        requires CheckableComposer<Composer>
     {
         typename T::ExecutionState state;
         Composer composer = Composer();
@@ -590,9 +587,9 @@ template <template <typename> class Fuzzer, uint64_t Composers>
 constexpr void RunWithComposers(const uint8_t* Data, const size_t Size, FastRandom& VarianceRNG)
 {
     if (Composers & 1) {
-        RunWithComposer<Fuzzer, plonk::StandardPlonkComposer>(Data, Size, VarianceRNG);
+        RunWithComposer<Fuzzer, proof_system::StandardCircuitBuilder>(Data, Size, VarianceRNG);
     }
     if (Composers & 2) {
-        RunWithComposer<Fuzzer, plonk::TurboPlonkComposer>(Data, Size, VarianceRNG);
+        RunWithComposer<Fuzzer, proof_system::TurboCircuitBuilder>(Data, Size, VarianceRNG);
     }
 }
