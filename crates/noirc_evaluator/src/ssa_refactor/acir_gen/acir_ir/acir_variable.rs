@@ -55,6 +55,11 @@ impl AcirType {
         }
     }
 
+    /// Returns a field type
+    pub(crate) fn field() -> Self {
+        AcirType::NumericType(NumericType::NativeField)
+    }
+
     /// Returns a boolean type
     fn boolean() -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })

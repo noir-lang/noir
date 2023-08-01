@@ -996,6 +996,14 @@ impl Context {
 
                 Ok(Self::convert_vars_to_values(out_vars, dfg, result_ids))
             }
+            Intrinsic::ArrayLen => {
+                let len = match self.convert_value(arguments[0], dfg) {
+                    AcirValue::Var(_, _) =>  unreachable!("Non-array passed to array.len() method"),
+                    AcirValue::Array(values) => (values.len() as u128).into(),
+                    AcirValue::DynamicArray(array) => (array.len as u128).into(),
+                };
+                Ok(vec![AcirValue::Var(self.acir_context.add_constant(len), AcirType::field())])
+            }
             _ => todo!("expected a black box function"),
         }
     }
