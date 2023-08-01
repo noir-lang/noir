@@ -264,6 +264,10 @@ impl BinaryOpKind {
             BinaryOpKind::Modulo => Token::Percent,
         }
     }
+
+    pub fn is_bit_shift(&self) -> bool {
+        matches!(self, BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft)
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]

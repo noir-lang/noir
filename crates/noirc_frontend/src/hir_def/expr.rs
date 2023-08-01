@@ -74,8 +74,7 @@ impl HirBinaryOp {
     }
 
     pub fn is_bit_shift(&self) -> bool {
-        use BinaryOpKind::*;
-        matches!(self.kind, ShiftRight | ShiftLeft)
+        self.kind.is_bit_shift()
     }
 }
 

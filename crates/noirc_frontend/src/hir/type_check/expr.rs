@@ -885,7 +885,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 if op.is_bitwise() && (other.is_bindable() || other.is_field()) {
                     let other = other.follow_bindings();
-
+                    let kind = op.kind;
                     // This will be an error if these types later resolve to a Field, or stay
                     // polymorphic as the bit size will be unknown. Delay this error until the function
                     // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
@@ -894,7 +894,7 @@ impl<'interner> TypeChecker<'interner> {
                             Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
                         } else if other.is_bindable() {
                             Err(TypeCheckError::AmbiguousBitWidth { span })
-                        } else if other.is_signed() {
+                        } else if kind.is_bit_shift() && other.is_signed() {
                             Err(TypeCheckError::TypeCannotBeUsed {
                                 typ: other,
                                 place: "bit shift",
