@@ -204,18 +204,18 @@ impl<'a> ModCollector<'a> {
                 type_alias_def: type_alias,
             };
 
-            let ty_alias_id = context.def_interner.push_type_alias(&unresolved);
+            let typ_alias_id = context.def_interner.push_type_alias(&unresolved);
 
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
-                .declare_type_alias(name, ty_alias_id);
+                .declare_type_alias(name, typ_alias_id);
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
-            self.def_collector.collected_type_aliases.insert(ty_alias_id, unresolved);
+            self.def_collector.collected_type_aliases.insert(typ_alias_id, unresolved);
         }
     }
 
