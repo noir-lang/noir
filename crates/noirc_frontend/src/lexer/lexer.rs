@@ -244,10 +244,7 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let (word, start, end) = self.eat_while(None, |ch| {
-            (ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_' || ch == '(' || ch == ')')
-                && (ch != ']')
-        });
+        let (word, start, end) = self.eat_while(None, |ch| ch != ']');
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {
@@ -425,6 +422,24 @@ fn invalid_attribute() {
 
     let token = lexer.next().unwrap();
     assert!(token.is_err());
+}
+
+#[test]
+fn deprecated_attribute() {
+    let input = r#"#[deprecated]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated(None)));
+}
+
+#[test]
+fn deprecated_attribute_with_note() {
+    let input = r#"#[deprecated("hello")]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated("hello".to_string().into())));
 }
 
 #[test]
