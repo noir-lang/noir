@@ -597,7 +597,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
             HirType::FmtString(size, fields) => {
                 let size = size.evaluate_to_u64().unwrap_or(0);
-                // let fields = vecmap(fields, |typ| Self::convert_type(typ));
                 let fields = Box::new(Self::convert_type(fields.as_ref()));
                 ast::Type::FmtString(size, fields)
             }
