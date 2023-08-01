@@ -3,7 +3,7 @@
 #include "barretenberg/honk/flavor/ultra.hpp"
 #include "barretenberg/honk/flavor/ultra_grumpkin.hpp"
 #include "barretenberg/honk/pcs/gemini/gemini.hpp"
-#include "barretenberg/honk/pcs/shplonk/shplonk_single.hpp"
+#include "barretenberg/honk/pcs/shplonk/shplonk.hpp"
 #include "barretenberg/honk/proof_system/work_queue.hpp"
 #include "barretenberg/honk/sumcheck/relations/relation_parameters.hpp"
 #include "barretenberg/honk/sumcheck/sumcheck_output.hpp"
@@ -71,8 +71,8 @@ template <UltraFlavor Flavor> class UltraProver_ {
     pcs::shplonk::ProverOutput<PCSParams> shplonk_output;
     std::shared_ptr<PCSCommitmentKey> pcs_commitment_key;
 
-    using Gemini = pcs::gemini::MultilinearReductionScheme<PCSParams>;
-    using Shplonk = pcs::shplonk::SingleBatchOpeningScheme<PCSParams>;
+    using Gemini = pcs::gemini::GeminiProver_<PCSParams>;
+    using Shplonk = pcs::shplonk::ShplonkProver_<PCSParams>;
 
   private:
     plonk::proof proof;

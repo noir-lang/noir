@@ -10,7 +10,8 @@
 namespace proof_system::honk::pcs::gemini {
 
 template <class Params> class GeminiTest : public CommitmentTest<Params> {
-    using Gemini = MultilinearReductionScheme<Params>;
+    using GeminiProver = GeminiProver_<Params>;
+    using GeminiVerifier = GeminiVerifier_<Params>;
     using Fr = typename Params::Fr;
     using GroupElement = typename Params::GroupElement;
     using Polynomial = typename barretenberg::Polynomial<Fr>;
@@ -28,7 +29,7 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
 
         const Fr rho = Fr::random_element();
 
-        std::vector<Fr> rhos = Gemini::powers_of_rho(rho, multilinear_evaluations.size());
+        std::vector<Fr> rhos = pcs::gemini::powers_of_rho(rho, multilinear_evaluations.size());
 
         // Compute batched multivariate evaluation
         Fr batched_evaluation = Fr::zero();
@@ -55,7 +56,7 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
         // Compute:
         // - (d+1) opening pairs: {r, \hat{a}_0}, {-r^{2^i}, a_i}, i = 0, ..., d-1
         // - (d+1) Fold polynomials Fold_{r}^(0), Fold_{-r}^(0), and Fold^(i), i = 0, ..., d-1
-        auto fold_polynomials = Gemini::compute_fold_polynomials(
+        auto fold_polynomials = GeminiProver::compute_fold_polynomials(
             multilinear_evaluation_point, std::move(batched_unshifted), std::move(batched_to_be_shifted));
 
         for (size_t l = 0; l < log_n - 1; ++l) {
@@ -66,7 +67,7 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
 
         const Fr r_challenge = prover_transcript.get_challenge("Gemini:r");
 
-        auto prover_output = Gemini::compute_fold_polynomial_evaluations(
+        auto prover_output = GeminiProver::compute_fold_polynomial_evaluations(
             multilinear_evaluation_point, std::move(fold_polynomials), r_challenge);
 
         for (size_t l = 0; l < log_n; ++l) {
@@ -84,7 +85,7 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
         // - Single opening pair: {r, \hat{a}_0}
         // - 2 partially evaluated Fold polynomial commitments [Fold_{r}^(0)] and [Fold_{-r}^(0)]
         // Aggregate: d+1 opening pairs and d+1 Fold poly commitments into verifier claim
-        auto verifier_claim = Gemini::reduce_verify(multilinear_evaluation_point,
+        auto verifier_claim = GeminiVerifier::reduce_verification(multilinear_evaluation_point,
                                                     batched_evaluation,
                                                     batched_commitment_unshifted,
                                                     batched_commitment_to_be_shifted,
@@ -202,7 +203,6 @@ TYPED_TEST(GeminiTest, Double)
 
 TYPED_TEST(GeminiTest, DoubleWithShift)
 {
-    // using Gemini = MultilinearReductionScheme<TypeParam>;
     using Fr = typename TypeParam::Fr;
     using GroupElement = typename TypeParam::GroupElement;
 

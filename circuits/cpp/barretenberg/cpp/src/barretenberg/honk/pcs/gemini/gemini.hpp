@@ -63,12 +63,44 @@ template <typename Params> struct ProverOutput {
     std::vector<barretenberg::Polynomial<typename Params::Fr>> witnesses;
 };
 
-template <typename Params> class MultilinearReductionScheme {
-    using CK = typename Params::CommitmentKey;
+/**
+ * @brief Compute powers of challenge ρ
+ * 
+ * @tparam Fr 
+ * @param rho 
+ * @param num_powers 
+ * @return std::vector<Fr> 
+ */
+template <class Fr> inline std::vector<Fr> powers_of_rho(const Fr rho, const size_t num_powers)
+{
+    std::vector<Fr> rhos = { Fr(1), rho };
+    rhos.reserve(num_powers);
+    for (size_t j = 2; j < num_powers; j++) {
+        rhos.emplace_back(rhos[j - 1] * rho);
+    }
+    return rhos;
+};
 
+/**
+ * @brief Compute squares of folding challenge r
+ *
+ * @tparam Params
+ * @param r
+ * @param num_squares The number of foldings
+ * @return std::vector<typename Params::Fr>
+ */
+template <class Fr> inline std::vector<Fr> squares_of_r(const Fr r, const size_t num_squares)
+{
+    std::vector<Fr> squares = { r };
+    squares.reserve(num_squares);
+    for (size_t j = 1; j < num_squares; j++) {
+        squares.emplace_back(squares[j - 1].sqr());
+    }
+    return squares;
+};
+
+template <typename Params> class GeminiProver_ {
     using Fr = typename Params::Fr;
-    using GroupElement = typename Params::GroupElement;
-    using Commitment = typename Params::Commitment;
     using Polynomial = barretenberg::Polynomial<Fr>;
 
   public:
@@ -79,14 +111,19 @@ template <typename Params> class MultilinearReductionScheme {
     static ProverOutput<Params> compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
                                                                     std::vector<Polynomial>&& fold_polynomials,
                                                                     const Fr& r_challenge);
+}; // namespace proof_system::honk::pcs::gemini
 
-    static std::vector<OpeningClaim<Params>> reduce_verify(std::span<const Fr> mle_opening_point, /* u */
+template <typename Params> class GeminiVerifier_ {
+    using Fr = typename Params::Fr;
+    using GroupElement = typename Params::GroupElement;
+    using Commitment = typename Params::Commitment;
+
+  public:
+    static std::vector<OpeningClaim<Params>> reduce_verification(std::span<const Fr> mle_opening_point, /* u */
                                                            const Fr batched_evaluation,           /* all */
                                                            GroupElement& batched_f,               /* unshifted */
                                                            GroupElement& batched_g,               /* to-be-shifted */
                                                            VerifierTranscript<Fr>& transcript);
-
-    static std::vector<Fr> powers_of_rho(const Fr rho, const size_t num_powers);
 
   private:
     static Fr compute_eval_pos(const Fr batched_mle_eval,
@@ -94,12 +131,14 @@ template <typename Params> class MultilinearReductionScheme {
                                std::span<const Fr> r_squares,
                                std::span<const Fr> fold_polynomial_evals);
 
-    static std::vector<Fr> squares_of_r(const Fr r, const size_t num_squares);
-
     static std::pair<GroupElement, GroupElement> compute_simulated_commitments(GroupElement& batched_f,
                                                                                GroupElement& batched_g,
                                                                                Fr r);
 }; // namespace proof_system::honk::pcs::gemini
-extern template class MultilinearReductionScheme<kzg::Params>;
-extern template class MultilinearReductionScheme<ipa::Params>;
+
+extern template class GeminiProver_<kzg::Params>;
+extern template class GeminiProver_<ipa::Params>;
+extern template class GeminiVerifier_<kzg::Params>;
+extern template class GeminiVerifier_<ipa::Params>;
+
 } // namespace proof_system::honk::pcs::gemini

@@ -125,11 +125,11 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_grand_pro
  * */
 template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_relation_check_rounds()
 {
-    using Sumcheck = sumcheck::Sumcheck<Flavor, ProverTranscript<FF>>;
+    using Sumcheck = sumcheck::SumcheckProver<Flavor>;
 
     auto sumcheck = Sumcheck(key->circuit_size, transcript);
 
-    sumcheck_output = sumcheck.execute_prover(prover_polynomials, relation_parameters);
+    sumcheck_output = sumcheck.prove(prover_polynomials, relation_parameters);
 }
 
 /**
@@ -143,7 +143,7 @@ template <StandardFlavor Flavor> void StandardProver_<Flavor>::execute_univariat
 
     // Generate batching challenge ρ and powers 1,ρ,…,ρᵐ⁻¹
     FF rho = transcript.get_challenge("rho");
-    std::vector<FF> rhos = Gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
+    std::vector<FF> rhos = pcs::gemini::powers_of_rho(rho, NUM_POLYNOMIALS);
 
     // Batch the unshifted polynomials and the to-be-shifted polynomials using ρ
     Polynomial batched_poly_unshifted(key->circuit_size); // batched unshifted polynomials

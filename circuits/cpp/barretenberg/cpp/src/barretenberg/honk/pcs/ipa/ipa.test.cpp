@@ -1,5 +1,5 @@
 #include "../gemini/gemini.hpp"
-#include "../shplonk/shplonk_single.hpp"
+#include "../shplonk/shplonk.hpp"
 #include "barretenberg/common/mem.hpp"
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/types.hpp"
@@ -84,8 +84,10 @@ TEST_F(IPATest, Open)
 TEST_F(IPATest, GeminiShplonkIPAWithShift)
 {
     using IPA = IPA<Params>;
-    using Shplonk = shplonk::SingleBatchOpeningScheme<Params>;
-    using Gemini = gemini::MultilinearReductionScheme<Params>;
+    using ShplonkProver = shplonk::ShplonkProver_<Params>;
+    using ShplonkVerifier = shplonk::ShplonkVerifier_<Params>;
+    using GeminiProver = gemini::GeminiProver_<Params>;
+    using GeminiVerifier = gemini::GeminiVerifier_<Params>;
 
     const size_t n = 8;
     const size_t log_n = 3;
@@ -108,7 +110,7 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
 
     std::vector<Fr> multilinear_evaluations = { eval1, eval2, eval2_shift };
 
-    std::vector<Fr> rhos = Gemini::powers_of_rho(rho, multilinear_evaluations.size());
+    std::vector<Fr> rhos = gemini::powers_of_rho(rho, multilinear_evaluations.size());
 
     Fr batched_evaluation = Fr::zero();
     for (size_t i = 0; i < rhos.size(); ++i) {
@@ -128,7 +130,7 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
 
     auto prover_transcript = ProverTranscript<Fr>::init_empty();
 
-    auto fold_polynomials = Gemini::compute_fold_polynomials(
+    auto fold_polynomials = GeminiProver::compute_fold_polynomials(
         mle_opening_point, std::move(batched_unshifted), std::move(batched_to_be_shifted));
 
     for (size_t l = 0; l < log_n - 1; ++l) {
@@ -140,7 +142,7 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
     const Fr r_challenge = prover_transcript.get_challenge("Gemini:r");
 
     const auto [gemini_opening_pairs, gemini_witnesses] =
-        Gemini::compute_fold_polynomial_evaluations(mle_opening_point, std::move(fold_polynomials), r_challenge);
+        GeminiProver::compute_fold_polynomial_evaluations(mle_opening_point, std::move(fold_polynomials), r_challenge);
 
     for (size_t l = 0; l < log_n; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);
@@ -149,24 +151,24 @@ TEST_F(IPATest, GeminiShplonkIPAWithShift)
     }
 
     const Fr nu_challenge = prover_transcript.get_challenge("Shplonk:nu");
-    auto batched_quotient_Q = Shplonk::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
+    auto batched_quotient_Q = ShplonkProver::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
     prover_transcript.send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
 
     const Fr z_challenge = prover_transcript.get_challenge("Shplonk:z");
-    const auto [shplonk_opening_pair, shplonk_witness] = Shplonk::compute_partially_evaluated_batched_quotient(
+    const auto [shplonk_opening_pair, shplonk_witness] = ShplonkProver::compute_partially_evaluated_batched_quotient(
         gemini_opening_pairs, gemini_witnesses, std::move(batched_quotient_Q), nu_challenge, z_challenge);
 
     IPA::compute_opening_proof(this->ck(), shplonk_opening_pair, shplonk_witness, prover_transcript);
 
     auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
 
-    auto gemini_verifier_claim = Gemini::reduce_verify(mle_opening_point,
+    auto gemini_verifier_claim = GeminiVerifier::reduce_verification(mle_opening_point,
                                                        batched_evaluation,
                                                        batched_commitment_unshifted,
                                                        batched_commitment_to_be_shifted,
                                                        verifier_transcript);
 
-    const auto shplonk_verifier_claim = Shplonk::reduce_verify(this->vk(), gemini_verifier_claim, verifier_transcript);
+    const auto shplonk_verifier_claim = ShplonkVerifier::reduce_verification(this->vk(), gemini_verifier_claim, verifier_transcript);
     bool verified = IPA::verify(this->vk(), shplonk_verifier_claim, verifier_transcript);
 
     EXPECT_EQ(verified, true);

@@ -18,18 +18,14 @@
 
 namespace proof_system::honk::sumcheck {
 
-template <typename Flavor, class Transcript> class Sumcheck {
+template <typename Flavor> class SumcheckProver {
 
   public:
     using FF = typename Flavor::FF;
     using PartiallyEvaluatedMultivariates = typename Flavor::PartiallyEvaluatedMultivariates;
     using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
-    static constexpr size_t MAX_RELATION_LENGTH = Flavor::MAX_RELATION_LENGTH;
-    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = Flavor::MAX_RANDOM_RELATION_LENGTH;
-    static constexpr size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
-
-    Transcript& transcript;
+    ProverTranscript<FF>& transcript;
     const size_t multivariate_n;
     const size_t multivariate_d;
     SumcheckRound<Flavor> round;
@@ -68,19 +64,12 @@ template <typename Flavor, class Transcript> class Sumcheck {
     PartiallyEvaluatedMultivariates partially_evaluated_polynomials;
 
     // prover instantiates sumcheck with circuit size and a prover transcript
-    Sumcheck(size_t multivariate_n, ProverTranscript<FF>& transcript)
+    SumcheckProver(size_t multivariate_n, ProverTranscript<FF>& transcript)
         : transcript(transcript)
         , multivariate_n(multivariate_n)
         , multivariate_d(numeric::get_msb(multivariate_n))
         , round(multivariate_n)
         , partially_evaluated_polynomials(multivariate_n){};
-
-    // verifier instantiates sumcheck with circuit size and a verifier transcript
-    explicit Sumcheck(size_t multivariate_n, VerifierTranscript<FF>& transcript)
-        : transcript(transcript)
-        , multivariate_n(multivariate_n)
-        , multivariate_d(numeric::get_msb(multivariate_n))
-        , round(){};
 
     /**
      * @brief Compute univariate restriction place in transcript, generate challenge, partially evaluate,... repeat
@@ -88,7 +77,7 @@ template <typename Flavor, class Transcript> class Sumcheck {
      *
      * @details
      */
-    SumcheckOutput<Flavor> execute_prover(
+    SumcheckOutput<Flavor> prove(
         auto full_polynomials, const RelationParameters<FF>& relation_parameters) // pass by value, not by reference
     {
         auto [alpha, zeta] = transcript.get_challenges("Sumcheck:alpha", "Sumcheck:zeta");
@@ -136,13 +125,61 @@ template <typename Flavor, class Transcript> class Sumcheck {
     };
 
     /**
+     * @brief Evaluate at the round challenge and prepare class for next round.
+     * Illustration of layout in example of first round when d==3 (showing just one Honk polynomial,
+     * i.e., what happens in just one column of our two-dimensional array):
+     *
+     * groups    vertex terms              collected vertex terms               groups after partial evaluation
+     *     g0 -- v0 (1-X0)(1-X1)(1-X2) --- (v0(1-X0) + v1 X0) (1-X1)(1-X2) ---- (v0(1-u0) + v1 u0) (1-X1)(1-X2)
+     *        \- v1   X0  (1-X1)(1-X2) --/                                  --- (v2(1-u0) + v3 u0)   X1  (1-X2)
+     *     g1 -- v2 (1-X0)  X1  (1-X2) --- (v2(1-X0) + v3 X0)   X1  (1-X2)-/ -- (v4(1-u0) + v5 u0) (1-X1)  X2
+     *        \- v3   X0    X1  (1-X2) --/                                  / - (v6(1-u0) + v7 u0)   X1    X2
+     *     g2 -- v4 (1-X0)(1-X1)  X2   --- (v4(1-X0) + v5 X0) (1-X1)  X2  -/ /
+     *        \- v5   X0  (1-X1)  X2   --/                                  /
+     *     g3 -- v6 (1-X0)  X1    X2   --- (v6(1-X0) + v7 X0)   X1    X2  -/
+     *        \- v7   X0    X1    X2   --/
+     *
+     * @param challenge
+     */
+    void partially_evaluate(auto& polynomials, size_t round_size, FF round_challenge)
+    {
+        // after the first round, operate in place on partially_evaluated_polynomials
+        for (size_t j = 0; j < polynomials.size(); ++j) {
+            for (size_t i = 0; i < round_size; i += 2) {
+                partially_evaluated_polynomials[j][i >> 1] =
+                    polynomials[j][i] + round_challenge * (polynomials[j][i + 1] - polynomials[j][i]);
+            }
+        }
+    };
+};
+
+template <typename Flavor> class SumcheckVerifier {
+
+  public:
+    using FF = typename Flavor::FF;
+    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
+
+    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = Flavor::MAX_RANDOM_RELATION_LENGTH;
+    static constexpr size_t NUM_POLYNOMIALS = Flavor::NUM_ALL_ENTITIES;
+
+    VerifierTranscript<FF>& transcript;
+    const size_t multivariate_d;
+    SumcheckRound<Flavor> round;
+
+    // verifier instantiates sumcheck with circuit size and a verifier transcript
+    explicit SumcheckVerifier(size_t multivariate_n, VerifierTranscript<FF>& transcript)
+        : transcript(transcript)
+        , multivariate_d(numeric::get_msb(multivariate_n))
+        , round(){};
+
+    /**
      * @brief Extract round univariate, check sum, generate challenge, compute next target sum..., repeat until final
      * round, then use purported evaluations to generate purported full Honk relation value and check against final
      * target sum.
      *
      * @details If verification fails, returns std::nullopt, otherwise returns SumcheckOutput
      */
-    std::optional<SumcheckOutput<Flavor>> execute_verifier(const RelationParameters<FF>& relation_parameters)
+    std::optional<SumcheckOutput<Flavor>> verify(const RelationParameters<FF>& relation_parameters)
     {
         bool verified(true);
 
@@ -190,34 +227,6 @@ template <typename Flavor, class Transcript> class Sumcheck {
         }
 
         return SumcheckOutput<Flavor>{ multivariate_challenge, purported_evaluations };
-    };
-
-    /**
-     * @brief Evaluate at the round challenge and prepare class for next round.
-     * Illustration of layout in example of first round when d==3 (showing just one Honk polynomial,
-     * i.e., what happens in just one column of our two-dimensional array):
-     *
-     * groups    vertex terms              collected vertex terms               groups after partial evaluation
-     *     g0 -- v0 (1-X0)(1-X1)(1-X2) --- (v0(1-X0) + v1 X0) (1-X1)(1-X2) ---- (v0(1-u0) + v1 u0) (1-X1)(1-X2)
-     *        \- v1   X0  (1-X1)(1-X2) --/                                  --- (v2(1-u0) + v3 u0)   X1  (1-X2)
-     *     g1 -- v2 (1-X0)  X1  (1-X2) --- (v2(1-X0) + v3 X0)   X1  (1-X2)-/ -- (v4(1-u0) + v5 u0) (1-X1)  X2
-     *        \- v3   X0    X1  (1-X2) --/                                  / - (v6(1-u0) + v7 u0)   X1    X2
-     *     g2 -- v4 (1-X0)(1-X1)  X2   --- (v4(1-X0) + v5 X0) (1-X1)  X2  -/ /
-     *        \- v5   X0  (1-X1)  X2   --/                                  /
-     *     g3 -- v6 (1-X0)  X1    X2   --- (v6(1-X0) + v7 X0)   X1    X2  -/
-     *        \- v7   X0    X1    X2   --/
-     *
-     * @param challenge
-     */
-    void partially_evaluate(auto& polynomials, size_t round_size, FF round_challenge)
-    {
-        // after the first round, operate in place on partially_evaluated_polynomials
-        for (size_t j = 0; j < polynomials.size(); ++j) {
-            for (size_t i = 0; i < round_size; i += 2) {
-                partially_evaluated_polynomials[j][i >> 1] =
-                    polynomials[j][i] + round_challenge * (polynomials[j][i + 1] - polynomials[j][i]);
-            }
-        }
     };
 };
 } // namespace proof_system::honk::sumcheck

@@ -1,5 +1,5 @@
 #include "../gemini/gemini.hpp"
-#include "shplonk_single.hpp"
+#include "shplonk.hpp"
 
 #include <algorithm>
 #include <gtest/internal/gtest-internal.h>
@@ -19,7 +19,8 @@ TYPED_TEST_SUITE(ShplonkTest, ParamsTypes);
 // Test of Shplonk prover/verifier for two polynomials of different size, each opened at a single (different) point
 TYPED_TEST(ShplonkTest, ShplonkSimple)
 {
-    using Shplonk = SingleBatchOpeningScheme<TypeParam>;
+    using ShplonkProver = ShplonkProver_<TypeParam>;
+    using ShplonkVerifier = ShplonkVerifier_<TypeParam>;
     using Fr = typename TypeParam::Fr;
     using Polynomial = typename barretenberg::Polynomial<Fr>;
     using OpeningPair = OpeningPair<TypeParam>;
@@ -47,11 +48,11 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
 
     // Execute the shplonk prover functionality
     const Fr nu_challenge = prover_transcript.get_challenge("Shplonk:nu");
-    auto batched_quotient_Q = Shplonk::compute_batched_quotient(opening_pairs, polynomials, nu_challenge);
+    auto batched_quotient_Q = ShplonkProver::compute_batched_quotient(opening_pairs, polynomials, nu_challenge);
     prover_transcript.send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
 
     const Fr z_challenge = prover_transcript.get_challenge("Shplonk:z");
-    const auto [prover_opening_pair, shplonk_prover_witness] = Shplonk::compute_partially_evaluated_batched_quotient(
+    const auto [prover_opening_pair, shplonk_prover_witness] = ShplonkProver::compute_partially_evaluated_batched_quotient(
         opening_pairs, polynomials, std::move(batched_quotient_Q), nu_challenge, z_challenge);
 
     // An intermediate check to confirm the opening of the shplonk prover witness Q
@@ -65,7 +66,7 @@ TYPED_TEST(ShplonkTest, ShplonkSimple)
     auto verifier_transcript = VerifierTranscript<Fr>::init_empty(prover_transcript);
 
     // Execute the shplonk verifier functionality
-    const auto verifier_claim = Shplonk::reduce_verify(this->vk(), opening_claims, verifier_transcript);
+    const auto verifier_claim = ShplonkVerifier::reduce_verification(this->vk(), opening_claims, verifier_transcript);
 
     this->verify_opening_claim(verifier_claim, shplonk_prover_witness);
 }

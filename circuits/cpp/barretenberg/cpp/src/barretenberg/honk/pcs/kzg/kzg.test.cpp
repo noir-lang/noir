@@ -1,6 +1,6 @@
 
 #include "../gemini/gemini.hpp"
-#include "../shplonk/shplonk_single.hpp"
+#include "../shplonk/shplonk.hpp"
 #include "kzg.hpp"
 
 #include "../commitment_key.test.hpp"
@@ -58,8 +58,10 @@ TYPED_TEST(KZGTest, single)
  */
 TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
 {
-    using Shplonk = shplonk::SingleBatchOpeningScheme<TypeParam>;
-    using Gemini = gemini::MultilinearReductionScheme<TypeParam>;
+    using ShplonkProver = shplonk::ShplonkProver_<TypeParam>;
+    using ShplonkVerifier = shplonk::ShplonkVerifier_<TypeParam>;
+    using GeminiProver = gemini::GeminiProver_<Params>;
+    using GeminiVerifier = gemini::GeminiVerifier_<Params>;
     using KZG = KZG<TypeParam>;
     using Fr = typename TypeParam::Fr;
     using GroupElement = typename TypeParam::GroupElement;
@@ -87,7 +89,7 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     // Collect multilinear evaluations for input to prover
     std::vector<Fr> multilinear_evaluations = { eval1, eval2, eval2_shift };
 
-    std::vector<Fr> rhos = Gemini::powers_of_rho(rho, multilinear_evaluations.size());
+    std::vector<Fr> rhos = gemini::powers_of_rho(rho, multilinear_evaluations.size());
 
     // Compute batched multivariate evaluation
     Fr batched_evaluation = Fr::zero();
@@ -115,7 +117,7 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     // Compute:
     // - (d+1) opening pairs: {r, \hat{a}_0}, {-r^{2^i}, a_i}, i = 0, ..., d-1
     // - (d+1) Fold polynomials Fold_{r}^(0), Fold_{-r}^(0), and Fold^(i), i = 0, ..., d-1
-    auto fold_polynomials = Gemini::compute_fold_polynomials(
+    auto fold_polynomials = GeminiProver::compute_fold_polynomials(
         mle_opening_point, std::move(batched_unshifted), std::move(batched_to_be_shifted));
 
     for (size_t l = 0; l < log_n - 1; ++l) {
@@ -127,7 +129,7 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     const Fr r_challenge = prover_transcript.get_challenge("Gemini:r");
 
     const auto [gemini_opening_pairs, gemini_witnesses] =
-        Gemini::compute_fold_polynomial_evaluations(mle_opening_point, std::move(fold_polynomials), r_challenge);
+        GeminiProver::compute_fold_polynomial_evaluations(mle_opening_point, std::move(fold_polynomials), r_challenge);
 
     for (size_t l = 0; l < log_n; ++l) {
         std::string label = "Gemini:a_" + std::to_string(l);
@@ -139,11 +141,11 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
     // - opening pair: (z_challenge, 0)
     // - witness: polynomial Q - Q_z
     const Fr nu_challenge = prover_transcript.get_challenge("Shplonk:nu");
-    auto batched_quotient_Q = Shplonk::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
+    auto batched_quotient_Q = ShplonkProver::compute_batched_quotient(gemini_opening_pairs, gemini_witnesses, nu_challenge);
     prover_transcript.send_to_verifier("Shplonk:Q", this->ck()->commit(batched_quotient_Q));
 
     const Fr z_challenge = prover_transcript.get_challenge("Shplonk:z");
-    const auto [shplonk_opening_pair, shplonk_witness] = Shplonk::compute_partially_evaluated_batched_quotient(
+    const auto [shplonk_opening_pair, shplonk_witness] = ShplonkProver::compute_partially_evaluated_batched_quotient(
         gemini_opening_pairs, gemini_witnesses, std::move(batched_quotient_Q), nu_challenge, z_challenge);
 
     // KZG prover:
@@ -156,14 +158,14 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
 
     // Gemini verifier output:
     // - claim: d+1 commitments to Fold_{r}^(0), Fold_{-r}^(0), Fold^(l), d+1 evaluations a_0_pos, a_l, l = 0:d-1
-    auto gemini_verifier_claim = Gemini::reduce_verify(mle_opening_point,
+    auto gemini_verifier_claim = GeminiVerifier::reduce_verification(mle_opening_point,
                                                        batched_evaluation,
                                                        batched_commitment_unshifted,
                                                        batched_commitment_to_be_shifted,
                                                        verifier_transcript);
 
     // Shplonk verifier claim: commitment [Q] - [Q_z], opening point (z_challenge, 0)
-    const auto shplonk_verifier_claim = Shplonk::reduce_verify(this->vk(), gemini_verifier_claim, verifier_transcript);
+    const auto shplonk_verifier_claim = ShplonkVerifier::reduce_verification(this->vk(), gemini_verifier_claim, verifier_transcript);
 
     // KZG verifier:
     // aggregates inputs [Q] - [Q_z] and [W] into an 'accumulator' (can perform pairing check on result)

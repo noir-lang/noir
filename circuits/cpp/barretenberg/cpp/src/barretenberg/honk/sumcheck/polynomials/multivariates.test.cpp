@@ -61,7 +61,7 @@ TYPED_TEST(MultivariatesTests, FoldTwoRoundsSpecial)
 
     auto full_polynomials = std::array<std::span<FF>, 1>({ f0 });
     auto transcript = Transcript::init_empty();
-    auto sumcheck = Sumcheck<Flavor, Transcript>(multivariate_n, transcript);
+    auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
     FF round_challenge_0 = { 0x6c7301b49d85a46c, 0x44311531e39c64f6, 0xb13d66d8d6c1a24c, 0x04410c360230a295 };
     round_challenge_0.self_to_montgomery_form();
@@ -98,7 +98,7 @@ TYPED_TEST(MultivariatesTests, FoldTwoRoundsGeneric)
 
     auto full_polynomials = std::array<std::span<FF>, 1>({ f0 });
     auto transcript = Transcript::init_empty();
-    auto sumcheck = Sumcheck<Flavor, Transcript>(multivariate_n, transcript);
+    auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
     FF round_challenge_0 = FF::random_element();
     FF expected_lo = v00 * (FF(1) - round_challenge_0) + v10 * round_challenge_0;
@@ -159,7 +159,7 @@ TYPED_TEST(MultivariatesTests, FoldThreeRoundsSpecial)
 
     auto full_polynomials = std::array<std::span<FF>, 1>({ f0 });
     auto transcript = Transcript::init_empty();
-    auto sumcheck = Sumcheck<Flavor, Transcript>(multivariate_n, transcript);
+    auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
     FF round_challenge_0 = 1;
     FF expected_q1 = v000 * (FF(1) - round_challenge_0) + v100 * round_challenge_0; // 2
@@ -210,7 +210,7 @@ TYPED_TEST(MultivariatesTests, FoldThreeRoundsGeneric)
 
     auto full_polynomials = std::array<std::span<FF>, 1>({ f0 });
     auto transcript = Transcript::init_empty();
-    auto sumcheck = Sumcheck<Flavor, Transcript>(multivariate_n, transcript);
+    auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
     FF round_challenge_0 = FF::random_element();
     FF expected_q1 = v000 * (FF(1) - round_challenge_0) + v100 * round_challenge_0;
@@ -272,7 +272,7 @@ TYPED_TEST(MultivariatesTests, FoldThreeRoundsGenericMultiplePolys)
 
     auto full_polynomials = std::array<std::span<FF>, 3>{ f0, f1, f2 };
     auto transcript = Transcript::init_empty();
-    auto sumcheck = Sumcheck<Flavor, Transcript>(multivariate_n, transcript);
+    auto sumcheck = SumcheckProver<Flavor>(multivariate_n, transcript);
 
     std::array<FF, 3> expected_q1;
     std::array<FF, 3> expected_q2;
