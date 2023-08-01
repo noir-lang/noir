@@ -8,7 +8,7 @@ use std::fmt::Display;
 pub struct NoirTypeAlias {
     pub name: Ident,
     pub generics: UnresolvedGenerics,
-    pub ty: UnresolvedType,
+    pub typ: UnresolvedType,
     pub span: Span,
 }
 
