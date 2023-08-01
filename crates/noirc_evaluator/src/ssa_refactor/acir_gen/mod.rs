@@ -602,10 +602,8 @@ impl Context {
         let result_array_id = result_id.to_usize() as u32;
         let result_block_id = BlockId(result_array_id);
 
-        // Initialize the new array with zero values
-        self.initialize_array(result_block_id, len, None)?;
-
-        // Copy the values from the old array into the newly created zeroed array
+        // Initialize the new array with the values from the old array
+        let mut init_values = Vec::new();
         for i in 0..len {
             let index = AcirValue::Var(
                 self.acir_context.add_constant(FieldElement::from(i as u128)),
@@ -613,8 +611,10 @@ impl Context {
             );
             let var = index.into_var()?;
             let read = self.acir_context.read_from_memory(block_id, &var)?;
-            self.acir_context.write_to_memory(result_block_id, &var, &read)?;
+            let acir_value = AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField));
+            init_values.push(acir_value);
         }
+        self.initialize_array(result_block_id, len, Some(&init_values))?;
 
         // Write the new value into the new array at the specified index
         let index_var = self.convert_value(index, dfg).into_var()?;
