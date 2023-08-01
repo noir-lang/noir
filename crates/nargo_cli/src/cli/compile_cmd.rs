@@ -139,7 +139,7 @@ pub(crate) fn compile_circuit<B: Backend>(
     let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit)
         .expect("Backend does not support an opcode that is in the IR");
 
-    // TODO: Why does this set `program.circuit` to `optimized_circuit` instead of the function taking ownership
+    // TODO(#2110): Why does this set `program.circuit` to `optimized_circuit` instead of the function taking ownership
     // and requiring we use `optimized_circuit` everywhere after
     program.circuit = optimized_circuit;
     let opcode_ids = vecmap(opcode_labels, |label| match label {
