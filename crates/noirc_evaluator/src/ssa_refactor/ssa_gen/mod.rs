@@ -63,7 +63,7 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_expression(&mut self, expr: &Expression) -> Result<Values, InternalError> {
         match expr {
-            Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
+            Expression::Ident(ident) => self.codegen_ident(ident),
             Expression::Literal(literal) => self.codegen_literal(literal),
             Expression::Block(block) => self.codegen_block(block),
             Expression::Unary(unary) => self.codegen_unary(unary),
@@ -116,8 +116,8 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Codegen an identifier, automatically loading its value if it is mutable.
-    fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
-        self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
+    fn codegen_ident(&mut self, ident: &ast::Ident) -> Result<Values, InternalError> {
+        self.codegen_ident_reference(ident).try_map(|value| Ok(value.eval(self)?.into()))
     }
 
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, InternalError> {
@@ -191,19 +191,19 @@ impl<'a> FunctionContext<'a> {
     fn codegen_unary(&mut self, unary: &ast::Unary) -> Result<Values, InternalError> {
         match unary.operator {
             noirc_frontend::UnaryOp::Not => {
-                let rhs = self.codegen_expression(&unary.rhs);
-                let rhs = rhs.into_leaf().eval(self);
-                self.builder.insert_not(rhs).into()
+                let rhs = self.codegen_expression(&unary.rhs)?;
+                let rhs = rhs.into_leaf().eval(self)?;
+                Ok(self.builder.insert_not(rhs)?.into())
             }
             noirc_frontend::UnaryOp::Minus => {
-                let rhs = self.codegen_expression(&unary.rhs);
-                let rhs = rhs.into_leaf().eval(self);
+                let rhs = self.codegen_expression(&unary.rhs)?;
+                let rhs = rhs.into_leaf().eval(self)?;
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
                 Ok(self.builder.insert_binary(zero, BinaryOp::Sub, rhs)?.into())
             }
             noirc_frontend::UnaryOp::MutableReference => {
-                self.codegen_reference(&unary.rhs).map(|rhs| {
+                self.codegen_reference(&unary.rhs)?.try_map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let alloc = self.builder.insert_allocate()?;
@@ -214,27 +214,27 @@ impl<'a> FunctionContext<'a> {
                         // a Value::Normal so it is no longer automatically dereferenced.
                         value::Value::Mutable(reference, _) => Ok(reference.into()),
                     }
-                })?)
+                })
             }
             noirc_frontend::UnaryOp::Dereference { .. } => {
-                let rhs = self.codegen_expression(&unary.rhs);
+                let rhs = self.codegen_expression(&unary.rhs)?;
                 self.dereference(&rhs, &unary.result_type)
             }
         }
     }
 
-    fn codegen_reference(&mut self, expr: &Expression) -> Values {
+    fn codegen_reference(&mut self, expr: &Expression) -> Result<Values, InternalError> {
         match expr {
-            Expression::Ident(ident) => self.codegen_ident_reference(ident),
+            Expression::Ident(ident) => Ok(self.codegen_ident_reference(ident)),
             Expression::ExtractTupleField(tuple, index) => {
-                let tuple = self.codegen_reference(tuple);
-                Self::get_field(tuple, *index)
+                let tuple = self.codegen_reference(tuple)?;
+                Ok(Self::get_field(tuple, *index))
             }
             other => self.codegen_expression(other),
         }
     }
 
-    fn codegen_binary(&mut self, binary: &ast::Binary) Result<Values, InternalError> {
+    fn codegen_binary(&mut self, binary: &ast::Binary) -> Result<Values, InternalError> {
         let lhs = self.codegen_non_tuple_expression(&binary.lhs)?;
         let rhs = self.codegen_non_tuple_expression(&binary.rhs)?;
         self.insert_binary(lhs, binary.operator, rhs, binary.location)
