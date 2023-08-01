@@ -19,13 +19,13 @@ struct PackageConfig {
 }
 
 impl PackageConfig {
-    fn to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
+    fn resolve_to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
         let name = self.package.name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
-        for (name, dep) in self.dependencies.iter() {
+        for (name, dep_config) in self.dependencies.iter() {
             let name = name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
-            let resolved_dep = dep.to_dependency(root_dir)?;
+            let resolved_dep = dep_config.resolve_to_dependency(root_dir)?;
 
             dependencies.insert(name, resolved_dep);
         }
@@ -130,7 +130,7 @@ enum DependencyConfig {
 }
 
 impl DependencyConfig {
-    fn to_dependency(&self, pkg_root: &Path) -> Result<Dependency, ManifestError> {
+    fn resolve_to_dependency(&self, pkg_root: &Path) -> Result<Dependency, ManifestError> {
         match self {
             Self::Github { git, tag } => {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
@@ -154,7 +154,7 @@ fn toml_to_workspace(
 ) -> Result<Workspace, ManifestError> {
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
-            let member = package_config.to_package(&nargo_toml.root_dir)?;
+            let member = package_config.resolve_to_package(&nargo_toml.root_dir)?;
             if selected_package.is_none() || Some(&member.name) == selected_package.as_ref() {
                 Workspace {
                     root_dir: nargo_toml.root_dir,
@@ -222,7 +222,9 @@ fn resolve_package_from_toml(toml_path: &Path) -> Result<Package, ManifestError>
     let nargo_toml = read_toml(toml_path)?;
 
     match nargo_toml.config {
-        Config::Package { package_config } => package_config.to_package(&nargo_toml.root_dir),
+        Config::Package { package_config } => {
+            package_config.resolve_to_package(&nargo_toml.root_dir)
+        }
         Config::Workspace { .. } => {
             Err(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
         }
