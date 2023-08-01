@@ -149,10 +149,10 @@ export class DeployMethod extends ContractFunctionInteraction {
    * @param withWallet - The wallet to provide to the contract abstraction
    * @returns - The generated contract abstraction.
    */
-  public getContract(withWallet: Wallet) {
+  public async getContract(withWallet: Wallet) {
     if (!this.completeContractAddress) {
       throw new Error(`Cannot get a contract instance for a contract not yet deployed`);
     }
-    return new Contract(this.completeContractAddress, this.abi, withWallet);
+    return await Contract.create(this.completeContractAddress, this.abi, withWallet);
   }
 }

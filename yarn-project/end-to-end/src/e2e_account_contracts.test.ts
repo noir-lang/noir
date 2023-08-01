@@ -40,7 +40,7 @@ function itShouldBehaveLikeAnAccountContract(
       ));
 
       const { address: childAddress } = await deployContract(aztecRpcServer, Point.random(), ChildContract.abi, []);
-      child = new ChildContract(childAddress, wallet);
+      child = await ChildContract.create(childAddress, wallet);
     }, 60_000);
 
     afterEach(async () => {
@@ -70,7 +70,7 @@ function itShouldBehaveLikeAnAccountContract(
         context.aztecRpcServer,
         await createAccountImpl(address, false, partialAddress, encryptionPrivateKey),
       );
-      const childWithInvalidWallet = new ChildContract(child.address, invalidWallet);
+      const childWithInvalidWallet = await ChildContract.create(child.address, invalidWallet);
       await expect(childWithInvalidWallet.methods.value(42).simulate()).rejects.toThrowError(
         /could not satisfy all constraints/,
       );

@@ -35,13 +35,13 @@ describe('e2e_zk_token_contract', () => {
 
   const deployContract = async (initialBalance: bigint, owner: AztecAddress) => {
     logger(`Deploying L2 contract...`);
-    const tx = ZkTokenContract.deploy(aztecRpcServer, initialBalance, owner).send();
+    const tx = ZkTokenContract.deploy(wallet, initialBalance, owner).send();
     const receipt = await tx.getReceipt();
-    contract = new ZkTokenContract(receipt.contractAddress!, wallet);
     await tx.isMined(0, 0.1);
     const minedReceipt = await tx.getReceipt();
     expect(minedReceipt.status).toEqual(TxStatus.MINED);
     logger('L2 contract deployed');
+    contract = await ZkTokenContract.create(receipt.contractAddress!, wallet);
     return contract;
   };
 

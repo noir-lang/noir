@@ -346,6 +346,9 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @returns ContractData with the portal address (if we didn't throw an error).
    */
   public getL2ContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+    if (contractAddress.isZero()) {
+      return Promise.resolve(undefined);
+    }
     for (const block of this.l2Blocks) {
       for (const contractData of block.newContractData) {
         if (contractData.contractAddress.equals(contractAddress)) {

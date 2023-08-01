@@ -87,7 +87,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const owner = accounts[userIndex];
 
     // Then check the balance
-    const contractWithWallet = new ZkTokenContract(zkTokenAddress, wallet);
+    const contractWithWallet = await ZkTokenContract.create(zkTokenAddress, wallet);
     const [balance] = await contractWithWallet.methods.getBalance(owner).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
@@ -104,7 +104,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const sender = accounts[senderIndex];
     const receiver = accounts[receiverIndex];
 
-    const contractWithWallet = new ZkTokenContract(zkTokenAddress, wallets[senderIndex]);
+    const contractWithWallet = await ZkTokenContract.create(zkTokenAddress, wallets[senderIndex]);
 
     const tx = contractWithWallet.methods.transfer(transferAmount, sender, receiver).send({ origin: sender });
     await tx.isMined(0, 0.1);

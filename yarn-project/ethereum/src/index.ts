@@ -8,8 +8,8 @@ export * from './deploy_l1_contracts.js';
 
 /**
  * Helper function to create an instance of Aztec Chain from an rpc url and api key.
- * @param rpcUrl - The rpc url of the chain or a chain identifer (e.g. 'testnet')
- * @param apiKey - An optional apikey for the chain client.
+ * @param rpcUrl - The rpc url of the chain or a chain identifier (e.g. 'testnet')
+ * @param apiKey - An optional API key for the chain client.
  */
 export function createEthereumChain(rpcUrl: string, apiKey?: string) {
   if (rpcUrl === 'testnet') {

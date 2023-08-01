@@ -300,7 +300,7 @@ async function main() {
         PrivateKey.fromString(options.privateKey),
         accountCreationSalt,
       );
-      const contract = new Contract(contractAddress, contractAbi, wallet);
+      const contract = await Contract.create(contractAddress, contractAbi, wallet);
       const origin = (await wallet.getAccounts()).find(addr => addr.equals(wallet.getAddress()));
       const tx = contract.methods[functionName](...functionArgs).send({
         origin,

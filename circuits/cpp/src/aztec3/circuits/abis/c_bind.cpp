@@ -55,7 +55,7 @@ using aztec3::circuits::abis::PublicTypes;
  * @brief Fill in zero-leaves to get a full tree's bottom layer.
  *
  * @details Given the a vector of nonzero leaves starting at the left,
- * append zeroleaves to that list until it represents a FULL set of leaves
+ * append zero leaves to that list until it represents a FULL set of leaves
  * for a tree of the given height.
  * **MODIFIES THE INPUT `leaves` REFERENCE!**
  *
@@ -78,7 +78,7 @@ template <size_t TREE_HEIGHT> void rightfill_with_zeroleaves(std::vector<NT::fr>
 }  // namespace
 
 // Note: We don't have a simple way of calling the barretenberg c-bind.
-// Mimick bbmalloc behaviour.
+// Mimic bbmalloc behaviour.
 static void* bbmalloc(size_t size)
 {
     auto* ptr = aligned_alloc(64, size);

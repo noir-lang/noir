@@ -24,10 +24,10 @@ describe('e2e_lending_contract', () => {
 
     logger(`Tx sent with hash ${await tx.getTxHash()}`);
     const receipt = await tx.getReceipt();
-    contract = new LendingContract(receipt.contractAddress!, wallet);
     await tx.isMined(0, 0.1);
     const txReceipt = await tx.getReceipt();
     logger(`L2 contract deployed at ${receipt.contractAddress}`);
+    contract = await LendingContract.create(receipt.contractAddress!, wallet);
     return { contract, tx, txReceipt };
   };
 

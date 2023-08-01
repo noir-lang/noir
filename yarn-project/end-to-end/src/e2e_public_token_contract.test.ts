@@ -25,11 +25,11 @@ describe('e2e_public_token_contract', () => {
 
     logger(`Tx sent with hash ${await tx.getTxHash()}`);
     const receipt = await tx.getReceipt();
-    contract = new PublicTokenContract(receipt.contractAddress!, wallet);
     await tx.isMined(0, 0.1);
     const txReceipt = await tx.getReceipt();
     expect(txReceipt.status).toEqual(TxStatus.MINED);
     logger(`L2 contract deployed at ${receipt.contractAddress}`);
+    contract = await PublicTokenContract.create(receipt.contractAddress!, wallet);
     return { contract, tx, txReceipt };
   };
 
