@@ -26,6 +26,6 @@ impl NoirTypeAlias {
 impl Display for NoirTypeAlias {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
-        write!(f, "type {}<{}> = {}", self.name, generics.join(", "), self.ty)
+        write!(f, "type {}<{}> = {}", self.name, generics.join(", "), self.typ)
     }
 }

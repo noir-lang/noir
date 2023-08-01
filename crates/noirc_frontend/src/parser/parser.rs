@@ -246,8 +246,8 @@ fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, parse_type());
 
-    p.map_with_span(|((name, generics), ty), span| {
-        TopLevelStatement::TypeAlias(NoirTypeAlias { name, generics, ty, span })
+    p.map_with_span(|((name, generics), typ), span| {
+        TopLevelStatement::TypeAlias(NoirTypeAlias { name, generics, typ, span })
     })
 }
 
