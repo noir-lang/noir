@@ -246,7 +246,14 @@ impl PartialEq for TypeAliasType {
 
 impl std::fmt::Display for TypeAliasType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.typ)
+        write!(f, "{}", self.name)?;
+
+        if !self.generics.is_empty() {
+            let generics = vecmap(&self.generics, |(_, binding)| binding.borrow().to_string());
+            write!(f, "{}", generics.join(", "))?;
+        }
+
+        Ok(())
     }
 }
 

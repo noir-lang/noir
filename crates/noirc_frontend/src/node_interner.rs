@@ -1,6 +1,4 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use arena::{Arena, Index};
 use fm::FileId;
@@ -61,7 +59,7 @@ pub struct NodeInterner {
     //
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
-    type_aliases: Vec<Rc<RefCell<TypeAliasType>>>,
+    type_aliases: Vec<TypeAliasType>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -326,8 +324,10 @@ impl NodeInterner {
         );
     }
 
-    pub fn push_empty_type_alias(&mut self, type_id: TypeAliasId, typ: &UnresolvedTypeAlias) {
-        self.type_aliases.push(Rc::new(RefCell::new(TypeAliasType::new(
+    pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
+        let type_id = TypeAliasId(self.type_aliases.len());
+
+        self.type_aliases.push(TypeAliasType::new(
             type_id,
             typ.type_alias_def.name.clone(),
             typ.type_alias_def.span,
@@ -336,7 +336,9 @@ impl NodeInterner {
                 let id = TypeVariableId(0);
                 (id, Shared::new(TypeBinding::Unbound(id)))
             }),
-        ))));
+        ));
+
+        type_id
     }
 
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
@@ -345,7 +347,7 @@ impl NodeInterner {
     }
 
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
-        let type_alias_type = &mut self.type_aliases[type_id.0].borrow_mut();
+        let type_alias_type = &mut self.type_aliases[type_id.0];
         type_alias_type.set_type_and_generics(typ, generics);
     }
 
@@ -545,12 +547,8 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
-    pub fn get_type_alias(&self, id: TypeAliasId) -> Rc<RefCell<TypeAliasType>> {
-        self.type_aliases[id.0].clone()
-    }
-
-    pub fn get_all_type_aliases(&self) -> &Vec<Rc<RefCell<TypeAliasType>>> {
-        &self.type_aliases
+    pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
+        &self.type_aliases[id.0]
     }
 
     pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {

@@ -2,11 +2,9 @@ use fm::FileId;
 use noirc_errors::FileDiagnostic;
 
 use crate::{
-    graph::CrateId,
-    hir::def_collector::dc_crate::UnresolvedStruct,
-    node_interner::{StructId, TypeAliasId},
-    parser::SubModule,
-    Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule, TypeImpl,
+    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
+    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule,
+    TypeImpl,
 };
 
 use super::{
@@ -199,7 +197,15 @@ impl<'a> ModCollector<'a> {
         for type_alias in type_aliases {
             let name = type_alias.name.clone();
 
-            let ty_alias_id = TypeAliasId(context.def_interner.get_all_type_aliases().len());
+            // And store the TypeId -> TypeAlias mapping somewhere it is reachable
+            let unresolved = UnresolvedTypeAlias {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                type_alias_def: type_alias,
+            };
+
+            let ty_alias_id = context.def_interner.push_type_alias(&unresolved);
+
             // Add the type alias to scope so its path can be looked up later
             let result = self.def_collector.def_map.modules[self.module_id.0]
                 .declare_type_alias(name, ty_alias_id);
@@ -209,13 +215,6 @@ impl<'a> ModCollector<'a> {
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
-            // And store the TypeId -> TypeAlias mapping somewhere it is reachable
-            let unresolved = UnresolvedTypeAlias {
-                file_id: self.file_id,
-                module_id: self.module_id,
-                type_alias_def: type_alias,
-            };
-            context.def_interner.push_empty_type_alias(ty_alias_id, &unresolved);
             self.def_collector.collected_type_aliases.insert(ty_alias_id, unresolved);
         }
     }
