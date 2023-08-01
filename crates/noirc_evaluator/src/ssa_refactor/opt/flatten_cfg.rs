@@ -274,7 +274,10 @@ impl<'f> Context<'f> {
                 // end, in addition to resetting the value of old_condition since it is set to
                 // known to be true/false within the then/else branch respectively.
                 self.insert_current_side_effects_enabled();
-                self.inserter.map_value(old_condition, old_condition);
+
+                // We must map back to then_condition here. Mapping old_condition to itself would
+                // lose any previous mappings.
+                self.inserter.map_value(old_condition, then_condition);
 
                 // While there is a condition on the stack we don't compile outside the condition
                 // until it is popped. This ensures we inline the full then and else branches

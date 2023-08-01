@@ -124,7 +124,6 @@ impl<'f> FunctionInserter<'f> {
         let old_parameters = self.function.dfg.block_parameters(block);
 
         for (param, new_param) in old_parameters.iter().zip(new_values) {
-            // Don't overwrite any existing entries to avoid overwriting the induction variable
             self.values.entry(*param).or_insert(*new_param);
         }
     }
