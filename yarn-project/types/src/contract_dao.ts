@@ -59,6 +59,7 @@ export function getNewContractPublicFunctions(newContract: ContractDao) {
       fn =>
         new EncodedContractFunction(
           generateFunctionSelector(fn.name, fn.parameters),
+          fn.isInternal ?? false,
           Buffer.from(fn.bytecode, 'base64'),
         ),
     );

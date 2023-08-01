@@ -50,7 +50,7 @@ describe('ACIR public execution simulator', () => {
 
     commitmentsDb.getTreeRoots.mockReturnValue(PrivateHistoricTreeRoots.empty());
     executor = new PublicExecutor(publicState, publicContracts, commitmentsDb);
-  });
+  }, 10000);
 
   describe('PublicToken contract', () => {
     let recipient: AztecAddress;
@@ -187,58 +187,74 @@ describe('ACIR public execution simulator', () => {
   });
 
   describe('Parent/Child contracts', () => {
-    it('calls the public entry point in the parent', async () => {
-      const parentContractAddress = AztecAddress.random();
-      const parentEntryPointFn = ParentContractAbi.functions.find(f => f.name === 'pubEntryPoint')!;
-      const parentEntryPointFnSelector = keccak(Buffer.from(parentEntryPointFn.name)).subarray(0, 4);
+    it.each([false, true, undefined])(
+      'calls the public entry point in the parent',
+      async isInternal => {
+        const parentContractAddress = AztecAddress.random();
+        const parentEntryPointFn = ParentContractAbi.functions.find(f => f.name === 'pubEntryPoint')!;
+        const parentEntryPointFnSelector = keccak(Buffer.from(parentEntryPointFn.name)).subarray(0, 4);
 
-      const childContractAddress = AztecAddress.random();
-      const childValueFn = ChildContractAbi.functions.find(f => f.name === 'pubValue')!;
-      const childValueFnSelector = keccak(Buffer.from(childValueFn.name)).subarray(0, 4);
+        const childContractAddress = AztecAddress.random();
+        const childValueFn = ChildContractAbi.functions.find(f => f.name === 'pubValue')!;
+        const childValueFnSelector = keccak(Buffer.from(childValueFn.name)).subarray(0, 4);
 
-      const initialValue = 3n;
+        const initialValue = 3n;
 
-      const functionData = new FunctionData(parentEntryPointFnSelector, false, false, false);
-      const args = encodeArguments(parentEntryPointFn, [
-        childContractAddress.toField().value,
-        toBigInt(childValueFnSelector),
-        initialValue,
-      ]);
+        const functionData = new FunctionData(parentEntryPointFnSelector, isInternal ?? false, false, false);
+        const args = encodeArguments(parentEntryPointFn, [
+          childContractAddress.toField().value,
+          toBigInt(childValueFnSelector),
+          initialValue,
+        ]);
 
-      const callContext = CallContext.from({
-        msgSender: AztecAddress.random(),
-        storageContractAddress: parentContractAddress,
-        portalContractAddress: EthAddress.random(),
-        isContractDeployment: false,
-        isDelegateCall: false,
-        isStaticCall: false,
-      });
+        const callContext = CallContext.from({
+          msgSender: AztecAddress.random(),
+          storageContractAddress: parentContractAddress,
+          portalContractAddress: EthAddress.random(),
+          isContractDeployment: false,
+          isDelegateCall: false,
+          isStaticCall: false,
+        });
 
-      // eslint-disable-next-line require-await
-      publicContracts.getBytecode.mockImplementation(async (addr: AztecAddress, selector: Buffer) => {
-        if (addr.equals(parentContractAddress) && selector.equals(parentEntryPointFnSelector)) {
-          return Buffer.from(parentEntryPointFn.bytecode, 'base64');
-        } else if (addr.equals(childContractAddress) && selector.equals(childValueFnSelector)) {
-          return Buffer.from(childValueFn.bytecode, 'base64');
+        // eslint-disable-next-line require-await
+        publicContracts.getBytecode.mockImplementation(async (addr: AztecAddress, selector: Buffer) => {
+          if (addr.equals(parentContractAddress) && selector.equals(parentEntryPointFnSelector)) {
+            return Buffer.from(parentEntryPointFn.bytecode, 'base64');
+          } else if (addr.equals(childContractAddress) && selector.equals(childValueFnSelector)) {
+            return Buffer.from(childValueFn.bytecode, 'base64');
+          } else {
+            return undefined;
+          }
+        });
+
+        publicContracts.getIsInternal.mockImplementation(() => {
+          return Promise.resolve(isInternal);
+        });
+
+        const execution: PublicExecution = { contractAddress: parentContractAddress, functionData, args, callContext };
+        const globalVariables = new GlobalVariables(new Fr(69), new Fr(420), new Fr(1), new Fr(7));
+
+        if (isInternal === undefined) {
+          // The error is don't seem to be propagated, but can see it in the logger.
+          await expect(executor.execute(execution, globalVariables)).rejects.toBe(
+            'Error awaiting `foreign_call_handler`: Unknown',
+          );
         } else {
-          return undefined;
+          const result = await executor.execute(execution, globalVariables);
+
+          expect(result.returnValues).toEqual([
+            new Fr(
+              initialValue +
+                globalVariables.chainId.value +
+                globalVariables.version.value +
+                globalVariables.blockNumber.value +
+                globalVariables.timestamp.value,
+            ),
+          ]);
         }
-      });
-
-      const execution: PublicExecution = { contractAddress: parentContractAddress, functionData, args, callContext };
-      const globalVariables = new GlobalVariables(new Fr(69), new Fr(420), new Fr(1), new Fr(7));
-      const result = await executor.execute(execution, globalVariables);
-
-      expect(result.returnValues).toEqual([
-        new Fr(
-          initialValue +
-            globalVariables.chainId.value +
-            globalVariables.version.value +
-            globalVariables.blockNumber.value +
-            globalVariables.timestamp.value,
-        ),
-      ]);
-    }, 20000);
+      },
+      20_000,
+    );
   });
 
   describe('Public -> Private / Cross Chain messaging', () => {

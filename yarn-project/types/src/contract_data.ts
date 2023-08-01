@@ -61,6 +61,10 @@ export class EncodedContractFunction {
      */
     public functionSelector: Buffer,
     /**
+     * Whether the function is internal.
+     */
+    public isInternal: boolean,
+    /**
      * The function bytecode.
      */
     public bytecode: Buffer,
@@ -72,7 +76,7 @@ export class EncodedContractFunction {
    */
   toBuffer(): Buffer {
     const bytecodeBuf = Buffer.concat([numToInt32BE(this.bytecode.length), this.bytecode]);
-    return serializeToBuffer(this.functionSelector, bytecodeBuf);
+    return serializeToBuffer(this.functionSelector, this.isInternal, bytecodeBuf);
   }
 
   /**
@@ -83,7 +87,8 @@ export class EncodedContractFunction {
   static fromBuffer(buffer: Buffer | BufferReader): EncodedContractFunction {
     const reader = BufferReader.asReader(buffer);
     const fnSelector = reader.readBytes(FUNCTION_SELECTOR_NUM_BYTES);
-    return new EncodedContractFunction(fnSelector, reader.readBuffer());
+    const isInternal = reader.readBoolean();
+    return new EncodedContractFunction(fnSelector, isInternal, reader.readBuffer());
   }
 
   /**
@@ -91,7 +96,7 @@ export class EncodedContractFunction {
    * @returns A random contract function.
    */
   static random(): EncodedContractFunction {
-    return new EncodedContractFunction(randomBytes(4), randomBytes(64));
+    return new EncodedContractFunction(randomBytes(4), false, randomBytes(64));
   }
 }
 

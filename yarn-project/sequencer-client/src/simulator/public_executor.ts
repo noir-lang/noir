@@ -37,6 +37,9 @@ class ContractsDataSourcePublicDB implements PublicContractsDB {
   async getBytecode(address: AztecAddress, functionSelector: Buffer): Promise<Buffer | undefined> {
     return (await this.db.getPublicFunction(address, functionSelector))?.bytecode;
   }
+  async getIsInternal(address: AztecAddress, functionSelector: Buffer): Promise<boolean | undefined> {
+    return (await this.db.getPublicFunction(address, functionSelector))?.isInternal;
+  }
   async getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined> {
     return (await this.db.getL2ContractInfo(address))?.portalContractAddress;
   }

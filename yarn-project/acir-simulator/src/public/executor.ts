@@ -182,9 +182,15 @@ export class PublicExecutor {
     globalVariables: GlobalVariables,
   ) {
     const portalAddress = (await this.contractsDb.getPortalContractAddress(targetContractAddress)) ?? EthAddress.ZERO;
-    // @todo @lherskind - Need to make this data accessible (See issue #1200)
-    //const abi = await this.contractsDb.getFunctionABI(targetContractAddress, targetFunctionSelector);
-    const isInternal = false;
+    const isInternal = await this.contractsDb.getIsInternal(targetContractAddress, targetFunctionSelector);
+    if (isInternal === undefined) {
+      throw new Error(
+        `ERR: ContractsDb don't contain isInternal for ${targetContractAddress.toString()}:${targetFunctionSelector.toString(
+          'hex',
+        )}. Defaulting to false.`,
+      );
+    }
+
     const functionData = new FunctionData(targetFunctionSelector, isInternal, false, false);
 
     const callContext = CallContext.from({
