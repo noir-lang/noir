@@ -80,6 +80,7 @@ pub enum HirLiteral {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+    Unit,
 }
 
 #[derive(Debug, Clone)]

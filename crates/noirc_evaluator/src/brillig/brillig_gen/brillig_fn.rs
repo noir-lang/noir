@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use acvm::acir::brillig::RegisterIndex;
+use acvm::brillig_vm::brillig::{HeapArray, HeapVector, RegisterIndex, RegisterOrMemory};
+use iter_extended::vecmap;
 
 use crate::{
     brillig::brillig_ir::{
@@ -8,49 +9,153 @@ use crate::{
         BrilligContext,
     },
     ssa_refactor::ir::{
+        dfg::DataFlowGraph,
         function::{Function, FunctionId},
-        types::Type,
+        types::{CompositeType, Type},
         value::ValueId,
     },
 };
 
-use super::brillig_block::compute_size_of_type;
-
 pub(crate) struct FunctionContext {
     pub(crate) function_id: FunctionId,
-    /// Map from SSA values to Register Indices.
-    pub(crate) ssa_value_to_register: HashMap<ValueId, RegisterIndex>,
+    /// Map from SSA values to register or memory.
+    pub(crate) ssa_value_to_brillig_variable: HashMap<ValueId, RegisterOrMemory>,
 }
 
 impl FunctionContext {
-    /// Gets a `RegisterIndex` for a `ValueId`, if one already exists
-    /// or creates a new `RegisterIndex` using the latest available
-    /// free register.
-    pub(crate) fn get_or_create_register(
+    /// For a given SSA value id, create and cache the a corresponding variable.
+    /// This will allocate the needed registers for the variable.
+    pub(crate) fn create_variable(
         &mut self,
         brillig_context: &mut BrilligContext,
         value: ValueId,
-    ) -> RegisterIndex {
-        if let Some(register_index) = self.ssa_value_to_register.get(&value) {
-            return *register_index;
+        dfg: &DataFlowGraph,
+    ) -> RegisterOrMemory {
+        let typ = dfg.type_of_value(value);
+
+        let variable = match typ {
+            Type::Numeric(_) | Type::Reference => {
+                let register = brillig_context.allocate_register();
+                RegisterOrMemory::RegisterIndex(register)
+            }
+            Type::Array(item_typ, elem_count) => {
+                let pointer_register = brillig_context.allocate_register();
+                let size = compute_array_length(&item_typ, elem_count);
+                RegisterOrMemory::HeapArray(HeapArray { pointer: pointer_register, size })
+            }
+            Type::Slice(_) => {
+                let pointer_register = brillig_context.allocate_register();
+                let size_register = brillig_context.allocate_register();
+                RegisterOrMemory::HeapVector(HeapVector {
+                    pointer: pointer_register,
+                    size: size_register,
+                })
+            }
+            Type::Function => {
+                unreachable!("ICE: Function values should have been removed from the SSA")
+            }
+        };
+
+        // Cache the `ValueId` so that if we call get_variable, it will
+        // return the registers that have just been created.
+        //
+        // WARNING: This assumes that a registers won't be reused for a different value.
+        // If you overwrite the registers, then the cache will be invalid.
+
+        if self.ssa_value_to_brillig_variable.insert(value, variable).is_some() {
+            unreachable!("ICE: ValueId {value:?} was already in cache");
         }
 
-        let register = brillig_context.allocate_register();
+        variable
+    }
 
-        // Cache the `ValueId` so that if we call it again, it will
-        // return the register that has just been created.
-        //
-        // WARNING: This assumes that a register has not been
-        // modified. If a MOV instruction has overwritten the value
-        // at a register, then this cache will be invalid.
-        self.ssa_value_to_register.insert(value, register);
+    /// For a given SSA value id, return the corresponding cached variable.
+    pub(crate) fn get_variable(&mut self, value: ValueId) -> RegisterOrMemory {
+        *self
+            .ssa_value_to_brillig_variable
+            .get(&value)
+            .unwrap_or_else(|| panic!("ICE: Value not found in cache {value}"))
+    }
 
-        register
+    pub(crate) fn get_or_create_variable(
+        &mut self,
+        brillig_context: &mut BrilligContext,
+        value: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> RegisterOrMemory {
+        if let Some(variable) = self.ssa_value_to_brillig_variable.get(&value) {
+            return *variable;
+        }
+
+        self.create_variable(brillig_context, value, dfg)
+    }
+
+    /// Creates a variable that fits in a single register and returns the register.
+    pub(crate) fn create_register_variable(
+        &mut self,
+        brillig_context: &mut BrilligContext,
+        value: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> RegisterIndex {
+        let variable = self.create_variable(brillig_context, value, dfg);
+        self.extract_register(variable)
+    }
+
+    pub(crate) fn extract_register(&self, variable: RegisterOrMemory) -> RegisterIndex {
+        match variable {
+            RegisterOrMemory::RegisterIndex(register_index) => register_index,
+            _ => unreachable!("ICE: Expected register, got {variable:?}"),
+        }
+    }
+
+    pub(crate) fn extract_heap_array(&self, variable: RegisterOrMemory) -> HeapArray {
+        match variable {
+            RegisterOrMemory::HeapArray(array) => array,
+            _ => unreachable!("ICE: Expected array, got {variable:?}"),
+        }
+    }
+
+    pub(crate) fn extract_heap_vector(&self, variable: RegisterOrMemory) -> HeapVector {
+        match variable {
+            RegisterOrMemory::HeapVector(vector) => vector,
+            _ => unreachable!("ICE: Expected vector, got {variable:?}"),
+        }
+    }
+
+    /// Collects the registers that a given variable is stored in.
+    pub(crate) fn extract_registers(&self, variable: RegisterOrMemory) -> Vec<RegisterIndex> {
+        match variable {
+            RegisterOrMemory::RegisterIndex(register_index) => vec![register_index],
+            RegisterOrMemory::HeapArray(array) => {
+                vec![array.pointer]
+            }
+            RegisterOrMemory::HeapVector(vector) => {
+                vec![vector.pointer, vector.size]
+            }
+        }
     }
 
     /// Creates a function label from a given SSA function id.
     pub(crate) fn function_id_to_function_label(function_id: FunctionId) -> Label {
         function_id.to_string()
+    }
+
+    fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
+        match typ {
+            Type::Numeric(_) | Type::Reference => BrilligParameter::Simple,
+            Type::Array(item_type, size) => BrilligParameter::Array(
+                vecmap(item_type.iter(), |item_typ| {
+                    FunctionContext::ssa_type_to_parameter(item_typ)
+                }),
+                *size,
+            ),
+            Type::Slice(item_type) => {
+                BrilligParameter::Slice(vecmap(item_type.iter(), |item_typ| {
+                    FunctionContext::ssa_type_to_parameter(item_typ)
+                }))
+            }
+            _ => unimplemented!("Unsupported function parameter/return type {typ:?}"),
+        }
     }
 
     /// Collects the parameters of a given function
@@ -59,11 +164,7 @@ impl FunctionContext {
             .iter()
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
-                match typ {
-                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
-                    Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
-                    _ => unimplemented!("Unsupported function parameter type {typ:?}"),
-                }
+                FunctionContext::ssa_type_to_parameter(&typ)
             })
             .collect()
     }
@@ -74,12 +175,13 @@ impl FunctionContext {
             .iter()
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);
-                match typ {
-                    Type::Numeric(_) | Type::Reference => BrilligParameter::Register,
-                    Type::Array(..) => BrilligParameter::HeapArray(compute_size_of_type(&typ)),
-                    _ => unimplemented!("Unsupported return value type {typ:?}"),
-                }
+                FunctionContext::ssa_type_to_parameter(&typ)
             })
             .collect()
     }
+}
+
+/// Computes the length of an array. This will match with the indexes that SSA will issue
+pub(crate) fn compute_array_length(item_typ: &CompositeType, elem_count: usize) -> usize {
+    item_typ.len() * elem_count
 }

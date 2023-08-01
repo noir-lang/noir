@@ -1,6 +1,6 @@
 use super::dc_mod::collect_defs;
 use super::errors::DefCollectorErrorKind;
-use crate::graph::{CrateId, LOCAL_CRATE};
+use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::resolver::Resolver;
@@ -237,10 +237,8 @@ fn collect_impls(
                         errors.push(err.into_file_diagnostic(unresolved.file_id));
                     }
                 }
-            // Prohibit defining impls for primitive types if we're in the local crate.
-            // We should really prevent it for all crates that aren't the noir stdlib but
-            // there is no way of checking if the current crate is the stdlib currently.
-            } else if typ != Type::Error && crate_id == LOCAL_CRATE {
+            // Prohibit defining impls for primitive types if we're not in the stdlib
+            } else if typ != Type::Error && !crate_id.is_stdlib() {
                 let span = *span;
                 let error = DefCollectorErrorKind::NonStructTypeInImpl { span };
                 errors.push(error.into_file_diagnostic(unresolved.file_id));
@@ -452,6 +450,7 @@ fn resolve_function_set(
     let file_id = unresolved_functions.file_id;
 
     vecmap(unresolved_functions.functions, |(mod_id, func_id, func)| {
+        let module_id = ModuleId { krate: crate_id, local_id: mod_id };
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: mod_id, krate: crate_id });
 
@@ -462,7 +461,7 @@ fn resolve_function_set(
         resolver.set_generics(impl_generics.clone());
         resolver.set_self_type(self_type.clone());
 
-        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id);
+        let (hir_func, func_meta, errs) = resolver.resolve_function(func, func_id, module_id);
         interner.push_fn_meta(func_meta, func_id);
         interner.update_fn(func_id, hir_func);
         extend_errors(errors, file_id, errs);

@@ -1,7 +1,5 @@
-# List of tests to be excluded (i.e not run), as their directory name in test_data
-# Exclude "sha2_byte" due to relatively long computation time and "sha2_blocks" due to very long computation time.
-exclude = ["bit_shifts_runtime", "comptime_fail", "sha2_blocks", "sha2_byte"]
+exclude = []
 
 
-# List of tests (as their directory name in test_data) expecting to fail: if the test pass, we report an error.
-fail = ["range_fail"]
+# List of tests (as their directory name) expecting to fail: if the test pass, we report an error.
+fail = ["brillig_assert_fail", "dep_impl_primitive"]

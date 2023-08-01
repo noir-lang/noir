@@ -35,9 +35,9 @@ use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, InfixExpression, LValue, Lambda, NoirFunction, NoirStruct, NoirTrait,
-    Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem, TraitItem,
-    TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct,
+    NoirTrait, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
+    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -683,7 +683,16 @@ where
 
 fn pattern() -> impl NoirParser<Pattern> {
     recursive(|pattern| {
-        let ident_pattern = ident().map(Pattern::Identifier);
+        let ident_pattern = ident().map(Pattern::Identifier).map_err(|mut error| {
+            if matches!(error.found(), Token::IntType(..)) {
+                error = ParserError::with_reason(
+                    ParserErrorReason::ExpectedPatternButFoundType(error.found().clone()),
+                    error.span(),
+                );
+            }
+
+            error
+        });
 
         let mut_pattern = keyword(Keyword::Mut)
             .ignore_then(pattern.clone())
@@ -788,6 +797,7 @@ fn parse_type_inner(
         string_type(),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
+        recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
         tuple_type(recursive_type_parser.clone()),
         function_type(recursive_type_parser.clone()),
         mutable_reference_type(recursive_type_parser),
@@ -893,7 +903,13 @@ where
     T: NoirParser<UnresolvedType>,
 {
     let fields = type_parser.separated_by(just(Token::Comma)).allow_trailing();
-    parenthesized(fields).map(UnresolvedType::Tuple)
+    parenthesized(fields).map(|fields| {
+        if fields.is_empty() {
+            UnresolvedType::Unit
+        } else {
+            UnresolvedType::Tuple(fields)
+        }
+    })
 }
 
 fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -1251,7 +1267,7 @@ where
 {
     just(Token::Star)
         .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference, rhs))
+        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference { implicitly_added: false }, rhs))
 }
 
 /// Atoms are parameterized on whether constructor expressions are allowed or not.
@@ -1303,8 +1319,14 @@ fn tuple<P>(expr_parser: P) -> impl NoirParser<Expression>
 where
     P: ExprParser,
 {
-    parenthesized(expression_list(expr_parser))
-        .map_with_span(|elements, span| Expression::new(ExpressionKind::Tuple(elements), span))
+    parenthesized(expression_list(expr_parser)).map_with_span(|elements, span| {
+        let kind = if elements.is_empty() {
+            ExpressionKind::Literal(Literal::Unit)
+        } else {
+            ExpressionKind::Tuple(elements)
+        };
+        Expression::new(kind, span)
+    })
 }
 
 fn field_name() -> impl NoirParser<Ident> {
@@ -1662,7 +1684,7 @@ mod test {
         // Let statements are not type checked here, so the parser will accept as
         // long as it is a type. Other statements such as Public are type checked
         // Because for now, they can only have one type
-        parse_all(declaration(expression()), vec!["let x = y", "let x : u8 = y"]);
+        parse_all(declaration(expression()), vec!["let _ = 42", "let x = y", "let x : u8 = y"]);
     }
 
     #[test]

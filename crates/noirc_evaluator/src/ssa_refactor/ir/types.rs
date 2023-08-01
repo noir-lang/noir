@@ -10,7 +10,7 @@ use iter_extended::vecmap;
 ///
 /// Fields do not have a notion of ordering, so this distinction
 /// is reasonable.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum NumericType {
     Signed { bit_size: u32 },
     Unsigned { bit_size: u32 },
@@ -18,7 +18,7 @@ pub(crate) enum NumericType {
 }
 
 /// All types representable in the IR.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),

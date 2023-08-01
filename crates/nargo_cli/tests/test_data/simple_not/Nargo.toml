@@ -1,0 +1,6 @@
+[package]
+name = "simple_not"
+authors = [""]
+compiler_version = "0.6.0"
+
+[dependencies]

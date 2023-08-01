@@ -131,10 +131,7 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -148,7 +145,7 @@ use crate::ssa_refactor::{
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
-        types::{CompositeType, Type},
+        types::Type,
         value::ValueId,
     },
     ssa_gen::Ssa,
@@ -157,16 +154,14 @@ use crate::ssa_refactor::{
 mod branch_analysis;
 
 impl Ssa {
-    /// Flattens the control flow graph of each function such that the function is left with a
+    /// Flattens the control flow graph of main such that the function is left with a
     /// single block containing all instructions and no more control-flow.
     ///
     /// This pass will modify any instructions with side effects in particular, often multiplying
     /// them by jump conditions to maintain correctness even when all branches of a jmpif are inlined.
     /// For more information, see the module-level comment at the top of this file.
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            flatten_function_cfg(function);
-        }
+        flatten_function_cfg(self.main_mut());
         self
     }
 }
@@ -395,14 +390,9 @@ impl<'f> Context<'f> {
             Type::Numeric(_) => {
                 self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
             }
-            Type::Array(element_types, len) => self.merge_array_values(
-                element_types,
-                len,
-                then_condition,
-                else_condition,
-                then_value,
-                else_value,
-            ),
+            typ @ Type::Array(_, _) => {
+                self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
+            }
             // TODO(#1889)
             Type::Slice(_) => panic!("Cannot return slices from an if expression"),
             Type::Reference => panic!("Cannot return references from an if expression"),
@@ -415,14 +405,18 @@ impl<'f> Context<'f> {
     /// by creating a new array containing the result of self.merge_values for each element.
     fn merge_array_values(
         &mut self,
-        element_types: Rc<CompositeType>,
-        len: usize,
+        typ: Type,
         then_condition: ValueId,
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
         let mut merged = im::Vector::new();
+
+        let (element_types, len) = match &typ {
+            Type::Array(elements, len) => (elements, *len),
+            _ => panic!("Expected array type"),
+        };
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
@@ -448,7 +442,7 @@ impl<'f> Context<'f> {
             }
         }
 
-        self.inserter.function.dfg.make_array(merged, element_types)
+        self.inserter.function.dfg.make_array(merged, typ)
     }
 
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
@@ -612,7 +606,7 @@ impl<'f> Context<'f> {
     /// this function also needs to be changed to reflect that.
     fn merge_stores(&mut self, then_branch: Branch, else_branch: Branch) {
         // Address -> (then_value, else_value, value_before_the_if)
-        let mut new_map = HashMap::with_capacity(then_branch.store_values.len());
+        let mut new_map = BTreeMap::new();
 
         for (address, store) in then_branch.store_values {
             new_map.insert(address, (store.new_value, store.old_value, store.old_value));
@@ -1335,8 +1329,10 @@ mod test {
         let b3 = builder.insert_block();
 
         let element_type = Rc::new(vec![Type::field()]);
+        let array_type = Type::Array(element_type.clone(), 1);
+
         let zero = builder.field_constant(0_u128);
-        let zero_array = builder.array_constant(im::Vector::unit(zero), element_type.clone());
+        let zero_array = builder.array_constant(im::Vector::unit(zero), array_type);
         let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
         let pedersen =
             builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));

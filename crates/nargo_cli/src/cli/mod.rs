@@ -12,7 +12,8 @@ mod check_cmd;
 mod codegen_verifier_cmd;
 mod compile_cmd;
 mod execute_cmd;
-mod gates_cmd;
+mod info_cmd;
+mod init_cmd;
 mod lsp_cmd;
 mod new_cmd;
 mod prove_cmd;
@@ -48,13 +49,15 @@ pub(crate) struct NargoConfig {
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
     CodegenVerifier(codegen_verifier_cmd::CodegenVerifierCommand),
+    #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
+    Init(init_cmd::InitCommand),
     Execute(execute_cmd::ExecuteCommand),
     Prove(prove_cmd::ProveCommand),
     Verify(verify_cmd::VerifyCommand),
     Test(test_cmd::TestCommand),
-    Gates(gates_cmd::GatesCommand),
+    Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),
 }
 
@@ -62,7 +65,7 @@ pub fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.
-    if !matches!(command, NargoCommand::New(_) | NargoCommand::Lsp(_)) {
+    if !matches!(command, NargoCommand::New(_) | NargoCommand::Init(_) | NargoCommand::Lsp(_)) {
         config.program_dir = find_package_root(&config.program_dir)?;
     }
 
@@ -70,13 +73,14 @@ pub fn start_cli() -> eyre::Result<()> {
 
     match command {
         NargoCommand::New(args) => new_cmd::run(&backend, args, config),
+        NargoCommand::Init(args) => init_cmd::run(&backend, args, config),
         NargoCommand::Check(args) => check_cmd::run(&backend, args, config),
         NargoCommand::Compile(args) => compile_cmd::run(&backend, args, config),
         NargoCommand::Execute(args) => execute_cmd::run(&backend, args, config),
         NargoCommand::Prove(args) => prove_cmd::run(&backend, args, config),
         NargoCommand::Verify(args) => verify_cmd::run(&backend, args, config),
         NargoCommand::Test(args) => test_cmd::run(&backend, args, config),
-        NargoCommand::Gates(args) => gates_cmd::run(&backend, args, config),
+        NargoCommand::Info(args) => info_cmd::run(&backend, args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
     }?;
@@ -87,9 +91,13 @@ pub fn start_cli() -> eyre::Result<()> {
 // FIXME: I not sure that this is the right place for this tests.
 #[cfg(test)]
 mod tests {
+    use fm::FileManager;
     use noirc_driver::{check_crate, create_local_crate};
     use noirc_errors::reporter;
-    use noirc_frontend::{graph::CrateType, hir::Context};
+    use noirc_frontend::{
+        graph::{CrateGraph, CrateType},
+        hir::Context,
+    };
 
     use std::path::{Path, PathBuf};
 
@@ -98,11 +106,13 @@ mod tests {
     /// Compiles a file and returns true if compilation was successful
     ///
     /// This is used for tests.
-    fn file_compiles<P: AsRef<Path>>(root_file: P) -> bool {
-        let mut context = Context::default();
-        create_local_crate(&mut context, &root_file, CrateType::Binary);
+    fn file_compiles(root_dir: &Path, root_file: &Path) -> bool {
+        let fm = FileManager::new(root_dir);
+        let graph = CrateGraph::default();
+        let mut context = Context::new(fm, graph);
+        let crate_id = create_local_crate(&mut context, root_file, CrateType::Binary);
 
-        let result = check_crate(&mut context, false, false);
+        let result = check_crate(&mut context, crate_id, false);
         let success = result.is_ok();
 
         let errors = match result {
@@ -119,10 +129,10 @@ mod tests {
         let pass_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
-        let paths = std::fs::read_dir(pass_dir).unwrap();
+        let paths = std::fs::read_dir(&pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(file_compiles(&path), "path: {}", path.display());
+            assert!(file_compiles(&pass_dir, &path), "path: {}", path.display());
         }
     }
 
@@ -131,10 +141,10 @@ mod tests {
         let fail_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
-        let paths = std::fs::read_dir(fail_dir).unwrap();
+        let paths = std::fs::read_dir(&fail_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(!file_compiles(&path), "path: {}", path.display());
+            assert!(!file_compiles(&fail_dir, &path), "path: {}", path.display());
         }
     }
 }

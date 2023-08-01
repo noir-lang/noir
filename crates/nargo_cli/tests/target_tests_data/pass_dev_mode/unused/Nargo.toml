@@ -1,4 +1,5 @@
 [package]
+name = "pass_dev_mode_unused"
 authors = [""]
 compiler_version = "0.1"
 

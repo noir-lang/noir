@@ -14,12 +14,10 @@ use std::collections::HashMap;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// def_interner is required for type inference and monomorphization.
-#[derive(Default)]
 pub struct Context {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub(crate) def_maps: HashMap<CrateId, CrateDefMap>,
-    // TODO(#1599): Remove default impl and move creation/control of the FileManager into places that construct Context
     pub file_manager: FileManager,
 
     /// Maps a given (contract) module id to the next available storage slot
@@ -89,16 +87,35 @@ impl Context {
         &self,
         crate_id: &CrateId,
         pattern: &str,
-    ) -> Vec<FuncId> {
+    ) -> Vec<(String, FuncId)> {
         let interner = &self.def_interner;
-        self.def_map(crate_id)
-            .expect("The local crate should be analyzed already")
+        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
+
+        def_map
             .get_all_test_functions(interner)
-            .filter_map(|id| interner.function_name(&id).contains(pattern).then_some(id))
+            .filter_map(|id| {
+                let name = interner.function_name(&id);
+
+                let meta = interner.function_meta(&id);
+                let module = self.module(meta.module_id);
+
+                let parent = def_map.get_module_path_with_separator(
+                    meta.module_id.local_id.0,
+                    module.parent,
+                    "::",
+                );
+                let path =
+                    if parent.is_empty() { name.into() } else { format!("{parent}::{name}") };
+
+                path.contains(pattern).then_some((path, id))
+            })
             .collect()
     }
 
-    pub fn get_all_test_functions_in_workspace_matching(&self, pattern: &str) -> Vec<FuncId> {
+    pub fn get_all_test_functions_in_workspace_matching(
+        &self,
+        pattern: &str,
+    ) -> Vec<(String, FuncId)> {
         let mut tests = Vec::new();
 
         for crate_id in self.crate_graph.iter_keys() {

@@ -8,7 +8,7 @@ use thiserror::Error;
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum LexerErrorKind {
     #[error("An unexpected character {:?} was found.", found)]
-    UnexpectedCharacter { span: Span, expected: String, found: char },
+    UnexpectedCharacter { span: Span, expected: String, found: Option<char> },
     #[error("NotADoubleChar : {:?} is not a double char token", found)]
     NotADoubleChar { span: Span, found: Token },
     #[error("InvalidIntegerLiteral : {:?} is not a integer", found)]
@@ -19,6 +19,8 @@ pub enum LexerErrorKind {
     TooManyBits { span: Span, max: u32, got: u32 },
     #[error("LogicalAnd used instead of bitwise and")]
     LogicalAnd { span: Span },
+    #[error("Unterminated block comment")]
+    UnterminatedBlockComment { span: Span },
 }
 
 impl LexerErrorKind {
@@ -30,6 +32,7 @@ impl LexerErrorKind {
             LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
             LexerErrorKind::TooManyBits { span, .. } => *span,
             LexerErrorKind::LogicalAnd { span } => *span,
+            LexerErrorKind::UnterminatedBlockComment { span } => *span,
         }
     }
 
@@ -39,11 +42,15 @@ impl LexerErrorKind {
                 span,
                 expected,
                 found,
-            } => (
-                "an unexpected character was found".to_string(),
-                format!(" expected {expected} , but got {found}"),
-                *span,
-            ),
+            } => {
+                let found: String = found.map(Into::into).unwrap_or_else(|| "<eof>".into());
+
+                (
+                    "an unexpected character was found".to_string(),
+                    format!(" expected {expected} , but got {}", found),
+                    *span,
+                )
+            },
             LexerErrorKind::NotADoubleChar { span, found } => (
                 format!("tried to parse {found} as double char"),
                 format!(
@@ -73,6 +80,7 @@ impl LexerErrorKind {
                 "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
                 *span,
             ),
+            LexerErrorKind::UnterminatedBlockComment { span } => ("unterminated block comment".to_string(), "Unterminated block comment".to_string(), *span),
         }
     }
 }

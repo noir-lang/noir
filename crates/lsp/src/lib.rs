@@ -2,17 +2,19 @@ mod lib_hacky;
 use std::env;
 
 use std::{
-    future::Future,
+    future::{self, Future},
     ops::{self, ControlFlow},
+    path::PathBuf,
     pin::Pin,
     task::{self, Poll},
 };
 
 use async_lsp::{
-    router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LanguageClient,
-    LspService, ResponseError,
+    router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, ErrorCode,
+    LanguageClient, LspService, ResponseError,
 };
 use codespan_reporting::files;
+use fm::FileManager;
 use lsp_types::{
     notification, request, CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic,
     DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
@@ -22,7 +24,10 @@ use lsp_types::{
 };
 use noirc_driver::{check_crate, create_local_crate};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
-use noirc_frontend::{graph::CrateType, hir::Context};
+use noirc_frontend::{
+    graph::{CrateGraph, CrateType},
+    hir::Context,
+};
 use serde_json::Value as JsonValue;
 use tower::Service;
 
@@ -31,12 +36,13 @@ const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
 pub struct LspState {
+    root_path: Option<PathBuf>,
     client: ClientSocket,
 }
 
 impl LspState {
     fn new(client: &ClientSocket) -> Self {
-        Self { client: client.clone() }
+        Self { client: client.clone(), root_path: None }
     }
 }
 
@@ -131,9 +137,13 @@ impl LspService for NargoLspService {
 // and params passed in.
 
 fn on_initialize(
-    _state: &mut LspState,
-    _params: InitializeParams,
+    state: &mut LspState,
+    params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
+    if let Some(root_uri) = params.root_uri {
+        state.root_path = root_uri.to_file_path().ok();
+    }
+
     async {
         let text_document_sync =
             TextDocumentSyncOptions { save: Some(true.into()), ..Default::default() };
@@ -160,33 +170,44 @@ fn on_shutdown(
 }
 
 fn on_code_lens_request(
-    _state: &mut LspState,
+    state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
     let file_path = &params.text_document.uri.to_file_path().unwrap();
 
-    let mut context = Context::default();
+    let mut context = match &state.root_path {
+        Some(root_path) => {
+            let fm = FileManager::new(root_path);
+            let graph = CrateGraph::default();
+            Context::new(fm, graph)
+        }
+        None => {
+            let err = ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "Unable to determine the project root path",
+            );
+            return future::ready(Err(err));
+        }
+    };
 
     let crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut context, false, false);
+    let _ = check_crate(&mut context, crate_id, false);
 
     let fm = &context.file_manager;
     let files = fm.as_simple_files();
     let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
 
     let mut lenses: Vec<CodeLens> = vec![];
-    for func_id in tests {
+    for (func_name, func_id) in tests {
         let location = context.function_meta(&func_id).name.location;
         let file_id = location.file;
         // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
         if file_id.as_usize() != 0 {
             continue;
         }
-
-        let func_name = context.function_name(&func_id);
 
         let range =
             byte_span_to_range(files, file_id.as_usize(), location.span.into()).unwrap_or_default();
@@ -202,13 +223,9 @@ fn on_code_lens_request(
         lenses.push(lens);
     }
 
-    async move {
-        if lenses.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(lenses))
-        }
-    }
+    let res = if lenses.is_empty() { Ok(None) } else { Ok(Some(lenses)) };
+
+    future::ready(res)
 }
 
 fn on_initialized(
@@ -251,14 +268,26 @@ fn on_did_save_text_document(
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let file_path = &params.text_document.uri.to_file_path().unwrap();
+    let mut context = match &state.root_path {
+        Some(root_path) => {
+            let fm = FileManager::new(root_path);
+            let graph = CrateGraph::default();
+            Context::new(fm, graph)
+        }
+        None => {
+            let err = ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "Unable to determine the project root path",
+            );
+            return ControlFlow::Break(Err(err.into()));
+        }
+    };
 
-    let mut context = Context::default();
-
-    create_local_crate(&mut context, file_path, CrateType::Binary);
+    let crate_id = create_local_crate(&mut context, file_path, CrateType::Binary);
 
     let mut diagnostics = Vec::new();
 
-    let file_diagnostics = match check_crate(&mut context, false, false) {
+    let file_diagnostics = match check_crate(&mut context, crate_id, false) {
         Ok(warnings) => warnings,
         Err(errors_and_warnings) => errors_and_warnings,
     };

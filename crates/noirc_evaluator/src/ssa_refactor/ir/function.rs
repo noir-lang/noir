@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use iter_extended::vecmap;
+
 use super::basic_block::BasicBlockId;
 use super::dfg::DataFlowGraph;
 use super::instruction::TerminatorInstruction;
@@ -116,6 +118,12 @@ impl Function {
         }
         blocks
     }
+
+    pub(crate) fn signature(&self) -> Signature {
+        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
+        let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
+        Signature { params, returns }
+    }
 }
 
 impl std::fmt::Display for RuntimeType {
@@ -133,7 +141,7 @@ impl std::fmt::Display for RuntimeType {
 /// within Call instructions.
 pub(crate) type FunctionId = Id<Function>;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
     pub(crate) returns: Vec<Type>,

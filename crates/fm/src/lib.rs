@@ -7,10 +7,11 @@ mod file_map;
 mod file_reader;
 
 pub use file_map::{File, FileId, FileMap};
+use file_reader::is_stdlib_asset;
 
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 pub const FILE_EXTENSION: &str = "nr";
@@ -18,30 +19,43 @@ pub const FILE_EXTENSION: &str = "nr";
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct VirtualPath(PathBuf);
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct FileManager {
+    root: PathBuf,
     file_map: file_map::FileMap,
     id_to_path: HashMap<FileId, VirtualPath>,
     path_to_id: HashMap<VirtualPath, FileId>,
 }
 
 impl FileManager {
-    // XXX: Maybe use a AsRef<Path> here, for API ergonomics
-    pub fn add_file(&mut self, path_to_file: &Path) -> Option<FileId> {
+    pub fn new(root: &Path) -> Self {
+        Self {
+            root: normalize_path(root),
+            file_map: Default::default(),
+            id_to_path: Default::default(),
+            path_to_id: Default::default(),
+        }
+    }
+
+    pub fn add_file(&mut self, file_name: &Path) -> Option<FileId> {
         // Handle both relative file paths and std/lib virtual paths.
-        let base = Path::new(".").canonicalize().expect("Base path canonicalize failed");
-        let res = path_to_file.canonicalize().unwrap_or_else(|_| path_to_file.to_path_buf());
-        let resolved_path = res.strip_prefix(base).unwrap_or(&res);
+        let resolved_path: PathBuf = if is_stdlib_asset(file_name) {
+            // Special case for stdlib where we want to read specifically the `std/` relative path
+            // TODO: The stdlib path should probably be an absolute path rooted in something people would never create
+            file_name.to_path_buf()
+        } else {
+            normalize_path(&self.root.join(file_name))
+        };
 
         // Check that the resolved path already exists in the file map, if it is, we return it.
-        let path_to_file = virtualize_path(resolved_path);
+        let path_to_file = virtualize_path(&resolved_path);
         if let Some(file_id) = self.path_to_id.get(&path_to_file) {
             return Some(*file_id);
         }
 
         // Otherwise we add the file
-        let source = file_reader::read_file_to_string(resolved_path).ok()?;
-        let file_id = self.file_map.add_file(resolved_path.to_path_buf().into(), source);
+        let source = file_reader::read_file_to_string(&resolved_path).ok()?;
+        let file_id = self.file_map.add_file(resolved_path.into(), source);
         self.register_path(file_id, path_to_file);
         Some(file_id)
     }
@@ -87,6 +101,37 @@ impl FileManager {
     }
 }
 
+/// Replacement for `std::fs::canonicalize` that doesn't verify the path exists.
+///
+/// Plucked from https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+/// Advice from https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut components = path.components().peekable();
+    let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+        components.next();
+        PathBuf::from(c.as_os_str())
+    } else {
+        PathBuf::new()
+    };
+
+    for component in components {
+        match component {
+            Component::Prefix(..) => unreachable!(),
+            Component::RootDir => {
+                ret.push(component.as_os_str());
+            }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                ret.pop();
+            }
+            Component::Normal(c) => {
+                ret.push(c);
+            }
+        }
+    }
+    ret
+}
+
 /// Takes a path to a noir file. This will panic on paths to directories
 /// Returns the file path with the extension removed
 fn virtualize_path(path: &Path) -> VirtualPath {
@@ -102,46 +147,49 @@ mod tests {
     use super::*;
     use tempfile::{tempdir, TempDir};
 
-    fn dummy_file_path(dir: &TempDir, file_name: &str) -> PathBuf {
+    fn create_dummy_file(dir: &TempDir, file_name: &Path) {
         let file_path = dir.path().join(file_name);
-        let _file = std::fs::File::create(file_path.clone()).unwrap();
-
-        file_path
+        let _file = std::fs::File::create(file_path).unwrap();
     }
 
     #[test]
     fn path_resolve_file_module() {
         let dir = tempdir().unwrap();
-        let file_path = dummy_file_path(&dir, "my_dummy_file.nr");
 
-        let mut fm = FileManager::default();
+        let entry_file_name = Path::new("my_dummy_file.nr");
+        create_dummy_file(&dir, entry_file_name);
 
-        let file_id = fm.add_file(&file_path).unwrap();
+        let mut fm = FileManager::new(dir.path());
 
-        let _foo_file_path = dummy_file_path(&dir, "foo.nr");
+        let file_id = fm.add_file(entry_file_name).unwrap();
+
+        let dep_file_name = Path::new("foo.nr");
+        create_dummy_file(&dir, dep_file_name);
         fm.resolve_path(file_id, "foo").unwrap();
     }
     #[test]
     fn path_resolve_file_module_other_ext() {
         let dir = tempdir().unwrap();
-        let file_path = dummy_file_path(&dir, "foo.noir");
+        let file_name = Path::new("foo.noir");
+        create_dummy_file(&dir, file_name);
 
-        let mut fm = FileManager::default();
+        let mut fm = FileManager::new(dir.path());
 
-        let file_id = fm.add_file(&file_path).unwrap();
+        let file_id = fm.add_file(file_name).unwrap();
 
         assert!(fm.path(file_id).ends_with("foo"));
     }
     #[test]
     fn path_resolve_sub_module() {
-        let mut fm = FileManager::default();
-
         let dir = tempdir().unwrap();
+        let mut fm = FileManager::new(dir.path());
+
         // Create a lib.nr file at the root.
         // we now have dir/lib.nr
-        let file_path = dummy_file_path(&dir, "lib.nr");
+        let file_name = Path::new("lib.nr");
+        create_dummy_file(&dir, file_name);
 
-        let file_id = fm.add_file(&file_path).unwrap();
+        let file_id = fm.add_file(file_name).unwrap();
 
         // Create a sub directory
         // we now have:
@@ -154,14 +202,14 @@ mod tests {
         // we no have:
         // - dir/lib.nr
         // - dir/sub_dir/foo.nr
-        let _foo_file_path = dummy_file_path(&sub_dir, "foo.nr");
+        create_dummy_file(&sub_dir, Path::new("foo.nr"));
 
         // Add a parent module for the sub_dir
         // we no have:
         // - dir/lib.nr
         // - dir/sub_dir.nr
         // - dir/sub_dir/foo.nr
-        let _sub_dir_root_file_path = dummy_file_path(&dir, &format!("{}.nr", sub_dir_name));
+        create_dummy_file(&dir, Path::new(&format!("{}.nr", sub_dir_name)));
 
         // First check for the sub_dir.nr file and add it to the FileManager
         let sub_dir_file_id = fm.resolve_path(file_id, sub_dir_name).unwrap();
@@ -176,20 +224,22 @@ mod tests {
     /// they should both resolve to ../foo.nr
     #[test]
     fn path_resolve_modules_with_different_paths_as_same_file() {
-        let mut fm = FileManager::default();
-
-        // Create a lib.nr file at the root.
         let dir = tempdir().unwrap();
         let sub_dir = TempDir::new_in(&dir).unwrap();
         let sub_sub_dir = TempDir::new_in(&sub_dir).unwrap();
-        let file_path = dummy_file_path(&dir, "lib.nr");
 
-        // Create another file in a subdirectory with a convoluted path
-        let second_file_path = dummy_file_path(&sub_sub_dir, "./../../lib.nr");
+        let mut fm = FileManager::new(dir.path());
+
+        // Create a lib.nr file at the root.
+        let file_name = Path::new("lib.nr");
+        create_dummy_file(&dir, file_name);
+
+        // Create another path with `./` and `../` inside it
+        let second_file_name = PathBuf::from(sub_sub_dir.path()).join("./../../lib.nr");
 
         // Add both files to the file manager
-        let file_id = fm.add_file(&file_path).unwrap();
-        let second_file_id = fm.add_file(&second_file_path).unwrap();
+        let file_id = fm.add_file(file_name).unwrap();
+        let second_file_id = fm.add_file(&second_file_name).unwrap();
 
         assert_eq!(file_id, second_file_id);
     }

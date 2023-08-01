@@ -8,7 +8,7 @@ use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, StmtId};
 use crate::CompTime;
 
-use super::errors::TypeCheckError;
+use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
 
 impl<'interner> TypeChecker<'interner> {
@@ -108,12 +108,13 @@ impl<'interner> TypeChecker<'interner> {
         });
 
         let span = self.interner.expr_span(&assign_stmt.expression);
-        self.make_subtype_of(&expr_type, &lvalue_type, span, || {
-            let msg = format!(
-                "Cannot assign an expression of type {expr_type} to a value of type {lvalue_type}"
-            );
-
-            TypeCheckError::Unstructured { msg, span }
+        self.make_subtype_of(&expr_type, &lvalue_type, assign_stmt.expression, || {
+            TypeCheckError::TypeMismatchWithSource {
+                rhs: expr_type.clone(),
+                lhs: lvalue_type.clone(),
+                span,
+                source: Source::Assignment,
+            }
         });
     }
 
@@ -128,15 +129,13 @@ impl<'interner> TypeChecker<'interner> {
                     let typ = self.interner.id_type(ident.id).instantiate(self.interner).0;
                     let typ = typ.follow_bindings();
 
-                    let definition = self.interner.definition(ident.id);
-                    if !definition.mutable && !matches!(typ, Type::MutableReference(_)) {
-                        self.errors.push(TypeCheckError::Unstructured {
-                            msg: format!(
-                                "Variable {} must be mutable to be assigned to",
-                                definition.name
-                            ),
-                            span: ident.location.span,
-                        });
+                    if let Some(definition) = self.interner.try_definition(ident.id) {
+                        if !definition.mutable && !matches!(typ, Type::MutableReference(_)) {
+                            self.errors.push(TypeCheckError::VariableMustBeMutable {
+                                name: definition.name.clone(),
+                                span: ident.location.span,
+                            });
+                        }
                     }
 
                     typ
@@ -193,7 +192,6 @@ impl<'interner> TypeChecker<'interner> {
 
                 let typ = match result {
                     Type::Array(_, elem_type) => *elem_type,
-                    Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     other => {
                         // TODO: Need a better span here
@@ -261,7 +259,7 @@ impl<'interner> TypeChecker<'interner> {
             // Now check if LHS is the same type as the RHS
             // Importantly, we do not coerce any types implicitly
             let expr_span = self.interner.expr_span(&rhs_expr);
-            self.make_subtype_of(&expr_type, &annotated_type, expr_span, || {
+            self.make_subtype_of(&expr_type, &annotated_type, rhs_expr, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: annotated_type.to_string(),
                     expr_typ: expr_type.to_string(),
