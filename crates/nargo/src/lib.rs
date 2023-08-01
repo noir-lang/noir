@@ -8,8 +8,10 @@
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
 pub mod artifacts;
+pub mod constants;
 mod errors;
-pub mod manifest;
 pub mod ops;
+pub mod package;
+pub mod workspace;
 
 pub use self::errors::NargoError;
