@@ -89,8 +89,13 @@ impl<'a> FunctionContext<'a> {
         self.codegen_expression(expr).into_leaf().eval(self)
     }
 
-    /// Codegen for identifiers
-    fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
+    /// Codegen a reference to an ident.
+    /// The only difference between this and codegen_ident is that if the variable is mutable
+    /// as in `let mut var = ...;` the `Value::Mutable` will be returned directly instead of
+    /// being automatically loaded from. This is needed when taking the reference of a variable
+    /// to reassign to it. Note that mutable references `let x = &mut ...;` do not require this
+    /// since they are not automatically loaded from and must be explicitly dereferenced.
+    fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
@@ -102,6 +107,11 @@ impl<'a> FunctionContext<'a> {
                 }
             }
         }
+    }
+
+    /// Codegen an identifier, automatically loading its value if it is mutable.
+    fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
+        self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
     }
 
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Values {
@@ -159,20 +169,21 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_unary(&mut self, unary: &ast::Unary) -> Values {
-        let rhs = self.codegen_expression(&unary.rhs);
         match unary.operator {
             noirc_frontend::UnaryOp::Not => {
+                let rhs = self.codegen_expression(&unary.rhs);
                 let rhs = rhs.into_leaf().eval(self);
                 self.builder.insert_not(rhs).into()
             }
             noirc_frontend::UnaryOp::Minus => {
+                let rhs = self.codegen_expression(&unary.rhs);
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
                 self.builder.insert_binary(zero, BinaryOp::Sub, rhs).into()
             }
             noirc_frontend::UnaryOp::MutableReference => {
-                rhs.map(|rhs| {
+                self.codegen_reference(&unary.rhs).map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let alloc = self.builder.insert_allocate();
@@ -186,8 +197,20 @@ impl<'a> FunctionContext<'a> {
                 })
             }
             noirc_frontend::UnaryOp::Dereference { .. } => {
+                let rhs = self.codegen_expression(&unary.rhs);
                 self.dereference(&rhs, &unary.result_type)
             }
+        }
+    }
+
+    fn codegen_reference(&mut self, expr: &Expression) -> Values {
+        match expr {
+            Expression::Ident(ident) => self.codegen_ident_reference(ident),
+            Expression::ExtractTupleField(tuple, index) => {
+                let tuple = self.codegen_reference(tuple);
+                Self::get_field(tuple, *index)
+            }
+            other => self.codegen_expression(other),
         }
     }
 
