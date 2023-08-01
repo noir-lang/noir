@@ -1,5 +1,6 @@
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 
+use crate::errors::InternalError;
 use crate::ssa_refactor::ir::types::Type;
 use crate::ssa_refactor::ir::value::ValueId as IrValueId;
 
@@ -38,9 +39,9 @@ impl Value {
     /// Evaluate a value, returning an IrValue from it.
     /// This has no effect on Value::Normal, but any variables will
     /// need to be loaded from memory
-    pub(super) fn eval(self, ctx: &mut FunctionContext) -> IrValueId {
+    pub(super) fn eval(self, ctx: &mut FunctionContext) -> Result<IrValueId, InternalError> {
         match self {
-            Value::Normal(value) => value,
+            Value::Normal(value) => Ok(value),
             Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
         }
     }
@@ -96,6 +97,24 @@ impl<T> Tree<T> {
         }
     }
 
+    /// for_each with error handling
+    pub(super) fn try_for_each<E>(self, mut f: impl FnMut(T) -> Result<(), E>) -> Result<(), E> {
+        self.try_for_each_helper(&mut f)?;
+        Ok(())
+    }
+
+    fn try_for_each_helper<E>(self, f: &mut impl FnMut(T) -> Result<(), E>) -> Result<(), E> {
+        match self {
+            Tree::Branch(trees) => {
+                trees.into_iter().try_for_each(|tree| tree.try_for_each_helper(f))?;
+            }
+            Tree::Leaf(value) => {
+                f(value)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Map mutably over this tree, mutating each leaf value within using the given function
     pub(super) fn map_mut(&mut self, mut f: impl FnMut(&T) -> Tree<T>) {
         self.map_mut_helper(&mut f);
@@ -119,6 +138,26 @@ impl<T> Tree<T> {
     fn map_helper<U>(self, f: &mut impl FnMut(T) -> Tree<U>) -> Tree<U> {
         match self {
             Tree::Branch(trees) => Tree::Branch(vecmap(trees, |tree| tree.map_helper(f))),
+            Tree::Leaf(value) => f(value),
+        }
+    }
+
+    /// map with error handling
+    pub(super) fn try_map<U, E>(
+        self,
+        mut f: impl FnMut(T) -> Result<Tree<U>, E>,
+    ) -> Result<Tree<U>, E> {
+        self.try_map_helper(&mut f)
+    }
+
+    fn try_map_helper<U, E>(
+        self,
+        f: &mut impl FnMut(T) -> Result<Tree<U>, E>,
+    ) -> Result<Tree<U>, E> {
+        match self {
+            Tree::Branch(trees) => {
+                Ok(Tree::Branch(try_vecmap(trees, |tree| tree.try_map_helper(f))?))
+            }
             Tree::Leaf(value) => f(value),
         }
     }
@@ -147,6 +186,39 @@ impl<T> Tree<T> {
                 assert_eq!(self_trees.len(), other_trees.len());
                 let trees = self_trees.iter().zip(other_trees);
                 Tree::Branch(vecmap(trees, |(l, r)| l.map_both_helper(r, f)))
+            }
+            (Tree::Leaf(self_value), Tree::Leaf(other_value)) => f(self_value.clone(), other_value),
+            other => panic!("Found unexpected tree combination during SSA: {other:?}"),
+        }
+    }
+
+    /// map_both with error handling
+    pub(super) fn try_map_both<U, R, E>(
+        &self,
+        other: Tree<U>,
+        mut f: impl FnMut(T, U) -> Result<Tree<R>, E>,
+    ) -> Result<Tree<R>, E>
+    where
+        T: std::fmt::Debug + Clone,
+        U: std::fmt::Debug,
+    {
+        self.try_map_both_helper(other, &mut f)
+    }
+
+    fn try_map_both_helper<U, R, E>(
+        &self,
+        other: Tree<U>,
+        f: &mut impl FnMut(T, U) -> Result<Tree<R>, E>,
+    ) -> Result<Tree<R>, E>
+    where
+        T: std::fmt::Debug + Clone,
+        U: std::fmt::Debug,
+    {
+        match (self, other) {
+            (Tree::Branch(self_trees), Tree::Branch(other_trees)) => {
+                assert_eq!(self_trees.len(), other_trees.len());
+                let trees = self_trees.iter().zip(other_trees);
+                Ok(Tree::Branch(try_vecmap(trees, |(l, r)| l.try_map_both_helper(r, f))?))
             }
             (Tree::Leaf(self_value), Tree::Leaf(other_value)) => f(self_value.clone(), other_value),
             other => panic!("Found unexpected tree combination during SSA: {other:?}"),
@@ -187,7 +259,10 @@ impl Tree<Type> {
 impl Tree<Value> {
     /// Flattens and evaluates this Tree<Value> into a list of ir values
     /// for return statements, branching instructions, or function parameters.
-    pub(super) fn into_value_list(self, ctx: &mut FunctionContext) -> Vec<IrValueId> {
-        vecmap(self.flatten(), |value| value.eval(ctx))
+    pub(super) fn into_value_list(
+        self,
+        ctx: &mut FunctionContext,
+    ) -> Result<Vec<IrValueId>, InternalError> {
+        try_vecmap(self.flatten(), |value| value.eval(ctx))
     }
 }

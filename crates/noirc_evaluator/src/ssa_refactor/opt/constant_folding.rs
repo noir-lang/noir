@@ -2,12 +2,15 @@ use std::collections::HashSet;
 
 use iter_extended::vecmap;
 
-use crate::ssa_refactor::{
-    ir::{
-        basic_block::BasicBlockId, dfg::InsertInstructionResult, function::Function,
-        instruction::InstructionId,
+use crate::{
+    errors::InternalError,
+    ssa_refactor::{
+        ir::{
+            basic_block::BasicBlockId, dfg::InsertInstructionResult, function::Function,
+            instruction::InstructionId,
+        },
+        ssa_gen::Ssa,
     },
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
@@ -17,17 +20,17 @@ impl Ssa {
     /// if `DataFlowGraph::set_value` or `DataFlowGraph::set_value_from_id` are
     /// used on a value which enables instructions dependent on the value to
     /// now be simplified.
-    pub(crate) fn fold_constants(mut self) -> Ssa {
+    pub(crate) fn fold_constants(mut self) -> Result<Ssa, InternalError> {
         for function in self.functions.values_mut() {
-            constant_fold(function);
+            constant_fold(function)?;
         }
-        self
+        Ok(self)
     }
 }
 
 /// The structure of this pass is simple:
 /// Go through each block and re-insert all instructions.
-fn constant_fold(function: &mut Function) {
+fn constant_fold(function: &mut Function) -> Result<(), InternalError> {
     let mut context = Context::default();
     context.block_queue.push(function.entry_block());
 
@@ -37,8 +40,9 @@ fn constant_fold(function: &mut Function) {
         }
 
         context.visited_blocks.insert(block);
-        context.fold_constants_in_block(function, block);
+        context.fold_constants_in_block(function, block)?;
     }
+    Ok(())
 }
 
 #[derive(Default)]
@@ -49,13 +53,18 @@ struct Context {
 }
 
 impl Context {
-    fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
+    fn fold_constants_in_block(
+        &mut self,
+        function: &mut Function,
+        block: BasicBlockId,
+    ) -> Result<(), InternalError> {
         let instructions = std::mem::take(function.dfg[block].instructions_mut());
 
         for instruction in instructions {
-            self.push_instruction(function, block, instruction);
+            self.push_instruction(function, block, instruction)?;
         }
         self.block_queue.extend(function.dfg[block].successors());
+        Ok(())
     }
 
     fn push_instruction(
@@ -63,7 +72,7 @@ impl Context {
         function: &mut Function,
         block: BasicBlockId,
         id: InstructionId,
-    ) {
+    ) -> Result<(), InternalError> {
         let instruction = function.dfg[id].clone();
         let old_results = function.dfg.instruction_results(id).to_vec();
 
@@ -77,7 +86,7 @@ impl Context {
             block,
             ctrl_typevars,
             location,
-        ) {
+        )? {
             InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
             InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,
             InsertInstructionResult::Results(new_results) => new_results.to_vec(),
@@ -87,6 +96,7 @@ impl Context {
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             function.dfg.set_value_from_id(*old_result, new_result);
         }
+        Ok(())
     }
 }
 
@@ -126,8 +136,8 @@ mod test {
         let two = builder.field_constant(2u128);
         let three = builder.field_constant(3u128);
 
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let v2 = builder.insert_binary(v1, BinaryOp::Mul, three);
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, one).unwrap();
+        let v2 = builder.insert_binary(v1, BinaryOp::Mul, three).unwrap();
         builder.terminate_with_return(vec![v2]);
 
         let mut ssa = builder.finish();
@@ -143,7 +153,7 @@ mod test {
         // }
         main.dfg.set_value_from_id(v0, two);
 
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants().unwrap();
         let main = ssa.main();
         let block = &main.dfg[main.entry_block()];
         assert_eq!(block.instructions().len(), 0);
@@ -177,13 +187,13 @@ mod test {
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
         let v0 = builder.add_parameter(Type::field());
         let one = builder.field_constant(1u128);
-        let v1 = builder.insert_binary(v0, BinaryOp::Add, one);
+        let v1 = builder.insert_binary(v0, BinaryOp::Add, one).unwrap();
 
         let array_type = Type::Array(Rc::new(vec![Type::field()]), 1);
         let arr = builder.current_function.dfg.make_array(vec![v1].into(), array_type);
         builder.terminate_with_return(vec![arr]);
 
-        let ssa = builder.finish().fold_constants();
+        let ssa = builder.finish().fold_constants().unwrap();
         let main = ssa.main();
         let entry_block_id = main.entry_block();
         let entry_block = &main.dfg[entry_block_id];
@@ -192,7 +202,7 @@ mod test {
         let new_add_instr_result = main.dfg.instruction_results(*new_add_instr)[0];
         assert_ne!(new_add_instr_result, v1);
 
-        let return_value_id = match entry_block.unwrap_terminator() {
+        let return_value_id = match entry_block.unwrap_terminator().unwrap() {
             TerminatorInstruction::Return { return_values } => return_values[0],
             _ => unreachable!(),
         };

@@ -2,26 +2,29 @@
 //! which the results are unused.
 use std::collections::HashSet;
 
-use crate::ssa_refactor::{
-    ir::{
-        basic_block::{BasicBlock, BasicBlockId},
-        dfg::DataFlowGraph,
-        function::Function,
-        instruction::{Instruction, InstructionId},
-        post_order::PostOrder,
-        value::{Value, ValueId},
+use crate::{
+    errors::InternalError,
+    ssa_refactor::{
+        ir::{
+            basic_block::{BasicBlock, BasicBlockId},
+            dfg::DataFlowGraph,
+            function::Function,
+            instruction::{Instruction, InstructionId},
+            post_order::PostOrder,
+            value::{Value, ValueId},
+        },
+        ssa_gen::Ssa,
     },
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
     /// unused results.
-    pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
+    pub(crate) fn dead_instruction_elimination(mut self) -> Result<Ssa, InternalError> {
         for function in self.functions.values_mut() {
-            dead_instruction_elimination(function);
+            dead_instruction_elimination(function)?;
         }
-        self
+        Ok(self)
     }
 }
 
@@ -31,13 +34,14 @@ impl Ssa {
 /// instructions that reference results from an instruction in another block are evaluated first.
 /// If we did not iterate blocks in this order we could not safely say whether or not the results
 /// of its instructions are needed elsewhere.
-fn dead_instruction_elimination(function: &mut Function) {
+fn dead_instruction_elimination(function: &mut Function) -> Result<(), InternalError> {
     let mut context = Context::default();
     let blocks = PostOrder::with_function(function);
 
     for block in blocks.as_slice() {
-        context.remove_unused_instructions_in_block(function, *block);
+        context.remove_unused_instructions_in_block(function, *block)?;
     }
+    Ok(())
 }
 
 /// Per function context for tracking unused values and which instructions to remove.
@@ -63,9 +67,9 @@ impl Context {
         &mut self,
         function: &mut Function,
         block_id: BasicBlockId,
-    ) {
+    ) -> Result<(), InternalError> {
         let block = &function.dfg[block_id];
-        self.mark_terminator_values_as_used(function, block);
+        self.mark_terminator_values_as_used(function, block)?;
 
         for instruction in block.instructions().iter().rev() {
             if self.is_unused(*instruction, function) {
@@ -81,6 +85,7 @@ impl Context {
         function.dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
+        Ok(())
     }
 
     /// Returns true if an instruction can be removed.
@@ -105,10 +110,15 @@ impl Context {
     }
 
     /// Adds values referenced by the terminator to the set of used values.
-    fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
-        block.unwrap_terminator().for_each_value(|value| {
+    fn mark_terminator_values_as_used(
+        &mut self,
+        function: &Function,
+        block: &BasicBlock,
+    ) -> Result<(), InternalError> {
+        block.unwrap_terminator()?.for_each_value(|value| {
             self.mark_used_instruction_results(&function.dfg, value);
         });
+        Ok(())
     }
 
     /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
@@ -170,24 +180,24 @@ mod test {
         let two = builder.field_constant(2u128);
         let three = builder.field_constant(3u128);
 
-        let _v1 = builder.insert_binary(v0, BinaryOp::Add, one);
-        let v2 = builder.insert_binary(v0, BinaryOp::Add, two);
+        let _v1 = builder.insert_binary(v0, BinaryOp::Add, one).unwrap();
+        let v2 = builder.insert_binary(v0, BinaryOp::Add, two).unwrap();
         builder.terminate_with_jmp(b1, vec![v2]);
 
         builder.switch_to_block(b1);
         let _v3 = builder.add_block_parameter(b1, Type::field());
 
-        let v4 = builder.insert_allocate();
+        let v4 = builder.insert_allocate().unwrap();
         let _v5 = builder.insert_load(v4, Type::field());
 
-        let v6 = builder.insert_allocate();
-        builder.insert_store(v6, one);
-        let v7 = builder.insert_load(v6, Type::field());
-        let v8 = builder.insert_binary(v7, BinaryOp::Add, one);
-        let v9 = builder.insert_binary(v7, BinaryOp::Add, two);
-        let v10 = builder.insert_binary(v7, BinaryOp::Add, three);
-        let _v11 = builder.insert_binary(v10, BinaryOp::Add, v10);
-        builder.insert_call(println_id, vec![v8], vec![]);
+        let v6 = builder.insert_allocate().unwrap();
+        builder.insert_store(v6, one).unwrap();
+        let v7 = builder.insert_load(v6, Type::field()).unwrap();
+        let v8 = builder.insert_binary(v7, BinaryOp::Add, one).unwrap();
+        let v9 = builder.insert_binary(v7, BinaryOp::Add, two).unwrap();
+        let v10 = builder.insert_binary(v7, BinaryOp::Add, three).unwrap();
+        let _v11 = builder.insert_binary(v10, BinaryOp::Add, v10).unwrap();
+        builder.insert_call(println_id, vec![v8], vec![]).unwrap();
         builder.terminate_with_return(vec![v9]);
 
         let ssa = builder.finish();
@@ -212,7 +222,7 @@ mod test {
         //     call println(v8)
         //     return v9
         // }
-        let ssa = ssa.dead_instruction_elimination();
+        let ssa = ssa.dead_instruction_elimination().unwrap();
         let main = ssa.main();
 
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);

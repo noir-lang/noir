@@ -114,18 +114,22 @@ impl AcirContext {
         self.acir_ir.current_witness_index()
     }
 
-    pub(crate) fn extract_witness(&self, inputs: &[AcirValue]) -> Vec<u32> {
+    pub(crate) fn extract_witness(
+        &mut self,
+        inputs: &[AcirValue],
+    ) -> Result<Vec<u32>, InternalError> {
         inputs
             .iter()
             .flat_map(|value| value.clone().flatten())
-            .map(|value| {
-                self.vars
-                    .get(&value.0)
-                    .expect("ICE: undeclared AcirVar")
-                    .to_expression()
-                    .to_witness()
-                    .expect("ICE - cannot extract a witness")
-                    .0
+            .map(|value| match self.vars.get(&value.0) {
+                Some(v) => match v.to_expression().to_witness() {
+                    Some(v) => Ok(v.0),
+                    None => Err(InternalError::General {
+                        message: "cannot extract a witness".to_string(),
+                        location: self.get_location(),
+                    }),
+                },
+                None => Err(InternalError::UndeclaredAcirVar { location: self.get_location() }),
             })
             .collect()
     }

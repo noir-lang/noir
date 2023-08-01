@@ -9,16 +9,19 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
-use crate::ssa_refactor::{
-    ir::{
-        basic_block::BasicBlockId,
-        function::{Function, FunctionId, RuntimeType, Signature},
-        instruction::{BinaryOp, Instruction},
-        types::{NumericType, Type},
-        value::{Value, ValueId},
+use crate::{
+    errors::InternalError,
+    ssa_refactor::{
+        ir::{
+            basic_block::BasicBlockId,
+            function::{Function, FunctionId, RuntimeType, Signature},
+            instruction::{BinaryOp, Instruction},
+            types::{NumericType, Type},
+            value::{Value, ValueId},
+        },
+        ssa_builder::FunctionBuilder,
+        ssa_gen::Ssa,
     },
-    ssa_builder::FunctionBuilder,
-    ssa_gen::Ssa,
 };
 
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
@@ -51,29 +54,30 @@ struct DefunctionalizationContext {
 }
 
 impl Ssa {
-    pub(crate) fn defunctionalize(mut self) -> Ssa {
+    pub(crate) fn defunctionalize(mut self) -> Result<Ssa, InternalError> {
         // Find all functions used as value that share the same signature
-        let variants = find_variants(&self);
+        let variants = find_variants(&self)?;
 
-        let apply_functions = create_apply_functions(&mut self, variants);
+        let apply_functions = create_apply_functions(&mut self, variants)?;
 
         let context = DefunctionalizationContext { apply_functions };
 
-        context.defunctionalize_all(&mut self);
-        self
+        context.defunctionalize_all(&mut self)?;
+        Ok(self)
     }
 }
 
 impl DefunctionalizationContext {
     /// Defunctionalize all functions in the Ssa
-    fn defunctionalize_all(mut self, ssa: &mut Ssa) {
+    fn defunctionalize_all(mut self, ssa: &mut Ssa) -> Result<(), InternalError> {
         for function in ssa.functions.values_mut() {
-            self.defunctionalize(function);
+            self.defunctionalize(function)?;
         }
+        Ok(())
     }
 
     /// Defunctionalize a single function
-    fn defunctionalize(&mut self, func: &mut Function) {
+    fn defunctionalize(&mut self, func: &mut Function) -> Result<(), InternalError> {
         let mut call_target_values = HashSet::new();
 
         for block_id in func.reachable_blocks() {
@@ -139,12 +143,13 @@ impl DefunctionalizationContext {
                     }
                     // If the value is a function used as value, just change the type of it
                     Value::Instruction { .. } | Value::Param { .. } => {
-                        func.dfg.set_type_of_value(value_id, Type::field());
+                        func.dfg.set_type_of_value(value_id, Type::field())?;
                     }
                     _ => {}
                 }
             }
         }
+        Ok(())
     }
 
     /// Returns the apply function for the given signature
@@ -154,12 +159,12 @@ impl DefunctionalizationContext {
 }
 
 /// Collects all functions used as values that can be called by their signatures
-fn find_variants(ssa: &Ssa) -> BTreeMap<Signature, Vec<FunctionId>> {
+fn find_variants(ssa: &Ssa) -> Result<BTreeMap<Signature, Vec<FunctionId>>, InternalError> {
     let mut dynamic_dispatches: BTreeSet<Signature> = BTreeSet::new();
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
     for function in ssa.functions.values() {
-        functions_as_values.extend(find_functions_as_values(function));
+        functions_as_values.extend(find_functions_as_values(function)?);
         dynamic_dispatches.extend(find_dynamic_dispatches(function));
     }
 
@@ -182,11 +187,11 @@ fn find_variants(ssa: &Ssa) -> BTreeMap<Signature, Vec<FunctionId>> {
         variants.insert(dispatch_signature, target_fns);
     }
 
-    variants
+    Ok(variants)
 }
 
 /// Finds all literal functions used as values in the given function
-fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
+fn find_functions_as_values(func: &Function) -> Result<BTreeSet<FunctionId>, InternalError> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
     let mut process_value = |value_id: ValueId| {
@@ -210,10 +215,10 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
             };
         }
 
-        block.unwrap_terminator().for_each_value(&mut process_value);
+        block.unwrap_terminator()?.for_each_value(&mut process_value);
     }
 
-    functions_as_values
+    Ok(functions_as_values)
 }
 
 /// Finds all dynamic dispatch signatures in the given function
@@ -244,7 +249,7 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 fn create_apply_functions(
     ssa: &mut Ssa,
     variants_map: BTreeMap<Signature, Vec<FunctionId>>,
-) -> HashMap<Signature, ApplyFunction> {
+) -> Result<HashMap<Signature, ApplyFunction>, InternalError> {
     let mut apply_functions = HashMap::new();
     for (signature, variants) in variants_map.into_iter() {
         assert!(
@@ -255,13 +260,13 @@ fn create_apply_functions(
         let dispatches_to_multiple_functions = variants.len() > 1;
 
         let id = if dispatches_to_multiple_functions {
-            create_apply_function(ssa, signature.clone(), variants)
+            create_apply_function(ssa, signature.clone(), variants)?
         } else {
             variants[0]
         };
         apply_functions.insert(signature, ApplyFunction { id, dispatches_to_multiple_functions });
     }
-    apply_functions
+    Ok(apply_functions)
 }
 
 fn function_id_to_field(function_id: FunctionId) -> FieldElement {
@@ -273,7 +278,7 @@ fn create_apply_function(
     ssa: &mut Ssa,
     signature: Signature,
     function_ids: Vec<FunctionId>,
-) -> FunctionId {
+) -> Result<FunctionId, InternalError> {
     assert!(!function_ids.is_empty());
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id, RuntimeType::Acir);
@@ -290,7 +295,7 @@ fn create_apply_function(
                 Type::Numeric(NumericType::NativeField),
             );
             let condition =
-                function_builder.insert_binary(target_id, BinaryOp::Eq, function_id_constant);
+                function_builder.insert_binary(target_id, BinaryOp::Eq, function_id_constant)?;
 
             // If it's not the last function to dispatch, create an if statement
             if !is_last {
@@ -305,7 +310,7 @@ fn create_apply_function(
                 function_builder.switch_to_block(executor_block);
             } else {
                 // Else just constrain the condition
-                function_builder.insert_constrain(condition);
+                function_builder.insert_constrain(condition)?;
             }
             // Find the target block or build it if necessary
             let current_block = function_builder.current_block();
@@ -321,7 +326,7 @@ fn create_apply_function(
             // Call the function
             let target_function_value = function_builder.import_function(*function_id);
             let call_results = function_builder
-                .insert_call(target_function_value, params_ids.clone(), signature.returns.clone())
+                .insert_call(target_function_value, params_ids.clone(), signature.returns.clone())?
                 .to_vec();
 
             // Jump to the target block for returning
@@ -332,7 +337,7 @@ fn create_apply_function(
                 function_builder.switch_to_block(next_block);
             }
         }
-        function_builder.current_function
+        Ok(function_builder.current_function)
     })
 }
 

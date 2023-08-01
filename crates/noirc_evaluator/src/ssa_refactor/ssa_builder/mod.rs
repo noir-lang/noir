@@ -3,12 +3,15 @@ use std::borrow::Cow;
 use acvm::FieldElement;
 use noirc_errors::Location;
 
-use crate::ssa_refactor::ir::{
-    basic_block::BasicBlockId,
-    function::{Function, FunctionId},
-    instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
-    types::Type,
-    value::{Value, ValueId},
+use crate::{
+    errors::InternalError,
+    ssa_refactor::ir::{
+        basic_block::BasicBlockId,
+        function::{Function, FunctionId},
+        instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
+        types::Type,
+        value::{Value, ValueId},
+    },
 };
 
 use super::{
@@ -145,7 +148,7 @@ impl FunctionBuilder {
         &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult {
+    ) -> Result<InsertInstructionResult, InternalError> {
         self.current_function.dfg.insert_instruction_and_results(
             instruction,
             self.current_block,
@@ -169,8 +172,8 @@ impl FunctionBuilder {
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.
-    pub(crate) fn insert_allocate(&mut self) -> ValueId {
-        self.insert_instruction(Instruction::Allocate, None).first()
+    pub(crate) fn insert_allocate(&mut self) -> Result<ValueId, InternalError> {
+        Ok(self.insert_instruction(Instruction::Allocate, None)?.first())
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
@@ -185,15 +188,26 @@ impl FunctionBuilder {
     /// 'offset' is in units of FieldElements here. So loading the fourth FieldElement stored in
     /// an array will have an offset of 3.
     /// Returns the element that was loaded.
-    pub(crate) fn insert_load(&mut self, address: ValueId, type_to_load: Type) -> ValueId {
-        self.insert_instruction(Instruction::Load { address }, Some(vec![type_to_load])).first()
+    pub(crate) fn insert_load(
+        &mut self,
+        address: ValueId,
+        type_to_load: Type,
+    ) -> Result<ValueId, InternalError> {
+        Ok(self
+            .insert_instruction(Instruction::Load { address }, Some(vec![type_to_load]))?
+            .first())
     }
 
     /// Insert a Store instruction at the end of the current block, storing the given element
     /// at the given address. Expects that the address points somewhere
     /// within a previous Allocate instruction.
-    pub(crate) fn insert_store(&mut self, address: ValueId, value: ValueId) {
-        self.insert_instruction(Instruction::Store { address, value }, None);
+    pub(crate) fn insert_store(
+        &mut self,
+        address: ValueId,
+        value: ValueId,
+    ) -> Result<(), InternalError> {
+        self.insert_instruction(Instruction::Store { address, value }, None)?;
+        Ok(())
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -203,21 +217,25 @@ impl FunctionBuilder {
         lhs: ValueId,
         operator: BinaryOp,
         rhs: ValueId,
-    ) -> ValueId {
+    ) -> Result<ValueId, InternalError> {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        self.insert_instruction(instruction, None).first()
+        Ok(self.insert_instruction(instruction, None)?.first())
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
-    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.insert_instruction(Instruction::Not(rhs), None).first()
+    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> Result<ValueId, InternalError> {
+        Ok(self.insert_instruction(Instruction::Not(rhs), None)?.first())
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: Type) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+    pub(crate) fn insert_cast(
+        &mut self,
+        value: ValueId,
+        typ: Type,
+    ) -> Result<ValueId, InternalError> {
+        Ok(self.insert_instruction(Instruction::Cast(value, typ), None)?.first())
     }
 
     /// Insert a truncate instruction at the end of the current block.
@@ -227,14 +245,16 @@ impl FunctionBuilder {
         value: ValueId,
         bit_size: u32,
         max_bit_size: u32,
-    ) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
-            .first()
+    ) -> Result<ValueId, InternalError> {
+        Ok(self
+            .insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)?
+            .first())
     }
 
     /// Insert a constrain instruction at the end of the current block.
-    pub(crate) fn insert_constrain(&mut self, boolean: ValueId) {
-        self.insert_instruction(Instruction::Constrain(boolean), None);
+    pub(crate) fn insert_constrain(&mut self, boolean: ValueId) -> Result<(), InternalError> {
+        self.insert_instruction(Instruction::Constrain(boolean), None)?;
+        Ok(())
     }
 
     /// Insert a call instruction at the end of the current block and return
@@ -244,8 +264,10 @@ impl FunctionBuilder {
         func: ValueId,
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
-    ) -> Cow<[ValueId]> {
-        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+    ) -> Result<Cow<[ValueId]>, InternalError> {
+        Ok(self
+            .insert_instruction(Instruction::Call { func, arguments }, Some(result_types))?
+            .results())
     }
 
     /// Insert an instruction to extract an element from an array
@@ -254,9 +276,9 @@ impl FunctionBuilder {
         array: ValueId,
         index: ValueId,
         element_type: Type,
-    ) -> ValueId {
+    ) -> Result<ValueId, InternalError> {
         let element_type = Some(vec![element_type]);
-        self.insert_instruction(Instruction::ArrayGet { array, index }, element_type).first()
+        Ok(self.insert_instruction(Instruction::ArrayGet { array, index }, element_type)?.first())
     }
 
     /// Insert an instruction to create a new array with the given index replaced with a new value
@@ -265,8 +287,8 @@ impl FunctionBuilder {
         array: ValueId,
         index: ValueId,
         value: ValueId,
-    ) -> ValueId {
-        self.insert_instruction(Instruction::ArraySet { array, index, value }, None).first()
+    ) -> Result<ValueId, InternalError> {
+        Ok(self.insert_instruction(Instruction::ArraySet { array, index, value }, None)?.first())
     }
 
     /// Terminates the current block with the given terminator instruction
@@ -328,8 +350,12 @@ impl FunctionBuilder {
     }
 
     /// Removes the given instruction from the current block or panics otherwise.
-    pub(crate) fn remove_instruction_from_current_block(&mut self, instruction: InstructionId) {
-        self.current_function.dfg[self.current_block].remove_instruction(instruction);
+    pub(crate) fn remove_instruction_from_current_block(
+        &mut self,
+        instruction: InstructionId,
+    ) -> Result<(), InternalError> {
+        self.current_function.dfg[self.current_block].remove_instruction(instruction)?;
+        Ok(())
     }
 }
 
@@ -387,7 +413,8 @@ mod tests {
         let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
         let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
         let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), 8)];
-        let call_result = builder.insert_call(to_bits_id, vec![input, length], result_types)[0];
+        let call_result =
+            builder.insert_call(to_bits_id, vec![input, length], result_types).unwrap()[0];
 
         let array = match &builder.current_function.dfg[call_result] {
             Value::Array { array, .. } => array,

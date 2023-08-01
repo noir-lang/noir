@@ -2,9 +2,12 @@ use std::{collections::BTreeMap, fmt::Display};
 
 use iter_extended::btree_map;
 
-use crate::ssa_refactor::ir::{
-    function::{Function, FunctionId},
-    map::AtomicCounter,
+use crate::{
+    errors::InternalError,
+    ssa_refactor::ir::{
+        function::{Function, FunctionId},
+        map::AtomicCounter,
+    },
 };
 
 /// Contains the entire SSA representation of the program.
@@ -42,12 +45,12 @@ impl Ssa {
     /// Adds a new function to the program
     pub(crate) fn add_fn(
         &mut self,
-        build_with_id: impl FnOnce(FunctionId) -> Function,
-    ) -> FunctionId {
+        build_with_id: impl FnOnce(FunctionId) -> Result<Function, InternalError>,
+    ) -> Result<FunctionId, InternalError> {
         let new_id = self.next_id.next();
-        let function = build_with_id(new_id);
+        let function = build_with_id(new_id)?;
         self.functions.insert(new_id, function);
-        new_id
+        Ok(new_id)
     }
 }
 

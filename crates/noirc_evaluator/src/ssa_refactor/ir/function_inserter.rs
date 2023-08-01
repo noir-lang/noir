@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
+use crate::errors::InternalError;
+
 use super::{
     basic_block::BasicBlockId,
     dfg::InsertInstructionResult,
@@ -63,9 +65,14 @@ impl<'f> FunctionInserter<'f> {
         )
     }
 
-    pub(crate) fn push_instruction(&mut self, id: InstructionId, block: BasicBlockId) {
+    pub(crate) fn push_instruction(
+        &mut self,
+        id: InstructionId,
+        block: BasicBlockId,
+    ) -> Result<(), InternalError> {
         let (instruction, location) = self.map_instruction(id);
-        self.push_instruction_value(instruction, id, block, location);
+        self.push_instruction_value(instruction, id, block, location)?;
+        Ok(())
     }
 
     pub(crate) fn push_instruction_value(
@@ -74,7 +81,7 @@ impl<'f> FunctionInserter<'f> {
         id: InstructionId,
         block: BasicBlockId,
         location: Option<Location>,
-    ) -> InsertInstructionResult {
+    ) -> Result<InsertInstructionResult, InternalError> {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));
 
@@ -87,10 +94,10 @@ impl<'f> FunctionInserter<'f> {
             block,
             ctrl_typevars,
             location,
-        );
+        )?;
 
         Self::insert_new_instruction_results(&mut self.values, &results, &new_results);
-        new_results
+        Ok(new_results)
     }
 
     /// Modify the values HashMap to remember the mapping between an instruction result's previous

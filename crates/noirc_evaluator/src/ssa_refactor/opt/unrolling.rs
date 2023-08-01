@@ -14,23 +14,26 @@
 //! program that will need to be removed by a later simplify cfg pass.
 use std::collections::{HashMap, HashSet};
 
-use crate::ssa_refactor::{
-    ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph, dom::DominatorTree,
-        function::Function, function_inserter::FunctionInserter,
-        instruction::TerminatorInstruction, post_order::PostOrder, value::ValueId,
+use crate::{
+    errors::InternalError,
+    ssa_refactor::{
+        ir::{
+            basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph,
+            dom::DominatorTree, function::Function, function_inserter::FunctionInserter,
+            instruction::TerminatorInstruction, post_order::PostOrder, value::ValueId,
+        },
+        ssa_gen::Ssa,
     },
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
     /// Unroll all loops in each SSA function.
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
-    pub(crate) fn unroll_loops(mut self) -> Ssa {
+    pub(crate) fn unroll_loops(mut self) -> Result<Ssa, InternalError> {
         for function in self.functions.values_mut() {
-            find_all_loops(function).unroll_each_loop(function);
+            find_all_loops(function)?.unroll_each_loop(function)?;
         }
-        self
+        Ok(self)
     }
 }
 
@@ -60,20 +63,20 @@ struct Loops {
 
 /// Find a loop in the program by finding a node that dominates any predecessor node.
 /// The edge where this happens will be the back-edge of the loop.
-fn find_all_loops(function: &Function) -> Loops {
-    let cfg = ControlFlowGraph::with_function(function);
+fn find_all_loops(function: &Function) -> Result<Loops, InternalError> {
+    let cfg = ControlFlowGraph::with_function(function)?;
     let post_order = PostOrder::with_function(function);
-    let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+    let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order)?;
 
     let mut loops = vec![];
 
     for (block, _) in function.dfg.basic_blocks_iter() {
         // These reachable checks wouldn't be needed if we only iterated over reachable blocks
         if dom_tree.is_reachable(block) {
-            for predecessor in cfg.predecessors(block) {
+            for predecessor in cfg.predecessors(block)? {
                 if dom_tree.is_reachable(predecessor) && dom_tree.dominates(block, predecessor) {
                     // predecessor -> block is the back-edge of a loop
-                    loops.push(find_blocks_in_loop(block, predecessor, &cfg));
+                    loops.push(find_blocks_in_loop(block, predecessor, &cfg)?);
                 }
             }
         }
@@ -84,24 +87,24 @@ fn find_all_loops(function: &Function) -> Loops {
     // their loop range.
     loops.sort_by_key(|loop_| loop_.blocks.len());
 
-    Loops {
+    Ok(Loops {
         failed_to_unroll: HashSet::new(),
         yet_to_unroll: loops,
         modified_blocks: HashSet::new(),
         cfg,
         dom_tree,
-    }
+    })
 }
 
 impl Loops {
     /// Unroll all loops within a given function.
     /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
-    fn unroll_each_loop(mut self, function: &mut Function) {
+    fn unroll_each_loop(mut self, function: &mut Function) -> Result<(), InternalError> {
         while let Some(next_loop) = self.yet_to_unroll.pop() {
             // If we've previously modified a block in this loop we need to refresh the context.
             // This happens any time we have nested loops.
             if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {
-                let mut new_context = find_all_loops(function);
+                let mut new_context = find_all_loops(function)?;
                 new_context.failed_to_unroll = self.failed_to_unroll;
                 return new_context.unroll_each_loop(function);
             }
@@ -115,6 +118,7 @@ impl Loops {
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -124,7 +128,7 @@ fn find_blocks_in_loop(
     header: BasicBlockId,
     back_edge_start: BasicBlockId,
     cfg: &ControlFlowGraph,
-) -> Loop {
+) -> Result<Loop, InternalError> {
     let mut blocks = HashSet::new();
     blocks.insert(header);
 
@@ -141,22 +145,26 @@ fn find_blocks_in_loop(
     insert(back_edge_start, &mut stack);
 
     while let Some(block) = stack.pop() {
-        for predecessor in cfg.predecessors(block) {
+        for predecessor in cfg.predecessors(block)? {
             insert(predecessor, &mut stack);
         }
     }
 
-    Loop { header, back_edge_start, blocks }
+    Ok(Loop { header, back_edge_start, blocks })
 }
 
 /// Unroll a single loop in the function.
 /// Returns Err(()) if it failed to unroll and Ok(()) otherwise.
-fn unroll_loop(function: &mut Function, cfg: &ControlFlowGraph, loop_: &Loop) -> Result<(), ()> {
-    let mut unroll_into = get_pre_header(cfg, loop_);
+fn unroll_loop(
+    function: &mut Function,
+    cfg: &ControlFlowGraph,
+    loop_: &Loop,
+) -> Result<(), InternalError> {
+    let mut unroll_into = get_pre_header(cfg, loop_)?;
     let mut jump_value = get_induction_variable(function, unroll_into)?;
 
     while let Some(context) = unroll_loop_header(function, loop_, unroll_into, jump_value)? {
-        let (last_block, last_value) = context.unroll_loop_iteration();
+        let (last_block, last_value) = context.unroll_loop_iteration()?;
         unroll_into = last_block;
         jump_value = last_value;
     }
@@ -167,21 +175,24 @@ fn unroll_loop(function: &mut Function, cfg: &ControlFlowGraph, loop_: &Loop) ->
 /// The loop pre-header is the block that comes before the loop begins. Generally a header block
 /// is expected to have 2 predecessors: the pre-header and the final block of the loop which jumps
 /// back to the beginning.
-fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
+fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> Result<BasicBlockId, InternalError> {
     let mut pre_header = cfg
-        .predecessors(loop_.header)
+        .predecessors(loop_.header)?
         .filter(|predecessor| *predecessor != loop_.back_edge_start)
         .collect::<Vec<_>>();
 
     assert_eq!(pre_header.len(), 1);
-    pre_header.remove(0)
+    Ok(pre_header.remove(0))
 }
 
 /// Return the induction value of the current iteration of the loop, from the given block's jmp arguments.
 ///
 /// Expects the current block to terminate in `jmp h(N)` where h is the loop header and N is
 /// a Field value.
-fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, ()> {
+fn get_induction_variable(
+    function: &Function,
+    block: BasicBlockId,
+) -> Result<ValueId, InternalError> {
     match function.dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
@@ -193,10 +204,10 @@ fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Va
             if function.dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
             } else {
-                Err(())
+                Err(InternalError::General { message: "".to_string(), location: None })
             }
         }
-        _ => Err(()),
+        _ => Err(InternalError::General { message: "".to_string(), location: None }),
     }
 }
 
@@ -208,7 +219,7 @@ fn unroll_loop_header<'a>(
     loop_: &'a Loop,
     unroll_into: BasicBlockId,
     induction_value: ValueId,
-) -> Result<Option<LoopIteration<'a>>, ()> {
+) -> Result<Option<LoopIteration<'a>>, InternalError> {
     // We insert into a fresh block first and move instructions into the unroll_into block later
     // only once we verify the jmpif instruction has a constant condition. If it does not, we can
     // just discard this fresh block and leave the loop unmodified.
@@ -221,16 +232,16 @@ fn unroll_loop_header<'a>(
     // Insert the current value of the loop induction variable into our context.
     let first_param = source_block.parameters()[0];
     context.inserter.try_map_value(first_param, induction_value);
-    context.inline_instructions_from_block();
+    context.inline_instructions_from_block()?;
 
-    match context.dfg()[fresh_block].unwrap_terminator() {
+    match context.dfg()[fresh_block].unwrap_terminator()? {
         TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
             let next_blocks = context.handle_jmpif(*condition, *then_destination, *else_destination);
 
             // If there is only 1 next block the jmpif evaluated to a single known block.
             // This is the expected case and lets us know if we should loop again or not.
             if next_blocks.len() == 1 {
-                context.dfg_mut().inline_block(fresh_block, unroll_into);
+                context.dfg_mut().inline_block(fresh_block, unroll_into)?;
 
                 // The fresh block is gone now so we're committing to insert into the original
                 // unroll_into block from now on.
@@ -240,7 +251,7 @@ fn unroll_loop_header<'a>(
             } else {
                 // If this case is reached the loop either uses non-constant indices or we need
                 // another pass, such as mem2reg to resolve them to constants.
-                Err(())
+                Err(InternalError::General { message: "".to_string(), location: None })
             }
         }
         other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
@@ -296,50 +307,51 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
-        let mut next_blocks = self.unroll_loop_block();
+    fn unroll_loop_iteration(mut self) -> Result<(BasicBlockId, ValueId), InternalError> {
+        let mut next_blocks = self.unroll_loop_block()?;
 
         while let Some(block) = next_blocks.pop() {
             self.insert_block = block;
             self.source_block = self.get_original_block(block);
 
             if !self.visited_blocks.contains(&self.source_block) {
-                let mut blocks = self.unroll_loop_block();
+                let mut blocks = self.unroll_loop_block()?;
                 next_blocks.append(&mut blocks);
             }
         }
 
-        self.induction_value
-            .expect("Expected to find the induction variable by end of loop iteration")
+        Ok(self
+            .induction_value
+            .expect("Expected to find the induction variable by end of loop iteration"))
     }
 
     /// Unroll a single block in the current iteration of the loop
-    fn unroll_loop_block(&mut self) -> Vec<BasicBlockId> {
-        let mut next_blocks = self.unroll_loop_block_helper();
+    fn unroll_loop_block(&mut self) -> Result<Vec<BasicBlockId>, InternalError> {
+        let mut next_blocks = self.unroll_loop_block_helper()?;
         next_blocks.retain(|block| {
             let b = self.get_original_block(*block);
             self.loop_.blocks.contains(&b)
         });
-        next_blocks
+        Ok(next_blocks)
     }
 
     /// Unroll a single block in the current iteration of the loop
-    fn unroll_loop_block_helper(&mut self) -> Vec<BasicBlockId> {
-        self.inline_instructions_from_block();
+    fn unroll_loop_block_helper(&mut self) -> Result<Vec<BasicBlockId>, InternalError> {
+        self.inline_instructions_from_block()?;
         self.visited_blocks.insert(self.source_block);
 
-        match self.inserter.function.dfg[self.insert_block].unwrap_terminator() {
+        match self.inserter.function.dfg[self.insert_block].unwrap_terminator()? {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
-                self.handle_jmpif(*condition, *then_destination, *else_destination)
+                Ok(self.handle_jmpif(*condition, *then_destination, *else_destination))
             }
             TerminatorInstruction::Jmp { destination, arguments } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     assert_eq!(arguments.len(), 1);
                     self.induction_value = Some((self.insert_block, arguments[0]));
                 }
-                vec![*destination]
+                Ok(vec![*destination])
             }
-            TerminatorInstruction::Return { .. } => vec![],
+            TerminatorInstruction::Return { .. } => Ok(vec![]),
         }
     }
 
@@ -393,7 +405,7 @@ impl<'f> LoopIteration<'f> {
         self.original_blocks.get(&block).copied().unwrap_or(block)
     }
 
-    fn inline_instructions_from_block(&mut self) {
+    fn inline_instructions_from_block(&mut self) -> Result<(), InternalError> {
         let source_block = &self.dfg()[self.source_block];
         let instructions = source_block.instructions().to_vec();
 
@@ -401,16 +413,17 @@ impl<'f> LoopIteration<'f> {
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
-            self.inserter.push_instruction(instruction, self.insert_block);
+            self.inserter.push_instruction(instruction, self.insert_block)?;
         }
 
         let mut terminator = self.dfg()[self.source_block]
-            .unwrap_terminator()
+            .unwrap_terminator()?
             .clone()
             .map_values(|value| self.inserter.resolve(value));
 
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);
+        Ok(())
     }
 
     fn dfg(&self) -> &DataFlowGraph {
@@ -487,7 +500,7 @@ mod tests {
 
         // b1
         builder.switch_to_block(b1);
-        let v1 = builder.insert_binary(v0, BinaryOp::Lt, three);
+        let v1 = builder.insert_binary(v0, BinaryOp::Lt, three).unwrap();
         builder.terminate_with_jmpif(v1, b2, b3);
 
         // b2
@@ -500,20 +513,20 @@ mod tests {
 
         // b4
         builder.switch_to_block(b4);
-        let v3 = builder.insert_binary(v2, BinaryOp::Lt, four);
+        let v3 = builder.insert_binary(v2, BinaryOp::Lt, four).unwrap();
         builder.terminate_with_jmpif(v3, b5, b6);
 
         // b5
         builder.switch_to_block(b5);
-        let v4 = builder.insert_binary(v0, BinaryOp::Add, v2);
-        let v5 = builder.insert_binary(ten, BinaryOp::Lt, v4);
-        builder.insert_constrain(v5);
-        let v6 = builder.insert_binary(v2, BinaryOp::Add, one);
+        let v4 = builder.insert_binary(v0, BinaryOp::Add, v2).unwrap();
+        let v5 = builder.insert_binary(ten, BinaryOp::Lt, v4).unwrap();
+        builder.insert_constrain(v5).unwrap();
+        let v6 = builder.insert_binary(v2, BinaryOp::Add, one).unwrap();
         builder.terminate_with_jmp(b4, vec![v6]);
 
         // b6
         builder.switch_to_block(b6);
-        let v7 = builder.insert_binary(v0, BinaryOp::Add, one);
+        let v7 = builder.insert_binary(v0, BinaryOp::Add, one).unwrap();
         builder.terminate_with_jmp(b1, vec![v7]);
 
         let ssa = builder.finish();
@@ -547,7 +560,7 @@ mod tests {
         // }
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
         // If a simplify cfg pass is ran afterward, the expected block count will be 1.
-        let ssa = ssa.unroll_loops();
+        let ssa = ssa.unroll_loops().unwrap();
         assert_eq!(ssa.main().reachable_blocks().len(), 5);
     }
 
@@ -580,12 +593,12 @@ mod tests {
 
         builder.switch_to_block(b1);
         let five = builder.field_constant(5u128);
-        let v2 = builder.insert_binary(v1, BinaryOp::Lt, five);
+        let v2 = builder.insert_binary(v1, BinaryOp::Lt, five).unwrap();
         builder.terminate_with_jmpif(v2, b2, b3);
 
         builder.switch_to_block(b2);
         let one = builder.field_constant(1u128);
-        let v3 = builder.insert_binary(v1, BinaryOp::Add, one);
+        let v3 = builder.insert_binary(v1, BinaryOp::Add, one).unwrap();
         builder.terminate_with_jmp(b1, vec![v3]);
 
         builder.switch_to_block(b3);
@@ -596,7 +609,7 @@ mod tests {
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
         // Expected ssa is unchanged
-        let ssa = ssa.unroll_loops();
+        let ssa = ssa.unroll_loops().unwrap();
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
     }
 }

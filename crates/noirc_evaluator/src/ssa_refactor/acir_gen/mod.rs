@@ -172,7 +172,7 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, allow_log_ops)?;
         }
 
-        self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
+        self.convert_ssa_return(entry_block.unwrap_terminator()?, dfg)?;
 
         Ok(self.acir_context.finish(input_witness.collect()))
     }
@@ -188,7 +188,7 @@ impl Context {
             let typ = dfg.type_of_value(*param_id);
             self.create_value_from_type(&typ, &mut |this, _| Ok(this.acir_context.add_variable()))
         })?;
-        let witness_inputs = self.acir_context.extract_witness(&inputs);
+        let witness_inputs = self.acir_context.extract_witness(&inputs)?;
 
         let outputs: Vec<AcirType> =
             vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());

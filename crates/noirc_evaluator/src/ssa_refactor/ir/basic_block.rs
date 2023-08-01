@@ -1,3 +1,5 @@
+use crate::errors::InternalError;
+
 use super::{
     instruction::{InstructionId, TerminatorInstruction},
     map::Id,
@@ -92,15 +94,23 @@ impl BasicBlock {
     /// Returns the terminator of this block, panics if there is None.
     ///
     /// Once this block has finished construction, this is expected to always be Some.
-    pub(crate) fn unwrap_terminator(&self) -> &TerminatorInstruction {
-        self.terminator().expect("Expected block to have terminator instruction")
+    pub(crate) fn unwrap_terminator(&self) -> Result<&TerminatorInstruction, InternalError> {
+        match self.terminator() {
+            Some(terminator_instruction) => Ok(terminator_instruction),
+            None => Err(InternalError::NoTerminatorInstructionInBlock { location: None }),
+        }
     }
 
     /// Returns a mutable reference to the terminator of this block.
     ///
     /// Once this block has finished construction, this is expected to always be Some.
-    pub(crate) fn unwrap_terminator_mut(&mut self) -> &mut TerminatorInstruction {
-        self.terminator.as_mut().expect("Expected block to have terminator instruction")
+    pub(crate) fn unwrap_terminator_mut(
+        &mut self,
+    ) -> Result<&mut TerminatorInstruction, InternalError> {
+        match self.terminator.as_mut() {
+            Some(terminator_instruction) => Ok(terminator_instruction),
+            None => Err(InternalError::NoTerminatorInstructionInBlock { location: None }),
+        }
     }
 
     /// Take ownership of this block's terminator, replacing it with an empty return terminator
@@ -110,9 +120,15 @@ impl BasicBlock {
     /// reachable or will have their terminator overwritten afterwards. Using this on a reachable
     /// block without setting the terminator afterward will result in the empty return terminator
     /// being kept, which is likely unwanted.
-    pub(crate) fn take_terminator(&mut self) -> TerminatorInstruction {
-        let terminator = self.terminator.as_mut().expect("Expected block to have a terminator");
-        std::mem::replace(terminator, TerminatorInstruction::Return { return_values: Vec::new() })
+    pub(crate) fn take_terminator(&mut self) -> Result<TerminatorInstruction, InternalError> {
+        let terminator = match self.terminator.as_mut() {
+            Some(terminator_instruction) => terminator_instruction,
+            None => return Err(InternalError::NoTerminatorInstructionInBlock { location: None }),
+        };
+        Ok(std::mem::replace(
+            terminator,
+            TerminatorInstruction::Return { return_values: Vec::new() },
+        ))
     }
 
     /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
@@ -142,11 +158,20 @@ impl BasicBlock {
     }
 
     /// Removes the given instruction from this block if present or panics otherwise.
-    pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
-        let index =
-            self.instructions.iter().position(|id| *id == instruction).unwrap_or_else(|| {
-                panic!("remove_instruction: No such instruction {instruction:?} in block")
-            });
+    pub(crate) fn remove_instruction(
+        &mut self,
+        instruction: InstructionId,
+    ) -> Result<(), InternalError> {
+        let index = match self.instructions.iter().position(|id| *id == instruction) {
+            Some(index) => index,
+            None => {
+                return Err(InternalError::NoInstruction {
+                    instruction: format!("{instruction:?}"),
+                    location: None,
+                })
+            }
+        };
         self.instructions.remove(index);
+        Ok(())
     }
 }

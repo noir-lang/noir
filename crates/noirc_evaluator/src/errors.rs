@@ -34,12 +34,25 @@ pub enum RuntimeError {
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum InternalError {
+    // Block Errors
+    #[error("ICE: Expected block to have terminator instruction")]
+    NoTerminatorInstructionInBlock { location: Option<Location> },
+    #[error("ICE: No such instruction {instruction:?} in block")]
+    NoInstruction { instruction: String, location: Option<Location> },
+
+    // CFG Errors
+    #[error("ICE: Node does node exist in Control Flow Graph \n {extra_info:?}")]
+    NonExistingNode { extra_info: String, location: Option<Location> },
+    #[error("ICE: A cfg node cannot have more than two {node_type:?}")]
+    TooManyNodes { node_type: String, location: Option<Location> },
+    #[error("ICE: Attempted to iterate {node_type:?} of block not found within cfg")]
+    BlockNotFound { node_type: String, location: Option<Location> },
+
+    // Acir Gen Errors
     #[error("ICE: Both expressions should have degree<=1")]
     DegreeNotReduced { location: Option<Location> },
     #[error("Try to get element from empty array")]
     EmptyArray { location: Option<Location> },
-    #[error("ICE: {message:?}")]
-    General { message: String, location: Option<Location> },
     #[error("ICE: {name:?} missing {arg:?} arg")]
     MissingArg { name: String, arg: String, location: Option<Location> },
     #[error("ICE: {name:?} should be a constant")]
@@ -50,13 +63,25 @@ pub enum InternalError {
     UndeclaredAcirVar { location: Option<Location> },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
     UnExpected { expected: String, found: String, location: Option<Location> },
+
+    // General errors that are hard to put in categories
+    #[error("ICE: {message:?}")]
+    General { message: String, location: Option<Location> },
 }
 
 impl From<RuntimeError> for FileDiagnostic {
     fn from(error: RuntimeError) -> Self {
         match error {
             RuntimeError::InternalError(ref ice_error) => match ice_error {
-                InternalError::DegreeNotReduced { location }
+                // Block Errors
+                InternalError::NoTerminatorInstructionInBlock { location, .. }
+                | InternalError::NoInstruction { location, .. }
+                // CFG Errors
+                | InternalError::NonExistingNode { location, ..}
+                | InternalError::TooManyNodes { location, ..}
+                | InternalError::BlockNotFound {  location, .. }
+                // Acir Gen Errors
+                | InternalError::DegreeNotReduced { location }
                 | InternalError::EmptyArray { location }
                 | InternalError::General { location, .. }
                 | InternalError::MissingArg { location, .. }

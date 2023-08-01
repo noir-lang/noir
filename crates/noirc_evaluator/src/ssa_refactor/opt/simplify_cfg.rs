@@ -11,12 +11,15 @@
 //! Currently, 1 and 4 are unimplemented.
 use std::collections::HashSet;
 
-use crate::ssa_refactor::{
-    ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
-        instruction::TerminatorInstruction,
+use crate::{
+    errors::InternalError,
+    ssa_refactor::{
+        ir::{
+            basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
+            instruction::TerminatorInstruction,
+        },
+        ssa_gen::Ssa,
     },
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
@@ -29,18 +32,18 @@ impl Ssa {
     ///    only 1 successor then (2) also will be applied.
     ///
     /// Currently, 1 and 4 are unimplemented.
-    pub(crate) fn simplify_cfg(mut self) -> Self {
+    pub(crate) fn simplify_cfg(mut self) -> Result<Self, InternalError> {
         for function in self.functions.values_mut() {
-            simplify_function(function);
+            simplify_function(function)?;
         }
-        self
+        Ok(self)
     }
 }
 
 /// Simplify a function's cfg by going through each block to check for any simple blocks that can
 /// be inlined into their predecessor.
-fn simplify_function(function: &mut Function) {
-    let mut cfg = ControlFlowGraph::with_function(function);
+fn simplify_function(function: &mut Function) -> Result<(), InternalError> {
+    let mut cfg = ControlFlowGraph::with_function(function)?;
     let mut stack = vec![function.entry_block()];
     let mut visited = HashSet::new();
 
@@ -51,16 +54,16 @@ fn simplify_function(function: &mut Function) {
 
         // This call is before try_inline_into_predecessor so that if it succeeds in changing a
         // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
-        check_for_constant_jmpif(function, block, &mut cfg);
+        check_for_constant_jmpif(function, block, &mut cfg)?;
 
-        let mut predecessors = cfg.predecessors(block);
+        let mut predecessors = cfg.predecessors(block)?;
 
         if predecessors.len() == 1 {
             let predecessor = predecessors.next().expect("Already checked length of predecessors");
             drop(predecessors);
 
             // If the block has only 1 predecessor, we can safely remove its block parameters
-            remove_block_parameters(function, block, predecessor);
+            remove_block_parameters(function, block, predecessor)?;
 
             // Note: this function relies on `remove_block_parameters` being called first.
             // Otherwise the inlined block will refer to parameters that no longer exist.
@@ -68,9 +71,10 @@ fn simplify_function(function: &mut Function) {
             // If successful, `block` will be empty and unreachable after this call, so any
             // optimizations performed after this point on the same block should check if
             // the inlining here was successful before continuing.
-            try_inline_into_predecessor(function, &mut cfg, block, predecessor);
+            try_inline_into_predecessor(function, &mut cfg, block, predecessor)?;
         }
     }
+    Ok(())
 }
 
 /// Optimize a jmpif into a jmp if the condition is known
@@ -78,7 +82,7 @@ fn check_for_constant_jmpif(
     function: &mut Function,
     block: BasicBlockId,
     cfg: &mut ControlFlowGraph,
-) {
+) -> Result<(), InternalError> {
     if let Some(TerminatorInstruction::JmpIf { condition, then_destination, else_destination }) =
         function.dfg[block].terminator()
     {
@@ -88,9 +92,10 @@ fn check_for_constant_jmpif(
 
             let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new() };
             function.dfg[block].set_terminator(jmp);
-            cfg.recompute_block(function, block);
+            cfg.recompute_block(function, block)?;
         }
     }
+    Ok(())
 }
 
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.
@@ -102,13 +107,13 @@ fn remove_block_parameters(
     function: &mut Function,
     block: BasicBlockId,
     predecessor: BasicBlockId,
-) {
+) -> Result<(), InternalError> {
     let block = &mut function.dfg[block];
 
     if !block.parameters().is_empty() {
         let block_params = block.take_parameters();
 
-        let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {
+        let jump_args = match function.dfg[predecessor].unwrap_terminator_mut()? {
             TerminatorInstruction::Jmp { arguments, .. } => std::mem::take(arguments),
             TerminatorInstruction::JmpIf { .. } => unreachable!("If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"),
             _ => unreachable!(
@@ -121,6 +126,7 @@ fn remove_block_parameters(
             function.dfg.set_value_from_id(*param, arg);
         }
     }
+    Ok(())
 }
 
 /// Try to inline a block into its predecessor, returning true if successful.
@@ -132,17 +138,17 @@ fn try_inline_into_predecessor(
     cfg: &mut ControlFlowGraph,
     block: BasicBlockId,
     predecessor: BasicBlockId,
-) -> bool {
-    let mut successors = cfg.successors(predecessor);
+) -> Result<bool, InternalError> {
+    let mut successors = cfg.successors(predecessor)?;
     if successors.len() == 1 && successors.next() == Some(block) {
         drop(successors);
-        function.dfg.inline_block(block, predecessor);
+        function.dfg.inline_block(block, predecessor)?;
 
-        cfg.recompute_block(function, block);
-        cfg.recompute_block(function, predecessor);
-        true
+        cfg.recompute_block(function, block)?;
+        cfg.recompute_block(function, predecessor)?;
+        Ok(true)
     } else {
-        false
+        Ok(false)
     }
 }
 
@@ -195,7 +201,7 @@ mod test {
         //   b0():
         //     return Field 7
         // }
-        let ssa = ssa.simplify_cfg();
+        let ssa = ssa.simplify_cfg().unwrap();
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 1);
 
@@ -234,7 +240,7 @@ mod test {
         let one = builder.field_constant(1u128);
         let two = builder.field_constant(2u128);
 
-        let v1 = builder.insert_binary(v0, BinaryOp::Eq, v0);
+        let v1 = builder.insert_binary(v0, BinaryOp::Eq, v0).unwrap();
         builder.terminate_with_jmpif(v1, b1, b2);
 
         builder.switch_to_block(b1);
@@ -251,7 +257,7 @@ mod test {
         //   b0():
         //     return Field 1
         // }
-        let ssa = ssa.simplify_cfg();
+        let ssa = ssa.simplify_cfg().unwrap();
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 1);
 

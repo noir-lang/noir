@@ -3,32 +3,35 @@
 //! mutable variables into values that are easier to manipulate.
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use iter_extended::vecmap;
+use iter_extended::try_vecmap;
 
-use crate::ssa_refactor::{
-    ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
-        value::{Value, ValueId},
+use crate::{
+    errors::InternalError,
+    ssa_refactor::{
+        ir::{
+            basic_block::BasicBlockId,
+            dfg::DataFlowGraph,
+            instruction::{Instruction, InstructionId, TerminatorInstruction},
+            value::{Value, ValueId},
+        },
+        ssa_gen::Ssa,
     },
-    ssa_gen::Ssa,
 };
 
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove store that are subsequently redundant, as long as they are
     /// not stores on memory that will be passed into a function call or returned.
-    pub(crate) fn mem2reg(mut self) -> Ssa {
+    pub(crate) fn mem2reg(mut self) -> Result<Ssa, InternalError> {
         for function in self.functions.values_mut() {
             let mut all_protected_allocations = HashSet::new();
-            let contexts = vecmap(function.reachable_blocks(), |block| {
+            let contexts = try_vecmap(function.reachable_blocks(), |block| {
                 let mut context = PerBlockContext::new(block);
                 let allocations_protected_by_block =
-                    context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg);
+                    context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg)?;
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
-                context
-            });
+                Ok(context)
+            })?;
             // Now that we have a comprehensive list of used allocations across all the
             // function's blocks, it is safe to remove any stores that do not touch such
             // allocations.
@@ -37,7 +40,7 @@ impl Ssa {
             }
         }
 
-        self
+        Ok(self)
     }
 }
 
@@ -62,7 +65,7 @@ impl PerBlockContext {
     fn analyze_allocations_and_eliminate_known_loads(
         &mut self,
         dfg: &mut DataFlowGraph,
-    ) -> HashSet<AllocId> {
+    ) -> Result<HashSet<AllocId>, InternalError> {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[self.block_id];
 
@@ -113,7 +116,7 @@ impl PerBlockContext {
         }
 
         // Identify any arrays that are returned from this function
-        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
+        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator()? {
             for value in return_values {
                 if Self::value_is_from_allocation(*value, dfg) {
                     protected_allocations.insert(*value);
@@ -134,7 +137,7 @@ impl PerBlockContext {
             .instructions_mut()
             .retain(|instruction| !loads_to_substitute.contains_key(instruction));
 
-        protected_allocations
+        Ok(protected_allocations)
     }
 
     /// Checks whether the given value id refers to an allocation.
@@ -207,7 +210,7 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate().unwrap();
         let one = builder.field_constant(FieldElement::one());
         let two = builder.field_constant(FieldElement::one());
 
@@ -215,12 +218,12 @@ mod tests {
         let array_type = Type::Array(element_type, 2);
         let array = builder.array_constant(vector![one, two], array_type.clone());
 
-        builder.insert_store(v0, array);
-        let v1 = builder.insert_load(v0, array_type);
-        let v2 = builder.insert_array_get(v1, one, Type::field());
+        builder.insert_store(v0, array).unwrap();
+        let v1 = builder.insert_load(v0, array_type).unwrap();
+        let v2 = builder.insert_array_get(v1, one, Type::field()).unwrap();
         builder.terminate_with_return(vec![v2]);
 
-        let ssa = builder.finish().mem2reg().fold_constants();
+        let ssa = builder.finish().mem2reg().unwrap().fold_constants().unwrap();
 
         println!("{ssa}");
 
@@ -250,15 +253,15 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate().unwrap();
         let one = builder.field_constant(FieldElement::one());
-        builder.insert_store(v0, one);
-        let v1 = builder.insert_load(v0, Type::field());
+        builder.insert_store(v0, one).unwrap();
+        let v1 = builder.insert_load(v0, Type::field()).unwrap();
         let f0 = builder.import_intrinsic_id(Intrinsic::Println);
-        builder.insert_call(f0, vec![v0], vec![]);
+        builder.insert_call(f0, vec![v0], vec![]).unwrap();
         builder.terminate_with_return(vec![v1]);
 
-        let ssa = builder.finish().mem2reg();
+        let ssa = builder.finish().mem2reg().unwrap();
 
         let func = ssa.main();
         let block_id = func.entry_block();
@@ -284,12 +287,12 @@ mod tests {
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id, RuntimeType::Acir);
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate().unwrap();
         let const_one = builder.field_constant(FieldElement::one());
-        builder.insert_store(v0, const_one);
+        builder.insert_store(v0, const_one).unwrap();
         builder.terminate_with_return(vec![v0]);
 
-        let ssa = builder.finish().mem2reg();
+        let ssa = builder.finish().mem2reg().unwrap();
 
         let func = ssa.main();
         let block_id = func.entry_block();
@@ -338,22 +341,22 @@ mod tests {
         let main_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
 
-        let v0 = builder.insert_allocate();
+        let v0 = builder.insert_allocate().unwrap();
 
         let five = builder.field_constant(5u128);
-        builder.insert_store(v0, five);
+        builder.insert_store(v0, five).unwrap();
 
-        let v1 = builder.insert_load(v0, Type::field());
+        let v1 = builder.insert_load(v0, Type::field()).unwrap();
         let b1 = builder.insert_block();
         builder.terminate_with_jmp(b1, vec![v1]);
 
         builder.switch_to_block(b1);
         let v2 = builder.add_block_parameter(b1, Type::field());
-        let v3 = builder.insert_load(v0, Type::field());
+        let v3 = builder.insert_load(v0, Type::field()).unwrap();
 
         let six = builder.field_constant(6u128);
-        builder.insert_store(v0, six);
-        let v4 = builder.insert_load(v0, Type::field());
+        builder.insert_store(v0, six).unwrap();
+        let v4 = builder.insert_load(v0, Type::field()).unwrap();
 
         builder.terminate_with_return(vec![v2, v3, v4]);
 
@@ -371,7 +374,7 @@ mod tests {
         //     store v0, Field 6
         //     return v2, v3, Field 6 // Optimized to constant 6
         // }
-        let ssa = ssa.mem2reg();
+        let ssa = ssa.mem2reg().unwrap();
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);
 

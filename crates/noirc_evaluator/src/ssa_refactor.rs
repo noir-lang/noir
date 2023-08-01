@@ -40,27 +40,27 @@ pub(crate) fn optimize_into_acir(
     print_brillig_trace: bool,
 ) -> Result<GeneratedAcir, RuntimeError> {
     let abi_distinctness = program.return_distinctness;
-    let mut ssa = ssa_gen::generate_ssa(program)
+    let mut ssa = ssa_gen::generate_ssa(program)?
         .print(print_ssa_passes, "Initial SSA:")
-        .defunctionalize()
+        .defunctionalize()?
         .print(print_ssa_passes, "After Defunctionalization:");
 
     let brillig = ssa.to_brillig(print_brillig_trace);
     if let RuntimeType::Acir = ssa.main().runtime() {
         ssa = ssa
-            .inline_functions()
+            .inline_functions()?
             .print(print_ssa_passes, "After Inlining:")
-            .unroll_loops()
+            .unroll_loops()?
             .print(print_ssa_passes, "After Unrolling:")
-            .simplify_cfg()
+            .simplify_cfg()?
             .print(print_ssa_passes, "After Simplifying:")
-            .flatten_cfg()
+            .flatten_cfg()?
             .print(print_ssa_passes, "After Flattening:")
-            .mem2reg()
+            .mem2reg()?
             .print(print_ssa_passes, "After Mem2Reg:")
-            .fold_constants()
+            .fold_constants()?
             .print(print_ssa_passes, "After Constant Folding:")
-            .dead_instruction_elimination()
+            .dead_instruction_elimination()?
             .print(print_ssa_passes, "After Dead Instruction Elimination:");
     }
     ssa.into_acir(brillig, abi_distinctness, allow_log_ops)

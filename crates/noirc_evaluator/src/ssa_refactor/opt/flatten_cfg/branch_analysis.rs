@@ -21,8 +21,9 @@
 //! the resulting map from each split block to each join block is returned.
 use std::collections::HashMap;
 
-use crate::ssa_refactor::ir::{
-    basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
+use crate::{
+    errors::InternalError,
+    ssa_refactor::ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function},
 };
 
 /// Returns a `HashMap` mapping blocks that start a branch (i.e. blocks terminated with jmpif) to
@@ -34,15 +35,15 @@ use crate::ssa_refactor::ir::{
 pub(super) fn find_branch_ends(
     function: &Function,
     cfg: &ControlFlowGraph,
-) -> HashMap<BasicBlockId, BasicBlockId> {
+) -> Result<HashMap<BasicBlockId, BasicBlockId>, InternalError> {
     let mut block = function.entry_block();
     let mut context = Context::new(cfg);
 
     loop {
-        let mut successors = cfg.successors(block);
+        let mut successors = cfg.successors(block)?;
 
         if successors.len() == 2 {
-            block = context.find_join_point_of_branches(block, successors);
+            block = context.find_join_point_of_branches(block, successors)?;
         } else if successors.len() == 1 {
             block = successors.next().unwrap();
         } else if successors.len() == 0 {
@@ -53,7 +54,7 @@ pub(super) fn find_branch_ends(
         }
     }
 
-    context.branch_ends
+    Ok(context.branch_ends)
 }
 
 struct Context<'cfg> {
@@ -70,33 +71,36 @@ impl<'cfg> Context<'cfg> {
         &mut self,
         start: BasicBlockId,
         mut successors: impl Iterator<Item = BasicBlockId>,
-    ) -> BasicBlockId {
+    ) -> Result<BasicBlockId, InternalError> {
         let left = successors.next().unwrap();
         let right = successors.next().unwrap();
 
-        let left_join = self.find_join_point(left);
-        let right_join = self.find_join_point(right);
+        let left_join = self.find_join_point(left)?;
+        let right_join = self.find_join_point(right)?;
 
         assert_eq!(left_join, right_join, "Expected two blocks to join to the same block");
         self.branch_ends.insert(start, left_join);
 
-        left_join
+        Ok(left_join)
     }
 
-    fn find_join_point(&mut self, block: BasicBlockId) -> BasicBlockId {
-        let predecessors = self.cfg.predecessors(block);
+    fn find_join_point(&mut self, block: BasicBlockId) -> Result<BasicBlockId, InternalError> {
+        let predecessors = self.cfg.predecessors(block)?;
         if predecessors.len() > 1 {
-            return block;
+            return Ok(block);
         }
         // The join point is not this block, so continue on
         self.skip_then_find_join_point(block)
     }
 
-    fn skip_then_find_join_point(&mut self, block: BasicBlockId) -> BasicBlockId {
-        let mut successors = self.cfg.successors(block);
+    fn skip_then_find_join_point(
+        &mut self,
+        block: BasicBlockId,
+    ) -> Result<BasicBlockId, InternalError> {
+        let mut successors = self.cfg.successors(block)?;
 
         if successors.len() == 2 {
-            let join = self.find_join_point_of_branches(block, successors);
+            let join = self.find_join_point_of_branches(block, successors)?;
             // Note that we call skip_then_find_join_point here instead of find_join_point.
             // We already know this `join` is a join point, but it cannot be for the current block
             // since we already know it is the join point of the successors of the current block.
@@ -173,8 +177,8 @@ mod test {
 
         let mut ssa = builder.finish();
         let function = ssa.main_mut();
-        let cfg = ControlFlowGraph::with_function(function);
-        let branch_ends = find_branch_ends(function, &cfg);
+        let cfg = ControlFlowGraph::with_function(function).unwrap();
+        let branch_ends = find_branch_ends(function, &cfg).unwrap();
         assert_eq!(branch_ends.len(), 2);
         assert_eq!(branch_ends.get(&b1), Some(&b9));
         assert_eq!(branch_ends.get(&b4), Some(&b7));
@@ -257,7 +261,7 @@ mod test {
 
         let mut ssa = builder.finish();
         let function = ssa.main_mut();
-        let cfg = ControlFlowGraph::with_function(function);
-        find_branch_ends(function, &cfg);
+        let cfg = ControlFlowGraph::with_function(function).unwrap();
+        find_branch_ends(function, &cfg).unwrap();
     }
 }

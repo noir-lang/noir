@@ -6,6 +6,8 @@
 
 use std::{cmp::Ordering, collections::HashMap};
 
+use crate::errors::InternalError;
+
 use super::{
     basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
 };
@@ -120,10 +122,13 @@ impl DominatorTree {
 
     /// Allocate and compute a dominator tree from a pre-computed control flow graph and
     /// post-order counterpart.
-    pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
+    pub(crate) fn with_cfg_and_post_order(
+        cfg: &ControlFlowGraph,
+        post_order: &PostOrder,
+    ) -> Result<Self, InternalError> {
         let mut dom_tree = DominatorTree { nodes: HashMap::new(), cache: HashMap::new() };
-        dom_tree.compute_dominator_tree(cfg, post_order);
-        dom_tree
+        dom_tree.compute_dominator_tree(cfg, post_order)?;
+        Ok(dom_tree)
     }
 
     /// Allocate and compute a dominator tree for the given function.
@@ -131,15 +136,19 @@ impl DominatorTree {
     /// This approach computes the control flow graph and post-order internally and then
     /// discards them. If either should be retained reuse it is better to instead pre-compute them
     /// and build the dominator tree with `DominatorTree::with_cfg_and_post_order`.
-    pub(crate) fn with_function(func: &Function) -> Self {
-        let cfg = ControlFlowGraph::with_function(func);
+    pub(crate) fn with_function(func: &Function) -> Result<Self, InternalError> {
+        let cfg = ControlFlowGraph::with_function(func)?;
         let post_order = PostOrder::with_function(func);
         Self::with_cfg_and_post_order(&cfg, &post_order)
     }
 
     /// Build a dominator tree from a control flow graph using Keith D. Cooper's
     /// "Simple, Fast Dominator Algorithm."
-    fn compute_dominator_tree(&mut self, cfg: &ControlFlowGraph, post_order: &PostOrder) {
+    fn compute_dominator_tree(
+        &mut self,
+        cfg: &ControlFlowGraph,
+        post_order: &PostOrder,
+    ) -> Result<(), InternalError> {
         // We'll be iterating over a reverse post-order of the CFG, skipping the entry block.
         let (entry_block_id, entry_free_post_order) = post_order
             .as_slice()
@@ -158,7 +167,7 @@ impl DominatorTree {
 
             // Due to the nature of the post-order traversal, every node we visit will have at
             // least one predecessor that has previously been assigned during this loop.
-            let immediate_dominator = self.compute_immediate_dominator(block_id, cfg);
+            let immediate_dominator = self.compute_immediate_dominator(block_id, cfg)?;
             self.nodes.insert(
                 block_id,
                 DominatorTreeNode {
@@ -176,7 +185,7 @@ impl DominatorTree {
         while changed {
             changed = false;
             for &block_id in entry_free_post_order.iter().rev() {
-                let immediate_dominator = self.compute_immediate_dominator(block_id, cfg);
+                let immediate_dominator = self.compute_immediate_dominator(block_id, cfg)?;
                 changed = self
                     .nodes
                     .get_mut(&block_id)
@@ -184,6 +193,7 @@ impl DominatorTree {
                     .update_estimate(immediate_dominator);
             }
         }
+        Ok(())
     }
 
     // Compute the immediate dominator for `block_id` using the pre-calculate immediate dominators
@@ -192,11 +202,11 @@ impl DominatorTree {
         &self,
         block_id: BasicBlockId,
         cfg: &ControlFlowGraph,
-    ) -> BasicBlockId {
+    ) -> Result<BasicBlockId, InternalError> {
         // Get an iterator with just the reachable, already visited predecessors to `block_id`.
         // Note that during the first pass `node` was pre-populated with all reachable blocks.
         let mut reachable_predecessors =
-            cfg.predecessors(block_id).filter(|pred_id| self.nodes.contains_key(pred_id));
+            cfg.predecessors(block_id)?.filter(|pred_id| self.nodes.contains_key(pred_id));
 
         // This function isn't called on unreachable blocks or the entry block, so the reverse
         // post-order will contain at least one predecessor to this block.
@@ -207,7 +217,7 @@ impl DominatorTree {
             immediate_dominator = self.common_dominator(immediate_dominator, predecessor);
         }
 
-        immediate_dominator
+        Ok(immediate_dominator)
     }
 
     /// Compute the common dominator of two basic blocks.
@@ -266,7 +276,7 @@ mod tests {
             block0_id,
             TerminatorInstruction::Return { return_values: vec![] },
         );
-        let mut dom_tree = DominatorTree::with_function(&func);
+        let mut dom_tree = DominatorTree::with_function(&func).unwrap();
         assert!(dom_tree.dominates(block0_id, block0_id));
     }
 
@@ -303,7 +313,7 @@ mod tests {
         let func = ssa.main();
         let block0_id = func.entry_block();
 
-        let dt = DominatorTree::with_function(func);
+        let dt = DominatorTree::with_function(func).unwrap();
         (dt, block0_id, block1_id, block2_id, block3_id)
     }
 
@@ -407,7 +417,7 @@ mod tests {
         let func = ssa.main();
         let block0_id = func.entry_block();
 
-        let mut dt = DominatorTree::with_function(func);
+        let mut dt = DominatorTree::with_function(func).unwrap();
 
         // Expected dominance tree:
         // block0 {

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use crate::ssa_refactor::ir::instruction::SimplifyResult;
+use crate::{errors::InternalError, ssa_refactor::ir::instruction::SimplifyResult};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -137,10 +137,10 @@ impl DataFlowGraph {
         &mut self,
         instruction_data: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> InstructionId {
+    ) -> Result<InstructionId, InternalError> {
         let id = self.instructions.insert(instruction_data);
-        self.make_instruction_results(id, ctrl_typevars);
-        id
+        self.make_instruction_results(id, ctrl_typevars)?;
+        Ok(id)
     }
 
     /// Inserts a new instruction at the end of the given block and returns its results
@@ -150,21 +150,21 @@ impl DataFlowGraph {
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         location: Option<Location>,
-    ) -> InsertInstructionResult {
+    ) -> Result<InsertInstructionResult, InternalError> {
         use InsertInstructionResult::*;
         match instruction.simplify(self, block) {
-            SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
+            SimplifyResult::SimplifiedTo(simplification) => Ok(SimplifiedTo(simplification)),
             SimplifyResult::SimplifiedToMultiple(simplification) => {
-                SimplifiedToMultiple(simplification)
+                Ok(SimplifiedToMultiple(simplification))
             }
-            SimplifyResult::Remove => InstructionRemoved,
+            SimplifyResult::Remove => Ok(InstructionRemoved),
             SimplifyResult::None => {
-                let id = self.make_instruction(instruction, ctrl_typevars);
+                let id = self.make_instruction(instruction, ctrl_typevars)?;
                 self.blocks[block].insert_instruction(id);
                 if let Some(location) = location {
                     self.locations.insert(id, location);
                 }
-                InsertInstructionResult::Results(self.instruction_results(id))
+                Ok(InsertInstructionResult::Results(self.instruction_results(id)))
             }
         }
     }
@@ -189,16 +189,24 @@ impl DataFlowGraph {
     }
 
     /// Set the type of value_id to the target_type.
-    pub(crate) fn set_type_of_value(&mut self, value_id: ValueId, target_type: Type) {
+    pub(crate) fn set_type_of_value(
+        &mut self,
+        value_id: ValueId,
+        target_type: Type,
+    ) -> Result<(), InternalError> {
         let value = &mut self.values[value_id];
         match value {
             Value::Instruction { typ, .. }
             | Value::Param { typ, .. }
             | Value::NumericConstant { typ, .. } => {
                 *typ = target_type;
+                Ok(())
             }
             _ => {
-                unreachable!("ICE: Cannot set type of {:?}", value);
+                return Err(InternalError::General {
+                    message: format!("ICE: Cannot set type of {:?}", value),
+                    location: None,
+                });
             }
         }
     }
@@ -271,14 +279,15 @@ impl DataFlowGraph {
         &mut self,
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
-    ) {
+    ) -> Result<(), InternalError> {
         self.results.insert(instruction_id, Default::default());
 
         // Get all of the types that this instruction produces
         // and append them as results.
-        for typ in self.instruction_result_types(instruction_id, ctrl_typevars) {
+        for typ in self.instruction_result_types(instruction_id, ctrl_typevars)? {
             self.append_result(instruction_id, typ);
         }
+        Ok(())
     }
 
     /// Return the result types of this instruction.
@@ -293,15 +302,19 @@ impl DataFlowGraph {
         &self,
         instruction_id: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> Vec<Type> {
+    ) -> Result<Vec<Type>, InternalError> {
         let instruction = &self.instructions[instruction_id];
         match instruction.result_type() {
-            InstructionResultType::Known(typ) => vec![typ],
-            InstructionResultType::Operand(value) => vec![self.type_of_value(value)],
-            InstructionResultType::None => vec![],
-            InstructionResultType::Unknown => {
-                ctrl_typevars.expect("Control typevars required but not given")
-            }
+            InstructionResultType::Known(typ) => Ok(vec![typ]),
+            InstructionResultType::Operand(value) => Ok(vec![self.type_of_value(value)]),
+            InstructionResultType::None => Ok(vec![]),
+            InstructionResultType::Unknown => match ctrl_typevars {
+                Some(ctrl_typevar) => Ok(ctrl_typevar),
+                None => Err(InternalError::General {
+                    message: "Control typevars required but not given".to_string(),
+                    location: None,
+                }),
+            },
         }
     }
 
@@ -396,14 +409,19 @@ impl DataFlowGraph {
     /// The source block afterward will be left in a valid but emptied state. The
     /// destination block will also have its terminator overwritten with that of the
     /// source block.
-    pub(crate) fn inline_block(&mut self, source: BasicBlockId, destination: BasicBlockId) {
+    pub(crate) fn inline_block(
+        &mut self,
+        source: BasicBlockId,
+        destination: BasicBlockId,
+    ) -> Result<(), InternalError> {
         let source = &mut self.blocks[source];
         let mut instructions = std::mem::take(source.instructions_mut());
-        let terminator = source.take_terminator();
+        let terminator = source.take_terminator()?;
 
         let destination = &mut self.blocks[destination];
         destination.instructions_mut().append(&mut instructions);
         destination.set_terminator(terminator);
+        Ok(())
     }
 
     pub(crate) fn get_location(&self, id: &InstructionId) -> Option<Location> {
@@ -508,7 +526,7 @@ mod tests {
     fn make_instruction() {
         let mut dfg = DataFlowGraph::default();
         let ins = Instruction::Allocate;
-        let ins_id = dfg.make_instruction(ins, None);
+        let ins_id = dfg.make_instruction(ins, None).unwrap();
 
         let results = dfg.instruction_results(ins_id);
         assert_eq!(results.len(), 1);

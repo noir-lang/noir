@@ -3,12 +3,13 @@ use std::rc::Rc;
 use std::sync::{Mutex, RwLock};
 
 use acvm::FieldElement;
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::Signedness;
 
+use crate::errors::InternalError;
 use crate::ssa_refactor::ir::dfg::DataFlowGraph;
 use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::function::{Function, RuntimeType};
@@ -87,7 +88,7 @@ impl<'a> FunctionContext<'a> {
         parameters: &Parameters,
         runtime: RuntimeType,
         shared_context: &'a SharedContext,
-    ) -> Self {
+    ) -> Result<Self, InternalError> {
         let function_id = shared_context
             .pop_next_function_in_queue()
             .expect("No function in queue for the FunctionContext to compile")
@@ -95,8 +96,8 @@ impl<'a> FunctionContext<'a> {
 
         let builder = FunctionBuilder::new(function_name, function_id, runtime);
         let mut this = Self { definitions: HashMap::new(), builder, shared_context };
-        this.add_parameters_to_scope(parameters);
-        this
+        this.add_parameters_to_scope(parameters)?;
+        Ok(this)
     }
 
     /// Finish building the current function and switch to building a new function with the
@@ -104,24 +105,30 @@ impl<'a> FunctionContext<'a> {
     ///
     /// Note that the previous function cannot be resumed after calling this. Developers should
     /// avoid calling new_function until the previous function is completely finished with ssa-gen.
-    pub(super) fn new_function(&mut self, id: IrFunctionId, func: &ast::Function) {
+    pub(super) fn new_function(
+        &mut self,
+        id: IrFunctionId,
+        func: &ast::Function,
+    ) -> Result<(), InternalError> {
         self.definitions.clear();
         if func.unconstrained {
             self.builder.new_brillig_function(func.name.clone(), id);
         } else {
             self.builder.new_function(func.name.clone(), id);
         }
-        self.add_parameters_to_scope(&func.parameters);
+        self.add_parameters_to_scope(&func.parameters)?;
+        Ok(())
     }
 
     /// Add each parameter to the current scope, and return the list of parameter types.
     ///
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
-    fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
+    fn add_parameters_to_scope(&mut self, parameters: &Parameters) -> Result<(), InternalError> {
         for (id, mutable, _, typ) in parameters {
-            self.add_parameter_to_scope(*id, typ, *mutable);
+            self.add_parameter_to_scope(*id, typ, *mutable)?;
         }
+        Ok(())
     }
 
     /// Adds a "single" parameter to scope.
@@ -133,27 +140,31 @@ impl<'a> FunctionContext<'a> {
         parameter_id: LocalId,
         parameter_type: &ast::Type,
         mutable: bool,
-    ) {
+    ) -> Result<(), InternalError> {
         // Add a separate parameter for each field type in 'parameter_type'
-        let parameter_value = Self::map_type(parameter_type, |typ| {
+        let parameter_value = Self::try_map_type(parameter_type, |typ| {
             let value = self.builder.add_parameter(typ);
             if mutable {
                 self.new_mutable_variable(value)
             } else {
-                value.into()
+                Ok(value.into())
             }
-        });
+        })?;
 
         self.definitions.insert(parameter_id, parameter_value);
+        Ok(())
     }
 
     /// Allocate a single slot of memory and store into it the given initial value of the variable.
     /// Always returns a Value::Mutable wrapping the allocate instruction.
-    pub(super) fn new_mutable_variable(&mut self, value_to_store: ValueId) -> Value {
-        let alloc = self.builder.insert_allocate();
-        self.builder.insert_store(alloc, value_to_store);
+    pub(super) fn new_mutable_variable(
+        &mut self,
+        value_to_store: ValueId,
+    ) -> Result<Value, InternalError> {
+        let alloc = self.builder.insert_allocate()?;
+        self.builder.insert_store(alloc, value_to_store)?;
         let typ = self.builder.type_of_value(value_to_store);
-        Value::Mutable(alloc, typ)
+        Ok(Value::Mutable(alloc, typ))
     }
 
     /// Maps the given type to a Tree of the result type.
@@ -178,6 +189,37 @@ impl<'a> FunctionContext<'a> {
                 Self::map_type_helper(element, &mut |_| f(Type::Reference))
             }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
+        }
+    }
+
+    /// Maps the given type to a Tree of the result type.
+    ///
+    /// This can be used to (for example) flatten a tuple type, creating
+    /// and returning a new parameter for each field type.
+    pub(super) fn try_map_type<T, E>(
+        typ: &ast::Type,
+        mut f: impl FnMut(Type) -> Result<T, E>,
+    ) -> Result<Tree<T>, E> {
+        Self::try_map_type_helper(typ, &mut f)
+    }
+
+    // This helper is needed because we need to take f by mutable reference,
+    // otherwise we cannot move it multiple times each loop of vecmap.
+    fn try_map_type_helper<T, E>(
+        typ: &ast::Type,
+        f: &mut dyn FnMut(Type) -> Result<T, E>,
+    ) -> Result<Tree<T>, E> {
+        match typ {
+            ast::Type::Tuple(fields) => {
+                Ok(Tree::Branch(try_vecmap(fields, |field| Self::try_map_type_helper(field, f))?))
+            }
+            ast::Type::Unit => Ok(Tree::empty()),
+            // A mutable reference wraps each element into a reference.
+            // This can be multiple values if the element type is a tuple.
+            ast::Type::MutableReference(element) => {
+                Self::try_map_type_helper(element, &mut |_| f(Type::Reference))
+            }
+            other => Ok(Tree::Leaf(f(Self::convert_non_tuple_type(other))?)),
         }
     }
 
@@ -234,7 +276,7 @@ impl<'a> FunctionContext<'a> {
         operator: noirc_frontend::BinaryOpKind,
         mut rhs: ValueId,
         location: Location,
-    ) -> Values {
+    ) -> Result<Values, InternalError> {
         let op = convert_operator(operator);
 
         if op == BinaryOp::Eq && matches!(self.builder.type_of_value(lhs), Type::Array(..)) {
@@ -245,7 +287,7 @@ impl<'a> FunctionContext<'a> {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
-        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
+        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs)?;
 
         if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
             operator,
@@ -261,13 +303,13 @@ impl<'a> FunctionContext<'a> {
                     unreachable!("ICE: Truncation attempted on non-integer");
                 }
             };
-            result = self.builder.insert_truncate(result, bit_size, max_bit_size);
+            result = self.builder.insert_truncate(result, bit_size, max_bit_size)?;
         }
 
         if operator_requires_not(operator) {
-            result = self.builder.insert_not(result);
+            result = self.builder.insert_not(result)?;
         }
-        result.into()
+        Ok(result.into())
     }
 
     /// The frontend claims to support equality (==) on arrays, so we must support it in SSA here.
@@ -298,7 +340,7 @@ impl<'a> FunctionContext<'a> {
         operator: noirc_frontend::BinaryOpKind,
         rhs: ValueId,
         location: Location,
-    ) -> Values {
+    ) -> Result<Values, InternalError> {
         let lhs_type = self.builder.type_of_value(lhs);
         let rhs_type = self.builder.type_of_value(rhs);
 
@@ -323,9 +365,9 @@ impl<'a> FunctionContext<'a> {
         let loop_end = self.builder.insert_block();
 
         // pre-loop
-        let result_alloc = self.builder.set_location(location).insert_allocate();
+        let result_alloc = self.builder.set_location(location).insert_allocate()?;
         let true_value = self.builder.numeric_constant(1u128, Type::bool());
-        self.builder.insert_store(result_alloc, true_value);
+        self.builder.insert_store(result_alloc, true_value)?;
         let zero = self.builder.field_constant(0u128);
         self.builder.terminate_with_jmp(loop_start, vec![zero]);
 
@@ -333,29 +375,29 @@ impl<'a> FunctionContext<'a> {
         self.builder.switch_to_block(loop_start);
         let i = self.builder.add_block_parameter(loop_start, Type::field());
         let array_length = self.builder.field_constant(array_length as u128);
-        let v0 = self.builder.insert_binary(i, BinaryOp::Lt, array_length);
+        let v0 = self.builder.insert_binary(i, BinaryOp::Lt, array_length)?;
         self.builder.terminate_with_jmpif(v0, loop_body, loop_end);
 
         // loop body
         self.builder.switch_to_block(loop_body);
-        let v1 = self.builder.insert_array_get(lhs, i, element_type.clone());
-        let v2 = self.builder.insert_array_get(rhs, i, element_type);
-        let v3 = self.builder.insert_binary(v1, BinaryOp::Eq, v2);
-        let v4 = self.builder.insert_load(result_alloc, Type::bool());
-        let v5 = self.builder.insert_binary(v4, BinaryOp::And, v3);
-        self.builder.insert_store(result_alloc, v5);
+        let v1 = self.builder.insert_array_get(lhs, i, element_type.clone())?;
+        let v2 = self.builder.insert_array_get(rhs, i, element_type)?;
+        let v3 = self.builder.insert_binary(v1, BinaryOp::Eq, v2)?;
+        let v4 = self.builder.insert_load(result_alloc, Type::bool())?;
+        let v5 = self.builder.insert_binary(v4, BinaryOp::And, v3)?;
+        self.builder.insert_store(result_alloc, v5)?;
         let one = self.builder.field_constant(1u128);
-        let v6 = self.builder.insert_binary(i, BinaryOp::Add, one);
+        let v6 = self.builder.insert_binary(i, BinaryOp::Add, one)?;
         self.builder.terminate_with_jmp(loop_start, vec![v6]);
 
         // loop end
         self.builder.switch_to_block(loop_end);
-        let mut result = self.builder.insert_load(result_alloc, Type::bool());
+        let mut result = self.builder.insert_load(result_alloc, Type::bool())?;
 
         if operator_requires_not(operator) {
-            result = self.builder.insert_not(result);
+            result = self.builder.insert_not(result)?;
         }
-        result.into()
+        Ok(result.into())
     }
 
     /// Inserts a call instruction at the end of the current block and returns the results
@@ -369,10 +411,10 @@ impl<'a> FunctionContext<'a> {
         arguments: Vec<ValueId>,
         result_type: &ast::Type,
         location: Location,
-    ) -> Values {
+    ) -> Result<Values, InternalError> {
         let result_types = Self::convert_type(result_type).flatten();
         let results =
-            self.builder.set_location(location).insert_call(function, arguments, result_types);
+            self.builder.set_location(location).insert_call(function, arguments, result_types)?;
 
         let mut i = 0;
         let reshaped_return_values = Self::map_type(result_type, |_| {
@@ -381,16 +423,20 @@ impl<'a> FunctionContext<'a> {
             result
         });
         assert_eq!(i, results.len());
-        reshaped_return_values
+        Ok(reshaped_return_values)
     }
 
     /// Create a const offset of an address for an array load or store
-    pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
+    pub(super) fn make_offset(
+        &mut self,
+        mut address: ValueId,
+        offset: u128,
+    ) -> Result<ValueId, InternalError> {
         if offset != 0 {
             let offset = self.builder.field_constant(offset);
-            address = self.builder.insert_binary(address, BinaryOp::Add, offset);
+            address = self.builder.insert_binary(address, BinaryOp::Add, offset)?;
         }
-        address
+        Ok(address)
     }
 
     /// Define a local variable to be some Values that can later be retrieved
@@ -478,27 +524,34 @@ impl<'a> FunctionContext<'a> {
     /// This is operationally equivalent to extract_current_value_recursive, but splitting these
     /// into two separate functions avoids cloning the outermost `Values` returned by the recursive
     /// version, as it is only needed for recursion.
-    pub(super) fn extract_current_value(&mut self, lvalue: &ast::LValue) -> LValue {
+    pub(super) fn extract_current_value(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<LValue, InternalError> {
         match lvalue {
-            ast::LValue::Ident(ident) => LValue::Ident(self.ident_lvalue(ident)),
-            ast::LValue::Index { array, index, .. } => self.index_lvalue(array, index).2,
+            ast::LValue::Ident(ident) => Ok(LValue::Ident(self.ident_lvalue(ident))),
+            ast::LValue::Index { array, index, .. } => Ok(self.index_lvalue(array, index)?.2),
             ast::LValue::MemberAccess { object, field_index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
-                LValue::MemberAccess { old_object, object_lvalue, index: *field_index }
+                Ok(LValue::MemberAccess { old_object, object_lvalue, index: *field_index })
             }
             ast::LValue::Dereference { reference, .. } => {
-                let (reference, _) = self.extract_current_value_recursive(reference);
-                LValue::Dereference { reference }
+                let (reference, _) = self.extract_current_value_recursive(reference)?;
+                Ok(LValue::Dereference { reference })
             }
         }
     }
 
-    pub(super) fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+    pub(super) fn dereference(
+        &mut self,
+        values: &Values,
+        element_type: &ast::Type,
+    ) -> Result<Values, InternalError> {
         let element_types = Self::convert_type(element_type);
-        values.map_both(element_types, |value, element_type| {
-            let reference = value.eval(self);
-            self.builder.insert_load(reference, element_type).into()
+        values.try_map_both(element_types, |value, element_type| {
+            let reference = value.eval(self)?;
+            Ok(self.builder.insert_load(reference, element_type)?.into())
         })
     }
 
@@ -517,35 +570,39 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         array: &ast::LValue,
         index: &ast::Expression,
-    ) -> (ValueId, ValueId, LValue) {
-        let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
-        let old_array = old_array.into_leaf().eval(self);
+    ) -> Result<(ValueId, ValueId, LValue), InternalError> {
+        let (old_array, array_lvalue) = self.extract_current_value_recursive(array)?;
+        let old_array = old_array.into_leaf().eval(self)?;
         let array_lvalue = Box::new(array_lvalue);
-        let index = self.codegen_non_tuple_expression(index);
-        (old_array, index, LValue::Index { old_array, index, array_lvalue })
+        let index = self.codegen_non_tuple_expression(index)?;
+        Ok((old_array, index, LValue::Index { old_array, index, array_lvalue }))
     }
 
-    fn extract_current_value_recursive(&mut self, lvalue: &ast::LValue) -> (Values, LValue) {
+    fn extract_current_value_recursive(
+        &mut self,
+        lvalue: &ast::LValue,
+    ) -> Result<(Values, LValue), InternalError> {
         match lvalue {
             ast::LValue::Ident(ident) => {
                 let variable = self.ident_lvalue(ident);
-                (variable.clone(), LValue::Ident(variable))
+                Ok((variable.clone(), LValue::Ident(variable)))
             }
             ast::LValue::Index { array, index, element_type, location } => {
-                let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
-                let element = self.codegen_array_index(old_array, index, element_type, *location);
-                (element, index_lvalue)
+                let (old_array, index, index_lvalue) = self.index_lvalue(array, index)?;
+                let element =
+                    self.codegen_array_index(old_array, index, element_type, *location)?;
+                Ok((element, index_lvalue))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
-                let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
+                let (old_object, object_lvalue) = self.extract_current_value_recursive(object)?;
                 let object_lvalue = Box::new(object_lvalue);
                 let element = Self::get_field_ref(&old_object, *index).clone();
-                (element, LValue::MemberAccess { old_object, object_lvalue, index: *index })
+                Ok((element, LValue::MemberAccess { old_object, object_lvalue, index: *index }))
             }
             ast::LValue::Dereference { reference, element_type } => {
-                let (reference, _) = self.extract_current_value_recursive(reference);
-                let dereferenced = self.dereference(&reference, element_type);
-                (dereferenced, LValue::Dereference { reference })
+                let (reference, _) = self.extract_current_value_recursive(reference)?;
+                let dereferenced = self.dereference(&reference, element_type)?;
+                Ok((dereferenced, LValue::Dereference { reference }))
             }
         }
     }
@@ -555,30 +612,38 @@ impl<'a> FunctionContext<'a> {
     /// This method recurs on the given LValue to create a new value to assign an allocation
     /// instruction within an LValue::Ident or LValue::Dereference - see the comment on
     /// `extract_current_value` for more details.
-    pub(super) fn assign_new_value(&mut self, lvalue: LValue, new_value: Values) {
+    pub(super) fn assign_new_value(
+        &mut self,
+        lvalue: LValue,
+        new_value: Values,
+    ) -> Result<(), InternalError> {
         match lvalue {
             LValue::Ident(references) => self.assign(references, new_value),
             LValue::Index { old_array: mut array, index, array_lvalue } => {
                 let element_size = self.builder.field_constant(self.element_size(array));
 
                 // The actual base index is the user's index * the array element type's size
-                let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
+                let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size)?;
                 let one = self.builder.field_constant(FieldElement::one());
 
-                new_value.for_each(|value| {
-                    let value = value.eval(self);
-                    array = self.builder.insert_array_set(array, index, value);
-                    index = self.builder.insert_binary(index, BinaryOp::Add, one);
-                });
+                new_value.try_for_each(|value| {
+                    let value = value.eval(self)?;
+                    array = self.builder.insert_array_set(array, index, value)?;
+                    index = self.builder.insert_binary(index, BinaryOp::Add, one)?;
+                    Ok::<(), InternalError>(())
+                })?;
 
-                self.assign_new_value(*array_lvalue, array.into());
+                self.assign_new_value(*array_lvalue, array.into())?;
+                Ok(())
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
                 let new_object = Self::replace_field(old_object, index, new_value);
-                self.assign_new_value(*object_lvalue, new_object);
+                self.assign_new_value(*object_lvalue, new_object)?;
+                Ok(())
             }
             LValue::Dereference { reference } => {
-                self.assign(reference, new_value);
+                self.assign(reference, new_value)?;
+                Ok(())
             }
         }
     }
@@ -592,18 +657,20 @@ impl<'a> FunctionContext<'a> {
 
     /// Given an lhs containing only references, create a store instruction to store each value of
     /// rhs into its corresponding value in lhs.
-    fn assign(&mut self, lhs: Values, rhs: Values) {
+    fn assign(&mut self, lhs: Values, rhs: Values) -> Result<(), InternalError> {
         match (lhs, rhs) {
             (Tree::Branch(lhs_branches), Tree::Branch(rhs_branches)) => {
                 assert_eq!(lhs_branches.len(), rhs_branches.len());
 
                 for (lhs, rhs) in lhs_branches.into_iter().zip(rhs_branches) {
-                    self.assign(lhs, rhs);
+                    self.assign(lhs, rhs)?;
                 }
+                Ok(())
             }
             (Tree::Leaf(lhs), Tree::Leaf(rhs)) => {
-                let (lhs, rhs) = (lhs.eval_reference(), rhs.eval(self));
-                self.builder.insert_store(lhs, rhs);
+                let (lhs, rhs) = (lhs.eval_reference(), rhs.eval(self)?);
+                self.builder.insert_store(lhs, rhs)?;
+                Ok(())
             }
             (lhs, rhs) => {
                 unreachable!(
