@@ -7,7 +7,7 @@ use clap::Args;
 use fm::FileId;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
+use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -22,11 +22,14 @@ mod program;
 pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
 pub use program::CompiledProgram;
 
-#[derive(Args, Clone, Debug, Serialize, Deserialize)]
+#[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
     #[arg(short, long)]
     pub show_ssa: bool,
+
+    #[arg(long)]
+    pub show_brillig: bool,
 
     /// Display the ACIR for compiled circuit
     #[arg(long)]
@@ -35,26 +38,6 @@ pub struct CompileOptions {
     /// Treat all warnings as errors
     #[arg(short, long)]
     pub deny_warnings: bool,
-
-    /// Display output of `println` statements
-    #[arg(long)]
-    pub show_output: bool,
-
-    /// Compile and optimize using the new experimental SSA pass
-    #[arg(long)]
-    pub experimental_ssa: bool,
-}
-
-impl Default for CompileOptions {
-    fn default() -> Self {
-        Self {
-            show_ssa: false,
-            print_acir: false,
-            deny_warnings: false,
-            show_output: true,
-            experimental_ssa: false,
-        }
-    }
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -105,8 +88,8 @@ pub fn create_non_local_crate(
 
 /// Adds a edge in the crate graph for two crates
 pub fn add_dep(context: &mut Context, this_crate: CrateId, depends_on: CrateId, crate_name: &str) {
-    let crate_name = CrateName::new(crate_name)
-        .expect("crate name contains blacklisted characters, please remove");
+    let crate_name =
+        crate_name.parse().expect("crate name contains blacklisted characters, please remove");
 
     // Cannot depend on a binary
     if context.crate_graph.crate_type(depends_on) == CrateType::Binary {
@@ -144,7 +127,6 @@ pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
-    enable_slices: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
     // Add the stdlib before we check the crate
     // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
@@ -157,9 +139,7 @@ pub fn check_crate(
     // You can add any crate type to the crate graph
     // but you cannot depend on Binaries
     let std_crate = context.crate_graph.add_stdlib(CrateType::Library, root_file_id);
-    propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
-
-    context.def_interner.enable_slices = enable_slices;
+    propagate_dep(context, std_crate, &std_crate_name.parse().unwrap());
 
     let mut errors = vec![];
     match context.crate_graph.crate_type(crate_id) {
@@ -199,7 +179,7 @@ pub fn compile_main(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, crate_id, options.deny_warnings, options.experimental_ssa)?;
+    let warnings = check_crate(context, crate_id, options.deny_warnings)?;
 
     let main = match context.get_main_function(&crate_id) {
         Some(m) => m,
@@ -212,10 +192,10 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, options, main)?;
+    let compiled_program = compile_no_check(context, true, options, main)?;
 
     if options.print_acir {
-        println!("Compiled ACIR for main:");
+        println!("Compiled ACIR for main (unoptimized):");
         println!("{}", compiled_program.circuit);
     }
 
@@ -228,7 +208,7 @@ pub fn compile_contracts(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, crate_id, options.deny_warnings, options.experimental_ssa)?;
+    let warnings = check_crate(context, crate_id, options.deny_warnings)?;
 
     let contracts = context.get_all_contracts(&crate_id);
     let mut compiled_contracts = vec![];
@@ -248,7 +228,7 @@ pub fn compile_contracts(
             for compiled_contract in &compiled_contracts {
                 for contract_function in &compiled_contract.functions {
                     println!(
-                        "Compiled ACIR for {}::{}:",
+                        "Compiled ACIR for {}::{} (unoptimized):",
                         compiled_contract.name, contract_function.name
                     );
                     println!("{}", contract_function.bytecode);
@@ -279,7 +259,7 @@ fn compile_contract(
     let mut errs = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, options, *function_id) {
+        let function = match compile_no_check(context, true, options, *function_id) {
             Ok(function) => function,
             Err(err) => {
                 errs.push(err);
@@ -316,16 +296,14 @@ fn compile_contract(
 #[allow(deprecated)]
 pub fn compile_no_check(
     context: &Context,
+    show_output: bool,
     options: &CompileOptions,
     main_function: FuncId,
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) = if options.experimental_ssa {
-        experimental_create_circuit(program, options.show_ssa, options.show_output)?
-    } else {
-        create_circuit(program, options.show_ssa, options.show_output)?
-    };
+    let (circuit, debug, abi) =
+        create_circuit(program, options.show_ssa, options.show_brillig, show_output)?;
 
     Ok(CompiledProgram { circuit, debug, abi })
 }

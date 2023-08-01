@@ -4,6 +4,8 @@
 // This version is also simpler due to not having macro_defs or proc_macros
 // XXX: Edition may be reintroduced or some sort of versioning
 
+use std::str::FromStr;
+
 use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
@@ -27,38 +29,32 @@ impl CrateId {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CrateName(SmolStr);
 
-impl CrateName {
-    /// Creates a new CrateName rejecting any crate name that
-    /// has a character on the blacklist.
-    /// The difference between RA and this implementation is that
-    /// characters on the blacklist are never allowed; there is no normalization.
-    pub fn new(name: &str) -> Result<CrateName, &str> {
+impl From<CrateName> for String {
+    fn from(crate_name: CrateName) -> Self {
+        crate_name.0.into()
+    }
+}
+
+/// Creates a new CrateName rejecting any crate name that
+/// has a character on the blacklist.
+/// The difference between RA and this implementation is that
+/// characters on the blacklist are never allowed; there is no normalization.
+impl FromStr for CrateName {
+    type Err = String;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
         let is_invalid = name.chars().any(|n| CHARACTER_BLACK_LIST.contains(&n));
         if is_invalid {
-            Err(name)
+            Err(name.into())
         } else {
             Ok(Self(SmolStr::new(name)))
         }
-    }
-
-    pub fn as_string(&self) -> String {
-        self.0.clone().into()
     }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CrateGraph {
     arena: FxHashMap<CrateId, CrateData>,
-}
-
-impl CrateGraph {
-    pub fn is_last_crate(&self, crate_id: CrateId) -> bool {
-        match crate_id {
-            CrateId::Crate(crate_id) | CrateId::Stdlib(crate_id) => {
-                (self.arena.len() - 1) == crate_id
-            }
-        }
-    }
 }
 
 /// List of characters that are not allowed in a crate name
@@ -90,7 +86,7 @@ pub struct Dependency {
 
 impl Dependency {
     pub fn as_name(&self) -> String {
-        self.name.as_string()
+        self.name.clone().into()
     }
 }
 
@@ -222,7 +218,7 @@ pub struct CyclicDependenciesError {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{CrateGraph, CrateName, CrateType, FileId};
+    use super::{CrateGraph, CrateType, FileId};
 
     fn dummy_file_ids(n: usize) -> Vec<FileId> {
         use fm::{FileMap, FILE_EXTENSION};
@@ -248,9 +244,9 @@ mod tests {
         let crate2 = graph.add_crate_root(CrateType::Library, file_ids[1]);
         let crate3 = graph.add_crate_root(CrateType::Library, file_ids[2]);
 
-        assert!(graph.add_dep(crate1, CrateName::new("crate2").unwrap(), crate2).is_ok());
-        assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
-        assert!(graph.add_dep(crate3, CrateName::new("crate1").unwrap(), crate1).is_err());
+        assert!(graph.add_dep(crate1, "crate2".parse().unwrap(), crate2).is_ok());
+        assert!(graph.add_dep(crate2, "crate3".parse().unwrap(), crate3).is_ok());
+        assert!(graph.add_dep(crate3, "crate1".parse().unwrap(), crate1).is_err());
     }
 
     #[test]
@@ -263,8 +259,8 @@ mod tests {
         let crate1 = graph.add_crate_root(CrateType::Library, file_id_0);
         let crate2 = graph.add_crate_root(CrateType::Library, file_id_1);
         let crate3 = graph.add_crate_root(CrateType::Library, file_id_2);
-        assert!(graph.add_dep(crate1, CrateName::new("crate2").unwrap(), crate2).is_ok());
-        assert!(graph.add_dep(crate2, CrateName::new("crate3").unwrap(), crate3).is_ok());
+        assert!(graph.add_dep(crate1, "crate2".parse().unwrap(), crate2).is_ok());
+        assert!(graph.add_dep(crate2, "crate3".parse().unwrap(), crate3).is_ok());
     }
     #[test]
     fn it_works2() {

@@ -1,0 +1,6 @@
+[package]
+name = "brillig_sha256"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

@@ -1,6 +1,0 @@
-[package]
-name = "ECDSA secp256r1 verification"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

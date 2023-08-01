@@ -88,12 +88,15 @@ fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
 }
 
 
-fn foo(a: [Field]) -> [Field] {
+
+fn foo<N>(a: [Field; N]) -> [Field; N] {
     a
 }
-fn bar() -> [Field] {
+
+fn bar() -> [Field; 1] {
     foo([0])
 }
+
 fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {  
     let mut ss: my_struct = my_struct { b: x, a: x+2, };
     test_multiple4(ss);
@@ -133,7 +136,6 @@ fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
     let result = first(arr_to_field(arr1), arr_to_field(arr2));
     assert(result[0] == arr1[0] as Field);
 }
-
 
 // Issue #628
 fn arr_to_field(arr: [u32; 9]) -> [Field; 9] {
