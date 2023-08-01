@@ -322,6 +322,7 @@ pub enum Attribute {
     Foreign(String),
     Builtin(String),
     Oracle(String),
+    Deprecated(Option<String>),
     Test,
 }
 
@@ -332,6 +333,8 @@ impl fmt::Display for Attribute {
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
             Attribute::Test => write!(f, "#[test]"),
+            Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
+            Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
         }
     }
 }
@@ -345,29 +348,52 @@ impl Attribute {
             .filter(|string_segment| !string_segment.is_empty())
             .collect();
 
-        if word_segments.len() != 2 {
-            if word_segments.len() == 1 && word_segments[0] == "test" {
-                return Ok(Token::Attribute(Attribute::Test));
-            } else {
-                return Err(LexerErrorKind::MalformedFuncAttribute {
-                    span,
-                    found: word.to_owned(),
-                });
+        let validate = |slice: &str| {
+            let is_valid = slice
+                .chars()
+                .all(|ch| {
+                    ch.is_ascii_alphabetic()
+                        || ch.is_numeric()
+                        || ch == '_'
+                        || ch == '('
+                        || ch == ')'
+                })
+                .then_some(());
+
+            is_valid.ok_or(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
+        };
+
+        let attribute = match &word_segments[..] {
+            ["foreign", name] => {
+                validate(name)?;
+                Attribute::Foreign(name.to_string())
             }
-        }
+            ["builtin", name] => {
+                validate(name)?;
+                Attribute::Builtin(name.to_string())
+            }
+            ["oracle", name] => {
+                validate(name)?;
+                Attribute::Oracle(name.to_string())
+            }
+            ["deprecated"] => Attribute::Deprecated(None),
+            ["deprecated", name] => {
+                if !name.starts_with('"') && !name.ends_with('"') {
+                    return Err(LexerErrorKind::MalformedFuncAttribute {
+                        span,
+                        found: word.to_owned(),
+                    });
+                }
 
-        let attribute_type = word_segments[0];
-        let attribute_name = word_segments[1];
-
-        let tok = match attribute_type {
-            "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
-            "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
-            "oracle" => Token::Attribute(Attribute::Oracle(attribute_name.to_string())),
+                Attribute::Deprecated(name.trim_matches('"').to_string().into())
+            }
+            ["test"] => Attribute::Test,
             _ => {
                 return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
             }
         };
-        Ok(tok)
+
+        Ok(Token::Attribute(attribute))
     }
 
     pub fn builtin(self) -> Option<String> {
@@ -399,7 +425,8 @@ impl AsRef<str> for Attribute {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
             Attribute::Oracle(string) => string,
-            Attribute::Test => "",
+            Attribute::Deprecated(Some(string)) => string,
+            Attribute::Test | Attribute::Deprecated(None) => "",
         }
     }
 }

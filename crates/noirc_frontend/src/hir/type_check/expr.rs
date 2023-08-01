@@ -10,13 +10,32 @@ use crate::{
         },
         types::Type,
     },
-    node_interner::{ExprId, FuncId},
+    node_interner::{DefinitionKind, ExprId, FuncId},
+    token::Attribute::Deprecated,
     CompTime, Shared, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
+    fn check_if_deprecated(&mut self, expr: &ExprId) {
+        if let HirExpression::Ident(expr::HirIdent { location, id }) =
+            self.interner.expression(expr)
+        {
+            if let Some(DefinitionKind::Function(func_id)) =
+                self.interner.try_definition(id).map(|def| &def.kind)
+            {
+                let meta = self.interner.function_meta(func_id);
+                if let Some(Deprecated(note)) = meta.attributes {
+                    self.errors.push(TypeCheckError::CallDeprecated {
+                        name: self.interner.definition_name(id).to_string(),
+                        note,
+                        span: location.span,
+                    });
+                }
+            }
+        }
+    }
     /// Infers a type for a given expression, and return this type.
     /// As a side-effect, this function will also remember this type in the NodeInterner
     /// for the given expr_id key.
@@ -112,6 +131,8 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::Index(index_expr) => self.check_index_expression(index_expr),
             HirExpression::Call(call_expr) => {
+                self.check_if_deprecated(&call_expr.func);
+
                 let function = self.check_expression(&call_expr.func);
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
