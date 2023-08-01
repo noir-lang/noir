@@ -55,31 +55,6 @@ checkout: &checkout
       # Initialize submodules recursively (retry 10 times on failure)
       retry_10 git submodule update --init --recursive
 
-# This build step checks out the code from the benchmark-archive repository. The key is saved in CircleCi environment in base64 format.
-# Initially it just fetches the latest version.
-benchmark_archive_setup: &benchmark_archive_setup
-  run:
-    name: "Add keys for getting the benchmark archive"
-    command: |
-      cd $HOME
-      mkdir -p .ssh
-      chmod 0700 .ssh
-      ssh-keyscan -t rsa github.com >> .ssh/known_hosts
-
-      # A read-write key for updating the repository.
-      echo "$GITHUB_BENCMARK_REPOSITORY_SSH_KEY" | base64 -d > .ssh/id_ed25519
-
-      # This allows github to discern wich key to use.
-      echo "Host github.com
-        Hostname github.com
-        IdentityFile=/root/.ssh/id_rsa
-
-      Host github.com-logs
-        Hostname github.com
-        IdentityFile=/root/.ssh/id_ed25519" > .ssh/config
-
-      chmod 0600 .ssh/id_ed25519
-      ssh-add .ssh/id_ed25519
 # Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
 # It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
 # the build process. This enables easy running of the build system external to CCI, as used for powerful EC2 builds.
@@ -256,10 +231,9 @@ jobs:
           at: /tmp/test-logs
       - *checkout
       - *setup_env
-      - *benchmark_archive_setup
       - run:
           name: "Test"
-          command: store_test_benchmark_logs barretenberg-x86_64-linux-clang-assert
+          command: ./scripts/ci/store_test_benchmark_logs $AZTEC_GITHUB_TOKEN
 
   bb-js:
     machine:
@@ -1053,8 +1027,7 @@ workflows:
           filters:
             branches:
               only:
-                - DISABLED_FIXME # master # TODO(AD): See #1174
-          <<: *defaults
+                - master
           <<: *defaults
       - bb-js:
           requires:

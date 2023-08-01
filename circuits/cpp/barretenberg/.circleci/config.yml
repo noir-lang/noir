@@ -47,32 +47,6 @@ checkout: &checkout
       # Initialize submodules recursively
       git submodule update --init --recursive
 
-# This build step checks out the code from the benchmark-archive repository. The key is saved in CircleCi environment in base64 format.
-# Initially it just fetches the latest version.
-benchmark_add_keys: &benchmark_add_keys
-  run:
-    name: "Add keys for getting the benchmark archive"
-    command: |
-      cd $HOME
-      mkdir -p .ssh
-      chmod 0700 .ssh
-      ssh-keyscan -t rsa github.com >> .ssh/known_hosts
-
-      # A read-write key for updating the repository.
-      echo "$GITHUB_BENCMARK_REPOSITORY_SSH_KEY" | base64 -d > .ssh/id_ed25519
-
-      # This allows github to discern wich key to use.
-      echo "Host github.com
-        Hostname github.com
-        IdentityFile=/root/.ssh/id_rsa
-
-      Host github.com-logs
-        Hostname github.com
-        IdentityFile=/root/.ssh/id_ed25519" > .ssh/config
-
-      chmod 0600 .ssh/id_ed25519
-      ssh-add .ssh/id_ed25519
-
 # Called setup_env to setup a bunch of global variables used throughout the rest of the build process.
 # It takes the required CCI environment variables as inputs, and gives them normalised names for the rest of
 # the build process. This enables easy running of the build system external to CCI, as used for powerful EC2 builds.
@@ -119,6 +93,7 @@ setup_aztec_commit: &setup_aztec_commit
       source "$BASH_ENV"
 
 # This step is used to save logs from various barretenberg test to the workspace so that they can be used later to parse benchmark values out of them
+# NOTE(AD): This is now obsolete as benchmarking has been moved to aztec-packages repo. Another pass may simplify this.
 save_logs: &save_logs
   persist_to_workspace:
     root: /tmp/test-logs
@@ -277,20 +252,6 @@ jobs:
   #         name: "Test"
   #         command: cond_spot_run_test_script ./scripts/bin-test.sh barretenberg-x86_64-linux-clang-assert
 
-  benchmark-aggregator:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - attach_workspace:
-          at: /tmp/test-logs
-      - *checkout
-      - *setup_env
-      - *benchmark_add_keys
-      - run:
-          name: "Test"
-          command: store_test_benchmark_logs barretenberg-x86_64-linux-clang-assert
-
   bb-js:
     machine:
       image: ubuntu-2004:202010-01
@@ -440,18 +401,6 @@ workflows:
       - stdlib-recursion-ultra-tests: *bb_test
       - join-split-tests: *bb_test
       # - bb-bin-tests: *bb_test
-      - benchmark-aggregator:
-          requires:
-            - barretenberg-tests
-            - stdlib-tests
-            - stdlib-recursion-turbo-tests
-            - stdlib-recursion-ultra-tests
-            - join-split-tests
-          filters:
-            branches:
-              only:
-                - master
-          <<: *defaults
       - bb-js:
           requires:
             - wasm-linux-clang
