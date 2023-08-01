@@ -996,6 +996,19 @@ impl Context {
 
                 Ok(Self::convert_vars_to_values(out_vars, dfg, result_ids))
             }
+            Intrinsic::ArrayLen => {
+                let argument = arguments.first().expect("arraylen must have one argument");
+                let value = self.convert_value(dfg.resolve(*argument), dfg);
+                let len = match value {
+                    AcirValue::Var(_, _) => unreachable!("ICE - expected an array"),
+                    AcirValue::Array(values) => values.len(),
+                    AcirValue::DynamicArray(array) => array.len,
+                };
+                Ok(vec![AcirValue::Var(
+                    self.acir_context.add_constant(FieldElement::from(len as u128)),
+                    AcirType::NumericType(NumericType::NativeField),
+                )])
+            }
             _ => todo!("expected a black box function"),
         }
     }
