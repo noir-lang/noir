@@ -138,10 +138,10 @@ impl<T> Option<T> {
             if predicate(self.value) {
                 self
             } else {
-                None
+                Option::none()
             }
         } else {
-            None
+            Option::none()
         }
     }
 
@@ -151,7 +151,7 @@ impl<T> Option<T> {
         if option._is_some {
             option.value
         } else {
-            None
+            Option::none()
         }
     }
 }
