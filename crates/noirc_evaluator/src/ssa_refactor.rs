@@ -35,7 +35,6 @@ pub mod ssa_gen;
 /// convert the final SSA into ACIR and return it.
 pub(crate) fn optimize_into_acir(
     program: Program,
-    allow_log_ops: bool,
     print_ssa_passes: bool,
     print_brillig_trace: bool,
 ) -> Result<GeneratedAcir, RuntimeError> {
@@ -63,7 +62,7 @@ pub(crate) fn optimize_into_acir(
             .dead_instruction_elimination()
             .print(print_ssa_passes, "After Dead Instruction Elimination:");
     }
-    ssa.into_acir(brillig, abi_distinctness, allow_log_ops)
+    ssa.into_acir(brillig, abi_distinctness)
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
@@ -74,7 +73,6 @@ pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
-    show_output: bool,
 ) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
     let GeneratedAcir {
@@ -84,7 +82,7 @@ pub fn create_circuit(
         locations,
         input_witnesses,
         ..
-    } = optimize_into_acir(program, show_output, enable_ssa_logging, enable_brillig_logging)?;
+    } = optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
 
     let abi = gen_abi(func_sig, &input_witnesses, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();

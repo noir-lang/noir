@@ -33,6 +33,7 @@ fn test_prints_strings() {
 
     std::println(message);
     std::println("goodbye world");
+    assert(false);
 }
 
 #[test]

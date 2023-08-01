@@ -10,6 +10,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
     _backend: &B,
     circuit: Circuit,
     initial_witness: WitnessMap,
+    show_output: bool,
 ) -> Result<WitnessMap, NargoError> {
     let mut acvm = ACVM::new(B::default(), circuit.opcodes, initial_witness);
 
@@ -23,7 +24,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
             }
             ACVMStatus::Failure(error) => return Err(error.into()),
             ACVMStatus::RequiresForeignCall(foreign_call) => {
-                let foreign_call_result = ForeignCall::execute(&foreign_call)?;
+                let foreign_call_result = ForeignCall::execute(&foreign_call, show_output)?;
                 acvm.resolve_pending_foreign_call(foreign_call_result);
             }
         }

@@ -827,19 +827,6 @@ impl AcirContext {
         self.radix_decompose(endian, input_var, two_var, limb_count_var, result_element_type)
     }
 
-    /// Prints the given `AcirVar`s as witnesses.
-    pub(crate) fn print(&mut self, input: Vec<AcirValue>) -> Result<(), RuntimeError> {
-        let input = Self::flatten_values(input);
-
-        let witnesses = vecmap(input, |acir_var| {
-            let var_data = &self.vars[&acir_var];
-            let expr = var_data.to_expression();
-            self.acir_ir.get_or_create_witness(&expr)
-        });
-        self.acir_ir.call_print(witnesses);
-        Ok(())
-    }
-
     /// Flatten the given Vector of AcirValues into a single vector of only variables.
     /// Each AcirValue::Array in the vector is recursively flattened, so each element
     /// will flattened into the resulting Vec. E.g. flatten_values([1, [2, 3]) == [1, 2, 3].
