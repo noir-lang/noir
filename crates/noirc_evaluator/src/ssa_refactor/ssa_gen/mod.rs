@@ -128,14 +128,13 @@ impl<'a> FunctionContext<'a> {
             ast::Literal::FmtStr(string, number_of_fields, fields) => {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
-                let fmt_str_tuple = &[
-                    Expression::Literal(ast::Literal::Str(string.clone())),
-                    Expression::Literal(ast::Literal::Integer(
-                        (*number_of_fields as u128).into(),
-                        ast::Type::Field,
-                    )),
-                    *fields.clone(),
-                ];
+                let string = Expression::Literal(ast::Literal::Str(string.clone()));
+                let number_of_fields = Expression::Literal(ast::Literal::Integer(
+                    (*number_of_fields as u128).into(),
+                    ast::Type::Field,
+                ));
+                let fields = *fields.clone();
+                let fmt_str_tuple = &[string, number_of_fields, fields];
                 self.codegen_tuple(fmt_str_tuple)
             }
         }
