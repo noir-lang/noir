@@ -96,8 +96,10 @@ impl AstPrinter {
             super::ast::Literal::Integer(x, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
-            super::ast::Literal::FmtStr(_, _, fields) => {
+            super::ast::Literal::FmtStr(s, _, fields) => {
                 write!(f, "fmtstr<")?;
+                s.fmt(f)?;
+                write!(f, ", ")?;
                 self.print_expr(fields, f)?;
                 write!(f, ">")
             }
