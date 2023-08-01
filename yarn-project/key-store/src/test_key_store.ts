@@ -1,5 +1,5 @@
 import { PrivateKey } from '@aztec/circuits.js';
-import { Curve } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { KeyPair, KeyStore, PublicKey } from '@aztec/types';
 
 import { ConstantKeyPair } from './key_pair.js';
@@ -10,7 +10,7 @@ import { ConstantKeyPair } from './key_pair.js';
  */
 export class TestKeyStore implements KeyStore {
   private accounts: KeyPair[] = [];
-  constructor(private curve: Curve) {}
+  constructor(private curve: Grumpkin) {}
 
   /**
    * Adds an account to the key store from the provided private key.

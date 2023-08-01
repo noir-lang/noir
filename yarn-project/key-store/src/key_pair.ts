@@ -1,5 +1,5 @@
 import { PrivateKey } from '@aztec/circuits.js';
-import { Curve } from '@aztec/circuits.js/barretenberg';
+import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { KeyPair, PublicKey } from '@aztec/types';
 
 /**
@@ -15,7 +15,7 @@ export class ConstantKeyPair implements KeyPair {
    * @param curve - The curve used for elliptic curve cryptography operations.
    * @returns A randomly generated ConstantKeyPair instance.
    */
-  public static random(curve: Curve) {
+  public static random(curve: Grumpkin) {
     const privateKey = PrivateKey.random();
     const publicKey = curve.mul(curve.generator(), privateKey);
     return new ConstantKeyPair(publicKey, privateKey);
@@ -28,7 +28,7 @@ export class ConstantKeyPair implements KeyPair {
    * @param privateKey - The private key.
    * @returns A new instance.
    */
-  public static fromPrivateKey(curve: Curve, privateKey: PrivateKey) {
+  public static fromPrivateKey(curve: Grumpkin, privateKey: PrivateKey) {
     const publicKey = curve.mul(curve.generator(), privateKey);
     return new ConstantKeyPair(publicKey, privateKey);
   }

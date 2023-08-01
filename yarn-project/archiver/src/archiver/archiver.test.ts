@@ -1,5 +1,4 @@
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { randomBytes } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { sleep } from '@aztec/foundation/sleep';
@@ -192,8 +191,8 @@ function makeL1ToL2MessageAddedEvents(l1BlockNum: bigint, entryKeys: string[]) {
         senderChainId: 1n,
         recipient: AztecAddress.random().toString(),
         recipientVersion: 1n,
-        content: '0x' + randomBytes(32).toString('hex'),
-        secretHash: '0x' + randomBytes(32).toString('hex'),
+        content: Fr.random().toString(true),
+        secretHash: Fr.random().toString(true),
         deadline: 100,
         fee: 1n,
         entryKey: entryKey,

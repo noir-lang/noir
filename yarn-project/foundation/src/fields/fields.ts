@@ -21,9 +21,9 @@ export class Fr {
 
   constructor(value: bigint | number) {
     this.value = BigInt(value);
-    // if (value > Fr.MAX_VALUE) {
-    //   throw new Error(`Fr out of range ${value}.`);
-    // }
+    if (value > Fr.MAX_VALUE) {
+      throw new Error(`Fr out of range ${value}.`);
+    }
   }
 
   /**
@@ -171,7 +171,7 @@ export class Fq {
     public readonly value: bigint,
   ) {
     if (value > Fq.MAX_VALUE) {
-      throw new Error(`Fr out of range ${value}.`);
+      throw new Error(`Fq out of range ${value}.`);
     }
   }
 

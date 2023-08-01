@@ -4,7 +4,7 @@ import { IWasmModule } from '@aztec/foundation/wasm';
 
 import { secp256k1 } from '@noble/curves/secp256k1';
 
-import { CircuitsWasm, Point, PrivateKey, PublicKey } from '../../../index.js';
+import { CircuitsWasm, PrivateKey } from '../../../index.js';
 import { Signer } from '../index.js';
 import { EcdsaSignature } from './signature.js';
 
@@ -29,10 +29,10 @@ export class Ecdsa implements Signer {
    * @param privateKey - Secp256k1 private key.
    * @returns A secp256k1 public key.
    */
-  public computePublicKey(privateKey: PrivateKey): PublicKey {
+  public computePublicKey(privateKey: PrivateKey): Buffer {
     this.wasm.writeMemory(0, privateKey.value);
     this.wasm.call('ecdsa__compute_public_key', 0, 32);
-    return Point.fromBuffer(Buffer.from(this.wasm.getMemorySlice(32, 96)));
+    return Buffer.from(this.wasm.getMemorySlice(32, 96));
   }
 
   /**
@@ -68,7 +68,7 @@ export class Ecdsa implements Signer {
    * @param sig - The ECDSA signature.
    * @returns The secp256k1 public key of the signer.
    */
-  public recoverPublicKey(msg: Uint8Array, sig: EcdsaSignature): PublicKey {
+  public recoverPublicKey(msg: Uint8Array, sig: EcdsaSignature): Buffer {
     const mem = this.wasm.call('bbmalloc', msg.length);
     this.wasm.writeMemory(0, sig.r);
     this.wasm.writeMemory(32, sig.s);
@@ -76,7 +76,7 @@ export class Ecdsa implements Signer {
     this.wasm.writeMemory(mem, msg);
     this.wasm.call('ecdsa__recover_public_key_from_signature', mem, msg.length, 0, 32, 64, 65);
 
-    return Point.fromBuffer(Buffer.from(this.wasm.getMemorySlice(65, 129)));
+    return Buffer.from(this.wasm.getMemorySlice(65, 129));
   }
 
   /**
@@ -86,9 +86,9 @@ export class Ecdsa implements Signer {
    * @param sig - The ECDSA signature.
    * @returns True or false.
    */
-  public verifySignature(msg: Uint8Array, pubKey: PublicKey, sig: EcdsaSignature) {
+  public verifySignature(msg: Uint8Array, pubKey: Buffer, sig: EcdsaSignature) {
     const mem = this.wasm.call('bbmalloc', msg.length);
-    this.wasm.writeMemory(0, pubKey.toBuffer());
+    this.wasm.writeMemory(0, pubKey);
     this.wasm.writeMemory(64, sig.r);
     this.wasm.writeMemory(96, sig.s);
     this.wasm.writeMemory(128, sig.v);

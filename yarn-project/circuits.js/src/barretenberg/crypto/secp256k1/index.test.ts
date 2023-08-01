@@ -14,7 +14,7 @@ describe('secp256k1', () => {
 
   it('should correctly compute public key', () => {
     const privateKey = PrivateKey.random();
-    const lhs = secp256k1.mul(Secp256k1.generator, privateKey);
+    const lhs = secp256k1.mul(Secp256k1.generator, privateKey.value);
     const rhs = ecdsa.computePublicKey(privateKey);
     expect(lhs).toEqual(rhs);
   });

@@ -1,12 +1,11 @@
 import { IWasmModule } from '@aztec/foundation/wasm';
 
 import { CircuitsWasm, Fr, Point, PrivateKey } from '../../../index.js';
-import { Curve } from '../index.js';
 
 /**
  * Grumpkin elliptic curve operations.
  */
-export class Grumpkin implements Curve {
+export class Grumpkin {
   /**
    * Creates a new Grumpkin instance.
    * @returns New Grumpkin instance.

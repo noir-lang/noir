@@ -120,7 +120,7 @@ describe('e2e_account_contracts', () => {
 
   describe('ecdsa stored-key account', () => {
     let ecdsaPrivateKey: PrivateKey;
-    let ecdsaPublicKey: PublicKey;
+    let ecdsaPublicKey: Buffer;
     let ecdsaCreateArgs: any[];
 
     const createWallet = async (address: AztecAddress, useProperKey: boolean) =>
@@ -130,7 +130,7 @@ describe('e2e_account_contracts', () => {
       ecdsaPrivateKey = PrivateKey.random();
       const ecdsa = await Ecdsa.new();
       ecdsaPublicKey = ecdsa.computePublicKey(ecdsaPrivateKey);
-      ecdsaCreateArgs = [ecdsaPublicKey.x.toBuffer(), ecdsaPublicKey.y.toBuffer()];
+      ecdsaCreateArgs = [ecdsaPublicKey.subarray(0, 32), ecdsaPublicKey.subarray(32, 64)];
     });
 
     itShouldBehaveLikeAnAccountContract(EcdsaAccountContractAbi, () => ecdsaCreateArgs, createWallet);
