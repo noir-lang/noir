@@ -19,7 +19,7 @@ impl NoirTypeAlias {
         typ: UnresolvedType,
         span: Span,
     ) -> NoirTypeAlias {
-        NoirTypeAlias { name, generics, ty, span }
+        NoirTypeAlias { name, generics, typ, span }
     }
 }
 
