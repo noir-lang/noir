@@ -848,7 +848,6 @@ fn format_string_type(
     keyword(Keyword::FormatString)
         .ignore_then(
             type_expression()
-                .or_not()
                 .then_ignore(just(Token::Comma))
                 .then(type_parser)
                 .delimited_by(just(Token::Less), just(Token::Greater)),

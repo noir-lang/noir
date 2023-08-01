@@ -36,7 +36,7 @@ pub enum UnresolvedType {
     Bool(CompTime),
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
-    FormatString(Option<UnresolvedTypeExpression>, Box<UnresolvedType>),
+    FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
 
     /// A Named UnresolvedType can be a struct type or a type variable
@@ -106,10 +106,7 @@ impl std::fmt::Display for UnresolvedType {
                 None => write!(f, "str<_>"),
                 Some(len) => write!(f, "str<{len}>"),
             },
-            FormatString(len, elements) => match len {
-                None => write!(f, "fmtstr<_, {elements}>"),
-                Some(len) => write!(f, "fmt<{len}, {elements}"),
-            },
+            FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {ret}", args.join(", "))

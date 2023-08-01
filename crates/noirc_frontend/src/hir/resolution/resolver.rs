@@ -349,8 +349,7 @@ impl<'a> Resolver<'a> {
                 Type::String(Box::new(resolved_size))
             }
             UnresolvedType::FormatString(size, fields) => {
-                let resolved_size = self.resolve_array_size(size, new_variables);
-                // let fields = vecmap(fields, |field| self.resolve_type_inner(field, new_variables));
+                let resolved_size = self.convert_expression_type(size);
                 let fields = self.resolve_type_inner(*fields, new_variables);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
