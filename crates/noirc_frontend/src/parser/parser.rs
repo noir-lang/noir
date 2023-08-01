@@ -795,6 +795,7 @@ fn parse_type_inner(
         int_type(),
         bool_type(),
         string_type(),
+        format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
@@ -839,6 +840,19 @@ fn string_type() -> impl NoirParser<UnresolvedType> {
             type_expression().delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
         )
         .map(UnresolvedType::String)
+}
+
+fn format_string_type(
+    type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::FormatString)
+        .ignore_then(
+            type_expression()
+                .then_ignore(just(Token::Comma))
+                .then(type_parser)
+                .delimited_by(just(Token::Less), just(Token::Greater)),
+        )
+        .map(|(size, fields)| UnresolvedType::FormatString(size, Box::new(fields)))
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
@@ -1366,6 +1380,7 @@ fn literal() -> impl NoirParser<ExpressionKind> {
         Token::Int(x) => ExpressionKind::integer(x),
         Token::Bool(b) => ExpressionKind::boolean(b),
         Token::Str(s) => ExpressionKind::string(s),
+        Token::FmtStr(s) => ExpressionKind::format_string(s),
         unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
     })
 }

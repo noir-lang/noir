@@ -943,7 +943,11 @@ impl Context {
             Intrinsic::BlackBox(black_box) => {
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                let vars = self.acir_context.black_box_function(black_box, inputs)?;
+                let output_count = result_ids.iter().fold(0usize, |sum, result_id| {
+                    sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
+                });
+
+                let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;
 
                 Ok(Self::convert_vars_to_values(vars, dfg, result_ids))
             }
@@ -995,6 +999,14 @@ impl Context {
                     .expect("Could not sort");
 
                 Ok(Self::convert_vars_to_values(out_vars, dfg, result_ids))
+            }
+            Intrinsic::ArrayLen => {
+                let len = match self.convert_value(arguments[0], dfg) {
+                    AcirValue::Var(_, _) =>  unreachable!("Non-array passed to array.len() method"),
+                    AcirValue::Array(values) => (values.len() as u128).into(),
+                    AcirValue::DynamicArray(array) => (array.len as u128).into(),
+                };
+                Ok(vec![AcirValue::Var(self.acir_context.add_constant(len), AcirType::field())])
             }
             _ => todo!("expected a black box function"),
         }

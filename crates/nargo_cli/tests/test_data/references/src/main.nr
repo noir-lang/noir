@@ -32,6 +32,7 @@ fn main(mut x: Field) {
     assert(*c.bar.array == [3, 4]);
 
     regression_1887();
+    regression_2054();
 }
 
 fn add1(x: &mut Field) {
@@ -76,4 +77,13 @@ impl Bar {
     fn mutate(&mut self) {
         self.x = 32;
     }
+}
+
+// Ensure that mutating a variable does not also mutate its copy
+fn regression_2054() {
+    let mut x = 2;
+    let z = x;
+
+    x += 1;
+    assert(z == 2);
 }

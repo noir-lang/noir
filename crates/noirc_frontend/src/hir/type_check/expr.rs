@@ -111,6 +111,11 @@ impl<'interner> TypeChecker<'interner> {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
                     }
+                    HirLiteral::FmtStr(string, idents) => {
+                        let len = Type::Constant(string.len() as u64);
+                        let types = vecmap(&idents, |elem| self.check_expression(elem));
+                        Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
+                    }
                     HirLiteral::Unit => Type::Unit,
                 }
             }

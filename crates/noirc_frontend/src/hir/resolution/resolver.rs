@@ -18,6 +18,7 @@ use crate::hir_def::expr::{
     HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -346,6 +347,11 @@ impl<'a> Resolver<'a> {
             UnresolvedType::String(size) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::String(Box::new(resolved_size))
+            }
+            UnresolvedType::FormatString(size, fields) => {
+                let resolved_size = self.convert_expression_type(size);
+                let fields = self.resolve_type_inner(*fields, new_variables);
+                Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Error,
@@ -775,7 +781,6 @@ impl<'a> Resolver<'a> {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::String(_)
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_, _)
@@ -784,10 +789,11 @@ impl<'a> Resolver<'a> {
             | Type::NotConstant
             | Type::Forall(_, _) => (),
 
-            Type::Array(length, _) => {
+            Type::Array(length, element_type) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
+                Self::find_numeric_generics_in_type(element_type, found);
             }
 
             Type::Tuple(fields) => {
@@ -813,6 +819,17 @@ impl<'a> Resolver<'a> {
                 }
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::String(length) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+            }
+            Type::FmtString(length, fields) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+                Self::find_numeric_generics_in_type(fields, found);
+            }
         }
     }
 
@@ -904,6 +921,7 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
@@ -939,6 +957,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
                 let func = self.resolve_expression(*call_expr.func);
+
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::Call(HirCallExpression { func, arguments, location })
@@ -1288,6 +1307,36 @@ impl<'a> Resolver<'a> {
         let module_id = self.path_resolver.module_id();
         module_id.module(self.def_maps).is_contract
     }
+
+    fn resolve_fmt_str_literal(&mut self, str: String, call_expr_span: Span) -> HirLiteral {
+        let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}")
+            .expect("ICE: an invalid regex pattern was used for checking format strings");
+        let mut fmt_str_idents = Vec::new();
+        for field in re.find_iter(&str) {
+            let matched_str = field.as_str();
+            let ident_name = &matched_str[1..(matched_str.len() - 1)];
+
+            let scope_tree = self.scopes.current_scope_tree();
+            let variable = scope_tree.find(ident_name);
+            if let Some((old_value, _)) = variable {
+                old_value.num_times_used += 1;
+                let expr_id = self.interner.push_expr(HirExpression::Ident(old_value.ident));
+                self.interner.push_expr_location(expr_id, call_expr_span, self.file);
+                fmt_str_idents.push(expr_id);
+            } else if ident_name.parse::<usize>().is_ok() {
+                self.errors.push(ResolverError::NumericConstantInFormatString {
+                    name: ident_name.to_owned(),
+                    span: call_expr_span,
+                });
+            } else {
+                self.errors.push(ResolverError::VariableNotDeclared {
+                    name: ident_name.to_owned(),
+                    span: call_expr_span,
+                });
+            }
+        }
+        HirLiteral::FmtStr(str, fmt_str_idents)
+    }
 }
 
 /// Gives an error if a user tries to create a mutable reference
@@ -1570,6 +1619,39 @@ mod test {
 
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn resolve_fmt_strings() {
+        let src = r#"
+            fn main() {
+                let string = f"this is i: {i}";
+                println(string);
+                
+                println(f"I want to print {0}");
+
+                let new_val = 10;
+                println(f"randomstring{new_val}{new_val}");
+            }
+            fn println<T>(x : T) -> T {
+                x
+            }
+        "#;
+
+        let errors = resolve_src_code(src, vec!["main", "println"]);
+        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
+
+        for err in errors {
+            match &err {
+                ResolverError::VariableNotDeclared { name, .. } => {
+                    assert_eq!(name, "i");
+                }
+                ResolverError::NumericConstantInFormatString { name, .. } => {
+                    assert_eq!(name, "0");
+                }
+                _ => unimplemented!(),
+            };
+        }
     }
 
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {

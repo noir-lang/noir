@@ -22,7 +22,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
-    ContractFunctionType, FunctionKind, TypeBinding, TypeBindings, TypeVariableKind,
+    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -261,6 +261,14 @@ impl<'interner> Monomorphizer<'interner> {
         match self.interner.expression(&expr) {
             HirExpression::Ident(ident) => self.ident(ident, expr),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
+            HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
+                let fields = vecmap(idents, |ident| self.expr(ident));
+                Literal(FmtStr(
+                    contents,
+                    fields.len() as u64,
+                    Box::new(ast::Expression::Tuple(fields)),
+                ))
+            }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let typ = Self::convert_type(&self.interner.id_type(expr));
@@ -587,6 +595,11 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
             HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
+            HirType::FmtString(size, fields) => {
+                let size = size.evaluate_to_u64().unwrap_or(0);
+                let fields = Box::new(Self::convert_type(fields.as_ref()));
+                ast::Type::FmtString(size, fields)
+            }
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(length, element) => {
@@ -704,18 +717,50 @@ impl<'interner> Monomorphizer<'interner> {
     /// of field elements to/from JSON. The type metadata attached in this method
     /// is the serialized `AbiType` for the argument passed to the function.
     /// The caller that is running a Noir program should then deserialize the `AbiType`,
-    /// and accurately decode the list of field elements passed to the foreign call.  
-    fn append_abi_arg(&self, hir_argument: &HirExpression, arguments: &mut Vec<ast::Expression>) {
+    /// and accurately decode the list of field elements passed to the foreign call.
+    fn append_abi_arg(
+        &mut self,
+        hir_argument: &HirExpression,
+        arguments: &mut Vec<ast::Expression>,
+    ) {
         match hir_argument {
             HirExpression::Ident(ident) => {
                 let typ = self.interner.id_type(ident.id);
-                let typ = typ.follow_bindings();
+                let typ: Type = typ.follow_bindings();
+                match &typ {
+                    // A format string has many different possible types that need to be handled.
+                    // Loop over each element in the format string to fetch each type's relevant metadata
+                    Type::FmtString(_, elements) => {
+                        match elements.as_ref() {
+                            Type::Tuple(element_types) => {
+                                for typ in element_types {
+                                    let abi_type = typ.as_abi_type();
+                                    let abi_as_string = serde_json::to_string(&abi_type)
+                                        .expect("ICE: expected Abi type to serialize");
 
-                let abi_type = typ.as_abi_type();
-                let abi_as_string =
-                    serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
+                                    arguments.push(ast::Expression::Literal(ast::Literal::Str(
+                                        abi_as_string,
+                                    )));
+                                }
+                            }
+                            _ => unreachable!(
+                                "ICE: format string type should be a tuple but got a {elements}"
+                            ),
+                        }
 
-                arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+                        // The caller needs information as to whether it is handling a format string or a single type
+                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(true)));
+                    }
+                    _ => {
+                        let abi_type = typ.as_abi_type();
+                        let abi_as_string = serde_json::to_string(&abi_type)
+                            .expect("ICE: expected Abi type to serialize");
+
+                        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+                        // The caller needs information as to whether it is handling a format string or a single type
+                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(false)));
+                    }
+                }
             }
             _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
         }
@@ -921,6 +966,18 @@ impl<'interner> Monomorphizer<'interner> {
             }
             ast::Type::String(length) => {
                 ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
+            }
+            ast::Type::FmtString(length, fields) => {
+                let zeroed_tuple = self.zeroed_value_of_type(fields);
+                let fields_len = match &zeroed_tuple {
+                    ast::Expression::Tuple(fields) => fields.len() as u64,
+                    _ => unreachable!("ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"),
+                };
+                ast::Expression::Literal(ast::Literal::FmtStr(
+                    "\0".repeat(*length as usize),
+                    fields_len,
+                    Box::new(zeroed_tuple),
+                ))
             }
             ast::Type::Tuple(fields) => {
                 ast::Expression::Tuple(vecmap(fields, |field| self.zeroed_value_of_type(field)))
