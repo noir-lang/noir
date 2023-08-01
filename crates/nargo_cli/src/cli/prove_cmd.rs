@@ -75,6 +75,7 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_package<B: Backend>(
     backend: &B,
     package: &Package,
