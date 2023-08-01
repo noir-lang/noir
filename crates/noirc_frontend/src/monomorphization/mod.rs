@@ -268,7 +268,6 @@ impl<'interner> Monomorphizer<'interner> {
                     fields.len() as u64,
                     Box::new(ast::Expression::Tuple(fields)),
                 ))
-                // Literal(FmtStr(contents, fields))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
