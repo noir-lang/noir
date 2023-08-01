@@ -693,7 +693,7 @@ impl GeneratedAcir {
     /// In other words, `1` means `a >= b` and `0` means `b > a`.
     /// The important thing here is that `c` does not overflow nor underflow the field;
     /// - By construction we have `c >= 0`, so there is no underflow
-    /// - We assert at the begining that `2^{max_bits+1}` does not overflow the field, so neither c.
+    /// - We assert at the beginning that `2^{max_bits+1}` does not overflow the field, so neither c.
     pub(crate) fn more_than_eq_comparison(
         &mut self,
         a: &Expression,
