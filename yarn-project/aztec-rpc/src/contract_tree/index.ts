@@ -89,8 +89,7 @@ export class ContractTree {
     }));
     const leaves = generateFunctionLeaves(functions, wasm);
     const root = computeFunctionTreeRoot(wasm, leaves);
-    const constructorSelector = generateFunctionSelector(constructorAbi.name, constructorAbi.parameters);
-    const functionData = new FunctionData(constructorSelector, false, true, true);
+    const functionData = FunctionData.fromAbi(constructorAbi);
     const vkHash = hashVKStr(constructorAbi.verificationKey, wasm);
     const argsHash = await computeVarArgsHash(wasm, args);
     const constructorHash = hashConstructor(wasm, functionData, argsHash, vkHash);

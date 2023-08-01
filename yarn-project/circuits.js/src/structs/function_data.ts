@@ -1,5 +1,7 @@
+import { FunctionAbi, FunctionType, generateFunctionSelector } from '@aztec/foundation/abi';
 import { BufferReader, deserializeUInt32, numToUInt32BE } from '@aztec/foundation/serialize';
 
+import { ContractFunctionDao } from '../index.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 
 const FUNCTION_SELECTOR_LENGTH = 4;
@@ -40,6 +42,16 @@ export class FunctionData {
       this.functionSelectorBuffer = numToUInt32BE(functionSelector);
     }
   }
+
+  static fromAbi(abi: FunctionAbi | ContractFunctionDao): FunctionData {
+    return new FunctionData(
+      generateFunctionSelector(abi.name, abi.parameters),
+      abi.isInternal,
+      abi.functionType === FunctionType.SECRET,
+      abi.name === 'constructor',
+    );
+  }
+
   // For serialization, must match function_selector name in C++ and return as number
   // TODO(AD) somehow remove this cruft, probably by using a buffer selector in C++
   get functionSelector(): number {

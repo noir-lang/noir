@@ -266,7 +266,7 @@ export class PrivateFunctionExecution {
     curve: Grumpkin,
   ) {
     const targetAbi = await this.context.db.getFunctionABI(targetContractAddress, targetFunctionSelector);
-    const targetFunctionData = new FunctionData(targetFunctionSelector, targetAbi.isInternal, true, false);
+    const targetFunctionData = FunctionData.fromAbi(targetAbi);
     const derivedCallContext = await this.deriveCallContext(callerContext, targetContractAddress, false, false);
     const context = this.context.extend();
 
@@ -301,10 +301,11 @@ export class PrivateFunctionExecution {
   ): Promise<PublicCallRequest> {
     const targetAbi = await this.context.db.getFunctionABI(targetContractAddress, targetFunctionSelector);
     const derivedCallContext = await this.deriveCallContext(callerContext, targetContractAddress, false, false);
+
     return PublicCallRequest.from({
       args: targetArgs,
       callContext: derivedCallContext,
-      functionData: new FunctionData(targetFunctionSelector, targetAbi.isInternal, false, false),
+      functionData: FunctionData.fromAbi(targetAbi),
       contractAddress: targetContractAddress,
     });
   }

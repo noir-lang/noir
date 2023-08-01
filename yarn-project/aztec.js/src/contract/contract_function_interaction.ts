@@ -1,5 +1,5 @@
 import { AztecAddress, Fr, FunctionData, TxContext } from '@aztec/circuits.js';
-import { FunctionAbi, FunctionType, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
+import { FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 import { ExecutionRequest, Tx, TxExecutionRequest } from '@aztec/types';
 
 import { Wallet } from '../aztec_rpc_client/wallet.js';
@@ -98,16 +98,9 @@ export class ContractFunctionInteraction {
     const flatArgs = encodeArguments(this.functionDao, this.args);
     from = from ?? this.wallet.getAddress();
 
-    const functionData = new FunctionData(
-      generateFunctionSelector(this.functionDao.name, this.functionDao.parameters),
-      this.functionDao.isInternal,
-      this.functionDao.functionType === FunctionType.SECRET,
-      this.functionDao.name === 'constructor',
-    );
-
     return {
       args: flatArgs,
-      functionData,
+      functionData: FunctionData.fromAbi(this.functionDao),
       to,
       from,
     };

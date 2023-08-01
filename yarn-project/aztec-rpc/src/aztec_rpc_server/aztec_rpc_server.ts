@@ -11,7 +11,7 @@ import {
   PrivateKey,
   PublicKey,
 } from '@aztec/circuits.js';
-import { FunctionType, encodeArguments } from '@aztec/foundation/abi';
+import { encodeArguments } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import {
@@ -385,19 +385,10 @@ export class AztecRPCServer implements AztecRPC {
       throw new Error(`Unknown function ${functionName} in contract ${contract.name}.`);
     }
 
-    const flatArgs = encodeArguments(functionDao, args);
-
-    const functionData = new FunctionData(
-      functionDao.selector,
-      functionDao.isInternal,
-      functionDao.functionType === FunctionType.SECRET,
-      false,
-    );
-
     return {
-      args: flatArgs,
+      args: encodeArguments(functionDao, args),
       from,
-      functionData,
+      functionData: FunctionData.fromAbi(functionDao),
       to,
     };
   }

@@ -7,9 +7,8 @@ import {
   PrivateHistoricTreeRoots,
 } from '@aztec/circuits.js';
 import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
-import { FunctionAbi, encodeArguments } from '@aztec/foundation/abi';
+import { FunctionAbi, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
-import { keccak } from '@aztec/foundation/crypto';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { toBigInt } from '@aztec/foundation/serialize';
@@ -63,7 +62,7 @@ describe('ACIR public execution simulator', () => {
       it('should run the mint function', async () => {
         const contractAddress = AztecAddress.random();
         const mintAbi = PublicTokenContractAbi.functions.find(f => f.name === 'mint')!;
-        const functionData = new FunctionData(Buffer.alloc(4), false, false, false);
+        const functionData = FunctionData.fromAbi(mintAbi);
         const args = encodeArguments(mintAbi, [140, recipient]);
 
         const callContext = CallContext.from({
@@ -192,11 +191,14 @@ describe('ACIR public execution simulator', () => {
       async isInternal => {
         const parentContractAddress = AztecAddress.random();
         const parentEntryPointFn = ParentContractAbi.functions.find(f => f.name === 'pubEntryPoint')!;
-        const parentEntryPointFnSelector = keccak(Buffer.from(parentEntryPointFn.name)).subarray(0, 4);
+        const parentEntryPointFnSelector = generateFunctionSelector(
+          parentEntryPointFn.name,
+          parentEntryPointFn.parameters,
+        );
 
         const childContractAddress = AztecAddress.random();
         const childValueFn = ChildContractAbi.functions.find(f => f.name === 'pubValue')!;
-        const childValueFnSelector = keccak(Buffer.from(childValueFn.name)).subarray(0, 4);
+        const childValueFnSelector = generateFunctionSelector(childValueFn.name, childValueFn.parameters);
 
         const initialValue = 3n;
 
