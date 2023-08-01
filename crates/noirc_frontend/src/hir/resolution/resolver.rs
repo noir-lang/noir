@@ -548,7 +548,7 @@ impl<'a> Resolver<'a> {
     ) -> (Type, Generics, Vec<ResolverError>) {
         let generics = self.add_generics(&unresolved.generics);
         self.resolve_local_globals();
-        let typ = self.resolve_type(unresolved.ty);
+        let typ = self.resolve_type(unresolved.typ);
 
         (typ, generics, self.errors)
     }
