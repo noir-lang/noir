@@ -106,13 +106,6 @@ impl std::fmt::Display for UnresolvedType {
                 None => write!(f, "str<_>"),
                 Some(len) => write!(f, "str<{len}>"),
             },
-            // FormatString(len, elements) => {
-            //     let elements = vecmap(elements, ToString::to_string);
-            //     match len {
-            //         None => write!(f, "fmtstr<_, ({})>", elements.join(", ")),
-            //         Some(len) => write!(f, "fmt<{len}, ({})", elements.join(", ")),
-            //     }
-            // }
             FormatString(len, elements) => match len {
                 None => write!(f, "fmtstr<_, {elements}>"),
                 Some(len) => write!(f, "fmt<{len}, {elements}"),
