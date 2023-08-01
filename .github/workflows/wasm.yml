@@ -113,11 +113,16 @@ jobs:
           ls -R
           nargo_binary=$(find $(pwd) -name "nargo" -type f)
           echo "nargo binary found at $nargo_binary."
-          chmod +x $nargo_binary
+          echo "Initial file permissions:"
+          ls -l $nargo_binary
+          echo "Attempting to make nargo binary executable:"
+          chmod +x $nargo_binary || echo "chmod failed with exit code $?"
+          echo "File permissions after chmod:"
+          ls -l $nargo_binary
           if [ -x "$nargo_binary" ]; then
             $nargo_binary -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
           else
-            echo "nargo binary NOT found."
+            echo "nargo binary NOT found or is not executable."
             exit 1
           fi
 
