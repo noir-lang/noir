@@ -111,7 +111,7 @@ jobs:
       - name: Run noir-wasm-testing program
         run: |
           ls -R
-          nargo_binary=$(find $(pwd) -name "nargo")
+          nargo_binary=$(find $(pwd) -name "nargo" -type f)
           echo "nargo binary found at $nargo_binary."
           if [ -x "$nargo_binary" ]; then
             chmod +x $nargo_binary
