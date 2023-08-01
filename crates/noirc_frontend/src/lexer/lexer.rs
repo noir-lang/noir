@@ -102,7 +102,8 @@ impl<'a> Lexer<'a> {
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
-            Some('"') => Ok(self.eat_string_literal()),
+            Some('"') => Ok(self.eat_string_literal(false)),
+            Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
@@ -244,10 +245,7 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let (word, start, end) = self.eat_while(None, |ch| {
-            (ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_' || ch == '(' || ch == ')')
-                && (ch != ']')
-        });
+        let (word, start, end) = self.eat_while(None, |ch| ch != ']');
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {
@@ -310,11 +308,21 @@ impl<'a> Lexer<'a> {
         Ok(integer_token.into_span(start, end))
     }
 
-    fn eat_string_literal(&mut self) -> SpannedToken {
+    fn eat_string_literal(&mut self, is_format_string: bool) -> SpannedToken {
         let (str_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '"');
-        let str_literal_token = Token::Str(str_literal);
+        let str_literal_token =
+            if is_format_string { Token::FmtStr(str_literal) } else { Token::Str(str_literal) };
         self.next_char(); // Advance past the closing quote
         str_literal_token.into_span(start_span, end_span)
+    }
+
+    fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
+        if self.peek_char_is('"') {
+            self.next_char();
+            Ok(self.eat_string_literal(true))
+        } else {
+            self.eat_alpha_numeric('f')
+        }
     }
 
     fn parse_comment(&mut self) -> SpannedTokenResult {
@@ -425,6 +433,24 @@ fn invalid_attribute() {
 
     let token = lexer.next().unwrap();
     assert!(token.is_err());
+}
+
+#[test]
+fn deprecated_attribute() {
+    let input = r#"#[deprecated]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated(None)));
+}
+
+#[test]
+fn deprecated_attribute_with_note() {
+    let input = r#"#[deprecated("hello")]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated("hello".to_string().into())));
 }
 
 #[test]
