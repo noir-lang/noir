@@ -18,27 +18,23 @@ fn main() -> pub Field {
     let g = || a;
     assert(g() == 42);
 
-    // TODO: enable this again after fixing #2054
-    // https://github.com/noir-lang/noir/issues/2054
-    // by @jfecher's PR https://github.com/noir-lang/noir/pull/2057
-
-    // Mutable variables cannot be captured, but you can
-    // copy them into immutable variables and capture those:
-    // let mut x = 2;
-    // x = x + 1;
-    // let z = x;
+    // When you copy mutable variables,
+    // the capture of the copies shouldn't change:
+    let mut x = 2;
+    x = x + 1;
+    let z = x;
 
     // Add extra mutations to ensure we can mutate x without the
     // captured z changing.
-    // x = x + 1;
-    // TODO: this behavior changed in the new ssa backend:
-    // now even z is changed, and it wasn't in the previous backend
-    // assert(z == 2); 
-    // fails!
-    // decide what to do after opening an issue about the simpler
-    // variable alias case
-    //
-    // assert((|y| y + z)(1) == 4);
+    x = x + 1;
+    assert((|y| y + z)(1) == 4);
+
+    // When you capture mutable variables,
+    // again, the captured variable doesn't change: 
+    let closure_capturing_mutable = (|y| y + x);
+    assert(closure_capturing_mutable(1) == 5);
+    x += 1;
+    assert(closure_capturing_mutable(1) == 5);
 
     let ret = twice(add1, 3);
 
