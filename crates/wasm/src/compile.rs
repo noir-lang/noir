@@ -107,8 +107,8 @@ pub fn compile(args: JsValue) -> JsValue {
         <JsValue as JsValueSerdeExt>::from_serde(&optimized_contracts).unwrap()
     } else {
         let main = context.get_main_function(&crate_id).expect("Could not find main function!");
-        let mut compiled_program = compile_no_check(&context, true, &options.compile_options, main)
-            .expect("Compilation failed");
+        let mut compiled_program =
+            compile_no_check(&context, &options.compile_options, main).expect("Compilation failed");
 
         compiled_program.circuit = optimize_circuit(compiled_program.circuit);
 

@@ -39,9 +39,8 @@ fn test_prints_strings() {
 fn test_prints_array() {
     let array = [1, 2, 3, 5, 8];
 
-    // TODO: Printing structs currently not supported
-    // let s = Test { a: 1, b: 2, c: [3, 4] };
-    // std::println(s);
+    let s = Test { a: 1, b: 2, c: [3, 4] };
+    std::println(s);
 
     std::println(array);
 
