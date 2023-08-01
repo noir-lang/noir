@@ -1,15 +1,15 @@
 use dep::aztec::state_vars::public_state::PublicState;
-use dep::aztec::state_vars::public_state_value::field_value::FieldValueInterface;
-use dep::aztec::state_vars::public_state_value::field_value::FIELD_VALUE_LEN;
+use dep::aztec::state_vars::type_serialisation_interface::field_serialisation_interface::FieldSerialisationInterface;
+use dep::aztec::state_vars::type_serialisation_interface::field_serialisation_interface::FIELD_SERIALISED_LEN;
 
 struct Storage {
-    current_value: PublicState<Field, FIELD_VALUE_LEN>,
+    current_value: PublicState<Field, FIELD_SERIALISED_LEN>,
 }
 
 impl Storage {
     fn init() -> Self {
         Storage {
-            current_value: PublicState::new(1, FieldValueInterface),
+            current_value: PublicState::new(1, FieldSerialisationInterface),
         }
     }
 }
