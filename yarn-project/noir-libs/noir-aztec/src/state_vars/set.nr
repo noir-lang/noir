@@ -6,6 +6,7 @@ use crate::note::{
     note_interface::NoteInterface,
 };
 use crate::oracle::create_commitment::create_commitment;
+use crate::types::option::Option;
 
 struct Set<Note, N> {
     storage_slot: Field,
@@ -39,9 +40,9 @@ impl<Note, N> Set<Note, N> {
         self,
         context: &mut Context,
         options: NoteGetterOptions<Note, N, S, P>,
-    ) -> [Note; S] {
+    ) -> [Option<Note>; S] {
         let storage_slot = self.storage_slot;
-        let notes = get_notes(context, storage_slot, self.note_interface, options);
-        notes
+        let opt_notes = get_notes(context, storage_slot, self.note_interface, options);
+        opt_notes
     }
 }

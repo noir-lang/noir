@@ -48,10 +48,6 @@ impl AddressNote {
             header: NoteHeader::empty(),
         }
     }
-
-    fn is_dummy(self) -> bool {
-        (self.address == 0) & (self.owner == 0)
-    }
 }
 
 fn deserialise(preimage: [Field; ADDRESS_NOTE_LEN]) -> AddressNote {
@@ -78,10 +74,6 @@ fn dummy() -> AddressNote {
     AddressNote::dummy()
 }
 
-fn is_dummy(note: AddressNote) -> bool {
-    note.is_dummy()
-}
-
 fn get_header(note: AddressNote) -> NoteHeader {
     note.header
 }
@@ -96,7 +88,6 @@ global AddressNoteInterface = NoteInterface {
     compute_note_hash,
     compute_nullifier,
     dummy,
-    is_dummy,
     get_header,
     set_header,
 };

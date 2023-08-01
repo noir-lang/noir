@@ -57,10 +57,6 @@ impl ClaimNote {
         }
     }
 
-    fn is_dummy(self) -> bool {
-        self.value == 0
-    }
-
     fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
@@ -86,10 +82,6 @@ fn dummy() -> ClaimNote {
     ClaimNote::dummy()
 }
 
-fn is_dummy(note: ClaimNote) -> bool {
-    note.is_dummy()
-}
-
 fn get_header(note: ClaimNote) -> NoteHeader {
     note.header
 }
@@ -104,7 +96,6 @@ global ClaimNoteInterface = NoteInterface {
     compute_note_hash,
     compute_nullifier,
     dummy,
-    is_dummy,
     get_header,
     set_header,
 };

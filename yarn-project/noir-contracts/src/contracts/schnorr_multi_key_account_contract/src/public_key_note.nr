@@ -53,10 +53,6 @@ impl PublicKeyNote {
             header: NoteHeader::empty(),
         }
     }
-
-    fn is_dummy(self) -> bool {
-        (self.x == 0) & (self.y == 0) & (self.owner == 0)
-    }
 }
 
 fn deserialise(preimage: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
@@ -84,10 +80,6 @@ fn dummy() -> PublicKeyNote {
     PublicKeyNote::dummy()
 }
 
-fn is_dummy(note: PublicKeyNote) -> bool {
-    note.is_dummy()
-}
-
 fn get_header(note: PublicKeyNote) -> NoteHeader {
     note.header
 }
@@ -102,7 +94,6 @@ global PublicKeyNoteInterface = NoteInterface {
     compute_note_hash,
     compute_nullifier,
     dummy,
-    is_dummy,
     get_header,
     set_header,
 };

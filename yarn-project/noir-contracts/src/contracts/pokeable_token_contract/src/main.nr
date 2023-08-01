@@ -6,7 +6,7 @@ contract PokeableToken {
     use dep::value_note::{
         balance_utils,
         utils::{send_note, spend_notes},
-        value_note::{VALUE_NOTE_LEN, ValueNoteInterface},
+        value_note::{VALUE_NOTE_LEN, ValueNoteInterface, ValueNote},
         filter::get_2_notes,
     };
     use dep::aztec::abi;
@@ -91,16 +91,22 @@ contract PokeableToken {
         let sender_balance = storage.balances.at(sender.address);
 
         let options = NoteGetterOptions::with_filter(get_2_notes, 0);
-        let notes = sender_balance.get_notes(&mut context, options);
+        let maybe_notes = sender_balance.get_notes(&mut context, options);
 
-        let note1 = notes[0];
-        let note2 = notes[1];
+        let note0 = maybe_notes[0].unwrap_or(ValueNote::dummy());
+        let note1 = maybe_notes[1].unwrap_or(ValueNote::dummy());
 
-        let note_sum = note1.value + note2.value;
+        let note_sum = note0.value + note1.value;
 
         // Removes the 2 notes from the sender's set of notes.
-        sender_balance.remove(&mut context, note1);
-        sender_balance.remove(&mut context, note2);
+        if maybe_notes[0].is_some() {
+          assert(sender.address == note0.owner);
+          sender_balance.remove(&mut context, note0);
+        }
+        if maybe_notes[1].is_some() {
+          assert(sender.address == note1.owner);
+          sender_balance.remove(&mut context, note1);
+        }
 
         // Create new note for the recipient.
         let recipient_balance = storage.balances.at(recipient.address);

@@ -3,6 +3,7 @@ use crate::note::{
     note_interface::NoteInterface,
 };
 use crate::utils::arr_copy_slice;
+use crate::types::option::Option;
 
 #[oracle(notifyCreatedNote)]
 fn notify_created_note_oracle<N>(
@@ -44,7 +45,7 @@ fn get_notes_oracle<N, S>(
     _limit: u32,
     _offset: u32,
     _return_size: u32,
-    _zero_fields: [Field; S],
+    _placeholder_fields: [Field; S],
 ) -> [Field; S] {}
 
 unconstrained fn get_notes_oracle_wrapper<N, S>(
@@ -53,10 +54,10 @@ unconstrained fn get_notes_oracle_wrapper<N, S>(
     sort_order: [u8; N],
     limit: u32,
     offset: u32,
-    mut fields: [Field; S],
+    mut placeholder_fields: [Field; S],
 )-> [Field; S] {
-    let return_size = fields.len() as u32;
-    get_notes_oracle(storage_slot, sort_by, sort_order, limit, offset, return_size, fields)
+    let return_size = placeholder_fields.len() as u32;
+    get_notes_oracle(storage_slot, sort_by, sort_order, limit, offset, return_size, placeholder_fields)
 }
 
 unconstrained fn get_notes<Note, N, M, S, NS>(
@@ -66,28 +67,32 @@ unconstrained fn get_notes<Note, N, M, S, NS>(
     sort_order: [u8; M],
     limit: u32,
     offset: u32,
-    mut notes: [Note; S], // TODO: Remove it and use `limit` to initialise the note array.
-    zero_fields: [Field; NS], // TODO: Remove it and use `limit` to initialise the note array.
-) -> [Note; S] {
-    let fields = get_notes_oracle_wrapper(storage_slot, sort_by, sort_order, limit, offset, zero_fields);
+    mut placeholder_opt_notes: [Option<Note>; S], // TODO: Remove it and use `limit` to initialise the note array.
+    placeholder_fields: [Field; NS], // TODO: Remove it and use `limit` to initialise the note array.
+) -> [Option<Note>; S] {
+    let fields = get_notes_oracle_wrapper(storage_slot, sort_by, sort_order, limit, offset, placeholder_fields);
     let num_notes = fields[0] as u32;
     let contract_address = fields[1];
     let deserialise = note_interface.deserialise;
     let set_header = note_interface.set_header;
-    for i in 0..notes.len() {
+    for i in 0..placeholder_opt_notes.len() {
         if i as u32 < num_notes {
-            let read_offset: comptime Field = 2 + i * (N + 1);
+            // comptime lengths named as per typescript.
+            let return_header_length: comptime Field = 2; // num_notes & contract_address.
+            let extra_preimage_length: comptime Field = 2; // nonce & is_some.
+            let read_offset: comptime Field = return_header_length + i * (N + extra_preimage_length);
             let nonce = fields[read_offset];
             let header = NoteHeader { contract_address, nonce, storage_slot };
-
-            let preimage = arr_copy_slice(fields, [0; N], read_offset + 1);
-            let mut note = deserialise(preimage);
-
-            set_header(&mut note, header);
-            notes[i] = note;
+            let is_some = fields[read_offset + 1] as bool;
+            if is_some {
+                let preimage = arr_copy_slice(fields, [0; N], read_offset + 2);
+                let mut note = deserialise(preimage);
+                set_header(&mut note, header);
+                placeholder_opt_notes[i] = Option::some(note);
+            }
         };
     };
-    notes
+    placeholder_opt_notes
 }
 
 unconstrained fn is_nullifier_emitted(nullifier: Field) -> bool {

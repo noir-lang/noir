@@ -25,7 +25,7 @@ impl Storage {
         Storage {
             sender: ImmutableSingleton::new(1, AddressNoteInterface),
             recipient: ImmutableSingleton::new(2, AddressNoteInterface),
-            balances: Map::new(1, |s| Set::new(s, ValueNoteInterface)),
+            balances: Map::new(3, |s| Set::new(s, ValueNoteInterface)),
         }
     }
 }

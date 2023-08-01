@@ -172,7 +172,7 @@ describe('Private Execution test suite', () => {
 
     const buildNote = (amount: bigint, owner: AztecAddress, storageSlot = Fr.random()) => {
       const nonce = new Fr(currentNoteIndex);
-      const preimage = [new Fr(amount), owner.toField(), Fr.random(), new Fr(1n)];
+      const preimage = [new Fr(amount), owner.toField(), Fr.random()];
       return { contractAddress, storageSlot, index: currentNoteIndex++, nonce, nullifier: new Fr(0), preimage };
     };
 

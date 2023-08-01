@@ -11,10 +11,11 @@ unconstrained fn get_balance(storage_slot: Field) -> Field {
 unconstrained fn get_balance_internal(storage_slot: Field, limit: u32, offset: u32) -> Field {
     let mut balance = 0;
 
-    let notes = view_notes(storage_slot, ValueNoteInterface, limit, offset);
-    let len = notes.len();
+    let opt_notes = view_notes(storage_slot, ValueNoteInterface, limit, offset);
+    let len = opt_notes.len();
+    let dummy = ValueNoteInterface.dummy;
     for i in 0..len {
-        balance += notes[i].value;
+        balance += opt_notes[i].unwrap_or(dummy()).value;
     }
     // TODO
     // if (notes[len - 1].is_dummy()) {

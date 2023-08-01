@@ -33,7 +33,7 @@ describe('Unconstrained Execution test suite', () => {
     let owner: AztecAddress;
 
     const buildNote = (amount: bigint, owner: AztecAddress) => {
-      return [new Fr(amount), owner, Fr.random(), new Fr(1n)];
+      return [new Fr(amount), owner, Fr.random()];
     };
 
     const calculateAddress = (privateKey: PrivateKey) => {
@@ -67,6 +67,7 @@ describe('Unconstrained Execution test suite', () => {
           contractAddress,
           storageSlot: Fr.random(),
           nonce: Fr.random(),
+          isSome: new Fr(1),
           preimage,
           nullifier: Fr.random(),
           index: BigInt(index),

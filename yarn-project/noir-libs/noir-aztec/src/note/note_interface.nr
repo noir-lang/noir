@@ -11,8 +11,6 @@ struct NoteInterface<Note, N> {
 
     dummy: fn () -> Note,
 
-    is_dummy: fn (Note) -> bool,
-
     get_header: fn (Note) -> NoteHeader,
 
     set_header: fn (&mut Note, NoteHeader) -> (),

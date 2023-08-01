@@ -13,7 +13,10 @@ use dep::aztec::{
     note::note_getter_options::NoteGetterOptions,
     oracle::get_public_key::get_public_key,
     state_vars::set::Set,
-    types::point::Point,
+    types::{
+        point::Point,
+        option::Option,
+    }
 };
 
 struct EasyPrivateUint {
@@ -66,37 +69,37 @@ impl EasyPrivateUint {
         owner: Field,
     ) {
         let options = NoteGetterOptions::with_filter(get_2_notes, 0);
-        let notes = self.set.get_notes(context, options);
-        let note1 = notes[0];
-        let note2 = notes[1];
+        let maybe_notes = self.set.get_notes(context, options);
+
+        let note0 = maybe_notes[0].unwrap_or(ValueNote::dummy());
+        let note1 = maybe_notes[1].unwrap_or(ValueNote::dummy());
 
         // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
         // nullifying someone else's notes).
-        let validate = |note: ValueNote, owner: Field| {
-            let condition = (owner == note.owner);
-            assert((!note.is_real) | condition);
-        };
-        
-        validate(note1, owner);
-        validate(note2, owner);
+        if maybe_notes[0].is_some() {
+            assert(owner == note0.owner);
+            // Removes the note from the owner's set of notes.
+            self.set.remove(context, note0);
+        }
+        if maybe_notes[1].is_some() {
+            assert(owner == note1.owner);
+            // Removes the note from the owner's set of notes.
+            self.set.remove(context, note1);
+        }
 
+        let note0_value: u120 = note0.value as u120;
         let note1_value: u120 = note1.value as u120;
-        let note2_value: u120 = note2.value as u120;
-        let minuend = note1_value + note2_value;
+        let minuend = note0_value + note1_value;
         assert(minuend >= subtrahend);
 
-        // Removes the 2 notes from the owner's set of notes.
-        self.set.remove(context, note1);
-        self.set.remove(context, note2);
-
         // Creates change note for the owner.
-        let result = minuend - subtrahend;
-        let mut result_note = ValueNote::new(result as Field, owner);
+        let result_value = minuend - subtrahend;
+        let mut result_note = ValueNote::new(result_value as Field, owner);
         self.set.insert(context, &mut result_note);
 
         // Emit the newly created encrypted note preimages via oracle calls.
         let mut encrypted_data = [0; VALUE_NOTE_LEN];
-        if result_note.is_dummy() == false {
+        if result_value != 0 {
             encrypted_data = result_note.serialise();
         };
 

@@ -74,10 +74,6 @@ impl EcdsaPublicKeyNote {
             header: NoteHeader::empty(),
         }
     }
-
-    fn is_dummy(self) -> bool {
-        (self.x == [0;32]) & (self.y == [0;32]) & (self.owner == 0)
-    }
 }
 
 fn deserialise(preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
@@ -116,10 +112,6 @@ fn dummy() -> EcdsaPublicKeyNote {
     EcdsaPublicKeyNote::dummy()
 }
 
-fn is_dummy(note: EcdsaPublicKeyNote) -> bool {
-    note.is_dummy()
-}
-
 fn get_header(note: EcdsaPublicKeyNote) -> NoteHeader {
     note.header
 }
@@ -134,7 +126,6 @@ global EcdsaPublicKeyNoteInterface = NoteInterface {
     compute_note_hash,
     compute_nullifier,
     dummy,
-    is_dummy,
     get_header,
     set_header,
 };

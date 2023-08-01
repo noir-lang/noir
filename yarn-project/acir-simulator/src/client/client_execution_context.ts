@@ -44,6 +44,8 @@ export class ClientTxExecutionContext {
     /** The list of nullifiers created in this transaction. The commitment/note which is nullified
      *  might be pending or not (i.e., was generated in a previous transaction) */
     private pendingNullifiers: Set<Fr> = new Set<Fr>(),
+
+    private log = createDebugLogger('aztec:simulator:client_execution_context'),
   ) {}
 
   /**
@@ -146,8 +148,20 @@ export class ClientTxExecutionContext {
         .join(', ')}`,
     );
 
+    // TODO: notice, that if we don't have a note in our DB, we don't know how big the preimage needs to be, and so we don't actually know how many dummy notes to return, or big to make those dummy notes, or where to position `is_some` booleans to inform the noir program that _all_ the notes should be dummies.
+    // By a happy coincidence, a `0` field is interpreted as `is_none`, and since in this case (of an empty db) we'll return all zeros (paddedZeros), the noir program will treat the returned data as all dummies, but this is luck. Perhaps a preimage size should be conveyed by the get_notes noir oracle?
+    const preimageLength = notes?.[0]?.preimage.length ?? 0;
+    if (
+      !notes.every(({ preimage }) => {
+        return preimageLength === preimage.length;
+      })
+    )
+      throw new Error('Preimages for a particular note type should all be the same length');
+
     // Combine pending and db preimages into a single flattened array.
-    const preimages = notes.flatMap(({ nonce, preimage }) => [nonce, ...preimage]);
+    const isSome = new Fr(1); // Boolean. Indicates whether the Noir Option<Note>::is_some();
+
+    const realNotePreimages = notes.flatMap(({ nonce, preimage }) => [nonce, isSome, ...preimage]);
 
     // Add a partial witness for each note.
     // It contains the note index for db notes. And flagged as transient for pending notes.
@@ -157,8 +171,25 @@ export class ClientTxExecutionContext {
       );
     });
 
-    const paddedZeros = Array(Math.max(0, returnSize - 2 - preimages.length)).fill(Fr.ZERO);
-    return [notes.length, contractAddress, ...preimages, ...paddedZeros].map(v => toACVMField(v));
+    const returnHeaderLength = 2; // is for the header values: `notes.length` and `contractAddress`.
+    const extraPreimageLength = 2; // is for the nonce and isSome fields.
+    const extendedPreimageLength = preimageLength + extraPreimageLength;
+    const numRealNotes = notes.length;
+    const numReturnNotes = Math.floor((returnSize - returnHeaderLength) / extendedPreimageLength);
+    const numDummyNotes = numReturnNotes - numRealNotes;
+
+    const dummyNotePreimage = Array(extendedPreimageLength).fill(Fr.ZERO);
+    const dummyNotePreimages = Array(numDummyNotes)
+      .fill(dummyNotePreimage)
+      .flatMap(note => note);
+
+    const paddedZeros = Array(
+      Math.max(0, returnSize - returnHeaderLength - realNotePreimages.length - dummyNotePreimages.length),
+    ).fill(Fr.ZERO);
+
+    return [notes.length, contractAddress, ...realNotePreimages, ...dummyNotePreimages, ...paddedZeros].map(v =>
+      toACVMField(v),
+    );
   }
 
   /**
