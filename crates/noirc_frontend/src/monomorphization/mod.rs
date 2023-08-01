@@ -727,43 +727,45 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Ident(ident) => {
                 let typ = self.interner.id_type(ident.id);
                 let typ: Type = typ.follow_bindings();
-                match &typ {
+                let is_fmt_str = match typ {
                     // A format string has many different possible types that need to be handled.
                     // Loop over each element in the format string to fetch each type's relevant metadata
                     Type::FmtString(_, elements) => {
-                        match elements.as_ref() {
+                        match *elements {
                             Type::Tuple(element_types) => {
                                 for typ in element_types {
-                                    let abi_type = typ.as_abi_type();
-                                    let abi_as_string = serde_json::to_string(&abi_type)
-                                        .expect("ICE: expected Abi type to serialize");
-
-                                    arguments.push(ast::Expression::Literal(ast::Literal::Str(
-                                        abi_as_string,
-                                    )));
+                                    Self::append_abi_arg_inner(&typ, arguments);
                                 }
                             }
                             _ => unreachable!(
                                 "ICE: format string type should be a tuple but got a {elements}"
                             ),
                         }
-
-                        // The caller needs information as to whether it is handling a format string or a single type
-                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(true)));
+                        true
                     }
                     _ => {
-                        let abi_type = typ.as_abi_type();
-                        let abi_as_string = serde_json::to_string(&abi_type)
-                            .expect("ICE: expected Abi type to serialize");
-
-                        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
-                        // The caller needs information as to whether it is handling a format string or a single type
-                        arguments.push(ast::Expression::Literal(ast::Literal::Bool(false)));
+                        Self::append_abi_arg_inner(&typ, arguments);
+                        false
                     }
-                }
+                };
+                // The caller needs information as to whether it is handling a format string or a single type
+                arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
             }
             _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
         }
+    }
+
+    fn append_abi_arg_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+        if let HirType::Array(size, _) = typ {
+            if let HirType::NotConstant = **size {
+                unreachable!("Slices are not supported with println. Convert the slice to an array before passing it to println");
+            }
+        }
+        let abi_type = typ.as_abi_type();
+        let abi_as_string =
+            serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
+
+        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
     }
 
     /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
