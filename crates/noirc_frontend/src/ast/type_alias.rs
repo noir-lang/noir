@@ -16,7 +16,7 @@ impl NoirTypeAlias {
     pub fn new(
         name: Ident,
         generics: UnresolvedGenerics,
-        ty: UnresolvedType,
+        typ: UnresolvedType,
         span: Span,
     ) -> NoirTypeAlias {
         NoirTypeAlias { name, generics, ty, span }
