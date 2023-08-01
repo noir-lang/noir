@@ -80,6 +80,7 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
   /**
    * Method to submit a transaction to the p2p pool.
    * @param tx - The transaction to be submitted.
+   * @returns Nothing.
    */
   sendTx(tx: Tx): Promise<void>;
 

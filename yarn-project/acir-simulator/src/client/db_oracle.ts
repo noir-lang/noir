@@ -71,9 +71,52 @@ export interface CommitmentDataOracleInputs {
  * The database oracle interface.
  */
 export interface DBOracle extends CommitmentsDB {
+  /**
+   * Retrieve the public key associated to a given address.
+   * @param address - Address to fetch the pubkey for.
+   * @returns A public key and the corresponding partial contract address, such that the hash of the two resolves to the input address.
+   */
   getPublicKey(address: AztecAddress): Promise<[PublicKey, PartialContractAddress]>;
+
+  /**
+   * Retrieve the secret key associated with a specific public key.
+   * The function only allows access to the secret keys of the transaction creator,
+   * and throws an error if the address does not match the public key address of the key pair.
+   *
+   * @param contractAddress - The contract address. Ignored here. But we might want to return different keys for different contracts.
+   * @param pubKey - The public key of an account.
+   * @returns A Promise that resolves to the secret key as a Buffer.
+   * @throws An Error if the input address does not match the public key address of the key pair.
+   */
   getSecretKey(contractAddress: AztecAddress, pubKey: PublicKey): Promise<PrivateKey>;
+
+  /**
+   * Retrieves a set of notes stored in the database for a given contract address and storage slot.
+   * The query result is paginated using 'limit' and 'offset' values.
+   * Returns an object containing an array of note data, including preimage, nonce, and index for each note.
+   *
+   * @param contractAddress - The AztecAddress instance representing the contract address.
+   * @param storageSlot - The Fr instance representing the storage slot of the notes.
+   * @returns A Promise that resolves to an array of note data.
+   */
   getNotes(contractAddress: AztecAddress, storageSlot: Fr): Promise<NoteData[]>;
+
+  /**
+   * Retrieve the ABI information of a specific function within a contract.
+   * The function is identified by its selector, which is a unique identifier generated from the function signature.
+   *
+   * @param contractAddress - The contract address.
+   * @param functionSelector - The Buffer containing the function selector bytes.
+   * @returns A Promise that resolves to a FunctionAbi object containing the ABI information of the target function.
+   */
   getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi>;
+
+  /**
+   * Retrieves the portal contract address associated with the given contract address.
+   * Throws an error if the input contract address is not found or invalid.
+   *
+   * @param contractAddress - The address of the contract whose portal address is to be fetched.
+   * @returns A Promise that resolves to an EthAddress instance, representing the portal contract address.
+   */
   getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
 }

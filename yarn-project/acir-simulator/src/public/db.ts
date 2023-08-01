@@ -21,6 +21,7 @@ export interface PublicStateDB {
    * @param contract - Owner of the storage.
    * @param slot - Slot to read in the contract storage.
    * @param newValue - The new value to store.
+   * @returns Nothing.
    */
   storageWrite(contract: AztecAddress, slot: Fr, newValue: Fr): Promise<void>;
 }
@@ -55,7 +56,25 @@ export interface PublicContractsDB {
 
 /** Database interface for providing access to commitment tree and l1 to l2 messages tree (append only data trees). */
 export interface CommitmentsDB {
+  /**
+   * Gets a confirmed L1 to L2 message for the given message key.
+   * TODO(Maddiaa): Can be combined with aztec-node method that does the same thing.
+   * @param msgKey - The message Key.
+   * @returns - The l1 to l2 message object
+   */
   getL1ToL2Message(msgKey: Fr): Promise<MessageLoadOracleInputs>;
+
+  /**
+   * Gets a message index and sibling path to some commitment in the private data tree.
+   * @param address - The contract address owning storage.
+   * @param commitment - The preimage of the siloed data.
+   * @returns - The Commitment data oracle object
+   */
   getCommitmentOracle(address: AztecAddress, commitment: Fr): Promise<CommitmentDataOracleInputs>;
+
+  /**
+   * Gets the current tree roots from the merkle db.
+   * @returns current tree roots.
+   */
   getTreeRoots(): PrivateHistoricTreeRoots;
 }

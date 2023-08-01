@@ -35,12 +35,14 @@ export interface P2PSyncState {
 export interface P2P {
   /**
    * Verifies the 'tx' and, if valid, adds it to local tx pool and forwards it to other peers.
+   * @param tx - The transaction.
    **/
   sendTx(tx: Tx): Promise<void>;
 
   /**
    * Deletes 'txs' from the pool, given hashes.
    * NOT used if we use sendTx as reconcileTxPool will handle this.
+   * @param txHashes - Hashes to check.
    **/
   deleteTxs(txHashes: TxHash[]): Promise<void>;
 
@@ -52,6 +54,7 @@ export interface P2P {
 
   /**
    * Returns a transaction in the transaction pool by its hash.
+   * @param txHash  - Hash of tx to return.
    * @returns A single tx or undefined.
    */
   getTxByhash(txHash: TxHash): Promise<Tx | undefined>;
@@ -74,7 +77,7 @@ export interface P2P {
    */
   isReady(): Promise<boolean>;
 
-  /*
+  /**
    * Returns the current status of the p2p client.
    */
   getStatus(): Promise<P2PSyncState>;

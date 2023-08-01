@@ -6,7 +6,10 @@
  * If `registerHandler` callback receives `undefined` that signals the other end closed.
  */
 export interface Socket {
+  // eslint-disable-next-line jsdoc/require-jsdoc
   send(msg: any, transfer?: Transferable[]): Promise<void>;
+  // eslint-disable-next-line jsdoc/require-jsdoc
   registerHandler(cb: (msg: any) => any): void;
+  // eslint-disable-next-line jsdoc/require-jsdoc
   close(): void;
 }

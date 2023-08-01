@@ -39,26 +39,14 @@ export class ViemReader implements L1GlobalReader {
     });
   }
 
-  /**
-   * Fetches the last timestamp that a block was processed by the contract.
-   * @returns The last timestamp that a block was processed by the contract.
-   */
   public async getLastTimestamp(): Promise<bigint> {
     return BigInt(await this.rollupContract.read.lastBlockTs());
   }
 
-  /**
-   * Fetches the version of the rollup contract.
-   * @returns The version of the rollup contract.
-   */
   public async getVersion(): Promise<bigint> {
     return BigInt(await this.rollupContract.read.VERSION());
   }
 
-  /**
-   * Gets the chain id.
-   * @returns The chain id.
-   */
   public async getChainId(): Promise<bigint> {
     return await Promise.resolve(BigInt(this.publicClient.chain.id));
   }

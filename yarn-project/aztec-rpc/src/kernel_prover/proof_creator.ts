@@ -36,9 +36,38 @@ export interface ProofOutput {
  * siloed commitments necessary for maintaining transaction privacy and security on the network.
  */
 export interface ProofCreator {
+  /**
+   * Computes the siloed commitments for a given set of public inputs.
+   *
+   * @param publicInputs - The public inputs containing the contract address and new commitments to be used in generating siloed commitments.
+   * @returns An array of Fr (finite field) elements representing the siloed commitments.
+   */
   getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs): Promise<Fr[]>;
+
+  /**
+   * Creates a proof output for a given signed transaction request and private call data for the first iteration.
+   *
+   * @param txRequest - The signed transaction request object.
+   * @param privateCallData - The private call data object.
+   * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
+   */
   createProofInit(txRequest: TxRequest, privateCallData: PrivateCallData): Promise<ProofOutput>;
+
+  /**
+   * Creates a proof output for a given previous kernel data and private call data for an inner iteration.
+   *
+   * @param previousKernelData - The previous kernel data object.
+   * @param privateCallData - The private call data object.
+   * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
+   */
   createProofInner(previousKernelData: PreviousKernelData, privateCallData: PrivateCallData): Promise<ProofOutput>;
+
+  /**
+   * Creates a proof output based on the last inner kernel iteration kernel data for the final ordering iteration.
+   *
+   * @param previousKernelData - The previous kernel data object.
+   * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
+   */
   createProofOrdering(previousKernelData: PreviousKernelData): Promise<ProofOutput>;
 }
 
@@ -49,15 +78,9 @@ export interface ProofCreator {
  * based on the given public inputs and to generate proofs based on signed transaction requests, previous kernel
  * data, private call data, and a flag indicating whether it's the first iteration or not.
  */
-export class KernelProofCreator {
+export class KernelProofCreator implements ProofCreator {
   constructor(private log = createDebugLogger('aztec:kernel_proof_creator')) {}
 
-  /**
-   * Computes the siloed commitments for a given set of public inputs.
-   *
-   * @param publicInputs - The public inputs containing the contract address and new commitments to be used in generating siloed commitments.
-   * @returns An array of Fr (finite field) elements representing the siloed commitments.
-   */
   public async getSiloedCommitments(publicInputs: PrivateCircuitPublicInputs) {
     const wasm = await CircuitsWasm.get();
     const contractAddress = publicInputs.callContext.storageContractAddress;
@@ -65,13 +88,6 @@ export class KernelProofCreator {
     return publicInputs.newCommitments.map(commitment => siloCommitment(wasm, contractAddress, commitment));
   }
 
-  /**
-   * Creates a proof output for a given signed transaction request and private call data for the first iteration.
-   *
-   * @param txRequest - The signed transaction request object.
-   * @param privateCallData - The private call data object.
-   * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
-   */
   public async createProofInit(txRequest: TxRequest, privateCallData: PrivateCallData): Promise<ProofOutput> {
     const wasm = await CircuitsWasm.get();
     this.log('Executing private kernel simulation init...');
@@ -87,13 +103,6 @@ export class KernelProofCreator {
     };
   }
 
-  /**
-   * Creates a proof output for a given previous kernel data and private call data for an inner iteration.
-   *
-   * @param previousKernelData - The previous kernel data object.
-   * @param privateCallData - The private call data object.
-   * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
-   */
   public async createProofInner(
     previousKernelData: PreviousKernelData,
     privateCallData: PrivateCallData,
@@ -112,12 +121,6 @@ export class KernelProofCreator {
     };
   }
 
-  /**
-   * Creates a proof output based on the last inner kernel iteration kernel data for the final ordering iteration.
-   *
-   * @param previousKernelData - The previous kernel data object.
-   * @returns A Promise resolving to a ProofOutput object containing public inputs and the kernel proof.
-   */
   public async createProofOrdering(previousKernelData: PreviousKernelData): Promise<ProofOutput> {
     const wasm = await CircuitsWasm.get();
     this.log('Executing private kernel simulation ordering...');

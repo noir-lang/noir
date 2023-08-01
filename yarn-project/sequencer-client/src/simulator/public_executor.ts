@@ -85,12 +85,6 @@ class WorldStatePublicDB implements PublicStateDB {
 export class WorldStateDB implements CommitmentsDB {
   constructor(private db: MerkleTreeOperations, private l1ToL2MessageSource: L1ToL2MessageSource) {}
 
-  /**
-   * Gets a confirmed L1 to L2 message for the given message key.
-   * TODO(Maddiaa): Can be combined with aztec-node method that does the same thing.
-   * @param messageKey - The message Key.
-   * @returns - The l1 to l2 message object
-   */
   public async getL1ToL2Message(messageKey: Fr): Promise<MessageLoadOracleInputs> {
     // todo: #697 - make this one lookup.
     const message = await this.l1ToL2MessageSource.getConfirmedL1ToL2Message(messageKey);
@@ -104,12 +98,6 @@ export class WorldStateDB implements CommitmentsDB {
     };
   }
 
-  /**
-   * Gets a message index and sibling path to some commitment in the private data tree.
-   * @param address - The contract address owning storage.
-   * @param commitment - The preimage of the siloed data.
-   * @returns - The Commitment data oracle object
-   */
   public async getCommitmentOracle(address: AztecAddress, commitment: Fr): Promise<CommitmentDataOracleInputs> {
     const siloedCommitment = siloCommitment(await CircuitsWasm.get(), address, commitment);
     const index = (await this.db.findLeafIndex(MerkleTreeId.PRIVATE_DATA_TREE, siloedCommitment.toBuffer()))!;
@@ -122,10 +110,6 @@ export class WorldStateDB implements CommitmentsDB {
     };
   }
 
-  /**
-   * Gets the current tree roots from the merkle db.
-   * @returns current tree roots.
-   */
   public getTreeRoots(): PrivateHistoricTreeRoots {
     const roots = this.db.getCommitmentTreeRoots();
 

@@ -86,14 +86,6 @@ export class AztecRPCServer implements AztecRPC {
     this.log.info('Stopped');
   }
 
-  /**
-   * Registers an account backed by an account contract.
-   *
-   * @param privKey - Private key of the corresponding user master public key.
-   * @param address - Address of the account contract.
-   * @param partialContractAddress - The partially computed address of the account contract.
-   * @returns The address of the account contract.
-   */
   public async addAccount(privKey: PrivateKey, address: AztecAddress, partialContractAddress: PartialContractAddress) {
     const pubKey = this.keyStore.addAccount(privKey);
     // TODO(#1007): ECDSA contract breaks this check, since the ecdsa public key does not match the one derived from the keystore.
@@ -111,13 +103,6 @@ export class AztecRPCServer implements AztecRPC {
     return address;
   }
 
-  /**
-   * Adds public key and partial address to a database.
-   * @param address - Address of the account to add public key and partial address for.
-   * @param publicKey - Public key of the corresponding user.
-   * @param partialAddress - The partially computed address of the account contract.
-   * @returns A Promise that resolves once the public key has been added to the database.
-   */
   public async addPublicKeyAndPartialAddress(
     address: AztecAddress,
     publicKey: PublicKey,
@@ -127,13 +112,6 @@ export class AztecRPCServer implements AztecRPC {
     this.log.info(`Added public key for ${address.toString()}`);
   }
 
-  /**
-   * Add an array of deployed contracts to the database.
-   * Each contract should contain ABI, address, and portalContract information.
-   *
-   * @param contracts - An array of DeployedContract objects containing contract ABI, address, and portalContract.
-   * @returns A Promise that resolves once all the contracts have been added to the database.
-   */
   public async addContracts(contracts: DeployedContract[]) {
     const contractDaos = contracts.map(c => toContractDao(c.abi, c.address, c.portalContract));
     await Promise.all(contractDaos.map(c => this.db.addContract(c)));
@@ -144,23 +122,10 @@ export class AztecRPCServer implements AztecRPC {
     }
   }
 
-  /**
-   * Retrieves the list of Aztec addresses added to this rpc server
-   * The addresses are returned as a promise that resolves to an array of AztecAddress objects.
-   *
-   * @returns A promise that resolves to an array of AztecAddress instances.
-   */
   public async getAccounts(): Promise<AztecAddress[]> {
     return await this.db.getAccounts();
   }
 
-  /**
-   * Retrieve the public key associated with an address.
-   * Throws an error if the account is not found in the key store.
-   *
-   * @param address - The AztecAddress instance representing the account to get public key for.
-   * @returns A Promise resolving to the PublicKey instance representing the public key.
-   */
   public async getPublicKey(address: AztecAddress): Promise<PublicKey> {
     const result = await this.db.getPublicKeyAndPartialAddress(address);
     if (!result) {
@@ -169,13 +134,6 @@ export class AztecRPCServer implements AztecRPC {
     return Promise.resolve(result[0]);
   }
 
-  /**
-   * Retrieve the public key and partial contract address associated with an address.
-   * Throws an error if the account is not found in the key store.
-   *
-   * @param address - The AztecAddress instance representing the account to get public key and partial address for.
-   * @returns A Promise resolving to the PublicKey instance representing the public key.
-   */
   public async getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialContractAddress]> {
     const result = await this.db.getPublicKeyAndPartialAddress(address);
     if (!result) {
@@ -184,27 +142,11 @@ export class AztecRPCServer implements AztecRPC {
     return Promise.resolve(result);
   }
 
-  /**
-   * Retrieves the preimage data at a specified contract address and storage slot.
-   * The returned data is an array of note preimage items, with each item containing its value.
-   *
-   * @param contract - The AztecAddress of the target contract.
-   * @param storageSlot - The Fr representing the storage slot to be fetched.
-   * @returns A promise that resolves to an array of note preimage items, each containing its value.
-   */
   public async getPreimagesAt(contract: AztecAddress, storageSlot: Fr) {
     const noteSpendingInfo = await this.db.getNoteSpendingInfo(contract, storageSlot);
     return noteSpendingInfo.map(d => d.notePreimage.items.map(item => item.value));
   }
 
-  /**
-   * Retrieves the public storage data at a specified contract address and storage slot.
-   * The returned data is data at the storage slot or throws an error if the contract is not deployed.
-   *
-   * @param contract - The AztecAddress of the target contract.
-   * @param storageSlot - The Fr representing the storage slot to be fetched.
-   * @returns A buffer containing the public storage data at the storage slot.
-   */
   public async getPublicStorageAt(contract: AztecAddress, storageSlot: Fr) {
     if (!(await this.isContractDeployed(contract))) {
       throw new Error(`Contract ${contract.toString()} is not deployed`);
@@ -212,23 +154,10 @@ export class AztecRPCServer implements AztecRPC {
     return await this.node.getPublicStorageAt(contract, storageSlot.value);
   }
 
-  /**
-   * Is an L2 contract deployed at this address?
-   * @param contractAddress - The contract data address.
-   * @returns Whether the contract was deployed.
-   */
   public async isContractDeployed(contractAddress: AztecAddress): Promise<boolean> {
     return !!(await this.node.getContractInfo(contractAddress));
   }
 
-  /**
-   * Create a transaction for a contract function call with the provided arguments.
-   * Throws an error if the contract or function is unknown.
-   *
-   * @param txRequest - An authenticated tx request ready for simulation
-   * @param optionalFromAddress - The address to simulate from
-   * @returns A Tx ready to send to the p2p pool for execution.
-   */
   public async simulateTx(txRequest: TxExecutionRequest) {
     if (!txRequest.functionData.isPrivate) {
       throw new Error(`Public entrypoints are not allowed`);
@@ -256,11 +185,6 @@ export class AztecRPCServer implements AztecRPC {
     return tx;
   }
 
-  /**
-   * Send a transaction.
-   * @param tx - The transaction.
-   * @returns A hash of the transaction, used to identify it.
-   */
   public async sendTx(tx: Tx): Promise<TxHash> {
     const txHash = await tx.getTxHash();
     this.log.info(`Sending transaction ${txHash}`);
@@ -268,18 +192,6 @@ export class AztecRPCServer implements AztecRPC {
     return txHash;
   }
 
-  /**
-   * Simulate the execution of a view (read-only) function on a deployed contract without actually modifying state.
-   * This is useful to inspect contract state, for example fetching a variable value or calling a getter function.
-   * The function takes function name and arguments as parameters, along with the contract address
-   * and optionally the sender's address.
-   *
-   * @param functionName - The name of the function to be called in the contract.
-   * @param args - The arguments to be provided to the function.
-   * @param to - The address of the contract to be called.
-   * @param from - (Optional) The caller of the transaction.
-   * @returns The result of the view function call, structured based on the function ABI.
-   */
   public async viewTx(functionName: string, args: any[], to: AztecAddress, from?: AztecAddress) {
     const txRequest = await this.#getExecutionRequest(functionName, args, to, from ?? AztecAddress.ZERO);
 
@@ -289,11 +201,6 @@ export class AztecRPCServer implements AztecRPC {
     return executionResult;
   }
 
-  /**
-   * Fetches a transaction receipt for a tx.
-   * @param txHash - The transaction hash.
-   * @returns A receipt of the transaction.
-   */
   public async getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
     const localTx = await this.#getTxByHash(txHash);
     const partialReceipt = new TxReceipt(
@@ -331,40 +238,18 @@ export class AztecRPCServer implements AztecRPC {
     return partialReceipt;
   }
 
-  /**
-   * Get latest L2 block number.
-   * @returns The latest block number.
-   */
   async getBlockNum(): Promise<number> {
     return await this.node.getBlockHeight();
   }
 
-  /**
-   * Lookup the L2 contract data for this contract.
-   * Contains the ethereum portal address and bytecode.
-   * @param contractAddress - The contract data address.
-   * @returns The complete contract data including portal address & bytecode (if we didn't throw an error).
-   */
   public async getContractData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined> {
     return await this.node.getContractData(contractAddress);
   }
 
-  /**
-   * Lookup the L2 contract info for this contract.
-   * Contains the ethereum portal address .
-   * @param contractAddress - The contract data address.
-   * @returns The contract's address & portal address.
-   */
   public async getContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     return await this.node.getContractInfo(contractAddress);
   }
 
-  /**
-   * Gets L2 block unencrypted logs.
-   * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
-   * @param take - The number of unencrypted logs to return.
-   * @returns The requested unencrypted logs.
-   */
   public async getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
     return await this.node.getLogs(from, take, LogType.UNENCRYPTED);
   }
@@ -393,10 +278,6 @@ export class AztecRPCServer implements AztecRPC {
     };
   }
 
-  /**
-   * Returns the information about the server's node
-   * @returns - The node information.
-   */
   public async getNodeInfo(): Promise<NodeInfo> {
     const [version, chainId] = await Promise.all([this.node.getVersion(), this.node.getChainId()]);
 
@@ -458,16 +339,6 @@ export class AztecRPCServer implements AztecRPC {
     };
   }
 
-  /**
-   * Simulate the execution of a transaction request.
-   * This function computes the expected state changes resulting from the transaction
-   * without actually submitting it to the blockchain. The result will be used for creating the kernel proofs,
-   * as well as for estimating gas costs.
-   *
-   * @param txRequest - The transaction request object containing the necessary data for simulation.
-   * @param contractDataOracle - Optional parameter, an instance of ContractDataOracle class for retrieving contract data.
-   * @returns A promise that resolves to an object containing the simulation results, including expected output notes and any error messages.
-   */
   async #simulate(txRequest: TxExecutionRequest, contractDataOracle?: ContractDataOracle) {
     // TODO - Pause syncing while simulating.
     if (!contractDataOracle) {
@@ -567,20 +438,10 @@ export class AztecRPCServer implements AztecRPC {
     );
   }
 
-  /**
-   * Return true if the top level block synchronisation is up to date
-   * This indicates that blocks and transactions are synched even if notes are not
-   * @returns True if there are no outstanding blocks to be synched
-   */
   public async isSynchronised() {
     return await this.synchroniser.isSynchronised();
   }
 
-  /**
-   * Returns true if the account specified by the given address is synched to the latest block
-   * @param account - The aztec address for which to query the sync status
-   * @returns True if the account is fully synched, false otherwise
-   */
   public async isAccountSynchronised(account: AztecAddress) {
     return await this.synchroniser.isAccountSynchronised(account);
   }

@@ -12,12 +12,6 @@ export class TestKeyStore implements KeyStore {
   private accounts: KeyPair[] = [];
   constructor(private curve: Grumpkin) {}
 
-  /**
-   * Adds an account to the key store from the provided private key.
-   * @param curve - The curve to use for generating the public key.
-   * @param privKey - The private key of the account.
-   * @returns - The account's public key.
-   */
   public addAccount(privKey: PrivateKey): PublicKey {
     const keyPair = ConstantKeyPair.fromPrivateKey(this.curve, privKey);
 
@@ -31,37 +25,16 @@ export class TestKeyStore implements KeyStore {
     return keyPair.getPublicKey();
   }
 
-  /**
-   * Adds a new account to the TestKeyStore with a randomly generated ConstantKeyPair.
-   * The account will have its own private and public key pair, which can be used for signing transactions.
-   * @param curve - The curve to use for generating the public key.
-   * @returns A promise that resolves to the newly created account's AztecAddress.
-   */
   public createAccount(): Promise<PublicKey> {
     const keyPair = ConstantKeyPair.random(this.curve);
     this.accounts.push(keyPair);
     return Promise.resolve(keyPair.getPublicKey());
   }
 
-  /**
-   * Retrieves the public keys of all accounts stored in the TestKeyStore.
-   * The returned addresses are instances of `PublicKey` and can be used for subsequent operations
-   * such as signing transactions or fetching public/private keys.
-   *
-   * @returns A Promise that resolves to an array of public keys instances.
-   */
   public getAccounts(): Promise<PublicKey[]> {
     return Promise.resolve(this.accounts.map(a => a.getPublicKey()));
   }
 
-  /**
-   * Retrieves the private key of the account associated with the specified AztecAddress.
-   * Throws an error if the provided address is not found in the list of registered accounts.
-   *
-   * @param pubKey - The AztecAddress instance representing the account for which the private key is requested.
-   * @returns A Promise that resolves to a Buffer containing the private key.
-   * @deprecated We should not require a keystore to expose private keys in plain.
-   */
   public getAccountPrivateKey(pubKey: PublicKey): Promise<PrivateKey> {
     const account = this.getAccount(pubKey);
     return account.getPrivateKey();

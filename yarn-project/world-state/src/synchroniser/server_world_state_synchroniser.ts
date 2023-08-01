@@ -34,26 +34,14 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
     );
   }
 
-  /**
-   * Returns an instance of MerkleTreeOperations that will include uncommitted data.
-   * @returns An instance of MerkleTreeOperations that will include uncommitted data.
-   */
   public getLatest(): MerkleTreeOperations {
     return new MerkleTreeOperationsFacade(this.merkleTreeDb, true);
   }
 
-  /**
-   * Returns an instance of MerkleTreeOperations that will not include uncommitted data.
-   * @returns An instance of MerkleTreeOperations that will not include uncommitted data.
-   */
   public getCommitted(): MerkleTreeOperations {
     return new MerkleTreeOperationsFacade(this.merkleTreeDb, false);
   }
 
-  /**
-   * Starts the synchroniser.
-   * @returns A promise that resolves once the initial sync is completed.
-   */
   public async start() {
     if (this.currentState === WorldStateRunningState.STOPPED) {
       throw new Error('Synchroniser already stopped');
@@ -94,9 +82,6 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
     return this.syncPromise;
   }
 
-  /**
-   * Stops the synchroniser.
-   */
   public async stop() {
     this.log('Stopping world state...');
     this.stopping = true;
@@ -105,10 +90,6 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
     this.setCurrentState(WorldStateRunningState.STOPPED);
   }
 
-  /**
-   * Returns the current status of the synchroniser.
-   * @returns The current status of the synchroniser.
-   */
   public status(): Promise<WorldStateStatus> {
     const status = {
       syncedToL2Block: this.currentL2BlockNum,

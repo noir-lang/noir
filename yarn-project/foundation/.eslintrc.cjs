@@ -1,6 +1,12 @@
+// See https://typescript-eslint.io/play/#ts=5.1.6&showAST=es&fileType=.ts
 const contexts = [
-  'TSMethodDefinition[accessibility=public]',
-  'MethodDefinition[accessibility=public]',
+  // All methods in an interface
+  'TSInterfaceDeclaration TSMethodSignature',
+  // All public methods in a class that does not implement an interface
+  'ClassDeclaration[implements.length=0] MethodDefinition[accessibility=public]',
+  // TODO: All methods public by default in a class that does not implement an interface
+  // 'ClassDeclaration[implements.length=0] MethodDefinition[accessibility=undefined][key.type=Identifier]',
+  // Legacy contexts (needs review)
   'TSParameterProperty[accessibility=public]',
   'TSPropertySignature',
   'PropertySignature',
@@ -120,8 +126,7 @@ module.exports = {
     'jsdoc/require-property': [JSDOC_RULES_LEVEL, { contexts }],
     'jsdoc/require-property-description': [JSDOC_RULES_LEVEL, { contexts }],
     'jsdoc/require-property-name': [JSDOC_RULES_LEVEL, { contexts }],
-    'jsdoc/require-returns': [JSDOC_RULES_LEVEL, { contexts }],
-    'jsdoc/require-returns-description': [JSDOC_RULES_LEVEL, { contexts }],
+    'jsdoc/require-returns': 'off',
   },
   ignorePatterns: ['node_modules', 'dest*', 'dist', '*.js', '.eslintrc.cjs'],
 };

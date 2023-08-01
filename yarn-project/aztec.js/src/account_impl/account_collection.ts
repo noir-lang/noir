@@ -23,12 +23,6 @@ export class AccountCollection implements AccountImplementation {
     return AztecAddress.fromString(this.accounts.keys().next().value as string);
   }
 
-  /**
-   * Uses a registered account implementation to generate an authenticated request
-   * @param executions - The execution intent to be authenticated.
-   * @param txContext - The tx context under with the execution is to be made.
-   * @returns - The authenticated transaction execution request.
-   */
   public createAuthenticatedTxRequest(
     executions: ExecutionRequest[],
     txContext: TxContext,

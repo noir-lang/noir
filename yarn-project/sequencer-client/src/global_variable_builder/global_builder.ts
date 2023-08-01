@@ -5,8 +5,20 @@ import { createDebugLogger } from '@aztec/foundation/log';
  * Reads values from L1 state that is used for the global values.
  */
 export interface L1GlobalReader {
+  /**
+   * Fetches the last timestamp that a block was processed by the contract.
+   * @returns The last timestamp that a block was processed by the contract.
+   */
   getLastTimestamp(): Promise<bigint>;
+  /**
+   * Fetches the version of the rollup contract.
+   * @returns The version of the rollup contract.
+   */
   getVersion(): Promise<bigint>;
+  /**
+   * Gets the chain id.
+   * @returns The chain id.
+   */
   getChainId(): Promise<bigint>;
 }
 
@@ -14,6 +26,11 @@ export interface L1GlobalReader {
  * Builds global variables from L1 state.
  */
 export interface GlobalVariableBuilder {
+  /**
+   * Builds global variables.
+   * @param blockNumber - The block number to build global variables for.
+   * @returns The global variables for the given block number.
+   */
   buildGlobalVariables(blockNumber: Fr): Promise<GlobalVariables>;
 }
 

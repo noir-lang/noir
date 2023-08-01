@@ -35,22 +35,10 @@ export class ConstantKeyPair implements KeyPair {
 
   constructor(private publicKey: PublicKey, private privateKey: PrivateKey) {}
 
-  /**
-   * Retrieve the public key from the KeyPair instance.
-   * The returned public key is a PublicKey object which represents a point on the elliptic curve secp256k1.
-   *
-   * @returns The public key as an elliptic curve point.
-   */
   public getPublicKey(): PublicKey {
     return this.publicKey;
   }
 
-  /**
-   * Retrieves the private key of the KeyPair instance.
-   * The function returns a Promise that resolves to a Buffer containing the private key.
-   *
-   * @returns A Promise that resolves to a Buffer containing the private key.
-   */
   public getPrivateKey() {
     return Promise.resolve(this.privateKey);
   }

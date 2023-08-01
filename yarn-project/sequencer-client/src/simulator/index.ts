@@ -38,13 +38,13 @@ export interface RollupSimulator {
 export interface PublicKernelCircuitSimulator {
   /**
    * Simulates the public kernel circuit (with a previous private kernel circuit run) from its inputs.
-   * @param input - Inputs to the circuit.
+   * @param inputs - Inputs to the circuit.
    * @returns The public inputs as outputs of the simulation.
    */
   publicKernelCircuitPrivateInput(inputs: PublicKernelInputs): Promise<PublicKernelPublicInputs>;
   /**
    * Simulates the public kernel circuit (with no previous public kernel circuit run) from its inputs.
-   * @param input - Inputs to the circuit.
+   * @param inputs - Inputs to the circuit.
    * @returns The public inputs as outputs of the simulation.
    */
   publicKernelCircuitNonFirstIteration(inputs: PublicKernelInputs): Promise<PublicKernelPublicInputs>;
