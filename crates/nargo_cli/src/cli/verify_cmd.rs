@@ -26,9 +26,6 @@ use std::path::{Path, PathBuf};
 /// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
 pub(crate) struct VerifyCommand {
-    /// The proof to verify
-    proof: String,
-
     /// The name of the toml file which contains the inputs for the verifier
     #[clap(long, short, default_value = VERIFIER_INPUT_FILE)]
     verifier_name: String,
@@ -49,10 +46,11 @@ pub(crate) fn run<B: Backend>(
     let toml_path = find_package_manifest(&config.program_dir)?;
     let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
     let proofs_dir = workspace.proofs_directory_path();
-    let proof_path = proofs_dir.join(&args.proof).with_extension(PROOF_EXT);
 
     for package in &workspace {
         let circuit_build_path = workspace.package_build_path(package);
+
+        let proof_path = proofs_dir.join(String::from(&package.name)).with_extension(PROOF_EXT);
 
         verify_package(
             backend,

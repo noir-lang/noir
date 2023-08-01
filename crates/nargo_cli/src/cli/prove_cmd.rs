@@ -28,9 +28,6 @@ use crate::{find_package_manifest, prepare_package};
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ProveCommand {
-    /// The name of the proof
-    proof_name: Option<String>,
-
     /// The name of the toml file which contains the inputs for the prover
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
@@ -66,7 +63,6 @@ pub(crate) fn run<B: Backend>(
         prove_package(
             backend,
             package,
-            args.proof_name.as_ref(),
             &args.prover_name,
             &args.verifier_name,
             &proof_dir,
@@ -79,18 +75,16 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn prove_package<B: Backend>(
     backend: &B,
     package: &Package,
-    proof_name: Option<&String>,
     prover_name: &str,
     verifier_name: &str,
     proof_dir: &Path,
     circuit_build_path: PathBuf,
     check_proof: bool,
     compile_options: &CompileOptions,
-) -> Result<Option<PathBuf>, CliError<B>> {
+) -> Result<(), CliError<B>> {
     let common_reference_string = read_cached_common_reference_string();
 
     let (common_reference_string, preprocessed_program, debug_data) = if circuit_build_path.exists()
@@ -161,12 +155,7 @@ pub(crate) fn prove_package<B: Backend>(
         }
     }
 
-    let proof_path = if let Some(proof_name) = proof_name {
-        Some(save_proof_to_dir(&proof, proof_name, proof_dir)?)
-    } else {
-        println!("{}", hex::encode(&proof));
-        None
-    };
+    save_proof_to_dir(&proof, &String::from(&package.name), proof_dir)?;
 
-    Ok(proof_path)
+    Ok(())
 }
