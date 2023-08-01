@@ -284,8 +284,8 @@ export class HttpNode implements AztecNode {
    * @returns Storage value at the given contract slot (or undefined if not found).
    * Note: Aztec's version of `eth_getStorageAt`.
    */
-  async getStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined> {
-    const url = new URL(`${this.baseUrl}/storage-at`);
+  async getPublicStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined> {
+    const url = new URL(`${this.baseUrl}/public-storage-at`);
     url.searchParams.append('address', contract.toString());
     url.searchParams.append('slot', slot.toString());
     const response = await (await fetch(url.toString())).json();

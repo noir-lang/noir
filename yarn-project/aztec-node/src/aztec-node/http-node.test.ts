@@ -372,7 +372,7 @@ describe('HttpNode', () => {
     });
   });
 
-  describe('getStorageAt', () => {
+  describe('getPublicStorageAt', () => {
     it('should fetch and return the storage value at the given contract slot', async () => {
       const contractAddress = AztecAddress.random();
       const slot = BigInt(789);
@@ -380,9 +380,9 @@ describe('HttpNode', () => {
       const response = { value: storageValue.toString('hex') };
       setFetchMock(response);
 
-      const result = await httpNode.getStorageAt(contractAddress, slot);
+      const result = await httpNode.getPublicStorageAt(contractAddress, slot);
 
-      const url = `${TEST_URL}storage-at?address=${contractAddress}&slot=${slot.toString()}`;
+      const url = `${TEST_URL}public-storage-at?address=${contractAddress}&slot=${slot.toString()}`;
       expect(fetch).toHaveBeenCalledWith(url);
       expect(result).toEqual(storageValue);
     });
@@ -393,9 +393,9 @@ describe('HttpNode', () => {
       const response = {};
       setFetchMock(response);
 
-      const result = await httpNode.getStorageAt(contractAddress, slot);
+      const result = await httpNode.getPublicStorageAt(contractAddress, slot);
 
-      const url = `${TEST_URL}storage-at?address=${contractAddress}&slot=${slot.toString()}`;
+      const url = `${TEST_URL}public-storage-at?address=${contractAddress}&slot=${slot.toString()}`;
       expect(fetch).toHaveBeenCalledWith(url);
       expect(result).toBeUndefined();
     });

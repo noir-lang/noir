@@ -205,11 +205,11 @@ export function appFactory(node: AztecNode, prefix: string) {
     ctx.status = 200;
   });
 
-  router.get('/storage-at', async (ctx: Koa.Context) => {
-    logger('storage-at');
+  router.get('/public-storage-at', async (ctx: Koa.Context) => {
+    logger('public-storage-at');
     const address = ctx.query.address!;
     const slot = ctx.query.slot!;
-    const value = await node.getStorageAt(AztecAddress.fromString(address as string), BigInt(slot as string));
+    const value = await node.getPublicStorageAt(AztecAddress.fromString(address as string), BigInt(slot as string));
     ctx.set('content-type', 'application/json');
     ctx.body = {
       value: value?.toString('hex'),

@@ -102,7 +102,7 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
    * @param slot - Slot to query.
    * @returns Storage value at the given contract slot (or undefined if not found).
    */
-  getStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined>;
+  getPublicStorageAt(contract: AztecAddress, slot: bigint): Promise<Buffer | undefined>;
 
   /**
    * Returns the current committed roots for the data trees.
