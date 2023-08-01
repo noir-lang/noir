@@ -228,6 +228,15 @@ impl<'a> FunctionContext<'a> {
             ast::Type::MutableReference(element) => {
                 Self::try_map_type_helper(element, &mut |_| f(Type::Reference))
             }
+            ast::Type::FmtString(len, fields) => {
+                // A format string is represented by multiple values
+                // The message string, the number of fields to be formatted, and
+                // then the encapsulated fields themselves
+                let final_fmt_str_fields =
+                    vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
+                let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
+                Self::try_map_type_helper(&fmt_str_tuple, f)
+            }
             other => Ok(Tree::Leaf(f(Self::convert_non_tuple_type(other))?)),
         }
     }

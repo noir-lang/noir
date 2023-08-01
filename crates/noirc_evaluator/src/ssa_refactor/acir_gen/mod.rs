@@ -1002,7 +1002,7 @@ impl Context {
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
-                    AcirValue::Var(_, _) =>  unreachable!("Non-array passed to array.len() method"),
+                    AcirValue::Var(_, _) => unreachable!("Non-array passed to array.len() method"),
                     AcirValue::Array(values) => (values.len() as u128).into(),
                     AcirValue::DynamicArray(array) => (array.len as u128).into(),
                 };
