@@ -977,7 +977,6 @@ impl<'interner> Monomorphizer<'interner> {
                     "\0".repeat(*length as usize),
                     fields_len,
                     Box::new(zeroed_tuple),
-                    // vecmap(fields, |field| self.zeroed_value_of_type(field)),
                 ))
             }
             ast::Type::Tuple(fields) => {
