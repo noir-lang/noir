@@ -7,6 +7,7 @@ import {
   ExecutionRequest,
   L2BlockL2Logs,
   NodeInfo,
+  SyncStatus,
   Tx,
   TxExecutionRequest,
   TxHash,
@@ -93,6 +94,9 @@ export abstract class BaseWallet implements Wallet {
   }
   isAccountSynchronised(account: AztecAddress) {
     return this.rpc.isAccountSynchronised(account);
+  }
+  getSyncStatus(): Promise<SyncStatus> {
+    return this.rpc.getSyncStatus();
   }
 }
 

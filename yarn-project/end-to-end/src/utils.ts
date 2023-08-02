@@ -226,9 +226,14 @@ export async function setupAztecRPCServer(
     context.tx = context.deployMethod.send();
   }
 
+  // Await for all txs to be mined (see #1392)
+  for (const context of txContexts) {
+    await context.tx!.isMined({ interval: 0.1 });
+  }
+
+  // Register the corresponding accounts
   for (const context of txContexts) {
     const publicKey = await generatePublicKey(context.privateKey);
-    await context.tx!.isMined({ interval: 0.1 });
     const receipt = await context.tx!.getReceipt();
     if (receipt.status !== TxStatus.MINED) {
       throw new Error(`Deployment tx not mined (status is ${receipt.status})`);

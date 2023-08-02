@@ -218,12 +218,14 @@ __metadata:
     "@jest/globals": ^29.5.0
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
+    "@types/lodash.every": ^4.6.7
     "@types/lodash.partition": ^4.6.0
     "@types/node": ^18.7.23
     buffer: ^6.0.3
     crypto-browserify: ^3.12.0
     jest: ^29.5.0
     jest-mock-extended: ^3.0.3
+    lodash.every: ^4.6.0
     lodash.partition: ^4.6.0
     process: ^0.11.10
     resolve-typescript-plugin: ^2.0.1

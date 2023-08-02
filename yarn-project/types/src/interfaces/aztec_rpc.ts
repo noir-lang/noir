@@ -43,6 +43,14 @@ export type NodeInfo = {
   chainId: number;
 };
 
+/** Provides up to which block has been synced by different components. */
+export type SyncStatus = {
+  /** Up to which block has been synched for blocks and txs. */
+  blocks: number;
+  /** Up to which block has been synched for notes, indexed by each public key being monitored. */
+  notes: Record<string, number>;
+};
+
 /**
  * Represents an Aztec RPC implementation.
  * Provides functionality for all the operations needed to interact with the Aztec network,
@@ -226,4 +234,10 @@ export interface AztecRPC {
    * @returns True if the account is fully synched, false otherwise
    */
   isAccountSynchronised(account: AztecAddress): Promise<boolean>;
+
+  /**
+   * Returns the latest block that has been synchronised by the synchronizer and each account.
+   * @returns The latest block synchronised for blocks, and the latest block synched for notes for each public key being tracked.
+   */
+  getSyncStatus(): Promise<SyncStatus>;
 }

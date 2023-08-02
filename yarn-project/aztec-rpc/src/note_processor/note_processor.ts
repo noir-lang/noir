@@ -61,6 +61,13 @@ export class NoteProcessor {
   }
 
   /**
+   * Returns synchronisation status (ie up to which block has been synced ) for this note processor.
+   */
+  public get status() {
+    return { syncedToBlock: this.syncedToBlock };
+  }
+
+  /**
    * Process the given L2 block contexts and encrypted logs to update the note processor.
    * It synchronizes the user's account by decrypting the encrypted logs and processing
    * the transactions and auxiliary data associated with them.

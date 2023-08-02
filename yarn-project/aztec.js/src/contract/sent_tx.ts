@@ -2,17 +2,25 @@ import { FieldsOf } from '@aztec/circuits.js';
 import { retryUntil } from '@aztec/foundation/retry';
 import { AztecRPC, TxHash, TxReceipt, TxStatus } from '@aztec/types';
 
+import every from 'lodash.every';
+
 /** Options related to waiting for a tx. */
 export type WaitOpts = {
-  /** The maximum time (in seconds) to wait for the transaction to be mined. */
+  /** The maximum time (in seconds) to wait for the transaction to be mined. Defaults to 60. */
   timeout?: number;
-  /** The time interval (in seconds) between retries to fetch the transaction receipt. */
+  /** The time interval (in seconds) between retries to fetch the transaction receipt. Defaults to 1. */
   interval?: number;
+  /**
+   * Whether to wait for the RPC server to sync all notes up to the block in which this tx was mined.
+   * If false, then any queries that depend on state set by this transaction may return stale data. Defaults to true.
+   **/
+  waitForNotesSync?: boolean;
 };
 
 const DefaultWaitOpts: WaitOpts = {
-  timeout: 0,
+  timeout: 60,
   interval: 1,
+  waitForNotesSync: true,
 };
 
 /**
@@ -74,7 +82,18 @@ export class SentTx {
     return await retryUntil(
       async () => {
         const txReceipt = await this.arc.getTxReceipt(txHash);
-        return txReceipt.status != TxStatus.PENDING ? txReceipt : undefined;
+        // If receipt is not yet available, try again
+        if (txReceipt.status === TxStatus.PENDING) return undefined;
+        // If the tx was dropped, return it
+        if (txReceipt.status === TxStatus.DROPPED) return txReceipt;
+        // If we don't care about waiting for notes to be synced, return the receipt
+        const waitForNotesSync = opts?.waitForNotesSync ?? DefaultWaitOpts.waitForNotesSync;
+        if (!waitForNotesSync) return txReceipt;
+        // Check if all sync blocks on the rpc server are greater or equal than the block in which the tx was mined
+        const { blocks, notes } = await this.arc.getSyncStatus();
+        const targetBlock = txReceipt.blockNumber!;
+        const areNotesSynced = blocks >= targetBlock && every(notes, block => block >= targetBlock);
+        return areNotesSynced ? txReceipt : undefined;
       },
       'isMined',
       opts?.timeout ?? DefaultWaitOpts.timeout,

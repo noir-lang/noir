@@ -204,6 +204,17 @@ export class Synchroniser {
   }
 
   /**
+   * Returns the latest block that has been synchronised by the synchronizer and each account.
+   * @returns The latest block synchronised for blocks, and the latest block synched for notes for each public key being tracked.
+   */
+  public getSyncStatus() {
+    return {
+      blocks: this.synchedToBlock,
+      notes: Object.fromEntries(this.noteProcessors.map(n => [n.publicKey.toString(), n.status.syncedToBlock])),
+    };
+  }
+
+  /**
    * Updates the block information for all transactions in a given block context.
    * The function retrieves transaction data objects from the database using their hashes,
    * sets the block hash and block number to the corresponding values, and saves the updated
