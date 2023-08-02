@@ -288,40 +288,40 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
-    fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> Result<ValueId, InternalError> {
         let base = self.builder.field_constant(FieldElement::from(2_u128));
-        let pow = self.pow(base, rhs);
+        let pow = self.pow(base, rhs)?;
         self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
     }
 
     /// Insert ssa instructions which computes lhs << rhs by doing lhs/2^rhs
-    fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> Result<ValueId, InternalError> {
         let base = self.builder.field_constant(FieldElement::from(2_u128));
-        let pow = self.pow(base, rhs);
+        let pow = self.pow(base, rhs)?;
         self.builder.insert_binary(lhs, BinaryOp::Div, pow)
     }
 
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
-    fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> Result<ValueId, InternalError> {
         let typ = self.builder.current_function.dfg.type_of_value(rhs);
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = self.builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
             let length = self.builder.field_constant(FieldElement::from(bit_size as i128));
             let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
-            let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types)[0];
+            let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types)?[0];
             let one = self.builder.field_constant(FieldElement::one());
             let mut r = one;
             for i in 1..bit_size + 1 {
-                let r1 = self.builder.insert_binary(r, BinaryOp::Mul, r);
-                let a = self.builder.insert_binary(r1, BinaryOp::Mul, lhs);
+                let r1 = self.builder.insert_binary(r, BinaryOp::Mul, r)?;
+                let a = self.builder.insert_binary(r1, BinaryOp::Mul, lhs)?;
                 let idx = self.builder.field_constant(FieldElement::from((bit_size - i) as i128));
-                let b = self.builder.insert_array_get(rhs_bits, idx, Type::field());
-                let r2 = self.builder.insert_binary(a, BinaryOp::Mul, b);
-                let c = self.builder.insert_binary(one, BinaryOp::Sub, b);
-                let r3 = self.builder.insert_binary(c, BinaryOp::Mul, r1);
-                r = self.builder.insert_binary(r2, BinaryOp::Add, r3);
+                let b = self.builder.insert_array_get(rhs_bits, idx, Type::field())?;
+                let r2 = self.builder.insert_binary(a, BinaryOp::Mul, b)?;
+                let c = self.builder.insert_binary(one, BinaryOp::Sub, b)?;
+                let r3 = self.builder.insert_binary(c, BinaryOp::Mul, r1)?;
+                r = self.builder.insert_binary(r2, BinaryOp::Add, r3)?;
             }
-            r
+            Ok(r)
         } else {
             unreachable!("Value must be unsigned in power operation");
         }
@@ -346,14 +346,14 @@ impl<'a> FunctionContext<'a> {
             {
                 return self.insert_array_equality(lhs, operator, rhs, location)
             }
-            _ => {
+            _ => Ok({
                 let op = convert_operator(operator);
                 if operator_requires_swapped_operands(operator) {
                     std::mem::swap(&mut lhs, &mut rhs);
                 }
-                self.builder.set_location(location).insert_binary(lhs, op, rhs)
-            }
-        };
+                self.builder.set_location(location).insert_binary(lhs, op, rhs)?
+            }),
+        }?;
 
         if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
             operator,
