@@ -603,8 +603,7 @@ impl Context {
         let result_block_id = BlockId(result_array_id);
 
         // Initialize the new array with the values from the old array
-        let mut init_values = Vec::new();
-        for i in 0..len {
+        let init_values = try_vecmap(0..len, |i| {
             let index = AcirValue::Var(
                 self.acir_context.add_constant(FieldElement::from(i as u128)),
                 AcirType::NumericType(NumericType::NativeField),
@@ -612,8 +611,8 @@ impl Context {
             let var = index.into_var()?;
             let read = self.acir_context.read_from_memory(block_id, &var)?;
             let acir_value = AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField));
-            init_values.push(acir_value);
-        }
+            Ok(acir_value)
+        })?;
         self.initialize_array(result_block_id, len, Some(&init_values))?;
 
         // Write the new value into the new array at the specified index
