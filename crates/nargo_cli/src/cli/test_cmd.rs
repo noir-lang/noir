@@ -1,15 +1,15 @@
-use std::{io::Write, path::Path};
+use std::io::Write;
 
 use acvm::{acir::native_types::WitnessMap, Backend};
 use clap::Args;
-use nargo::ops::execute_circuit;
+use nargo::{ops::execute_circuit, package::Package};
 use noirc_driver::{compile_no_check, CompileOptions};
-use noirc_frontend::{hir::Context, node_interner::FuncId};
+use noirc_frontend::{graph::CrateName, hir::Context, node_interner::FuncId};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{
-    cli::check_cmd::check_crate_and_report_errors, errors::CliError,
-    resolver::resolve_root_manifest,
+    cli::check_cmd::check_crate_and_report_errors, errors::CliError, find_package_manifest,
+    manifest::resolve_workspace_from_toml, prepare_package,
 };
 
 use super::{compile_cmd::optimize_circuit, NargoConfig};
@@ -24,6 +24,10 @@ pub(crate) struct TestCommand {
     #[arg(long)]
     show_output: bool,
 
+    /// The name of the package to test
+    #[clap(long)]
+    package: Option<CrateName>,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -35,56 +39,62 @@ pub(crate) fn run<B: Backend>(
 ) -> Result<(), CliError<B>> {
     let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
 
-    run_tests(backend, &config.program_dir, &test_name, args.show_output, &args.compile_options)
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+
+    for package in &workspace {
+        run_tests(backend, package, &test_name, args.show_output, &args.compile_options)?;
+    }
+
+    Ok(())
 }
 
 fn run_tests<B: Backend>(
     backend: &B,
-    program_dir: &Path,
+    package: &Package,
     test_name: &str,
     show_output: bool,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let (mut context, crate_id) = resolve_root_manifest(program_dir, None)?;
+    let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 
-    let test_functions = match context.crate_graph.crate_type(crate_id) {
-        noirc_frontend::graph::CrateType::Workspace => {
-            context.get_all_test_functions_in_workspace_matching(test_name)
-        }
-        _ => context.get_all_test_functions_in_crate_matching(&crate_id, test_name),
-    };
+    let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, test_name);
 
-    println!("Running {} test functions...", test_functions.len());
+    println!("[{}] Running {} test functions", package.name, test_functions.len());
     let mut failing = 0;
 
     let writer = StandardStream::stderr(ColorChoice::Always);
     let mut writer = writer.lock();
 
     for (test_name, test_function) in test_functions {
-        writeln!(writer, "Testing {test_name}...").expect("Failed to write to stdout");
-        writer.flush().ok();
+        write!(writer, "[{}] Testing {test_name}... ", package.name)
+            .expect("Failed to write to stdout");
+        writer.flush().expect("Failed to flush writer");
 
         match run_test(backend, &test_name, test_function, &context, show_output, compile_options) {
             Ok(_) => {
-                writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).ok();
-                writeln!(writer, "ok").ok();
+                writer
+                    .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
+                    .expect("Failed to set color");
+                writeln!(writer, "ok").expect("Failed to write to stdout");
             }
             // Assume an error was already printed to stdout
             Err(_) => failing += 1,
         }
-        writer.reset().ok();
+        writer.reset().expect("Failed to reset writer");
     }
 
     if failing == 0 {
-        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).unwrap();
-        writeln!(writer, "All tests passed").ok();
+        write!(writer, "[{}] ", package.name).expect("Failed to write to stdout");
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
+        writeln!(writer, "All tests passed").expect("Failed to write to stdout");
     } else {
         let plural = if failing == 1 { "" } else { "s" };
-        return Err(CliError::Generic(format!("{failing} test{plural} failed")));
+        return Err(CliError::Generic(format!("[{}] {failing} test{plural} failed", package.name)));
     }
 
-    writer.reset().ok();
+    writer.reset().expect("Failed to reset writer");
     Ok(())
 }
 

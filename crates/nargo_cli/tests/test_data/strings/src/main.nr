@@ -1,10 +1,13 @@
 use dep::std;
 
+// Test global string literals
+global HELLO_WORLD = "hello world";
+
 fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field : Field) {
     let mut bad_message = "hello world";
 
     assert(message == "hello world");
-    bad_message = "helld world";
+    assert(message == HELLO_WORLD);
     let x = 10;
     let z = x * 5;
     std::println(10);
@@ -16,6 +19,7 @@ fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field :
     assert(y == 5); // Change to y != 5 to see how the later print statements are not called
     std::println(array);
 
+    bad_message = "helld world";
     std::println(bad_message);
     assert(message != bad_message);
 

@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -13,6 +11,10 @@ use super::{
     types::Type,
     value::{Value, ValueId},
 };
+
+mod call;
+
+use call::simplify_call;
 
 /// Reference to an instruction
 ///
@@ -385,160 +387,6 @@ fn simplify_cast(value: ValueId, dst_typ: &Type, dfg: &mut DataFlowGraph) -> Sim
     }
 }
 
-/// Try to simplify this call instruction. If the instruction can be simplified to a known value,
-/// that value is returned. Otherwise None is returned.
-fn simplify_call(func: ValueId, arguments: &[ValueId], dfg: &mut DataFlowGraph) -> SimplifyResult {
-    use SimplifyResult::*;
-    let intrinsic = match &dfg[func] {
-        Value::Intrinsic(intrinsic) => *intrinsic,
-        _ => return None,
-    };
-
-    let constant_args: Option<Vec<_>> =
-        arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
-
-    match intrinsic {
-        Intrinsic::ToBits(endian) => {
-            if let Some(constant_args) = constant_args {
-                let field = constant_args[0];
-                let limb_count = constant_args[1].to_u128() as u32;
-                SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
-            } else {
-                None
-            }
-        }
-        Intrinsic::ToRadix(endian) => {
-            if let Some(constant_args) = constant_args {
-                let field = constant_args[0];
-                let radix = constant_args[1].to_u128() as u32;
-                let limb_count = constant_args[2].to_u128() as u32;
-                SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
-            } else {
-                None
-            }
-        }
-        Intrinsic::ArrayLen => {
-            let slice = dfg.get_array_constant(arguments[0]);
-            if let Some((slice, _)) = slice {
-                let slice_len =
-                    dfg.make_constant(FieldElement::from(slice.len() as u128), Type::field());
-                SimplifiedTo(slice_len)
-            } else if let Some((_, slice_len)) = dfg.get_array_parameter_type(arguments[0]) {
-                let slice_len = dfg.make_constant(
-                    FieldElement::from(slice_len as u128),
-                    Type::Numeric(NumericType::NativeField),
-                );
-                SimplifiedTo(slice_len)
-            } else {
-                None
-            }
-        }
-        Intrinsic::SlicePushBack => {
-            let slice = dfg.get_array_constant(arguments[0]);
-            if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
-                slice.push_back(elem);
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedTo(new_slice)
-            } else {
-                None
-            }
-        }
-        Intrinsic::SlicePushFront => {
-            let slice = dfg.get_array_constant(arguments[0]);
-            if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
-                slice.push_front(elem);
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedTo(new_slice)
-            } else {
-                None
-            }
-        }
-        Intrinsic::SlicePopBack => {
-            let slice = dfg.get_array_constant(arguments[0]);
-            if let Some((mut slice, element_type)) = slice {
-                let elem =
-                    slice.pop_back().expect("There are no elements in this slice to be removed");
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedToMultiple(vec![new_slice, elem])
-            } else {
-                None
-            }
-        }
-        Intrinsic::SlicePopFront => {
-            let slice = dfg.get_array_constant(arguments[0]);
-            if let Some((mut slice, element_type)) = slice {
-                let elem =
-                    slice.pop_front().expect("There are no elements in this slice to be removed");
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedToMultiple(vec![elem, new_slice])
-            } else {
-                None
-            }
-        }
-        Intrinsic::SliceInsert => {
-            let slice = dfg.get_array_constant(arguments[0]);
-            let index = dfg.get_numeric_constant(arguments[1]);
-            if let (Some((mut slice, element_type)), Some(index), value) =
-                (slice, index, arguments[2])
-            {
-                slice.insert(index.to_u128() as usize, value);
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedTo(new_slice)
-            } else {
-                None
-            }
-        }
-        Intrinsic::SliceRemove => {
-            let slice = dfg.get_array_constant(arguments[0]);
-            let index = dfg.get_numeric_constant(arguments[1]);
-            if let (Some((mut slice, element_type)), Some(index)) = (slice, index) {
-                let removed_elem = slice.remove(index.to_u128() as usize);
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedToMultiple(vec![new_slice, removed_elem])
-            } else {
-                None
-            }
-        }
-        Intrinsic::BlackBox(_) | Intrinsic::Println | Intrinsic::Sort => None,
-    }
-}
-
-/// Returns a Value::Array of constants corresponding to the limbs of the radix decomposition.
-fn constant_to_radix(
-    endian: Endian,
-    field: FieldElement,
-    radix: u32,
-    limb_count: u32,
-    dfg: &mut DataFlowGraph,
-) -> ValueId {
-    let bit_size = u32::BITS - (radix - 1).leading_zeros();
-    let radix_big = BigUint::from(radix);
-    assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
-    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
-
-    // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = big_integer.to_radix_le(radix);
-    let mut limbs = vecmap(0..limb_count, |i| match decomposed_integer.get(i as usize) {
-        Some(digit) => FieldElement::from_be_bytes_reduce(&[*digit]),
-        None => FieldElement::zero(),
-    });
-    if endian == Endian::Big {
-        limbs.reverse();
-    }
-
-    // For legacy reasons (see #617) the to_radix interface supports 256 bits even though
-    // FieldElement::max_num_bits() is only 254 bits. Any limbs beyond the specified count
-    // become zero padding.
-    let max_decomposable_bits: u32 = 256;
-    let limb_count_with_padding = max_decomposable_bits / bit_size;
-    while limbs.len() < limb_count_with_padding as usize {
-        limbs.push(FieldElement::zero());
-    }
-    let result_constants =
-        limbs.into_iter().map(|limb| dfg.make_constant(limb, Type::unsigned(bit_size))).collect();
-    dfg.make_array(result_constants, Rc::new(vec![Type::unsigned(bit_size)]))
-}
-
 /// The possible return values for Instruction::return_types
 pub(crate) enum InstructionResultType {
     /// The result type of this instruction matches that of this operand
@@ -737,6 +585,14 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
+                if operand_type == Type::bool() {
+                    // Boolean AND is equivalent to multiplication, which is a cheaper operation.
+                    let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs);
+                    return SimplifyResult::SimplifiedToInstruction(instruction);
+                }
             }
             BinaryOp::Or => {
                 if lhs_is_zero {
@@ -745,21 +601,20 @@ impl Binary {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
             }
             BinaryOp::Xor => {
+                if lhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.rhs);
+                }
+                if rhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
-                }
-            }
-            BinaryOp::Shl => {
-                if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
-                }
-            }
-            BinaryOp::Shr => {
-                if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
         }
@@ -817,8 +672,6 @@ impl BinaryOp {
             BinaryOp::And => None,
             BinaryOp::Or => None,
             BinaryOp::Xor => None,
-            BinaryOp::Shl => None,
-            BinaryOp::Shr => None,
         }
     }
 
@@ -832,8 +685,6 @@ impl BinaryOp {
             BinaryOp::And => |x, y| Some(x & y),
             BinaryOp::Or => |x, y| Some(x | y),
             BinaryOp::Xor => |x, y| Some(x ^ y),
-            BinaryOp::Shl => |x, y| x.checked_shl(y.try_into().ok()?),
-            BinaryOp::Shr => |x, y| Some(x >> y),
             BinaryOp::Eq => |x, y| Some((x == y) as u128),
             BinaryOp::Lt => |x, y| Some((x < y) as u128),
         }
@@ -874,10 +725,6 @@ pub(crate) enum BinaryOp {
     Or,
     /// Bitwise xor (^)
     Xor,
-    /// Shift lhs left by rhs bits (<<)
-    Shl,
-    /// Shift lhs right by rhs bits (>>)
-    Shr,
 }
 
 impl std::fmt::Display for BinaryOp {
@@ -893,8 +740,6 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::And => write!(f, "and"),
             BinaryOp::Or => write!(f, "or"),
             BinaryOp::Xor => write!(f, "xor"),
-            BinaryOp::Shl => write!(f, "shl"),
-            BinaryOp::Shr => write!(f, "shr"),
         }
     }
 }
@@ -910,9 +755,21 @@ pub(crate) enum SimplifyResult {
     /// a function such as a tuple
     SimplifiedToMultiple(Vec<ValueId>),
 
+    /// Replace this function with an simpler but equivalent function.
+    SimplifiedToInstruction(Instruction),
+
     /// Remove the instruction, it is unnecessary
     Remove,
 
     /// Instruction could not be simplified
     None,
+}
+
+impl SimplifyResult {
+    pub(crate) fn instruction(self) -> Option<Instruction> {
+        match self {
+            SimplifyResult::SimplifiedToInstruction(instruction) => Some(instruction),
+            _ => None,
+        }
+    }
 }

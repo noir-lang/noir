@@ -15,6 +15,7 @@ pub enum Token {
     Int(FieldElement),
     Bool(bool),
     Str(String),
+    FmtStr(String),
     Keyword(Keyword),
     IntType(IntType),
     Attribute(Attribute),
@@ -145,6 +146,7 @@ impl fmt::Display for Token {
             Token::Int(n) => write!(f, "{}", n.to_u128()),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b}"),
+            Token::FmtStr(ref b) => write!(f, "f{b}"),
             Token::Keyword(k) => write!(f, "{k}"),
             Token::Attribute(ref a) => write!(f, "{a}"),
             Token::IntType(ref i) => write!(f, "{i}"),
@@ -212,7 +214,7 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match *self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_) | Token::Bool(_) | Token::Str(_) => TokenKind::Literal,
+            Token::Int(_) | Token::Bool(_) | Token::Str(_) | Token::FmtStr(_) => TokenKind::Literal,
             Token::Keyword(_) => TokenKind::Keyword,
             Token::Attribute(_) => TokenKind::Attribute,
             ref tok => TokenKind::Token(tok.clone()),
@@ -322,6 +324,7 @@ pub enum Attribute {
     Foreign(String),
     Builtin(String),
     Oracle(String),
+    Deprecated(Option<String>),
     Test,
 }
 
@@ -332,6 +335,8 @@ impl fmt::Display for Attribute {
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
             Attribute::Test => write!(f, "#[test]"),
+            Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
+            Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
         }
     }
 }
@@ -345,29 +350,52 @@ impl Attribute {
             .filter(|string_segment| !string_segment.is_empty())
             .collect();
 
-        if word_segments.len() != 2 {
-            if word_segments.len() == 1 && word_segments[0] == "test" {
-                return Ok(Token::Attribute(Attribute::Test));
-            } else {
-                return Err(LexerErrorKind::MalformedFuncAttribute {
-                    span,
-                    found: word.to_owned(),
-                });
+        let validate = |slice: &str| {
+            let is_valid = slice
+                .chars()
+                .all(|ch| {
+                    ch.is_ascii_alphabetic()
+                        || ch.is_numeric()
+                        || ch == '_'
+                        || ch == '('
+                        || ch == ')'
+                })
+                .then_some(());
+
+            is_valid.ok_or(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
+        };
+
+        let attribute = match &word_segments[..] {
+            ["foreign", name] => {
+                validate(name)?;
+                Attribute::Foreign(name.to_string())
             }
-        }
+            ["builtin", name] => {
+                validate(name)?;
+                Attribute::Builtin(name.to_string())
+            }
+            ["oracle", name] => {
+                validate(name)?;
+                Attribute::Oracle(name.to_string())
+            }
+            ["deprecated"] => Attribute::Deprecated(None),
+            ["deprecated", name] => {
+                if !name.starts_with('"') && !name.ends_with('"') {
+                    return Err(LexerErrorKind::MalformedFuncAttribute {
+                        span,
+                        found: word.to_owned(),
+                    });
+                }
 
-        let attribute_type = word_segments[0];
-        let attribute_name = word_segments[1];
-
-        let tok = match attribute_type {
-            "foreign" => Token::Attribute(Attribute::Foreign(attribute_name.to_string())),
-            "builtin" => Token::Attribute(Attribute::Builtin(attribute_name.to_string())),
-            "oracle" => Token::Attribute(Attribute::Oracle(attribute_name.to_string())),
+                Attribute::Deprecated(name.trim_matches('"').to_string().into())
+            }
+            ["test"] => Attribute::Test,
             _ => {
                 return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
             }
         };
-        Ok(tok)
+
+        Ok(Token::Attribute(attribute))
     }
 
     pub fn builtin(self) -> Option<String> {
@@ -399,7 +427,8 @@ impl AsRef<str> for Attribute {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
             Attribute::Oracle(string) => string,
-            Attribute::Test => "",
+            Attribute::Deprecated(Some(string)) => string,
+            Attribute::Test | Attribute::Deprecated(None) => "",
         }
     }
 }
@@ -424,6 +453,7 @@ pub enum Keyword {
     Field,
     Fn,
     For,
+    FormatString,
     Global,
     If,
     Impl,
@@ -462,6 +492,7 @@ impl fmt::Display for Keyword {
             Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
+            Keyword::FormatString => write!(f, "fmtstr"),
             Keyword::Global => write!(f, "global"),
             Keyword::If => write!(f, "if"),
             Keyword::Impl => write!(f, "impl"),
@@ -503,6 +534,7 @@ impl Keyword {
             "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
+            "fmtstr" => Keyword::FormatString,
             "global" => Keyword::Global,
             "if" => Keyword::If,
             "impl" => Keyword::Impl,

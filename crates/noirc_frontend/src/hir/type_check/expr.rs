@@ -10,13 +10,32 @@ use crate::{
         },
         types::Type,
     },
-    node_interner::{ExprId, FuncId},
-    CompTime, Shared, TypeBinding, TypeVariableKind, UnaryOp,
+    node_interner::{DefinitionKind, ExprId, FuncId},
+    token::Attribute::Deprecated,
+    CompTime, Shared, Signedness, TypeBinding, TypeVariableKind, UnaryOp,
 };
 
 use super::{errors::TypeCheckError, TypeChecker};
 
 impl<'interner> TypeChecker<'interner> {
+    fn check_if_deprecated(&mut self, expr: &ExprId) {
+        if let HirExpression::Ident(expr::HirIdent { location, id }) =
+            self.interner.expression(expr)
+        {
+            if let Some(DefinitionKind::Function(func_id)) =
+                self.interner.try_definition(id).map(|def| &def.kind)
+            {
+                let meta = self.interner.function_meta(func_id);
+                if let Some(Deprecated(note)) = meta.attributes {
+                    self.errors.push(TypeCheckError::CallDeprecated {
+                        name: self.interner.definition_name(id).to_string(),
+                        note,
+                        span: location.span,
+                    });
+                }
+            }
+        }
+    }
     /// Infers a type for a given expression, and return this type.
     /// As a side-effect, this function will also remember this type in the NodeInterner
     /// for the given expr_id key.
@@ -48,7 +67,7 @@ impl<'interner> TypeChecker<'interner> {
                             .unwrap_or_else(|| self.interner.next_type_variable());
 
                         let arr_type = Type::Array(
-                            Box::new(Type::Constant(arr.len() as u64)),
+                            Box::new(Type::constant_variable(arr.len() as u64, self.interner)),
                             Box::new(first_elem_type.clone()),
                         );
 
@@ -78,6 +97,12 @@ impl<'interner> TypeChecker<'interner> {
                     }
                     HirLiteral::Array(HirArrayLiteral::Repeated { repeated_element, length }) => {
                         let elem_type = self.check_expression(&repeated_element);
+                        let length = match length {
+                            Type::Constant(length) => {
+                                Type::constant_variable(length, self.interner)
+                            }
+                            other => other,
+                        };
                         Type::Array(Box::new(length), Box::new(elem_type))
                     }
                     HirLiteral::Bool(_) => Type::Bool(CompTime::new(self.interner)),
@@ -85,6 +110,11 @@ impl<'interner> TypeChecker<'interner> {
                     HirLiteral::Str(string) => {
                         let len = Type::Constant(string.len() as u64);
                         Type::String(Box::new(len))
+                    }
+                    HirLiteral::FmtStr(string, idents) => {
+                        let len = Type::Constant(string.len() as u64);
+                        let types = vecmap(&idents, |elem| self.check_expression(elem));
+                        Type::FmtString(Box::new(len), Box::new(Type::Tuple(types)))
                     }
                     HirLiteral::Unit => Type::Unit,
                 }
@@ -106,10 +136,12 @@ impl<'interner> TypeChecker<'interner> {
             }
             HirExpression::Index(index_expr) => self.check_index_expression(index_expr),
             HirExpression::Call(call_expr) => {
+                self.check_if_deprecated(&call_expr.func);
+
                 let function = self.check_expression(&call_expr.func);
                 let args = vecmap(&call_expr.arguments, |arg| {
                     let typ = self.check_expression(arg);
-                    (typ, self.interner.expr_span(arg))
+                    (typ, *arg, self.interner.expr_span(arg))
                 });
                 let span = self.interner.expr_span(expr_id);
                 self.bind_function_type(function, args, span)
@@ -119,14 +151,16 @@ impl<'interner> TypeChecker<'interner> {
                 let method_name = method_call.method.0.contents.as_str();
                 match self.lookup_method(&object_type, method_name, expr_id) {
                     Some(method_id) => {
-                        let mut args =
-                            vec![(object_type, self.interner.expr_span(&method_call.object))];
+                        let mut args = vec![(
+                            object_type,
+                            method_call.object,
+                            self.interner.expr_span(&method_call.object),
+                        )];
 
-                        let mut arg_types = vecmap(&method_call.arguments, |arg| {
+                        for arg in &method_call.arguments {
                             let typ = self.check_expression(arg);
-                            (typ, self.interner.expr_span(arg))
-                        });
-                        args.append(&mut arg_types);
+                            args.push((typ, *arg, self.interner.expr_span(arg)));
+                        }
 
                         // Desugar the method call into a normal, resolved function call
                         // so that the backend doesn't need to worry about methods
@@ -272,11 +306,17 @@ impl<'interner> TypeChecker<'interner> {
     /// if the given object type is already a mutable reference. If not, add one.
     /// This is used to automatically transform a method call: `foo.bar()` into a function
     /// call: `bar(&mut foo)`.
+    ///
+    /// A notable corner case of this function is where it interacts with auto-deref of `.`.
+    /// If a field is being mutated e.g. `foo.bar.mutate_bar()` where `foo: &mut Foo`, the compiler
+    /// will insert a dereference before bar `(*foo).bar.mutate_bar()` which would cause us to
+    /// mutate a copy of bar rather than a reference to it. We must check for this corner case here
+    /// and remove the implicitly added dereference operator if we find one.
     fn try_add_mutable_reference_to_object(
         &mut self,
         method_call: &mut HirMethodCallExpression,
         function_type: &Type,
-        argument_types: &mut [(Type, noirc_errors::Span)],
+        argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
     ) {
         let expected_object_type = match function_type {
             Type::Function(args, _) => args.get(0),
@@ -298,16 +338,53 @@ impl<'interner> TypeChecker<'interner> {
                     }
 
                     let new_type = Type::MutableReference(Box::new(actual_type));
-
                     argument_types[0].0 = new_type.clone();
-                    method_call.object =
-                        self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
-                            operator: UnaryOp::MutableReference,
-                            rhs: method_call.object,
-                        }));
-                    self.interner.push_expr_type(&method_call.object, new_type);
+
+                    // First try to remove a dereference operator that may have been implicitly
+                    // inserted by a field access expression `foo.bar` on a mutable reference `foo`.
+                    if self.try_remove_implicit_dereference(method_call.object).is_none() {
+                        // If that didn't work, then wrap the whole expression in an `&mut`
+                        method_call.object =
+                            self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
+                                operator: UnaryOp::MutableReference,
+                                rhs: method_call.object,
+                            }));
+                        self.interner.push_expr_type(&method_call.object, new_type);
+                    }
                 }
             }
+        }
+    }
+
+    /// Given a method object: `(*foo).bar` of a method call `(*foo).bar.baz()`, remove the
+    /// implicitly added dereference operator if one is found.
+    ///
+    /// Returns Some(()) if a dereference was removed and None otherwise.
+    fn try_remove_implicit_dereference(&mut self, object: ExprId) -> Option<()> {
+        match self.interner.expression(&object) {
+            HirExpression::MemberAccess(access) => {
+                self.try_remove_implicit_dereference(access.lhs)?;
+
+                // Since we removed a dereference, instead of returning the field directly,
+                // we expect to be returning a reference to the field, so update the type accordingly.
+                let current_type = self.interner.id_type(object);
+                let reference_type = Type::MutableReference(Box::new(current_type));
+                self.interner.push_expr_type(&object, reference_type);
+                Some(())
+            }
+            HirExpression::Prefix(prefix) => match prefix.operator {
+                UnaryOp::Dereference { implicitly_added: true } => {
+                    // Found a dereference we can remove. Now just replace it with its rhs to remove it.
+                    let rhs = self.interner.expression(&prefix.rhs);
+                    self.interner.replace_expr(&object, rhs);
+
+                    let rhs_type = self.interner.id_type(prefix.rhs);
+                    self.interner.push_expr_type(&object, rhs_type);
+                    Some(())
+                }
+                _ => None,
+            },
+            _ => None,
         }
     }
 
@@ -328,7 +405,6 @@ impl<'interner> TypeChecker<'interner> {
             // XXX: We can check the array bounds here also, but it may be better to constant fold first
             // and have ConstId instead of ExprId for constants
             Type::Array(_, base_type) => *base_type,
-            Type::Slice(base_type) => *base_type,
             Type::Error => Type::Error,
             typ => {
                 let span = self.interner.expr_span(&index_expr.collection);
@@ -400,7 +476,7 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         function_ident_id: &ExprId,
         func_id: &FuncId,
-        arguments: Vec<(Type, Span)>,
+        arguments: Vec<(Type, ExprId, Span)>,
         span: Span,
     ) -> Type {
         if func_id == &FuncId::dummy_id() {
@@ -497,7 +573,7 @@ impl<'interner> TypeChecker<'interner> {
                 let arg_type = self.check_expression(&arg);
 
                 let span = self.interner.expr_span(expr_id);
-                self.make_subtype_of(&arg_type, &param_type, span, || {
+                self.make_subtype_of(&arg_type, &param_type, arg, || {
                     TypeCheckError::TypeMismatch {
                         expected_typ: param_type.to_string(),
                         expr_typ: arg_type.to_string(),
@@ -518,7 +594,7 @@ impl<'interner> TypeChecker<'interner> {
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
             let old_lhs = *access_lhs;
             *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
-                operator: crate::UnaryOp::Dereference,
+                operator: crate::UnaryOp::Dereference { implicitly_added: true },
                 rhs: old_lhs,
             }));
             this.interner.push_expr_type(&old_lhs, lhs_type);
@@ -794,7 +870,12 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
-    fn bind_function_type(&mut self, function: Type, args: Vec<(Type, Span)>, span: Span) -> Type {
+    fn bind_function_type(
+        &mut self,
+        function: Type,
+        args: Vec<(Type, ExprId, Span)>,
+        span: Span,
+    ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
         match function {
@@ -804,7 +885,7 @@ impl<'interner> TypeChecker<'interner> {
                 }
 
                 let ret = self.interner.next_type_variable();
-                let args = vecmap(args, |(arg, _)| arg);
+                let args = vecmap(args, |(arg, _, _)| arg);
                 let expected = Type::Function(args, Box::new(ret.clone()));
 
                 if let Err(error) = binding.borrow_mut().bind_to(expected, span) {
@@ -822,14 +903,18 @@ impl<'interner> TypeChecker<'interner> {
                     return Type::Error;
                 }
 
-                for (param, (arg, arg_span)) in parameters.iter().zip(args) {
-                    arg.make_subtype_of(param, arg_span, &mut self.errors, || {
-                        TypeCheckError::TypeMismatch {
+                for (param, (arg, arg_id, arg_span)) in parameters.iter().zip(args) {
+                    arg.make_subtype_with_coercions(
+                        param,
+                        arg_id,
+                        self.interner,
+                        &mut self.errors,
+                        || TypeCheckError::TypeMismatch {
                             expected_typ: param.to_string(),
                             expr_typ: arg.to_string(),
                             expr_span: arg_span,
-                        }
-                    });
+                        },
+                    );
                 }
 
                 *ret
@@ -869,7 +954,7 @@ impl<'interner> TypeChecker<'interner> {
 
                 if op.is_bitwise() && (other.is_bindable() || other.is_field()) {
                     let other = other.follow_bindings();
-
+                    let kind = op.kind;
                     // This will be an error if these types later resolve to a Field, or stay
                     // polymorphic as the bit size will be unknown. Delay this error until the function
                     // finishes resolving so we can still allow cases like `let x: u8 = 1 << 2;`.
@@ -878,6 +963,12 @@ impl<'interner> TypeChecker<'interner> {
                             Err(TypeCheckError::InvalidBitwiseOperationOnField { span })
                         } else if other.is_bindable() {
                             Err(TypeCheckError::AmbiguousBitWidth { span })
+                        } else if kind.is_bit_shift() && other.is_signed() {
+                            Err(TypeCheckError::TypeCannotBeUsed {
+                                typ: other,
+                                place: "bit shift",
+                                span,
+                            })
                         } else {
                             Ok(())
                         }
@@ -916,8 +1007,14 @@ impl<'interner> TypeChecker<'interner> {
                         span,
                     });
                 }
-                let comptime = comptime_x.and(comptime_y, op.location.span);
-                Ok(Integer(comptime, *sign_x, *bit_width_x))
+                if op.is_bit_shift()
+                    && (*sign_x == Signedness::Signed || *sign_y == Signedness::Signed)
+                {
+                    Err(TypeCheckError::InvalidInfixOp { kind: "Signed integer", span })
+                } else {
+                    let comptime = comptime_x.and(comptime_y, op.location.span);
+                    Ok(Integer(comptime, *sign_x, *bit_width_x))
+                }
             }
             (Integer(..), FieldElement(..)) | (FieldElement(..), Integer(..)) => {
                 Err(TypeCheckError::IntegerAndFieldBinaryOperation { span })
@@ -990,7 +1087,7 @@ impl<'interner> TypeChecker<'interner> {
             crate::UnaryOp::MutableReference => {
                 Type::MutableReference(Box::new(rhs_type.follow_bindings()))
             }
-            crate::UnaryOp::Dereference => {
+            crate::UnaryOp::Dereference { implicitly_added: _ } => {
                 let element_type = self.interner.next_type_variable();
                 unify(Type::MutableReference(Box::new(element_type.clone())));
                 element_type

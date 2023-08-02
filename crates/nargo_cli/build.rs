@@ -84,7 +84,6 @@ fn generate_tests(test_file: &mut File) {
             if config_data["exclude"].contains(&test_name) { "#[ignore]" } else { "" };
 
         let should_fail = config_data["fail"].contains(&test_name);
-        let is_workspace = test_dir.to_str().map_or(false, |s| s.contains("workspace"));
 
         write!(
             test_file,
@@ -96,8 +95,7 @@ fn execute_{test_sub_dir}_{test_name}() {{
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg(if {is_workspace} {{ "test" }} else {{ "execute" }});
-
+    cmd.arg("execute");
 
     if {should_fail} {{
         cmd.assert().failure();

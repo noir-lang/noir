@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap, rc::Rc};
+use std::{borrow::Cow, collections::HashMap};
 
 use crate::ssa_refactor::ir::instruction::SimplifyResult;
 
@@ -9,7 +9,7 @@ use super::{
         Instruction, InstructionId, InstructionResultType, Intrinsic, TerminatorInstruction,
     },
     map::DenseMap,
-    types::{CompositeType, Type},
+    types::Type,
     value::{Value, ValueId},
 };
 
@@ -158,7 +158,8 @@ impl DataFlowGraph {
                 SimplifiedToMultiple(simplification)
             }
             SimplifyResult::Remove => InstructionRemoved,
-            SimplifyResult::None => {
+            result @ (SimplifyResult::SimplifiedToInstruction(_) | SimplifyResult::None) => {
+                let instruction = result.instruction().unwrap_or(instruction);
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
                 if let Some(location) = location {
@@ -226,12 +227,9 @@ impl DataFlowGraph {
     }
 
     /// Create a new constant array value from the given elements
-    pub(crate) fn make_array(
-        &mut self,
-        array: im::Vector<ValueId>,
-        element_type: Rc<CompositeType>,
-    ) -> ValueId {
-        self.make_value(Value::Array { array, element_type })
+    pub(crate) fn make_array(&mut self, array: im::Vector<ValueId>, typ: Type) -> ValueId {
+        assert!(matches!(typ, Type::Array(..) | Type::Slice(_)));
+        self.make_value(Value::Array { array, typ })
     }
 
     /// Gets or creates a ValueId for the given FunctionId.
@@ -369,27 +367,19 @@ impl DataFlowGraph {
 
     /// Returns the Value::Array associated with this ValueId if it refers to an array constant.
     /// Otherwise, this returns None.
-    pub(crate) fn get_array_constant(
-        &self,
-        value: ValueId,
-    ) -> Option<(im::Vector<ValueId>, Rc<CompositeType>)> {
+    pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
         match &self.values[self.resolve(value)] {
             // Vectors are shared, so cloning them is cheap
-            Value::Array { array, element_type } => Some((array.clone(), element_type.clone())),
+            Value::Array { array, typ } => Some((array.clone(), typ.clone())),
             _ => None,
         }
     }
 
-    /// Returns the Type::Array associated with this ValueId if it refers to an array parameter.
-    /// Otherwise, this returns None.
-    pub(crate) fn get_array_parameter_type(
-        &self,
-        value: ValueId,
-    ) -> Option<(Rc<CompositeType>, usize)> {
-        match &self.values[self.resolve(value)] {
-            Value::Param { typ: Type::Array(element_type, size), .. } => {
-                Some((element_type.clone(), *size))
-            }
+    /// If this value is an array, return the length of the array as indicated by its type.
+    /// Otherwise, return None.
+    pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<usize> {
+        match self.type_of_value(value) {
+            Type::Array(_, length) => Some(length),
             _ => None,
         }
     }

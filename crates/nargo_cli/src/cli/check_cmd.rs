@@ -1,39 +1,51 @@
-use crate::{errors::CliError, resolver::resolve_root_manifest};
+use crate::{
+    errors::CliError, find_package_manifest, manifest::resolve_workspace_from_toml, prepare_package,
+};
 use acvm::Backend;
 use clap::Args;
-
-use noirc_driver::{check_crate, CompileOptions};
+use iter_extended::btree_map;
+use nargo::package::Package;
+use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
+use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
 use noirc_errors::reporter::ReportedErrors;
-use noirc_frontend::{graph::CrateId, hir::Context};
-use std::path::Path;
+use noirc_frontend::{
+    graph::{CrateId, CrateName},
+    hir::Context,
+};
 
 use super::NargoConfig;
 
 /// Checks the constraint system for errors
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CheckCommand {
+    /// The name of the package to check
+    #[clap(long)]
+    package: Option<CrateName>,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
 pub(crate) fn run<B: Backend>(
-    backend: &B,
+    _backend: &B,
     args: CheckCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    check_from_path(backend, &config.program_dir, &args.compile_options)?;
-    println!("Finished!");
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+
+    for package in &workspace {
+        check_package(package, &args.compile_options)?;
+        println!("[{}] Finished!", package.name);
+    }
     Ok(())
 }
 
-fn check_from_path<B: Backend>(
-    // Backend isn't used but keeping it in the signature allows for better type inference
-    // TODO: This function doesn't need to exist but requires a little more refactoring
-    _backend: &B,
-    program_dir: &Path,
+fn check_package(
+    package: &Package,
     compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
-    let (mut context, crate_id) = resolve_root_manifest(program_dir, None)?;
+) -> Result<(), ReportedErrors> {
+    let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
     Ok(())
 }
@@ -41,7 +53,8 @@ fn check_from_path<B: Backend>(
 #[cfg(test)]
 mod tests {
     use noirc_driver::CompileOptions;
-    use std::path::PathBuf;
+    use crate::{find_package_manifest, manifest::resolve_workspace_from_toml};
+    use super::create_input_toml_template;
 
     const TEST_DATA_DIR: &str = "tests/target_tests_data";
 
@@ -50,16 +63,15 @@ mod tests {
         let pass_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
-        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(
-                super::check_from_path(&backend, &path, &config).is_ok(),
-                "path: {}",
-                path.display()
-            );
+            let toml_path = find_package_manifest(&path).unwrap();
+            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
+            for package in &workspace {
+                assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
+            }
         }
     }
 
@@ -69,16 +81,19 @@ mod tests {
         let fail_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
-        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(
-                super::check_from_path(&backend, &path, &config).is_err(),
-                "path: {}",
-                path.display()
-            );
+            let toml_path = find_package_manifest(&path).unwrap();
+            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
+            for package in &workspace {
+                assert!(
+                    super::check_package(package, &config).is_err(),
+                    "path: {}",
+                    path.display()
+                );
+            }
         }
     }
 
@@ -87,17 +102,16 @@ mod tests {
         let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
-        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions { deny_warnings: false, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(
-                super::check_from_path(&backend, &path, &config).is_ok(),
-                "path: {}",
-                path.display()
-            );
+            let toml_path = find_package_manifest(&path).unwrap();
+            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
+            for package in &workspace {
+                assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
+            }
         }
     }
 }
