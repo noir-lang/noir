@@ -1,5 +1,5 @@
 [package]
-name = "test-contract"
+name = "test_contract"
 authors = [""]
 compiler_version = "0.1"
 

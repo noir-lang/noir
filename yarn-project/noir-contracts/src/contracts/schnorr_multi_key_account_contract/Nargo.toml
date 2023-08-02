@@ -1,5 +1,5 @@
 [package]
-name = "schnorr-multi-key-account-contract"
+name = "schnorr_multi_key_account_contract"
 authors = [""]
 compiler_version = "0.1"
 

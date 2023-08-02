@@ -1,5 +1,5 @@
 [package]
-name = "pokable-token-contract"
+name = "pokeable_token_contract"
 authors = [""]
 compiler_version = "0.1"
 

@@ -1,5 +1,5 @@
 [package]
-name = "value-note"
+name = "value_note"
 authors = ["aztec-labs"]
 compiler_version = "0.7.1"
 

@@ -39,7 +39,7 @@ build() {
 
   # If VERBOSE is not set, compile with 'nargo' and redirect standard error (stderr) to /dev/null and standard output (stdout) to /dev/null.
   # If the compilation fails, rerun the compilation with 'nargo' and show the compiler output.
-  nargo compile main --contracts;
+  nargo compile --contracts;
 }
 
 process() {

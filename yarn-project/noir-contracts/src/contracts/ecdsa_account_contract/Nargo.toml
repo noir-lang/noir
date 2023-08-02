@@ -1,5 +1,5 @@
 [package]
-name = "ecdsa-account-contract"
+name = "ecdsa_account_contract"
 authors = [""]
 compiler_version = "0.1"
 

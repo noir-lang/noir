@@ -1,5 +1,5 @@
 [package]
-name = "public-token-contract"
+name = "public_token_contract"
 authors = [""]
 compiler_version = "0.1"
 
