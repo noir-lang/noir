@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use acvm::acir::native_types::WitnessMap;
+use nargo::constants::WITNESS_EXT;
 
 use super::{create_named_dir, write_to_file};
-use crate::{constants::WITNESS_EXT, errors::FilesystemError};
+use crate::errors::FilesystemError;
 
 pub(crate) fn save_witness_to_dir<P: AsRef<Path>>(
     witnesses: WitnessMap,

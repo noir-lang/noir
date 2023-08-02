@@ -1,12 +1,10 @@
-use crate::{
-    constants::{PKG_FILE, SRC_DIR},
-    errors::CliError,
-};
+use crate::errors::CliError;
 
 use super::fs::{create_named_dir, write_to_file};
 use super::{NargoConfig, CARGO_PKG_VERSION};
 use acvm::Backend;
 use clap::Args;
+use nargo::constants::{PKG_FILE, SRC_DIR};
 use std::path::PathBuf;
 
 /// Create a Noir project in the current directory.
