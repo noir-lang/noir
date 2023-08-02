@@ -736,6 +736,11 @@ impl Binary {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
+                if operand_type == Type::bool() {
+                    // Boolean AND is equivalent to multiplication, which is a cheaper operation.
+                    let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs);
+                    return SimplifyResult::SimplifiedToInstruction(instruction);
+                }
             }
             BinaryOp::Or => {
                 if lhs_is_zero {
@@ -898,9 +903,21 @@ pub(crate) enum SimplifyResult {
     /// a function such as a tuple
     SimplifiedToMultiple(Vec<ValueId>),
 
+    /// Replace this function with an simpler but equivalent function.
+    SimplifiedToInstruction(Instruction),
+
     /// Remove the instruction, it is unnecessary
     Remove,
 
     /// Instruction could not be simplified
     None,
+}
+
+impl SimplifyResult {
+    pub(crate) fn instruction(self) -> Option<Instruction> {
+        match self {
+            SimplifyResult::SimplifiedToInstruction(instruction) => Some(instruction),
+            _ => None,
+        }
+    }
 }

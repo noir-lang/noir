@@ -157,9 +157,10 @@ impl DataFlowGraph {
             SimplifyResult::SimplifiedToMultiple(simplification) => {
                 Ok(SimplifiedToMultiple(simplification))
             }
-            SimplifyResult::Remove => Ok(InstructionRemoved),
-            SimplifyResult::None => {
-                let id = self.make_instruction(instruction, ctrl_typevars)?;
+            SimplifyResult::Remove => InstructionRemoved,
+            result @ (SimplifyResult::SimplifiedToInstruction(_) | SimplifyResult::None) => {
+                let instruction = result.instruction().unwrap_or(instruction);
+                let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
                 if let Some(location) = location {
                     self.locations.insert(id, location);
