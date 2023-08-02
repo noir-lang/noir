@@ -173,7 +173,7 @@ export class AcirSimulator {
       };
     } catch (e) {
       throw new Error(
-        `Please define an unconstrained function "${computeNoteHashAndNullifierSignature}" in the noir contract. Bubbled error message: ${e}`,
+        `Mandatory implementation of "${computeNoteHashAndNullifierSignature}" missing in noir contract ${contractAddress.toString()}.`,
       );
     }
   }

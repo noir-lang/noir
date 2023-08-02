@@ -5,8 +5,5 @@
       "path": "../foundation/tsconfig.dest.json"
     }
   ],
-  "exclude": [
-    "src/**/*.test.ts",
-    "src/**/*.in.ts"
-  ]
+  "exclude": ["src/**/*.test.ts", "src/**/*.in.ts"]
 }

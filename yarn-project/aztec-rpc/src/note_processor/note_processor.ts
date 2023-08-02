@@ -114,20 +114,24 @@ export class NoteProcessor {
                 indexOfTxInABlock * MAX_NEW_NULLIFIERS_PER_TX,
                 (indexOfTxInABlock + 1) * MAX_NEW_NULLIFIERS_PER_TX,
               );
-              userPertainingTxIndices.add(indexOfTxInABlock);
-              const { index, nonce, nullifier } = await this.findNoteIndexAndNullifier(
-                dataStartIndexForTx,
-                newCommitments,
-                newNullifiers[0],
-                noteSpendingInfo,
-              );
-              noteSpendingInfoDaos.push({
-                ...noteSpendingInfo,
-                index,
-                nonce,
-                nullifier,
-                publicKey: this.publicKey,
-              });
+              try {
+                const { index, nonce, nullifier } = await this.findNoteIndexAndNullifier(
+                  dataStartIndexForTx,
+                  newCommitments,
+                  newNullifiers[0],
+                  noteSpendingInfo,
+                );
+                noteSpendingInfoDaos.push({
+                  ...noteSpendingInfo,
+                  index,
+                  nonce,
+                  nullifier,
+                  publicKey: this.publicKey,
+                });
+                userPertainingTxIndices.add(indexOfTxInABlock);
+              } catch (e) {
+                this.log.warn(`Could not process note because of "${e}". Skipping note...`);
+              }
             }
           }
         }
