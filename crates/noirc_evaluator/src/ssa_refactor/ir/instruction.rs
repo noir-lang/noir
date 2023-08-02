@@ -733,6 +733,9 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
             }
             BinaryOp::Or => {
                 if lhs_is_zero {
@@ -741,8 +744,17 @@ impl Binary {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
             }
             BinaryOp::Xor => {
+                if lhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.rhs);
+                }
+                if rhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
