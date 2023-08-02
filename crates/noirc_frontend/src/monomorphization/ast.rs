@@ -29,7 +29,6 @@ pub enum Expression {
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
-
     Let(Let),
     Constrain(Box<Expression>, Location),
     Assign(Assign),
@@ -101,6 +100,12 @@ pub struct Binary {
     pub operator: BinaryOp,
     pub rhs: Box<Expression>,
     pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct Lambda {
+    pub function: Ident,
+    pub env: Ident,
 }
 
 #[derive(Debug, Clone)]
@@ -213,7 +218,7 @@ pub enum Type {
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     MutableReference(Box<Type>),
-    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
+    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>, /*env:*/ Box<Type>),
 }
 
 impl Type {
@@ -324,9 +329,13 @@ impl std::fmt::Display for Type {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Type::Function(args, ret) => {
+            Type::Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
-                write!(f, "fn({}) -> {}", args.join(", "), ret)
+                let closure_env_text = match **env {
+                    Type::Unit => "".to_string(),
+                    _ => format!(" with closure environment {env}"),
+                };
+                write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
             Type::Slice(element) => write!(f, "[{element}"),
             Type::MutableReference(element) => write!(f, "&mut {element}"),

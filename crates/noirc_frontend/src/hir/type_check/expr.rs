@@ -279,6 +279,12 @@ impl<'interner> TypeChecker<'interner> {
                 Type::Tuple(vecmap(&elements, |elem| self.check_expression(elem)))
             }
             HirExpression::Lambda(lambda) => {
+                let captured_vars =
+                    vecmap(lambda.captures, |capture| self.interner.id_type(capture.ident.id));
+
+                let env_type: Type =
+                    if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
+
                 let params = vecmap(lambda.parameters, |(pattern, typ)| {
                     self.bind_pattern(&pattern, typ.clone());
                     typ
@@ -294,7 +300,8 @@ impl<'interner> TypeChecker<'interner> {
                         expr_span: span,
                     }
                 });
-                Type::Function(params, Box::new(lambda.return_type))
+
+                Type::Function(params, Box::new(lambda.return_type), Box::new(env_type))
             }
         };
 
@@ -319,9 +326,9 @@ impl<'interner> TypeChecker<'interner> {
         argument_types: &mut [(Type, ExprId, noirc_errors::Span)],
     ) {
         let expected_object_type = match function_type {
-            Type::Function(args, _) => args.get(0),
+            Type::Function(args, _, _) => args.get(0),
             Type::Forall(_, typ) => match typ.as_ref() {
-                Type::Function(args, _) => args.get(0),
+                Type::Function(args, _, _) => args.get(0),
                 typ => unreachable!("Unexpected type for function: {typ}"),
             },
             typ => unreachable!("Unexpected type for function: {typ}"),
@@ -870,6 +877,35 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
+    fn bind_function_type_impl(
+        &mut self,
+        fn_params: &Vec<Type>,
+        fn_ret: &Type,
+        callsite_args: &Vec<(Type, ExprId, Span)>,
+        span: Span,
+    ) -> Type {
+        if fn_params.len() != callsite_args.len() {
+            self.errors.push(TypeCheckError::ParameterCountMismatch {
+                expected: fn_params.len(),
+                found: callsite_args.len(),
+                span,
+            });
+            return Type::Error;
+        }
+
+        for (param, (arg, _, arg_span)) in fn_params.iter().zip(callsite_args) {
+            arg.make_subtype_of(param, *arg_span, &mut self.errors, || {
+                TypeCheckError::TypeMismatch {
+                    expected_typ: param.to_string(),
+                    expr_typ: arg.to_string(),
+                    expr_span: *arg_span,
+                }
+            });
+        }
+
+        fn_ret.clone()
+    }
+
     fn bind_function_type(
         &mut self,
         function: Type,
@@ -886,38 +922,17 @@ impl<'interner> TypeChecker<'interner> {
 
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
-                let expected = Type::Function(args, Box::new(ret.clone()));
+                let env_type = self.interner.next_type_variable();
+                let expected = Type::Function(args, Box::new(ret.clone()), Box::new(env_type));
 
                 if let Err(error) = binding.borrow_mut().bind_to(expected, span) {
                     self.errors.push(error);
                 }
                 ret
             }
-            Type::Function(parameters, ret) => {
-                if parameters.len() != args.len() {
-                    self.errors.push(TypeCheckError::ParameterCountMismatch {
-                        expected: parameters.len(),
-                        found: args.len(),
-                        span,
-                    });
-                    return Type::Error;
-                }
-
-                for (param, (arg, arg_id, arg_span)) in parameters.iter().zip(args) {
-                    arg.make_subtype_with_coercions(
-                        param,
-                        arg_id,
-                        self.interner,
-                        &mut self.errors,
-                        || TypeCheckError::TypeMismatch {
-                            expected_typ: param.to_string(),
-                            expr_typ: arg.to_string(),
-                            expr_span: arg_span,
-                        },
-                    );
-                }
-
-                *ret
+            Type::Function(parameters, ret, _env) => {
+                // ignoring env for subtype on purpose
+                self.bind_function_type_impl(parameters.as_ref(), ret.as_ref(), args.as_ref(), span)
             }
             Type::Error => Type::Error,
             found => {

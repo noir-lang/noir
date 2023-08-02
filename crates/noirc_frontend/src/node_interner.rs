@@ -672,7 +672,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::String(_) => Some(String),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
-        Type::Function(_, _) => Some(Function),
+        Type::Function(_, _, _) => Some(Function),
         Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types

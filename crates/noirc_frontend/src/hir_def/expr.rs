@@ -197,9 +197,25 @@ impl HirBlockExpression {
     }
 }
 
+/// A variable captured inside a closure
+#[derive(Debug, Clone)]
+pub struct HirCapturedVar {
+    pub ident: HirIdent,
+
+    /// This will be None when the capture refers to a local variable declared
+    /// in the same scope as the closure. In a closure-inside-another-closure
+    /// scenarios, we might have a transitive captures of variables that must
+    /// be propagated during the construction of each closure. In this case,
+    /// we store the index of the captured variable in the environment of our
+    /// direct parent closure. We do this in order to simplify the HIR to AST
+    /// transformation in the monomorphization pass.
+    pub transitive_capture_index: Option<usize>,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirLambda {
     pub parameters: Vec<(HirPattern, Type)>,
     pub return_type: Type,
     pub body: ExprId,
+    pub captures: Vec<HirCapturedVar>,
 }
