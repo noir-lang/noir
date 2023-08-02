@@ -106,7 +106,6 @@ pub struct Binary {
 pub struct Lambda {
     pub function: Ident,
     pub env: Ident,
-    pub typ: Type, // TODO: Perhaps this is not necessary
 }
 
 #[derive(Debug, Clone)]
@@ -332,7 +331,11 @@ impl std::fmt::Display for Type {
             }
             Type::Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
-                write!(f, "fn({}) -> {} [{}]", args.join(", "), ret, env)
+                let closure_env_text = match **env {
+                    Type::Unit => "".to_string(),
+                    _ => format!(" with closure environment {env}"),
+                };
+                write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
             Type::Slice(element) => write!(f, "[{element}"),
             Type::MutableReference(element) => write!(f, "&mut {element}"),

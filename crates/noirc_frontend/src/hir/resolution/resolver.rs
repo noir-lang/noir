@@ -1906,7 +1906,7 @@ mod test {
 
         assert_eq!(expected_captures, parsed_captures);
     }
-  
+
     #[test]
     fn resolve_fmt_strings() {
         let src = r#"

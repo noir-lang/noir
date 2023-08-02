@@ -700,9 +700,10 @@ impl Type {
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
-            Type::Function(parameters, return_type, _env) => {
+            Type::Function(parameters, return_type, env) => {
                 parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
                     || return_type.contains_numeric_typevar(target_id)
+                    || env.contains_numeric_typevar(target_id)
             }
             Type::Struct(struct_type, generics) => {
                 generics.iter().enumerate().any(|(i, generic)| {

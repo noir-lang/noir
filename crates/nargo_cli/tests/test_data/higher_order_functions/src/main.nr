@@ -61,6 +61,9 @@ fn test_array_functions() {
     // but it worked with the original ssa backend
     // (before dropping it)
     //
+    // opened #2121 for it
+    // https://github.com/noir-lang/noir/issues/2121
+
     // let descending = myarray.sort_via(|a, b| a > b);
     // assert(descending == [3, 2, 1]);
 
