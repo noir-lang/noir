@@ -108,6 +108,11 @@ jobs:
           name: nargo
           path: ./nargo
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libomp-dev
+
       - name: Run noir-wasm-testing program
         run: |
           ls -R
