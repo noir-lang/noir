@@ -48,6 +48,17 @@ fn test_prints_array() {
     std::println(hash);
 }
 
+fn inner(hex_as_field: Field) {
+    assert(hex_as_field != 0x41);
+    let hash = std::hash::pedersen([hex_as_field]);
+    std::println(hash);
+}
+
+#[test]
+fn test_failed_constraint() {
+    inner(0x41);
+}
+
 struct Test {
     a: Field,
     b: Field,
