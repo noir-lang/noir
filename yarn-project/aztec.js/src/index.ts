@@ -28,3 +28,5 @@ export {
   TxStatus,
   emptyExecutionRequest,
 } from '@aztec/types';
+
+export { createDebugLogger } from '@aztec/foundation/log';
