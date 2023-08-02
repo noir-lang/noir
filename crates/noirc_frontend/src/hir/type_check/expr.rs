@@ -283,12 +283,11 @@ impl<'interner> TypeChecker<'interner> {
                     vecmap(lambda.captures, |capture| self.interner.id_type(capture.ident.id));
 
                 let env_type = Type::Tuple(captured_vars);
-                let mut params = vec![env_type.clone()];
 
-                for (pattern, typ) in lambda.parameters {
+                let params: Vec<Type> = vecmap(lambda.parameters, |(pattern, typ)| {
                     self.bind_pattern(&pattern, typ.clone());
-                    params.push(typ);
-                }
+                    typ
+                });
 
                 let actual_return = self.check_expression(&lambda.body);
 
@@ -883,20 +882,17 @@ impl<'interner> TypeChecker<'interner> {
         fn_ret: &Type,
         callsite_args: &Vec<(Type, ExprId, Span)>,
         span: Span,
-        skip_params: usize,
     ) -> Type {
-        let real_fn_params_count = fn_params.len() - skip_params;
-
-        if real_fn_params_count != callsite_args.len() {
+        if fn_params.len() != callsite_args.len() {
             self.errors.push(TypeCheckError::ParameterCountMismatch {
-                expected: real_fn_params_count,
+                expected: fn_params.len(),
                 found: callsite_args.len(),
                 span,
             });
             return Type::Error;
         }
 
-        for (param, (arg, _, arg_span)) in fn_params.iter().skip(skip_params).zip(callsite_args) {
+        for (param, (arg, _, arg_span)) in fn_params.iter().zip(callsite_args) {
             arg.make_subtype_of(param, *arg_span, &mut self.errors, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
@@ -933,22 +929,9 @@ impl<'interner> TypeChecker<'interner> {
                 }
                 ret
             }
-            Type::Function(parameters, ret, env) => {
-                self.bind_function_type_impl(
-                    parameters.as_ref(),
-                    ret.as_ref(),
-                    args.as_ref(),
-                    span,
-                    match *env {
-                        Type::Unit => 0,
-                        Type::Tuple(_) => {
-                            1 // closure env
-                        }
-                        _ => unreachable!(
-                            "function env internal type should be either Unit or Tuple"
-                        ),
-                    },
-                )
+            Type::Function(parameters, ret, _env) => {
+                // ignoring env for subtype on purpose
+                self.bind_function_type_impl(parameters.as_ref(), ret.as_ref(), args.as_ref(), span)
             }
             Type::Error => Type::Error,
             found => {

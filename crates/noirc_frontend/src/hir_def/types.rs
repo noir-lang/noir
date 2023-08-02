@@ -802,12 +802,12 @@ impl std::fmt::Display for Type {
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
             Type::Function(args, ret, env) => {
-                let (params_skip_count, closure_env_text) = match **env {
-                    Type::Unit => (0, "".to_string()),
-                    _ => (1, format!(" with closure environment {env}")),
+                let closure_env_text = match **env {
+                    Type::Unit => "".to_string(),
+                    _ => format!(" with closure environment {env}"),
                 };
 
-                let args = vecmap(args.iter().skip(params_skip_count), ToString::to_string);
+                let args = vecmap(args.iter(), ToString::to_string);
 
                 write!(f, "fn({}) -> {ret}{closure_env_text}", args.join(", "))
             }
@@ -1206,28 +1206,9 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
-                let skip_params_count_a = match **env_a {
-                    // non-closure function:
-                    Type::Unit => 0,
-                    // possibly a closure: so we transform the function to pass env as a first arg
-                    // which means we should skip the first arg now in param checking
-                    _ => 1,
-                };
-                let real_fn_param_count_a = params_a.len() - skip_params_count_a;
-
-                let skip_params_count_b = match **env_b {
-                    Type::Unit => 0,
-                    _ => 1,
-                };
-                let real_fn_param_count_b = params_b.len() - skip_params_count_b;
-
-                if real_fn_param_count_a == real_fn_param_count_b {
-                    for (a, b) in params_a
-                        .iter()
-                        .skip(skip_params_count_a)
-                        .zip(params_b.iter().skip(skip_params_count_b))
-                    {
+            (Function(params_a, ret_a, _env_a), Function(params_b, ret_b, _env_b)) => {
+                if params_a.len() == params_b.len() {
+                    for (a, b) in params_a.iter().zip(params_b.iter()) {
                         a.try_unify(b, span)?;
                     }
 
@@ -1432,16 +1413,9 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, _env_b)) => {
-                let skip_params = match *env_a.clone() {
-                    Type::Unit => 0,
-                    Type::Tuple(_) => {
-                        1 // closure env
-                    }
-                    _ => unreachable!("function env internal type should be either Unit or Tuple"),
-                };
-                if params_a.len() - skip_params == params_b.len() {
-                    for (a, b) in params_a.iter().skip(skip_params).zip(params_b) {
+            (Function(params_a, ret_a, _env_a), Function(params_b, ret_b, _env_b)) => {
+                if params_a.len() == params_b.len() {
+                    for (a, b) in params_a.iter().zip(params_b) {
                         a.is_subtype_of(b, span)?;
                     }
 
