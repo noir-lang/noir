@@ -33,12 +33,12 @@ pub(crate) fn directive_invert() -> Vec<BrilligOpcode> {
 }
 
 /// Generates brillig bytecode which computes `a / b` and returns the quotient and remainder.
-/// It returns `(0,0)` if the predicate is null
+/// It returns `(0,0)` if the predicate is null.
 ///
 ///
 /// This is equivalent to the Noir (psuedo)code
 ///
-/// ```no_run
+/// ```ignore
 /// fn quotient<T>(a: T, b: T, predicate: bool) -> (T,T) {
 ///    if predicate != 0 {
 ///      (a/b, a-a/b*b)
