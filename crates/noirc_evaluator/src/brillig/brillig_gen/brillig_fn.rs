@@ -8,7 +8,7 @@ use crate::{
         artifact::{BrilligParameter, Label},
         BrilligContext,
     },
-    ssa_refactor::ir::{
+    ssa::ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         types::{CompositeType, Type},
