@@ -49,11 +49,11 @@ fn test_prints_array() {
 }
 
 fn failed_constraint(hex_as_field: Field) {
-    // Note that when this method is called from a test method
+    // TODO(#2116): Note that `println` will not work if a failed constraint can be 
+    // evaluated at compile time. 
+    // When this method is called from a test method or with constant values
     // a `Failed constraint` compile error will be caught before this `println`
-    // is executed as the input will be a constant.
-    // In order to debug failing constraints with `println` calls `nargo execute`
-    // should be used instead
+    // is executed as the input will be a constant. 
     std::println(hex_as_field);
     assert(hex_as_field != 0x41);
 }
