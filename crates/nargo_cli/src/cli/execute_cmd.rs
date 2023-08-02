@@ -1,23 +1,23 @@
-use std::path::Path;
-
 use acvm::acir::circuit::OpcodeLabel;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::Backend;
 use clap::Args;
+use nargo::constants::PROVER_INPUT_FILE;
+use nargo::package::Package;
 use nargo::NargoError;
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic};
+use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
 
+use super::compile_cmd::compile_circuit;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
-use crate::{
-    cli::compile_cmd::compile_circuit,
-    constants::{PROVER_INPUT_FILE, TARGET_DIR},
-    errors::CliError,
-};
+use crate::errors::CliError;
+use crate::manifest::resolve_workspace_from_toml;
+use crate::{find_package_manifest, prepare_package};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -29,6 +29,10 @@ pub(crate) struct ExecuteCommand {
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
 
+    /// The name of the package to execute
+    #[clap(long)]
+    package: Option<CrateName>,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
@@ -38,35 +42,40 @@ pub(crate) fn run<B: Backend>(
     args: ExecuteCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let (return_value, solved_witness) =
-        execute_with_path(backend, &config.program_dir, args.prover_name, &args.compile_options)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let witness_dir = &workspace.target_directory_path();
 
-    println!("Circuit witness successfully solved");
-    if let Some(return_value) = return_value {
-        println!("Circuit output: {return_value:?}");
-    }
-    if let Some(witness_name) = args.witness_name {
-        let witness_dir = config.program_dir.join(TARGET_DIR);
+    for package in &workspace {
+        let (return_value, solved_witness) =
+            execute_package(backend, package, &args.prover_name, &args.compile_options)?;
 
-        let witness_path = save_witness_to_dir(solved_witness, &witness_name, witness_dir)?;
+        println!("[{}] Circuit witness successfully solved", package.name);
+        if let Some(return_value) = return_value {
+            println!("[{}] Circuit output: {return_value:?}", package.name);
+        }
+        if let Some(witness_name) = &args.witness_name {
+            let witness_path = save_witness_to_dir(solved_witness, witness_name, witness_dir)?;
 
-        println!("Witness saved to {}", witness_path.display());
+            println!("[{}] Witness saved to {}", package.name, witness_path.display());
+        }
     }
     Ok(())
 }
 
-fn execute_with_path<B: Backend>(
+fn execute_package<B: Backend>(
     backend: &B,
-    program_dir: &Path,
-    prover_name: String,
+    package: &Package,
+    prover_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
-    let (compiled_program, context) = compile_circuit(backend, None, program_dir, compile_options)?;
+    let (mut context, crate_id) = prepare_package(package);
+    let compiled_program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
     let CompiledProgram { abi, circuit, debug } = compiled_program;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
-        read_inputs_from_file(program_dir, prover_name.as_str(), Format::Toml, &abi)?;
+        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
 
     let solved_witness =
         execute_program(backend, circuit, &abi, &inputs_map, Some((debug, context)))?;

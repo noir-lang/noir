@@ -115,13 +115,6 @@ impl FunctionContext {
         }
     }
 
-    pub(crate) fn extract_heap_vector(&self, variable: RegisterOrMemory) -> HeapVector {
-        match variable {
-            RegisterOrMemory::HeapVector(vector) => vector,
-            _ => unreachable!("ICE: Expected vector, got {variable:?}"),
-        }
-    }
-
     /// Collects the registers that a given variable is stored in.
     pub(crate) fn extract_registers(&self, variable: RegisterOrMemory) -> Vec<RegisterIndex> {
         match variable {

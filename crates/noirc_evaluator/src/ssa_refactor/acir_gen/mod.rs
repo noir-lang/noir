@@ -796,13 +796,6 @@ impl Context {
                 bit_count,
                 self.current_side_effects_enabled_var,
             ),
-            BinaryOp::Shl => self.acir_context.shift_left_var(lhs, rhs, binary_type),
-            BinaryOp::Shr => self.acir_context.shift_right_var(
-                lhs,
-                rhs,
-                binary_type,
-                self.current_side_effects_enabled_var,
-            ),
             BinaryOp::Xor => self.acir_context.xor_var(lhs, rhs, binary_type),
             BinaryOp::And => self.acir_context.and_var(lhs, rhs, binary_type),
             BinaryOp::Or => self.acir_context.or_var(lhs, rhs, binary_type),
@@ -943,7 +936,11 @@ impl Context {
             Intrinsic::BlackBox(black_box) => {
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
-                let vars = self.acir_context.black_box_function(black_box, inputs)?;
+                let output_count = result_ids.iter().fold(0usize, |sum, result_id| {
+                    sum + dfg.try_get_array_length(*result_id).unwrap_or(1)
+                });
+
+                let vars = self.acir_context.black_box_function(black_box, inputs, output_count)?;
 
                 Ok(Self::convert_vars_to_values(vars, dfg, result_ids))
             }
@@ -998,7 +995,7 @@ impl Context {
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
-                    AcirValue::Var(_, _) =>  unreachable!("Non-array passed to array.len() method"),
+                    AcirValue::Var(_, _) => unreachable!("Non-array passed to array.len() method"),
                     AcirValue::Array(values) => (values.len() as u128).into(),
                     AcirValue::DynamicArray(array) => (array.len as u128).into(),
                 };
