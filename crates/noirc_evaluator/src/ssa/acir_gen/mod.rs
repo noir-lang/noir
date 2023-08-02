@@ -103,10 +103,9 @@ impl Ssa {
         self,
         brillig: Brillig,
         abi_distinctness: AbiDistinctness,
-        allow_log_ops: bool,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let context = Context::new();
-        let mut generated_acir = context.convert_ssa(self, brillig, allow_log_ops)?;
+        let mut generated_acir = context.convert_ssa(self, brillig)?;
 
         match abi_distinctness {
             AbiDistinctness::Distinct => {
@@ -144,15 +143,10 @@ impl Context {
     }
 
     /// Converts SSA into ACIR
-    fn convert_ssa(
-        self,
-        ssa: Ssa,
-        brillig: Brillig,
-        allow_log_ops: bool,
-    ) -> Result<GeneratedAcir, RuntimeError> {
+    fn convert_ssa(self, ssa: Ssa, brillig: Brillig) -> Result<GeneratedAcir, RuntimeError> {
         let main_func = ssa.main();
         match main_func.runtime() {
-            RuntimeType::Acir => self.convert_acir_main(main_func, &ssa, brillig, allow_log_ops),
+            RuntimeType::Acir => self.convert_acir_main(main_func, &ssa, brillig),
             RuntimeType::Brillig => self.convert_brillig_main(main_func, brillig),
         }
     }
@@ -162,14 +156,13 @@ impl Context {
         main_func: &Function,
         ssa: &Ssa,
         brillig: Brillig,
-        allow_log_ops: bool,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, allow_log_ops)?;
+            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig)?;
         }
 
         self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
@@ -294,7 +287,6 @@ impl Context {
         dfg: &DataFlowGraph,
         ssa: &Ssa,
         brillig: &Brillig,
-        allow_log_ops: bool,
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_location(dfg.get_location(&instruction_id));
@@ -339,13 +331,8 @@ impl Context {
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
-                        let outputs = self.convert_ssa_intrinsic_call(
-                            *intrinsic,
-                            arguments,
-                            dfg,
-                            allow_log_ops,
-                            result_ids,
-                        )?;
+                        let outputs = self
+                            .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
                         // Issue #1438 causes this check to fail with intrinsics that return 0
                         // results but the ssa form instead creates 1 unit result value.
@@ -929,7 +916,6 @@ impl Context {
         intrinsic: Intrinsic,
         arguments: &[ValueId],
         dfg: &DataFlowGraph,
-        allow_log_ops: bool,
         result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         match intrinsic {
@@ -959,13 +945,8 @@ impl Context {
 
                 self.acir_context.bit_decompose(endian, field, bit_size, result_type)
             }
-            Intrinsic::Println => {
-                let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
-                if allow_log_ops {
-                    self.acir_context.print(inputs)?;
-                }
-                Ok(Vec::new())
-            }
+            // TODO(#2115): Remove the println intrinsic as the oracle println is now used instead
+            Intrinsic::Println => Ok(Vec::new()),
             Intrinsic::Sort => {
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
                 // We flatten the inputs and retrieve the bit_size of the elements
@@ -1133,7 +1114,7 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let acir = context.convert_ssa(ssa, Brillig::default(), false).unwrap();
+        let acir = context.convert_ssa(ssa, Brillig::default()).unwrap();
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];

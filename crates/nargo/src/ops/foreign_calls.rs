@@ -42,11 +42,14 @@ impl ForeignCall {
 
     pub(crate) fn execute(
         foreign_call: &ForeignCallWaitInfo,
+        show_output: bool,
     ) -> Result<ForeignCallResult, ForeignCallError> {
         let foreign_call_name = foreign_call.function.as_str();
         match Self::lookup(foreign_call_name) {
             Some(ForeignCall::Println) => {
-                Self::execute_println(&foreign_call.inputs)?;
+                if show_output {
+                    Self::execute_println(&foreign_call.inputs)?;
+                }
                 Ok(ForeignCallResult { values: vec![] })
             }
             Some(ForeignCall::Sequence) => {

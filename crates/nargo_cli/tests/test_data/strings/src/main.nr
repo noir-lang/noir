@@ -43,14 +43,28 @@ fn test_prints_strings() {
 fn test_prints_array() {
     let array = [1, 2, 3, 5, 8];
 
-    // TODO: Printing structs currently not supported
-    // let s = Test { a: 1, b: 2, c: [3, 4] };
-    // std::println(s);
+    let s = Test { a: 1, b: 2, c: [3, 4] };
+    std::println(s);
 
     std::println(array);
 
     let hash = std::hash::pedersen(array);
     std::println(hash);
+}
+
+fn failed_constraint(hex_as_field: Field) {
+    // TODO(#2116): Note that `println` will not work if a failed constraint can be 
+    // evaluated at compile time. 
+    // When this method is called from a test method or with constant values
+    // a `Failed constraint` compile error will be caught before this `println`
+    // is executed as the input will be a constant. 
+    std::println(hex_as_field);
+    assert(hex_as_field != 0x41);
+}
+
+#[test]
+fn test_failed_constraint() {
+    failed_constraint(0x41);
 }
 
 struct Test {
