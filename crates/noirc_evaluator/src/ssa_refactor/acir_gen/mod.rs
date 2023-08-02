@@ -610,7 +610,7 @@ impl Context {
             );
             let var = index.into_var()?;
             let read = self.acir_context.read_from_memory(block_id, &var)?;
-            Ok(AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField))_
+            Ok(AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField)))
         })?;
         self.initialize_array(result_block_id, len, Some(&init_values))?;
 
