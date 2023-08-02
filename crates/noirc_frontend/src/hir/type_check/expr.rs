@@ -285,7 +285,7 @@ impl<'interner> TypeChecker<'interner> {
                 let env_type: Type =
                     if captured_vars.is_empty() { Type::Unit } else { Type::Tuple(captured_vars) };
 
-                let params: Vec<Type> = vecmap(lambda.parameters, |(pattern, typ)| {
+                let params = vecmap(lambda.parameters, |(pattern, typ)| {
                     self.bind_pattern(&pattern, typ.clone());
                     typ
                 });
