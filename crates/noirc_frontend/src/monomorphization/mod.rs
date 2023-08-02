@@ -996,6 +996,48 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
+    fn lambda(&mut self, lambda: HirLambda, expr: node_interner::ExprId) -> ast::Expression {
+        if lambda.captures.is_empty() {
+            self.lambda_no_capture(lambda)
+        } else {
+            let (setup, closure_variable) = self.lambda_with_setup(lambda, expr);
+            ast::Expression::Block(vec![setup, closure_variable])
+        }
+    }
+
+    fn lambda_no_capture(&mut self, lambda: HirLambda) -> ast::Expression {
+        let ret_type = Self::convert_type(&lambda.return_type);
+        let lambda_name = "lambda";
+        let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
+
+        // Manually convert to Parameters type so we can reuse the self.parameters method
+        let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
+            Param(pattern, typ, noirc_abi::AbiVisibility::Private)
+        }));
+
+        let parameters = self.parameters(parameters);
+        let body = self.expr(lambda.body);
+
+        let id = self.next_function_id();
+        let return_type = ret_type.clone();
+        let name = lambda_name.to_owned();
+        let unconstrained = false;
+
+        let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
+        self.push_function(id, function);
+
+        let typ = ast::Type::Function(parameter_types, Box::new(ret_type), Box::new(ast::Type::Unit));
+
+        let name = lambda_name.to_owned();
+        ast::Expression::Ident(ast::Ident {
+            definition: Definition::Function(id),
+            mutable: false,
+            location: None,
+            name,
+            typ,
+        })
+    }
+
     fn lambda_with_setup(
         &mut self,
         lambda: HirLambda,
@@ -1121,11 +1163,6 @@ impl<'interner> Monomorphizer<'interner> {
         });
 
         (block_let_stmt, closure_ident)
-    }
-
-    fn lambda(&mut self, lambda: HirLambda, expr: node_interner::ExprId) -> ast::Expression {
-        let (setup, closure_variable) = self.lambda_with_setup(lambda, expr);
-        ast::Expression::Block(vec![setup, closure_variable])
     }
 
     /// Implements std::unsafe::zeroed by returning an appropriate zeroed
