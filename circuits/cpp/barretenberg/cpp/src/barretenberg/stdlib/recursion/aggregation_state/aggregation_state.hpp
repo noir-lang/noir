@@ -1,7 +1,6 @@
 #pragma once
 #include "../../primitives/field/field.hpp"
 
-
 namespace proof_system::plonk {
 namespace stdlib {
 namespace recursion {
