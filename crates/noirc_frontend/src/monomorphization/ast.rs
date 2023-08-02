@@ -83,6 +83,7 @@ pub enum Literal {
     Integer(FieldElement, Type),
     Bool(bool),
     Str(String),
+    FmtStr(String, u64, Box<Expression>),
 }
 
 #[derive(Debug, Clone)]
@@ -207,6 +208,7 @@ pub enum Type {
     Integer(Signedness, /*bits:*/ u32), // u32 = Integer(unsigned, 32)
     Bool,
     String(/*len:*/ u64), // String(4) = str[4]
+    FmtString(/*len:*/ u64, Box<Type>),
     Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
@@ -313,7 +315,10 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "i{bits}"),
             },
             Type::Bool => write!(f, "bool"),
-            Type::String(len) => write!(f, "str[{len}]"),
+            Type::String(len) => write!(f, "str<{len}>"),
+            Type::FmtString(len, elements) => {
+                write!(f, "fmtstr<{len}, {elements}>")
+            }
             Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);

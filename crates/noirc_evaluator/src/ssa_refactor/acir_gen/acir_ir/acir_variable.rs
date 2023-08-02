@@ -55,6 +55,11 @@ impl AcirType {
         }
     }
 
+    /// Returns a field type
+    pub(crate) fn field() -> Self {
+        AcirType::NumericType(NumericType::NativeField)
+    }
+
     /// Returns a boolean type
     fn boolean() -> Self {
         AcirType::NumericType(NumericType::Unsigned { bit_size: 1 })
@@ -260,7 +265,7 @@ impl AcirContext {
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
         let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-        let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs)?;
+        let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
         Ok(outputs[0])
     }
 
@@ -272,7 +277,7 @@ impl AcirContext {
         typ: AcirType,
     ) -> Result<AcirVar, RuntimeError> {
         let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-        let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
+        let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
         Ok(outputs[0])
     }
 
@@ -299,7 +304,7 @@ impl AcirContext {
             let a = self.sub_var(max, lhs)?;
             let b = self.sub_var(max, rhs)?;
             let inputs = vec![AcirValue::Var(a, typ.clone()), AcirValue::Var(b, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs)?;
+            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
             self.sub_var(max, outputs[0])
         }
     }
@@ -677,6 +682,7 @@ impl AcirContext {
         &mut self,
         name: BlackBoxFunc,
         mut inputs: Vec<AcirValue>,
+        output_count: usize,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let constants = match name {
@@ -712,7 +718,7 @@ impl AcirContext {
         let inputs = self.prepare_inputs_for_black_box_func_call(inputs)?;
 
         // Call Black box with `FunctionInput`
-        let outputs = self.acir_ir.call_black_box(name, inputs, constants)?;
+        let outputs = self.acir_ir.call_black_box(name, &inputs, constants, output_count)?;
 
         // Convert `Witness` values which are now constrained to be the output of the
         // black box function call into `AcirVar`s.
@@ -728,9 +734,10 @@ impl AcirContext {
     fn prepare_inputs_for_black_box_func_call(
         &mut self,
         inputs: Vec<AcirValue>,
-    ) -> Result<Vec<FunctionInput>, RuntimeError> {
+    ) -> Result<Vec<Vec<FunctionInput>>, RuntimeError> {
         let mut witnesses = Vec::new();
         for input in inputs {
+            let mut single_val_witnesses = Vec::new();
             for (input, typ) in input.flatten() {
                 let var_data = &self.vars[&input];
 
@@ -740,8 +747,9 @@ impl AcirContext {
                 let expr = var_data.to_expression();
                 let witness = self.acir_ir.get_or_create_witness(&expr);
                 let num_bits = typ.bit_size();
-                witnesses.push(FunctionInput { witness, num_bits });
+                single_val_witnesses.push(FunctionInput { witness, num_bits });
             }
+            witnesses.push(single_val_witnesses);
         }
         Ok(witnesses)
     }
