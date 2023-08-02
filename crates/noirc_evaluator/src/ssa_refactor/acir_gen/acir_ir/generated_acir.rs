@@ -60,7 +60,7 @@ impl GeneratedAcir {
     }
 
     /// Adds a new opcode into ACIR.
-    fn push_opcode(&mut self, opcode: AcirOpcode) {
+    pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
         if let Some(location) = self.current_location {
             self.locations.insert(self.opcodes.len() - 1, location);
