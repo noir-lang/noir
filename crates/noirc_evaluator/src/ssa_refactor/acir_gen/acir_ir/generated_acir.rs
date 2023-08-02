@@ -432,7 +432,8 @@ impl GeneratedAcir {
             }
         }
 
-        let (q_witness, r_witness) = self.brillig_quotient(lhs, rhs, predicate, max_bit_size + 1);
+        let (q_witness, r_witness) =
+            self.brillig_quotient(lhs.clone(), rhs.clone(), predicate.clone(), max_bit_size + 1);
 
         // Apply range constraints to injected witness values.
         // Constrains `q` to be 0 <= q < 2^{q_max_bits}, etc.
@@ -461,9 +462,9 @@ impl GeneratedAcir {
     /// Suitable range constraints are also applied to `q` and `r`.
     pub(crate) fn brillig_quotient(
         &mut self,
-        lhs: &Expression,
-        rhs: &Expression,
-        predicate: &Expression,
+        lhs: Expression,
+        rhs: Expression,
+        predicate: Expression,
         max_bit_size: u32,
     ) -> (Witness, Witness) {
         // Create the witness for the result
@@ -472,12 +473,12 @@ impl GeneratedAcir {
 
         let quotient_code = brillig_directive::directive_quotient(max_bit_size);
         let inputs = vec![
-            BrilligInputs::Single(lhs.clone()),
-            BrilligInputs::Single(rhs.clone()),
+            BrilligInputs::Single(lhs),
+            BrilligInputs::Single(rhs),
             BrilligInputs::Single(predicate.clone()),
         ];
         let outputs = vec![BrilligOutputs::Simple(q_witness), BrilligOutputs::Simple(r_witness)];
-        self.brillig(Some(predicate.clone()), quotient_code, inputs, outputs);
+        self.brillig(Some(predicate), quotient_code, inputs, outputs);
 
         (q_witness, r_witness)
     }
