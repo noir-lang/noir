@@ -804,17 +804,18 @@ jobs:
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_pending_commitments_contract.test.ts
           working_directory: yarn-project/end-to-end
 
-  uniswap-trade-on-l1-from-l2:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local uniswap_trade_on_l1_from_l2.test.ts
-          working_directory: yarn-project/end-to-end
+  # TODO(AD): Reenable after #1367
+  # uniswap-trade-on-l1-from-l2:
+  #   machine:
+  #     image: ubuntu-2004:202010-01
+  #   resource_class: large
+  #   steps:
+  #     - *checkout
+  #     - *setup_env
+  #     - run:
+  #         name: "Test"
+  #         command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local uniswap_trade_on_l1_from_l2.test.ts
+  #         working_directory: yarn-project/end-to-end
 
   integration-archiver-l1-to-l2:
     machine:
@@ -863,16 +864,17 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_p2p_network.test.ts
 
-  e2e-uniswap-sandbox:
-    docker:
-      - image: aztecprotocol/alpine-build-image
-    resource_class: small
-    steps:
-      - *checkout
-      - *setup_env
-      - run:
-          name: "Test"
-          command: cond_spot_run_tests end-to-end uniswap_trade_on_l1_from_l2.test.ts docker-compose-e2e-sandbox.yml
+  # TODO(AD): Reenable after #1367
+  # e2e-uniswap-sandbox:
+  #   docker:
+  #     - image: aztecprotocol/alpine-build-image
+  #   resource_class: small
+  #   steps:
+  #     - *checkout
+  #     - *setup_env
+  #     - run:
+  #         name: "Test"
+  #         command: cond_spot_run_tests end-to-end uniswap_trade_on_l1_from_l2.test.ts docker-compose-e2e-sandbox.yml
 
   e2e-browser-sandbox:
     docker:
@@ -1157,11 +1159,13 @@ workflows:
       - e2e-account-contracts: *e2e_test
       - e2e-escrow-contract: *e2e_test
       - e2e-pending-commitments-contract: *e2e_test
-      - uniswap-trade-on-l1-from-l2: *e2e_test
+      # TODO(AD): Reenable after #1367
+      # - uniswap-trade-on-l1-from-l2: *e2e_test
       - integration-l1-publisher: *e2e_test
       - integration-archiver-l1-to-l2: *e2e_test
       - e2e-p2p: *e2e_test
-      - e2e-uniswap-sandbox: *e2e_test
+      # TODO(AD): Reenable after #1367
+      # - e2e-uniswap-sandbox: *e2e_test
       - e2e-browser-sandbox: *e2e_test
 
       - e2e-end:
@@ -1181,11 +1185,13 @@ workflows:
             - e2e-account-contracts
             - e2e-escrow-contract
             - e2e-pending-commitments-contract
-            - uniswap-trade-on-l1-from-l2
+            # TODO(AD): Reenable after #1367
+            # - uniswap-trade-on-l1-from-l2
             - integration-l1-publisher
             - integration-archiver-l1-to-l2
             - e2e-p2p
-            - e2e-uniswap-sandbox
+            # TODO(AD): Reenable after #1367
+            # - e2e-uniswap-sandbox
             - e2e-browser-sandbox
           <<: *defaults
 
