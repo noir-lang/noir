@@ -459,7 +459,7 @@ impl GeneratedAcir {
 
     /// Adds a brillig opcode which injects witnesses with values `q = a / b` and `r = a % b`.
     ///
-    /// Suitable range constraints are also applied to `q` and `r`.
+    /// Suitable range constraints for `q` and `r` must be applied externally.
     pub(crate) fn brillig_quotient(
         &mut self,
         lhs: Expression,
