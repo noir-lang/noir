@@ -14,7 +14,7 @@
 //! program that will need to be removed by a later simplify cfg pass.
 use std::collections::{HashMap, HashSet};
 
-use crate::ssa_refactor::{
+use crate::ssa::{
     ir::{
         basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph, dom::DominatorTree,
         function::Function, function_inserter::FunctionInserter,
@@ -424,7 +424,7 @@ impl<'f> LoopIteration<'f> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{function::RuntimeType, instruction::BinaryOp, map::Id, types::Type},
         ssa_builder::FunctionBuilder,
     };

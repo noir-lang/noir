@@ -128,7 +128,7 @@ impl ControlFlowGraph {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa_refactor::ir::{instruction::TerminatorInstruction, map::Id, types::Type};
+    use crate::ssa::ir::{instruction::TerminatorInstruction, map::Id, types::Type};
 
     use super::{super::function::Function, ControlFlowGraph};
 

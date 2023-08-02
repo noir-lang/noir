@@ -1,9 +1,9 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::errors::{InternalError, RuntimeError};
-use crate::ssa_refactor::acir_gen::{AcirDynamicArray, AcirValue};
-use crate::ssa_refactor::ir::types::Type as SsaType;
-use crate::ssa_refactor::ir::{instruction::Endian, types::NumericType};
+use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
+use crate::ssa::ir::types::Type as SsaType;
+use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
 use acvm::acir::circuit::Opcode;
 use acvm::acir::{

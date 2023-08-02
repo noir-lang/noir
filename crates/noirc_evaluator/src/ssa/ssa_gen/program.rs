@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, fmt::Display};
 
 use iter_extended::btree_map;
 
-use crate::ssa_refactor::ir::{
+use crate::ssa::ir::{
     function::{Function, FunctionId},
     map::AtomicCounter,
 };

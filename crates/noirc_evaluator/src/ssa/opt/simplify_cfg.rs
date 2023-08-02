@@ -11,7 +11,7 @@
 //! Currently, 1 and 4 are unimplemented.
 use std::collections::HashSet;
 
-use crate::ssa_refactor::{
+use crate::ssa::{
     ir::{
         basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
         instruction::TerminatorInstruction,
@@ -148,7 +148,7 @@ fn try_inline_into_predecessor(
 
 #[cfg(test)]
 mod test {
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{
             function::RuntimeType,
             instruction::{BinaryOp, TerminatorInstruction},

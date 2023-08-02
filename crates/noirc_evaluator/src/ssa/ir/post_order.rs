@@ -5,7 +5,7 @@
 
 use std::collections::HashSet;
 
-use crate::ssa_refactor::ir::{basic_block::BasicBlockId, function::Function};
+use crate::ssa::ir::{basic_block::BasicBlockId, function::Function};
 
 /// Depth-first traversal stack state marker for computing the cfg post-order.
 enum Visit {
@@ -67,7 +67,7 @@ impl PostOrder {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{
             function::{Function, RuntimeType},
             map::Id,

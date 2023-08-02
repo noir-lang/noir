@@ -137,7 +137,7 @@ use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 
-use crate::ssa_refactor::{
+use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
@@ -213,7 +213,7 @@ fn flatten_function_cfg(function: &mut Function) {
     // TODO This loops forever, if the predecessors are not then processed
     // TODO Because it will visit the same block again, pop it out of the queue
     // TODO then back into the queue again.
-    if let crate::ssa_refactor::ir::function::RuntimeType::Brillig = function.runtime() {
+    if let crate::ssa::ir::function::RuntimeType::Brillig = function.runtime() {
         return;
     }
     let cfg = ControlFlowGraph::with_function(function);
@@ -739,7 +739,7 @@ impl<'f> Context<'f> {
 mod test {
     use std::rc::Rc;
 
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{
             dfg::DataFlowGraph,
             function::{Function, RuntimeType},

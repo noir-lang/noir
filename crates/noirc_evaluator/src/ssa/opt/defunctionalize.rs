@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 
-use crate::ssa_refactor::{
+use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},

@@ -2,7 +2,7 @@
 //! which the results are unused.
 use std::collections::HashSet;
 
-use crate::ssa_refactor::{
+use crate::ssa::{
     ir::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
@@ -133,7 +133,7 @@ impl Context {
 
 #[cfg(test)]
 mod test {
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{function::RuntimeType, instruction::BinaryOp, map::Id, types::Type},
         ssa_builder::FunctionBuilder,
     };

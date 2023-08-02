@@ -2,13 +2,11 @@ use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
-use crate::ssa_refactor::ir::types::NumericType;
-
 use super::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
     map::Id,
-    types::Type,
+    types::{NumericType, Type},
     value::{Value, ValueId},
 };
 

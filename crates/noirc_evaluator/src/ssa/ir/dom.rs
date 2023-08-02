@@ -245,7 +245,7 @@ impl DominatorTree {
 mod tests {
     use std::cmp::Ordering;
 
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{
             basic_block::BasicBlockId,
             dom::DominatorTree,

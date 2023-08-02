@@ -4,12 +4,13 @@ use crate::brillig::brillig_gen::brillig_slice_ops::{
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
-use crate::ssa_refactor::ir::function::FunctionId;
-use crate::ssa_refactor::ir::instruction::{Endian, Intrinsic};
-use crate::ssa_refactor::ir::{
+use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
-    instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+    function::FunctionId,
+    instruction::{
+        Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
+    },
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
