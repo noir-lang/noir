@@ -11,16 +11,11 @@ use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{compute_function_signature, CompileOptions};
 use noirc_frontend::graph::CrateName;
 
-use std::{
-    fs::remove_file,
-    path::{Path},
-};
+use std::{fs::remove_file, path::Path};
 
 use super::NargoConfig;
 use super::{check_cmd::check_crate_and_report_errors, fs::write_to_file};
-use nargo::{
-    package::{Package},
-};
+use nargo::package::Package;
 
 /// Generate Prover.toml and Verifier.toml
 #[derive(Debug, Clone, Args)]
