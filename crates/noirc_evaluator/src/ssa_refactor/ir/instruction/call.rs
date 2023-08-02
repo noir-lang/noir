@@ -138,7 +138,7 @@ pub(super) fn simplify_call(
 
 /// Try to simplify this black box call. If the call can be simplified to a known value,
 /// that value is returned. Otherwise [`SimplifyResult::None`] is returned.
-fn simplify_bb_func(
+fn simplify_black_box_func(
     bb_func: BlackBoxFunc,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
