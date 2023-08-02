@@ -116,8 +116,11 @@ COPY . .
 COPY --from=noir /usr/src/yarn-project/noir-contracts/src/contracts /usr/src/yarn-project/noir-contracts/src/contracts
 WORKDIR /usr/src/yarn-project/noir-contracts
 
+# Run yarn build to have the json ABIs available for the types generator
 RUN yarn build
 RUN ./scripts/types_ci.sh
+# Run yarn build again to build the types
+RUN yarn build
 
 # Take noir contract artifacts into the final build image
 FROM builder_ as final
