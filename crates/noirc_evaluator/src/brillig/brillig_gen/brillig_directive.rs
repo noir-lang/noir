@@ -32,21 +32,25 @@ pub(crate) fn directive_invert() -> Vec<BrilligOpcode> {
     ]
 }
 
-/// Generates brillig bytecode which computes the a / b and returns the quotient and remainder.
-/// It returns (0,0) if the predicate is null
+/// Generates brillig bytecode which computes `a / b` and returns the quotient and remainder.
+/// It returns `(0,0)` if the predicate is null
+///
+///
+/// This is equivalent to the Noir (psuedo)code
+///
+/// ```no_run
+/// fn quotient<T>(a: T, b: T, predicate: bool) -> (T,T) {
+///    if predicate != 0 {
+///      (a/b, a-a/b*b)
+///    } else {
+///      (0,0)
+///    }
+/// }
+/// ```
 pub(crate) fn directive_quotient(bit_size: u32) -> Vec<BrilligOpcode> {
-    //  We generate the following code:
-    // fn quotient(a : Int, b: Int, predicate: bool) -> (Int,Int) {
-    //    if predicate != 0 {
-    //      (a/b, a-a/b*b)
-    //    } else {
-    //      (0,0)
-    //    }
-    // }
-
-    //a is (0) (i.e register index 0)
-    //b is (1)
-    //predicate is (2)
+    // `a` is (0) (i.e register index 0)
+    // `b` is (1)
+    // `predicate` is (2)
     vec![
         // If the predicate is zero, we jump to the exit segment
         BrilligOpcode::JumpIfNot { condition: RegisterIndex::from(2), location: 6 },
