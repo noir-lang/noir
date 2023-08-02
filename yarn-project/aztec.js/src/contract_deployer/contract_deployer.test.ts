@@ -2,7 +2,6 @@ import { AztecAddress, EthAddress, Fr, Point } from '@aztec/circuits.js';
 import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { AztecRPC, PublicKey, Tx, TxHash, TxReceipt } from '@aztec/types';
 
-import { randomBytes } from 'crypto';
 import { MockProxy, mock } from 'jest-mock-extended';
 
 import { ContractDeployer } from './contract_deployer.js';
@@ -25,7 +24,7 @@ describe.skip('Contract Deployer', () => {
   };
 
   const publicKey: PublicKey = Point.random();
-  const portalContract = new EthAddress(randomBytes(EthAddress.SIZE_IN_BYTES));
+  const portalContract = EthAddress.random();
   const contractAddressSalt = Fr.random();
   const account = AztecAddress.random();
   const args = [12, 345n];

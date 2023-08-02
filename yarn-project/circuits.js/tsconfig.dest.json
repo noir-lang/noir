@@ -1,0 +1,12 @@
+{
+  "extends": ".",
+  "references": [
+    {
+      "path": "../foundation/tsconfig.dest.json"
+    }
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.in.ts"
+  ]
+}

@@ -9,7 +9,7 @@ import { WasmModule } from './wasm_module.js';
  */
 async function fetchCode() {
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  return await readFile(`${__dirname}/../fixtures/gcd.wasm`);
+  return await readFile(`${__dirname}/fixtures/gcd.wasm`);
 }
 
 describe('simple wasm', () => {

@@ -1,14 +1,9 @@
+import isNode from 'detect-node';
 import { existsSync } from 'fs';
 import { open } from 'fs/promises';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-/**
- * The path to our SRS object, assuming that we are in the aztec3-packages folder structure.
- */
-export const SRS_DEV_PATH =
-  dirname(fileURLToPath(import.meta.url)) +
-  '/../../../../circuits/cpp/barretenberg/cpp/srs_db/ignition/monomial/transcript00.dat';
 /**
  * Downloader for CRS from the web or local.
  */
@@ -143,7 +138,17 @@ export class Crs {
      */
     public readonly numPoints: number,
   ) {
-    this.crs = existsSync(SRS_DEV_PATH) ? new FileCrs(numPoints, SRS_DEV_PATH) : new NetCrs(numPoints);
+    if (isNode) {
+      /**
+       * The path to our SRS object, assuming that we are in the aztec3-packages folder structure.
+       */
+      const SRS_DEV_PATH =
+        dirname(fileURLToPath(import.meta.url)) +
+        '/../../../../circuits/cpp/barretenberg/cpp/srs_db/ignition/monomial/transcript00.dat';
+      this.crs = existsSync(SRS_DEV_PATH) ? new FileCrs(numPoints, SRS_DEV_PATH) : new NetCrs(numPoints);
+    } else {
+      this.crs = new NetCrs(numPoints);
+    }
   }
 
   /**

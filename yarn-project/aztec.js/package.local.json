@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "build": "yarn clean && tsc -b && webpack"
+  }
+}

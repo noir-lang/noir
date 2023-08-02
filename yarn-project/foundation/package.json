@@ -16,6 +16,8 @@
     "./eth-address": "./dest/eth-address/index.js",
     "./fifo": "./dest/fifo/index.js",
     "./json-rpc": "./dest/json-rpc/index.js",
+    "./json-rpc/server": "./dest/json-rpc/server/index.js",
+    "./json-rpc/client": "./dest/json-rpc/client/index.js",
     "./log": "./dest/log/index.js",
     "./mutex": "./dest/mutex/index.js",
     "./fields": "./dest/fields/index.js",
@@ -26,6 +28,7 @@
     "./timer": "./dest/timer/index.js",
     "./transport": "./dest/transport/index.js",
     "./wasm": "./dest/wasm/index.js",
+    "./worker": "./dest/worker/index.js",
     "./bigint-buffer": "./dest/bigint-buffer/index.js",
     "./types": "./dest/types/index.js"
   },

@@ -1,4 +1,4 @@
-import { Proxify } from '../../transport/index.js';
+import { Proxify } from '../transport/index.js';
 import { WasmModule } from '../wasm/wasm_module.js';
 
 /**

@@ -29,7 +29,7 @@ import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/e
 import { ContractAbi } from '@aztec/foundation/abi';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
-import { mustSucceedFetch } from '@aztec/foundation/json-rpc';
+import { mustSucceedFetch } from '@aztec/foundation/json-rpc/client';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
@@ -57,7 +57,7 @@ import { MNEMONIC, localAnvil } from './fixtures.js';
 
 const { SANDBOX_URL = '' } = process.env;
 
-const waitForRPCServer = async (rpcServer: AztecRPC, logger: DebugLogger) => {
+export const waitForRPCServer = async (rpcServer: AztecRPC, logger: DebugLogger) => {
   await retryUntil(async () => {
     try {
       logger('Attmpting to contact RPC Server...');

@@ -1,4 +1,4 @@
-import { createDebugOnlyLogger } from '../../log/index.js';
+import { createDebugOnlyLogger } from '../log/index.js';
 
 /**
  * Dummy implementation of a necessary part of the wasi api:

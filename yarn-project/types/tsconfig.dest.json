@@ -1,0 +1,14 @@
+{
+  "extends": ".",
+  "references": [
+    {
+      "path": "../circuits.js/tsconfig.dest.json"
+    },
+    {
+      "path": "../foundation/tsconfig.dest.json"
+    }
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ]
+}
