@@ -115,9 +115,11 @@ jobs:
           echo "Locating libomp.so"
           libomp_path=$(find /usr/ -name libomp.so*)
           echo "libomp.so located at $libomp_path"
-          ls -R
           nargo_binary=$(find $(pwd) -name "nargo" -type f)
           echo "nargo binary found at $nargo_binary."
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu/
+          sudo ln -s /usr/lib/x86_64-linux-gnu/libomp.so.5 /usr/lib/x86_64-linux-gnu/libomp.so
+
           echo "Initial file permissions:"
           ls -l $nargo_binary
           echo "Attempting to make nargo binary executable:"
