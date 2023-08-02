@@ -55,6 +55,15 @@ struct Context {
     /// This set is used to ensure that a MemoryOp opcode is only pushed to the circuit
     /// if there is already a MemoryInit opcode.
     initialized_arrays: HashSet<BlockId>,
+
+    /// Maps SSA values to BlockId
+    /// A BlockId is an ACIR structure which identifies a memory block
+    /// Each acir memory block corresponds to a different SSA array.
+    memory_blocks: HashMap<Id<Value>, BlockId>,
+
+    /// Number of the next BlockId, it is used to construct
+    /// a new BlockId
+    max_block_id: u32,
 }
 
 #[derive(Clone)]
@@ -139,6 +148,8 @@ impl Context {
             current_side_effects_enabled_var,
             acir_context,
             initialized_arrays: HashSet::new(),
+            memory_blocks: HashMap::new(),
+            max_block_id: 0,
         }
     }
 
@@ -221,7 +232,7 @@ impl Context {
             match &value {
                 AcirValue::Var(_, _) => (),
                 AcirValue::Array(values) => {
-                    let block_id = BlockId(param_id.to_usize() as u32);
+                    let block_id = self.block_id(param_id);
                     let v = vecmap(values, |v| v.clone());
                     self.initialize_array(block_id, values.len(), Some(&v))?;
                 }
@@ -262,6 +273,18 @@ impl Context {
             }
             _ => unreachable!("ICE: Params to the program should only contains numbers and arrays"),
         }
+    }
+
+    /// Get the BlockId corresponding to the ValueId
+    /// If there is no matching BlockId, we create a new one.
+    fn block_id(&mut self, value: &ValueId) -> BlockId {
+        if let Some(block_id) = self.memory_blocks.get(value) {
+            return *block_id;
+        }
+        let block_id = BlockId(self.max_block_id);
+        self.max_block_id += 1;
+        self.memory_blocks.insert(*value, block_id);
+        block_id
     }
 
     /// Creates an `AcirVar` corresponding to a parameter witness to appears in the abi. A range
@@ -500,7 +523,7 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
         let array = dfg.resolve(array);
-        let block_id = BlockId(array.to_usize() as u32);
+        let block_id = self.block_id(&array);
         if !self.initialized_arrays.contains(&block_id) {
             match &dfg[array] {
                 Value::Array { array, .. } => {
@@ -548,11 +571,9 @@ impl Context {
     ) -> Result<(), InternalError> {
         // Fetch the internal SSA ID for the array
         let array = dfg.resolve(array);
-        let array_ssa_id = array.to_usize() as u32;
 
-        // Use the SSA ID to create a block ID
-        // There is currently a 1-1 mapping from array SSA ID to block ID
-        let block_id = BlockId(array_ssa_id);
+        // Use the SSA ID to get or create its block ID
+        let block_id = self.block_id(&array);
 
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
@@ -586,8 +607,7 @@ impl Context {
             .instruction_results(instruction)
             .first()
             .expect("Array set does not have one result");
-        let result_array_id = result_id.to_usize() as u32;
-        let result_block_id = BlockId(result_array_id);
+        let result_block_id = self.block_id(result_id);
 
         // Initialize the new array with the values from the old array
         let init_values = try_vecmap(0..len, |i| {
