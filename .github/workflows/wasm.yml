@@ -112,6 +112,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libomp-dev
+          echo "Locating libomp.so"
+          libomp_path=$(locate libomp.so)
+          echo "libomp.so located at $libomp_path"
 
       - name: Run noir-wasm-testing program
         run: |
@@ -124,6 +127,8 @@ jobs:
           chmod +x $nargo_binary || echo "chmod failed with exit code $?"
           echo "File permissions after chmod:"
           ls -l $nargo_binary
+          echo "Updating LD_LIBRARY_PATH"
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(dirname ${{ env.libomp_path }})
           echo "Library dependencies of nargo binary:"
           ldd $nargo_binary
           if [ -x "$nargo_binary" ]; then
