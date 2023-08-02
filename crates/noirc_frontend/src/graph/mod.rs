@@ -4,7 +4,7 @@
 // This version is also simpler due to not having macro_defs or proc_macros
 // XXX: Edition may be reintroduced or some sort of versioning
 
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -26,12 +26,23 @@ impl CrateId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct CrateName(SmolStr);
+
+impl Display for CrateName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 impl From<CrateName> for String {
     fn from(crate_name: CrateName) -> Self {
         crate_name.0.into()
+    }
+}
+impl From<&CrateName> for String {
+    fn from(crate_name: &CrateName) -> Self {
+        crate_name.0.clone().into()
     }
 }
 
@@ -66,7 +77,6 @@ pub const CHARACTER_BLACK_LIST: [char; 1] = ['-'];
 pub enum CrateType {
     Library,
     Binary,
-    Workspace,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

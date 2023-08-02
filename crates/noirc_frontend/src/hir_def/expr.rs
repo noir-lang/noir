@@ -72,6 +72,10 @@ impl HirBinaryOp {
         use BinaryOpKind::*;
         matches!(self.kind, And | Or | Xor | ShiftRight | ShiftLeft)
     }
+
+    pub fn is_bit_shift(&self) -> bool {
+        self.kind.is_bit_shift()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -80,6 +84,7 @@ pub enum HirLiteral {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+    FmtStr(String, Vec<ExprId>),
     Unit,
 }
 

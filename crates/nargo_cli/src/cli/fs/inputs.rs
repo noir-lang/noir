@@ -70,6 +70,7 @@ mod tests {
     use std::{collections::BTreeMap, vec};
 
     use acvm::FieldElement;
+    use nargo::constants::VERIFIER_INPUT_FILE;
     use noirc_abi::{
         input_parser::{Format, InputValue},
         Abi, AbiParameter, AbiType, AbiVisibility,
@@ -77,7 +78,6 @@ mod tests {
     use tempdir::TempDir;
 
     use super::{read_inputs_from_file, write_inputs_to_file};
-    use crate::constants::VERIFIER_INPUT_FILE;
 
     #[test]
     fn write_and_read_recovers_inputs_and_return_value() {

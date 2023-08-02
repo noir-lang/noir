@@ -74,6 +74,8 @@ pub enum ResolverError {
     MutableReferenceToArrayElement { span: Span },
     #[error("Function is not defined in a contract yet sets is_internal")]
     ContractFunctionInternalInNormalFunction { span: Span },
+    #[error("Numeric constants should be printed without formatting braces")]
+    NumericConstantInFormatString { name: String, span: Span },
 }
 
 impl ResolverError {
@@ -281,6 +283,11 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::ContractFunctionInternalInNormalFunction { span } => Diagnostic::simple_error(
                 "Only functions defined within contracts can set their functions to be internal".into(),
                 "Non-contract functions cannot be 'internal'".into(),
+                span,
+            ),
+            ResolverError::NumericConstantInFormatString { name, span } => Diagnostic::simple_error(
+                format!("cannot find `{name}` in this scope "),
+                "Numeric constants should be printed without formatting braces".to_string(),
                 span,
             ),
         }

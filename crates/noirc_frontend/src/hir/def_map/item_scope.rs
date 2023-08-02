@@ -48,6 +48,7 @@ impl ItemScope {
             ModuleDefId::ModuleId(_) => add_item(&mut self.types),
             ModuleDefId::FunctionId(_) => add_item(&mut self.values),
             ModuleDefId::TypeId(_) => add_item(&mut self.types),
+            ModuleDefId::TypeAliasId(_) => add_item(&mut self.types),
             ModuleDefId::GlobalId(_) => add_item(&mut self.values),
         }
     }

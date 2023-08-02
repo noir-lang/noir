@@ -12,12 +12,19 @@ struct Dummy {
      y: [Field; foo::MAGIC_NUMBER]
 }
 
+struct Test {
+    v: Field,
+}
+global VALS: [Test; 1] = [Test { v: 100 }];
+global NESTED = [VALS, VALS];
+
 fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGIC_NUMBER], d: [Field; foo::bar::N]) {
      let test_struct = Dummy { x: d, y: c };
 
      for i in 0..foo::MAGIC_NUMBER {
           assert(c[i] == foo::MAGIC_NUMBER);
           assert(test_struct.y[i] == foo::MAGIC_NUMBER);
+          assert(test_struct.y[i] != NESTED[1][0].v);
      }
 
      assert(N != M);
