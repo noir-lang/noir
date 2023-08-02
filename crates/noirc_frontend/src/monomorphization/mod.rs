@@ -1026,7 +1026,8 @@ impl<'interner> Monomorphizer<'interner> {
         let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
 
-        let typ = ast::Type::Function(parameter_types, Box::new(ret_type), Box::new(ast::Type::Unit));
+        let typ =
+            ast::Type::Function(parameter_types, Box::new(ret_type), Box::new(ast::Type::Unit));
 
         let name = lambda_name.to_owned();
         ast::Expression::Ident(ast::Ident {
