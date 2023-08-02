@@ -9,7 +9,7 @@
 
 use fm::FileManager;
 use nargo::package::{Dependency, Package};
-use noirc_driver::{add_dep, create_local_crate, create_non_local_crate};
+use noirc_driver::{add_dep, prepare_crate};
 use noirc_frontend::{
     graph::{CrateGraph, CrateId, CrateName, CrateType},
     hir::Context,
@@ -107,8 +107,7 @@ fn prepare_dependencies(
     for (dep_name, dep) in dependencies.into_iter() {
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
-                let crate_id =
-                    create_non_local_crate(context, &package.entry_path, package.crate_type);
+                let crate_id = prepare_crate(context, &package.entry_path, package.crate_type);
                 add_dep(context, parent_crate, crate_id, dep_name);
                 prepare_dependencies(context, crate_id, package.dependencies.to_owned());
             }
@@ -121,7 +120,7 @@ fn prepare_package(package: &Package) -> (Context, CrateId) {
     let graph = CrateGraph::default();
     let mut context = Context::new(fm, graph);
 
-    let crate_id = create_local_crate(&mut context, &package.entry_path, package.crate_type);
+    let crate_id = prepare_crate(&mut context, &package.entry_path, package.crate_type);
 
     prepare_dependencies(&mut context, crate_id, package.dependencies.to_owned());
 

@@ -8,7 +8,7 @@ use crate::{
         artifact::{BrilligParameter, Label},
         BrilligContext,
     },
-    ssa_refactor::ir::{
+    ssa::ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         types::{CompositeType, Type},
@@ -112,13 +112,6 @@ impl FunctionContext {
         match variable {
             RegisterOrMemory::HeapArray(array) => array,
             _ => unreachable!("ICE: Expected array, got {variable:?}"),
-        }
-    }
-
-    pub(crate) fn extract_heap_vector(&self, variable: RegisterOrMemory) -> HeapVector {
-        match variable {
-            RegisterOrMemory::HeapVector(vector) => vector,
-            _ => unreachable!("ICE: Expected vector, got {variable:?}"),
         }
     }
 

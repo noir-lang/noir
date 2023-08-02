@@ -13,7 +13,7 @@ use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TypeAliasId};
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias,
-    ParsedModule, Shared, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
+    ParsedModule, Shared, Type, TypeBinding, UnresolvedGenerics, UnresolvedType, Literal,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -161,10 +161,10 @@ impl DefCollector {
         //
         // Additionally, we must resolve integer globals before structs since structs may refer to
         // the values of integer globals as numeric generics.
-        let (integer_globals, other_globals) =
-            filter_integer_globals(def_collector.collected_globals);
+        let (literal_globals, other_globals) =
+            filter_literal_globals(def_collector.collected_globals);
 
-        let mut file_global_ids = resolve_globals(context, integer_globals, crate_id, errors);
+        let mut file_global_ids = resolve_globals(context, literal_globals, crate_id, errors);
 
         resolve_type_aliases(context, def_collector.collected_type_aliases, crate_id, errors);
 
@@ -274,13 +274,15 @@ where
 }
 
 /// Separate the globals Vec into two. The first element in the tuple will be the
-/// integer literal globals, and the second will be all other globals.
-fn filter_integer_globals(
+/// literal globals, except for arrays, and the second will be all other globals.
+/// We exclude array literals as they can contain complex types
+fn filter_literal_globals(
     globals: Vec<UnresolvedGlobal>,
 ) -> (Vec<UnresolvedGlobal>, Vec<UnresolvedGlobal>) {
-    globals
-        .into_iter()
-        .partition(|global| matches!(&global.stmt_def.expression.kind, ExpressionKind::Literal(_)))
+    globals.into_iter().partition(|global| match &global.stmt_def.expression.kind {
+        ExpressionKind::Literal(literal) => !matches!(literal, Literal::Array(_)),
+        _ => false,
+    })
 }
 
 fn resolve_globals(

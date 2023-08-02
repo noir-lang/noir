@@ -52,37 +52,14 @@ pub fn compile_file(
     context: &mut Context,
     root_file: &Path,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let crate_id = create_local_crate(context, root_file, CrateType::Binary);
+    let crate_id = prepare_crate(context, root_file, CrateType::Binary);
     compile_main(context, crate_id, &CompileOptions::default())
 }
 
-/// Adds the File with the local crate root to the file system
-/// and adds the local crate to the graph
-/// XXX: This may pose a problem with workspaces, where you can change the local crate and where
-/// we have multiple binaries in one workspace
-/// A Fix would be for the driver instance to store the local crate id.
-// Granted that this is the only place which relies on the local crate being first
-pub fn create_local_crate(
-    context: &mut Context,
-    file_name: &Path,
-    crate_type: CrateType,
-) -> CrateId {
+/// Adds the file from the file system at `Path` to the crate graph
+pub fn prepare_crate(context: &mut Context, file_name: &Path, crate_type: CrateType) -> CrateId {
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
-    context.crate_graph.add_crate_root(crate_type, root_file_id)
-}
-
-/// Creates a Non Local Crate. A Non Local Crate is any crate which is the not the crate that
-/// the compiler is compiling.
-pub fn create_non_local_crate(
-    context: &mut Context,
-    file_name: &Path,
-    crate_type: CrateType,
-) -> CrateId {
-    let root_file_id = context.file_manager.add_file(file_name).unwrap();
-
-    // You can add any crate type to the crate graph
-    // but you cannot depend on Binaries
     context.crate_graph.add_crate_root(crate_type, root_file_id)
 }
 
@@ -186,7 +163,7 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, true, options, main)?;
+    let compiled_program = compile_no_check(context, options, main)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -253,7 +230,7 @@ fn compile_contract(
     let mut errs = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, true, options, *function_id) {
+        let function = match compile_no_check(context, options, *function_id) {
             Ok(function) => function,
             Err(err) => {
                 errs.push(err);
@@ -290,14 +267,12 @@ fn compile_contract(
 #[allow(deprecated)]
 pub fn compile_no_check(
     context: &Context,
-    show_output: bool,
     options: &CompileOptions,
     main_function: FuncId,
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) =
-        create_circuit(program, options.show_ssa, options.show_brillig, show_output)?;
+    let (circuit, debug, abi) = create_circuit(program, options.show_ssa, options.show_brillig)?;
 
     Ok(CompiledProgram { circuit, debug, abi })
 }
