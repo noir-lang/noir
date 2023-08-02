@@ -8,7 +8,7 @@ use crate::ssa_refactor::ir::{
     dfg::DataFlowGraph,
     instruction::Intrinsic,
     map::Id,
-    types::{NumericType, Type},
+    types::Type,
     value::{Value, ValueId},
 };
 
@@ -144,30 +144,6 @@ fn simplify_bb_func(
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
     match bb_func {
-        BlackBoxFunc::AND => {
-            if let (Some((lhs, Type::Numeric(NumericType::Unsigned { bit_size }))), Some(rhs)) = (
-                dfg.get_numeric_constant_with_type(arguments[0]),
-                dfg.get_numeric_constant(arguments[1]),
-            ) {
-                let output = lhs.and(&rhs, bit_size);
-                let output = dfg.make_constant(output, Type::unsigned(bit_size));
-                SimplifyResult::SimplifiedTo(output)
-            } else {
-                SimplifyResult::None
-            }
-        }
-        BlackBoxFunc::XOR => {
-            if let (Some((lhs, Type::Numeric(NumericType::Unsigned { bit_size }))), Some(rhs)) = (
-                dfg.get_numeric_constant_with_type(arguments[0]),
-                dfg.get_numeric_constant(arguments[1]),
-            ) {
-                let output = lhs.xor(&rhs, bit_size);
-                let output = dfg.make_constant(output, Type::unsigned(bit_size));
-                SimplifyResult::SimplifiedTo(output)
-            } else {
-                SimplifyResult::None
-            }
-        }
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
         BlackBoxFunc::Keccak256 => {
@@ -213,7 +189,20 @@ fn simplify_bb_func(
             // Currently unsolvable here as we rely on an implementation in the backend.
             SimplifyResult::None
         }
-        BlackBoxFunc::RANGE | BlackBoxFunc::RecursiveAggregation => SimplifyResult::None,
+
+        BlackBoxFunc::RecursiveAggregation => SimplifyResult::None,
+
+        BlackBoxFunc::AND => {
+            unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")
+        }
+        BlackBoxFunc::XOR => {
+            unreachable!("ICE: `BlackBoxFunc::XOR` calls should be transformed into a `BinaryOp`")
+        }
+        BlackBoxFunc::RANGE => {
+            unreachable!(
+                "ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
+            )
+        }
     }
 }
 
