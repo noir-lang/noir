@@ -1,0 +1,25 @@
+#!/bin/bash
+set -e
+
+REPOSITORY=$1
+IMAGE_COMMIT_URI=$ECR_URL/$REPOSITORY:cache-$COMMIT_HASH
+
+# Login to build region and pull the build.
+ensure_repo $REPOSITORY $ECR_REGION
+docker pull $IMAGE_COMMIT_URI > /dev/null 2>&1
+
+# Ensure ECR repository exists in deployment region.
+ensure_repo $REPOSITORY $ECR_DEPLOY_REGION
+
+# Push image to deployment repo with commit hash tag e.g:
+# falafel:deadbeefcafebabe1337c0de
+IMAGE_DEPLOY_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
+docker tag $IMAGE_COMMIT_URI $IMAGE_DEPLOY_COMMIT_URI
+docker push $IMAGE_DEPLOY_COMMIT_URI
+
+# Tag image with full version if we have one. Allows deployment of precise image version if rollback needed.
+if [ -n "$COMMIT_TAG" ]; then
+  tag_remote_image $REPOSITORY $COMMIT_HASH $PROJECT-$COMMIT_TAG $ECR_DEPLOY_REGION
+fi
+
+tag_remote_image $REPOSITORY $COMMIT_HASH $DEPLOY_TAG $ECR_DEPLOY_REGION

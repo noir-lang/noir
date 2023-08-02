@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+REPOSITORY=$1
+TF_DIR=$2
+TO_TAINT=${3}
+
+if [ ! -d "$TF_DIR" ]; then
+  echo "No terraform directory found at $TF_DIR. Skipping."
+  exit 0
+fi
+
+if [ ! -f "$TF_DIR/main.tf" ]; then
+  echo "No main.tf found in $TF_DIR."
+  exit 1
+fi
+
+ensure_terraform
+export TF_IN_AUTOMATION=1
+cd $TF_DIR
+
+echo "Deploying terraform found at $PWD..."
+
+# Always want to export the DEPLOY_TAG variable to terraform. It's used to easily scope releases.
+export TF_VAR_DEPLOY_TAG=$DEPLOY_TAG
+export TF_VAR_COMMIT_HASH=$COMMIT_HASH
+
+# If given a repository name, use it to construct and set/override the backend key.
+# Otherwise use the key as specified in the terraform.
+if [ -n "$REPOSITORY" ]; then
+  BACKEND_CONFIG=-backend-config="key=$DEPLOY_TAG/$REPOSITORY"
+  echo "Using backend key $DEPLOY_TAG/$REPOSITORY"
+fi
+
+terraform init -input=false $BACKEND_CONFIG
+
+for RESOURCE in $TO_TAINT; do
+  terraform taint $RESOURCE || true
+done
+
+terraform apply -input=false -auto-approve

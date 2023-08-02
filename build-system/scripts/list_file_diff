@@ -1,0 +1,30 @@
+#!/bin/bash
+# Lists files that have changed between two commits, including files in submodules.
+# Needed because `git diff --submodule=diff --name-only` doesn't work as one would hope.
+set -euo pipefail
+
+BASE_COMMIT=$1
+COMMIT_HASH=${2:-HEAD}
+
+if [ -z "$BASE_COMMIT" ]; then
+  echo "Usage $0 from_commit [to_commit]"
+  exit 1
+fi
+
+cd $ROOT_PATH
+
+git --no-pager diff --name-only ${BASE_COMMIT} ${COMMIT_HASH}
+
+for SUBMODULE_PATH in $(git config --file .gitmodules --get-regexp path | awk '{ print $2 }'); do
+  [ -f $SUBMODULE_PATH/.git ] || continue
+  if [ "$(git ls-tree $BASE_COMMIT $SUBMODULE_PATH | awk '{print $2}')" = "tree" ]; then
+    # In the base commit, we were not a submodule, and now we are. Output all files as having changed.
+    (cd $SUBMODULE_PATH &&
+     git ls-files | awk "\$0=\"$SUBMODULE_PATH/\"\$0")
+    continue
+  fi
+  SM_PREV_HASH=$(git ls-tree $BASE_COMMIT $SUBMODULE_PATH | awk '{print $3}')
+  SM_CURR_HASH=$(git ls-tree $COMMIT_HASH $SUBMODULE_PATH | awk '{print $3}')
+  (cd $SUBMODULE_PATH &&
+   git --no-pager diff --name-only ${SM_PREV_HASH} ${SM_CURR_HASH} | awk "\$0=\"$SUBMODULE_PATH/\"\$0")
+done

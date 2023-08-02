@@ -1,0 +1,55 @@
+#!/bin/bash
+# Builds the PROJECTS in the given order.
+# Will terminate build at TARGET_PROJECT (if given).
+# Will only build TARGET_PROJECT if ONLY_TARGET given.
+# PROJECT elements have structure PROJECT_DIR_NAME:WORKING_DIR:DOCKERFILE:REPO.
+# If DOCKERFILE is excluded it tries to default to ./Dockerfile then ./<PROJECT_DIR_NAME>/Dockerfile
+# If REPO is excluded it defaults to PROJECT_DIR_NAME.
+
+set -e
+
+TARGET_PROJECT=$1
+ONLY_TARGET=$2
+
+ROOT=$(git rev-parse --show-toplevel)
+source $ROOT/build_manifest.sh
+
+for E in ${PROJECTS[@]}; do
+  ARR=(${E//:/ })
+  PROJECT_DIR_NAME=${ARR[0]}
+  WORKING_DIR=${ARR[1]}
+  DOCKERFILE=${ARR[2]}
+  REPO=${ARR[3]:-$PROJECT_DIR_NAME}
+
+  if [ "$ONLY_TARGET" == "true" -a ! "$PROJECT_DIR_NAME" = "$TARGET_PROJECT" ]; then
+    continue
+  fi
+
+  pushd $WORKING_DIR > /dev/null
+
+  if [ ! -f "$DOCKERFILE" ]; then
+    DOCKERFILE=./Dockerfile
+    if [ ! -f "$DOCKERFILE" ]; then
+      DOCKERFILE=./$PROJECT_DIR_NAME/Dockerfile
+      if [ ! -f "$DOCKERFILE" ]; then
+        echo "Dockerfile not found."
+        exit 1
+      fi
+    fi
+  fi
+
+  echo
+  echo
+  echo
+  echo "*** Building $PROJECT_DIR_NAME:$DOCKERFILE -> $REPO ***"
+  echo
+
+  time docker build --build-arg ARG_COMMIT_HASH=$COMMIT_HASH -f $DOCKERFILE -t $ECR_DEPLOY_URL/$REPO:latest .
+  docker tag $ECR_DEPLOY_URL/$REPO:latest aztecprotocol/$REPO:latest
+
+  if [ "$PROJECT_DIR_NAME" = "$TARGET_PROJECT" ]; then
+    break
+  fi
+
+  popd > /dev/null
+done

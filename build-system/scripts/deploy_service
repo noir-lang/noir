@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+
+# Redeploy service with latest image.
+SERVICE_NAME=$1
+if aws ecs list-services --region $ECR_DEPLOY_REGION --cluster setup | grep "/$SERVICE_NAME\"" > /dev/null; then
+  aws ecs update-service --region $ECR_DEPLOY_REGION --cluster setup --service $SERVICE_NAME --force-new-deployment
+fi

@@ -1,0 +1,20 @@
+#!/bin/bash
+# Given a repository, extracts the builds entire /usr/src dir to the given path.
+set -e
+
+REPOSITORY=$1
+EXTRACT_FROM=${2:-/usr/src}
+EXTRACT_TO=${3:-./}
+IMAGE_COMMIT_URI=$ECR_DEPLOY_URL/$REPOSITORY:$COMMIT_HASH
+
+echo "Pulling $IMAGE_COMMIT_URI..."
+docker pull $IMAGE_COMMIT_URI > /dev/null 2>&1
+TEMP_CONTAINER=$(docker create $IMAGE_COMMIT_URI)
+
+echo "Extracting $EXTRACT_FROM from $REPOSITORY to $EXTRACT_TO..."
+mkdir -p $EXTRACT_TO
+docker cp $TEMP_CONTAINER:$EXTRACT_FROM $EXTRACT_TO
+docker rm -v $TEMP_CONTAINER > /dev/null
+
+echo "Extracted contents:"
+ls -al $EXTRACT_TO

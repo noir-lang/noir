@@ -1,0 +1,49 @@
+#!/bin/bash
+set -e
+
+REPOSITORY=$1
+# A global deploy, doesn't namespace under a deploy tag (e.g. company website, metrics)
+IS_GLOBAL=$2
+PROJECT_DIR=$(query_manifest projectDir $REPOSITORY)
+EXTRACT_DIR=../extracted/$REPOSITORY
+
+echo "deploy_s3: Repository: $REPOSITORY"
+echo "deploy_s3: Project Dir: $PROJECT_DIR"
+echo "deploy_s3: Working directory: $PWD"
+echo "deploy_s3: Extract dir: $EXTRACT_DIR"
+
+extract_repo $REPOSITORY /usr/src/$(query_manifest projectDir $REPOSITORY)/dest $EXTRACT_DIR
+
+# So a front-end app can discover it's deploy tag at runtime, we include a file called DEPLOY_TAG in the root.
+echo $DEPLOY_TAG > $EXTRACT_DIR/dest/DEPLOY_TAG
+
+if [ -n "$IS_GLOBAL" ]; then
+  TF_DIR=$ROOT_PATH/$PROJECT_DIR/terraform
+  deploy_terraform "" $TF_DIR
+else
+  TF_DIR=$ROOT_PATH/$PROJECT_DIR/terraform/$VERSION_TAG
+  deploy_terraform $REPOSITORY $TF_DIR
+fi
+
+pushd $TF_DIR > /dev/null
+AWS_BUCKET_NAME=$(terraform output s3)
+AWS_CLOUDFRONT_DISTRIBUTION=$(terraform output cloudfront || echo "")
+popd > /dev/null
+
+aws s3 rm s3://$AWS_BUCKET_NAME --recursive
+aws s3 cp $EXTRACT_DIR/dest s3://$AWS_BUCKET_NAME --recursive --metadata-directive REPLACE --cache-control "no-cache" --acl public-read
+aws s3 cp \
+      s3://$AWS_BUCKET_NAME \
+      s3://$AWS_BUCKET_NAME \
+      --exclude '*' \
+      --include '*.js' \
+      --no-guess-mime-type \
+      --content-type="application/javascript; charset=utf-8" \
+      --cache-control "no-cache" \
+      --metadata-directive="REPLACE" \
+      --cache-control "no-cache" \
+      --recursive
+
+if [ -n "$AWS_CLOUDFRONT_DISTRIBUTION" ]; then
+  aws cloudfront create-invalidation --distribution-id $AWS_CLOUDFRONT_DISTRIBUTION --paths "/*"
+fi

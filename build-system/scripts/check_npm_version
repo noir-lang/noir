@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+readonly LOCAL_VERSION=$(node -pe "require('./package.json').version")
+readonly PACKAGE_NAME=${1:-./}
+readonly PUBLISHED_VERSION=$(npm show ${PACKAGE_NAME} version 2> /dev/null)
+readonly HIGHER_VERSION=$(echo $(npx semver ${LOCAL_VERSION} ${PUBLISHED_VERSION}) | cut -d ' ' -f 2)
+
+if [ "$(npx semver $LOCAL_VERSION)" == "" ]; then
+  echo "'$LOCAL_VERSION' is not a semantic version."
+  exit 1
+elif [ "$LOCAL_VERSION" != "$PUBLISHED_VERSION" ] && [ "$LOCAL_VERSION" == "$HIGHER_VERSION" ]; then
+  exit 0
+else
+  echo "Expect npm version number to be higher than '$PUBLISHED_VERSION'. Current local version is '$LOCAL_VERSION'."
+  exit 1
+fi

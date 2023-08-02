@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+if dpkg -s $1 &> /dev/null; then
+  exit 0
+fi
+
+>&2 echo "Installing $1..."
+sudo apt update &> /dev/null && sudo apt install --force-yes $1 &> /dev/null

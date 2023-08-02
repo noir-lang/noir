@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+SCRIPT_PATH=$1
+REPOSITORY=$2
+shift
+shift
+
+init_submodules $REPOSITORY
+
+cd $(query_manifest projectDir $REPOSITORY)
+
+mkdir -p /tmp/test-logs
+
+set -o pipefail
+cond_spot_run_script $REPOSITORY $JOB_NAME 32 $SCRIPT_PATH $@ | tee "/tmp/test-logs/$JOB_NAME.log"

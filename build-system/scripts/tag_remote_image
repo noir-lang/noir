@@ -1,0 +1,35 @@
+#!/bin/bash
+set -e
+
+REPOSITORY=$1
+EXISTING_TAG=$2
+NEW_TAG=$3
+REGION=${4:-$ECR_REGION}
+
+EXISTING_TAG_MANIFEST=$(aws ecr batch-get-image \
+  --region $REGION \
+  --repository-name $REPOSITORY \
+  --image-ids imageTag=$EXISTING_TAG \
+  --query images[].imageManifest \
+  --output text)
+
+if [ -z "$EXISTING_TAG_MANIFEST" ]; then
+  echo "Existing tag for image not found: $1:$EXISTING_TAG"
+  exit 1
+fi
+
+NEW_TAG_MANIFEST=$(aws ecr batch-get-image \
+  --region $REGION \
+  --repository-name $REPOSITORY \
+  --image-ids imageTag=$NEW_TAG \
+  --query images[].imageManifest \
+  --output text)
+
+if [ "$EXISTING_TAG_MANIFEST" != "$NEW_TAG_MANIFEST" ]; then
+  echo "Tagging $1:$EXISTING_TAG as $1:$NEW_TAG..."
+  aws ecr put-image \
+    --region $REGION \
+    --repository-name $REPOSITORY \
+    --image-tag $NEW_TAG \
+    --image-manifest "$EXISTING_TAG_MANIFEST" > /dev/null 2>&1
+fi

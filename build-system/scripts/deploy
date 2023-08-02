@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+
+REPOSITORY=$1
+SERVICES=${2:-$REPOSITORY}
+TO_TAINT=$3
+
+cd $(query_manifest projectDir $REPOSITORY)
+
+# Regardless of whether the repo changed or not, we want to update tags in the deployment repo.
+deploy_ecr $REPOSITORY
+
+# Bail out if nothing changed.
+LAST_SUCCESSFUL_COMMIT=$(last_successful_commit $REPOSITORY $DEPLOY_TAG-deployed)
+echo "Last successfully deployed commit: $LAST_SUCCESSFUL_COMMIT"
+if check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
+  echo "No changes detected, skipping deployment."
+  exit 0
+fi
+
+deploy_terraform $REPOSITORY ./terraform/$VERSION_TAG "$TO_TAINT"
+
+# Restart services.
+for SERVICE in $SERVICES; do
+  deploy_service $DEPLOY_TAG-$SERVICE
+done
+
+# Tag the image as deployed.
+tag_remote_image $REPOSITORY cache-$COMMIT_HASH cache-$COMMIT_HASH-$DEPLOY_TAG-deployed

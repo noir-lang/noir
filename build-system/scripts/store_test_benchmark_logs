@@ -1,0 +1,36 @@
+#!/bin/bash
+set -e
+
+REPOSITORY=$1
+shift
+
+cd $(query_manifest projectDir $REPOSITORY)
+
+mkdir -p /tmp/csv
+export SAVED_TIMESTAMP=$(date +%s)
+export HUMAN_READABLE_TIME=$(date -u -d @${SAVED_TIMESTAMP})
+
+# Pick logs from test-logs and convert all information into CSV format including the current timestamp, branch, commit and tag information
+for file in $(ls /tmp/test-logs); do
+    echo $file
+    cat /tmp/test-logs/$file | grep "##BENCHMARK_INFO_PREFIX##" | sed "s/.*##BENCHMARK_INFO_PREFIX##\(.*\)##BENCHMARK_INFO_SUFFIX##.*/\1/" | sed "s/#/,/g" | sed "s_\(.*\)_$SAVED_TIMESTAMP,$HUMAN_READABLE_TIME,$BRANCH,$COMMIT_HASH,$COMMIT_TAG,\1_" | tee -a /tmp/csv/new.csv 1>/dev/null
+done
+echo "Parsed from logs:"
+cat /tmp/csv/new.csv
+
+# We have lots of repeated entries, no need to put them into repository. Unfortunately build times differ a bit and uniq only works with space as separator
+cat /tmp/csv/new.csv | sort | sed "s_ _%_g" | sed "s_^\(.*\),\(.*\)\$_\2 \1_" | uniq -f 1 | sed "s_^\(.*\) \(.*\)\$_\2,\1_" | sed "s_%_ _g" >/tmp/csv/trimmed.csv
+
+# If there actually were any logs, update the information in the benchmark repository
+if [ -s /tmp/csv/trimmed.csv ]; then
+    cd /tmp
+    git clone --depth 1 git@github.com-logs:AztecProtocol/benchmark-archive.git
+
+    cd benchmark-archive
+    git config user.email "circleci@bot"
+    git config user.name "CircleCi Bot"
+    cat /tmp/csv/trimmed.csv >>benchmarks.csv
+    git add benchmarks.csv
+    git commit -m "Added information from branch $BRANCH commit $COMMIT_HASH"
+    git push
+fi

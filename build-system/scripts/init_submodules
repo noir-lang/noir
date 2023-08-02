@@ -1,0 +1,19 @@
+#!/bin/bash
+# For a given repository, init any required submodules.
+set -euo pipefail
+
+REPOSITORY=$1
+
+BUILD_DIR=$(query_manifest buildDir $REPOSITORY)
+if [ -d "$BUILD_DIR" ] && [ "$(git submodule status $BUILD_DIR)" ]; then
+  # We have submodules, initialize them
+  echo "Initialising any submodules under $REPOSITORY buildDir: $BUILD_DIR"
+  retry_10 git submodule update --init --recursive $BUILD_DIR && exit
+fi
+
+SUBMODULE_PATH=$(query_manifest submodulePath $REPOSITORY)
+if [ -n "$SUBMODULE_PATH" ]; then
+  # TODO: Needs to actually init all dependency submodules as well.
+  echo "Initialising submodule: $SUBMODULE_PATH"
+  retry_10 git submodule update --init --recursive $SUBMODULE_PATH
+fi

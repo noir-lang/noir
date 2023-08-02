@@ -1,0 +1,39 @@
+#!/bin/bash
+# Fails if any files matching the rebuild patterns, have changed since the base commit.
+# If this script fails (nonzero exit), then the caller should rebuild.
+# The rebuild patterns are taken from the build manifest (computed from set of dependencies).
+set -euo pipefail
+
+BASE_COMMIT=$1
+REPOSITORY=$2
+
+# If given nothing, then exit with failure to rebuild
+[ -n "$BASE_COMMIT" ] || exit 1
+
+# If a tainted tag exists, remove it exit with failure to rebuild.
+if image_exists $REPOSITORY tainted; then
+  echo "$REPOSITORY has been tainted. Will rebuild."
+  exit 1
+fi
+
+# Compute .rebuild_patterns from the build manifest.
+query_manifest rebuildPatterns $REPOSITORY > .rebuild_patterns
+
+echo "Rebuild patterns:"
+cat .rebuild_patterns
+
+git config diff.renameLimit 999999
+
+# Get list of files that differ
+different_files=$(list_file_diff ${BASE_COMMIT} ${COMMIT_HASH}) || {
+  echo "list_file_diff failed. Rebuild required.";
+  exit 1;
+}
+
+if grep -f .rebuild_patterns <<< "$different_files" &> /dev/null; then
+  echo "Rebuild required."
+  exit 1
+else
+  echo "No rebuild required."
+  exit 0
+fi

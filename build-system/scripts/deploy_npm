@@ -1,0 +1,60 @@
+#!/bin/bash
+set -e
+
+readonly REPOSITORY=$1
+readonly STANDALONE=$2
+
+# Only publish tagged commits to npm.
+[ -n "$COMMIT_TAG" ] || { echo "Will only publish tagged commits to npm. Skipping." && exit 0; }
+
+extract_repo $REPOSITORY /usr/src project
+
+cd project/src/$(query_manifest projectDir $REPOSITORY)
+
+echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
+
+# We are publishing a tagged commit. Check it's a valid semver.
+VERSION=$(npx semver $COMMIT_TAG)
+if [ -z "$VERSION" ]; then
+  echo "$COMMIT_TAG is not a semantic version."
+  exit 1
+fi
+
+# If the commit tag itself has a dist-tag (e.g. v2.1.0-testnet.123), extract the dist-tag.
+TAG=$(echo "$VERSION" | grep -oP ".*-\K(.*)(?=\.\d+)" || true)
+if [ -n "$TAG" ]; then
+  TAG_ARG="--tag $TAG"
+fi
+
+readonly PUBLISHED_VERSION=$(npm show . version $TAG_ARG 2> /dev/null)
+readonly HIGHER_VERSION=$(npx semver ${VERSION} ${PUBLISHED_VERSION} | tail -1)
+
+# If there is already a published package equal to given version, assume this is a re-run of a deploy, and early out.
+if [ "$VERSION" == "$PUBLISHED_VERSION" ]; then
+  echo "Tagged version $VERSION is equal to published version $PUBLISHED_VERSION. Skipping publish."
+  exit 0
+fi
+
+# If the published version is > the given version, something's gone wrong.
+if [ "$VERSION" != "$HIGHER_VERSION" ]; then
+  echo "Tagged version $VERSION is lower than published version $PUBLISHED_VERSION."
+  exit 1
+fi
+
+# Update the package version in package.json.
+TMP=$(mktemp)
+jq --arg v $VERSION '.version = $v' package.json > $TMP && mv $TMP package.json
+
+if [ -z "$STANDALONE" ]; then
+  # Update each dependent @aztec package version in package.json.
+  for PKG in $(jq --raw-output ".dependencies | keys[] | select(contains(\"@aztec/\"))" package.json); do
+    jq --arg v $VERSION ".dependencies[\"$PKG\"] = \$v" package.json > $TMP && mv $TMP package.json
+  done
+fi
+
+# Filter on whitelist of properties.
+jq '{name, version, exports, main, homepage, author, type, license, dependencies, description, bin} | with_entries( select( .value != null ) )' \
+  package.json > $TMP && mv $TMP package.json
+
+# Publish
+npm publish $TAG_ARG --access public

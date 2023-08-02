@@ -1,10 +1,4 @@
-[submodule "build-system"]
-	path = build-system
-	url = https://github.com/AztecProtocol/build-system
-[submodule "legacy-nested-build-system1"]
-	path = circuits/build-system
-	url = https://github.com/AztecProtocol/build-system
-[submodule "legacy-nested-build-system2"]
+[submodule "legacy-barretenberg-build-system"]
 	path = circuits/cpp/barretenberg/build-system
 	url = https://github.com/AztecProtocol/build-system
 [submodule "l1-contracts/lib/openzeppelin-contracts"]

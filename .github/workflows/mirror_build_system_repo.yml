@@ -1,0 +1,35 @@
+name: Mirror to build-system repo
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "build-system/**"
+      - "!build-system/.gitrepo"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
+
+      - name: Push to branch
+        run: |
+          # we push using git subrepo (https://github.com/ingydotnet/git-subrepo)
+          # with some logic to recover from squashed parent commits
+          SUBREPO_PATH=build-system
+          # identify ourselves, needed to commit
+          git config --global user.name AztecBot
+          git config --global user.email tech@aztecprotocol.com
+          # push to subrepo, commit to master. The commit is needed
+          # to continue to replay. If we still hit issues such as this
+          # action failing due to upstream changes, a manual resolution
+          # PR with ./scripts/git_subrepo.sh pull will be needed.
+          ./scripts/git_subrepo.sh push $SUBREPO_PATH --branch=master
+          git push # update .gitrepo on master
