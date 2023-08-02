@@ -6,7 +6,7 @@ contract ZkToken {
     use dep::value_note::{
         balance_utils,
         utils::{send_note, spend_notes},
-        value_note::{VALUE_NOTE_LEN, ValueNoteInterface},
+        value_note::{VALUE_NOTE_LEN, ValueNoteMethods},
     };
 
     use dep::aztec::abi;
@@ -19,7 +19,7 @@ contract ZkToken {
     use dep::aztec::log::emit_unencrypted_log;
 
     use crate::storage::Storage;
-    use crate::claim_note::{ClaimNote, ClaimNoteInterface};
+    use crate::claim_note::{ClaimNote, ClaimNoteMethods};
 
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
@@ -167,9 +167,9 @@ contract ZkToken {
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
         if (storage_slot == 2) {
-            note_utils::compute_note_hash_and_nullifier(ClaimNoteInterface, note_header, preimage)
+            note_utils::compute_note_hash_and_nullifier(ClaimNoteMethods, note_header, preimage)
         } else {
-            note_utils::compute_note_hash_and_nullifier(ValueNoteInterface, note_header, preimage)
+            note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
         }
     }
 }

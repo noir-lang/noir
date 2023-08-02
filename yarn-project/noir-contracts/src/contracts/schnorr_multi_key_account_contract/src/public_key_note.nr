@@ -32,7 +32,7 @@ impl PublicKeyNote {
     }
 
     fn compute_nullifier(self) -> Field {
-        let siloed_note_hash = compute_siloed_note_hash(PublicKeyNoteInterface, self);
+        let siloed_note_hash = compute_siloed_note_hash(PublicKeyNoteMethods, self);
         let owner_nullifying_public_key = get_public_key(self.owner);
         let secret = get_secret_key(owner_nullifying_public_key);
         dep::std::hash::pedersen([
@@ -88,7 +88,7 @@ fn set_header(note: &mut PublicKeyNote, header: NoteHeader) {
     note.set_header(header);
 }
 
-global PublicKeyNoteInterface = NoteInterface {
+global PublicKeyNoteMethods = NoteInterface {
     deserialise,
     serialise,
     compute_note_hash,

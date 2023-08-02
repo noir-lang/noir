@@ -4,7 +4,7 @@ use dep::aztec::state_vars::{
 
 use crate::public_key_note::{
     PublicKeyNote,
-    PublicKeyNoteInterface,
+    PublicKeyNoteMethods,
     PUBLIC_KEY_NOTE_LEN,
 };
 
@@ -15,7 +15,7 @@ struct Storage {
 impl Storage {
     fn init() -> Self {
         Storage {
-            signing_public_key: ImmutableSingleton::new(1, PublicKeyNoteInterface)
+            signing_public_key: ImmutableSingleton::new(1, PublicKeyNoteMethods)
         }
     }
 }

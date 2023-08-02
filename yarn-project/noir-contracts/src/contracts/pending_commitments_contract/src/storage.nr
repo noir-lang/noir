@@ -4,7 +4,7 @@ use dep::aztec::state_vars::{
 };
 use dep::value_note::value_note::{
     ValueNote,
-    ValueNoteInterface,
+    ValueNoteMethods,
     VALUE_NOTE_LEN,
 };
 
@@ -15,7 +15,7 @@ struct Storage {
 impl Storage {
     fn init() -> Self {
         Storage {
-            balances: Map::new(1, |s| Set::new(s, ValueNoteInterface)),
+            balances: Map::new(1, |s| Set::new(s, ValueNoteMethods)),
         }
     }
 }

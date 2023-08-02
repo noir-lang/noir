@@ -24,7 +24,7 @@ contract SchnorrMultiKeyAccount {
 
     use crate::storage::Storage;
     use crate::public_key_note::PublicKeyNote;
-    use crate::public_key_note::PublicKeyNoteInterface;
+    use crate::public_key_note::PublicKeyNoteMethods;
     use crate::public_key_note::PUBLIC_KEY_NOTE_LEN;
 
     fn entrypoint(
@@ -90,6 +90,6 @@ contract SchnorrMultiKeyAccount {
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; PUBLIC_KEY_NOTE_LEN]) -> [Field; 4] {
         assert(storage_slot == 1);
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
-        note_utils::compute_note_hash_and_nullifier(PublicKeyNoteInterface, note_header, preimage)
+        note_utils::compute_note_hash_and_nullifier(PublicKeyNoteMethods, note_header, preimage)
     }
 }

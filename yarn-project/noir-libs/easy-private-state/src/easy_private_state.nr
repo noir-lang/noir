@@ -2,7 +2,7 @@ use dep::value_note::{
     filter::get_2_notes,
     value_note::{
         ValueNote,
-        ValueNoteInterface,
+        ValueNoteMethods,
         VALUE_NOTE_LEN,
     },
 };
@@ -28,7 +28,7 @@ impl EasyPrivateUint {
     fn new(storage_slot: Field) -> Self {
         let set = Set {
             storage_slot,
-            note_interface: ValueNoteInterface,
+            note_interface: ValueNoteMethods,
         };
         EasyPrivateUint {
             set,

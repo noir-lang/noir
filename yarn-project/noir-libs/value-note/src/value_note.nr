@@ -53,7 +53,7 @@ impl ValueNote {
     }
 
     fn compute_nullifier(self) -> Field {
-        let siloed_note_hash = compute_siloed_note_hash(ValueNoteInterface, self);
+        let siloed_note_hash = compute_siloed_note_hash(ValueNoteMethods, self);
         let owner_nullifying_public_key = get_public_key(self.owner);
         // TODO: get_secret_key should just accept an address
         // TODO!
@@ -106,7 +106,7 @@ fn set_header(note: &mut ValueNote, header: NoteHeader) {
     note.set_header(header)
 }
 
-global ValueNoteInterface = NoteInterface {
+global ValueNoteMethods = NoteInterface {
     deserialise,
     serialise,
     compute_note_hash,

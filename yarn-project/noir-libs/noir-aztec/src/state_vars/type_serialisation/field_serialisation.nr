@@ -1,4 +1,4 @@
-use crate::state_vars::type_serialisation_interface::TypeSerialisationInterface;
+use crate::state_vars::type_serialisation::TypeSerialisationInterface;
 
 global FIELD_SERIALISED_LEN: Field = 1;
 
@@ -10,7 +10,7 @@ fn serialiseField(value: Field) -> [Field; FIELD_SERIALISED_LEN] {
     [value]
 }
 
-global FieldSerialisationInterface = TypeSerialisationInterface {
+global FieldSerialisationMethods = TypeSerialisationInterface {
     deserialise: deserialiseField,
     serialise: serialiseField,
 };

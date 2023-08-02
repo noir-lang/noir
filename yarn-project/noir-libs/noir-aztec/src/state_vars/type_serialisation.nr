@@ -1,4 +1,4 @@
-mod field_serialisation_interface;
+mod field_serialisation;
 
 /**
  * Before Noir supports traits, a way of specifying the serialisation and deserialisation methods for a type.

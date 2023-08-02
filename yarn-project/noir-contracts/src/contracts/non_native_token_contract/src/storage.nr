@@ -2,15 +2,15 @@ use dep::aztec::state_vars::{
     map::Map,
     set::Set,
     public_state::PublicState,
-    type_serialisation_interface::field_serialisation_interface::{
+    type_serialisation::field_serialisation::{
         FIELD_SERIALISED_LEN,
-        FieldSerialisationInterface,
+        FieldSerialisationMethods,
     },
 };
 
 use dep::value_note::value_note::{
     ValueNote,
-    ValueNoteInterface,
+    ValueNoteMethods,
     VALUE_NOTE_LEN,
 };
 
@@ -23,8 +23,8 @@ struct Storage {
 impl Storage {
     fn init() -> Self {
         Storage {
-            balances: Map::new(1, |slot| Set::new(slot, ValueNoteInterface)),
-            public_balances: Map::new(2, |slot| PublicState::new(slot, FieldSerialisationInterface)),
+            balances: Map::new(1, |slot| Set::new(slot, ValueNoteMethods)),
+            public_balances: Map::new(2, |slot| PublicState::new(slot, FieldSerialisationMethods)),
         }
     }
 }

@@ -1,8 +1,8 @@
 use dep::aztec::state_vars::map::Map;
 use dep::aztec::state_vars::public_state::PublicState;
-use dep::aztec::state_vars::type_serialisation_interface::TypeSerialisationInterface;
-use dep::aztec::state_vars::type_serialisation_interface::field_serialisation_interface::FieldSerialisationInterface;
-use dep::aztec::state_vars::type_serialisation_interface::field_serialisation_interface::FIELD_SERIALISED_LEN;
+use dep::aztec::state_vars::type_serialisation::TypeSerialisationInterface;
+use dep::aztec::state_vars::type_serialisation::field_serialisation::FieldSerialisationMethods;
+use dep::aztec::state_vars::type_serialisation::field_serialisation::FIELD_SERIALISED_LEN;
 use dep::std::hash::pedersen;
 
 // Utility struct used to easily get a "id" for a private user that sits in the same
@@ -30,7 +30,6 @@ impl Account {
 }
 
 
-global TOT_SERIALISED_LEN: Field = 2;
 
 // Struct to be used to represent "totals". Generally, there should be one per asset.
 // It stores the global values that are shared among all users, such as an accumulator
@@ -41,6 +40,8 @@ struct Tot {
     interest_accumulator: u120,
     last_updated_ts: u120,
 }
+
+global TOT_SERIALISED_LEN: Field = 2;
 
 fn deserialiseTot(fields: [Field; TOT_SERIALISED_LEN]) -> Tot {
     Tot {
@@ -53,35 +54,35 @@ fn serialiseTot(tot: Tot) -> [Field; TOT_SERIALISED_LEN] {
     [tot.interest_accumulator as Field, tot.last_updated_ts as Field]
 }
 
-global TotSerialisationInterface = TypeSerialisationInterface {
+global TotSerialisationMethods = TypeSerialisationInterface {
     deserialise: deserialiseTot,
     serialise: serialiseTot,
 };
 
 
-// Struct to be used to represent positions when we have more reads.
-global POS_SERIALISED_LEN: Field = 2;
+// // Struct to be used to represent positions when we have more reads.
+// global POS_SERIALISED_LEN: Field = 2;
 
-struct Pos {
-    owner: Field,
-    value: Field,
-}
+// struct Pos {
+//     owner: Field,
+//     value: Field,
+// }
 
-fn deserialisePos(fields: [Field; POS_SERIALISED_LEN]) -> Pos {
-    Pos {
-        owner: fields[0],
-        value: fields[1],
-    }
-}
+// fn deserialisePos(fields: [Field; POS_SERIALISED_LEN]) -> Pos {
+//     Pos {
+//         owner: fields[0],
+//         value: fields[1],
+//     }
+// }
 
-fn serialisePos(pos: Pos) -> [Field; POS_SERIALISED_LEN] {
-    [pos.owner, pos.value]
-}
+// fn serialisePos(pos: Pos) -> [Field; POS_SERIALISED_LEN] {
+//     [pos.owner, pos.value]
+// }
 
-global PosSerialisationInterface = TypeSerialisationInterface {
-    deserialise: deserialisePos,
-    serialise: serialisePos,
-};
+// global PosSerialisationMethods = TypeSerialisationInterface {
+//     deserialise: deserialisePos,
+//     serialise: serialisePos,
+// };
 
 
 // Storage structure, containing all storage, and specifying what slots they use.
@@ -94,9 +95,9 @@ struct Storage {
 impl Storage {
     fn init() -> Self {
         Storage {
-            assets: Map::new(1, |slot| PublicState::new(slot, TotSerialisationInterface)), // uses 2 storage slots.
-            collateral: Map::new(2, |slot| PublicState::new(slot, FieldSerialisationInterface)), // uses 1 storage slots.
-            static_debt: Map::new(3, |slot| PublicState::new(slot, FieldSerialisationInterface)), // uses 1 storage slots. 
+            assets: Map::new(1, |slot| PublicState::new(slot, TotSerialisationMethods)),
+            collateral: Map::new(2, |slot| PublicState::new(slot, FieldSerialisationMethods)),
+            static_debt: Map::new(3, |slot| PublicState::new(slot, FieldSerialisationMethods)),
         }
     }
 }

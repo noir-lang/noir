@@ -4,10 +4,10 @@ use dep::aztec::state_vars::{
 };
 use dep::value_note::value_note::{
     ValueNote,
-    ValueNoteInterface,
+    ValueNoteMethods,
     VALUE_NOTE_LEN,
 };
-use crate::claim_note::{CLAIM_NOTE_LEN, ClaimNote, ClaimNoteInterface};
+use crate::claim_note::{CLAIM_NOTE_LEN, ClaimNote, ClaimNoteMethods};
 
 struct Storage {
     balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
@@ -17,8 +17,8 @@ struct Storage {
 impl Storage {
     fn init() -> Self {
         Storage {
-            balances: Map::new(1, |s| Set::new(s, ValueNoteInterface)),
-            claims: Set::new(2, ClaimNoteInterface),
+            balances: Map::new(1, |s| Set::new(s, ValueNoteMethods)),
+            claims: Set::new(2, ClaimNoteMethods),
         }
     }
 }

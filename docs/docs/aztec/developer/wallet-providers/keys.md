@@ -107,7 +107,7 @@ An application in Noir can request a nullifier from the current user for computi
 
 ```noir
 fn compute_nullifier(self) -> Field {
-    let siloed_note_hash = compute_siloed_note_hash(ValueNoteInterface, self);
+    let siloed_note_hash = compute_siloed_note_hash(ValueNoteMethods, self);
     let secret = get_secret_key(self.owner);
     dep::std::hash::pedersen([siloed_note_hash, secret])[0]
 }

@@ -4,7 +4,7 @@ use dep::aztec::state_vars::{
 
 use crate::address_note::{
     AddressNote,
-    AddressNoteInterface,
+    AddressNoteMethods,
     ADDRESS_NOTE_LEN,
 };
 
@@ -15,7 +15,7 @@ struct Storage {
 impl Storage {
     fn init() -> Self {
         Storage {
-            owners: Set::new(1, AddressNoteInterface),
+            owners: Set::new(1, AddressNoteMethods),
         }
     }
 }
