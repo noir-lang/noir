@@ -1,54 +1,62 @@
 use crate::{
     errors::{CliError, FilesystemError},
-    resolver::resolve_root_manifest,
+    find_package_manifest,
+    manifest::resolve_workspace_from_toml,
+    prepare_package,
 };
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{compute_function_signature, CompileOptions};
+use noirc_frontend::graph::CrateName;
 
 use std::{
     fs::remove_file,
-    path::{Path, PathBuf},
+    path::{Path},
 };
 
 use super::NargoConfig;
 use super::{check_cmd::check_crate_and_report_errors, fs::write_to_file};
-use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
+use nargo::{
+    package::{Package},
+};
 
 /// Generate Prover.toml and Verifier.toml
 #[derive(Debug, Clone, Args)]
 pub(crate) struct TomlgenCommand {
+    /// The name of the package to check
+    #[clap(long)]
+    package: Option<CrateName>,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
 pub(crate) fn run<B: Backend>(
-    backend: &B,
+    _backend: &B,
     args: TomlgenCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    tomlgen(backend, &config.program_dir, &args.compile_options)?;
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+
+    for package in &workspace {
+        tomlgen(package, &args.compile_options)?;
+    }
     println!("Toml files successfully generated!");
     Ok(())
 }
 
 fn tomlgen<B: Backend>(
-    _backend: &B,
-    program_dir: &Path,
+    package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let (mut context, crate_id) = resolve_root_manifest(program_dir, None)?;
+    let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
     if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
-        // XXX: The root config should return an enum to determine if we are looking for .json or .toml
-        // For now it is hard-coded to be toml.
-        //
-        // Check for input.toml and verifier.toml
-        let path_to_root = PathBuf::from(program_dir);
-        let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
-        let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
+        let path_to_prover_input = package.prover_input_path();
+        let path_to_verifier_input = package.verifier_input_path();
 
         // If they are not available, then create them and populate them based on the ABI
         clean_file(&path_to_prover_input)

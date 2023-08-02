@@ -3,10 +3,8 @@ use crate::{
 };
 use acvm::Backend;
 use clap::Args;
-use iter_extended::btree_map;
 use nargo::package::Package;
-use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
+use noirc_driver::{check_crate, CompileOptions};
 use noirc_errors::reporter::ReportedErrors;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -52,9 +50,9 @@ fn check_package(
 
 #[cfg(test)]
 mod tests {
-    use noirc_driver::CompileOptions;
     use crate::{find_package_manifest, manifest::resolve_workspace_from_toml};
-    use super::create_input_toml_template;
+    use noirc_driver::CompileOptions;
+    use std::path::PathBuf;
 
     const TEST_DATA_DIR: &str = "tests/target_tests_data";
 
