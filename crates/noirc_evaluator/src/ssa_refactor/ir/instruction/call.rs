@@ -21,10 +21,9 @@ pub(super) fn simplify_call(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
 ) -> SimplifyResult {
-    use SimplifyResult::*;
     let intrinsic = match &dfg[func] {
         Value::Intrinsic(intrinsic) => *intrinsic,
-        _ => return None,
+        _ => return SimplifyResult::None,
     };
 
     let constant_args: Option<Vec<_>> =
@@ -35,9 +34,9 @@ pub(super) fn simplify_call(
             if let Some(constant_args) = constant_args {
                 let field = constant_args[0];
                 let limb_count = constant_args[1].to_u128() as u32;
-                SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
+                SimplifyResult::SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
             } else {
-                None
+                SimplifyResult::None
             }
         }
         Intrinsic::ToRadix(endian) => {
@@ -45,19 +44,25 @@ pub(super) fn simplify_call(
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
                 let limb_count = constant_args[2].to_u128() as u32;
-                SimplifiedTo(constant_to_radix(endian, field, radix, limb_count, dfg))
+                SimplifyResult::SimplifiedTo(constant_to_radix(
+                    endian, field, radix, limb_count, dfg,
+                ))
             } else {
-                None
+                SimplifyResult::None
             }
         }
         Intrinsic::ArrayLen => {
             let slice = dfg.get_array_constant(arguments[0]);
             if let Some((slice, _)) = slice {
-                SimplifiedTo(dfg.make_constant((slice.len() as u128).into(), Type::field()))
+                SimplifyResult::SimplifiedTo(
+                    dfg.make_constant((slice.len() as u128).into(), Type::field()),
+                )
             } else if let Some(length) = dfg.try_get_array_length(arguments[0]) {
-                SimplifiedTo(dfg.make_constant((length as u128).into(), Type::field()))
+                SimplifyResult::SimplifiedTo(
+                    dfg.make_constant((length as u128).into(), Type::field()),
+                )
             } else {
-                None
+                SimplifyResult::None
             }
         }
         Intrinsic::SlicePushBack => {
@@ -65,9 +70,9 @@ pub(super) fn simplify_call(
             if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
                 slice.push_back(elem);
                 let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedTo(new_slice)
+                SimplifyResult::SimplifiedTo(new_slice)
             } else {
-                None
+                SimplifyResult::None
             }
         }
         Intrinsic::SlicePushFront => {
@@ -75,9 +80,9 @@ pub(super) fn simplify_call(
             if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
                 slice.push_front(elem);
                 let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedTo(new_slice)
+                SimplifyResult::SimplifiedTo(new_slice)
             } else {
-                None
+                SimplifyResult::None
             }
         }
         Intrinsic::SlicePopBack => {
@@ -86,9 +91,9 @@ pub(super) fn simplify_call(
                 let elem =
                     slice.pop_back().expect("There are no elements in this slice to be removed");
                 let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedToMultiple(vec![new_slice, elem])
+                SimplifyResult::SimplifiedToMultiple(vec![new_slice, elem])
             } else {
-                None
+                SimplifyResult::None
             }
         }
         Intrinsic::SlicePopFront => {
@@ -97,9 +102,9 @@ pub(super) fn simplify_call(
                 let elem =
                     slice.pop_front().expect("There are no elements in this slice to be removed");
                 let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedToMultiple(vec![elem, new_slice])
+                SimplifyResult::SimplifiedToMultiple(vec![elem, new_slice])
             } else {
-                None
+                SimplifyResult::None
             }
         }
         Intrinsic::SliceInsert => {
@@ -110,9 +115,9 @@ pub(super) fn simplify_call(
             {
                 slice.insert(index.to_u128() as usize, value);
                 let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedTo(new_slice)
+                SimplifyResult::SimplifiedTo(new_slice)
             } else {
-                None
+                SimplifyResult::None
             }
         }
         Intrinsic::SliceRemove => {
@@ -121,13 +126,13 @@ pub(super) fn simplify_call(
             if let (Some((mut slice, element_type)), Some(index)) = (slice, index) {
                 let removed_elem = slice.remove(index.to_u128() as usize);
                 let new_slice = dfg.make_array(slice, element_type);
-                SimplifiedToMultiple(vec![new_slice, removed_elem])
+                SimplifyResult::SimplifiedToMultiple(vec![new_slice, removed_elem])
             } else {
-                None
+                SimplifyResult::None
             }
         }
         Intrinsic::BlackBox(bb_func) => simplify_bb_func(bb_func, arguments, dfg),
-        Intrinsic::Println | Intrinsic::Sort => None,
+        Intrinsic::Println | Intrinsic::Sort => SimplifyResult::None,
     }
 }
 
