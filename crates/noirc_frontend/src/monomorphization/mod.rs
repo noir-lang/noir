@@ -1436,23 +1436,25 @@ mod tests {
     fn simple_closure_with_no_captured_variables() {
         let src = r#"
         fn main() -> Field {
-            let closure = |x| x;
-            closure(0)
+            let x = 1;
+            let closure = || x;
+            closure()
         }
         "#;
 
         let expected_rewrite = r#"fn main$f0() -> Field {
+    let x$0 = 1;
     let closure$3 = {
         let closure_variable$2 = {
-            let env$1 = ();
+            let env$1 = (x$l0);
             (env$l1, lambda$f1)
         };
         closure_variable$l2
     };
-    closure$l3.1(closure$l3.0, 0)
+    closure$l3.1(closure$l3.0)
 }
-fn lambda$f1(mut env$l1: (), x$l0: Field) -> Field {
-    x$l0
+fn lambda$f1(mut env$l1: (Field)) -> Field {
+    env$l1.0
 }
 "#;
         check_rewrite(src, expected_rewrite);
