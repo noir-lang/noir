@@ -234,7 +234,7 @@ fn unroll_loop_header<'a>(
     context.inserter.try_map_value(first_param, induction_value);
     context.inline_instructions_from_block()?;
 
-    match context.dfg()[fresh_block].unwrap_terminator()? {
+    match context.dfg()[fresh_block].unwrap_terminator() {
         TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
             let next_blocks = context.handle_jmpif(*condition, *then_destination, *else_destination);
 
@@ -340,7 +340,7 @@ impl<'f> LoopIteration<'f> {
         self.inline_instructions_from_block()?;
         self.visited_blocks.insert(self.source_block);
 
-        match self.inserter.function.dfg[self.insert_block].unwrap_terminator()? {
+        match self.inserter.function.dfg[self.insert_block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 Ok(self.handle_jmpif(*condition, *then_destination, *else_destination))
             }
@@ -417,7 +417,7 @@ impl<'f> LoopIteration<'f> {
         }
 
         let mut terminator = self.dfg()[self.source_block]
-            .unwrap_terminator()?
+            .unwrap_terminator()
             .clone()
             .map_values(|value| self.inserter.resolve(value));
 

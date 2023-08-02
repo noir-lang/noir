@@ -94,23 +94,15 @@ impl BasicBlock {
     /// Returns the terminator of this block, panics if there is None.
     ///
     /// Once this block has finished construction, this is expected to always be Some.
-    pub(crate) fn unwrap_terminator(&self) -> Result<&TerminatorInstruction, InternalError> {
-        match self.terminator() {
-            Some(terminator_instruction) => Ok(terminator_instruction),
-            None => Err(InternalError::NoTerminatorInstructionInBlock { location: None }),
-        }
+    pub(crate) fn unwrap_terminator(&self) -> &TerminatorInstruction {
+        self.terminator().expect("Expected block to have terminator instruction")
     }
 
     /// Returns a mutable reference to the terminator of this block.
     ///
     /// Once this block has finished construction, this is expected to always be Some.
-    pub(crate) fn unwrap_terminator_mut(
-        &mut self,
-    ) -> Result<&mut TerminatorInstruction, InternalError> {
-        match self.terminator.as_mut() {
-            Some(terminator_instruction) => Ok(terminator_instruction),
-            None => Err(InternalError::NoTerminatorInstructionInBlock { location: None }),
-        }
+    pub(crate) fn unwrap_terminator_mut(&mut self) -> &mut TerminatorInstruction {
+        self.terminator.as_mut().expect("Expected block to have terminator instruction")
     }
 
     /// Take ownership of this block's terminator, replacing it with an empty return terminator

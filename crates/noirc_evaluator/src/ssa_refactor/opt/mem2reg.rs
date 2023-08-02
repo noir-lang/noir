@@ -28,7 +28,7 @@ impl Ssa {
             let contexts = try_vecmap(function.reachable_blocks(), |block| {
                 let mut context = PerBlockContext::new(block);
                 let allocations_protected_by_block =
-                    context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg)?;
+                    context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg);
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
                 Ok(context)
             })?;
@@ -65,7 +65,7 @@ impl PerBlockContext {
     fn analyze_allocations_and_eliminate_known_loads(
         &mut self,
         dfg: &mut DataFlowGraph,
-    ) -> Result<HashSet<AllocId>, InternalError> {
+    ) -> HashSet<AllocId> {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[self.block_id];
 
@@ -116,7 +116,7 @@ impl PerBlockContext {
         }
 
         // Identify any arrays that are returned from this function
-        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator()? {
+        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
             for value in return_values {
                 if Self::value_is_from_allocation(*value, dfg) {
                     protected_allocations.insert(*value);
@@ -137,7 +137,7 @@ impl PerBlockContext {
             .instructions_mut()
             .retain(|instruction| !loads_to_substitute.contains_key(instruction));
 
-        Ok(protected_allocations)
+        protected_allocations
     }
 
     /// Checks whether the given value id refers to an allocation.

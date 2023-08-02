@@ -2,29 +2,26 @@
 //! which the results are unused.
 use std::collections::HashSet;
 
-use crate::{
-    errors::InternalError,
-    ssa_refactor::{
-        ir::{
-            basic_block::{BasicBlock, BasicBlockId},
-            dfg::DataFlowGraph,
-            function::Function,
-            instruction::{Instruction, InstructionId},
-            post_order::PostOrder,
-            value::{Value, ValueId},
-        },
-        ssa_gen::Ssa,
+use crate::ssa_refactor::{
+    ir::{
+        basic_block::{BasicBlock, BasicBlockId},
+        dfg::DataFlowGraph,
+        function::Function,
+        instruction::{Instruction, InstructionId},
+        post_order::PostOrder,
+        value::{Value, ValueId},
     },
+    ssa_gen::Ssa,
 };
 
 impl Ssa {
     /// Performs Dead Instruction Elimination (DIE) to remove any instructions with
     /// unused results.
-    pub(crate) fn dead_instruction_elimination(mut self) -> Result<Ssa, InternalError> {
+    pub(crate) fn dead_instruction_elimination(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            dead_instruction_elimination(function)?;
+            dead_instruction_elimination(function);
         }
-        Ok(self)
+        self
     }
 }
 
@@ -34,14 +31,13 @@ impl Ssa {
 /// instructions that reference results from an instruction in another block are evaluated first.
 /// If we did not iterate blocks in this order we could not safely say whether or not the results
 /// of its instructions are needed elsewhere.
-fn dead_instruction_elimination(function: &mut Function) -> Result<(), InternalError> {
+fn dead_instruction_elimination(function: &mut Function) {
     let mut context = Context::default();
     let blocks = PostOrder::with_function(function);
 
     for block in blocks.as_slice() {
-        context.remove_unused_instructions_in_block(function, *block)?;
+        context.remove_unused_instructions_in_block(function, *block);
     }
-    Ok(())
 }
 
 /// Per function context for tracking unused values and which instructions to remove.
@@ -67,9 +63,9 @@ impl Context {
         &mut self,
         function: &mut Function,
         block_id: BasicBlockId,
-    ) -> Result<(), InternalError> {
+    ) {
         let block = &function.dfg[block_id];
-        self.mark_terminator_values_as_used(function, block)?;
+        self.mark_terminator_values_as_used(function, block);
 
         for instruction in block.instructions().iter().rev() {
             if self.is_unused(*instruction, function) {
@@ -85,7 +81,6 @@ impl Context {
         function.dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !self.instructions_to_remove.contains(instruction));
-        Ok(())
     }
 
     /// Returns true if an instruction can be removed.
@@ -110,15 +105,10 @@ impl Context {
     }
 
     /// Adds values referenced by the terminator to the set of used values.
-    fn mark_terminator_values_as_used(
-        &mut self,
-        function: &Function,
-        block: &BasicBlock,
-    ) -> Result<(), InternalError> {
-        block.unwrap_terminator()?.for_each_value(|value| {
+    fn mark_terminator_values_as_used(&mut self, function: &Function, block: &BasicBlock) {
+        block.unwrap_terminator().for_each_value(|value| {
             self.mark_used_instruction_results(&function.dfg, value);
         });
-        Ok(())
     }
 
     /// Inspects a value recursively (as it could be an array) and marks all comprised instruction
@@ -222,7 +212,7 @@ mod test {
         //     call println(v8)
         //     return v9
         // }
-        let ssa = ssa.dead_instruction_elimination().unwrap();
+        let ssa = ssa.dead_instruction_elimination();
         let main = ssa.main();
 
         assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);

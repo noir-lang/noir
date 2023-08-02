@@ -172,7 +172,7 @@ impl Context {
             self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, allow_log_ops)?;
         }
 
-        self.convert_ssa_return(entry_block.unwrap_terminator()?, dfg)?;
+        self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
 
         Ok(self.acir_context.finish(input_witness.collect()))
     }

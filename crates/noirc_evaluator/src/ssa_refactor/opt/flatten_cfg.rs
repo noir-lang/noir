@@ -253,7 +253,7 @@ impl<'f> Context<'f> {
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
     fn handle_terminator(&mut self, block: BasicBlockId) -> Result<BasicBlockId, InternalError> {
-        match self.inserter.function.dfg[block].unwrap_terminator()? {
+        match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let old_condition = *condition;
                 let then_block = *then_destination;

@@ -60,7 +60,7 @@ pub(crate) fn optimize_into_acir(
             .print(print_ssa_passes, "After Mem2Reg:")
             .fold_constants()?
             .print(print_ssa_passes, "After Constant Folding:")
-            .dead_instruction_elimination()?
+            .dead_instruction_elimination()
             .print(print_ssa_passes, "After Dead Instruction Elimination:");
     }
     ssa.into_acir(brillig, abi_distinctness, allow_log_ops)

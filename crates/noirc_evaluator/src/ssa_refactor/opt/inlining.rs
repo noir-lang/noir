@@ -302,7 +302,7 @@ impl<'function> PerFunctionContext<'function> {
             self.inline_block_instructions(ssa, source_block_id)?;
 
             if let Some((block, values)) =
-                self.handle_terminator_instruction(source_block_id, &mut block_queue)?
+                self.handle_terminator_instruction(source_block_id, &mut block_queue)
             {
                 function_returns.push((block, values));
             }
@@ -441,13 +441,13 @@ impl<'function> PerFunctionContext<'function> {
         &mut self,
         block_id: BasicBlockId,
         block_queue: &mut Vec<BasicBlockId>,
-    ) -> Result<Option<(BasicBlockId, Vec<ValueId>)>, InternalError> {
-        match self.source_function.dfg[block_id].unwrap_terminator()? {
+    ) -> Option<(BasicBlockId, Vec<ValueId>)> {
+        match self.source_function.dfg[block_id].unwrap_terminator() {
             TerminatorInstruction::Jmp { destination, arguments } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
                 self.context.builder.terminate_with_jmp(destination, arguments);
-                Ok(None)
+                None
             }
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let condition = self.translate_value(*condition);
@@ -470,7 +470,7 @@ impl<'function> PerFunctionContext<'function> {
                             .terminate_with_jmpif(condition, then_block, else_block);
                     }
                 }
-                Ok(None)
+                None
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_values = vecmap(return_values, |value| self.translate_value(*value));
@@ -482,7 +482,7 @@ impl<'function> PerFunctionContext<'function> {
                 // inlined since, we are interested in the block representing the current program
                 // point, obtained via `current_block`.
                 let block_id = self.context.builder.current_block();
-                Ok(Some((block_id, return_values)))
+                Some((block_id, return_values))
             }
         }
     }

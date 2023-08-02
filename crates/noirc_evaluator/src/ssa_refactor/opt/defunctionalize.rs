@@ -56,7 +56,7 @@ struct DefunctionalizationContext {
 impl Ssa {
     pub(crate) fn defunctionalize(mut self) -> Result<Ssa, InternalError> {
         // Find all functions used as value that share the same signature
-        let variants = find_variants(&self)?;
+        let variants = find_variants(&self);
 
         let apply_functions = create_apply_functions(&mut self, variants)?;
 
@@ -159,12 +159,12 @@ impl DefunctionalizationContext {
 }
 
 /// Collects all functions used as values that can be called by their signatures
-fn find_variants(ssa: &Ssa) -> Result<BTreeMap<Signature, Vec<FunctionId>>, InternalError> {
+fn find_variants(ssa: &Ssa) -> BTreeMap<Signature, Vec<FunctionId>> {
     let mut dynamic_dispatches: BTreeSet<Signature> = BTreeSet::new();
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
     for function in ssa.functions.values() {
-        functions_as_values.extend(find_functions_as_values(function)?);
+        functions_as_values.extend(find_functions_as_values(function));
         dynamic_dispatches.extend(find_dynamic_dispatches(function));
     }
 
@@ -187,11 +187,11 @@ fn find_variants(ssa: &Ssa) -> Result<BTreeMap<Signature, Vec<FunctionId>>, Inte
         variants.insert(dispatch_signature, target_fns);
     }
 
-    Ok(variants)
+    variants
 }
 
 /// Finds all literal functions used as values in the given function
-fn find_functions_as_values(func: &Function) -> Result<BTreeSet<FunctionId>, InternalError> {
+fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     let mut functions_as_values: BTreeSet<FunctionId> = BTreeSet::new();
 
     let mut process_value = |value_id: ValueId| {
@@ -215,10 +215,10 @@ fn find_functions_as_values(func: &Function) -> Result<BTreeSet<FunctionId>, Int
             };
         }
 
-        block.unwrap_terminator()?.for_each_value(&mut process_value);
+        block.unwrap_terminator().for_each_value(&mut process_value);
     }
 
-    Ok(functions_as_values)
+    functions_as_values
 }
 
 /// Finds all dynamic dispatch signatures in the given function

@@ -202,7 +202,7 @@ mod test {
         let new_add_instr_result = main.dfg.instruction_results(*new_add_instr)[0];
         assert_ne!(new_add_instr_result, v1);
 
-        let return_value_id = match entry_block.unwrap_terminator().unwrap() {
+        let return_value_id = match entry_block.unwrap_terminator() {
             TerminatorInstruction::Return { return_values } => return_values[0],
             _ => unreachable!(),
         };

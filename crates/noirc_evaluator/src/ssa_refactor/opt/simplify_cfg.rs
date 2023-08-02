@@ -63,7 +63,7 @@ fn simplify_function(function: &mut Function) -> Result<(), InternalError> {
             drop(predecessors);
 
             // If the block has only 1 predecessor, we can safely remove its block parameters
-            remove_block_parameters(function, block, predecessor)?;
+            remove_block_parameters(function, block, predecessor);
 
             // Note: this function relies on `remove_block_parameters` being called first.
             // Otherwise the inlined block will refer to parameters that no longer exist.
@@ -107,13 +107,13 @@ fn remove_block_parameters(
     function: &mut Function,
     block: BasicBlockId,
     predecessor: BasicBlockId,
-) -> Result<(), InternalError> {
+) {
     let block = &mut function.dfg[block];
 
     if !block.parameters().is_empty() {
         let block_params = block.take_parameters();
 
-        let jump_args = match function.dfg[predecessor].unwrap_terminator_mut()? {
+        let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {
             TerminatorInstruction::Jmp { arguments, .. } => std::mem::take(arguments),
             TerminatorInstruction::JmpIf { .. } => unreachable!("If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"),
             _ => unreachable!(
@@ -126,7 +126,6 @@ fn remove_block_parameters(
             function.dfg.set_value_from_id(*param, arg);
         }
     }
-    Ok(())
 }
 
 /// Try to inline a block into its predecessor, returning true if successful.
