@@ -733,6 +733,9 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), operand_type);
                     return SimplifyResult::SimplifiedTo(zero);
                 }
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
                 if operand_type == Type::bool() {
                     // Boolean AND is equivalent to multiplication, which is a cheaper operation.
                     let instruction = Instruction::binary(BinaryOp::Mul, self.lhs, self.rhs);
@@ -746,21 +749,20 @@ impl Binary {
                 if rhs_is_zero {
                     return SimplifyResult::SimplifiedTo(self.lhs);
                 }
+                if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
             }
             BinaryOp::Xor => {
+                if lhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.rhs);
+                }
+                if rhs_is_zero {
+                    return SimplifyResult::SimplifiedTo(self.lhs);
+                }
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
-                }
-            }
-            BinaryOp::Shl => {
-                if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
-                }
-            }
-            BinaryOp::Shr => {
-                if rhs_is_zero {
-                    return SimplifyResult::SimplifiedTo(self.lhs);
                 }
             }
         }
@@ -818,8 +820,6 @@ impl BinaryOp {
             BinaryOp::And => None,
             BinaryOp::Or => None,
             BinaryOp::Xor => None,
-            BinaryOp::Shl => None,
-            BinaryOp::Shr => None,
         }
     }
 
@@ -833,8 +833,6 @@ impl BinaryOp {
             BinaryOp::And => |x, y| Some(x & y),
             BinaryOp::Or => |x, y| Some(x | y),
             BinaryOp::Xor => |x, y| Some(x ^ y),
-            BinaryOp::Shl => |x, y| x.checked_shl(y.try_into().ok()?),
-            BinaryOp::Shr => |x, y| Some(x >> y),
             BinaryOp::Eq => |x, y| Some((x == y) as u128),
             BinaryOp::Lt => |x, y| Some((x < y) as u128),
         }
@@ -875,10 +873,6 @@ pub(crate) enum BinaryOp {
     Or,
     /// Bitwise xor (^)
     Xor,
-    /// Shift lhs left by rhs bits (<<)
-    Shl,
-    /// Shift lhs right by rhs bits (>>)
-    Shr,
 }
 
 impl std::fmt::Display for BinaryOp {
@@ -894,8 +888,6 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::And => write!(f, "and"),
             BinaryOp::Or => write!(f, "or"),
             BinaryOp::Xor => write!(f, "xor"),
-            BinaryOp::Shl => write!(f, "shl"),
-            BinaryOp::Shr => write!(f, "shr"),
         }
     }
 }
