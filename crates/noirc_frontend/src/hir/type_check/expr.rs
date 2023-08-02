@@ -1008,7 +1008,7 @@ impl<'interner> TypeChecker<'interner> {
                     });
                 }
                 if op.is_bit_shift()
-                    && (*sign_x != Signedness::Unsigned || *sign_y != Signedness::Unsigned)
+                    && (*sign_x == Signedness::Signed || *sign_y == Signedness::Signed)
                 {
                     Err(TypeCheckError::InvalidInfixOp { kind: "Signed integer", span })
                 } else {
