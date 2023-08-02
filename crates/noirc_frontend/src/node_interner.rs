@@ -7,7 +7,7 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTypeAlias, UnresolvedTrait};
+use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
@@ -60,7 +60,7 @@ pub struct NodeInterner {
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
     type_aliases: Vec<TypeAliasType>,
-    
+
     // Trait map.
     //
     // Each struct definition is possibly shared across multiple type nodes.
@@ -727,7 +727,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::Error
         | Type::NotConstant
         | Type::Struct(_, _)
-        | Type::FmtString(_, _) 
+        | Type::FmtString(_, _)
         | Type::Struct(_, _)
         | Type::Trait(_, _) => None,
     }

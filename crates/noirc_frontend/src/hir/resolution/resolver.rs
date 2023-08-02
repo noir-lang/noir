@@ -35,8 +35,8 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
-    Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT, TraitType,
+    Shared, StructType, TraitType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
+    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;

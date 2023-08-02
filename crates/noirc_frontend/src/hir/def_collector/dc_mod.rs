@@ -8,8 +8,8 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::{StructId, TraitId},
     parser::SubModule,
-    Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, NoirTrait, ParsedModule, TraitConstraint,
-    TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnresolvedType,
+    Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias, ParsedModule,
+    TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnresolvedType,
 };
 
 use super::{
@@ -465,7 +465,6 @@ impl<'a> ModCollector<'a> {
             // Add the trait to scope so its path can be looked up later
             let result =
                 self.def_collector.def_map.modules[self.module_id.0].declare_trait(name, id);
-                            
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::DuplicateTraitDef { first_def, second_def };
@@ -479,7 +478,6 @@ impl<'a> ModCollector<'a> {
                 trait_def: trait_definition,
             };
             self.def_collector.collected_traits.insert(id, unresolved);
-
         }
     }
 

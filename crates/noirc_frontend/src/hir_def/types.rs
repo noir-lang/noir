@@ -1720,7 +1720,7 @@ impl Type {
             | Type::Constant(_)
             | Type::Error
             | Type::NotConstant
-            | Type::Unit 
+            | Type::Unit
             | Type::Trait(..) => self.clone(),
         }
     }
@@ -1758,9 +1758,8 @@ impl Type {
             | Type::Constant(_)
             | Type::Error
             | Type::NotConstant
-            | Type::Unit 
+            | Type::Unit
             | Type::Trait(..) => false,
-            
         }
     }
 

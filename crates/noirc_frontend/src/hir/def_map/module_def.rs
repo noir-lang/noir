@@ -1,5 +1,4 @@
-
-use crate::node_interner::{FuncId, StmtId, StructId, TypeAliasId, TraitId};
+use crate::node_interner::{FuncId, StmtId, StructId, TraitId, TypeAliasId};
 
 use super::ModuleId;
 
@@ -122,7 +121,6 @@ impl TryFromModuleDefId for StructId {
     }
 }
 
-
 impl TryFromModuleDefId for TypeAliasId {
     fn try_from(id: ModuleDefId) -> Option<Self> {
         id.as_type_alias()
@@ -134,7 +132,6 @@ impl TryFromModuleDefId for TypeAliasId {
 
     fn description() -> String {
         "type alias".to_string()
-
     }
 }
 

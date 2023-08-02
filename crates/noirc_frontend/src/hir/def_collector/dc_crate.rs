@@ -10,10 +10,10 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TypeAliasId, TraitId};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 use crate::{
-    ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, NoirTrait,
-    ParsedModule, Shared, Type, TypeBinding, UnresolvedGenerics, UnresolvedType, 
+    ExpressionKind, Generics, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
+    NoirTypeAlias, ParsedModule, Shared, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;

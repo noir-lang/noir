@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use fm::FileId;
 
 use crate::{
-    node_interner::{FuncId, StmtId, StructId, TypeAliasId, TraitId},
+    node_interner::{FuncId, StmtId, StructId, TraitId, TypeAliasId},
     Ident,
 };
 
@@ -64,7 +64,6 @@ impl ModuleData {
     pub fn declare_struct(&mut self, name: Ident, id: StructId) -> Result<(), (Ident, Ident)> {
         self.declare(name, ModuleDefId::TypeId(id))
     }
-
 
     pub fn declare_type_alias(
         &mut self,
