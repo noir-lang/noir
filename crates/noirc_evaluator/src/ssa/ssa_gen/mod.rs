@@ -86,8 +86,7 @@ impl<'a> FunctionContext<'a> {
     /// Codegen any non-tuple expression so that we can unwrap the Values
     /// tree to return a single value for use with most SSA instructions.
     fn codegen_non_tuple_expression(&mut self, expr: &Expression) -> ValueId {
-        let e = self.codegen_expression(expr);
-        e.into_leaf().eval(self)
+        self.codegen_expression(expr).into_leaf().eval(self)
     }
 
     /// Codegen a reference to an ident.
