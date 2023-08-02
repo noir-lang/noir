@@ -30,6 +30,13 @@ impl<T> Option<T> {
         self._value
     }
 
+    /// Returns the inner value without asserting `self.is_some()`
+    /// Note that if `self` is `None`, there is no guarantee what value will be returned,
+    /// only that it will be of type `T`.
+    fn unwrap_unchecked(self) -> T {
+        self._value
+    }
+
     /// Returns the wrapped value if `self.is_some()`. Otherwise, returns the given default value.
     fn unwrap_or(self, default: T) -> T {
         if self._is_some {
