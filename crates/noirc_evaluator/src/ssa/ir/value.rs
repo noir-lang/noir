@@ -1,6 +1,6 @@
 use acvm::FieldElement;
 
-use crate::ssa_refactor::ir::basic_block::BasicBlockId;
+use crate::ssa::ir::basic_block::BasicBlockId;
 
 use super::{
     function::FunctionId,

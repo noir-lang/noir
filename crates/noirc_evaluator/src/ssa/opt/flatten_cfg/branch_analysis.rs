@@ -21,9 +21,7 @@
 //! the resulting map from each split block to each join block is returned.
 use std::collections::HashMap;
 
-use crate::ssa_refactor::ir::{
-    basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
-};
+use crate::ssa::ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function};
 
 /// Returns a `HashMap` mapping blocks that start a branch (i.e. blocks terminated with jmpif) to
 /// their corresponding blocks that end the branch.
@@ -114,7 +112,7 @@ impl<'cfg> Context<'cfg> {
 #[cfg(test)]
 mod test {
 
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{cfg::ControlFlowGraph, function::RuntimeType, map::Id, types::Type},
         opt::flatten_cfg::branch_analysis::find_branch_ends,
         ssa_builder::FunctionBuilder,

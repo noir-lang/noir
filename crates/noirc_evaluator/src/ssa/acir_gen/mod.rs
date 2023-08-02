@@ -1105,7 +1105,7 @@ mod tests {
 
     use crate::{
         brillig::Brillig,
-        ssa_refactor::{
+        ssa::{
             ir::{function::RuntimeType, map::Id, types::Type},
             ssa_builder::FunctionBuilder,
         },

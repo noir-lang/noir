@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap};
 
-use crate::ssa_refactor::ir::instruction::SimplifyResult;
+use crate::ssa::ir::instruction::SimplifyResult;
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -503,7 +503,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
 #[cfg(test)]
 mod tests {
     use super::DataFlowGraph;
-    use crate::ssa_refactor::ir::instruction::Instruction;
+    use crate::ssa::ir::instruction::Instruction;
 
     #[test]
     fn make_instruction() {

@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use iter_extended::vecmap;
 
-use crate::ssa_refactor::{
+use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
@@ -182,7 +182,7 @@ mod tests {
     use acvm::FieldElement;
     use im::vector;
 
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,

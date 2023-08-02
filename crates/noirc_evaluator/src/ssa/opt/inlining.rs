@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 
 use iter_extended::vecmap;
 
-use crate::ssa_refactor::{
+use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::InsertInstructionResult,
@@ -482,7 +482,7 @@ impl<'function> PerFunctionContext<'function> {
 mod test {
     use acvm::FieldElement;
 
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{
             basic_block::BasicBlockId,
             function::RuntimeType,

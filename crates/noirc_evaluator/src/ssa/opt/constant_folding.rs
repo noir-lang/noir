@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use iter_extended::vecmap;
 
-use crate::ssa_refactor::{
+use crate::ssa::{
     ir::{
         basic_block::BasicBlockId, dfg::InsertInstructionResult, function::Function,
         instruction::InstructionId,
@@ -94,7 +94,7 @@ impl Context {
 mod test {
     use std::rc::Rc;
 
-    use crate::ssa_refactor::{
+    use crate::ssa::{
         ir::{
             function::RuntimeType,
             instruction::{BinaryOp, TerminatorInstruction},

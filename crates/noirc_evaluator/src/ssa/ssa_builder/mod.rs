@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use acvm::FieldElement;
 use noirc_errors::Location;
 
-use crate::ssa_refactor::ir::{
+use crate::ssa::ir::{
     basic_block::BasicBlockId,
     function::{Function, FunctionId},
     instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
@@ -363,7 +363,7 @@ mod tests {
 
     use acvm::FieldElement;
 
-    use crate::ssa_refactor::ir::{
+    use crate::ssa::ir::{
         function::RuntimeType,
         instruction::{Endian, Intrinsic},
         map::Id,

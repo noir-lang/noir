@@ -4,7 +4,7 @@ use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
 use iter_extended::vecmap;
 use num_bigint::BigUint;
 
-use crate::ssa_refactor::ir::{
+use crate::ssa::ir::{
     dfg::DataFlowGraph,
     instruction::Intrinsic,
     map::Id,
