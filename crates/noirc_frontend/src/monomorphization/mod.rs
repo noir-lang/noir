@@ -1121,7 +1121,6 @@ impl<'interner> Monomorphizer<'interner> {
         });
 
         (block_let_stmt, closure_ident)
-        // ast::Expression::Block(vec![block_let_stmt, closure_ident])
     }
 
     fn lambda(&mut self, lambda: HirLambda, expr: node_interner::ExprId) -> ast::Expression {
