@@ -216,22 +216,22 @@ async function main() {
     .command('get-logs')
     .description('Gets all the unencrypted logs from L2 blocks in the range specified.')
     .argument('<from>', 'Block num start for getting logs.')
-    .argument('<take>', 'How many block logs to fetch.')
+    .argument('<limit>', 'How many block logs to fetch.')
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async (_from, _take, options) => {
       let from: number;
-      let take: number;
+      let limit: number;
       try {
         from = parseInt(_from);
-        take = parseInt(_take);
+        limit = parseInt(_take);
       } catch {
         log(`Invalid integer value(s) passed: ${_from}, ${_take}`);
         return;
       }
       const client = createAztecRpcClient(options.rpcUrl);
-      const logs = await client.getUnencryptedLogs(from, take);
+      const logs = await client.getUnencryptedLogs(from, limit);
       if (!logs.length) {
-        log(`No logs found in blocks ${from} to ${from + take}`);
+        log(`No logs found in blocks ${from} to ${from + limit}`);
       } else {
         log('Logs found: \n');
         L2BlockL2Logs.unrollLogs(logs).forEach(fnLog => log(`${fnLog.toString('ascii')}\n`));

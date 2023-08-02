@@ -34,10 +34,10 @@ export class Synchroniser {
    * available, it retries after a specified interval.
    *
    * @param from - The starting position for fetching encrypted logs and blocks.
-   * @param take - The number of encrypted logs and blocks to fetch in each iteration.
+   * @param limit - The maximum number of encrypted, unencrypted logs and blocks to fetch in each iteration.
    * @param retryInterval - The time interval (in ms) to wait before retrying if no data is available.
    */
-  public async start(from = 1, take = 1, retryInterval = 1000) {
+  public async start(from = 1, limit = 1, retryInterval = 1000) {
     if (this.running) return;
     this.running = true;
 
@@ -45,7 +45,7 @@ export class Synchroniser {
 
     const run = async () => {
       while (this.running) {
-        from = await this.work(from, take, retryInterval);
+        from = await this.work(from, limit, retryInterval);
       }
     };
 
@@ -63,21 +63,21 @@ export class Synchroniser {
     await this.db.setTreeRoots(treeRoots);
   }
 
-  protected async work(from = 1, take = 1, retryInterval = 1000): Promise<number> {
+  protected async work(from = 1, limit = 1, retryInterval = 1000): Promise<number> {
     try {
-      let encryptedLogs = await this.node.getLogs(from, take, LogType.ENCRYPTED);
+      let encryptedLogs = await this.node.getLogs(from, limit, LogType.ENCRYPTED);
       if (!encryptedLogs.length) {
         await this.interruptableSleep.sleep(retryInterval);
         return from;
       }
 
-      let unencryptedLogs = await this.node.getLogs(from, take, LogType.UNENCRYPTED);
+      let unencryptedLogs = await this.node.getLogs(from, limit, LogType.UNENCRYPTED);
       if (!unencryptedLogs.length) {
         await this.interruptableSleep.sleep(retryInterval);
         return from;
       }
 
-      // Note: If less than `take` encrypted logs is returned, then we fetch only that number of blocks.
+      // Note: If less than `limit` encrypted logs is returned, then we fetch only that number of blocks.
       const blocks = await this.node.getBlocks(from, encryptedLogs.length);
       if (!blocks.length) {
         await this.interruptableSleep.sleep(retryInterval);

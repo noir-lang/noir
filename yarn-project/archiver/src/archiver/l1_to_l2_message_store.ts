@@ -38,18 +38,18 @@ export class L1ToL2MessageStore {
  * for removing messages or fetching multiple messages.
  */
 export class PendingL1ToL2MessageStore extends L1ToL2MessageStore {
-  getMessageKeys(take: number): Fr[] {
-    if (take < 1) {
+  getMessageKeys(limit: number): Fr[] {
+    if (limit < 1) {
       return [];
     }
-    // fetch `take` number of messages from the store with the highest fee.
+    // fetch `limit` number of messages from the store with the highest fee.
     // Note the store has multiple of the same message. So if a message has count 2, include both of them in the result:
     const messages: Fr[] = [];
     const sortedMessages = Array.from(this.store.values()).sort((a, b) => b.message.fee - a.message.fee);
     for (const messageAndCount of sortedMessages) {
       for (let i = 0; i < messageAndCount.count; i++) {
         messages.push(messageAndCount.message.entryKey!);
-        if (messages.length === take) {
+        if (messages.length === limit) {
           return messages;
         }
       }

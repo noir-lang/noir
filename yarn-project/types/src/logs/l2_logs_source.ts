@@ -6,13 +6,13 @@ import { LogType } from './log_type.js';
  */
 export interface L2LogsSource {
   /**
-   * Gets the `take` amount of logs starting from `from`.
+   * Gets up to `limit` amount of logs starting from `from`.
    * @param from - Number of the L2 block to which corresponds the first logs to be returned.
-   * @param take - The number of logs to return.
+   * @param limit - The maximum number of logs to return.
    * @param logType - Specifies whether to return encrypted or unencrypted logs.
    * @returns The requested logs.
    */
-  getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]>;
+  getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]>;
 
   /**
    * Starts the encrypted logs source.

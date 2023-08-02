@@ -63,12 +63,12 @@ describe('pending_l1_to_l2_message_store', () => {
     expect(store.getMessageKeys(10)).toEqual([]);
   });
 
-  it('getMessageKeys returns an empty array if take is 0', () => {
+  it('getMessageKeys returns an empty array if limit is 0', () => {
     store.addMessage(entryKey, msg);
     expect(store.getMessageKeys(0)).toEqual([]);
   });
 
-  it('get messages for a non-empty store when take > number of messages in store', () => {
+  it('get messages for a non-empty store when limit > number of messages in store', () => {
     const entryKeys = [1, 2, 3, 4, 5].map(x => new Fr(x));
     entryKeys.forEach(entryKey => {
       store.addMessage(entryKey, L1ToL2Message.random());

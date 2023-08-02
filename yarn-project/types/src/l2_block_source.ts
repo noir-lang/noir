@@ -11,12 +11,12 @@ export interface L2BlockSource {
   getBlockHeight(): Promise<number>;
 
   /**
-   * Gets the `take` amount of L2 blocks starting from `from`.
+   * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).
-   * @param take - The number of blocks to return.
+   * @param limit - The maximum number of blocks to return.
    * @returns The requested L2 blocks.
    */
-  getL2Blocks(from: number, take: number): Promise<L2Block[]>;
+  getL2Blocks(from: number, limit: number): Promise<L2Block[]>;
 
   /**
    * Starts the L2 block source.

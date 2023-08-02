@@ -76,8 +76,8 @@ export abstract class BaseWallet implements Wallet {
   getContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     return this.rpc.getContractInfo(contractAddress);
   }
-  getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
-    return this.rpc.getUnencryptedLogs(from, take);
+  getUnencryptedLogs(from: number, limit: number): Promise<L2BlockL2Logs[]> {
+    return this.rpc.getUnencryptedLogs(from, limit);
   }
   getBlockNum(): Promise<number> {
     return this.rpc.getBlockNum();

@@ -174,10 +174,10 @@ export interface AztecRPC {
   /**
    * Gets L2 block unencrypted logs.
    * @param from - Number of the L2 block to which corresponds the first unencrypted logs to be returned.
-   * @param take - The number of unencrypted logs to return.
+   * @param limit - The maximum number of unencrypted logs to return.
    * @returns The requested unencrypted logs.
    */
-  getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]>;
+  getUnencryptedLogs(from: number, limit: number): Promise<L2BlockL2Logs[]>;
 
   /**
    * Get latest L2 block number.

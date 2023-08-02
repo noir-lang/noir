@@ -250,8 +250,8 @@ export class AztecRPCServer implements AztecRPC {
     return await this.node.getContractInfo(contractAddress);
   }
 
-  public async getUnencryptedLogs(from: number, take: number): Promise<L2BlockL2Logs[]> {
-    return await this.node.getLogs(from, take, LogType.UNENCRYPTED);
+  public async getUnencryptedLogs(from: number, limit: number): Promise<L2BlockL2Logs[]> {
+    return await this.node.getLogs(from, limit, LogType.UNENCRYPTED);
   }
 
   async #getExecutionRequest(

@@ -48,8 +48,8 @@ export function appFactory(node: AztecNode, prefix: string) {
 
   router.get('/get-blocks', async (ctx: Koa.Context) => {
     const from = +ctx.query.from!;
-    const take = +ctx.query.take!;
-    const blocks = await node.getBlocks(from, take);
+    const limit = +ctx.query.limit!;
+    const blocks = await node.getBlocks(from, limit);
     const strs = blocks.map(x => x.encode().toString('hex'));
     ctx.set('content-type', 'application/json');
     ctx.body = {
@@ -114,13 +114,13 @@ export function appFactory(node: AztecNode, prefix: string) {
 
   router.get('/get-logs', async (ctx: Koa.Context) => {
     const from = +ctx.query.from!;
-    const take = +ctx.query.take!;
+    const limit = +ctx.query.limit!;
     const logType = Number(ctx.query.logType);
     if (logType !== 0 && logType !== 1) {
       throw new Error('Invalid log type: ' + ctx.query.logType);
     }
 
-    const logs = await node.getLogs(from, take, logType);
+    const logs = await node.getLogs(from, limit, logType);
     const strs = logs.map(x => x.toBuffer().toString('hex'));
     ctx.set('content-type', 'application/json');
     ctx.body = {

@@ -69,7 +69,7 @@ describe('HttpNode', () => {
 
       const result = await httpNode.getBlocks(0, 3);
 
-      expect(fetch).toHaveBeenCalledWith(`${TEST_URL}get-blocks?from=0&take=3`);
+      expect(fetch).toHaveBeenCalledWith(`${TEST_URL}get-blocks?from=0&limit=3`);
       expect(result).toEqual([block1, block2]);
     });
 
@@ -79,7 +79,7 @@ describe('HttpNode', () => {
 
       const result = await httpNode.getBlocks(0, 2);
 
-      expect(fetch).toHaveBeenCalledWith(`${TEST_URL}get-blocks?from=0&take=2`);
+      expect(fetch).toHaveBeenCalledWith(`${TEST_URL}get-blocks?from=0&limit=2`);
       expect(result).toEqual([]);
     });
   });
@@ -157,7 +157,7 @@ describe('HttpNode', () => {
       const processedLogType = logType === 'encrypted' ? LogType.ENCRYPTED : LogType.UNENCRYPTED;
 
       const from = 0;
-      const take = 3;
+      const limit = 3;
       const log1 = L2BlockL2Logs.random(2, 3, 4);
       const log2 = L2BlockL2Logs.random(1, 5, 2);
       const response = {
@@ -165,9 +165,9 @@ describe('HttpNode', () => {
       };
       setFetchMock(response);
 
-      const result = await httpNode.getLogs(from, take, processedLogType);
+      const result = await httpNode.getLogs(from, limit, processedLogType);
 
-      expect(fetch).toHaveBeenCalledWith(`${TEST_URL}get-logs?from=${from}&take=${take}&logType=${processedLogType}`);
+      expect(fetch).toHaveBeenCalledWith(`${TEST_URL}get-logs?from=${from}&limit=${limit}&logType=${processedLogType}`);
       expect(result).toEqual([log1, log2]);
     });
 
@@ -177,13 +177,15 @@ describe('HttpNode', () => {
         const processedLogType = logType === 'encrypted' ? LogType.ENCRYPTED : LogType.UNENCRYPTED;
 
         const from = 0;
-        const take = 2;
+        const limit = 2;
         const response = {};
         setFetchMock(response);
 
-        const result = await httpNode.getLogs(from, take, processedLogType);
+        const result = await httpNode.getLogs(from, limit, processedLogType);
 
-        expect(fetch).toHaveBeenCalledWith(`${TEST_URL}get-logs?from=${from}&take=${take}&logType=${processedLogType}`);
+        expect(fetch).toHaveBeenCalledWith(
+          `${TEST_URL}get-logs?from=${from}&limit=${limit}&logType=${processedLogType}`,
+        );
         expect(result).toEqual([]);
       },
     );

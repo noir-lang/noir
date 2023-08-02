@@ -25,12 +25,12 @@ export interface ArchiverDataStore {
   addL2Blocks(blocks: L2Block[]): Promise<boolean>;
 
   /**
-   * Gets the `take` amount of L2 blocks starting from `from`.
+   * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).
-   * @param take - The number of blocks to return.
+   * @param limit - The number of blocks to return.
    * @returns The requested L2 blocks.
    */
-  getL2Blocks(from: number, take: number): Promise<L2Block[]>;
+  getL2Blocks(from: number, limit: number): Promise<L2Block[]>;
 
   /**
    * Append new logs to the store's list.
@@ -63,11 +63,11 @@ export interface ArchiverDataStore {
   confirmL1ToL2Messages(messageKeys: Fr[]): Promise<boolean>;
 
   /**
-   * Gets the `take` amount of pending L1 to L2 messages, sorted by fee
-   * @param take - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
+   * Gets up to `limit` amount of pending L1 to L2 messages, sorted by fee
+   * @param limit - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
    * @returns The requested L1 to L2 message keys.
    */
-  getPendingL1ToL2MessageKeys(take: number): Promise<Fr[]>;
+  getPendingL1ToL2MessageKeys(limit: number): Promise<Fr[]>;
 
   /**
    * Gets the confirmed L1 to L2 message corresponding to the given message key.
@@ -77,13 +77,13 @@ export interface ArchiverDataStore {
   getConfirmedL1ToL2Message(messageKey: Fr): Promise<L1ToL2Message>;
 
   /**
-   * Gets the `take` amount of logs starting from `from`.
+   * Gets up to `limit` amount of logs starting from `from`.
    * @param from - Number of the L2 block to which corresponds the first logs to be returned.
-   * @param take - The number of logs to return.
+   * @param limit - The number of logs to return.
    * @param logType - Specifies whether to return encrypted or unencrypted logs.
    * @returns The requested logs.
    */
-  getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]>;
+  getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]>;
 
   /**
    * Store new Contract Public Data from an L2 block to the store's list.
@@ -250,12 +250,12 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Gets the `take` amount of L2 blocks starting from `from`.
+   * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).
-   * @param take - The number of blocks to return.
+   * @param limit - The number of blocks to return.
    * @returns The requested L2 blocks.
    */
-  public getL2Blocks(from: number, take: number): Promise<L2Block[]> {
+  public getL2Blocks(from: number, limit: number): Promise<L2Block[]> {
     if (from < INITIAL_L2_BLOCK_NUM) {
       throw new Error(`Invalid block range ${from}`);
     }
@@ -263,17 +263,17 @@ export class MemoryArchiverStore implements ArchiverDataStore {
       return Promise.resolve([]);
     }
     const startIndex = from - INITIAL_L2_BLOCK_NUM;
-    const endIndex = from + take;
+    const endIndex = from + limit;
     return Promise.resolve(this.l2Blocks.slice(startIndex, endIndex));
   }
 
   /**
-   * Gets the `take` amount of pending L1 to L2 messages, sorted by fee
-   * @param take - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
+   * Gets up to `limit` amount of pending L1 to L2 messages, sorted by fee
+   * @param limit - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
    * @returns The requested L1 to L2 message keys.
    */
-  public getPendingL1ToL2MessageKeys(take: number = NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP): Promise<Fr[]> {
-    return Promise.resolve(this.pendingL1ToL2Messages.getMessageKeys(take));
+  public getPendingL1ToL2MessageKeys(limit: number = NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP): Promise<Fr[]> {
+    return Promise.resolve(this.pendingL1ToL2Messages.getMessageKeys(limit));
   }
 
   /**
@@ -290,13 +290,13 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Gets the `take` amount of logs starting from `from`.
+   * Gets up to `limit` amount of logs starting from `from`.
    * @param from - Number of the L2 block to which corresponds the first logs to be returned.
-   * @param take - The number of logs to return.
+   * @param limit - The number of logs to return.
    * @param logType - Specifies whether to return encrypted or unencrypted logs.
    * @returns The requested logs.
    */
-  getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]> {
+  getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]> {
     if (from < INITIAL_L2_BLOCK_NUM) {
       throw new Error(`Invalid block range ${from}`);
     }
@@ -305,7 +305,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
       return Promise.resolve([]);
     }
     const startIndex = from - INITIAL_L2_BLOCK_NUM;
-    const endIndex = from + take;
+    const endIndex = from + limit;
     return Promise.resolve(logs.slice(startIndex, endIndex));
   }
 

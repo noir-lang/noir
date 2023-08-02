@@ -8,11 +8,11 @@ import { Fr } from '@aztec/foundation/fields';
  */
 export interface L1ToL2MessageSource {
   /**
-   * Gets the `take` amount of pending L1 to L2 messages, sorted by fee
-   * @param take - The number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
+   * Gets up to `limit` amount of pending L1 to L2 messages, sorted by fee
+   * @param limit - The maximum number of messages to return (by default NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).
    * @returns The requested L1 to L2 messages' keys.
    */
-  getPendingL1ToL2Messages(take?: number): Promise<Fr[]>;
+  getPendingL1ToL2Messages(limit?: number): Promise<Fr[]>;
 
   /**
    * Gets the confirmed L1 to L2 message with the given message key.

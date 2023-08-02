@@ -258,13 +258,13 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   }
 
   /**
-   * Gets the `take` amount of L2 blocks starting from `from`.
+   * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).
-   * @param take - The number of blocks to return.
+   * @param limit - The number of blocks to return.
    * @returns The requested L2 blocks.
    */
-  public getL2Blocks(from: number, take: number): Promise<L2Block[]> {
-    return this.store.getL2Blocks(from, take);
+  public getL2Blocks(from: number, limit: number): Promise<L2Block[]> {
+    return this.store.getL2Blocks(from, limit);
   }
 
   /**
@@ -322,14 +322,14 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   }
 
   /**
-   * Gets the `take` amount of logs starting from `from`.
+   * Gets up to `limit` amount of logs starting from `from`.
    * @param from - Number of the L2 block to which corresponds the first logs to be returned.
-   * @param take - The number of logs to return.
+   * @param limit - The number of logs to return.
    * @param logType - Specifies whether to return encrypted or unencrypted logs.
    * @returns The requested logs.
    */
-  public getLogs(from: number, take: number, logType: LogType): Promise<L2BlockL2Logs[]> {
-    return this.store.getLogs(from, take, logType);
+  public getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]> {
+    return this.store.getLogs(from, limit, logType);
   }
 
   /**
@@ -341,12 +341,12 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   }
 
   /**
-   * Gets the `take` amount of pending L1 to L2 messages.
-   * @param take - The number of messages to return.
+   * Gets up to `limit` amount of pending L1 to L2 messages.
+   * @param limit - The number of messages to return.
    * @returns The requested L1 to L2 messages' keys.
    */
-  getPendingL1ToL2Messages(take: number): Promise<Fr[]> {
-    return this.store.getPendingL1ToL2MessageKeys(take);
+  getPendingL1ToL2Messages(limit: number): Promise<Fr[]> {
+    return this.store.getPendingL1ToL2MessageKeys(limit);
   }
 
   /**
