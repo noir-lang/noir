@@ -275,7 +275,7 @@ impl<'f> Context<'f> {
                 // known to be true/false within the then/else branch respectively.
                 self.insert_current_side_effects_enabled();
 
-                // We must map back to then_condition here. Mapping old_condition to itself would
+                // We must map back to `then_condition` here. Mapping `old_condition` to itself would
                 // lose any previous mappings.
                 self.inserter.map_value(old_condition, then_condition);
 
