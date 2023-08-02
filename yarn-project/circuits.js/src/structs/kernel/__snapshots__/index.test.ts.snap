@@ -171,6 +171,18 @@ new_value: 0xc05
  leaf_index: 0xc04
 old_value: 0xc05
 new_value: 0xc06
+ leaf_index: 0xc05
+old_value: 0xc06
+new_value: 0xc07
+ leaf_index: 0xc06
+old_value: 0xc07
+new_value: 0xc08
+ leaf_index: 0xc07
+old_value: 0xc08
+new_value: 0xc09
+ leaf_index: 0xc08
+old_value: 0xc09
+new_value: 0xc0a
  ]
 public_data_reads:
 [ leaf_index: 0xd01
@@ -181,6 +193,14 @@ value: 0xd03
 value: 0xd04
  leaf_index: 0xd04
 value: 0xd05
+ leaf_index: 0xd05
+value: 0xd06
+ leaf_index: 0xd06
+value: 0xd07
+ leaf_index: 0xd07
+value: 0xd08
+ leaf_index: 0xd08
+value: 0xd09
  ]
 "
 `;
@@ -359,6 +379,18 @@ new_value: 0xc05
  leaf_index: 0xc04
 old_value: 0xc05
 new_value: 0xc06
+ leaf_index: 0xc05
+old_value: 0xc06
+new_value: 0xc07
+ leaf_index: 0xc06
+old_value: 0xc07
+new_value: 0xc08
+ leaf_index: 0xc07
+old_value: 0xc08
+new_value: 0xc09
+ leaf_index: 0xc08
+old_value: 0xc09
+new_value: 0xc0a
  ]
 public_data_reads:
 [ leaf_index: 0xd01
@@ -369,6 +401,14 @@ value: 0xd03
 value: 0xd04
  leaf_index: 0xd04
 value: 0xd05
+ leaf_index: 0xd05
+value: 0xd06
+ leaf_index: 0xd06
+value: 0xd07
+ leaf_index: 0xd07
+value: 0xd08
+ leaf_index: 0xd08
+value: 0xd09
  ]
 
 constants:
@@ -876,6 +916,18 @@ new_value: 0xc05
  leaf_index: 0xc04
 old_value: 0xc05
 new_value: 0xc06
+ leaf_index: 0xc05
+old_value: 0xc06
+new_value: 0xc07
+ leaf_index: 0xc06
+old_value: 0xc07
+new_value: 0xc08
+ leaf_index: 0xc07
+old_value: 0xc08
+new_value: 0xc09
+ leaf_index: 0xc08
+old_value: 0xc09
+new_value: 0xc0a
  ]
 public_data_reads:
 [ leaf_index: 0xd01
@@ -886,6 +938,14 @@ value: 0xd03
 value: 0xd04
  leaf_index: 0xd04
 value: 0xd05
+ leaf_index: 0xd05
+value: 0xd06
+ leaf_index: 0xd06
+value: 0xd07
+ leaf_index: 0xd07
+value: 0xd08
+ leaf_index: 0xd08
+value: 0xd09
  ]
 
 constants:
@@ -1365,6 +1425,18 @@ new_value: 0xc05
  leaf_index: 0xc04
 old_value: 0xc05
 new_value: 0xc06
+ leaf_index: 0xc05
+old_value: 0xc06
+new_value: 0xc07
+ leaf_index: 0xc06
+old_value: 0xc07
+new_value: 0xc08
+ leaf_index: 0xc07
+old_value: 0xc08
+new_value: 0xc09
+ leaf_index: 0xc08
+old_value: 0xc09
+new_value: 0xc0a
  ]
 public_data_reads:
 [ leaf_index: 0xd01
@@ -1375,6 +1447,14 @@ value: 0xd03
 value: 0xd04
  leaf_index: 0xd04
 value: 0xd05
+ leaf_index: 0xd05
+value: 0xd06
+ leaf_index: 0xd06
+value: 0xd07
+ leaf_index: 0xd07
+value: 0xd08
+ leaf_index: 0xd08
+value: 0xd09
  ]
 
 constants:
@@ -1579,6 +1659,18 @@ new_value: 0xc05
  leaf_index: 0xc04
 old_value: 0xc05
 new_value: 0xc06
+ leaf_index: 0xc05
+old_value: 0xc06
+new_value: 0xc07
+ leaf_index: 0xc06
+old_value: 0xc07
+new_value: 0xc08
+ leaf_index: 0xc07
+old_value: 0xc08
+new_value: 0xc09
+ leaf_index: 0xc08
+old_value: 0xc09
+new_value: 0xc0a
  ]
 public_data_reads:
 [ leaf_index: 0xd01
@@ -1589,6 +1681,14 @@ value: 0xd03
 value: 0xd04
  leaf_index: 0xd04
 value: 0xd05
+ leaf_index: 0xd05
+value: 0xd06
+ leaf_index: 0xd06
+value: 0xd07
+ leaf_index: 0xd07
+value: 0xd08
+ leaf_index: 0xd08
+value: 0xd09
  ]
 
 constants:
@@ -1655,6 +1755,18 @@ new_value: 0x1413
  storage_slot: 0x1412
 old_value: 0x1413
 new_value: 0x1414
+ storage_slot: 0x1413
+old_value: 0x1414
+new_value: 0x1415
+ storage_slot: 0x1414
+old_value: 0x1415
+new_value: 0x1416
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -1666,12 +1778,20 @@ contract_storage_reads: [ storage_slot: 0x1511
 current_value: 0x1512
  storage_slot: 0x1512
 current_value: 0x1513
+ storage_slot: 0x1513
+current_value: 0x1514
+ storage_slot: 0x1514
+current_value: 0x1515
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  ]
-public_call_stack: [ 0x33e75c7b393a616d4bfb82441015c9b345222124b7790927a3068d995b739d6 0x1c83b599bd1c954736b693d7effcfbfdaa9681ccdbbf1d0fa49626c74c7623ac 0x24db74658faa3c2978a9ec2967a88a90cd820260259fee459437efe95fb166e8 0x2fafe59d70d0a45d9a3dc5920139a491adbc0918060d52b2f1e7c7a0779270fe ]
+public_call_stack: [ 0x136824172dbc34c53430101e3a04e1ab503cebad18c5bfa6c529af15d79e8843 0x1b21b2e1c216fccf7b51f75cf1f98de9945755ee23ab1dd6336b5513a64befaa 0x143ce8bf3701eb9f520cf686440db29c7a5385ebc6543bfcbbc0c8ea589ef1c1 0x1093a857092bc1ce7d1ca2fe1cd9216294429424b63f76513e3a5be183095ade ]
 new_commitments: [ 0x1711 0x1712 0x0 0x0 ]
 new_nullifiers: [ 0x1811 0x1812 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1911 0x0 ]
@@ -1704,6 +1824,18 @@ new_value: 0x1713
  storage_slot: 0x1712
 old_value: 0x1713
 new_value: 0x1714
+ storage_slot: 0x1713
+old_value: 0x1714
+new_value: 0x1715
+ storage_slot: 0x1714
+old_value: 0x1715
+new_value: 0x1716
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -1715,6 +1847,14 @@ contract_storage_reads: [ storage_slot: 0x1811
 current_value: 0x1812
  storage_slot: 0x1812
 current_value: 0x1813
+ storage_slot: 0x1813
+current_value: 0x1814
+ storage_slot: 0x1814
+current_value: 0x1815
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0
@@ -1751,6 +1891,18 @@ new_value: 0x1714
  storage_slot: 0x1713
 old_value: 0x1714
 new_value: 0x1715
+ storage_slot: 0x1714
+old_value: 0x1715
+new_value: 0x1716
+ storage_slot: 0x1715
+old_value: 0x1716
+new_value: 0x1717
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -1762,6 +1914,14 @@ contract_storage_reads: [ storage_slot: 0x1812
 current_value: 0x1813
  storage_slot: 0x1813
 current_value: 0x1814
+ storage_slot: 0x1814
+current_value: 0x1815
+ storage_slot: 0x1815
+current_value: 0x1816
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0
@@ -1798,6 +1958,18 @@ new_value: 0x1715
  storage_slot: 0x1714
 old_value: 0x1715
 new_value: 0x1716
+ storage_slot: 0x1715
+old_value: 0x1716
+new_value: 0x1717
+ storage_slot: 0x1716
+old_value: 0x1717
+new_value: 0x1718
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -1809,6 +1981,14 @@ contract_storage_reads: [ storage_slot: 0x1813
 current_value: 0x1814
  storage_slot: 0x1814
 current_value: 0x1815
+ storage_slot: 0x1815
+current_value: 0x1816
+ storage_slot: 0x1816
+current_value: 0x1817
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0
@@ -1845,6 +2025,18 @@ new_value: 0x1716
  storage_slot: 0x1715
 old_value: 0x1716
 new_value: 0x1717
+ storage_slot: 0x1716
+old_value: 0x1717
+new_value: 0x1718
+ storage_slot: 0x1717
+old_value: 0x1718
+new_value: 0x1719
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -1856,6 +2048,14 @@ contract_storage_reads: [ storage_slot: 0x1814
 current_value: 0x1815
  storage_slot: 0x1815
 current_value: 0x1816
+ storage_slot: 0x1816
+current_value: 0x1817
+ storage_slot: 0x1817
+current_value: 0x1818
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0

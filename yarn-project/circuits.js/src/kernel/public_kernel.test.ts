@@ -1,4 +1,10 @@
-import { CircuitError, MAX_PUBLIC_DATA_READS_PER_TX, makeTuple, simulatePublicKernelCircuit } from '../index.js';
+import {
+  CircuitError,
+  MAX_PUBLIC_DATA_READS_PER_CALL,
+  MAX_PUBLIC_DATA_READS_PER_TX,
+  makeTuple,
+  simulatePublicKernelCircuit,
+} from '../index.js';
 import { makePublicDataRead, makePublicKernelInputsWithEmptyOutput } from '../tests/factories.js';
 
 describe('kernel/public_kernel', () => {
@@ -34,7 +40,7 @@ describe('kernel/public_kernel', () => {
     await expect(simulatePublicKernelCircuit(input)).rejects.toThrow(
       new CircuitError(
         7009,
-        `public_kernel_circuit: too many public data reads in one tx - array_push: capacity exceeded. Limit: 4
+        `public_kernel_circuit: too many public data reads in one tx - array_push: capacity exceeded. Limit: ${MAX_PUBLIC_DATA_READS_PER_CALL}
 Refer to https://docs.aztec.network/aztec/protocol/errors for more information.`,
       ),
     );
