@@ -9,7 +9,7 @@ fn main() -> eyre::Result<()> {
     // Register a panic hook to display more readable panic messages to end-users
     HookBuilder::default()
     .display_env_section(false)
-    .display_location_section(cfg!(debug_assertions))
+    .display_location_section(false)
     .panic_section(PANIC_MESSAGE)
     .install()?;
 
