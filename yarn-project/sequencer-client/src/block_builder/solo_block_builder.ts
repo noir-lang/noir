@@ -26,7 +26,7 @@ import {
   VerificationKey,
   makeTuple,
 } from '@aztec/circuits.js';
-import { computeContractLeaf } from '@aztec/circuits.js/abis';
+import { computeBlockHash, computeContractLeaf } from '@aztec/circuits.js/abis';
 import { toFriendlyJSON } from '@aztec/circuits.js/utils';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { padArrayEnd } from '@aztec/foundation/collection';
@@ -92,7 +92,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       startTreeOfHistoricContractTreeRootsSnapshot,
       startL1ToL2MessageTreeSnapshot,
       startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
-      // startHistoricBlocksTreeSnapshot,
+      startHistoricBlocksTreeSnapshot,
     ] = await Promise.all(
       [
         MerkleTreeId.PRIVATE_DATA_TREE,
@@ -122,7 +122,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       endTreeOfHistoricContractTreeRootsSnapshot,
       endL1ToL2MessageTreeSnapshot,
       endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
-      // endHistoricBlocksTreeSnapshot,
+      endHistoricBlocksTreeSnapshot,
     } = circuitsOutput;
 
     // Collect all new nullifiers, commitments, and contracts from all txs in this block
@@ -169,9 +169,8 @@ export class SoloBlockBuilder implements BlockBuilder {
       endL1ToL2MessageTreeSnapshot,
       startTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
       endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot,
-      // TODO: Stubbed until #1162
-      startHistoricBlocksTreeSnapshot: AppendOnlyTreeSnapshot.empty(),
-      endHistoricBlocksTreeSnapshot: AppendOnlyTreeSnapshot.empty(),
+      startHistoricBlocksTreeSnapshot,
+      endHistoricBlocksTreeSnapshot,
       newCommitments,
       newNullifiers,
       newL2ToL1Msgs,
@@ -315,9 +314,43 @@ export class SoloBlockBuilder implements BlockBuilder {
     // and validate them against the output of the root circuit simulation
     this.debug(`Updating and validating root trees`);
     await this.db.updateHistoricRootsTrees();
+    await this.updateHistoricBlocksTree(left[0].constants.globalVariables);
+
     await this.validateRootOutput(rootOutput);
 
     return [rootOutput, rootProof];
+  }
+
+  async updateHistoricBlocksTree(globalVariables: GlobalVariables) {
+    // Calculate the block hash and add it to the historic block hashes tree
+    const blockHash = await this.calculateBlockHash(globalVariables);
+    await this.db.appendLeaves(MerkleTreeId.BLOCKS_TREE, [blockHash.toBuffer()]);
+  }
+
+  protected async calculateBlockHash(globals: GlobalVariables) {
+    const [privateDataTreeRoot, nullifierTreeRoot, contractTreeRoot, publicDataTreeRoot, l1ToL2MessageTreeRoot] = (
+      await Promise.all(
+        [
+          MerkleTreeId.PRIVATE_DATA_TREE,
+          MerkleTreeId.NULLIFIER_TREE,
+          MerkleTreeId.CONTRACT_TREE,
+          MerkleTreeId.PUBLIC_DATA_TREE,
+          MerkleTreeId.L1_TO_L2_MESSAGES_TREE,
+        ].map(tree => this.getTreeSnapshot(tree)),
+      )
+    ).map(r => r.root);
+
+    const wasm = await CircuitsWasm.get();
+    const blockHash = computeBlockHash(
+      wasm,
+      globals,
+      privateDataTreeRoot,
+      nullifierTreeRoot,
+      contractTreeRoot,
+      l1ToL2MessageTreeRoot,
+      publicDataTreeRoot,
+    );
+    return blockHash;
   }
 
   // Validate that the new roots we calculated from manual insertions match the outputs of the simulation
@@ -337,6 +370,7 @@ export class SoloBlockBuilder implements BlockBuilder {
       this.validateRootTree(rootOutput, MerkleTreeId.CONTRACT_TREE_ROOTS_TREE, 'Contract'),
       this.validateRootTree(rootOutput, MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE, 'PrivateData'),
       this.validateRootTree(rootOutput, MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE, 'L1ToL2Message'),
+      this.validateTree(rootOutput, MerkleTreeId.BLOCKS_TREE, 'HistoricBlocks'),
       this.validateTree(rootOutput, MerkleTreeId.L1_TO_L2_MESSAGES_TREE, 'L1ToL2Message'),
     ]);
   }
@@ -386,7 +420,7 @@ export class SoloBlockBuilder implements BlockBuilder {
   protected validateSimulatedTree(
     localTree: AppendOnlyTreeSnapshot,
     simulatedTree: AppendOnlyTreeSnapshot,
-    name: 'PrivateData' | 'Contract' | 'Nullifier' | 'L1ToL2Message',
+    name: 'PrivateData' | 'Contract' | 'Nullifier' | 'L1ToL2Message' | 'HistoricBlocks',
     label?: string,
   ) {
     if (!simulatedTree.root.toBuffer().equals(localTree.root.toBuffer())) {
@@ -443,6 +477,10 @@ export class SoloBlockBuilder implements BlockBuilder {
       MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
     );
 
+    // Get historic block tree roots
+    const startHistoricBlocksTreeSnapshot = await this.getTreeSnapshot(MerkleTreeId.BLOCKS_TREE);
+    const newHistoricBlocksTreeSiblingPath = await getRootTreeSiblingPath(MerkleTreeId.BLOCKS_TREE);
+
     return RootRollupInputs.from({
       previousRollupData,
       newHistoricContractDataTreeRootSiblingPath,
@@ -452,6 +490,8 @@ export class SoloBlockBuilder implements BlockBuilder {
       newL1ToL2MessageTreeRootSiblingPath,
       startL1ToL2MessageTreeSnapshot,
       startHistoricTreeL1ToL2MessageTreeRootsSnapshot,
+      startHistoricBlocksTreeSnapshot,
+      newHistoricBlocksTreeSiblingPath,
     });
   }
 

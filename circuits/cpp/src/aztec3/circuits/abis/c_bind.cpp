@@ -442,6 +442,11 @@ CBIND(abis__silo_commitment, aztec3::circuits::silo_commitment<NT>);
 CBIND(abis__silo_nullifier, aztec3::circuits::silo_nullifier<NT>);
 
 /**
+ * @brief Computes the block hash from the block information.
+ */
+CBIND(abis__compute_block_hash, aztec3::circuits::compute_block_hash<NT>);
+
+/**
  * @brief Generates a signed tx request hash from it's pre-image
  * This is a WASM-export that can be called from Typescript.
  *

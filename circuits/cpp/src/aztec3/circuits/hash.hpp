@@ -2,6 +2,7 @@
 
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
+#include "aztec3/circuits/abis/global_variables.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/point.hpp"
 #include "aztec3/constants.hpp"
@@ -135,6 +136,23 @@ typename NCT::fr silo_nullifier(typename NCT::address contract_address, typename
     };
 
     return NCT::compress(inputs, aztec3::GeneratorIndex::OUTER_NULLIFIER);
+}
+
+template <typename NCT> typename NCT::fr compute_block_hash(typename abis::GlobalVariables<NCT> globals,
+                                                            typename NCT::fr private_data_tree_root,
+                                                            typename NCT::fr nullifier_tree_root,
+                                                            typename NCT::fr contract_tree_root,
+                                                            typename NCT::fr l1_to_l2_data_tree_root,
+                                                            typename NCT::fr public_data_tree_root)
+{
+    using fr = typename NCT::fr;
+
+    std::vector<fr> const inputs = {
+        globals.hash(),     private_data_tree_root,  nullifier_tree_root,
+        contract_tree_root, l1_to_l2_data_tree_root, public_data_tree_root,
+    };
+
+    return NCT::compress(inputs, aztec3::GeneratorIndex::BLOCK_HASH);
 }
 
 /**

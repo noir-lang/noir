@@ -187,6 +187,10 @@ next_available_leaf_index: 8704
 start_historic_tree_l1_to_l2_message_tree_roots_snapshot: root: 0x2300
 next_available_leaf_index: 8960
 
+start_historic_blocks_tree_snapshot: root: 0x2400
+next_available_leaf_index: 9216
+
+new_historic_blocks_tree_sibling_path: [ 0x2500 0x2501 0x2502 0x2503 0x2504 0x2505 0x2506 0x2507 0x2508 0x2509 0x250a 0x250b 0x250c 0x250d 0x250e 0x250f ]
 "
 `;
 

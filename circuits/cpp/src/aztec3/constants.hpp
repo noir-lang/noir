@@ -150,6 +150,7 @@ enum GeneratorIndex {
     SIGNED_TX_REQUEST,           // Size = 7
     GLOBAL_VARIABLES,            // Size = 4
     PARTIAL_CONTRACT_ADDRESS,    // Size = 7
+    BLOCK_HASH,                  // Size = 6
     /**
      * Indices with size ≤ 16
      */

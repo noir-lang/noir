@@ -341,7 +341,6 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
     MemoryStore historic_l1_to_l2_msg_tree_store;
     MerkleTree historic_l1_to_l2_msg_tree(historic_l1_to_l2_msg_tree_store, L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
 
-
     MemoryStore private_data_store;
     const MerkleTree private_data_tree(private_data_store, PRIVATE_DATA_TREE_HEIGHT);
 
@@ -350,6 +349,9 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
 
     MemoryStore l1_to_l2_msg_tree_store;
     MerkleTree l1_to_l2_msg_tree(l1_to_l2_msg_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
+
+    MemoryStore historic_blocks_tree_store;
+    MerkleTree historic_blocks_tree(historic_blocks_tree_store, HISTORIC_BLOCKS_TREE_HEIGHT);
 
 
     // Historic trees are initialised with an empty root at position 0.
@@ -364,6 +366,7 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
         get_sibling_path<CONTRACT_TREE_ROOTS_TREE_HEIGHT>(historic_contract_tree, 1, 0);
     auto historic_l1_to_l2_msg_sibling_path =
         get_sibling_path<L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>(historic_l1_to_l2_msg_tree, 1, 0);
+
     // l1 to l2 tree
     auto l1_to_l2_tree_sibling_path =
         get_sibling_path<L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH>(l1_to_l2_msg_tree, 0, L1_TO_L2_MSG_SUBTREE_HEIGHT);
@@ -378,6 +381,15 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
         .next_available_leaf_index = 1,
     };
 
+    // Blocks tree
+    auto blocks_tree_sibling_path = get_sibling_path<HISTORIC_BLOCKS_TREE_HEIGHT>(historic_blocks_tree, 0, 0);
+
+    // Blocks tree snapshots
+    AppendOnlyTreeSnapshot const start_historic_blocks_tree_snapshot = {
+        .root = historic_blocks_tree.root(),
+        .next_available_leaf_index = 0,
+    };
+
     RootRollupInputs rootRollupInputs = {
         .previous_rollup_data = get_previous_rollup_data(builder, std::move(kernel_data)),
         .new_historic_private_data_tree_root_sibling_path = historic_data_sibling_path,
@@ -388,6 +400,8 @@ RootRollupInputs get_root_rollup_inputs(utils::DummyBuilder& builder,
         .start_l1_to_l2_message_tree_snapshot = start_l1_to_l2_msg_tree_snapshot,
         .start_historic_tree_l1_to_l2_message_tree_roots_snapshot =
             start_historic_tree_l1_to_l2_message_tree_roots_snapshot,
+        .start_historic_blocks_tree_snapshot = start_historic_blocks_tree_snapshot,
+        .new_historic_blocks_tree_sibling_path = blocks_tree_sibling_path,
     };
     return rootRollupInputs;
 }

@@ -3,6 +3,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import {
   CONTRACT_TREE_ROOTS_TREE_HEIGHT,
+  HISTORIC_BLOCKS_TREE_HEIGHT,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
@@ -54,11 +55,20 @@ export class RootRollupInputs {
      * Snapshot of the historic L1 to L2 message tree roots at the start of the rollup.
      */
     public startHistoricTreeL1ToL2MessageTreeRootsSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Snapshot of the historic block roots tree at the start of the rollup.
+     */
+    public startHistoricBlocksTreeSnapshot: AppendOnlyTreeSnapshot,
+    /**
+     * Sibling path of the new historic block roots tree root.
+     */
+    public newHistoricBlocksTreeSiblingPath: Fr[],
   ) {
     assertMemberLength(this, 'newHistoricPrivateDataTreeRootSiblingPath', PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
     assertMemberLength(this, 'newHistoricContractDataTreeRootSiblingPath', CONTRACT_TREE_ROOTS_TREE_HEIGHT);
     assertMemberLength(this, 'newL1ToL2MessageTreeRootSiblingPath', L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH);
     assertMemberLength(this, 'newHistoricL1ToL2MessageTreeRootSiblingPath', L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
+    assertMemberLength(this, 'newHistoricBlocksTreeSiblingPath', HISTORIC_BLOCKS_TREE_HEIGHT);
     assertMemberLength(this, 'newL1ToL2Messages', NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
   }
 
@@ -80,6 +90,8 @@ export class RootRollupInputs {
       fields.newHistoricL1ToL2MessageTreeRootSiblingPath,
       fields.startL1ToL2MessageTreeSnapshot,
       fields.startHistoricTreeL1ToL2MessageTreeRootsSnapshot,
+      fields.startHistoricBlocksTreeSnapshot,
+      fields.newHistoricBlocksTreeSiblingPath,
     ] as const;
   }
 }
@@ -100,8 +112,6 @@ export class RootRollupPublicInputs {
      * Global variables of the L2 block.
      */
     public globalVariables: GlobalVariables,
-    // constants: ConstantRollupData // TODO maybe don't include this
-
     /**
      * Snapshot of the private data tree at the start of the rollup.
      */

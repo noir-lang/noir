@@ -5,6 +5,7 @@ import { Buffer } from 'buffer';
 import chunk from 'lodash.chunk';
 
 import {
+  abisComputeBlockHash,
   abisComputeCommitmentNonce,
   abisComputeUniqueCommitment,
   abisSiloCommitment,
@@ -16,6 +17,7 @@ import {
   Fr,
   FunctionData,
   FunctionLeafPreimage,
+  GlobalVariables,
   NewContractData,
   PrivateCallStackItem,
   PublicCallStackItem,
@@ -296,6 +298,35 @@ export function siloCommitment(wasm: IWasmModule, contract: AztecAddress, unique
 export function siloNullifier(wasm: IWasmModule, contract: AztecAddress, innerNullifier: Fr): Fr {
   wasm.call('pedersen__init');
   return abisSiloNullifier(wasm, contract, innerNullifier);
+}
+
+/**
+ * Computes the block hash given the blocks globals and roots.
+ * A siloed nullifier effectively namespaces a nullifier to a specific contract.
+ * @param wasm - A module providing low-level wasm access.
+ * @param contract - The contract address.
+ * @param innerNullifier - The nullifier to silo.
+ * @returns A siloed nullifier.
+ */
+export function computeBlockHash(
+  wasm: IWasmModule,
+  globals: GlobalVariables,
+  privateDataTreeRoot: Fr,
+  nullifierTreeRoot: Fr,
+  contractTreeRoot: Fr,
+  l1ToL2DataTreeRoot: Fr,
+  publicDataTreeRoot: Fr,
+): Fr {
+  wasm.call('pedersen__init');
+  return abisComputeBlockHash(
+    wasm,
+    globals,
+    privateDataTreeRoot,
+    nullifierTreeRoot,
+    contractTreeRoot,
+    l1ToL2DataTreeRoot,
+    publicDataTreeRoot,
+  );
 }
 
 const ARGS_HASH_CHUNK_SIZE = 32;

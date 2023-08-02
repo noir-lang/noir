@@ -51,6 +51,7 @@ export {
   CircuitError,
   Point,
   Coordinate,
+  GlobalVariables,
 } from '../structs/index.js';
 
 /**

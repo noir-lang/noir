@@ -24,6 +24,8 @@ template <typename NCT> struct GlobalVariables {
     fr block_number = 0;
     fr timestamp = 0;
 
+    MSGPACK_FIELDS(chain_id, version, block_number, timestamp);
+
     boolean operator==(GlobalVariables<NCT> const& other) const
     {
         return chain_id == other.chain_id && version == other.version && block_number == other.block_number &&

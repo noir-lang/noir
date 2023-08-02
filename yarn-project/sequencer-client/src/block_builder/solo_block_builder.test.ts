@@ -18,7 +18,7 @@ import {
   makeTuple,
   range,
 } from '@aztec/circuits.js';
-import { computeContractLeaf } from '@aztec/circuits.js/abis';
+import { computeBlockHash, computeContractLeaf } from '@aztec/circuits.js/abis';
 import {
   fr,
   makeBaseOrMergeRollupPublicInputs,
@@ -107,9 +107,9 @@ describe('sequencer/solo_block_builder', () => {
     mockL1ToL2Messages = new Array(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP).fill(new Fr(0n));
 
     // Create mock outputs for simulator
-    baseRollupOutputLeft = makeBaseOrMergeRollupPublicInputs();
-    baseRollupOutputRight = makeBaseOrMergeRollupPublicInputs();
-    rootRollupOutput = makeRootRollupPublicInputs();
+    baseRollupOutputLeft = makeBaseOrMergeRollupPublicInputs(0, globalVariables);
+    baseRollupOutputRight = makeBaseOrMergeRollupPublicInputs(0, globalVariables);
+    rootRollupOutput = makeRootRollupPublicInputs(0, globalVariables);
 
     // Set up mocks
     prover.getBaseRollupProof.mockResolvedValue(emptyProof);
@@ -147,6 +147,19 @@ describe('sequencer/solo_block_builder', () => {
   const updateL1ToL2MessagesTree = async (l1ToL2Messages: Fr[]) => {
     const asBuffer = l1ToL2Messages.map(m => m.toBuffer());
     await expectsDb.appendLeaves(MerkleTreeId.L1_TO_L2_MESSAGES_TREE, asBuffer);
+  };
+
+  const updateHistoricBlocksTree = async () => {
+    const blockHash = computeBlockHash(
+      wasm,
+      globalVariables,
+      rootRollupOutput.endPrivateDataTreeSnapshot.root,
+      rootRollupOutput.endNullifierTreeSnapshot.root,
+      rootRollupOutput.endContractTreeSnapshot.root,
+      rootRollupOutput.endL1ToL2MessageTreeSnapshot.root,
+      rootRollupOutput.endPublicDataTreeRoot,
+    );
+    await expectsDb.appendLeaves(MerkleTreeId.BLOCKS_TREE, [blockHash.toBuffer()]);
   };
 
   const getTreeSnapshot = async (tree: MerkleTreeId) => {
@@ -194,6 +207,7 @@ describe('sequencer/solo_block_builder', () => {
     rootRollupOutput.endNullifierTreeSnapshot = await getTreeSnapshot(MerkleTreeId.NULLIFIER_TREE);
     rootRollupOutput.endPrivateDataTreeSnapshot = await getTreeSnapshot(MerkleTreeId.PRIVATE_DATA_TREE);
     rootRollupOutput.endPublicDataTreeRoot = (await getTreeSnapshot(MerkleTreeId.PUBLIC_DATA_TREE)).root;
+
     rootRollupOutput.endTreeOfHistoricContractTreeRootsSnapshot = await getTreeSnapshot(
       MerkleTreeId.CONTRACT_TREE_ROOTS_TREE,
     );
@@ -204,6 +218,11 @@ describe('sequencer/solo_block_builder', () => {
     rootRollupOutput.endTreeOfHistoricL1ToL2MessageTreeRootsSnapshot = await getTreeSnapshot(
       MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE,
     );
+
+    // Calculate block hash
+    rootRollupOutput.globalVariables = globalVariables;
+    await updateHistoricBlocksTree();
+    rootRollupOutput.endHistoricBlocksTreeSnapshot = await getTreeSnapshot(MerkleTreeId.BLOCKS_TREE);
 
     const txs = [...txsLeft, ...txsRight];
 
@@ -222,7 +241,7 @@ describe('sequencer/solo_block_builder', () => {
 
     const l2Block = L2Block.fromFields({
       number: blockNumber,
-      globalVariables: rootRollupOutput.globalVariables,
+      globalVariables,
       startPrivateDataTreeSnapshot: rootRollupOutput.startPrivateDataTreeSnapshot,
       endPrivateDataTreeSnapshot: rootRollupOutput.endPrivateDataTreeSnapshot,
       startNullifierTreeSnapshot: rootRollupOutput.startNullifierTreeSnapshot,
