@@ -12,7 +12,6 @@ contract EcdsaAccount {
     use dep::aztec::abi::CallContext;
     use dep::aztec::context::Context;
     use dep::aztec::log::emit_encrypted_log;
-    use dep::aztec::oracle::debug_log;
     use dep::aztec::oracle::get_public_key::get_public_key;
     use dep::aztec::private_call_stack_item::PrivateCallStackItem;
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
@@ -49,16 +48,12 @@ contract EcdsaAccount {
         let public_key = storage.public_key.get_note(&mut context);
 
         // Verify payload signature using Ethereum's signing scheme
+        // Note that noir expects the hash of the message/challenge as input to the ECDSA verification.
         let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
         let challenge: [u8; 32] = std::hash::sha256(payload_bytes);
-        let verification = std::ecdsa_secp256k1::verify_signature(public_key.x, public_key.y, signature, challenge);
+        let hashed_challenge: [u8; 32] = std::hash::sha256(challenge);
+        let verification = std::ecdsa_secp256k1::verify_signature(public_key.x, public_key.y, signature, hashed_challenge);
         assert(verification == true);
-
-        // debug_log::debug_log_format("Verification result is {0}", [verification as Field]);
-        // debug_log::debug_log_array_with_prefix("public_key.x", public_key.x);
-        // debug_log::debug_log_array_with_prefix("public_key.y", public_key.y);
-        // debug_log::debug_log_array_with_prefix("challenge", challenge);
-        // debug_log::debug_log_array_with_prefix("signature", signature);
 
         payload.execute_calls(&mut context);
 
