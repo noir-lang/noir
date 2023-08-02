@@ -12,10 +12,7 @@ use crate::{
     resolver::resolve_root_manifest,
 };
 
-use super::{
-    compile_cmd::optimize_circuit,
-    NargoConfig,
-};
+use super::{compile_cmd::optimize_circuit, NargoConfig};
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]

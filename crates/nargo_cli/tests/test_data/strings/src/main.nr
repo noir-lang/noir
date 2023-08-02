@@ -48,15 +48,19 @@ fn test_prints_array() {
     std::println(hash);
 }
 
-fn inner(hex_as_field: Field) {
+fn failed_constraint(hex_as_field: Field) {
+    // Note that when this method is called from a test method
+    // a `Failed constraint` compile error will be caught before this `println`
+    // is executed as the input will be a constant.
+    // In order to debug failing constraints with `println` calls `nargo execute`
+    // should be used instead
+    std::println(hex_as_field);
     assert(hex_as_field != 0x41);
-    let hash = std::hash::pedersen([hex_as_field]);
-    std::println(hash);
 }
 
 #[test]
 fn test_failed_constraint() {
-    inner(0x41);
+    failed_constraint(0x41);
 }
 
 struct Test {
