@@ -72,6 +72,10 @@ impl ExpressionKind {
         ExpressionKind::Literal(Literal::Str(contents))
     }
 
+    pub fn format_string(contents: String) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::FmtStr(contents))
+    }
+
     pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
         ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields }))
     }
@@ -264,6 +268,10 @@ impl BinaryOpKind {
             BinaryOpKind::Modulo => Token::Percent,
         }
     }
+
+    pub fn is_bit_shift(&self) -> bool {
+        matches!(self, BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft)
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
@@ -298,6 +306,7 @@ pub enum Literal {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+    FmtStr(String),
     Unit,
 }
 
@@ -473,6 +482,7 @@ impl Display for Literal {
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
             Literal::Str(string) => write!(f, "\"{string}\""),
+            Literal::FmtStr(string) => write!(f, "f\"{string}\""),
             Literal::Unit => write!(f, "()"),
         }
     }
