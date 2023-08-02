@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     hir::type_check::TypeCheckError,
-    node_interner::{ExprId, NodeInterner},
+    node_interner::{ExprId, NodeInterner, TypeAliasId},
 };
 use iter_extended::vecmap;
 use noirc_abi::AbiType;
@@ -223,6 +223,72 @@ impl StructType {
 impl std::fmt::Display for StructType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
+    }
+}
+
+/// Wrap around an unsolved type
+#[derive(Debug, Clone, Eq)]
+pub struct TypeAliasType {
+    pub name: Ident,
+    pub id: TypeAliasId,
+    pub typ: Type,
+    pub generics: Generics,
+    pub span: Span,
+}
+
+impl std::hash::Hash for TypeAliasType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for TypeAliasType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl std::fmt::Display for TypeAliasType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)?;
+
+        if !self.generics.is_empty() {
+            let generics = vecmap(&self.generics, |(_, binding)| binding.borrow().to_string());
+            write!(f, "{}", generics.join(", "))?;
+        }
+
+        Ok(())
+    }
+}
+
+impl TypeAliasType {
+    pub fn new(
+        id: TypeAliasId,
+        name: Ident,
+        span: Span,
+        typ: Type,
+        generics: Generics,
+    ) -> TypeAliasType {
+        TypeAliasType { id, typ, name, span, generics }
+    }
+
+    pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
+        assert_eq!(self.typ, Type::Error);
+        self.typ = new_typ;
+        self.generics = new_generics;
+    }
+
+    pub fn get_type(&self, generic_args: &[Type]) -> Type {
+        assert_eq!(self.generics.len(), generic_args.len());
+
+        let substitutions = self
+            .generics
+            .iter()
+            .zip(generic_args)
+            .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+            .collect();
+
+        self.typ.substitute(&substitutions)
     }
 }
 
@@ -591,6 +657,10 @@ impl Type {
 
     pub fn is_field(&self) -> bool {
         matches!(self.follow_bindings(), Type::FieldElement(_))
+    }
+
+    pub fn is_signed(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(_, Signedness::Signed, _))
     }
 
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {

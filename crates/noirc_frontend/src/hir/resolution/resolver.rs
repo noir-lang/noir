@@ -34,9 +34,9 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, Path, Pattern, Shared,
-    StructType, Type, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics, UnresolvedType,
-    UnresolvedTypeExpression, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
+    Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
+    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -403,26 +403,51 @@ impl<'a> Resolver<'a> {
         }
 
         let span = path.span();
+        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+
+        if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
+            let expected_generic_count = type_alias_type.generics.len();
+            let type_alias_string = type_alias_type.to_string();
+            let id = type_alias_type.id;
+
+            self.verify_generics_count(expected_generic_count, &mut args, span, || {
+                type_alias_string
+            });
+
+            return self.interner.get_type_alias(id).get_type(&args);
+        }
+
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
-                let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let expected_generic_count = struct_type.borrow().generics.len();
 
-                if args.len() != expected_generic_count {
-                    self.push_err(ResolverError::IncorrectGenericCount {
-                        span,
-                        struct_type: struct_type.borrow().to_string(),
-                        actual: args.len(),
-                        expected: expected_generic_count,
-                    });
-
-                    // Fix the generic count so we can continue typechecking
-                    args.resize_with(expected_generic_count, || Type::Error);
-                }
+                self.verify_generics_count(expected_generic_count, &mut args, span, || {
+                    struct_type.borrow().to_string()
+                });
 
                 Type::Struct(struct_type, args)
             }
             None => Type::Error,
+        }
+    }
+
+    fn verify_generics_count(
+        &mut self,
+        expected_count: usize,
+        args: &mut Vec<Type>,
+        span: Span,
+        type_name: impl FnOnce() -> String,
+    ) {
+        if args.len() != expected_count {
+            self.errors.push(ResolverError::IncorrectGenericCount {
+                span,
+                struct_type: type_name(),
+                actual: args.len(),
+                expected: expected_count,
+            });
+
+            // Fix the generic count so we can continue typechecking
+            args.resize_with(expected_count, || Type::Error);
         }
     }
 
@@ -515,6 +540,17 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType to a Type
     pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         self.resolve_type_inner(typ, &mut vec![])
+    }
+
+    pub fn resolve_type_aliases(
+        mut self,
+        unresolved: NoirTypeAlias,
+    ) -> (Type, Generics, Vec<ResolverError>) {
+        let generics = self.add_generics(&unresolved.generics);
+        self.resolve_local_globals();
+        let typ = self.resolve_type(unresolved.typ);
+
+        (typ, generics, self.errors)
     }
 
     pub fn take_errors(self) -> Vec<ResolverError> {
@@ -1251,6 +1287,10 @@ impl<'a> Resolver<'a> {
                 None
             }
         }
+    }
+
+    fn lookup_type_alias(&mut self, path: Path) -> Option<&TypeAliasType> {
+        self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
     }
 
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
