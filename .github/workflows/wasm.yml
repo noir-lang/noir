@@ -119,6 +119,8 @@ jobs:
           chmod +x $nargo_binary || echo "chmod failed with exit code $?"
           echo "File permissions after chmod:"
           ls -l $nargo_binary
+          echo "Library dependencies of nargo binary:"
+          ldd $nargo_binary
           if [ -x "$nargo_binary" ]; then
             $nargo_binary -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
           else
