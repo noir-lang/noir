@@ -7,12 +7,12 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
-use noirc_frontend::Signedness;
+use noirc_frontend::{BinaryOpKind, Signedness};
 
 use crate::ssa_refactor::ir::dfg::DataFlowGraph;
 use crate::ssa_refactor::ir::function::FunctionId as IrFunctionId;
 use crate::ssa_refactor::ir::function::{Function, RuntimeType};
-use crate::ssa_refactor::ir::instruction::BinaryOp;
+use crate::ssa_refactor::ir::instruction::{BinaryOp, Endian, Intrinsic};
 use crate::ssa_refactor::ir::map::AtomicCounter;
 use crate::ssa_refactor::ir::types::{NumericType, Type};
 use crate::ssa_refactor::ir::value::ValueId;
@@ -177,6 +177,15 @@ impl<'a> FunctionContext<'a> {
             ast::Type::MutableReference(element) => {
                 Self::map_type_helper(element, &mut |_| f(Type::Reference))
             }
+            ast::Type::FmtString(len, fields) => {
+                // A format string is represented by multiple values
+                // The message string, the number of fields to be formatted, and
+                // then the encapsulated fields themselves
+                let final_fmt_str_fields =
+                    vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
+                let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
+                Self::map_type_helper(&fmt_str_tuple, f)
+            }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
         }
     }
@@ -204,6 +213,9 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned(*bits),
             ast::Type::Bool => Type::unsigned(1),
             ast::Type::String(len) => Type::Array(Rc::new(vec![Type::char()]), *len as usize),
+            ast::Type::FmtString(_, _) => {
+                panic!("convert_non_tuple_type called on a fmt string: {typ}")
+            }
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _) => Type::Function,
@@ -224,6 +236,46 @@ impl<'a> FunctionContext<'a> {
         Values::empty()
     }
 
+    /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
+    fn insert_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let base = self.builder.field_constant(FieldElement::from(2_u128));
+        let pow = self.pow(base, rhs);
+        self.builder.insert_binary(lhs, BinaryOp::Mul, pow)
+    }
+
+    /// Insert ssa instructions which computes lhs << rhs by doing lhs/2^rhs
+    fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let base = self.builder.field_constant(FieldElement::from(2_u128));
+        let pow = self.pow(base, rhs);
+        self.builder.insert_binary(lhs, BinaryOp::Div, pow)
+    }
+
+    /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
+    fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+        let typ = self.builder.current_function.dfg.type_of_value(rhs);
+        if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
+            let to_bits = self.builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
+            let length = self.builder.field_constant(FieldElement::from(bit_size as i128));
+            let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
+            let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types)[0];
+            let one = self.builder.field_constant(FieldElement::one());
+            let mut r = one;
+            for i in 1..bit_size + 1 {
+                let r1 = self.builder.insert_binary(r, BinaryOp::Mul, r);
+                let a = self.builder.insert_binary(r1, BinaryOp::Mul, lhs);
+                let idx = self.builder.field_constant(FieldElement::from((bit_size - i) as i128));
+                let b = self.builder.insert_array_get(rhs_bits, idx, Type::field());
+                let r2 = self.builder.insert_binary(a, BinaryOp::Mul, b);
+                let c = self.builder.insert_binary(one, BinaryOp::Sub, b);
+                let r3 = self.builder.insert_binary(c, BinaryOp::Mul, r1);
+                r = self.builder.insert_binary(r2, BinaryOp::Add, r3);
+            }
+            r
+        } else {
+            unreachable!("Value must be unsigned in power operation");
+        }
+    }
+
     /// Insert a binary instruction at the end of the current block.
     /// Converts the form of the binary instruction as necessary
     /// (e.g. swapping arguments, inserting a not) to represent it in the IR.
@@ -235,17 +287,22 @@ impl<'a> FunctionContext<'a> {
         mut rhs: ValueId,
         location: Location,
     ) -> Values {
-        let op = convert_operator(operator);
-
-        if op == BinaryOp::Eq && matches!(self.builder.type_of_value(lhs), Type::Array(..)) {
-            return self.insert_array_equality(lhs, operator, rhs, location);
-        }
-
-        if operator_requires_swapped_operands(operator) {
-            std::mem::swap(&mut lhs, &mut rhs);
-        }
-
-        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
+        let mut result = match operator {
+            BinaryOpKind::ShiftLeft => self.insert_shift_left(lhs, rhs),
+            BinaryOpKind::ShiftRight => self.insert_shift_right(lhs, rhs),
+            BinaryOpKind::Equal | BinaryOpKind::NotEqual
+                if matches!(self.builder.type_of_value(lhs), Type::Array(..)) =>
+            {
+                return self.insert_array_equality(lhs, operator, rhs, location)
+            }
+            _ => {
+                let op = convert_operator(operator);
+                if operator_requires_swapped_operands(operator) {
+                    std::mem::swap(&mut lhs, &mut rhs);
+                }
+                self.builder.set_location(location).insert_binary(lhs, op, rhs)
+            }
+        };
 
         if let Some(max_bit_size) = operator_result_max_bit_size_to_truncate(
             operator,
@@ -692,7 +749,6 @@ fn operator_result_max_bit_size_to_truncate(
 /// checking operator_requires_not and operator_requires_swapped_operands
 /// to represent the full operation correctly.
 fn convert_operator(op: noirc_frontend::BinaryOpKind) -> BinaryOp {
-    use noirc_frontend::BinaryOpKind;
     match op {
         BinaryOpKind::Add => BinaryOp::Add,
         BinaryOpKind::Subtract => BinaryOp::Sub,
@@ -708,8 +764,9 @@ fn convert_operator(op: noirc_frontend::BinaryOpKind) -> BinaryOp {
         BinaryOpKind::And => BinaryOp::And,
         BinaryOpKind::Or => BinaryOp::Or,
         BinaryOpKind::Xor => BinaryOp::Xor,
-        BinaryOpKind::ShiftRight => BinaryOp::Shr,
-        BinaryOpKind::ShiftLeft => BinaryOp::Shl,
+        BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft => unreachable!(
+            "ICE - bit shift operators do not exist in SSA and should have been replaced"
+        ),
     }
 }
 

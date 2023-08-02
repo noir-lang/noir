@@ -29,5 +29,9 @@ fn simple_verifier_codegen() {
         .success()
         .stdout(predicate::str::contains("Contract successfully created and located at"));
 
-    project_dir.child("contract").child("plonk_vk.sol").assert(predicate::path::is_file());
+    project_dir
+        .child("contract")
+        .child("hello_world")
+        .child("plonk_vk.sol")
+        .assert(predicate::path::is_file());
 }

@@ -3,11 +3,11 @@ use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use log::debug;
 use noirc_driver::{
-    check_crate, compile_contracts, compile_no_check, create_local_crate, create_non_local_crate,
-    propagate_dep, CompileOptions, CompiledContract,
+    check_crate, compile_contracts, compile_no_check, prepare_crate, propagate_dep, CompileOptions,
+    CompiledContract,
 };
 use noirc_frontend::{
-    graph::{CrateGraph, CrateName, CrateType},
+    graph::{CrateGraph, CrateType},
     hir::Context,
 };
 use serde::{Deserialize, Serialize};
@@ -63,9 +63,9 @@ impl Default for WASMCompileOptions {
 
 fn add_noir_lib(context: &mut Context, crate_name: &str) {
     let path_to_lib = Path::new(&crate_name).join("lib.nr");
-    let library_crate = create_non_local_crate(context, &path_to_lib, CrateType::Library);
+    let library_crate = prepare_crate(context, &path_to_lib, CrateType::Library);
 
-    propagate_dep(context, library_crate, &CrateName::new(crate_name).unwrap());
+    propagate_dep(context, library_crate, &crate_name.parse().unwrap());
 }
 
 #[wasm_bindgen]
@@ -87,13 +87,13 @@ pub fn compile(args: JsValue) -> JsValue {
     let mut context = Context::new(fm, graph);
 
     let path = Path::new(&options.entry_point);
-    let crate_id = create_local_crate(&mut context, path, CrateType::Binary);
+    let crate_id = prepare_crate(&mut context, path, CrateType::Binary);
 
     for dependency in options.optional_dependencies_set {
         add_noir_lib(&mut context, dependency.as_str());
     }
 
-    check_crate(&mut context, crate_id, false, false).expect("Crate check failed");
+    check_crate(&mut context, crate_id, false).expect("Crate check failed");
 
     if options.contracts {
         let compiled_contracts =

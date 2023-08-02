@@ -131,10 +131,7 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
-use std::{
-    collections::{HashMap, HashSet, BTreeMap},
-    rc::Rc,
-};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -148,7 +145,7 @@ use crate::ssa_refactor::{
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
-        types::{CompositeType, Type},
+        types::Type,
         value::ValueId,
     },
     ssa_gen::Ssa,
@@ -277,7 +274,10 @@ impl<'f> Context<'f> {
                 // end, in addition to resetting the value of old_condition since it is set to
                 // known to be true/false within the then/else branch respectively.
                 self.insert_current_side_effects_enabled();
-                self.inserter.map_value(old_condition, old_condition);
+
+                // We must map back to `then_condition` here. Mapping `old_condition` to itself would
+                // lose any previous mappings.
+                self.inserter.map_value(old_condition, then_condition);
 
                 // While there is a condition on the stack we don't compile outside the condition
                 // until it is popped. This ensures we inline the full then and else branches
@@ -393,14 +393,9 @@ impl<'f> Context<'f> {
             Type::Numeric(_) => {
                 self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
             }
-            Type::Array(element_types, len) => self.merge_array_values(
-                element_types,
-                len,
-                then_condition,
-                else_condition,
-                then_value,
-                else_value,
-            ),
+            typ @ Type::Array(_, _) => {
+                self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
+            }
             // TODO(#1889)
             Type::Slice(_) => panic!("Cannot return slices from an if expression"),
             Type::Reference => panic!("Cannot return references from an if expression"),
@@ -413,14 +408,18 @@ impl<'f> Context<'f> {
     /// by creating a new array containing the result of self.merge_values for each element.
     fn merge_array_values(
         &mut self,
-        element_types: Rc<CompositeType>,
-        len: usize,
+        typ: Type,
         then_condition: ValueId,
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
         let mut merged = im::Vector::new();
+
+        let (element_types, len) = match &typ {
+            Type::Array(elements, len) => (elements, *len),
+            _ => panic!("Expected array type"),
+        };
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
@@ -446,7 +445,7 @@ impl<'f> Context<'f> {
             }
         }
 
-        self.inserter.function.dfg.make_array(merged, element_types)
+        self.inserter.function.dfg.make_array(merged, typ)
     }
 
     /// Merge two numeric values a and b from separate basic blocks to a single value. This
@@ -1333,8 +1332,10 @@ mod test {
         let b3 = builder.insert_block();
 
         let element_type = Rc::new(vec![Type::field()]);
+        let array_type = Type::Array(element_type.clone(), 1);
+
         let zero = builder.field_constant(0_u128);
-        let zero_array = builder.array_constant(im::Vector::unit(zero), element_type.clone());
+        let zero_array = builder.array_constant(im::Vector::unit(zero), array_type);
         let i_zero = builder.numeric_constant(0_u128, Type::unsigned(32));
         let pedersen =
             builder.import_intrinsic_id(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Pedersen));

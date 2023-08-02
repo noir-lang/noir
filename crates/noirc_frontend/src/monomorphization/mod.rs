@@ -22,7 +22,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
-    CompTime, FunctionKind, Type, TypeBinding, TypeBindings,
+    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -188,10 +188,11 @@ impl<'interner> Monomorphizer<'interner> {
         let meta = self.interner.function_meta(&f);
         let name = self.interner.function_name(&f).to_owned();
 
-        let return_type = self.convert_type(meta.return_type());
+        let return_type = Self::convert_type(meta.return_type());
         let parameters = self.parameters(meta.parameters);
         let body = self.expr(*self.interner.function(&f).as_expr());
-        let unconstrained = meta.is_unconstrained;
+        let unconstrained = meta.is_unconstrained
+            || matches!(meta.contract_function_type, Some(ContractFunctionType::Open));
 
         let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
@@ -223,7 +224,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let new_id = self.next_local_id();
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
-                new_params.push((new_id, definition.mutable, name, self.convert_type(typ)));
+                new_params.push((new_id, definition.mutable, name, Self::convert_type(typ)));
                 self.define_local(ident.id, new_id);
             }
             HirPattern::Mutable(pattern, _) => self.parameter(*pattern, typ, new_params),
@@ -260,15 +261,23 @@ impl<'interner> Monomorphizer<'interner> {
         match self.interner.expression(&expr) {
             HirExpression::Ident(ident) => self.ident(ident, expr),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
+            HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
+                let fields = vecmap(idents, |ident| self.expr(ident));
+                Literal(FmtStr(
+                    contents,
+                    fields.len() as u64,
+                    Box::new(ast::Expression::Tuple(fields)),
+                ))
+            }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
-                let typ = self.convert_type(&self.interner.id_type(expr));
+                let typ = Self::convert_type(&self.interner.id_type(expr));
                 Literal(Integer(value, typ))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array),
                 HirArrayLiteral::Repeated { repeated_element, length } => {
-                    self.repeated_array(repeated_element, length)
+                    self.repeated_array(expr, repeated_element, length)
                 }
             },
             HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
@@ -277,7 +286,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Prefix(prefix) => ast::Expression::Unary(ast::Unary {
                 operator: prefix.operator,
                 rhs: Box::new(self.expr(prefix.rhs)),
-                result_type: self.convert_type(&self.interner.id_type(expr)),
+                result_type: Self::convert_type(&self.interner.id_type(expr)),
             }),
 
             HirExpression::Infix(infix) => {
@@ -300,7 +309,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Cast(cast) => ast::Expression::Cast(ast::Cast {
                 lhs: Box::new(self.expr(cast.lhs)),
-                r#type: self.convert_type(&cast.r#type),
+                r#type: Self::convert_type(&cast.r#type),
             }),
 
             HirExpression::For(for_expr) => {
@@ -314,7 +323,7 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Expression::For(ast::For {
                     index_variable,
                     index_name: self.interner.definition_name(for_expr.identifier.id).to_owned(),
-                    index_type: self.convert_type(&self.interner.id_type(for_expr.start_range)),
+                    index_type: Self::convert_type(&self.interner.id_type(for_expr.start_range)),
                     start_range: Box::new(start),
                     end_range: Box::new(end),
                     block,
@@ -329,7 +338,7 @@ impl<'interner> Monomorphizer<'interner> {
                     condition: Box::new(cond),
                     consequence: Box::new(then),
                     alternative: else_,
-                    typ: self.convert_type(&self.interner.id_type(expr)),
+                    typ: Self::convert_type(&self.interner.id_type(expr)),
                 })
             }
 
@@ -353,124 +362,35 @@ impl<'interner> Monomorphizer<'interner> {
         array: node_interner::ExprId,
         array_elements: Vec<node_interner::ExprId>,
     ) -> ast::Expression {
-        let element_type =
-            self.convert_type(&unwrap_array_element_type(&self.interner.id_type(array)));
+        let typ = Self::convert_type(&self.interner.id_type(array));
         let contents = vecmap(array_elements, |id| self.expr(id));
-        self.aos_to_soa(contents, element_type)
+        ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
     }
 
     fn repeated_array(
         &mut self,
+        array: node_interner::ExprId,
         repeated_element: node_interner::ExprId,
         length: HirType,
     ) -> ast::Expression {
-        let element_type = self.convert_type(&self.interner.id_type(repeated_element));
+        let typ = Self::convert_type(&self.interner.id_type(array));
+
         let contents = self.expr(repeated_element);
         let length = length
             .evaluate_to_u64()
             .expect("Length of array is unknown when evaluating numeric generic");
 
         let contents = vec![contents; length as usize];
-        self.aos_to_soa(contents, element_type)
-    }
-
-    /// Convert an array in (potentially) array of structs form into struct of arrays form.
-    /// This will do nothing if the given array element type is a primitive type like Field.
-    ///
-    ///
-    /// TODO Remove side effects from clones
-    fn aos_to_soa(
-        &self,
-        array_contents: Vec<ast::Expression>,
-        element_type: ast::Type,
-    ) -> ast::Expression {
-        if self.interner.experimental_ssa {
-            return ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-                contents: array_contents,
-                element_type,
-            }));
-        }
-        match element_type {
-            ast::Type::Field
-            | ast::Type::Integer(_, _)
-            | ast::Type::Bool
-            | ast::Type::Unit
-            | ast::Type::Function(_, _)
-            | ast::Type::MutableReference(_) => {
-                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-                    contents: array_contents,
-                    element_type,
-                }))
-            }
-
-            ast::Type::Tuple(elements) => ast::Expression::Tuple(vecmap(
-                elements.into_iter().enumerate(),
-                |(i, element_type)| {
-                    let contents = vecmap(&array_contents, |element| {
-                        ast::Expression::ExtractTupleField(Box::new(element.clone()), i)
-                    });
-
-                    self.aos_to_soa(contents, element_type)
-                },
-            )),
-
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
-                unreachable!("Nested arrays, arrays of strings, and Vecs are not supported")
-            }
-        }
+        ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
     }
 
     fn index(&mut self, id: node_interner::ExprId, index: HirIndexExpression) -> ast::Expression {
-        let element_type = self.convert_type(&self.interner.id_type(id));
+        let element_type = Self::convert_type(&self.interner.id_type(id));
 
         let collection = Box::new(self.expr(index.collection));
         let index = Box::new(self.expr(index.index));
         let location = self.interner.expr_location(&id);
-        self.aos_to_soa_index(collection, index, element_type, location)
-    }
-
-    /// Unpack an array index into an array of structs into a struct of arrays index if needed.
-    /// E.g. transforms my_pair_array[i] into (my_pair1_array[i], my_pair2_array[i])
-    fn aos_to_soa_index(
-        &self,
-        collection: Box<ast::Expression>,
-        index: Box<ast::Expression>,
-        element_type: ast::Type,
-        location: Location,
-    ) -> ast::Expression {
-        if self.interner.experimental_ssa {
-            return ast::Expression::Index(ast::Index {
-                collection,
-                index,
-                element_type,
-                location,
-            });
-        }
-        match element_type {
-            ast::Type::Field
-            | ast::Type::Integer(_, _)
-            | ast::Type::Bool
-            | ast::Type::Unit
-            | ast::Type::Function(_, _)
-            | ast::Type::MutableReference(_) => {
-                ast::Expression::Index(ast::Index { collection, index, element_type, location })
-            }
-
-            ast::Type::Tuple(elements) => {
-                let elements = elements.into_iter().enumerate();
-                ast::Expression::Tuple(vecmap(elements, |(i, element_type)| {
-                    // collection should itself be a tuple of arrays
-                    let collection =
-                        Box::new(ast::Expression::ExtractTupleField(collection.clone(), i));
-
-                    self.aos_to_soa_index(collection, index.clone(), element_type, location)
-                }))
-            }
-
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
-                unreachable!("Nested arrays and arrays of strings or Vecs are not supported")
-            }
-        }
+        ast::Expression::Index(ast::Index { collection, index, element_type, location })
     }
 
     fn statement(&mut self, id: StmtId) -> ast::Expression {
@@ -512,7 +432,7 @@ impl<'interner> Monomorphizer<'interner> {
         for (field_name, expr_id) in constructor.fields {
             let new_id = self.next_local_id();
             let field_type = field_type_map.get(&field_name.0.contents).unwrap();
-            let typ = self.convert_type(field_type);
+            let typ = Self::convert_type(field_type);
 
             field_vars.insert(field_name.0.contents.clone(), (new_id, typ));
             let expression = Box::new(self.expr(expr_id));
@@ -608,7 +528,7 @@ impl<'interner> Monomorphizer<'interner> {
             let mutable = false;
             let definition = Definition::Local(fresh_id);
             let name = i.to_string();
-            let typ = self.convert_type(&field_type);
+            let typ = Self::convert_type(&field_type);
 
             let new_rhs =
                 ast::Expression::Ident(ast::Ident { location, mutable, definition, name, typ });
@@ -628,7 +548,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mutable = definition.mutable;
 
         let definition = self.lookup_local(ident.id)?;
-        let typ = self.convert_type(&self.interner.id_type(ident.id));
+        let typ = Self::convert_type(&self.interner.id_type(ident.id));
 
         Some(ast::Ident { location: Some(ident.location), mutable, definition, name, typ })
     }
@@ -643,7 +563,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let typ = self.interner.id_type(expr_id);
 
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
-                let typ = self.convert_type(&typ);
+                let typ = Self::convert_type(&typ);
                 let ident = ast::Ident { location, mutable, definition, name, typ };
                 ast::Expression::Ident(ident)
             }
@@ -669,95 +589,90 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Convert a non-tuple/struct type to a monomorphized type
-    fn convert_type(&self, typ: &HirType) -> ast::Type {
+    fn convert_type(typ: &HirType) -> ast::Type {
         match typ {
             HirType::FieldElement(_) => ast::Type::Field,
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
             HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
+            HirType::FmtString(size, fields) => {
+                let size = size.evaluate_to_u64().unwrap_or(0);
+                let fields = Box::new(Self::convert_type(fields.as_ref()));
+                ast::Type::FmtString(size, fields)
+            }
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(length, element) => {
-                let length = length.evaluate_to_u64().unwrap_or(0);
-                let element = self.convert_type(element.as_ref());
-                if self.interner.experimental_ssa {
-                    return ast::Type::Array(length, Box::new(element));
+                let element = Box::new(Self::convert_type(element.as_ref()));
+
+                if let Some(length) = length.evaluate_to_u64() {
+                    ast::Type::Array(length, element)
+                } else {
+                    ast::Type::Slice(element)
                 }
-                self.aos_to_soa_type(length, element)
             }
 
-            HirType::Slice(element) => {
-                let element = self.convert_type(element.as_ref());
-                ast::Type::Slice(Box::new(element))
-            }
-
-            HirType::PolymorphicInteger(_, binding)
-            | HirType::TypeVariable(binding)
-            | HirType::NamedGeneric(binding, _) => {
+            HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                    return self.convert_type(binding);
+                    return Self::convert_type(binding);
                 }
 
-                // Default any remaining unbound type variables to Field.
+                // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
                 // NOTE: Make sure to review this if there is ever type-directed dispatch,
                 // like automatic solving of traits. It should be fine since it is strictly
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
-                *binding.borrow_mut() =
-                    TypeBinding::Bound(HirType::FieldElement(CompTime::No(None)));
+                *binding.borrow_mut() = TypeBinding::Bound(HirType::field(None));
                 ast::Type::Field
+            }
+
+            HirType::TypeVariable(binding, kind) => {
+                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                    return Self::convert_type(binding);
+                }
+
+                // Default any remaining unbound type variables.
+                // This should only happen if the variable in question is unused
+                // and within a larger generic type.
+                // NOTE: Make sure to review this if there is ever type-directed dispatch,
+                // like automatic solving of traits. It should be fine since it is strictly
+                // after type checking, but care should be taken that it doesn't change which
+                // impls are chosen.
+                let default = kind.default_type();
+                let monomorphized_default = Self::convert_type(&default);
+                *binding.borrow_mut() = TypeBinding::Bound(default);
+                monomorphized_default
             }
 
             HirType::Struct(def, args) => {
                 let fields = def.borrow().get_fields(args);
-                let fields = vecmap(fields, |(_, field)| self.convert_type(&field));
+                let fields = vecmap(fields, |(_, field)| Self::convert_type(&field));
                 ast::Type::Tuple(fields)
             }
 
             HirType::Tuple(fields) => {
-                let fields = vecmap(fields, |typ| self.convert_type(typ));
+                let fields = vecmap(fields, Self::convert_type);
                 ast::Type::Tuple(fields)
             }
 
             HirType::Function(args, ret) => {
-                let args = vecmap(args, |typ| self.convert_type(typ));
-                let ret = Box::new(self.convert_type(ret));
+                let args = vecmap(args, Self::convert_type);
+                let ret = Box::new(Self::convert_type(ret));
                 ast::Type::Function(args, ret)
             }
 
             HirType::MutableReference(element) => {
-                let element = self.convert_type(element);
+                let element = Self::convert_type(element);
                 ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
+            HirType::Forall(_, _)
+            | HirType::Constant(_)
+            | HirType::NotConstant
+            | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
-            }
-        }
-    }
-
-    /// Converts arrays of structs (AOS) into structs of arrays (SOA).
-    /// This is required since our SSA pass does not support arrays of structs.
-    fn aos_to_soa_type(&self, length: u64, element: ast::Type) -> ast::Type {
-        if self.interner.experimental_ssa {
-            return ast::Type::Array(length, Box::new(element));
-        }
-        match element {
-            ast::Type::Field
-            | ast::Type::Integer(_, _)
-            | ast::Type::Bool
-            | ast::Type::Unit
-            | ast::Type::Function(_, _)
-            | ast::Type::MutableReference(_) => ast::Type::Array(length, Box::new(element)),
-
-            ast::Type::Tuple(elements) => {
-                ast::Type::Tuple(vecmap(elements, |typ| self.aos_to_soa_type(length, typ)))
-            }
-
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Slice(_) => {
-                unreachable!("Nested arrays and arrays of strings are not supported")
             }
         }
     }
@@ -771,7 +686,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
         let return_type = self.interner.id_type(id);
-        let return_type = self.convert_type(&return_type);
+        let return_type = Self::convert_type(&return_type);
         let location = call.location;
 
         if let ast::Expression::Ident(ident) = func.as_ref() {
@@ -784,8 +699,12 @@ impl<'interner> Monomorphizer<'interner> {
             }
         }
 
-        self.try_evaluate_call(&func, &call.arguments, &return_type)
-            .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
+        self.try_evaluate_call(&func, &return_type).unwrap_or(ast::Expression::Call(ast::Call {
+            func,
+            arguments,
+            return_type,
+            location,
+        }))
     }
 
     /// Adds a function argument that contains type metadata that is required to tell
@@ -798,21 +717,55 @@ impl<'interner> Monomorphizer<'interner> {
     /// of field elements to/from JSON. The type metadata attached in this method
     /// is the serialized `AbiType` for the argument passed to the function.
     /// The caller that is running a Noir program should then deserialize the `AbiType`,
-    /// and accurately decode the list of field elements passed to the foreign call.  
-    fn append_abi_arg(&self, hir_argument: &HirExpression, arguments: &mut Vec<ast::Expression>) {
+    /// and accurately decode the list of field elements passed to the foreign call.
+    fn append_abi_arg(
+        &mut self,
+        hir_argument: &HirExpression,
+        arguments: &mut Vec<ast::Expression>,
+    ) {
         match hir_argument {
             HirExpression::Ident(ident) => {
                 let typ = self.interner.id_type(ident.id);
-                let typ = typ.follow_bindings();
-
-                let abi_type = typ.as_abi_type();
-                let abi_as_string =
-                    serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
-
-                arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+                let typ: Type = typ.follow_bindings();
+                let is_fmt_str = match typ {
+                    // A format string has many different possible types that need to be handled.
+                    // Loop over each element in the format string to fetch each type's relevant metadata
+                    Type::FmtString(_, elements) => {
+                        match *elements {
+                            Type::Tuple(element_types) => {
+                                for typ in element_types {
+                                    Self::append_abi_arg_inner(&typ, arguments);
+                                }
+                            }
+                            _ => unreachable!(
+                                "ICE: format string type should be a tuple but got a {elements}"
+                            ),
+                        }
+                        true
+                    }
+                    _ => {
+                        Self::append_abi_arg_inner(&typ, arguments);
+                        false
+                    }
+                };
+                // The caller needs information as to whether it is handling a format string or a single type
+                arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
             }
             _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
         }
+    }
+
+    fn append_abi_arg_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+        if let HirType::Array(size, _) = typ {
+            if let HirType::NotConstant = **size {
+                unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
+            }
+        }
+        let abi_type = typ.as_abi_type();
+        let abi_as_string =
+            serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
+
+        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
     }
 
     /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
@@ -824,25 +777,12 @@ impl<'interner> Monomorphizer<'interner> {
     fn try_evaluate_call(
         &mut self,
         func: &ast::Expression,
-        arguments: &[node_interner::ExprId],
         result_type: &ast::Type,
     ) -> Option<ast::Expression> {
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
                 // TODO(#1736): Move this builtin to the SSA pass
                 return match opcode.as_str() {
-                    "array_len" => {
-                        let typ = self.interner.id_type(arguments[0]);
-                        if let Type::Array(_, _) = typ {
-                            let len = typ.evaluate_to_u64().unwrap();
-                            Some(ast::Expression::Literal(ast::Literal::Integer(
-                                (len as u128).into(),
-                                ast::Type::Field,
-                            )))
-                        } else {
-                            None
-                        }
-                    }
                     "modulus_num_bits" => Some(ast::Expression::Literal(ast::Literal::Integer(
                         (FieldElement::max_num_bits() as u128).into(),
                         ast::Type::Field,
@@ -872,17 +812,17 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn modulus_array_literal(&self, bytes: Vec<u8>, arr_elem_bits: u32) -> ast::Expression {
+        use ast::*;
+        let int_type = Type::Integer(crate::Signedness::Unsigned, arr_elem_bits);
+
         let bytes_as_expr = vecmap(bytes, |byte| {
-            ast::Expression::Literal(ast::Literal::Integer(
-                (byte as u128).into(),
-                ast::Type::Integer(crate::Signedness::Unsigned, arr_elem_bits),
-            ))
+            Expression::Literal(Literal::Integer((byte as u128).into(), int_type.clone()))
         });
-        let arr_literal = ast::ArrayLiteral {
-            contents: bytes_as_expr,
-            element_type: ast::Type::Integer(crate::Signedness::Unsigned, arr_elem_bits),
-        };
-        ast::Expression::Literal(ast::Literal::Array(arr_literal))
+
+        let typ = Type::Array(bytes_as_expr.len() as u64, Box::new(int_type));
+
+        let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
+        Expression::Literal(Literal::Array(arr_literal))
     }
 
     fn queue_function(
@@ -924,7 +864,9 @@ impl<'interner> Monomorphizer<'interner> {
 
         match index_lvalue {
             Some((index, element_type, location)) => {
-                self.aos_to_soa_assign(expression, Box::new(lvalue), index, element_type, location)
+                let lvalue =
+                    ast::LValue::Index { array: Box::new(lvalue), index, element_type, location };
+                ast::Expression::Assign(ast::Assign { lvalue, expression })
             }
             None => ast::Expression::Assign(ast::Assign { expression, lvalue }),
         }
@@ -959,60 +901,23 @@ impl<'interner> Monomorphizer<'interner> {
                 );
 
                 let index = Box::new(self.expr(index));
-                let element_type = self.convert_type(&typ);
+                let element_type = Self::convert_type(&typ);
                 (array, Some((index, element_type, location)))
             }
             HirLValue::Dereference { lvalue, element_type } => {
                 let (reference, index) = self.lvalue(*lvalue);
                 let reference = Box::new(reference);
-                let element_type = self.convert_type(&element_type);
+                let element_type = Self::convert_type(&element_type);
                 let lvalue = ast::LValue::Dereference { reference, element_type };
                 (lvalue, index)
             }
         }
     }
 
-    fn aos_to_soa_assign(
-        &self,
-        expression: Box<ast::Expression>,
-        lvalue: Box<ast::LValue>,
-        index: Box<ast::Expression>,
-        typ: ast::Type,
-        location: Location,
-    ) -> ast::Expression {
-        if self.interner.experimental_ssa {
-            let lvalue = ast::LValue::Index { array: lvalue, index, element_type: typ, location };
-            return ast::Expression::Assign(ast::Assign { lvalue, expression });
-        }
-        match typ {
-            ast::Type::Tuple(fields) => {
-                let fields = fields.into_iter().enumerate();
-                ast::Expression::Block(vecmap(fields, |(i, field)| {
-                    let expression = ast::Expression::ExtractTupleField(expression.clone(), i);
-                    let lvalue =
-                        ast::LValue::MemberAccess { object: lvalue.clone(), field_index: i };
-                    self.aos_to_soa_assign(
-                        Box::new(expression),
-                        Box::new(lvalue),
-                        index.clone(),
-                        field,
-                        location,
-                    )
-                }))
-            }
-
-            // No changes if the element_type is not a tuple
-            element_type => {
-                let lvalue = ast::LValue::Index { array: lvalue, index, element_type, location };
-                ast::Expression::Assign(ast::Assign { lvalue, expression })
-            }
-        }
-    }
-
     fn lambda(&mut self, lambda: HirLambda) -> ast::Expression {
-        let ret_type = self.convert_type(&lambda.return_type);
+        let ret_type = Self::convert_type(&lambda.return_type);
         let lambda_name = "lambda";
-        let parameter_types = vecmap(&lambda.parameters, |(_, typ)| self.convert_type(typ));
+        let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
         let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
@@ -1058,11 +963,23 @@ impl<'interner> Monomorphizer<'interner> {
                 let element = self.zeroed_value_of_type(element_type.as_ref());
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: vec![element; *length as usize],
-                    element_type: element_type.as_ref().clone(),
+                    typ: ast::Type::Array(*length, element_type.clone()),
                 }))
             }
             ast::Type::String(length) => {
                 ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
+            }
+            ast::Type::FmtString(length, fields) => {
+                let zeroed_tuple = self.zeroed_value_of_type(fields);
+                let fields_len = match &zeroed_tuple {
+                    ast::Expression::Tuple(fields) => fields.len() as u64,
+                    _ => unreachable!("ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"),
+                };
+                ast::Expression::Literal(ast::Literal::FmtStr(
+                    "\0".repeat(*length as usize),
+                    fields_len,
+                    Box::new(zeroed_tuple),
+                ))
             }
             ast::Type::Tuple(fields) => {
                 ast::Expression::Tuple(vecmap(fields, |field| self.zeroed_value_of_type(field)))
@@ -1073,7 +990,7 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::Slice(element_type) => {
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: vec![],
-                    element_type: *element_type.clone(),
+                    typ: ast::Type::Slice(element_type.clone()),
                 }))
             }
             ast::Type::MutableReference(element) => {
@@ -1125,7 +1042,7 @@ impl<'interner> Monomorphizer<'interner> {
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     match typ {
         HirType::Tuple(fields) => fields.clone(),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
@@ -1136,25 +1053,11 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
 fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
     match typ {
         HirType::Struct(def, args) => def.borrow().get_fields(args),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_struct_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
         other => unreachable!("unwrap_struct_type: expected struct, found {:?}", other),
-    }
-}
-
-fn unwrap_array_element_type(typ: &HirType) -> HirType {
-    match typ {
-        HirType::Array(_, elem) => *elem.clone(),
-        HirType::Slice(elem) => *elem.clone(),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
-            TypeBinding::Bound(binding) => unwrap_array_element_type(binding),
-            TypeBinding::Unbound(_) => unreachable!(),
-        },
-        other => {
-            unreachable!("unwrap_array_element_type: expected an array or slice, found {:?}", other)
-        }
     }
 }
 

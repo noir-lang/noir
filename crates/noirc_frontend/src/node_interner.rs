@@ -7,7 +7,7 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::UnresolvedStruct;
+use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
@@ -17,7 +17,10 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
+use crate::{
+    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
+    TypeVariableKind,
+};
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -52,6 +55,12 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Shared<StructType>>,
 
+    // Type Aliases map.
+    //
+    // Map type aliases to the actual type.
+    // When resolving types, check against this map to see if a type alias is defined.
+    type_aliases: Vec<TypeAliasType>,
+
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
@@ -70,11 +79,6 @@ pub struct NodeInterner {
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
-
-    /// TODO(#1850): This is technical debt that should be removed once we fully move over
-    /// to the new SSA pass which has certain frontend features enabled
-    /// such as slices and the removal of aos_to_soa
-    pub experimental_ssa: bool,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -134,6 +138,15 @@ impl StructId {
     // after resolution
     pub fn dummy_id() -> StructId {
         StructId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+pub struct TypeAliasId(pub usize);
+
+impl TypeAliasId {
+    pub fn dummy_id() -> TypeAliasId {
+        TypeAliasId(std::usize::MAX)
     }
 }
 
@@ -218,11 +231,11 @@ impl DefinitionKind {
         matches!(self, DefinitionKind::Global(..))
     }
 
-    pub fn get_rhs(self) -> Option<ExprId> {
+    pub fn get_rhs(&self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id) => Some(id),
-            DefinitionKind::Local(id) => id,
+            DefinitionKind::Global(id) => Some(*id),
+            DefinitionKind::Local(id) => *id,
             DefinitionKind::GenericType(_) => None,
         }
     }
@@ -248,13 +261,13 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
+            type_aliases: Vec::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
             globals: HashMap::new(),
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
-            experimental_ssa: false,
         };
 
         // An empty block expression is used often, we add this into the `node` on startup
@@ -311,9 +324,31 @@ impl NodeInterner {
         );
     }
 
+    pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
+        let type_id = TypeAliasId(self.type_aliases.len());
+
+        self.type_aliases.push(TypeAliasType::new(
+            type_id,
+            typ.type_alias_def.name.clone(),
+            typ.type_alias_def.span,
+            Type::Error,
+            vecmap(&typ.type_alias_def.generics, |_| {
+                let id = TypeVariableId(0);
+                (id, Shared::new(TypeBinding::Unbound(id)))
+            }),
+        ));
+
+        type_id
+    }
+
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
+    }
+
+    pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
+        let type_alias_type = &mut self.type_aliases[type_id.0];
+        type_alias_type.set_type_and_generics(typ, generics);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -512,6 +547,10 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
+    pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
+        &self.type_aliases[id.0]
+    }
+
     pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {
         self.globals.get(stmt_id).cloned()
     }
@@ -614,7 +653,6 @@ enum TypeMethodKey {
     /// accept only fields or integers, it is just that their names may not clash.
     FieldOrInt,
     Array,
-    Slice,
     Bool,
     String,
     Unit,
@@ -628,9 +666,8 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     match &typ {
         Type::FieldElement(_) => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
-        Type::Slice(_) => Some(Slice),
         Type::Integer(_, _, _) => Some(FieldOrInt),
-        Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::IntegerOrField(_)) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),
         Type::String(_) => Some(String),
         Type::Unit => Some(Unit),
@@ -639,11 +676,13 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
-        Type::TypeVariable(_)
+        Type::TypeVariable(_, _)
         | Type::NamedGeneric(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
-        | Type::Struct(_, _) => None,
+        | Type::NotConstant
+        | Type::Struct(_, _)
+        | Type::FmtString(_, _) => None,
     }
 }

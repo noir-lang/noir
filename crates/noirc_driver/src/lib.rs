@@ -7,7 +7,7 @@ use clap::Args;
 use fm::FileId;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use noirc_evaluator::{create_circuit, ssa_refactor::experimental_create_circuit};
+use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName, CrateType};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -38,10 +38,6 @@ pub struct CompileOptions {
     /// Treat all warnings as errors
     #[arg(short, long)]
     pub deny_warnings: bool,
-
-    /// Compile and optimize using the new experimental SSA pass
-    #[arg(long)]
-    pub experimental_ssa: bool,
 }
 
 /// Helper type used to signify where only warnings are expected in file diagnostics
@@ -56,45 +52,24 @@ pub fn compile_file(
     context: &mut Context,
     root_file: &Path,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let crate_id = create_local_crate(context, root_file, CrateType::Binary);
+    let crate_id = prepare_crate(context, root_file, CrateType::Binary);
     compile_main(context, crate_id, &CompileOptions::default())
 }
 
-/// Adds the File with the local crate root to the file system
-/// and adds the local crate to the graph
-/// XXX: This may pose a problem with workspaces, where you can change the local crate and where
-/// we have multiple binaries in one workspace
-/// A Fix would be for the driver instance to store the local crate id.
-// Granted that this is the only place which relies on the local crate being first
-pub fn create_local_crate(
-    context: &mut Context,
-    file_name: &Path,
-    crate_type: CrateType,
-) -> CrateId {
+/// Adds the file from the file system at `Path` to the crate graph
+pub fn prepare_crate(context: &mut Context, file_name: &Path, crate_type: CrateType) -> CrateId {
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
-    context.crate_graph.add_crate_root(crate_type, root_file_id)
-}
-
-/// Creates a Non Local Crate. A Non Local Crate is any crate which is the not the crate that
-/// the compiler is compiling.
-pub fn create_non_local_crate(
-    context: &mut Context,
-    file_name: &Path,
-    crate_type: CrateType,
-) -> CrateId {
-    let root_file_id = context.file_manager.add_file(file_name).unwrap();
-
-    // You can add any crate type to the crate graph
-    // but you cannot depend on Binaries
     context.crate_graph.add_crate_root(crate_type, root_file_id)
 }
 
 /// Adds a edge in the crate graph for two crates
-pub fn add_dep(context: &mut Context, this_crate: CrateId, depends_on: CrateId, crate_name: &str) {
-    let crate_name = CrateName::new(crate_name)
-        .expect("crate name contains blacklisted characters, please remove");
-
+pub fn add_dep(
+    context: &mut Context,
+    this_crate: CrateId,
+    depends_on: CrateId,
+    crate_name: CrateName,
+) {
     // Cannot depend on a binary
     if context.crate_graph.crate_type(depends_on) == CrateType::Binary {
         panic!("crates cannot depend on binaries. {crate_name:?} is a binary crate")
@@ -131,7 +106,6 @@ pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
-    experimental_ssa: bool,
 ) -> Result<Warnings, ErrorsAndWarnings> {
     // Add the stdlib before we check the crate
     // TODO: This should actually be done when constructing the driver and then propagated to each dependency when added;
@@ -144,20 +118,10 @@ pub fn check_crate(
     // You can add any crate type to the crate graph
     // but you cannot depend on Binaries
     let std_crate = context.crate_graph.add_stdlib(CrateType::Library, root_file_id);
-    propagate_dep(context, std_crate, &CrateName::new(std_crate_name).unwrap());
-
-    context.def_interner.experimental_ssa = experimental_ssa;
+    propagate_dep(context, std_crate, &std_crate_name.parse().unwrap());
 
     let mut errors = vec![];
-    match context.crate_graph.crate_type(crate_id) {
-        CrateType::Workspace => {
-            let keys: Vec<_> = context.crate_graph.iter_keys().collect(); // avoid borrow checker
-            for crate_id in keys {
-                CrateDefMap::collect_defs(crate_id, context, &mut errors);
-            }
-        }
-        _ => CrateDefMap::collect_defs(crate_id, context, &mut errors),
-    }
+    CrateDefMap::collect_defs(crate_id, context, &mut errors);
 
     if has_errors(&errors, deny_warnings) {
         Err(errors)
@@ -186,7 +150,7 @@ pub fn compile_main(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, crate_id, options.deny_warnings, options.experimental_ssa)?;
+    let warnings = check_crate(context, crate_id, options.deny_warnings)?;
 
     let main = match context.get_main_function(&crate_id) {
         Some(m) => m,
@@ -202,7 +166,7 @@ pub fn compile_main(
     let compiled_program = compile_no_check(context, true, options, main)?;
 
     if options.print_acir {
-        println!("Compiled ACIR for main:");
+        println!("Compiled ACIR for main (unoptimized):");
         println!("{}", compiled_program.circuit);
     }
 
@@ -215,7 +179,7 @@ pub fn compile_contracts(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
-    let warnings = check_crate(context, crate_id, options.deny_warnings, options.experimental_ssa)?;
+    let warnings = check_crate(context, crate_id, options.deny_warnings)?;
 
     let contracts = context.get_all_contracts(&crate_id);
     let mut compiled_contracts = vec![];
@@ -235,7 +199,7 @@ pub fn compile_contracts(
             for compiled_contract in &compiled_contracts {
                 for contract_function in &compiled_contract.functions {
                     println!(
-                        "Compiled ACIR for {}::{}:",
+                        "Compiled ACIR for {}::{} (unoptimized):",
                         compiled_contract.name, contract_function.name
                     );
                     println!("{}", contract_function.bytecode);
@@ -309,11 +273,8 @@ pub fn compile_no_check(
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) = if options.experimental_ssa {
-        experimental_create_circuit(program, options.show_ssa, options.show_brillig, show_output)?
-    } else {
-        create_circuit(program, options.show_ssa, show_output)?
-    };
+    let (circuit, debug, abi) =
+        create_circuit(program, options.show_ssa, options.show_brillig, show_output)?;
 
     Ok(CompiledProgram { circuit, debug, abi })
 }

@@ -1,3 +1,5 @@
+use crate::errors::InternalError;
+
 use super::generated_acir::GeneratedAcir;
 use acvm::acir::native_types::{Expression, Witness};
 
@@ -13,10 +15,10 @@ impl GeneratedAcir {
         in_expr: &[Expression],
         bits: &[Witness],
         generate_witness: bool,
-    ) -> (Vec<Witness>, Vec<Expression>) {
+    ) -> Result<(Vec<Witness>, Vec<Expression>), InternalError> {
         let n = in_expr.len();
         if n == 1 {
-            return (Vec::new(), in_expr.to_vec());
+            return Ok((Vec::new(), in_expr.to_vec()));
         }
         let n1 = n / 2;
 
@@ -46,14 +48,17 @@ impl GeneratedAcir {
             in_sub2.push(&in_expr[2 * i + 1] - &intermediate);
         }
         if n % 2 == 1 {
-            in_sub2.push(in_expr.last().unwrap().clone());
+            in_sub2.push(match in_expr.last() {
+                Some(in_expr) => in_expr.clone(),
+                None => return Err(InternalError::EmptyArray { location: self.current_location }),
+            });
         }
         let mut out_expr = Vec::new();
         // compute results for the sub networks
         let bits1 = if generate_witness { bits } else { &bits[n1 + (n - 1) / 2..] };
-        let (w1, b1) = self.permutation_layer(&in_sub1, bits1, generate_witness);
+        let (w1, b1) = self.permutation_layer(&in_sub1, bits1, generate_witness)?;
         let bits2 = if generate_witness { bits } else { &bits[n1 + (n - 1) / 2 + w1.len()..] };
-        let (w2, b2) = self.permutation_layer(&in_sub2, bits2, generate_witness);
+        let (w2, b2) = self.permutation_layer(&in_sub2, bits2, generate_witness)?;
         // apply the output switches
         for i in 0..(n - 1) / 2 {
             let c = if generate_witness { self.next_witness_index() } else { bits[n1 + i] };
@@ -63,11 +68,17 @@ impl GeneratedAcir {
             out_expr.push(&b2[i] - &intermediate);
         }
         if n % 2 == 0 {
-            out_expr.push(b1.last().unwrap().clone());
+            out_expr.push(match b1.last() {
+                Some(b1) => b1.clone(),
+                None => return Err(InternalError::EmptyArray { location: self.current_location }),
+            });
         }
-        out_expr.push(b2.last().unwrap().clone());
+        out_expr.push(match b2.last() {
+            Some(b2) => b2.clone(),
+            None => return Err(InternalError::EmptyArray { location: self.current_location }),
+        });
         conf.extend(w1);
         conf.extend(w2);
-        (conf, out_expr)
+        Ok((conf, out_expr))
     }
 }

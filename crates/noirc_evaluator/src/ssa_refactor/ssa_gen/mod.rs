@@ -2,8 +2,6 @@ mod context;
 mod program;
 mod value;
 
-use std::rc::Rc;
-
 pub(crate) use program::Ssa;
 
 use context::SharedContext;
@@ -16,12 +14,7 @@ use self::{
     value::{Tree, Values},
 };
 
-use super::ir::{
-    function::RuntimeType,
-    instruction::BinaryOp,
-    types::{CompositeType, Type},
-    value::ValueId,
-};
+use super::ir::{function::RuntimeType, instruction::BinaryOp, types::Type, value::ValueId};
 
 /// Generates SSA for the given monomorphized program.
 ///
@@ -96,8 +89,13 @@ impl<'a> FunctionContext<'a> {
         self.codegen_expression(expr).into_leaf().eval(self)
     }
 
-    /// Codegen for identifiers
-    fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
+    /// Codegen a reference to an ident.
+    /// The only difference between this and codegen_ident is that if the variable is mutable
+    /// as in `let mut var = ...;` the `Value::Mutable` will be returned directly instead of
+    /// being automatically loaded from. This is needed when taking the reference of a variable
+    /// to reassign to it. Note that mutable references `let x = &mut ...;` do not require this
+    /// since they are not automatically loaded from and must be explicitly dereferenced.
+    fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
@@ -111,12 +109,17 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    /// Codegen an identifier, automatically loading its value if it is mutable.
+    fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
+        self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
+    }
+
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Values {
         match literal {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
-                let element_types = Self::convert_type(&array.element_type).flatten();
-                self.codegen_array(elements, element_types)
+                let typ = Self::convert_non_tuple_type(&array.typ);
+                self.codegen_array(elements, typ)
             }
             ast::Literal::Integer(value, typ) => {
                 let typ = Self::convert_non_tuple_type(typ);
@@ -129,7 +132,20 @@ impl<'a> FunctionContext<'a> {
                 let elements = vecmap(string.as_bytes(), |byte| {
                     self.builder.numeric_constant(*byte as u128, Type::field()).into()
                 });
-                self.codegen_array(elements, vec![Type::char()])
+                let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u64));
+                self.codegen_array(elements, typ)
+            }
+            ast::Literal::FmtStr(string, number_of_fields, fields) => {
+                // A caller needs multiple pieces of information to make use of a format string
+                // The message string, the number of fields to be formatted, and the fields themselves
+                let string = Expression::Literal(ast::Literal::Str(string.clone()));
+                let number_of_fields = Expression::Literal(ast::Literal::Integer(
+                    (*number_of_fields as u128).into(),
+                    ast::Type::Field,
+                ));
+                let fields = *fields.clone();
+                let fmt_str_tuple = &[string, number_of_fields, fields];
+                self.codegen_tuple(fmt_str_tuple)
             }
         }
     }
@@ -143,7 +159,7 @@ impl<'a> FunctionContext<'a> {
     /// stored the same as the array [1, 2, 3, 4].
     ///
     /// The value returned from this function is always that of the allocate instruction.
-    fn codegen_array(&mut self, elements: Vec<Values>, element_types: CompositeType) -> Values {
+    fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
         let mut array = im::Vector::new();
 
         for element in elements {
@@ -153,7 +169,7 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        self.builder.array_constant(array, Rc::new(element_types)).into()
+        self.builder.array_constant(array, typ).into()
     }
 
     fn codegen_block(&mut self, block: &[Expression]) -> Values {
@@ -165,20 +181,21 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_unary(&mut self, unary: &ast::Unary) -> Values {
-        let rhs = self.codegen_expression(&unary.rhs);
         match unary.operator {
             noirc_frontend::UnaryOp::Not => {
+                let rhs = self.codegen_expression(&unary.rhs);
                 let rhs = rhs.into_leaf().eval(self);
                 self.builder.insert_not(rhs).into()
             }
             noirc_frontend::UnaryOp::Minus => {
+                let rhs = self.codegen_expression(&unary.rhs);
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
                 self.builder.insert_binary(zero, BinaryOp::Sub, rhs).into()
             }
             noirc_frontend::UnaryOp::MutableReference => {
-                rhs.map(|rhs| {
+                self.codegen_reference(&unary.rhs).map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let alloc = self.builder.insert_allocate();
@@ -191,7 +208,21 @@ impl<'a> FunctionContext<'a> {
                     }
                 })
             }
-            noirc_frontend::UnaryOp::Dereference => self.dereference(&rhs, &unary.result_type),
+            noirc_frontend::UnaryOp::Dereference { .. } => {
+                let rhs = self.codegen_expression(&unary.rhs);
+                self.dereference(&rhs, &unary.result_type)
+            }
+        }
+    }
+
+    fn codegen_reference(&mut self, expr: &Expression) -> Values {
+        match expr {
+            Expression::Ident(ident) => self.codegen_ident_reference(ident),
+            Expression::ExtractTupleField(tuple, index) => {
+                let tuple = self.codegen_reference(tuple);
+                Self::get_field(tuple, *index)
+            }
+            other => self.codegen_expression(other),
         }
     }
 

@@ -19,10 +19,10 @@ use lsp_types::{
     InitializedParams, Position, PublishDiagnosticsParams, Range, ServerCapabilities,
     TextDocumentSyncOptions,
 };
-use noirc_driver::{check_crate, create_local_crate, create_non_local_crate, propagate_dep};
+use noirc_driver::{check_crate, prepare_crate, propagate_dep};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateName, CrateType},
+    graph::{CrateGraph, CrateId, CrateType},
     hir::Context,
 };
 
@@ -87,7 +87,7 @@ pub fn on_code_lens_request(
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut context, crate_id, false, false);
+    let _ = check_crate(&mut context, crate_id, false);
 
     let fm = &context.file_manager;
     let files = fm.as_simple_files();
@@ -206,7 +206,7 @@ pub fn on_did_save_text_document(
         Ok(res) => res,
     };
 
-    let file_diagnostics = match check_crate(&mut context, crate_id, false, false) {
+    let file_diagnostics = match check_crate(&mut context, crate_id, false) {
         Ok(warnings) => warnings,
         Err(errors_and_warnings) => errors_and_warnings,
     };
@@ -286,7 +286,7 @@ fn create_context_at_path(
     }
     let nargo_toml_path = find_nearest_parent_file(&file_path, &["Nargo.toml"]);
 
-    let current_crate_id = create_local_crate(&mut context, &file_path, CrateType::Binary);
+    let current_crate_id = prepare_crate(&mut context, &file_path, CrateType::Binary);
 
     // TODO(AD): undo hacky dependency resolution
     if let Some(nargo_toml_path) = nargo_toml_path {
@@ -297,9 +297,8 @@ fn create_context_at_path(
                     .parent()
                     .unwrap() // TODO
                     .join(PathBuf::from(&dependency_path).join("src").join("lib.nr"));
-                let library_crate =
-                    create_non_local_crate(&mut context, &path_to_lib, CrateType::Library);
-                propagate_dep(&mut context, library_crate, &CrateName::new(crate_name).unwrap());
+                let library_crate = prepare_crate(&mut context, &path_to_lib, CrateType::Library);
+                propagate_dep(&mut context, library_crate, &crate_name.parse().unwrap());
             }
         }
     }

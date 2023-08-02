@@ -7,6 +7,14 @@ use crate::{parser::ParserError, Ident, Type};
 use super::import::PathResolutionError;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum PubPosition {
+    #[error("parameter")]
+    Parameter,
+    #[error("return type")]
+    ReturnType,
+}
+
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum ResolverError {
     #[error("Duplicate definition")]
     DuplicateDefinition { name: String, first_span: Span, second_span: Span },
@@ -29,7 +37,7 @@ pub enum ResolverError {
     #[error("Unneeded 'mut', pattern is already marked as mutable")]
     UnnecessaryMut { first_mut: Span, second_mut: Span },
     #[error("Unneeded 'pub', function is not the main method")]
-    UnnecessaryPub { ident: Ident },
+    UnnecessaryPub { ident: Ident, position: PubPosition },
     #[error("Required 'pub', main function must return public value")]
     NecessaryPub { ident: Ident },
     #[error("'distinct' keyword can only be used with main method")]
@@ -66,6 +74,8 @@ pub enum ResolverError {
     MutableReferenceToArrayElement { span: Span },
     #[error("Function is not defined in a contract yet sets is_internal")]
     ContractFunctionInternalInNormalFunction { span: Span },
+    #[error("Numeric constants should be printed without formatting braces")]
+    NumericConstantInFormatString { name: String, span: Span },
 }
 
 impl ResolverError {
@@ -160,12 +170,12 @@ impl From<ResolverError> for Diagnostic {
                 );
                 error
             }
-            ResolverError::UnnecessaryPub { ident } => {
+            ResolverError::UnnecessaryPub { ident, position } => {
                 let name = &ident.0.contents;
 
-                let mut diag = Diagnostic::simple_error(
-                    format!("unnecessary pub keyword on parameter for function {name}"),
-                    "unnecessary pub parameter".to_string(),
+                let mut diag = Diagnostic::simple_warning(
+                    format!("unnecessary pub keyword on {position} for function {name}"),
+                    format!("unnecessary pub {position}"),
                     ident.0.span(),
                 );
 
@@ -273,6 +283,11 @@ impl From<ResolverError> for Diagnostic {
             ResolverError::ContractFunctionInternalInNormalFunction { span } => Diagnostic::simple_error(
                 "Only functions defined within contracts can set their functions to be internal".into(),
                 "Non-contract functions cannot be 'internal'".into(),
+                span,
+            ),
+            ResolverError::NumericConstantInFormatString { name, span } => Diagnostic::simple_error(
+                format!("cannot find `{name}` in this scope "),
+                "Numeric constants should be printed without formatting braces".to_string(),
                 span,
             ),
         }

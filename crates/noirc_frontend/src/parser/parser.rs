@@ -36,8 +36,8 @@ use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
     Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct,
-    NoirTrait, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
-    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl,
+    TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -82,6 +82,7 @@ fn module() -> impl NoirParser<ParsedModule> {
                     TopLevelStatement::Trait(t) => program.push_trait(t),
                     TopLevelStatement::TraitImpl(t) => program.push_trait_impl(t),
                     TopLevelStatement::Impl(i) => program.push_impl(i),
+                    TopLevelStatement::TypeAlias(t) => program.push_type_alias(t),
                     TopLevelStatement::SubModule(s) => program.push_submodule(s),
                     TopLevelStatement::Global(c) => program.push_global(c),
                     TopLevelStatement::Error => (),
@@ -108,6 +109,7 @@ fn top_level_statement(
         trait_definition(),
         trait_implementation(),
         implementation(),
+        type_alias_definition().then_ignore(force(just(Token::Semicolon))),
         submodule(module_parser.clone()),
         contract(module_parser),
         module_declaration().then_ignore(force(just(Token::Semicolon))),
@@ -234,6 +236,19 @@ fn struct_definition() -> impl NoirParser<TopLevelStatement> {
             TopLevelStatement::Struct(NoirStruct { name, generics, fields, span })
         },
     )
+}
+
+fn type_alias_definition() -> impl NoirParser<TopLevelStatement> {
+    use self::Keyword::Type;
+
+    let p = ignore_then_commit(keyword(Type), ident());
+    let p = then_commit(p, generics());
+    let p = then_commit_ignore(p, just(Token::Assign));
+    let p = then_commit(p, parse_type());
+
+    p.map_with_span(|((name, generics), typ), span| {
+        TopLevelStatement::TypeAlias(NoirTypeAlias { name, generics, typ, span })
+    })
 }
 
 fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
@@ -683,7 +698,16 @@ where
 
 fn pattern() -> impl NoirParser<Pattern> {
     recursive(|pattern| {
-        let ident_pattern = ident().map(Pattern::Identifier);
+        let ident_pattern = ident().map(Pattern::Identifier).map_err(|mut error| {
+            if matches!(error.found(), Token::IntType(..)) {
+                error = ParserError::with_reason(
+                    ParserErrorReason::ExpectedPatternButFoundType(error.found().clone()),
+                    error.span(),
+                );
+            }
+
+            error
+        });
 
         let mut_pattern = keyword(Keyword::Mut)
             .ignore_then(pattern.clone())
@@ -786,6 +810,7 @@ fn parse_type_inner(
         int_type(),
         bool_type(),
         string_type(),
+        format_string_type(recursive_type_parser.clone()),
         named_type(recursive_type_parser.clone()),
         array_type(recursive_type_parser.clone()),
         recursive_type_parser.clone().delimited_by(just(Token::LeftParen), just(Token::RightParen)),
@@ -830,6 +855,19 @@ fn string_type() -> impl NoirParser<UnresolvedType> {
             type_expression().delimited_by(just(Token::Less), just(Token::Greater)).or_not(),
         )
         .map(UnresolvedType::String)
+}
+
+fn format_string_type(
+    type_parser: impl NoirParser<UnresolvedType>,
+) -> impl NoirParser<UnresolvedType> {
+    keyword(Keyword::FormatString)
+        .ignore_then(
+            type_expression()
+                .then_ignore(just(Token::Comma))
+                .then(type_parser)
+                .delimited_by(just(Token::Less), just(Token::Greater)),
+        )
+        .map(|(size, fields)| UnresolvedType::FormatString(size, Box::new(fields)))
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
@@ -1258,7 +1296,7 @@ where
 {
     just(Token::Star)
         .ignore_then(term_parser)
-        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference, rhs))
+        .map(|rhs| ExpressionKind::prefix(UnaryOp::Dereference { implicitly_added: false }, rhs))
 }
 
 /// Atoms are parameterized on whether constructor expressions are allowed or not.
@@ -1357,6 +1395,7 @@ fn literal() -> impl NoirParser<ExpressionKind> {
         Token::Int(x) => ExpressionKind::integer(x),
         Token::Bool(b) => ExpressionKind::boolean(b),
         Token::Str(s) => ExpressionKind::string(s),
+        Token::FmtStr(s) => ExpressionKind::format_string(s),
         unexpected => unreachable!("Non-literal {} parsed as a literal", unexpected),
     })
 }
@@ -1891,6 +1930,15 @@ mod test {
 
         let failing = vec!["struct {  }", "struct Foo { bar: pub Field }"];
         parse_all_failing(struct_definition(), failing);
+    }
+
+    #[test]
+    fn parse_type_aliases() {
+        let cases = vec!["type foo = u8", "type bar = String", "type baz<T> = Vec<T>"];
+        parse_all(type_alias_definition(), cases);
+
+        let failing = vec!["type = u8", "type foo", "type foo = 1"];
+        parse_all_failing(type_alias_definition(), failing);
     }
 
     #[test]

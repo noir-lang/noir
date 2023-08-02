@@ -1,26 +1,15 @@
-use crate::{
-    constants::{PKG_FILE, SRC_DIR},
-    errors::CliError,
-};
+use crate::errors::CliError;
 
 use super::fs::{create_named_dir, write_to_file};
 use super::{NargoConfig, CARGO_PKG_VERSION};
 use acvm::Backend;
 use clap::Args;
-use const_format::formatcp;
+use nargo::constants::{PKG_FILE, SRC_DIR};
 use std::path::PathBuf;
 
 /// Create a Noir project in the current directory.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand;
-
-const SETTINGS: &str = formatcp!(
-    r#"[package]
-authors = [""]
-compiler_version = "{CARGO_PKG_VERSION}"
-
-[dependencies]"#,
-);
 
 const EXAMPLE: &str = r#"fn main(x : Field, y : pub Field) {
     assert(x != y);
@@ -47,10 +36,21 @@ pub(crate) fn run<B: Backend>(
 
 /// Initializes a new Noir project in `package_dir`.
 pub(crate) fn initialize_project(package_dir: PathBuf) {
+    // TODO: Should this reject if we have non-Unicode filepaths?
+    let package_name = package_dir.file_name().expect("Expected a filename").to_string_lossy();
     let src_dir = package_dir.join(SRC_DIR);
     create_named_dir(&src_dir, "src");
 
-    write_to_file(SETTINGS.as_bytes(), &package_dir.join(PKG_FILE));
+    let toml_contents = format!(
+        r#"[package]
+name = "{package_name}"
+authors = [""]
+compiler_version = "{CARGO_PKG_VERSION}"
+
+[dependencies]"#
+    );
+
+    write_to_file(toml_contents.as_bytes(), &package_dir.join(PKG_FILE));
     write_to_file(EXAMPLE.as_bytes(), &src_dir.join("main.nr"));
     println!("Project successfully created! Binary located at {}", package_dir.display());
 }

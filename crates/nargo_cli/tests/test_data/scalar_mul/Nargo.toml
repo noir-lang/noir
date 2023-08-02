@@ -1,4 +1,5 @@
 [package]
+name = "scalar_mul"
 authors = [""]
 compiler_version = "0.1"
 

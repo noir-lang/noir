@@ -72,6 +72,10 @@ impl ExpressionKind {
         ExpressionKind::Literal(Literal::Str(contents))
     }
 
+    pub fn format_string(contents: String) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::FmtStr(contents))
+    }
+
     pub fn constructor((type_name, fields): (Path, Vec<(Ident, Expression)>)) -> ExpressionKind {
         ExpressionKind::Constructor(Box::new(ConstructorExpression { type_name, fields }))
     }
@@ -264,6 +268,10 @@ impl BinaryOpKind {
             BinaryOpKind::Modulo => Token::Percent,
         }
     }
+
+    pub fn is_bit_shift(&self) -> bool {
+        matches!(self, BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft)
+    }
 }
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
@@ -271,7 +279,14 @@ pub enum UnaryOp {
     Minus,
     Not,
     MutableReference,
-    Dereference,
+
+    /// If implicitly_added is true, this operation was implicitly added by the compiler for a
+    /// field dereference. The compiler may undo some of these implicitly added dereferences if
+    /// the reference later turns out to be needed (e.g. passing a field by reference to a function
+    /// requiring an &mut parameter).
+    Dereference {
+        implicitly_added: bool,
+    },
 }
 
 impl UnaryOp {
@@ -291,6 +306,7 @@ pub enum Literal {
     Bool(bool),
     Integer(FieldElement),
     Str(String),
+    FmtStr(String),
     Unit,
 }
 
@@ -466,6 +482,7 @@ impl Display for Literal {
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
             Literal::Integer(integer) => write!(f, "{}", integer.to_u128()),
             Literal::Str(string) => write!(f, "\"{string}\""),
+            Literal::FmtStr(string) => write!(f, "f\"{string}\""),
             Literal::Unit => write!(f, "()"),
         }
     }
@@ -496,7 +513,7 @@ impl Display for UnaryOp {
             UnaryOp::Minus => write!(f, "-"),
             UnaryOp::Not => write!(f, "!"),
             UnaryOp::MutableReference => write!(f, "&mut"),
-            UnaryOp::Dereference => write!(f, "*"),
+            UnaryOp::Dereference { .. } => write!(f, "*"),
         }
     }
 }

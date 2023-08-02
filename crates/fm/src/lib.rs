@@ -149,7 +149,7 @@ mod tests {
 
     fn create_dummy_file(dir: &TempDir, file_name: &Path) {
         let file_path = dir.path().join(file_name);
-        let _file = std::fs::File::create(file_path.clone()).unwrap();
+        let _file = std::fs::File::create(file_path).unwrap();
     }
 
     #[test]
@@ -175,7 +175,7 @@ mod tests {
 
         let mut fm = FileManager::new(dir.path());
 
-        let file_id = fm.add_file(&file_name).unwrap();
+        let file_id = fm.add_file(file_name).unwrap();
 
         assert!(fm.path(file_id).ends_with("foo"));
     }
@@ -189,7 +189,7 @@ mod tests {
         let file_name = Path::new("lib.nr");
         create_dummy_file(&dir, file_name);
 
-        let file_id = fm.add_file(&file_name).unwrap();
+        let file_id = fm.add_file(file_name).unwrap();
 
         // Create a sub directory
         // we now have:
@@ -238,7 +238,7 @@ mod tests {
         let second_file_name = PathBuf::from(sub_sub_dir.path()).join("./../../lib.nr");
 
         // Add both files to the file manager
-        let file_id = fm.add_file(&file_name).unwrap();
+        let file_id = fm.add_file(file_name).unwrap();
         let second_file_id = fm.add_file(&second_file_name).unwrap();
 
         assert_eq!(file_id, second_file_id);
