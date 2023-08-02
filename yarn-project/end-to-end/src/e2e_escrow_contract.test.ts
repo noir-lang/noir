@@ -47,16 +47,13 @@ describe('e2e_escrow_contract', () => {
     const salt = Fr.random();
     const deployInfo = await getContractDeploymentInfo(EscrowContractAbi, [owner], salt, escrowPublicKey);
     await aztecRpcServer.addAccount(escrowPrivateKey, deployInfo.address, deployInfo.partialAddress);
-    const escrowDeployTx = EscrowContract.deployWithPublicKey(aztecRpcServer, escrowPublicKey, owner);
+    const escrowDeployTx = EscrowContract.deployWithPublicKey(wallet, escrowPublicKey, owner);
     await escrowDeployTx.send({ contractAddressSalt: salt }).wait();
     escrowContract = await EscrowContract.create(escrowDeployTx.completeContractAddress!, wallet);
     logger(`Escrow contract deployed at ${escrowContract.address}`);
 
     // Deploy ZK token contract and mint funds for the escrow contract
-    zkTokenContract = await ZkTokenContract.deploy(aztecRpcServer, 100n, escrowContract.address)
-      .send()
-      .wait()
-      .then(async r => await ZkTokenContract.create(r.contractAddress!, wallet));
+    zkTokenContract = await ZkTokenContract.deploy(wallet, 100n, escrowContract.address).send().deployed();
     logger(`Token contract deployed at ${zkTokenContract.address}`);
   }, 100_000);
 

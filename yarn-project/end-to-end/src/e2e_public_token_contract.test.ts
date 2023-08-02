@@ -21,16 +21,10 @@ describe('e2e_public_token_contract', () => {
 
   const deployContract = async () => {
     logger(`Deploying L2 public contract...`);
-    const tx = PublicTokenContract.deploy(aztecRpcServer).send();
-
-    logger(`Tx sent with hash ${await tx.getTxHash()}`);
-    const receipt = await tx.getReceipt();
-    await tx.isMined(0, 0.1);
-    const txReceipt = await tx.getReceipt();
-    expect(txReceipt.status).toEqual(TxStatus.MINED);
-    logger(`L2 contract deployed at ${receipt.contractAddress}`);
-    contract = await PublicTokenContract.create(receipt.contractAddress!, wallet);
-    return { contract, tx, txReceipt };
+    const txReceipt = await PublicTokenContract.deploy(wallet).send().wait();
+    contract = txReceipt.contract;
+    logger(`L2 contract deployed at ${txReceipt.contractAddress}`);
+    return { contract, txReceipt };
   };
 
   const expectLogsFromLastBlockToBe = async (logMessages: string[]) => {
@@ -64,11 +58,11 @@ describe('e2e_public_token_contract', () => {
     const recipientIdx = 0;
 
     const recipient = accounts[recipientIdx];
-    const { contract: deployedContract } = await deployContract();
+    await deployContract();
 
-    const tx = deployedContract.methods.mint(mintAmount, recipient).send({ origin: recipient });
+    const tx = contract.methods.mint(mintAmount, recipient).send({ origin: recipient });
 
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);
@@ -82,10 +76,10 @@ describe('e2e_public_token_contract', () => {
     const recipientIdx = 0;
     const recipient = accounts[recipientIdx];
 
-    const { contract: deployedContract } = await deployContract();
+    await deployContract();
 
     // Assemble two mint txs sequentially (no parallel calls to circuits!) and send them simultaneously
-    const methods = times(3, () => deployedContract.methods.mint(mintAmount, recipient));
+    const methods = times(3, () => contract.methods.mint(mintAmount, recipient));
     for (const method of methods) await method.simulate({ origin: recipient });
     const txs = await Promise.all(methods.map(method => method.send()));
 

@@ -108,14 +108,14 @@ function generateDeploy(input: ContractAbi) {
    * Creates a tx to deploy a new instance of this contract.
    */
   public static deploy(rpc: AztecRPC, ${args}) {
-    return new DeployMethod(Point.ZERO, rpc, ${abiName}, Array.from(arguments).slice(1));
+    return new DeployMethod<${input.name}Contract>(Point.ZERO, rpc, ${abiName}, Array.from(arguments).slice(1));
   }
 
   /**
    * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
    */
   public static deployWithPublicKey(rpc: AztecRPC, publicKey: PublicKey, ${args}) {
-    return new DeployMethod(publicKey, rpc, ${abiName}, Array.from(arguments).slice(2));
+    return new DeployMethod<${input.name}Contract>(publicKey, rpc, ${abiName}, Array.from(arguments).slice(2));
   }
   `;
 }

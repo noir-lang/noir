@@ -31,7 +31,7 @@ describe('e2e_pending_commitments_contract', () => {
     logger(`Deploying L2 contract...`);
     const tx = PendingCommitmentsContract.deploy(aztecRpcServer).send();
     const receipt = await tx.getReceipt();
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     await tx.getReceipt();
     logger('L2 contract deployed');
     contract = await PendingCommitmentsContract.create(receipt.contractAddress!, wallet);
@@ -48,7 +48,7 @@ describe('e2e_pending_commitments_contract', () => {
       .test_insert_then_get_then_nullify_flat(mintAmount, owner)
       .send({ origin: owner });
 
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
     expect(receipt.status).toBe(TxStatus.MINED);
   }, 60_000);
@@ -69,7 +69,7 @@ describe('e2e_pending_commitments_contract', () => {
       )
       .send({ origin: owner });
 
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
     expect(receipt.status).toBe(TxStatus.MINED);
   }, 60_000);

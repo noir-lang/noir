@@ -46,7 +46,7 @@ describe('e2e_deploy_contract', () => {
       }),
     );
     logger(`Receipt received and expecting contract deployment at ${receipt.contractAddress}`);
-    const isMined = await tx.isMined(0, 0.1);
+    const isMined = await tx.isMined({ interval: 0.1 });
     const receiptAfterMined = await tx.getReceipt();
 
     expect(isMined).toBe(true);
@@ -65,7 +65,7 @@ describe('e2e_deploy_contract', () => {
     for (let index = 0; index < 2; index++) {
       logger(`Deploying contract ${index + 1}...`);
       const tx = deployer.deploy().send({ contractAddressSalt: Fr.random() });
-      const isMined = await tx.isMined(0, 0.1);
+      const isMined = await tx.isMined({ interval: 0.1 });
       expect(isMined).toBe(true);
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
@@ -82,7 +82,7 @@ describe('e2e_deploy_contract', () => {
 
     {
       const tx = deployer.deploy().send({ contractAddressSalt });
-      const isMined = await tx.isMined(0, 0.1);
+      const isMined = await tx.isMined({ interval: 0.1 });
 
       expect(isMined).toBe(true);
       const receipt = await tx.getReceipt();
@@ -93,7 +93,7 @@ describe('e2e_deploy_contract', () => {
 
     {
       const tx = deployer.deploy().send({ contractAddressSalt });
-      const isMined = await tx.isMined(0, 0.1);
+      const isMined = await tx.isMined({ interval: 0.1 });
       expect(isMined).toBe(false);
       const receipt = await tx.getReceipt();
 

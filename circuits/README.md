@@ -8,7 +8,7 @@ See [CODING_STANDARD.md](./CODING_STANDARD.md)\*\* before contributing!
 
 ## Repository Overview
 
-The [`aztec3-circpuits`](https://github.com/AztecProtocol/aztec3-packages) circuits folder contains circuits and related C++ code (`cpp/`) for Aztec3 along with Typescript wrappers (`ts/`).
+The [`aztec3-circuits`](https://github.com/AztecProtocol/aztec3-packages) circuits folder contains circuits and related C++ code (`cpp/`) for Aztec3 along with Typescript wrappers (`ts/`).
 
 ### Dependencies
 

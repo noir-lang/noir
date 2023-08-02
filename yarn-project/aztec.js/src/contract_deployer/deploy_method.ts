@@ -12,7 +12,8 @@ import { Fr } from '@aztec/foundation/fields';
 import { AztecRPC, ExecutionRequest, PackedArguments, PublicKey, Tx, TxExecutionRequest } from '@aztec/types';
 
 import { BaseWallet, Wallet } from '../aztec_rpc_client/wallet.js';
-import { Contract, ContractFunctionInteraction, SendMethodOptions } from '../contract/index.js';
+import { Contract, ContractBase, ContractFunctionInteraction, SendMethodOptions } from '../contract/index.js';
+import { DeploySentTx } from './deploy_sent_tx.js';
 
 /**
  * Options for deploying a contract on the Aztec network.
@@ -56,7 +57,7 @@ class DeployerWallet extends BaseWallet {
  * Creates a TxRequest from a contract ABI, for contract deployment.
  * Extends the ContractFunctionInteraction class.
  */
-export class DeployMethod extends ContractFunctionInteraction {
+export class DeployMethod<TContract extends ContractBase = Contract> extends ContractFunctionInteraction {
   /**
    * The partially computed contract address. Known after creation of the deployment transaction.
    */
@@ -67,7 +68,7 @@ export class DeployMethod extends ContractFunctionInteraction {
    */
   public completeContractAddress?: AztecAddress = undefined;
 
-  constructor(private publicKey: PublicKey, arc: AztecRPC, private abi: ContractAbi, args: any[] = []) {
+  constructor(private publicKey: PublicKey, private arc: AztecRPC, private abi: ContractAbi, args: any[] = []) {
     const constructorAbi = abi.functions.find(f => f.name === 'constructor');
     if (!constructorAbi) {
       throw new Error('Cannot find constructor in the ABI.');
@@ -126,10 +127,11 @@ export class DeployMethod extends ContractFunctionInteraction {
    * allowing us to send a transaction specifically for contract deployment.
    *
    * @param options - An object containing various deployment options such as portalContract, contractAddressSalt, and from.
-   * @returns A Promise that resolves to the transaction receipt upon successful deployment.
+   * @returns A SentTx object that returns the receipt and the deployed contract instance.
    */
-  public send(options: DeployOptions = {}) {
-    return super.send(options);
+  public send(options: DeployOptions = {}): DeploySentTx<TContract> {
+    const txHashPromise = super.send(options).getTxHash();
+    return new DeploySentTx(this.abi, this.arc, txHashPromise);
   }
 
   /**

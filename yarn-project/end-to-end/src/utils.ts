@@ -228,7 +228,7 @@ export async function setupAztecRPCServer(
 
   for (const context of txContexts) {
     const publicKey = await generatePublicKey(context.privateKey);
-    await context.tx!.isMined(0, 0.1);
+    await context.tx!.isMined({ interval: 0.1 });
     const receipt = await context.tx!.getReceipt();
     if (receipt.status !== TxStatus.MINED) {
       throw new Error(`Deployment tx not mined (status is ${receipt.status})`);
@@ -349,7 +349,7 @@ export async function deployContract(
   const deployMethod = deployer.deploy(...args);
   await deployMethod.create({ contractAddressSalt });
   const tx = deployMethod.send();
-  expect(await tx.isMined(0, 0.1)).toBeTruthy();
+  expect(await tx.isMined({ interval: 0.1 })).toBeTruthy();
   const receipt = await tx.getReceipt();
   return { address: receipt.contractAddress!, partialContractAddress: deployMethod.partialContractAddress! };
 }
@@ -423,7 +423,7 @@ export async function deployL2Contracts(wallet: Wallet, abis: ContractAbi[]) {
   const calls = await Promise.all(abis.map(abi => new ContractDeployer(abi, wallet).deploy()));
   for (const call of calls) await call.create();
   const txs = await Promise.all(calls.map(c => c.send()));
-  expect(every(await Promise.all(txs.map(tx => tx.isMined(0, 0.1))))).toBeTruthy();
+  expect(every(await Promise.all(txs.map(tx => tx.isMined({ interval: 0.1 }))))).toBeTruthy();
   const receipts = await Promise.all(txs.map(tx => tx.getReceipt()));
   const contracts = zipWith(
     abis,
@@ -488,7 +488,7 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
     portalContract: tokenPortalAddress,
     contractAddressSalt: Fr.random(),
   });
-  await tx.isMined(0, 0.1);
+  await tx.isMined({ interval: 0.1 });
   const receipt = await tx.getReceipt();
   if (receipt.status !== TxStatus.MINED) throw new Error(`Tx status is ${receipt.status}`);
   const l2Contract = await NonNativeTokenContract.create(receipt.contractAddress!, wallet);

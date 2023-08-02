@@ -109,7 +109,7 @@ async function deployAllContracts(owner: AztecAddress) {
 
   // deploy l2 uniswap contract and attach to portal
   const tx = UniswapContract.deploy(aztecRpcClient).send({ portalContract: uniswapPortalAddress });
-  await tx.isMined(0, 0.5);
+  await tx.isMined({ interval: 0.5 });
   const receipt = await tx.getReceipt();
   const uniswapL2Contract = await UniswapContract.create(receipt.contractAddress!, wallet);
   await uniswapL2Contract.attach(uniswapPortalAddress);
@@ -158,7 +158,7 @@ const transferWethOnL2 = async (
   const transferTx = wethL2Contract.methods
     .transfer(transferAmount, ownerAddress, receiver)
     .send({ origin: ownerAddress });
-  await transferTx.isMined(0, 0.5);
+  await transferTx.isMined({ interval: 0.5 });
   const transferReceipt = await transferTx.getReceipt();
   // expect(transferReceipt.status).toBe(TxStatus.MINED);
   logger(`WETH to L2 Transfer Receipt status: ${transferReceipt.status} should be ${TxStatus.MINED}`);
@@ -226,7 +226,7 @@ async function main() {
   const consumptionTx = wethL2Contract.methods
     .mint(wethAmountToBridge, owner, messageKey, secret, ethAccount.toField())
     .send({ origin: owner });
-  await consumptionTx.isMined(0, 0.5);
+  await consumptionTx.isMined({ interval: 0.5 });
   const consumptionReceipt = await consumptionTx.getReceipt();
   // expect(consumptionReceipt.status).toBe(TxStatus.MINED);
   logger(`Consumption Receipt status: ${consumptionReceipt.status} should be ${TxStatus.MINED}`);
@@ -261,7 +261,7 @@ async function main() {
       ethAccount.toField(),
     )
     .send({ origin: owner });
-  await withdrawTx.isMined(0, 0.5);
+  await withdrawTx.isMined({ interval: 0.5 });
   const withdrawReceipt = await withdrawTx.getReceipt();
   // expect(withdrawReceipt.status).toBe(TxStatus.MINED);
   logger(`Withdraw receipt status: ${withdrawReceipt.status} should be ${TxStatus.MINED}`);
@@ -312,7 +312,7 @@ async function main() {
   const daiMintTx = daiL2Contract.methods
     .mint(daiAmountToBridge, owner, depositDaiMessageKey, secret, ethAccount.toField())
     .send({ origin: owner });
-  await daiMintTx.isMined(0, 0.5);
+  await daiMintTx.isMined({ interval: 0.5 });
   const daiMintTxReceipt = await daiMintTx.getReceipt();
   // expect(daiMintTxReceipt.status).toBe(TxStatus.MINED);
   logger(`DAI mint TX status: ${daiMintTxReceipt.status} should be ${TxStatus.MINED}`);

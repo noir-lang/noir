@@ -63,7 +63,7 @@ describe('e2e_non_contract_account', () => {
     logger(`Deploying L2 contract...`);
     const tx = PokeableTokenContract.deploy(aztecRpcServer, initialBalance, sender, recipient, poker).send();
     const receipt = await tx.getReceipt();
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const minedReceipt = await tx.getReceipt();
     expect(minedReceipt.status).toEqual(TxStatus.MINED);
     logger('L2 contract deployed');
@@ -98,7 +98,7 @@ describe('e2e_non_contract_account', () => {
     // Send transaction as poker (arbitrary non-contract account)
     const tx = contractWithNoContractWallet.methods.poke().send({ origin: poker });
 
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
     expect(receipt.status).toBe(TxStatus.MINED);
 

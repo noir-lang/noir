@@ -1,5 +1,19 @@
+import { FieldsOf } from '@aztec/circuits.js';
 import { retryUntil } from '@aztec/foundation/retry';
 import { AztecRPC, TxHash, TxReceipt, TxStatus } from '@aztec/types';
+
+/** Options related to waiting for a tx. */
+export type WaitOpts = {
+  /** The maximum time (in seconds) to wait for the transaction to be mined. */
+  timeout?: number;
+  /** The time interval (in seconds) between retries to fetch the transaction receipt. */
+  interval?: number;
+};
+
+const DefaultWaitOpts: WaitOpts = {
+  timeout: 0,
+  interval: 1,
+};
 
 /**
  * The SentTx class represents a sent transaction through the AztecRPCClient, providing methods to fetch
@@ -32,12 +46,11 @@ export class SentTx {
 
   /**
    * Awaits for a tx to be mined and returns the receipt. Throws if tx is not mined.
-   * @param timeout - The maximum time (in seconds) to wait for the transaction to be mined. A value of 0 means no timeout.
-   * @param interval - The time interval (in seconds) between retries to fetch the transaction receipt.
+   * @param opts - Options for configuring the waiting for the tx to be mined.
    * @returns The transaction receipt.
    */
-  public async wait(timeout = 0, interval = 1): Promise<TxReceipt> {
-    const receipt = await this.waitForReceipt(timeout, interval);
+  public async wait(opts?: WaitOpts): Promise<FieldsOf<TxReceipt>> {
+    const receipt = await this.waitForReceipt(opts);
     if (receipt.status !== TxStatus.MINED)
       throw new Error(`Transaction ${await this.getTxHash()} was ${receipt.status}`);
     return receipt;
@@ -48,16 +61,15 @@ export class SentTx {
    * Resolves to true if the transaction status is 'MINED', false otherwise.
    * Throws an error if the transaction receipt cannot be fetched after the given timeout.
    *
-   * @param timeout - The maximum time (in seconds) to wait for the transaction to be mined. A value of 0 means no timeout.
-   * @param interval - The time interval (in seconds) between retries to fetch the transaction receipt.
+   * @param opts - Options for configuring the waiting for the tx to be mined.
    * @returns A Promise that resolves to a boolean indicating if the transaction is mined or not.
    */
-  public async isMined(timeout = 0, interval = 1): Promise<boolean> {
-    const receipt = await this.waitForReceipt(timeout, interval);
+  public async isMined(opts?: WaitOpts): Promise<boolean> {
+    const receipt = await this.waitForReceipt(opts);
     return receipt.status === TxStatus.MINED;
   }
 
-  protected async waitForReceipt(timeout = 0, interval = 1): Promise<TxReceipt> {
+  protected async waitForReceipt(opts?: WaitOpts): Promise<TxReceipt> {
     const txHash = await this.getTxHash();
     return await retryUntil(
       async () => {
@@ -65,8 +77,8 @@ export class SentTx {
         return txReceipt.status != TxStatus.PENDING ? txReceipt : undefined;
       },
       'isMined',
-      timeout,
-      interval,
+      opts?.timeout ?? DefaultWaitOpts.timeout,
+      opts?.interval ?? DefaultWaitOpts.interval,
     );
   }
 }

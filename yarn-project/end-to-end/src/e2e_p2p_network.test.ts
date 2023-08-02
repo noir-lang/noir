@@ -65,7 +65,7 @@ describe('e2e_p2p_network', () => {
     // now ensure that all txs were successfully mined
     for (const context of contexts) {
       for (const tx of context.txs) {
-        const isMined = await tx.isMined(0, 0.1);
+        const isMined = await tx.isMined({ interval: 0.1 });
         const receiptAfterMined = await tx.getReceipt();
 
         expect(isMined).toBe(true);

@@ -54,14 +54,14 @@ function itShouldBehaveLikeAnAccountContract(
       const { logger } = context;
       logger('Calling private function...');
       const tx = child.methods.value(42).send();
-      expect(await tx.isMined(0, 0.1)).toBeTruthy();
+      expect(await tx.isMined({ interval: 0.1 })).toBeTruthy();
     }, 60_000);
 
     it('calls a public function', async () => {
       const { logger, aztecRpcServer } = context;
       logger('Calling public function...');
       const tx = child.methods.pubStoreValue(42).send();
-      expect(await tx.isMined(0, 0.1)).toBeTruthy();
+      expect(await tx.isMined({ interval: 0.1 })).toBeTruthy();
       expect(toBigInt((await aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)))!)).toEqual(42n);
     }, 60_000);
 

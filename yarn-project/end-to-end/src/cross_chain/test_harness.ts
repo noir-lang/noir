@@ -157,7 +157,7 @@ export class CrossChainTestHarness {
       .transfer(transferAmount, this.ownerAddress, this.receiver)
       .send({ origin: this.accounts[0] });
 
-    await transferTx.isMined(0, 0.1);
+    await transferTx.isMined({ interval: 0.1 });
     const transferReceipt = await transferTx.getReceipt();
 
     expect(transferReceipt.status).toBe(TxStatus.MINED);
@@ -170,7 +170,7 @@ export class CrossChainTestHarness {
       .mint(bridgeAmount, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
       .send({ origin: this.ownerAddress });
 
-    await consumptionTx.isMined(0, 0.1);
+    await consumptionTx.isMined({ interval: 0.1 });
     const consumptionReceipt = await consumptionTx.getReceipt();
     expect(consumptionReceipt.status).toBe(TxStatus.MINED);
   }
@@ -182,7 +182,7 @@ export class CrossChainTestHarness {
       .mintPublic(bridgeAmount, this.ownerAddress, messageKey, secret, this.ethAccount.toField())
       .send({ origin: this.ownerAddress });
 
-    await consumptionTx.isMined(0, 0.1);
+    await consumptionTx.isMined({ interval: 0.1 });
     const consumptionReceipt = await consumptionTx.getReceipt();
     expect(consumptionReceipt.status).toBe(TxStatus.MINED);
   }
@@ -254,7 +254,7 @@ export class CrossChainTestHarness {
   async shieldFundsOnL2(shieldAmount: bigint, secretHash: Fr) {
     this.logger('Shielding funds on L2');
     const shieldTx = this.l2Contract.methods.shield(shieldAmount, secretHash).send({ origin: this.ownerAddress });
-    await shieldTx.isMined(0, 0.1);
+    await shieldTx.isMined({ interval: 0.1 });
     const shieldReceipt = await shieldTx.getReceipt();
     expect(shieldReceipt.status).toBe(TxStatus.MINED);
   }

@@ -69,7 +69,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const tx = ZkTokenContract.deploy(aztecRpcServer, initialBalance, accounts[0]).send();
     const receipt = await tx.getReceipt();
     zkTokenAddress = receipt.contractAddress!;
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const minedReceipt = await tx.getReceipt();
     expect(minedReceipt.status).toEqual(TxStatus.MINED);
     logger('ZK Token deployed');
@@ -107,7 +107,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const contractWithWallet = await ZkTokenContract.create(zkTokenAddress, wallets[senderIndex]);
 
     const tx = contractWithWallet.methods.transfer(transferAmount, sender, receiver).send({ origin: sender });
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);

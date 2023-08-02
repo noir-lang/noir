@@ -24,7 +24,7 @@ describe('e2e_lending_contract', () => {
 
     logger(`Tx sent with hash ${await tx.getTxHash()}`);
     const receipt = await tx.getReceipt();
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const txReceipt = await tx.getReceipt();
     logger(`L2 contract deployed at ${receipt.contractAddress}`);
     contract = await LendingContract.create(receipt.contractAddress!, wallet);
@@ -102,7 +102,7 @@ describe('e2e_lending_contract', () => {
       // Initialize the contract values, setting the interest accumulator to 1e9 and the last updated timestamp to now.
       logger('Initializing contract');
       const tx = deployedContract.methods.init().send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['initial'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -119,7 +119,7 @@ describe('e2e_lending_contract', () => {
       // - increase the private collateral.
       logger('Depositing 🥸 : 💰 -> 🏦');
       const tx = deployedContract.methods.deposit_private(account.secret, 0n, 420n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_deposit'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -142,7 +142,7 @@ describe('e2e_lending_contract', () => {
       // - increase the public collateral.
       logger('Depositing 🥸 on behalf of recipient: 💰 -> 🏦');
       const tx = deployedContract.methods.deposit_private(0n, recipient.toField(), 420n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_deposit_on_behalf'] = await getStorageSnapshot(
@@ -172,7 +172,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Depositing: 💰 -> 🏦');
       const tx = deployedContract.methods.deposit_public(account.address, 211n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_deposit'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -200,7 +200,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Borrow 🥸 : 🏦 -> 🍌');
       const tx = deployedContract.methods.borrow_private(account.secret, 69n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_borrow'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -229,7 +229,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Borrow: 🏦 -> 🍌');
       const tx = deployedContract.methods.borrow_public(69n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_borrow'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -261,7 +261,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Repay 🥸 : 🍌 -> 🏦');
       const tx = deployedContract.methods.repay_private(account.secret, 0n, 20n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_repay'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -295,7 +295,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Repay 🥸  on behalf of public: 🍌 -> 🏦');
       const tx = deployedContract.methods.repay_private(0n, recipient.toField(), 20n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_repay_on_behalf'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -329,7 +329,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Repay: 🍌 -> 🏦');
       const tx = deployedContract.methods.repay_public(recipient.toField(), 20n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_repay'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -363,7 +363,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Withdraw: 🏦 -> 💰');
       const tx = deployedContract.methods.withdraw_public(42n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_withdraw'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -397,7 +397,7 @@ describe('e2e_lending_contract', () => {
 
       logger('Withdraw 🥸 : 🏦 -> 💰');
       const tx = deployedContract.methods.withdraw_private(account.secret, 42n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_withdraw'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
@@ -429,7 +429,7 @@ describe('e2e_lending_contract', () => {
       // - fail
 
       const tx = deployedContract.methods._deposit(recipient.toField(), 42n).send({ origin: recipient });
-      await tx.isMined(0, 0.1);
+      await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
       expect(receipt.status).toBe(TxStatus.DROPPED);
       logger('Rejected call directly to internal function 🧚 ');

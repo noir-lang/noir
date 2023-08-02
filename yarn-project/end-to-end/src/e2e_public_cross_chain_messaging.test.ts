@@ -70,7 +70,7 @@ describe('e2e_public_cross_chain_messaging', () => {
       .withdrawPublic(withdrawAmount, ethAccount.toField(), EthAddress.ZERO.toField())
       .send({ origin: ownerAddress });
 
-    await withdrawTx.isMined(0, 0.1);
+    await withdrawTx.isMined({ interval: 0.1 });
     const withdrawReceipt = await withdrawTx.getReceipt();
 
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);

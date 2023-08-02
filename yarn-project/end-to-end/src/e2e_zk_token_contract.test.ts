@@ -35,14 +35,8 @@ describe('e2e_zk_token_contract', () => {
 
   const deployContract = async (initialBalance: bigint, owner: AztecAddress) => {
     logger(`Deploying L2 contract...`);
-    const tx = ZkTokenContract.deploy(wallet, initialBalance, owner).send();
-    const receipt = await tx.getReceipt();
-    await tx.isMined(0, 0.1);
-    const minedReceipt = await tx.getReceipt();
-    expect(minedReceipt.status).toEqual(TxStatus.MINED);
-    logger('L2 contract deployed');
-    contract = await ZkTokenContract.create(receipt.contractAddress!, wallet);
-    return contract;
+    contract = await ZkTokenContract.deploy(wallet, initialBalance, owner).send().deployed();
+    logger(`L2 contract deployed at ${contract.address}`);
   };
 
   /**
@@ -67,14 +61,14 @@ describe('e2e_zk_token_contract', () => {
 
     const [owner] = accounts;
 
-    const deployedContract = await deployContract(0n, owner);
+    await deployContract(0n, owner);
     await expectBalance(owner, 0n);
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 0);
 
-    const tx = deployedContract.methods.mint(mintAmount, owner).send({ origin: owner });
+    const tx = contract.methods.mint(mintAmount, owner).send({ origin: owner });
 
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);
@@ -102,7 +96,7 @@ describe('e2e_zk_token_contract', () => {
 
     const tx = contract.methods.transfer(transferAmount, owner, receiver).send({ origin: accounts[0] });
 
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);

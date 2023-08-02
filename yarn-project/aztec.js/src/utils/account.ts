@@ -29,7 +29,7 @@ export async function createAccounts(
     await aztecRpcClient.addAccount(privKey, deploymentInfo.address, deploymentInfo.partialAddress);
     const contractDeployer = new ContractDeployer(accountContractAbi, aztecRpcClient, publicKey);
     const tx = contractDeployer.deploy().send({ contractAddressSalt: salt });
-    await tx.isMined(0, 0.5);
+    await tx.isMined({ interval: 0.5 });
     const receipt = await tx.getReceipt();
     if (receipt.status !== TxStatus.MINED) {
       throw new Error(`Deployment tx not mined (status is ${receipt.status})`);

@@ -126,7 +126,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     });
     // deploy l2 uniswap contract and attach to portal
     const tx = UniswapContract.deploy(aztecRpcServer).send({ portalContract: uniswapPortalAddress });
-    await tx.isMined(0, 0.1);
+    await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
     expect(receipt.status).toEqual(TxStatus.MINED);
     uniswapL2Contract = await UniswapContract.create(receipt.contractAddress!, wallet);
@@ -199,7 +199,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
         ethAccount.toField(),
       )
       .send({ origin: ownerAddress });
-    await withdrawTx.isMined(0, 0.1);
+    await withdrawTx.isMined({ interval: 0.1 });
     const withdrawReceipt = await withdrawTx.getReceipt();
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);
 
