@@ -67,7 +67,6 @@ impl Context {
         // Find the local crate, one should always be present
         let local_crate = self.def_map(crate_id).unwrap();
 
-        // All Binaries should have a main function
         local_crate.main_function()
     }
 

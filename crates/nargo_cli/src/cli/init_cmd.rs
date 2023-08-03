@@ -71,7 +71,6 @@ pub(crate) fn initialize_project(package_dir: PathBuf, package_name: &str, packa
     let src_dir = package_dir.join(SRC_DIR);
     create_named_dir(&src_dir, "src");
 
-    // TODO: Need to make type configurable
     let toml_contents = format!(
         r#"[package]
 name = "{package_name}"
@@ -83,7 +82,7 @@ compiler_version = "{CARGO_PKG_VERSION}"
     );
 
     write_to_file(toml_contents.as_bytes(), &package_dir.join(PKG_FILE));
-    // This is a match so we get a compile error when we add to the package types
+    // This uses the `match` syntax instead of `if` so we get a compile error when we add new package types (which likely need new template files)
     match package_type {
         PackageType::Binary => write_to_file(BIN_EXAMPLE.as_bytes(), &src_dir.join("main.nr")),
         PackageType::Library => write_to_file(LIB_EXAMPLE.as_bytes(), &src_dir.join("lib.nr")),
