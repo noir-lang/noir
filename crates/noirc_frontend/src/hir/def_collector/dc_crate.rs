@@ -365,7 +365,7 @@ fn resolve_traits(
     context: &mut Context,
     traits: HashMap<TraitId, UnresolvedTrait>,
     _crate_id: CrateId,
-    _errors: &mut Vec<FileDiagnostic>,
+    _errors: &mut [FileDiagnostic],
 ) {
     // We must first go through the struct list once to ensure all IDs are pushed to
     // the def_interner map. This lets structs refer to each other regardless of declaration order

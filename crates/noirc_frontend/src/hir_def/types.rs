@@ -775,10 +775,6 @@ impl Type {
                     }
                 })
             }
-            Type::Trait(_trait_type, _generics) => {
-                // TODO: Implement this
-                false
-            }
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
             Type::String(length) => named_generic_id_matches_target(length),
             Type::FmtString(length, elements) => {
@@ -1720,8 +1716,7 @@ impl Type {
             | Type::Constant(_)
             | Type::Error
             | Type::NotConstant
-            | Type::Unit
-            | Type::Trait(..) => self.clone(),
+            | Type::Unit => self.clone(),
         }
     }
 
@@ -1758,8 +1753,7 @@ impl Type {
             | Type::Constant(_)
             | Type::Error
             | Type::NotConstant
-            | Type::Unit
-            | Type::Trait(..) => false,
+            | Type::Unit => false,
         }
     }
 

@@ -728,7 +728,6 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         | Type::NotConstant
         | Type::Struct(_, _)
         | Type::FmtString(_, _)
-        | Type::Struct(_, _)
         | Type::Trait(_, _) => None,
     }
 }

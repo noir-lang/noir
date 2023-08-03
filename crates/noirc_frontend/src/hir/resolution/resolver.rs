@@ -855,9 +855,6 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            Type::Trait(_trait_type, _generics) => {
-                // TODO: Implement this
-            }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
             Type::String(length) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {

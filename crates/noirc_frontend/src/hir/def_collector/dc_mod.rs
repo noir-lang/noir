@@ -1,5 +1,3 @@
-
-
 use fm::FileId;
 use noirc_errors::FileDiagnostic;
 
@@ -75,9 +73,9 @@ pub fn collect_defs(
 }
 
 fn check_trait_method_implementation_generics(
-    _generics: &Vec<Ident>,
+    _generics: &[Ident],
     _noir_function: &NoirFunction,
-    _trait_name: &String,
+    _trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
     // TODO
     Ok(())
@@ -95,8 +93,7 @@ fn check_trait_method_implementation_parameters(
             span: noir_function.name_ident().span(),
         });
     }
-    let mut count = 0;
-    for (pattern, typ, _abi_vis) in &noir_function.def.parameters {
+    for (count, (pattern, typ, _abi_vis)) in noir_function.def.parameters.iter().enumerate() {
         let (expected_name, expected_type) = &parameters[count];
         if pattern.name_ident().0.contents != expected_name.0.contents {
             // we allow different namings of parameters
@@ -116,15 +113,14 @@ fn check_trait_method_implementation_parameters(
                 span: pattern.name_ident().span(),
             });
         }
-        count += 1;
     }
     Ok(())
 }
 
 fn check_trait_method_implementation_trait_constains(
-    _where_clause: &Vec<TraitConstraint>,
+    _where_clause: &[TraitConstraint],
     _noir_function: &NoirFunction,
-    _trait_name: &String,
+    _trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
     // TODO
     Ok(())
@@ -155,41 +151,39 @@ fn check_trait_method_implementation(
     noir_function: &NoirFunction,
 ) -> Result<(), DefCollectorErrorKind> {
     for item in &r#trait.items {
-        match item {
-            TraitItem::Function {
-                name,
-                generics,
-                parameters,
-                return_type,
-                where_clause,
-                body: _,
-            } => {
-                if name.0.contents == noir_function.def.name.0.contents {
-                    // name matches, check for parameters, return type and where clause
-                    check_trait_method_implementation_generics(
-                        generics,
-                        noir_function,
-                        &r#trait.name.0.contents,
-                    )?;
-                    check_trait_method_implementation_parameters(
-                        parameters,
-                        noir_function,
-                        &r#trait.name.0.contents,
-                    )?;
-                    check_trait_method_implementation_trait_constains(
-                        where_clause,
-                        noir_function,
-                        &r#trait.name.0.contents,
-                    )?;
-                    check_trait_method_implementation_return_type(
-                        return_type,
-                        noir_function,
-                        &r#trait.name.0.contents,
-                    )?;
-                    return Ok(());
-                }
+        if let TraitItem::Function {
+            name,
+            generics,
+            parameters,
+            return_type,
+            where_clause,
+            body: _,
+        } = item
+        {
+            if name.0.contents == noir_function.def.name.0.contents {
+                // name matches, check for parameters, return type and where clause
+                check_trait_method_implementation_generics(
+                    generics,
+                    noir_function,
+                    &r#trait.name.0.contents,
+                )?;
+                check_trait_method_implementation_parameters(
+                    parameters,
+                    noir_function,
+                    &r#trait.name.0.contents,
+                )?;
+                check_trait_method_implementation_trait_constains(
+                    where_clause,
+                    noir_function,
+                    &r#trait.name.0.contents,
+                )?;
+                check_trait_method_implementation_return_type(
+                    return_type,
+                    noir_function,
+                    &r#trait.name.0.contents,
+                )?;
+                return Ok(());
             }
-            _ => {}
         }
     }
 
