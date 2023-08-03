@@ -9,7 +9,11 @@ use std::path::PathBuf;
 
 /// Create a Noir project in the current directory.
 #[derive(Debug, Clone, Args)]
-pub(crate) struct InitCommand;
+pub(crate) struct InitCommand {
+    /// Name of the package (Defaults to current directory name)
+    #[clap(long)]
+    name: Option<String>,
+}
 
 const EXAMPLE: &str = r#"fn main(x : Field, y : pub Field) {
     assert(x != y);
@@ -27,17 +31,20 @@ fn test_main() {
 pub(crate) fn run<B: Backend>(
     // Backend is currently unused, but we might want to use it to inform the "new" template in the future
     _backend: &B,
-    _args: InitCommand,
+    args: InitCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    initialize_project(config.program_dir);
+    let package_name = args
+        .name
+        .unwrap_or_else(|| config.program_dir.file_name().unwrap().to_str().unwrap().to_owned());
+
+    initialize_project(config.program_dir, &package_name);
     Ok(())
 }
 
 /// Initializes a new Noir project in `package_dir`.
-pub(crate) fn initialize_project(package_dir: PathBuf) {
+pub(crate) fn initialize_project(package_dir: PathBuf, package_name: &str) {
     // TODO: Should this reject if we have non-Unicode filepaths?
-    let package_name = package_dir.file_name().expect("Expected a filename").to_string_lossy();
     let src_dir = package_dir.join(SRC_DIR);
     create_named_dir(&src_dir, "src");
 
