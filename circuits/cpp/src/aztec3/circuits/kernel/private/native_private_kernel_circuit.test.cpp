@@ -64,6 +64,11 @@ TEST_F(native_private_kernel_tests, native_accumulate_transient_read_requests)
     private_inputs_inner.private_call.call_stack_item.public_inputs.read_requests[0] = fr(12);
     private_inputs_inner.private_call.read_request_membership_witnesses[0].is_transient = true;
 
+    // We need to update the previous_kernel's private_call_stack because the current_call_stack_item has changed
+    // i.e. we changed the new_commitments and read_requests of the current_call_stack_item's public_inputs
+    private_inputs_inner.previous_kernel.public_inputs.end.private_call_stack[0] =
+        private_inputs_inner.private_call.call_stack_item.hash();
+
     // The original call is not multi-iterative (call stack depth == 1) and we re-feed the same private call stack
     public_inputs.end.private_call_stack = private_inputs_inner.previous_kernel.public_inputs.end.private_call_stack;
     private_inputs_inner.previous_kernel.public_inputs = public_inputs;
@@ -115,6 +120,11 @@ TEST_F(native_private_kernel_tests, native_transient_read_requests_no_match)
     private_inputs_inner.private_call.call_stack_item.public_inputs.new_commitments[0] = fr(23);
     private_inputs_inner.private_call.call_stack_item.public_inputs.read_requests[0] = fr(12);
     private_inputs_inner.private_call.read_request_membership_witnesses[0].is_transient = true;
+
+    // We need to update the previous_kernel's private_call_stack because the current_call_stack_item has changed
+    // i.e. we changed the new_commitments and read_requests of the current_call_stack_item's public_inputs
+    private_inputs_inner.previous_kernel.public_inputs.end.private_call_stack[0] =
+        private_inputs_inner.private_call.call_stack_item.hash();
 
     // The original call is not multi-iterative (call stack depth == 1) and we re-feed the same private call stack
     public_inputs.end.private_call_stack = private_inputs_inner.previous_kernel.public_inputs.end.private_call_stack;

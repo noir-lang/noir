@@ -75,13 +75,13 @@ namespace aztec3::circuits::kernel::private_kernel {
 // }
 
 void validate_this_private_call_hash(DummyCircuitBuilder& builder,
-                                     PrivateKernelInputsInner<NT> const& private_inputs,
+                                     PrivateCallData<NT> const& private_call,
                                      KernelCircuitPublicInputs<NT>& public_inputs)
 {
     // TODO(mike): this logic might need to change to accommodate the weird edge 3 initial txs (the 'main' tx, the 'fee'
     // tx, and the 'gas rebate' tx).
     const auto popped_private_call_hash = array_pop(public_inputs.end.private_call_stack);
-    const auto calculated_this_private_call_hash = private_inputs.private_call.call_stack_item.hash();
+    const auto calculated_this_private_call_hash = private_call.call_stack_item.hash();
 
     builder.do_assert(
         popped_private_call_hash == calculated_this_private_call_hash,
@@ -151,14 +151,9 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyCircuitBu
 
     validate_inputs(builder, private_inputs);
 
-    // TODO(jeanmon) Resuscitate after issue 499 is fixed as explained below.
-    // Remove the array_pop below when uncommenting this validation.
-    // validate_this_private_call_hash(builder, private_inputs, public_inputs);
-    array_pop(public_inputs.end.private_call_stack);
+    validate_this_private_call_hash(builder, private_inputs.private_call, public_inputs);
 
-    // TODO(dbanks12): may need to comment out hash check in here according to TODO above
-    // TODO(jeanmon) FIXME - https://github.com/AztecProtocol/aztec-packages/issues/671
-    // common_validate_call_stack(builder, private_inputs.private_call);
+    common_validate_call_stack(builder, private_inputs.private_call);
 
     common_validate_read_requests(
         builder,
