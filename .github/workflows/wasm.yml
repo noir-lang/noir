@@ -27,7 +27,7 @@ jobs:
       - name: Print noir contents
         run: |
           echo "Contents of noir directory:"
-          ls -l noir
+          ls -l .
 
       - name: Print build-nargo contents
         run: |
