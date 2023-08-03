@@ -121,7 +121,7 @@ jobs:
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-          ls -R
+          cd ./build-nargo
           npm install
           npm test
 
