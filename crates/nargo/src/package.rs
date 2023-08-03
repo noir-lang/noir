@@ -32,9 +32,9 @@ impl Dependency {
         }
     }
 
-    pub fn package_name(&self) -> CrateName {
+    pub fn package_name(&self) -> &CrateName {
         match self {
-            Self::Local { package } | Self::Remote { package } => package.name.clone(),
+            Self::Local { package } | Self::Remote { package } => &package.name,
         }
     }
 }

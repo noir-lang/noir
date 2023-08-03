@@ -177,7 +177,7 @@ impl DependencyConfig {
         // Cannot depend on a binary
         // TODO: Can we depend upon contracts?
         if dep.is_binary() {
-            Err(ManifestError::BinaryDependency(dep.package_name()))
+            Err(ManifestError::BinaryDependency(dep.package_name().clone()))
         } else {
             Ok(dep)
         }
