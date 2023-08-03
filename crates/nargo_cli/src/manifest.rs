@@ -15,6 +15,7 @@ use crate::{errors::ManifestError, git::clone_git_repo};
 #[derive(Debug, Deserialize, Clone)]
 struct PackageConfig {
     package: PackageMetadata,
+    #[serde(default)]
     dependencies: BTreeMap<String, DependencyConfig>,
 }
 
@@ -254,6 +255,19 @@ fn parse_standard_toml() {
         rand = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
         cool = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
         hello = {path = "./noir_driver"}
+    "#;
+
+    assert!(Config::try_from(String::from(src)).is_ok());
+    assert!(Config::try_from(src).is_ok());
+}
+
+#[test]
+fn parse_package_toml_no_deps() {
+    let src = r#"
+        [package]
+        name = "test"
+        authors = ["kev", "foo"]
+        compiler_version = "0.1"
     "#;
 
     assert!(Config::try_from(String::from(src)).is_ok());
