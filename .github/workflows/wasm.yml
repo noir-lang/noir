@@ -36,7 +36,7 @@ jobs:
 
       - name: Collect locked barretenberg rev
         run: |
-          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./noir/flake.lock)" >> $GITHUB_ENV
+          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./flake.lock)" >> $GITHUB_ENV
           echo "BB_REV is ${{ env.BB_REV }}"
 
       - uses: cachix/install-nix-action@v20
@@ -114,11 +114,11 @@ jobs:
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
           7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
 
-      # You can access the artifacts directly from ./noir/dist/* here
+      # You can access the artifacts directly from ./dist/* here
       - name: Test built artifact
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
-          cp ./noir/target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
+          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
           npm install
           npm test
 
