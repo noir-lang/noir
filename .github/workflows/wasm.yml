@@ -24,16 +24,6 @@ jobs:
           path: build-nargo
           ref: ${{ inputs.build-nargo-ref || 'master' }}
 
-      - name: Print noir contents
-        run: |
-          echo "Contents of noir directory:"
-          ls -l .
-
-      - name: Print build-nargo contents
-        run: |
-          echo "Contents of build-nargo directory:"
-          ls -l build-nargo
-
       - name: Collect locked barretenberg rev
         run: |
           echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./flake.lock)" >> $GITHUB_ENV
@@ -57,6 +47,13 @@ jobs:
           nix build "github:AztecProtocol/barretenberg/${{ env.BB_REV }}#wasm32"
           echo "ARTIFACT_UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: libbarretenberg-wasm32
+          path: ${{ env.ARTIFACT_UPLOAD_PATH }}
+          retention-days: 3
+
   build-linux:
     needs: [build-barretenberg]
     runs-on: ubuntu-22.04
@@ -65,12 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [
-            x86_64-unknown-linux-gnu,
-            # x86_64-unknown-linux-musl,
-            # aarch64-unknown-linux-gnu,
-            # aarch64-unknown-linux-musl,
-          ]
+        target: [x86_64-unknown-linux-gnu]
 
     steps:
       - name: Checkout Noir repo
@@ -92,6 +84,12 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: libbarretenberg-wasm32
+          path: ${{ github.workspace }}/libbarretenberg-wasm32
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
