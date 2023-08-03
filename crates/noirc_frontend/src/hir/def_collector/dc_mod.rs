@@ -259,7 +259,7 @@ impl<'a> ModCollector<'a> {
         errors: &mut Vec<FileDiagnostic>,
     ) {
         let child_file_id =
-            match context.file_manager.resolve_path(self.file_id, &mod_name.0.contents) {
+            match context.file_manager.find_module(self.file_id, &mod_name.0.contents) {
                 Ok(child_file_id) => child_file_id,
                 Err(_) => {
                     let err =

@@ -30,7 +30,7 @@ pub struct FileManager {
 impl FileManager {
     pub fn new(root: &Path) -> Self {
         Self {
-            root: normalize_path(root),
+            root: root.to_path_buf(),
             file_map: Default::default(),
             id_to_path: Default::default(),
             path_to_id: Default::default(),
@@ -44,7 +44,7 @@ impl FileManager {
             // TODO: The stdlib path should probably be an absolute path rooted in something people would never create
             file_name.to_path_buf()
         } else {
-            normalize_path(&self.root.join(file_name))
+            self.resolve_path(file_name)
         };
 
         // Check that the resolved path already exists in the file map, if it is, we return it.
@@ -80,7 +80,7 @@ impl FileManager {
         self.id_to_path.get(&file_id).unwrap().0.as_path()
     }
 
-    pub fn resolve_path(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
+    pub fn find_module(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
         let mut candidate_files = Vec::new();
 
         let anchor_path = self.path(anchor).to_path_buf();
@@ -99,37 +99,42 @@ impl FileManager {
 
         Err(candidate_files.remove(0).as_os_str().to_str().unwrap().to_owned())
     }
-}
 
-/// Replacement for `std::fs::canonicalize` that doesn't verify the path exists.
-///
-/// Plucked from https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-/// Advice from https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/
-fn normalize_path(path: &Path) -> PathBuf {
-    let mut components = path.components().peekable();
-    let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
-        components.next();
-        PathBuf::from(c.as_os_str())
-    } else {
-        PathBuf::new()
-    };
+    /// Resolve a path within the FileManager, removing all `.` and `..` segments.
+    /// Additionally, relative paths will be resolved against the FileManager's root.
+    pub fn resolve_path(&self, path: &Path) -> PathBuf {
+        // This is a replacement for `std::fs::canonicalize` that doesn't verify the path exists.
+        //
+        // Plucked from https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+        // Advice from https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/
+        let mut components = path.components().peekable();
+        let mut ret = match components.peek().cloned() {
+            Some(c @ Component::Prefix(..)) => {
+                components.next();
+                PathBuf::from(c.as_os_str())
+            }
+            Some(Component::RootDir) => PathBuf::new(),
+            // If the first component isn't a RootDir or a Prefix, we know it is relative and needs to be joined to root
+            _ => self.root.clone(),
+        };
 
-    for component in components {
-        match component {
-            Component::Prefix(..) => unreachable!(),
-            Component::RootDir => {
-                ret.push(component.as_os_str());
-            }
-            Component::CurDir => {}
-            Component::ParentDir => {
-                ret.pop();
-            }
-            Component::Normal(c) => {
-                ret.push(c);
+        for component in components {
+            match component {
+                Component::Prefix(..) => unreachable!(),
+                Component::RootDir => {
+                    ret.push(component.as_os_str());
+                }
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    ret.pop();
+                }
+                Component::Normal(c) => {
+                    ret.push(c);
+                }
             }
         }
+        ret
     }
-    ret
 }
 
 /// Takes a path to a noir file. This will panic on paths to directories
@@ -165,7 +170,7 @@ mod tests {
 
         let dep_file_name = Path::new("foo.nr");
         create_dummy_file(&dir, dep_file_name);
-        fm.resolve_path(file_id, "foo").unwrap();
+        fm.find_module(file_id, "foo").unwrap();
     }
     #[test]
     fn path_resolve_file_module_other_ext() {
@@ -212,10 +217,10 @@ mod tests {
         create_dummy_file(&dir, Path::new(&format!("{}.nr", sub_dir_name)));
 
         // First check for the sub_dir.nr file and add it to the FileManager
-        let sub_dir_file_id = fm.resolve_path(file_id, sub_dir_name).unwrap();
+        let sub_dir_file_id = fm.find_module(file_id, sub_dir_name).unwrap();
 
         // Now check for files in it's subdirectory
-        fm.resolve_path(sub_dir_file_id, "foo").unwrap();
+        fm.find_module(sub_dir_file_id, "foo").unwrap();
     }
 
     /// Tests that two identical files that have different paths are treated as the same file
