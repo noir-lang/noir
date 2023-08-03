@@ -736,13 +736,11 @@ impl Context {
     ) -> Result<AcirVar, InternalError> {
         match self.convert_value(value_id, dfg) {
             AcirValue::Var(acir_var, _) => Ok(acir_var),
-            AcirValue::Array(array) => {
-                return Err(InternalError::UnExpected {
-                    expected: "a numeric value".to_string(),
-                    found: format!("{array:?}"),
-                    location: self.acir_context.get_location(),
-                })
-            }
+            AcirValue::Array(array) => Err(InternalError::UnExpected {
+                expected: "a numeric value".to_string(),
+                found: format!("{array:?}"),
+                location: self.acir_context.get_location(),
+            }),
             AcirValue::DynamicArray(_) => Err(InternalError::UnExpected {
                 expected: "a numeric value".to_string(),
                 found: "an array".to_string(),
