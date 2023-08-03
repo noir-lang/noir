@@ -53,9 +53,13 @@ enum NargoCommand {
     Compile(compile_cmd::CompileCommand),
     New(new_cmd::NewCommand),
     Init(init_cmd::InitCommand),
+    #[command(aliases = ["run", "r"])]
     Execute(execute_cmd::ExecuteCommand),
+    #[command(alias = "p")]
     Prove(prove_cmd::ProveCommand),
+    #[command(alias = "v")]
     Verify(verify_cmd::VerifyCommand),
+    #[command(alias = "t")]
     Test(test_cmd::TestCommand),
     Info(info_cmd::InfoCommand),
     Lsp(lsp_cmd::LspCommand),

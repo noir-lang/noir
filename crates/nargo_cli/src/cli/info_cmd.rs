@@ -12,6 +12,7 @@ use crate::{
 use super::NargoConfig;
 
 /// Provides detailed information on a circuit
+///
 /// Current information provided:
 /// 1. The number of ACIR opcodes
 /// 2. Counts the final number gates in the circuit used by a backend
