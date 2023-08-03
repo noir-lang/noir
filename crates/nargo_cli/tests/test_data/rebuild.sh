@@ -25,7 +25,6 @@ for dir in ./*; do
         rm -r ./target/
       fi
       nargo compile && nargo execute witness
-      mv ./target/*.json ./target/main.json
       cd ..
   fi
 done
