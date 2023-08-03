@@ -21,6 +21,9 @@ for dir in ./*; do
   dir_name=$(basename "$dir")
   if [[ ! " ${exclude_fail_dirs[@]} " =~ " ${dir_name} " ]]; then
       cd $dir
+      if [ -d ./target/ ]; then
+        rm -r ./target/
+      fi
       nargo compile && nargo execute witness
       cd ..
   fi

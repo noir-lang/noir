@@ -11,7 +11,7 @@ use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
-        directives::{LogInfo, QuotientDirective},
+        directives::LogInfo,
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     },
     native_types::Witness,
@@ -432,13 +432,13 @@ impl GeneratedAcir {
             }
         }
 
-        let (q_witness, r_witness) = self.quotient_directive(
-            lhs.clone(),
-            rhs.clone(),
-            Some(predicate.clone()),
-            max_q_bits,
-            max_rhs_bits,
-        )?;
+        let (q_witness, r_witness) =
+            self.brillig_quotient(lhs.clone(), rhs.clone(), predicate.clone(), max_bit_size + 1);
+
+        // Apply range constraints to injected witness values.
+        // Constrains `q` to be 0 <= q < 2^{q_max_bits}, etc.
+        self.range_constraint(q_witness, max_q_bits)?;
+        self.range_constraint(r_witness, max_rhs_bits)?;
 
         // Constrain r < rhs
         self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_rhs_bits)?;
@@ -455,6 +455,32 @@ impl GeneratedAcir {
         self.push_opcode(AcirOpcode::Arithmetic(div_euclidean));
 
         Ok((q_witness, r_witness))
+    }
+
+    /// Adds a brillig opcode which injects witnesses with values `q = a / b` and `r = a % b`.
+    ///
+    /// Suitable range constraints for `q` and `r` must be applied externally.
+    pub(crate) fn brillig_quotient(
+        &mut self,
+        lhs: Expression,
+        rhs: Expression,
+        predicate: Expression,
+        max_bit_size: u32,
+    ) -> (Witness, Witness) {
+        // Create the witness for the result
+        let q_witness = self.next_witness_index();
+        let r_witness = self.next_witness_index();
+
+        let quotient_code = brillig_directive::directive_quotient(max_bit_size);
+        let inputs = vec![
+            BrilligInputs::Single(lhs),
+            BrilligInputs::Single(rhs),
+            BrilligInputs::Single(predicate.clone()),
+        ];
+        let outputs = vec![BrilligOutputs::Simple(q_witness), BrilligOutputs::Simple(r_witness)];
+        self.brillig(Some(predicate), quotient_code, inputs, outputs);
+
+        (q_witness, r_witness)
     }
 
     /// Generate constraints that are satisfied iff
@@ -690,32 +716,6 @@ impl GeneratedAcir {
         self.push_opcode(constraint);
 
         Ok(())
-    }
-
-    /// Adds a directive which injects witnesses with values `q = a / b` and `r = a % b`.
-    ///
-    /// Suitable range constraints are also applied to `q` and `r`.
-    pub(crate) fn quotient_directive(
-        &mut self,
-        a: Expression,
-        b: Expression,
-        predicate: Option<Expression>,
-        q_max_bits: u32,
-        r_max_bits: u32,
-    ) -> Result<(Witness, Witness), RuntimeError> {
-        let q_witness = self.next_witness_index();
-        let r_witness = self.next_witness_index();
-
-        let directive =
-            Directive::Quotient(QuotientDirective { a, b, q: q_witness, r: r_witness, predicate });
-        self.push_opcode(AcirOpcode::Directive(directive));
-
-        // Apply range constraints to injected witness values.
-        // Constrains `q` to be 0 <= q < 2^{q_max_bits}, etc.
-        self.range_constraint(q_witness, q_max_bits)?;
-        self.range_constraint(r_witness, r_max_bits)?;
-
-        Ok((q_witness, r_witness))
     }
 
     /// Returns a `Witness` that is constrained to be:
