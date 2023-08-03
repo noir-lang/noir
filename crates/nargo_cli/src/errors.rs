@@ -123,8 +123,13 @@ pub(crate) enum ManifestError {
     #[error("Unxpected workspace definition found in {0}")]
     UnexpectedWorkspace(PathBuf),
 
-    #[error("Cannot find file {0} which is required due to specifying the `{1}` package type")]
-    MissingEntryFile(PathBuf, PackageType),
+    #[error("Cannot find file {entry} which was specified as the `entry` field in {toml}")]
+    MissingEntryFile { toml: PathBuf, entry: PathBuf },
+
+    #[error(
+        r#"Cannot find file {entry} which is defaulted due to specifying `type = "{package_type}"` in {toml}"#
+    )]
+    MissingDefaultEntryFile { toml: PathBuf, entry: PathBuf, package_type: PackageType },
 
     /// Invalid character `-` in package name
     #[error("invalid character `-` in package name")]
