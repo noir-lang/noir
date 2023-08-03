@@ -43,9 +43,9 @@ fn last_use(
             }
             Instruction::Call { arguments, .. } => {
                 for argument in arguments {
-                    if matches!(dfg[*argument], Value::Array { .. }) {
-                        let array = dfg.resolve(*argument);
-                        array_def.insert(array, *instruction_id);
+                    let resolved_arg = dfg.resolve(*argument);
+                    if matches!(dfg[resolved_arg], Value::Array { .. }) {
+                        array_def.insert(resolved_arg, *instruction_id);
                     }
                 }
             }
