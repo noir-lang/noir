@@ -23,7 +23,7 @@ struct MyStruct<S> {
 }
 
 impl<S> MyStruct<S> {
-    fn insert(mut self: Self, index: comptime Field, elem: Field) -> Self {
+    fn insert(mut self: Self, index: Field, elem: Field) -> Self {
         // Regression test for numeric generics on impls
         assert(index as u64 < S as u64);
 
