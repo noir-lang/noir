@@ -18,10 +18,8 @@ impl Ssa {
     pub(crate) fn array_use(&self) -> HashMap<ValueId, InstructionId> {
         let mut array_use = HashMap::new();
         for func in self.functions.values() {
-            let mut reverse_post_order = Vec::new();
-            reverse_post_order.extend_from_slice(PostOrder::with_function(func).as_slice());
+            let mut reverse_post_order = PostOrder::with_function(func).into_vec();
             reverse_post_order.reverse();
-
             for block in reverse_post_order {
                 last_use(block, &func.dfg, &mut array_use);
             }
