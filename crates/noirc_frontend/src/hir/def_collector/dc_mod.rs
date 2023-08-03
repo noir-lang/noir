@@ -1,4 +1,4 @@
-use std::fmt::format;
+
 
 use fm::FileId;
 use noirc_errors::FileDiagnostic;
@@ -111,12 +111,12 @@ fn check_trait_method_implementation_parameters(
                 secondary_message: format!(
                     "`{}: {}` expected",
                     pattern.name_ident().0.contents,
-                    expected_type.to_string(),
+                    expected_type,
                 ),
                 span: pattern.name_ident().span(),
             });
         }
-        count = count + 1;
+        count += 1;
     }
     Ok(())
 }
@@ -168,22 +168,22 @@ fn check_trait_method_implementation(
                     // name matches, check for parameters, return type and where clause
                     check_trait_method_implementation_generics(
                         generics,
-                        &noir_function,
+                        noir_function,
                         &r#trait.name.0.contents,
                     )?;
                     check_trait_method_implementation_parameters(
                         parameters,
-                        &noir_function,
+                        noir_function,
                         &r#trait.name.0.contents,
                     )?;
                     check_trait_method_implementation_trait_constains(
                         where_clause,
-                        &noir_function,
+                        noir_function,
                         &r#trait.name.0.contents,
                     )?;
                     check_trait_method_implementation_return_type(
                         return_type,
-                        &noir_function,
+                        noir_function,
                         &r#trait.name.0.contents,
                     )?;
                     return Ok(());

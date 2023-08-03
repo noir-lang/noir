@@ -370,7 +370,7 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then_ignore(just(Token::RightBrace))
         .validate(|(((name, generics), where_clause), items), span, emit| {
             validate_where_clause(&generics, &where_clause, span, emit);
-            if generics.len() > 0 || where_clause.len() > 0 {
+            if !generics.is_empty() || !where_clause.is_empty() {
                 emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
             }
             TopLevelStatement::Trait(NoirTrait { name, generics, where_clause, span, items })
@@ -509,7 +509,7 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
             let (((impl_generics, trait_name), trait_generics), (object_type, object_type_span)) =
                 other_args;
 
-            if where_clause.len() > 0 || impl_generics.len() > 0 {
+            if !where_clause.is_empty() || !impl_generics.is_empty() {
                 emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
             }
 
