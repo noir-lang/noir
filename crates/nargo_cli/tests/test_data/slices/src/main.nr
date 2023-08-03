@@ -42,6 +42,8 @@ fn main(x : Field, y : pub Field) {
     assert(removed_elem == 2);
     assert(remove_slice[3] == 3);
     assert(remove_slice.len() == 4);
+
+    regression_2083();
 }
 
 // Ensure that slices of struct/tuple values work.
