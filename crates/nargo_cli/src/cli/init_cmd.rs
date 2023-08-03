@@ -12,11 +12,11 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {
     /// Use a library template
-    #[clap(long)]
+    #[arg(long, conflicts_with="bin")]
     pub(crate) lib: bool,
 
     /// Use a binary template [default]
-    #[clap(long)]
+    #[arg(long, conflicts_with="lib")]
     pub(crate) bin: bool,
 }
 
