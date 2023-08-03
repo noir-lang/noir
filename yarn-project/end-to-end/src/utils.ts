@@ -17,17 +17,15 @@ import {
   getL1ContractAddresses,
 } from '@aztec/aztec.js';
 import {
-  CircuitsWasm,
   DeploymentInfo,
   PartialContractAddress,
   PrivateKey,
   PublicKey,
   getContractDeploymentInfo,
 } from '@aztec/circuits.js';
-import { Schnorr, pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
+import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
-import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { Fr } from '@aztec/foundation/fields';
 import { mustSucceedFetch } from '@aztec/foundation/json-rpc/client';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
@@ -53,6 +51,7 @@ import {
 } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 
+import { CheatCodes } from './cheat_codes.js';
 import { MNEMONIC, localAnvil } from './fixtures.js';
 
 const { SANDBOX_URL = '' } = process.env;
@@ -305,6 +304,10 @@ export async function setup(numberOfAccounts = 1): Promise<{
    * Logger instance named as the current test.
    */
   logger: DebugLogger;
+  /**
+   * The cheat codes.
+   */
+  cheatCodes: CheatCodes;
 }> {
   const config = getConfigEnvVars();
   const logger = getLogger();
@@ -323,6 +326,8 @@ export async function setup(numberOfAccounts = 1): Promise<{
 
   const { aztecRpcServer, accounts, wallet } = await setupAztecRPCServer(numberOfAccounts, aztecNode, privKey, logger);
 
+  const cheatCodes = await CheatCodes.create(config.rpcUrl, aztecRpcServer!);
+
   return {
     aztecNode,
     aztecRpcServer,
@@ -331,6 +336,7 @@ export async function setup(numberOfAccounts = 1): Promise<{
     config,
     wallet,
     logger,
+    cheatCodes,
   };
 }
 
@@ -514,57 +520,6 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
  */
 export function delay(ms: number): Promise<void> {
   return new Promise<void>(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Calculates the slot value of a mapping within noir.
- * @param slot - The storage slot of the mapping.
- * @param key - The key within the mapping.
- * @returns The mapping's key.
- */
-export async function calculateAztecStorageSlot(slot: bigint, key: Fr): Promise<Fr> {
-  const wasm = await CircuitsWasm.get();
-  const mappingStorageSlot = new Fr(slot); // this value is manually set in the Noir contract
-
-  // Based on `at` function in
-  // aztec3-packages/yarn-project/noir-contracts/src/contracts/noir-aztec/src/state_vars/map.nr
-  const storageSlot = Fr.fromBuffer(
-    pedersenPlookupCommitInputs(
-      wasm,
-      [mappingStorageSlot, key].map(f => f.toBuffer()),
-    ),
-  );
-
-  return storageSlot; //.value;
-}
-
-/**
- * Check the value of a public mapping's storage slot.
- * @param logger - A logger instance.
- * @param aztecNode - An instance of the aztec node service.
- * @param contract - The contract to check the storage slot of.
- * @param slot - The mapping's storage slot.
- * @param key - The mapping's key.
- * @param expectedValue - The expected value of the mapping.
- */
-export async function expectAztecStorageSlot(
-  logger: DebugLogger,
-  aztecRpc: AztecRPC,
-  contract: Contract,
-  slot: bigint,
-  key: Fr,
-  expectedValue: bigint,
-) {
-  const storageSlot = await calculateAztecStorageSlot(slot, key);
-  const storageValue = await aztecRpc.getPublicStorageAt(contract.address!, storageSlot);
-  if (storageValue === undefined) {
-    throw new Error(`Storage slot ${storageSlot} not found`);
-  }
-
-  const balance = toBigIntBE(storageValue);
-
-  logger(`Account ${key.toShortString()} balance: ${balance}`);
-  expect(balance).toBe(expectedValue);
 }
 
 /**

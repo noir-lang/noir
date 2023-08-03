@@ -33,6 +33,7 @@ describe('e2e_cross_chain_messaging', () => {
       accounts,
       wallet,
       logger: logger_,
+      cheatCodes,
     } = await setup(2);
     crossChainTestHarness = await CrossChainTestHarness.new(
       initialBalance,
@@ -42,6 +43,7 @@ describe('e2e_cross_chain_messaging', () => {
       accounts,
       wallet,
       logger_,
+      cheatCodes,
     );
 
     l2Contract = crossChainTestHarness.l2Contract;

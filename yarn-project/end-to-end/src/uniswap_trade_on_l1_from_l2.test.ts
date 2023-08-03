@@ -10,6 +10,7 @@ import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { getContract, parseEther } from 'viem';
 
+import { CheatCodes } from './cheat_codes.js';
 import { CrossChainTestHarness } from './cross_chain/test_harness.js';
 import { delay, deployAndInitializeNonNativeL2TokenContracts, setup } from './utils.js';
 
@@ -31,6 +32,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
   let wallet: Wallet;
   let accounts: AztecAddress[];
   let logger: DebugLogger;
+  let cheatCodes: CheatCodes;
 
   let ethAccount: EthAddress;
   let ownerAddress: AztecAddress;
@@ -47,7 +49,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
   beforeEach(async () => {
     let deployL1ContractsValues: DeployL1Contracts;
-    ({ aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, logger, wallet } = await setup(2));
+    ({ aztecNode, aztecRpcServer, deployL1ContractsValues, accounts, logger, wallet, cheatCodes } = await setup(2));
 
     const walletClient = deployL1ContractsValues.walletClient;
     const publicClient = deployL1ContractsValues.publicClient;
@@ -73,6 +75,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     daiCrossChainHarness = new CrossChainTestHarness(
       aztecNode,
       aztecRpcServer,
+      cheatCodes,
       accounts,
       logger,
       daiContracts.l2Contract,
@@ -101,6 +104,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     wethCrossChainHarness = new CrossChainTestHarness(
       aztecNode,
       aztecRpcServer,
+      cheatCodes,
       accounts,
       logger,
       wethContracts.l2Contract,

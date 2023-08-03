@@ -7,7 +7,8 @@ import { AztecRPC, L2BlockL2Logs, TxStatus } from '@aztec/types';
 
 import times from 'lodash.times';
 
-import { expectAztecStorageSlot, setup } from './utils.js';
+import { CheatCodes } from './cheat_codes.js';
+import { setup } from './utils.js';
 
 describe('e2e_public_token_contract', () => {
   let aztecNode: AztecNodeService | undefined;
@@ -18,6 +19,8 @@ describe('e2e_public_token_contract', () => {
 
   let contract: PublicTokenContract;
   const balanceSlot = 1n;
+
+  let cc: CheatCodes;
 
   const deployContract = async () => {
     logger(`Deploying L2 public contract...`);
@@ -37,7 +40,7 @@ describe('e2e_public_token_contract', () => {
   };
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup());
+    ({ aztecNode, aztecRpcServer, accounts, wallet, logger, cheatCodes: cc } = await setup());
   }, 100_000);
 
   afterEach(async () => {
@@ -66,7 +69,10 @@ describe('e2e_public_token_contract', () => {
     const receipt = await tx.getReceipt();
 
     expect(receipt.status).toBe(TxStatus.MINED);
-    await expectAztecStorageSlot(logger, aztecRpcServer, contract, balanceSlot, recipient.toField(), mintAmount);
+
+    const balance = await cc.l2.loadPublic(contract.address, cc.l2.computeSlotInMap(balanceSlot, recipient.toField()));
+    expect(balance.value).toBe(mintAmount);
+
     await expectLogsFromLastBlockToBe(['Coins minted']);
   }, 45_000);
 
@@ -89,7 +95,9 @@ describe('e2e_public_token_contract', () => {
     expect(receipts.map(r => r.status)).toEqual(times(3, () => TxStatus.MINED));
     expect(receipts.map(r => r.blockNumber)).toEqual(times(3, () => receipts[0].blockNumber));
 
-    await expectAztecStorageSlot(logger, aztecRpcServer, contract, balanceSlot, recipient.toField(), mintAmount * 3n);
+    const balance = await cc.l2.loadPublic(contract.address, cc.l2.computeSlotInMap(balanceSlot, recipient.toField()));
+    expect(balance.value).toBe(mintAmount * 3n);
+
     await expectLogsFromLastBlockToBe(['Coins minted', 'Coins minted', 'Coins minted']);
   }, 60_000);
 });

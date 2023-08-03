@@ -29,6 +29,7 @@ describe('e2e_public_to_private_messaging', () => {
       accounts,
       wallet,
       logger: logger_,
+      cheatCodes,
     } = await setup(2);
     crossChainTestHarness = await CrossChainTestHarness.new(
       initialBalance,
@@ -38,6 +39,7 @@ describe('e2e_public_to_private_messaging', () => {
       accounts,
       wallet,
       logger_,
+      cheatCodes,
     );
 
     ethAccount = crossChainTestHarness.ethAccount;

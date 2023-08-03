@@ -12,7 +12,8 @@ import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
 
-import { deployAndInitializeNonNativeL2TokenContracts, expectAztecStorageSlot } from '../utils.js';
+import { CheatCodes } from '../cheat_codes.js';
+import { deployAndInitializeNonNativeL2TokenContracts } from '../utils.js';
 
 /**
  * A Class for testing cross chain interactions, contains common interactions
@@ -27,6 +28,7 @@ export class CrossChainTestHarness {
     accounts: AztecAddress[],
     wallet: Wallet,
     logger: DebugLogger,
+    cheatCodes: CheatCodes,
   ): Promise<CrossChainTestHarness> {
     const walletClient = deployL1ContractsValues.walletClient;
     const publicClient = deployL1ContractsValues.publicClient;
@@ -60,6 +62,7 @@ export class CrossChainTestHarness {
     return new CrossChainTestHarness(
       aztecNode,
       aztecRpcServer,
+      cheatCodes,
       accounts,
       logger,
       l2Contract,
@@ -80,6 +83,8 @@ export class CrossChainTestHarness {
     public aztecNode: AztecNodeService | undefined,
     /** AztecRpcServer. */
     public aztecRpcServer: AztecRPC,
+    /** CheatCodes. */
+    public cc: CheatCodes,
     /** Accounts. */
     public accounts: AztecAddress[],
     /** Logger. */
@@ -199,14 +204,11 @@ export class CrossChainTestHarness {
   }
 
   async expectPublicBalanceOnL2(owner: AztecAddress, expectedBalance: bigint, publicBalanceSlot: bigint) {
-    await expectAztecStorageSlot(
-      this.logger,
-      this.aztecRpcServer,
-      this.l2Contract,
-      publicBalanceSlot,
-      owner.toField(),
-      expectedBalance,
+    const balance = await this.cc.l2.loadPublic(
+      this.l2Contract.address,
+      this.cc.l2.computeSlotInMap(publicBalanceSlot, owner.toField()),
     );
+    expect(balance.value).toBe(expectedBalance);
   }
 
   async checkEntryIsNotInOutbox(withdrawAmount: bigint, callerOnL1: EthAddress = EthAddress.ZERO): Promise<Fr> {
