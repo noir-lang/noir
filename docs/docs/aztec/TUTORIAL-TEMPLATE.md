@@ -10,7 +10,7 @@ This is a TEMPLATE for a "HOW TO DO SOMETHING" guide.
 
 Here are some tips on writing style:
 
-For CONSISTENCY between authors, YOU MUST use this layout and these headings.
+For CONSISTENCY between authors, YOU SHOULD use this layout and these headings.
 
 The bulk of your explanations will go in the CUSTOM HEADING sections.
 

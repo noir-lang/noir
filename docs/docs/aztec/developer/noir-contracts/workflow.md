@@ -18,4 +18,4 @@
 
 ## Test
 
-[Test a deployed contract].
+[Test a deployed contract]. See [dapps](../dapps/building-dapps.md).

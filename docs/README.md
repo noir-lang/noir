@@ -65,6 +65,7 @@ You can embed code snippets into a `.md`/`.mdx` file from code which lives elsew
 - In your markdown file:
     - `#include_code identifier path/from/repo/root/to/file.ts language`
     - E.g. `#include_code hello path/from/repo/root/to/file.ts typescript`
+    - See [here](docusaurus.config.js) for supported languages and the exact name to use for that language.
 - In the corresponding code delineate the code snippet with comments:
     - ```typescript
       some code
@@ -86,4 +87,32 @@ You can embed code snippets into a `.md`/`.mdx` file from code which lives elsew
       // docs:end:hello
       more code
       ```
-- Ironically, we can't show you a rendering of this, because this README.md file doesn't support the `#include_code` macro!
+- You can even include chunks of the same piece of code (with different highlighting preferences) into different parts of the docs:
+  - ```typescript
+      some code
+      some code
+      // docs:start:hello:goodbye
+      this code will appear in the 'hello' snippet and the 'goodbye' snippet.
+      this code will appear in the 'hello' snippet and the 'goodbye' snippet.
+      // this-will-error
+      this code will be highlighted red in all snippets.
+      // highlight-next-line:goodbye
+      this line will be highlighted only in the 'goodbye' snippet.
+      // highlight-start:goodbye:hello
+      this line will be highlighted in both the `hello` and `goodbye` snippets
+      this line will be highlighted in both the `hello` and `goodbye` snippets
+      // highlight-end:goodbye
+      this line will be highlighted only in the 'hello' snippet.
+      // highlight-end:hello
+      this code will appear in the 'hello' snippet and the 'goodbye' snippet.
+      // docs:end:goodbye
+      this code will appear only in the 'hello' snippet.
+      // docs:end:hello
+      some code
+      some code
+      ```
+  - Somewhere in your markdown, you can then write:
+    - `#include_code hello path/from/repo/root/to/file.ts typescript`
+  - And somewhere else, you can write:
+    - `#include_code goodbye path/from/repo/root/to/file.ts typescript`
+- Ironically, we can't show you a rendering of these examples, because this README.md file doesn't support the `#include_code` macro!

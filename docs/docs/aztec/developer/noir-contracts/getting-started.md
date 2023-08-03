@@ -16,6 +16,10 @@ Download an Aztec Box. (Josh / Ze to build :) ).
 
 Or, if you don't want to do that, here's more detail on doing it all yourself:
 
+:::danger TODO
+TODO
+:::
+
 ## Creating a new contract package
 
 See [here](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts#creating-a-new-contract-package)
