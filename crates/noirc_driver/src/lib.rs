@@ -150,7 +150,7 @@ pub fn compile_main(
     let main = match context.get_main_function(&crate_id) {
         Some(m) => m,
         None => {
-            // TODO: This error might be a better to exist in Nargo
+            // TODO(#2155): This error might be a better to exist in Nargo
             let err = FileDiagnostic {
                 file_id: FileId::default(),
                 diagnostic: CustomDiagnostic::from_message(
