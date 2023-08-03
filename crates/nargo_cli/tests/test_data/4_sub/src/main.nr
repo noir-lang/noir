@@ -2,4 +2,8 @@
 fn main(mut x: u32, y: u32, z: u32) {
     x -= y;
     assert(x == z);
+
+    // Test constant underflow (regression for #2045)
+    let x = -1 as u4;
+    assert(x == 15);
 }
