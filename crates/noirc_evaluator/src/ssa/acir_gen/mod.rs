@@ -976,6 +976,67 @@ impl Context {
         result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         match intrinsic {
+            Intrinsic::AssertEq => {
+                let lhs = self.convert_value(arguments[0], dfg);
+                let rhs = self.convert_value(arguments[1], dfg);
+
+                fn get_var_equality_assertions(
+                    lhs: AcirValue,
+                    rhs: AcirValue,
+                    read_from_index: &mut impl FnMut(BlockId, usize) -> Result<AcirVar, InternalError>,
+                ) -> Vec<(AcirVar, AcirVar)> {
+                    match (lhs, rhs) {
+                        (AcirValue::Var(lhs, _), AcirValue::Var(rhs, _)) => vec![(lhs, rhs)],
+                        (AcirValue::Array(lhs_values), AcirValue::Array(rhs_values)) => lhs_values
+                            .into_iter()
+                            .zip(rhs_values)
+                            .flat_map(|(lhs, rhs)| {
+                                get_var_equality_assertions(lhs, rhs, read_from_index)
+                            })
+                            .collect(),
+
+                        (
+                            AcirValue::DynamicArray(AcirDynamicArray {
+                                block_id: lhs_block_id,
+                                len,
+                            }),
+                            AcirValue::DynamicArray(AcirDynamicArray {
+                                block_id: rhs_block_id,
+                                ..
+                            }),
+                        ) => {
+                            let mut var_equality_assertions = Vec::with_capacity(len);
+                            for i in 0..len {
+                                let lhs_var = read_from_index(lhs_block_id, i).expect("temporary");
+                                let rhs_var = read_from_index(rhs_block_id, i).expect("temporary");
+
+                                var_equality_assertions.push((lhs_var, rhs_var));
+                            }
+                            var_equality_assertions
+                        }
+                        _ => unreachable!("ICE: lhs and rhs should be of the same type"),
+                    }
+                }
+
+                let mut read_dynamic_array_index =
+                    |block_id: BlockId, array_index: usize| -> Result<AcirVar, InternalError> {
+                        let index = AcirValue::Var(
+                            self.acir_context.add_constant(FieldElement::from(array_index as u128)),
+                            AcirType::NumericType(NumericType::NativeField),
+                        );
+                        let index_var = index.into_var()?;
+
+                        self.acir_context.read_from_memory(block_id, &index_var)
+                    };
+
+                for (lhs, rhs) in
+                    get_var_equality_assertions(lhs, rhs, &mut read_dynamic_array_index)
+                {
+                    self.acir_context.assert_eq_var(lhs, rhs)?;
+                }
+
+                Ok(Vec::new())
+            }
             Intrinsic::BlackBox(black_box) => {
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
 
