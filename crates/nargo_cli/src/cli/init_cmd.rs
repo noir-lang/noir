@@ -16,11 +16,11 @@ pub(crate) struct InitCommand {
     name: Option<String>,
 }
     /// Use a library template
-    #[clap(long)]
+    #[arg(long, conflicts_with="bin")]
     pub(crate) lib: bool,
 
     /// Use a binary template [default]
-    #[clap(long)]
+    #[arg(long, conflicts_with="lib")]
     pub(crate) bin: bool,
 }
 
