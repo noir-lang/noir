@@ -25,7 +25,7 @@ pub use program::CompiledProgram;
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
-    #[arg(short, long)]
+    #[arg(long)]
     pub show_ssa: bool,
 
     #[arg(long)]
@@ -36,7 +36,7 @@ pub struct CompileOptions {
     pub print_acir: bool,
 
     /// Treat all warnings as errors
-    #[arg(short, long)]
+    #[arg(long)]
     pub deny_warnings: bool,
 }
 
