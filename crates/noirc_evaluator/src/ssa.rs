@@ -62,7 +62,8 @@ pub(crate) fn optimize_into_acir(
             .dead_instruction_elimination()
             .print(print_ssa_passes, "After Dead Instruction Elimination:");
     }
-    ssa.into_acir(brillig, abi_distinctness)
+    let array_use = ssa.array_use();
+    ssa.into_acir(brillig, abi_distinctness, &array_use)
 }
 
 /// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
