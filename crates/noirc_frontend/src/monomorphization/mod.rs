@@ -620,9 +620,9 @@ impl<'interner> Monomorphizer<'interner> {
     /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(typ: &HirType) -> ast::Type {
         match typ {
-            HirType::FieldElement(_) => ast::Type::Field,
-            HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
-            HirType::Bool(_) => ast::Type::Bool,
+            HirType::FieldElement => ast::Type::Field,
+            HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
+            HirType::Bool => ast::Type::Bool,
             HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
             HirType::FmtString(size, fields) => {
                 let size = size.evaluate_to_u64().unwrap_or(0);
@@ -653,7 +653,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // like automatic solving of traits. It should be fine since it is strictly
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
-                *binding.borrow_mut() = TypeBinding::Bound(HirType::field(None));
+                *binding.borrow_mut() = TypeBinding::Bound(HirType::default_int_type());
                 ast::Type::Field
             }
 

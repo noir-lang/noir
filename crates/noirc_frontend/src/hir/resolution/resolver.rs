@@ -332,7 +332,7 @@ impl<'a> Resolver<'a> {
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
         match typ {
-            UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
+            UnresolvedType::FieldElement => Type::FieldElement,
             UnresolvedType::Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 let size = if size.is_none() {
@@ -343,8 +343,8 @@ impl<'a> Resolver<'a> {
                 Type::Array(Box::new(size), elem)
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
-            UnresolvedType::Integer(comp_time, sign, bits) => Type::Integer(comp_time, sign, bits),
-            UnresolvedType::Bool(comp_time) => Type::Bool(comp_time),
+            UnresolvedType::Integer(sign, bits) => Type::Integer(sign, bits),
+            UnresolvedType::Bool => Type::Bool,
             UnresolvedType::String(size) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::String(Box::new(resolved_size))
@@ -816,9 +816,9 @@ impl<'a> Resolver<'a> {
 
     fn find_numeric_generics_in_type(typ: &Type, found: &mut HashMap<String, Shared<TypeBinding>>) {
         match typ {
-            Type::FieldElement(_)
-            | Type::Integer(_, _, _)
-            | Type::Bool(_)
+            Type::FieldElement
+            | Type::Integer(_, _)
+            | Type::Bool
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_, _)

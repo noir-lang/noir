@@ -23,7 +23,7 @@ pub use type_alias::*;
 use crate::{
     parser::{ParserError, ParserErrorReason},
     token::IntType,
-    BinaryTypeOperator, CompTime,
+    BinaryTypeOperator,
 };
 use iter_extended::vecmap;
 
@@ -32,10 +32,10 @@ use iter_extended::vecmap;
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedType {
-    FieldElement(CompTime),
+    FieldElement,
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
-    Integer(CompTime, Signedness, u32),                           // u32 = Integer(unsigned, 32)
-    Bool(CompTime),
+    Integer(Signedness, u32),                                     // u32 = Integer(unsigned, 32)
+    Bool,
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
     FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
@@ -81,14 +81,14 @@ impl std::fmt::Display for UnresolvedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use UnresolvedType::*;
         match self {
-            FieldElement(is_const) => write!(f, "{is_const}Field"),
+            FieldElement => write!(f, "Field"),
             Array(len, typ) => match len {
                 None => write!(f, "[{typ}]"),
                 Some(len) => write!(f, "[{typ}; {len}]"),
             },
-            Integer(is_const, sign, num_bits) => match sign {
-                Signedness::Signed => write!(f, "{is_const}i{num_bits}"),
-                Signedness::Unsigned => write!(f, "{is_const}u{num_bits}"),
+            Integer(sign, num_bits) => match sign {
+                Signedness::Signed => write!(f, "i{num_bits}"),
+                Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
             Named(s, args) => {
                 let args = vecmap(args, ToString::to_string);
@@ -103,7 +103,7 @@ impl std::fmt::Display for UnresolvedType {
                 write!(f, "({})", elements.join(", "))
             }
             Expression(expression) => expression.fmt(f),
-            Bool(is_const) => write!(f, "{is_const}bool"),
+            Bool => write!(f, "bool"),
             String(len) => match len {
                 None => write!(f, "str<_>"),
                 Some(len) => write!(f, "str<{len}>"),
@@ -134,11 +134,11 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 }
 
 impl UnresolvedType {
-    pub fn from_int_token(token: (CompTime, IntType)) -> UnresolvedType {
+    pub fn from_int_token(token: IntType) -> UnresolvedType {
         use {IntType::*, UnresolvedType::Integer};
-        match token.1 {
-            Signed(num_bits) => Integer(token.0, Signedness::Signed, num_bits),
-            Unsigned(num_bits) => Integer(token.0, Signedness::Unsigned, num_bits),
+        match token {
+            Signed(num_bits) => Integer(Signedness::Signed, num_bits),
+            Unsigned(num_bits) => Integer(Signedness::Unsigned, num_bits),
         }
     }
 }
