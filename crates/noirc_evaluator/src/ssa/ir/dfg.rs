@@ -369,7 +369,7 @@ impl DataFlowGraph {
     /// Otherwise, this returns None.
     pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
         match &self.values[self.resolve(value)] {
-            // Vectors are shared, so cloning them is cheap
+            // Arrays are shared, so cloning them is cheap
             Value::Array { array, typ } => Some((array.clone(), typ.clone())),
             _ => None,
         }
