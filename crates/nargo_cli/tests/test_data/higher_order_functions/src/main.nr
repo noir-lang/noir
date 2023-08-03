@@ -36,6 +36,21 @@ fn main() -> pub Field {
     x += 1;
     assert(closure_capturing_mutable(1) == 5);
 
+    // Fixing an ICE, where rewriting the closures
+    // during monomorphization didn't correspond
+    // to an internal `if` type
+    // found by @jfecher:
+    // https://github.com/noir-lang/noir/pull/1959#issuecomment-1658992989
+    let x2: u32 = 32;
+
+    let closure_if_else = if x2 > 2 {
+        || x2
+    } else {
+        || x2 + 2342
+    };
+
+    assert(closure_if_else() == 32);
+
     let ret = twice(add1, 3);
 
     test_array_functions();
