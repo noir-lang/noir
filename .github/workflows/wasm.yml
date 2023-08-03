@@ -65,12 +65,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          [
+        target: [
             x86_64-unknown-linux-gnu,
-            x86_64-unknown-linux-musl,
-            aarch64-unknown-linux-gnu,
-            aarch64-unknown-linux-musl,
+            # x86_64-unknown-linux-musl,
+            # aarch64-unknown-linux-gnu,
+            # aarch64-unknown-linux-musl,
           ]
 
     steps:
@@ -100,7 +99,6 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build Nargo
-        working-directory: noir
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
@@ -108,7 +106,6 @@ jobs:
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
-        working-directory: noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
