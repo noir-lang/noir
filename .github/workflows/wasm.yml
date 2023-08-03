@@ -24,9 +24,20 @@ jobs:
           path: build-nargo
           ref: ${{ inputs.build-nargo-ref || 'master' }}
 
+      - name: Print noir contents
+        run: |
+          echo "Contents of noir directory:"
+          ls -l noir
+
+      - name: Print build-nargo contents
+        run: |
+          echo "Contents of build-nargo directory:"
+          ls -l build-nargo
+
       - name: Collect locked barretenberg rev
         run: |
           echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./noir/flake.lock)" >> $GITHUB_ENV
+          echo "BB_REV is ${{ env.BB_REV }}"
 
       - uses: cachix/install-nix-action@v20
         with:
@@ -42,6 +53,7 @@ jobs:
       # https://github.com/actions/upload-artifact/issues/92#issuecomment-1080347032
       - name: Build barretenberg as libbarretenberg-wasm32
         run: |
+          echo "BB_REV is ${{ env.BB_REV }}"
           nix build "github:AztecProtocol/barretenberg/${{ env.BB_REV }}#wasm32"
           echo "ARTIFACT_UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
