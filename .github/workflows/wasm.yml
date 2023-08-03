@@ -109,11 +109,19 @@ jobs:
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
           7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo-${{ matrix.target }}
+          path: ./dist/*
+          retention-days: 3
+
       # You can access the artifacts directly from ./dist/* here
       - name: Test built artifact
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
+          ls -R
           npm install
           npm test
 
