@@ -108,7 +108,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Con
     );
 
     const txContext = new TxContext(false, false, true, contractDeploymentData, new Fr(chainId), new Fr(version));
-    const executionRequest = this.getExecutionRequest(address, AztecAddress.ZERO);
+    const executionRequest = await this.getExecutionRequest(address, AztecAddress.ZERO);
     const txRequest = await this.wallet.createAuthenticatedTxRequest([executionRequest], txContext);
 
     this.txRequest = txRequest;

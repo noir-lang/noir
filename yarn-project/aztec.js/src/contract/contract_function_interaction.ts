@@ -64,7 +64,7 @@ export class ContractFunctionInteraction {
       throw new Error("Can't call `create` on an unconstrained function.");
     }
     if (!this.txRequest) {
-      const executionRequest = this.getExecutionRequest(this.contractAddress, options.origin);
+      const executionRequest = await this.getExecutionRequest(this.contractAddress, options.origin);
       const nodeInfo = await this.wallet.getNodeInfo();
       const txContext = TxContext.empty(new Fr(nodeInfo.chainId), new Fr(nodeInfo.version));
       const txRequest = await this.wallet.createAuthenticatedTxRequest([executionRequest], txContext);
@@ -88,15 +88,21 @@ export class ContractFunctionInteraction {
    * Returns an execution request that represents this operation. Useful as a building
    * block for constructing batch requests.
    * @param options - An optional object containing additional configuration for the transaction.
-   * @returns An execution request.
+   * @returns An execution request wrapped in promise.
    */
-  public request(options: SendMethodOptions = {}): ExecutionRequest {
+  public request(options: SendMethodOptions = {}): Promise<ExecutionRequest> {
     return this.getExecutionRequest(this.contractAddress, options.origin);
   }
 
-  protected getExecutionRequest(to: AztecAddress, from?: AztecAddress): ExecutionRequest {
+  protected async getExecutionRequest(to: AztecAddress, from?: AztecAddress): Promise<ExecutionRequest> {
     const flatArgs = encodeArguments(this.functionDao, this.args);
     from = from ?? this.wallet.getAddress();
+
+    const accounts = await this.wallet.getAccounts();
+    // Zero address is used during deployment and does not need to be in the wallet
+    if (!from.equals(AztecAddress.ZERO) && !accounts.some(acc => from!.equals(acc))) {
+      throw new Error(`The specified 'from' address ${from} is not in the wallet's accounts.`);
+    }
 
     return {
       args: flatArgs,

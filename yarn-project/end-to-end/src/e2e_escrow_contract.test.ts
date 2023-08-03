@@ -93,8 +93,8 @@ describe('e2e_escrow_contract', () => {
     await expectBalance(owner, 50n);
 
     const actions = [
-      zkTokenContract.methods.transfer(10, owner, recipient).request(),
-      escrowContract.methods.withdraw(zkTokenContract.address, 20, recipient).request(),
+      await zkTokenContract.methods.transfer(10, owner, recipient).request(),
+      await escrowContract.methods.withdraw(zkTokenContract.address, 20, recipient).request(),
     ];
 
     // TODO: We need a nicer interface for batch actions
