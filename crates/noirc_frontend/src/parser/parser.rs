@@ -34,10 +34,10 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, FunctionDefinition, Ident,
-    IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
-    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, FunctionDefinition,
+    Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct,
+    NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl,
+    TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -548,7 +548,7 @@ fn check_statements_require_semicolon(
     })
 }
 
-/// Parse an optional ': type'
+/// Parse an optional ': type' and implicitly add a 'comptime' to the type
 fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
     ignore_then_commit(just(Token::Colon), parse_type())
         .or_not()
@@ -826,12 +826,18 @@ fn optional_distinctness() -> impl NoirParser<AbiDistinctness> {
     })
 }
 
+fn maybe_comp_time() -> impl NoirParser<()> {
+    keyword(Keyword::CompTime).or_not().validate(|opt, span, emit| if opt.is_some() {
+        emit(ParserError::with_reason(ParserErrorReason::ComptimeDeprecated, span));
+    })
+}
+
 fn field_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Field).map(|_| UnresolvedType::FieldElement)
+    maybe_comp_time().then_ignore(keyword(Keyword::Field)).map(|_| UnresolvedType::FieldElement)
 }
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
-    keyword(Keyword::Bool).map(|_| UnresolvedType::Bool)
+    maybe_comp_time().then_ignore(keyword(Keyword::Bool)).map(|_| UnresolvedType::Bool)
 }
 
 fn string_type() -> impl NoirParser<UnresolvedType> {
@@ -856,13 +862,14 @@ fn format_string_type(
 }
 
 fn int_type() -> impl NoirParser<UnresolvedType> {
-    filter_map(|span, token: Token| match token {
-        Token::IntType(int_type) => Ok(int_type),
-        unexpected => {
-            Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
-        }
-    })
-    .map(UnresolvedType::from_int_token)
+    maybe_comp_time()
+        .then(filter_map(|span, token: Token| match token {
+            Token::IntType(int_type) => Ok(int_type),
+            unexpected => {
+                Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
+            }
+        }))
+        .map(|(_, token)| UnresolvedType::from_int_token(token))
 }
 
 fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
@@ -1731,7 +1738,7 @@ mod test {
             vec![
                 "fn func_name() {}",
                 "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
-                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
+                "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
                 "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
