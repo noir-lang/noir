@@ -66,7 +66,9 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::SlicePushBack => {
+            dbg!(dfg.type_of_value(arguments[0]));
             let slice = dfg.get_array_constant(arguments[0]);
+            dbg!(slice.clone());
             if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
                 slice.push_back(elem);
                 let new_slice = dfg.make_array(slice, element_type);

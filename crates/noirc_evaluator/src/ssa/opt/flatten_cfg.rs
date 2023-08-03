@@ -147,6 +147,7 @@ use crate::ssa::{
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
         value::ValueId,
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -389,6 +390,9 @@ impl<'f> Context<'f> {
         then_value: ValueId,
         else_value: ValueId,
     ) -> ValueId {
+        dbg!("inside merge_values");
+        let typ = self.inserter.function.dfg.type_of_value(then_value);
+        dbg!(typ);
         match self.inserter.function.dfg.type_of_value(then_value) {
             Type::Numeric(_) => {
                 self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
@@ -397,10 +401,71 @@ impl<'f> Context<'f> {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
             // TODO(#1889)
-            Type::Slice(_) => panic!("Cannot return slices from an if expression"),
+            typ @ Type::Slice(_) => {
+                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
+                // panic!("Cannot return slices from an if expression")
+            }
             Type::Reference => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
         }
+    }
+
+    fn merge_slice_values(
+        &mut self,
+        typ: Type,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value_id: ValueId,
+        else_value_id: ValueId,
+    ) -> ValueId {
+        let mut merged = im::Vector::new();
+
+        let element_types = match &typ {
+            Type::Slice(elements) => elements,
+            _ => panic!("Expected slice type"),
+        };
+
+        let then_value = self.inserter.function.dfg[then_value_id].clone();
+        let else_value = self.inserter.function.dfg[else_value_id].clone();
+        // These are going to be instructions for SlicePushBack
+        dbg!(then_value.clone());
+        dbg!(else_value.clone());
+
+        let len = match then_value {
+            Value::Array { array, .. } => {
+                array.len()
+            }
+            _ => panic!("Expected slice type"),
+        };
+        dbg!(len);
+
+        for i in 0..len {
+            for (element_index, element_type) in element_types.iter().enumerate() {
+                let index = ((i * element_types.len() + element_index) as u128).into();
+                let index = self.inserter.function.dfg.make_constant(index, Type::field());
+
+                let typevars = Some(vec![element_type.clone()]);
+
+                let mut get_element = |array, typevars| {
+                    let get = Instruction::ArrayGet { array, index };
+                    self.insert_instruction_with_typevars(get, typevars).first()
+                };
+
+                let then_element = get_element(then_value_id, typevars.clone());
+                let else_element = get_element(else_value_id, typevars);
+                dbg!(self.inserter.function.dfg.type_of_value(then_element));
+                dbg!(self.inserter.function.dfg.type_of_value(else_element));
+
+                merged.push_back(self.merge_values(
+                    then_condition,
+                    else_condition,
+                    then_element,
+                    else_element,
+                ));
+            }
+        }
+
+        self.inserter.function.dfg.make_array(merged, typ)
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -578,10 +643,18 @@ impl<'f> Context<'f> {
     ) -> BasicBlockId {
         assert_eq!(self.cfg.predecessors(destination).len(), 2);
 
+        let then_block = self.inserter.function.dfg[then_branch.last_block].terminator();
+        let else_block = self.inserter.function.dfg[else_branch.last_block].terminator();
+        dbg!(then_block);
+        dbg!(else_block);
+
         let then_args =
             self.inserter.function.dfg[then_branch.last_block].terminator_arguments().to_vec();
         let else_args =
             self.inserter.function.dfg[else_branch.last_block].terminator_arguments().to_vec();
+
+        dbg!(then_args.clone());
+        dbg!(else_args.clone());
 
         let params = self.inserter.function.dfg.block_parameters(destination);
         assert_eq!(params.len(), then_args.len());
@@ -590,7 +663,8 @@ impl<'f> Context<'f> {
         let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
         });
-
+        dbg!("inline_branch_end");
+        dbg!(args.clone());
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
             self.merge_values(then_branch.condition, else_branch.condition, then_arg, else_arg)

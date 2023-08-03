@@ -3,14 +3,13 @@
 //! mutable variables into values that are easier to manipulate.
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use iter_extended::vecmap;
-
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
+        cfg::ControlFlowGraph,
     },
     ssa_gen::Ssa,
 };
@@ -19,21 +18,57 @@ impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove store that are subsequently redundant, as long as they are
     /// not stores on memory that will be passed into a function call or returned.
+    // pub(crate) fn mem2reg(mut self) -> Ssa {
+    //     for function in self.functions.values_mut() {
+    //         let mut all_protected_allocations = HashSet::new();
+    //         let contexts = vecmap(function.reachable_blocks(), |block| {
+    //             let mut context = PerBlockContext::new(block);
+    //             // Maps Load instruction id -> value to replace the result of the load with
+    //             let mut loads_to_substitute = HashMap::new();
+
+    //             // Maps Load result id -> value to replace the result of the load with
+    //             let mut load_values_to_substitute = HashMap::new();
+
+    //             let allocations_protected_by_block =
+    //                 context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg, &mut loads_to_substitute, &mut load_values_to_substitute);
+    //             all_protected_allocations.extend(allocations_protected_by_block.into_iter());
+    //             context
+    //         });
+    //         // Now that we have a comprehensive list of used allocations across all the
+    //         // function's blocks, it is safe to remove any stores that do not touch such
+    //         // allocations.
+    //         for context in contexts {
+    //             context.remove_unused_stores(&mut function.dfg, &all_protected_allocations);
+    //         }
+    //     }
+
+    //     self
+    // }
+
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             let mut all_protected_allocations = HashSet::new();
-            let contexts = vecmap(function.reachable_blocks(), |block| {
-                let mut context = PerBlockContext::new(block);
+            let mut context = PerFunctionContext::new();
+
+            for block in function.reachable_blocks() {
+                let cfg = ControlFlowGraph::with_function(function);
+
+                // Maps Load instruction id -> value to replace the result of the load with
+                let mut loads_to_substitute = HashMap::new();
+
+                // Maps Load result id -> value to replace the result of the load with
+                let mut load_values_to_substitute = HashMap::new();
+
                 let allocations_protected_by_block =
-                    context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg);
+                    context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg, &mut loads_to_substitute, &mut load_values_to_substitute, block, &cfg);
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
-                context
-            });
+            }
+
             // Now that we have a comprehensive list of used allocations across all the
             // function's blocks, it is safe to remove any stores that do not touch such
             // allocations.
-            for context in contexts {
-                context.remove_unused_stores(&mut function.dfg, &all_protected_allocations);
+            for block in function.reachable_blocks() {
+                context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, block);
             }
         }
 
@@ -45,6 +80,17 @@ struct PerBlockContext {
     block_id: BasicBlockId,
     last_stores: BTreeMap<AllocId, ValueId>,
     store_ids: Vec<InstructionId>,
+}
+
+struct PerFunctionContext {
+    last_stores: BTreeMap<AllocId, ValueId>,
+    last_stores_with_block: BTreeMap<(AllocId, BasicBlockId), ValueId>,
+    store_ids: Vec<InstructionId>,
+}
+impl PerFunctionContext {
+    fn new() -> Self {
+        PerFunctionContext { last_stores: BTreeMap::new(), last_stores_with_block: BTreeMap::new(), store_ids: Vec::new() }
+    }
 }
 
 /// An AllocId is the ValueId returned from an allocate instruction. E.g. v0 in v0 = allocate.
@@ -62,31 +108,40 @@ impl PerBlockContext {
     fn analyze_allocations_and_eliminate_known_loads(
         &mut self,
         dfg: &mut DataFlowGraph,
+        loads_to_substitute: &mut HashMap<InstructionId, ValueId>,
+        load_values_to_substitute: &mut HashMap<ValueId, ValueId>,
     ) -> HashSet<AllocId> {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[self.block_id];
 
         // Maps Load instruction id -> value to replace the result of the load with
-        let mut loads_to_substitute = HashMap::new();
+        // let mut loads_to_substitute = HashMap::new();
 
         // Maps Load result id -> value to replace the result of the load with
-        let mut load_values_to_substitute = HashMap::new();
+        // let mut load_values_to_substitute = HashMap::new();
 
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
+                    println!("STORE: {address}");
+                    dbg!(address);
                     if let Some(value) = load_values_to_substitute.get(&address) {
+                        dbg!("have load_values_to_substitute");
                         address = *value;
                     }
-
+                    println!("about to insert {address}");
                     self.last_stores.insert(address, *value);
                     self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { mut address } => {
+                    println!("LOAD: {address}");
+                    dbg!(address);
                     if let Some(value) = load_values_to_substitute.get(&address) {
+                        dbg!("have load_values_to_substitute");
                         address = *value;
                     }
-
+                    dbg!(self.last_stores.clone());
+                    dbg!(self.last_stores.get(&address).is_some());
                     if let Some(last_value) = self.last_stores.get(&address) {
                         let result_value = *dfg
                             .instruction_results(*instruction_id)
@@ -123,8 +178,8 @@ impl PerBlockContext {
 
         // Substitute load result values
         for (result_value, new_value) in load_values_to_substitute {
-            let result_value = dfg.resolve(result_value);
-            dfg.set_value_from_id(result_value, new_value);
+            let result_value = dfg.resolve(*result_value);
+            dfg.set_value_from_id(result_value, *new_value);
         }
 
         // Delete load instructions
@@ -170,6 +225,186 @@ impl PerBlockContext {
 
         // Delete unused stores
         dfg[self.block_id]
+            .instructions_mut()
+            .retain(|instruction| !stores_to_remove.contains(instruction));
+    }
+}
+
+impl PerFunctionContext {
+    // Attempts to remove load instructions for which the result is already known from previous
+    // store instructions to the same address in the same block.
+    fn analyze_allocations_and_eliminate_known_loads(
+        &mut self,
+        dfg: &mut DataFlowGraph,
+        loads_to_substitute: &mut HashMap<InstructionId, ValueId>,
+        load_values_to_substitute: &mut HashMap<ValueId, ValueId>,
+        block_id: BasicBlockId,
+        cfg: &ControlFlowGraph,
+    ) -> HashSet<AllocId> {
+        let mut protected_allocations = HashSet::new();
+        let block = &dfg[block_id];
+        println!("BLOCK: {block_id}");
+        // dbg!(predecessors.len());
+        // for predecessor in predecessors.clone() {
+        //     dbg!(predecessor);
+        // }
+
+        // Maps Load instruction id -> value to replace the result of the load with
+        // let mut loads_to_substitute = HashMap::new();
+
+        // Maps Load result id -> value to replace the result of the load with
+        // let mut load_values_to_substitute = HashMap::new();
+
+        for instruction_id in block.instructions() {
+            match &dfg[*instruction_id] {
+                Instruction::Store { mut address, value } => {
+                    println!("STORE: {address}");
+                    if let Some(value) = load_values_to_substitute.get(&address) {
+                        dbg!("have load_values_to_substitute");
+                        address = *value;
+                    }
+                    println!("about to insert address: {address}, value: {value}");
+                    self.last_stores_with_block.insert((address, block_id), *value);
+                    self.last_stores.insert(address, *value);
+                    self.store_ids.push(*instruction_id);
+                }
+                Instruction::Load { mut address } => {
+                    println!("LOAD: {address}");
+                    if let Some(value) = load_values_to_substitute.get(&address) {
+                        dbg!("have load_values_to_substitute");
+                        address = *value;
+                    }
+
+                    let mut predecessors = cfg.predecessors(block_id);
+                    if predecessors.len() == 1 {
+                        let predecessor = predecessors.next().expect("Already checked length of predecessors");
+                        drop(predecessors);
+
+                        if let Some(last_value) = self.last_stores_with_block.get(&(address, predecessor)) {
+                            println!("last_value: {last_value}");
+                            let result_value = *dfg
+                                .instruction_results(*instruction_id)
+                                .first()
+                                .expect("ICE: Load instructions should have single result");
+
+                            println!("result_value: {result_value}");
+                            println!("last_value: {last_value}");
+
+                            loads_to_substitute.insert(*instruction_id, *last_value);
+                            load_values_to_substitute.insert(result_value, *last_value);
+                        } else {
+                            protected_allocations.insert(address);
+                        }
+                    } else {
+                        if let Some(last_value) = self.last_stores_with_block.get(&(address, block_id)) {
+                            println!("last_value: {last_value}");
+                            let result_value = *dfg
+                                .instruction_results(*instruction_id)
+                                .first()
+                                .expect("ICE: Load instructions should have single result");
+
+                            println!("result_value: {result_value}");
+                            println!("last_value: {last_value}");
+
+                            loads_to_substitute.insert(*instruction_id, *last_value);
+                            load_values_to_substitute.insert(result_value, *last_value);
+                        } else {
+                            protected_allocations.insert(address);
+                        }
+                    }
+
+                    // dbg!(self.last_stores.get(&address).is_some());
+                    // if let Some(last_value) = self.last_stores.get(&address) {
+                    //     println!("last_value: {last_value}");
+                    //     let result_value = *dfg
+                    //         .instruction_results(*instruction_id)
+                    //         .first()
+                    //         .expect("ICE: Load instructions should have single result");
+                    //     println!("result_value: {result_value}");
+                    //     println!("last_value: {last_value}");
+                    //     // dbg!(loads_to_substitute.contains_key(instruction_id));
+                    //     // dbg!(load_values_to_substitute.contains_key(&result_value));
+                    //     loads_to_substitute.insert(*instruction_id, *last_value);
+                    //     load_values_to_substitute.insert(result_value, *last_value);
+                    // } else {
+                    //     protected_allocations.insert(address);
+                    // }
+                }
+                Instruction::Call { arguments, .. } => {
+                    for arg in arguments {
+                        if Self::value_is_from_allocation(*arg, dfg) {
+                            protected_allocations.insert(*arg);
+                        }
+                    }
+                }
+                Instruction::Allocate => {
+                    dbg!("got allocate");
+                }
+                _ => {
+                    // Nothing to do
+                }
+            }
+        }
+
+        // Identify any arrays that are returned from this function
+        if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
+            for value in return_values {
+                if Self::value_is_from_allocation(*value, dfg) {
+                    protected_allocations.insert(*value);
+                }
+            }
+        }
+
+        // Substitute load result values
+        for (result_value, new_value) in load_values_to_substitute {
+            let result_value = dfg.resolve(*result_value);
+            dfg.set_value_from_id(result_value, *new_value);
+        }
+
+        // Delete load instructions
+        // Even though we could let DIE handle this, doing it here makes the debug output easier
+        // to read.
+        dfg[block_id]
+            .instructions_mut()
+            .retain(|instruction| !loads_to_substitute.contains_key(instruction));
+
+        protected_allocations
+    }
+
+    /// Checks whether the given value id refers to an allocation.
+    fn value_is_from_allocation(value: ValueId, dfg: &DataFlowGraph) -> bool {
+        match &dfg[value] {
+            Value::Instruction { instruction, .. } => {
+                matches!(&dfg[*instruction], Instruction::Allocate)
+            }
+            _ => false,
+        }
+    }
+
+    /// Removes all store instructions identified during analysis that aren't present in the
+    /// provided `protected_allocations` `HashSet`.
+    fn remove_unused_stores(
+        &self,
+        dfg: &mut DataFlowGraph,
+        protected_allocations: &HashSet<AllocId>,
+        block_id: BasicBlockId,
+    ) {
+        // Scan for unused stores
+        let mut stores_to_remove = HashSet::new();
+
+        for instruction_id in &self.store_ids {
+            let address = match &dfg[*instruction_id] {
+                Instruction::Store { address, .. } => *address,
+                _ => unreachable!("store_ids should contain only store instructions"),
+            };
+
+            if !protected_allocations.contains(&address) {
+                stores_to_remove.insert(*instruction_id);
+            }
+        }
+
+        // Delete unused stores
+        dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !stores_to_remove.contains(instruction));
     }

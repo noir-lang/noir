@@ -329,7 +329,10 @@ impl Instruction {
                     None
                 }
             }
-            Instruction::Call { func, arguments } => simplify_call(*func, arguments, dfg),
+            Instruction::Call { func, arguments } => {
+                // dbg!(block);
+                simplify_call(*func, arguments, dfg)
+            }
             Instruction::EnableSideEffects { condition } => {
                 if let Some(last) = dfg[block].instructions().last().copied() {
                     let last = &mut dfg[last];
@@ -341,7 +344,11 @@ impl Instruction {
                 None
             }
             Instruction::Allocate { .. } => None,
-            Instruction::Load { .. } => None,
+            Instruction::Load { address } => {
+                let array = dfg.get_array_constant(*address);
+                dbg!(array.clone());
+                None
+            }
             Instruction::Store { .. } => None,
         }
     }

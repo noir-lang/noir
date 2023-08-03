@@ -59,6 +59,12 @@ fn simplify_function(function: &mut Function) {
             let predecessor = predecessors.next().expect("Already checked length of predecessors");
             drop(predecessors);
 
+            // let basic_block = &function.dfg[block];
+            // dbg!(basic_block.instructions());
+            // for instruction in basic_block.instructions() {
+
+            // }
+
             // If the block has only 1 predecessor, we can safely remove its block parameters
             remove_block_parameters(function, block, predecessor);
 
@@ -104,7 +110,6 @@ fn remove_block_parameters(
     predecessor: BasicBlockId,
 ) {
     let block = &mut function.dfg[block];
-
     if !block.parameters().is_empty() {
         let block_params = block.take_parameters();
 
@@ -135,6 +140,7 @@ fn try_inline_into_predecessor(
 ) -> bool {
     let mut successors = cfg.successors(predecessor);
     if successors.len() == 1 && successors.next() == Some(block) {
+        dbg!("successors.len() == 1 && successors.next() == Some(block)");
         drop(successors);
         function.dfg.inline_block(block, predecessor);
 
