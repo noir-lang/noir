@@ -9,6 +9,7 @@
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_init.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_inner.hpp"
 #include "aztec3/circuits/abis/read_request_membership_witness.hpp"
+#include "aztec3/circuits/abis/tx_request.hpp"
 #include "aztec3/circuits/hash.hpp"
 #include "aztec3/circuits/kernel/private/common.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
@@ -27,6 +28,7 @@ using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionalPrivateCircuitPublicInputs;
 using aztec3::circuits::abis::ReadRequestMembershipWitness;
+using aztec3::circuits::abis::TxRequest;
 using aztec3::circuits::abis::private_kernel::PrivateCallData;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInit;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInner;
@@ -74,17 +76,27 @@ inline const auto& get_empty_contract_siblings()
 /**
  * @brief Get the random read requests and their membership requests
  *
- * @details read requests are siloed by contract address before being
+ * @details read requests are siloed by contract address and nonce before being
  * inserted into mock private data tree
  *
+ * @param first_nullifier used when computing nonce for unique_siloed_commitments (private data tree leaves)
  * @param contract_address address to use when siloing read requests
  * @param num_read_requests if negative, use random num
- * @return std::tuple<read_requests, read_request_memberships_witnesses, historic_private_data_tree_root>
+ * @return tuple including read requests, their membership witnesses, their transient versions, and the
+ * private data tree root that contains all of these randomly created commitments at random leaf indices
+ *     std::tuple<
+ *      read_requests,
+ *      read_request_memberships_witnesses,
+ *      transient_read_requests,
+ *      transient_read_request_memberships_witnesses,
+ *      historic_private_data_tree_root>
  */
 std::tuple<std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL>,
            std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
+           std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL>,
+           std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
            NT::fr>
-get_random_reads(NT::fr const& contract_address, int num_read_requests);
+get_random_reads(NT::fr const& first_nullifier, NT::fr const& contract_address, int num_read_requests);
 
 /**
  * @brief Create a private call deploy data object

@@ -43,12 +43,12 @@ export class SimulatorOracle implements DBOracle {
 
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr) {
     const noteDaos = await this.db.getNoteSpendingInfo(contractAddress, storageSlot);
-    return noteDaos.map(({ contractAddress, storageSlot, nonce, notePreimage, nullifier, index }) => ({
+    return noteDaos.map(({ contractAddress, storageSlot, nonce, notePreimage, siloedNullifier, index }) => ({
       contractAddress,
       storageSlot,
       nonce,
       preimage: notePreimage.items,
-      nullifier,
+      siloedNullifier,
       // RPC Client can use this index to get full MembershipWitness
       index,
     }));
@@ -85,12 +85,12 @@ export class SimulatorOracle implements DBOracle {
   /**
    * Retrieves the noir oracle data required to prove existence of a given commitment.
    * @param contractAddress - The contract Address.
-   * @param commitment - The key of the message being fetched.
+   * @param innerCommitment - The key of the message being fetched.
    * @returns - A promise that resolves to the commitment data, a sibling path and the
    *            index of the message in the private data tree.
    */
-  async getCommitmentOracle(contractAddress: AztecAddress, commitment: Fr): Promise<CommitmentDataOracleInputs> {
-    const siloedCommitment = siloCommitment(await CircuitsWasm.get(), contractAddress, commitment);
+  async getCommitmentOracle(contractAddress: AztecAddress, innerCommitment: Fr): Promise<CommitmentDataOracleInputs> {
+    const siloedCommitment = siloCommitment(await CircuitsWasm.get(), contractAddress, innerCommitment);
     const index = await this.dataTreeProvider.findCommitmentIndex(siloedCommitment.toBuffer());
     if (!index) throw new Error('Commitment not found');
 

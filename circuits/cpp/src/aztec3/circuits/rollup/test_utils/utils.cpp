@@ -22,7 +22,7 @@ using ConstantRollupData = aztec3::circuits::abis::ConstantRollupData<NT>;
 using BaseRollupInputs = aztec3::circuits::abis::BaseRollupInputs<NT>;
 using RootRollupInputs = aztec3::circuits::abis::RootRollupInputs<NT>;
 using RootRollupPublicInputs = aztec3::circuits::abis::RootRollupPublicInputs<NT>;
-using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
+using DummyCircuitBuilder = aztec3::utils::DummyCircuitBuilder;
 
 using Aggregator = aztec3::circuits::recursion::Aggregator;
 using AppendOnlyTreeSnapshot = aztec3::circuits::abis::AppendOnlyTreeSnapshot<NT>;

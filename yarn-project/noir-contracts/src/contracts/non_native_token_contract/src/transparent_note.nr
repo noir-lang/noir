@@ -38,19 +38,21 @@ impl TransparentNote {
 
     fn consume_in_secret(self: Self, context: &mut Context, root: Field, secret: Field) {
         // Get the commitment value (before silo)
-        let commitment = self.get_commitment();
-
-        // Let the kernel perform the read.
-        context.push_read_request(commitment);
+        let innerCommitment = self.get_commitment();
 
         // Get the commitment data, (where it is in the db)
-        let commitment_oracle_call = get_commitment(commitment);
+        let commitment_oracle_call = get_commitment(innerCommitment);
         let commitment_data = make_commitment_getter_data(commitment_oracle_call, 0);
+        let siloed_commitment = commitment_data.message; // oracle call returns siloed commitment
+
+        // Let the kernel perform the read.
+        context.push_read_request(siloed_commitment);
+
         // Do we still need to do this with read requests?
         assert(root == commitment_data.root);
 
         // Calculate the nullifier
-        self.emit_nullifier(context, secret, commitment, commitment_data.leaf_index);
+        self.emit_nullifier(context, secret, siloed_commitment, commitment_data.leaf_index);
     }
 
     fn compute_secret_hash(secret: Field) -> Field {

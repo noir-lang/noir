@@ -29,9 +29,9 @@ export interface NoteSpendingInfoDao {
    */
   notePreimage: NotePreimage;
   /**
-   * The nullifier of the note.
+   * The nullifier of the note (siloed by contract address).
    */
-  nullifier: Fr;
+  siloedNullifier: Fr;
   /**
    * The location of the relevant note in the private data tree.
    */
@@ -48,7 +48,7 @@ export const createRandomNoteSpendingInfoDao = ({
   ownerAddress = AztecAddress.random(),
   storageSlot = Fr.random(),
   notePreimage = NotePreimage.random(),
-  nullifier = Fr.random(),
+  siloedNullifier = Fr.random(),
   index = Fr.random().value,
   publicKey = Point.random(),
 }: Partial<NoteSpendingInfoDao> = {}): NoteSpendingInfoDao => ({
@@ -57,7 +57,7 @@ export const createRandomNoteSpendingInfoDao = ({
   ownerAddress,
   storageSlot,
   notePreimage,
-  nullifier,
+  siloedNullifier,
   index,
   publicKey,
 });

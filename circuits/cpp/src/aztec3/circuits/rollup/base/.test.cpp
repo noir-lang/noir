@@ -52,7 +52,7 @@ using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::rollup::test_utils::utils::make_public_data_update_request;
 using aztec3::circuits::rollup::test_utils::utils::make_public_read;
 
-using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
+using DummyCircuitBuilder = aztec3::utils::DummyCircuitBuilder;
 
 using aztec3::utils::CircuitErrorCode;
 }  // namespace
@@ -128,7 +128,7 @@ class base_rollup_tests : public ::testing::Test {
 
 TEST_F(base_rollup_tests, native_no_new_contract_leafs)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_no_new_contract_leafs");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_no_new_contract_leafs");
     // When there are no contract deployments. The contract tree should be inserting 0 leafs, (not empty leafs);
     // Initially, the start_contract_tree_snapshot is empty (leaf is 0. hash it up).
     // Get sibling path of index 0 leaf (for circuit to check membership via sibling path)
@@ -158,7 +158,7 @@ TEST_F(base_rollup_tests, native_no_new_contract_leafs)
 
 TEST_F(base_rollup_tests, native_contract_leaf_inserted)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_contract_leaf_inserted");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_contract_leaf_inserted");
     // When there is a contract deployment, the contract tree should be inserting 1 leaf.
     // The remaining leafs should be 0 leafs, (not empty leafs);
 
@@ -203,7 +203,8 @@ TEST_F(base_rollup_tests, native_contract_leaf_inserted)
 
 TEST_F(base_rollup_tests, native_contract_leaf_inserted_in_non_empty_snapshot_tree)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_contract_leaf_inserted_in_non_empty_snapshot_tree");
+    DummyCircuitBuilder builder =
+        DummyCircuitBuilder("base_rollup_tests__native_contract_leaf_inserted_in_non_empty_snapshot_tree");
     // Same as before except our start_contract_snapshot_tree is not empty
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
 
@@ -258,7 +259,7 @@ TEST_F(base_rollup_tests, native_contract_leaf_inserted_in_non_empty_snapshot_tr
 
 TEST_F(base_rollup_tests, native_new_commitments_tree)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_new_commitments_tree");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_new_commitments_tree");
     // Create 4 new mock commitments. Add them to kernel data.
     // Then get sibling path so we can verify insert them into the tree.
 
@@ -338,7 +339,7 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_empty)
     /**
      * RUN
      */
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_new_nullifier_tree_empty");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_new_nullifier_tree_empty");
     std::array<PreviousKernelData<NT>, 2> const kernel_data = { get_empty_kernel(), get_empty_kernel() };
     BaseRollupInputs const empty_inputs = base_rollup_inputs_from_kernels(kernel_data);
 
@@ -376,7 +377,7 @@ void nullifier_insertion_test(std::array<fr, MAX_NEW_NULLIFIERS_PER_TX * 2> new_
     }
     auto end_nullifier_tree_snapshot = nullifier_tree.get_snapshot();
 
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__nullifier_insertion_test");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__nullifier_insertion_test");
     std::array<PreviousKernelData<NT>, 2> kernel_data = { get_empty_kernel(), get_empty_kernel() };
     for (uint8_t i = 0; i < 2; i++) {
         std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> kernel_nullifiers;
@@ -441,7 +442,7 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_sparse)
     }
     auto expected_end_nullifier_tree_snapshot = nullifier_tree.get_snapshot();
 
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_new_nullifier_tree_sparse");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_new_nullifier_tree_sparse");
     BaseRollupInputs const empty_inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
     std::tuple<BaseRollupInputs, AppendOnlyTreeSnapshot<NT>, AppendOnlyTreeSnapshot<NT>> inputs_and_snapshots =
         test_utils::utils::generate_nullifier_tree_testing_values_explicit(empty_inputs, nullifiers, initial_values);
@@ -470,7 +471,7 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_sparse)
 TEST_F(base_rollup_tests, native_nullifier_tree_regression)
 {
     // Regression test caught when testing the typescript nullifier tree implementation
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_nullifier_tree_regression");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_nullifier_tree_regression");
 
     // This test runs after some data has already been inserted into the tree
     // This test will pre-populate the tree with 6 * KERNEL_NEW_NULLILFIERS_LENGTH values (0 item + 6 *
@@ -549,7 +550,7 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_double_spend)
      * DESCRIPTION
      */
 
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_new_nullifier_tree_double_spend");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_new_nullifier_tree_double_spend");
     BaseRollupInputs const empty_inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
 
     fr const nullifier_to_insert =
@@ -572,7 +573,7 @@ TEST_F(base_rollup_tests, native_new_nullifier_tree_double_spend)
 
 TEST_F(base_rollup_tests, native_empty_block_calldata_hash)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_empty_block_calldata_hash");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_empty_block_calldata_hash");
     std::vector<uint8_t> const zero_bytes_vec = test_utils::utils::get_empty_calldata_leaf();
     auto expected_calldata_hash = sha256::sha256(zero_bytes_vec);
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
@@ -618,7 +619,7 @@ TEST_F(base_rollup_tests, native_calldata_hash)
     std::array<fr, NUM_FIELDS_PER_SHA256> const expected_calldata_hash =
         components::compute_kernels_calldata_hash(kernel_data);
 
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_calldata_hash");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_calldata_hash");
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels(kernel_data);
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -636,7 +637,8 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_private_data_negati
     // WRITE a negative test that will fail the inclusion proof
 
     // Test membership works for empty trees
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_compute_membership_historic_private_data_negative");
+    DummyCircuitBuilder builder =
+        DummyCircuitBuilder("base_rollup_tests__native_compute_membership_historic_private_data_negative");
     std::array<PreviousKernelData<NT>, 2> const kernel_data = { get_empty_kernel(), get_empty_kernel() };
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels(kernel_data);
 
@@ -667,7 +669,8 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_private_data_negati
 TEST_F(base_rollup_tests, native_compute_membership_historic_contract_tree_negative)
 {
     // Test membership works for empty trees
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_compute_membership_historic_contract_tree_negative");
+    DummyCircuitBuilder builder =
+        DummyCircuitBuilder("base_rollup_tests__native_compute_membership_historic_contract_tree_negative");
     std::array<PreviousKernelData<NT>, 2> const kernel_data = { get_empty_kernel(), get_empty_kernel() };
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels(kernel_data);
 
@@ -698,7 +701,7 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_contract_tree_negat
 
 TEST_F(base_rollup_tests, native_constants_dont_change)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_constants_dont_change");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_constants_dont_change");
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
     BaseOrMergeRollupPublicInputs outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -709,7 +712,7 @@ TEST_F(base_rollup_tests, native_constants_dont_change)
 
 TEST_F(base_rollup_tests, native_constants_dont_match_kernels_chain_id)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_constants_dont_change");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_constants_dont_change");
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
     inputs.constants.global_variables.chain_id = 3;
     BaseOrMergeRollupPublicInputs const outputs =
@@ -721,7 +724,7 @@ TEST_F(base_rollup_tests, native_constants_dont_match_kernels_chain_id)
 
 TEST_F(base_rollup_tests, native_constants_dont_match_kernels_version)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_constants_dont_change");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_constants_dont_change");
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
     inputs.constants.global_variables.version = 3;
     BaseOrMergeRollupPublicInputs const outputs =
@@ -734,7 +737,7 @@ TEST_F(base_rollup_tests, native_constants_dont_match_kernels_version)
 TEST_F(base_rollup_tests, native_aggregate)
 {
     // TODO(rahul): Fix this when aggregation works
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_aggregate");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_aggregate");
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
     BaseOrMergeRollupPublicInputs const outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -745,7 +748,7 @@ TEST_F(base_rollup_tests, native_aggregate)
 
 TEST_F(base_rollup_tests, native_subtree_height_is_0)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_subtree_height_is_0");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_subtree_height_is_0");
     BaseRollupInputs const inputs = base_rollup_inputs_from_kernels({ get_empty_kernel(), get_empty_kernel() });
     BaseOrMergeRollupPublicInputs const outputs =
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
@@ -763,7 +766,7 @@ TEST_F(base_rollup_tests, native_cbind_0)
 
 TEST_F(base_rollup_tests, native_single_public_state_read)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_single_public_state_read");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_single_public_state_read");
     MemoryStore private_data_tree_store;
     MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
 
@@ -798,7 +801,7 @@ TEST_F(base_rollup_tests, native_single_public_state_read)
 
 TEST_F(base_rollup_tests, native_single_public_state_write)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_single_public_state_write");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_single_public_state_write");
     MemoryStore private_data_tree_store;
     MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
 
@@ -836,7 +839,7 @@ TEST_F(base_rollup_tests, native_single_public_state_write)
 
 TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_multiple_public_state_read_writes");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_multiple_public_state_read_writes");
     MemoryStore private_data_tree_store;
     MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
 
@@ -883,7 +886,7 @@ TEST_F(base_rollup_tests, native_multiple_public_state_read_writes)
 
 TEST_F(base_rollup_tests, native_invalid_public_state_read)
 {
-    DummyBuilder builder = DummyBuilder("base_rollup_tests__native_invalid_public_state_read");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("base_rollup_tests__native_invalid_public_state_read");
     MemoryStore private_data_tree_store;
     MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
 

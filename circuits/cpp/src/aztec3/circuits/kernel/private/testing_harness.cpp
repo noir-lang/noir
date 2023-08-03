@@ -47,18 +47,22 @@ using aztec3::utils::array_length;
 /**
  * @brief Get the random read requests and their membership requests
  *
- * @details read requests are siloed by contract address before being
+ * @details read requests are siloed by contract address and nonce before being
  * inserted into mock private data tree
  *
+ * @param first_nullifier used when computing nonce for unique_siloed_commitments (private data tree leaves)
  * @param contract_address address to use when siloing read requests
  * @param num_read_requests if negative, use random num. Must be < MAX_READ_REQUESTS_PER_CALL
  * @return std::tuple<read_requests, read_request_memberships_witnesses, historic_private_data_tree_root>
  */
 std::tuple<std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL>,
            std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
+           std::array<NT::fr, MAX_READ_REQUESTS_PER_CALL>,
+           std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>,
            NT::fr>
-get_random_reads(NT::fr const& contract_address, int const num_read_requests)
+get_random_reads(NT::fr const& first_nullifier, NT::fr const& contract_address, int const num_read_requests)
 {
+    std::array<fr, MAX_READ_REQUESTS_PER_CALL> transient_read_requests{};
     std::array<fr, MAX_READ_REQUESTS_PER_CALL> read_requests{};
     std::array<fr, MAX_READ_REQUESTS_PER_CALL> leaves{};
 
@@ -69,8 +73,16 @@ get_random_reads(NT::fr const& contract_address, int const num_read_requests)
     // randomize private app circuit's read requests
     for (size_t rr = 0; rr < final_num_rr; rr++) {
         // randomize commitment and its leaf index
-        read_requests[rr] = NT::fr::random_element();
-        leaves[rr] = silo_commitment<NT>(contract_address, read_requests[rr]);
+        // transient read requests are raw (not siloed and not unique at input to kernel circuit)
+        transient_read_requests[rr] = NT::fr::random_element();
+
+        const auto siloed_commitment = silo_commitment<NT>(contract_address, read_requests[rr]);
+        const auto nonce = compute_commitment_nonce<NT>(first_nullifier, rr);
+        const auto unique_siloed_commitment =
+            siloed_commitment == 0 ? 0 : compute_unique_commitment<NT>(nonce, siloed_commitment);
+
+        leaves[rr] = unique_siloed_commitment;
+        read_requests[rr] = unique_siloed_commitment;
     }
 
     // this set and the following loop lets us generate totally random leaf indices
@@ -95,17 +107,30 @@ get_random_reads(NT::fr const& contract_address, int const num_read_requests)
 
     // compute the merkle sibling paths for each request
     std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>
+        transient_read_request_membership_witnesses{};
+    std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_CALL>
         read_request_membership_witnesses{};
     for (size_t i = 0; i < array_length(read_requests); i++) {
         read_request_membership_witnesses[i] = { .leaf_index = NT::fr(rr_leaf_indices[i]),
                                                  .sibling_path = get_sibling_path<PRIVATE_DATA_TREE_HEIGHT>(
                                                      private_data_tree, rr_leaf_indices[i], 0),
+                                                 .is_transient = false,
                                                  .hint_to_commitment = 0 };
+        transient_read_request_membership_witnesses[i] = {
+            .leaf_index = NT::fr(0),
+            .sibling_path = compute_empty_sibling_path<NT, PRIVATE_DATA_TREE_HEIGHT>(0),
+            .is_transient = true,
+            .hint_to_commitment = 0
+        };
     }
 
 
-    return { read_requests, read_request_membership_witnesses, private_data_tree.root() };
-}
+    return { read_requests,
+             read_request_membership_witnesses,
+             transient_read_requests,
+             transient_read_request_membership_witnesses,
+             private_data_tree.root() };
+}  // namespace aztec3::circuits::kernel::private_kernel::testing_harness
 
 std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_deploy_data(
     bool const is_constructor,

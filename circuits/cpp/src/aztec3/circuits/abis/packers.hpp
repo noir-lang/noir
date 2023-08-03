@@ -105,7 +105,7 @@ struct GeneratorIndexPacker {
         int COMMITMENT = GeneratorIndex::COMMITMENT;
         int COMMITMENT_NONCE = GeneratorIndex::COMMITMENT_NONCE;
         int UNIQUE_COMMITMENT = GeneratorIndex::UNIQUE_COMMITMENT;
-        int OUTER_COMMITMENT = GeneratorIndex::OUTER_COMMITMENT;
+        int SILOED_COMMITMENT = GeneratorIndex::SILOED_COMMITMENT;
         int NULLIFIER = GeneratorIndex::NULLIFIER;
         int INITIALISATION_NULLIFIER = GeneratorIndex::INITIALISATION_NULLIFIER;
         int OUTER_NULLIFIER = GeneratorIndex::OUTER_NULLIFIER;
@@ -141,7 +141,7 @@ struct GeneratorIndexPacker {
         pack(NVP(COMMITMENT,
                  COMMITMENT_NONCE,
                  UNIQUE_COMMITMENT,
-                 OUTER_COMMITMENT,
+                 SILOED_COMMITMENT,
                  NULLIFIER,
                  INITIALISATION_NULLIFIER,
                  OUTER_NULLIFIER,

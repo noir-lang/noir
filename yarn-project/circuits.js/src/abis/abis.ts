@@ -263,18 +263,6 @@ export function computeCommitmentNonce(wasm: IWasmModule, nullifierZero: Fr, com
 }
 
 /**
- * Computes a unique commitment. It includes a nonce which contains data that guarantees the commiment will be unique.
- * @param wasm - A module providing low-level wasm access.
- * @param nonce - The contract address.
- * @param innerCommitment - An inner commitment.
- * @returns A siloed commitment.
- */
-export function computeUniqueCommitment(wasm: IWasmModule, nonce: Fr, innerCommitment: Fr): Fr {
-  wasm.call('pedersen__init');
-  return abisComputeUniqueCommitment(wasm, nonce, innerCommitment);
-}
-
-/**
  * Computes a siloed commitment, given the contract address and the commitment itself.
  * A siloed commitment effectively namespaces a commitment to a specific contract.
  * @param wasm - A module providing low-level wasm access.
@@ -285,6 +273,18 @@ export function computeUniqueCommitment(wasm: IWasmModule, nonce: Fr, innerCommi
 export function siloCommitment(wasm: IWasmModule, contract: AztecAddress, uniqueCommitment: Fr): Fr {
   wasm.call('pedersen__init');
   return abisSiloCommitment(wasm, contract, uniqueCommitment);
+}
+
+/**
+ * Computes a unique commitment. It includes a nonce which contains data that guarantees the commiment will be unique.
+ * @param wasm - A module providing low-level wasm access.
+ * @param nonce - The contract address.
+ * @param siloedCommitment - An siloed commitment.
+ * @returns A unique commitment.
+ */
+export function computeUniqueCommitment(wasm: IWasmModule, nonce: Fr, siloedCommitment: Fr): Fr {
+  wasm.call('pedersen__init');
+  return abisComputeUniqueCommitment(wasm, nonce, siloedCommitment);
 }
 
 /**

@@ -19,7 +19,7 @@ export interface NoteData {
   /** The preimage of the note */
   preimage: Fr[];
   /** The corresponding nullifier of the note */
-  nullifier?: Fr;
+  siloedNullifier?: Fr;
   /** The note's leaf index in the private data tree. Undefined for pending notes. */
   index?: bigint;
 }

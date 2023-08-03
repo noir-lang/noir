@@ -70,7 +70,7 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     const nullifierSet = new Set(nullifiers.map(nullifier => nullifier.toString()));
     const [remaining, removed] = this.noteSpendingInfoTable.reduce(
       (acc: [NoteSpendingInfoDao[], NoteSpendingInfoDao[]], noteSpendingInfo) => {
-        const nullifier = noteSpendingInfo.nullifier.toString();
+        const nullifier = noteSpendingInfo.siloedNullifier.toString();
         if (noteSpendingInfo.publicKey.equals(account) && nullifierSet.has(nullifier)) {
           acc[1].push(noteSpendingInfo);
         } else {

@@ -1,5 +1,4 @@
-import { CircuitsWasm, PrivateHistoricTreeRoots, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
-import { computeCommitmentNonce } from '@aztec/circuits.js/abis';
+import { PrivateHistoricTreeRoots, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -132,7 +131,7 @@ export class ClientTxExecutionContext {
     const dbNotes = await this.db.getNotes(contractAddress, storageSlotField);
 
     // Remove notes which were already nullified during this transaction.
-    const dbNotesFiltered = dbNotes.filter(n => !this.pendingNullifiers.has(n.nullifier as Fr));
+    const dbNotesFiltered = dbNotes.filter(n => !this.pendingNullifiers.has(n.siloedNullifier as Fr));
 
     // Nullified pending notes are already removed from the list.
     const notes = pickNotes([...dbNotesFiltered, ...pendingNotes], {
@@ -220,16 +219,13 @@ export class ClientTxExecutionContext {
    * @param contractAddress - The contract address.
    * @param storageSlot - The storage slot.
    * @param preimage - new note preimage.
-   * @param nullifier - note nullifier
    * @param innerNoteHash - inner note hash
    */
-  public async pushNewNote(contractAddress: AztecAddress, storageSlot: Fr, preimage: Fr[], innerNoteHash: Fr) {
-    const wasm = await CircuitsWasm.get();
-    const nonce = computeCommitmentNonce(wasm, this.txNullifier, this.pendingNotes.length);
+  public pushNewNote(contractAddress: AztecAddress, storageSlot: Fr, preimage: Fr[], innerNoteHash: Fr) {
     this.pendingNotes.push({
       contractAddress,
       storageSlot: storageSlot,
-      nonce,
+      nonce: Fr.ZERO, // nonce is cannot be known during private execution
       preimage,
       innerNoteHash,
     });
@@ -238,10 +234,10 @@ export class ClientTxExecutionContext {
   /**
    * Adding a nullifier into the current set of all pending nullifiers created
    * within the current transaction/execution.
-   * @param nullifier - The pending nullifier to add in the list.
+   * @param innerNullifier - The pending nullifier to add in the list (not yet siloed by contract address).
    */
-  public pushPendingNullifier(nullifier: Fr) {
-    this.pendingNullifiers.add(nullifier);
+  public pushNewNullifier(innerNullifier: Fr) {
+    this.pendingNullifiers.add(innerNullifier);
   }
 
   /**

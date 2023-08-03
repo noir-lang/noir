@@ -3,6 +3,7 @@
 
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
+#include "aztec3/circuits/hash.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/array.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
@@ -10,24 +11,54 @@
 
 #include <cstddef>
 
-namespace aztec3::circuits::kernel::private_kernel {
+namespace {
+using NT = aztec3::utils::types::NativeTypes;
 
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::PreviousKernelData;
-
 using aztec3::utils::array_length;
-using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
-using CircuitErrorCode = aztec3::utils::CircuitErrorCode;
+using aztec3::utils::CircuitErrorCode;
+using aztec3::utils::DummyCircuitBuilder;
+
+void initialise_end_values(PreviousKernelData<NT> const& previous_kernel, KernelCircuitPublicInputs<NT>& public_inputs)
+{
+    public_inputs.constants = previous_kernel.public_inputs.constants;
+
+    // Ensure the arrays are the same as previously, before we start pushing more data onto them in other
+    // functions within this circuit:
+    auto& end = public_inputs.end;
+    const auto& start = previous_kernel.public_inputs.end;
+
+    // NOTE: don't forward new_commitments as the nonce must be applied
+    // end.new_commitments = start.new_commitments;
+    end.new_nullifiers = start.new_nullifiers;
+
+    end.private_call_stack = start.private_call_stack;
+    end.public_call_stack = start.public_call_stack;
+    end.new_l2_to_l1_msgs = start.new_l2_to_l1_msgs;
+
+    end.encrypted_logs_hash = start.encrypted_logs_hash;
+    end.unencrypted_logs_hash = start.unencrypted_logs_hash;
+
+    end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
+    end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
+
+    end.optionally_revealed_data = start.optionally_revealed_data;
+}
+}  // namespace
+
+
+namespace aztec3::circuits::kernel::private_kernel {
 
 
 // TODO(https://github.com/AztecProtocol/aztec-packages/issues/892): optimized based on hints
 // regarding matching a read request to a commitment
 // i.e., we get pairs i,j such that read_requests[i] == new_commitments[j]
-void match_reads_to_commitments(DummyBuilder& builder,
+void match_reads_to_commitments(DummyCircuitBuilder& builder,
                                 std::array<NT::fr, MAX_READ_REQUESTS_PER_TX> const& read_requests,
                                 std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>,
                                            MAX_READ_REQUESTS_PER_TX> const& read_request_membership_witnesses,
-                                std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_TX>& new_commitments)
+                                std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_TX> const& new_commitments)
 {
     // Arrays read_request and read_request_membership_witnesses must be of the same length. Otherwise,
     // we might get into trouble when accumulating them in public_inputs.end
@@ -103,7 +134,7 @@ void match_reads_to_commitments(DummyBuilder& builder,
 // regarding matching a nullifier to a commitment
 // i.e., we get pairs i,j such that new_nullifiers[i] == new_commitments[j]
 // void match_nullifiers_to_commitments_and_squash(
-//    DummyBuilder& builder,
+//    DummyCircuitBuilder& builder,
 //    std::array<NT::fr, MAX_NEW_NULLIFIERS_PER_TX>& new_nullifiers,
 //    // std::array<NT::fr, MAX_NEW_NULLIFIERS_PER_TX> const& nullifier_hints, // ???
 //    std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_TX>& new_commitments)
@@ -148,14 +179,29 @@ void match_reads_to_commitments(DummyBuilder& builder,
 //    array_rearrange(new_nullifiers);
 //}
 
-KernelCircuitPublicInputs<NT> native_private_kernel_circuit_ordering(DummyBuilder& builder,
+void apply_commitment_nonces(NT::fr const& first_nullifier,
+                             std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_TX> const& siloed_commitments,
+                             std::array<NT::fr, MAX_NEW_COMMITMENTS_PER_TX>& unique_siloed_commitments)
+{
+    for (size_t c_idx = 0; c_idx < MAX_NEW_COMMITMENTS_PER_TX; c_idx++) {
+        // Apply nonce to all non-zero/non-empty commitments
+        // Nonce is the hash of the first (0th) nullifier and the commitment's index into new_commitments array
+        const auto nonce = compute_commitment_nonce<NT>(first_nullifier, c_idx);
+        unique_siloed_commitments[c_idx] =
+            siloed_commitments[c_idx] == 0 ? 0 : compute_unique_commitment<NT>(nonce, siloed_commitments[c_idx]);
+    }
+}
+
+KernelCircuitPublicInputs<NT> native_private_kernel_circuit_ordering(DummyCircuitBuilder& builder,
                                                                      PreviousKernelData<NT> const& previous_kernel)
 {
     // We'll be pushing data to this during execution of this circuit.
     KernelCircuitPublicInputs<NT> public_inputs{};
 
     // Do this before any functions can modify the inputs.
-    common_inner_ordering_initialise_end_values(previous_kernel, public_inputs);
+    initialise_end_values(previous_kernel, public_inputs);
+
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1329): validate that 0th nullifier is nonzero
 
     common_validate_previous_kernel_read_requests(builder,
                                                   previous_kernel.public_inputs.end.read_requests,
@@ -168,7 +214,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_ordering(DummyBuilde
     match_reads_to_commitments(builder,
                                previous_kernel.public_inputs.end.read_requests,
                                previous_kernel.public_inputs.end.read_request_membership_witnesses,
-                               public_inputs.end.new_commitments);
+                               previous_kernel.public_inputs.end.new_commitments);
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1074): ideally final public_inputs
     // shouldn't even include read_requests and read_request_membership_witnesses as they should be empty.
 
@@ -181,6 +227,10 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_ordering(DummyBuilde
     //                                           public_inputs.end.new_nullifiers,
     //                                           // public_inputs.end.nullifier_hints,
     //                                           public_inputs.end.new_commitments);
+
+    apply_commitment_nonces(previous_kernel.public_inputs.end.new_nullifiers[0],
+                            previous_kernel.public_inputs.end.new_commitments,
+                            public_inputs.end.new_commitments);
 
     return public_inputs;
 };

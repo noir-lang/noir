@@ -8,7 +8,7 @@
 
 namespace {
 using NT = aztec3::utils::types::NativeTypes;
-using DummyBuilder = aztec3::utils::DummyCircuitBuilder;
+using DummyCircuitBuilder = aztec3::utils::DummyCircuitBuilder;
 using aztec3::circuits::abis::BaseOrMergeRollupPublicInputs;
 using aztec3::circuits::abis::MergeRollupInputs;
 using aztec3::circuits::rollup::merge::merge_rollup_circuit;
@@ -21,7 +21,7 @@ WASM_EXPORT uint8_t* merge_rollup__sim(uint8_t const* merge_rollup_inputs_buf,
                                        size_t* merge_rollup_public_inputs_size_out,
                                        uint8_t const** merge_rollup_public_inputs_buf)
 {
-    DummyBuilder builder = DummyBuilder("merge_rollup__sim");
+    DummyCircuitBuilder builder = DummyCircuitBuilder("merge_rollup__sim");
     MergeRollupInputs<NT> merge_rollup_inputs;
     read(merge_rollup_inputs_buf, merge_rollup_inputs);
 

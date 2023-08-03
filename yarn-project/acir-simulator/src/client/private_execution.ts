@@ -76,8 +76,8 @@ export class PrivateFunctionExecution {
       getNotes: ([slot], sortBy, sortOrder, [limit], [offset], [returnSize]) =>
         this.context.getNotes(this.contractAddress, slot, sortBy, sortOrder, +limit, +offset, +returnSize),
       getRandomField: () => Promise.resolve(toACVMField(Fr.random())),
-      notifyCreatedNote: async ([storageSlot], preimage, [innerNoteHash]) => {
-        await this.context.pushNewNote(
+      notifyCreatedNote: ([storageSlot], preimage, [innerNoteHash]) => {
+        this.context.pushNewNote(
           this.contractAddress,
           fromACVMField(storageSlot),
           preimage.map(f => fromACVMField(f)),
@@ -90,7 +90,7 @@ export class PrivateFunctionExecution {
           storageSlot: fromACVMField(storageSlot),
           preimage: preimage.map(f => fromACVMField(f)),
         });
-        return ZERO_ACVM_FIELD;
+        return Promise.resolve(ZERO_ACVM_FIELD);
       },
       notifyNullifiedNote: ([slot], [nullifier], acvmPreimage, [innerNoteHash]) => {
         newNullifiers.push({
@@ -98,7 +98,7 @@ export class PrivateFunctionExecution {
           storageSlot: fromACVMField(slot),
           nullifier: fromACVMField(nullifier),
         });
-        this.context.pushPendingNullifier(fromACVMField(nullifier));
+        this.context.pushNewNullifier(fromACVMField(nullifier));
         this.context.nullifyPendingNotes(fromACVMField(innerNoteHash), this.contractAddress, fromACVMField(slot));
         return Promise.resolve(ZERO_ACVM_FIELD);
       },

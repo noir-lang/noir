@@ -9,7 +9,8 @@ use crate::context::Context;
 use crate::note::{
     note_getter_options::NoteGetterOptions,
     note_interface::NoteInterface,
-    utils::compute_unique_note_hash,
+    utils::compute_note_hash_for_read_or_nullify,
+    utils::compute_unique_siloed_note_hash,
 };
 use crate::oracle;
 use crate::types::option::Option;
@@ -43,9 +44,8 @@ fn ensure_note_exists<Note, N>(
 
     check_note_header(*context, storage_slot, note_interface, *note);
 
-    let unique_note_hash = compute_unique_note_hash(note_interface, *note);
-
-    context.push_read_request(unique_note_hash);
+    let note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, *note);
+    context.push_read_request(note_hash_for_read_request);
 }
 
 fn get_note<Note, N>(
@@ -56,10 +56,10 @@ fn get_note<Note, N>(
     let note = get_note_internal(storage_slot, note_interface);
 
     check_note_header(*context, storage_slot, note_interface, note);
-    
-    let unique_note_hash = compute_unique_note_hash(note_interface, note);
 
-    context.push_read_request(unique_note_hash);
+    let note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, note);
+
+    context.push_read_request(note_hash_for_read_request);
     note
 }
 
@@ -72,13 +72,15 @@ fn get_notes<Note, N, S, P>(
     let opt_notes = get_notes_internal(storage_slot, note_interface, options);
     for i in 0..opt_notes.len() {
         let opt_note = opt_notes[i];
-        let mut unique_note_hash = 0;
+        let mut note_hash_for_read_request = 0;
         if opt_note.is_some() {
             let note = opt_note.unwrap_unchecked();
             check_note_header(*context, storage_slot, note_interface, note);
-            unique_note_hash = compute_unique_note_hash(note_interface, note);
+            note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, note);
         };
-        context.push_read_request(unique_note_hash);
+        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1410): test to ensure
+        // failure if malicious oracle injects 0 nonce here for a "pre-existing" note.
+        context.push_read_request(note_hash_for_read_request);
     };
     opt_notes
 }

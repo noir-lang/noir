@@ -2,6 +2,7 @@
 
 #include "aztec3/circuits/apps/test_apps/escrow/deposit.hpp"
 #include "aztec3/constants.hpp"
+#include "aztec3/utils/array.hpp"
 #include "aztec3/utils/circuit_errors.hpp"
 
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
@@ -33,16 +34,26 @@ TEST_F(native_private_kernel_ordering_tests, native_matching_one_read_request_to
 {
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
-    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> new_nullifiers{};
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> siloed_commitments{};
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> unique_siloed_commitments{};
     std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
     std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
-    new_commitments[0] = fr(1282);
-    read_requests[0] = fr(1282);
+    new_nullifiers[0] = NT::fr::random_element();
+    siloed_commitments[0] = NT::fr::random_element();  // create random commitment
+    // ordering circuit applies nonces to commitments
+    const auto nonce = compute_commitment_nonce<NT>(new_nullifiers[0], 0);
+    unique_siloed_commitments[0] =
+        siloed_commitments[0] == 0 ? 0 : compute_unique_commitment<NT>(nonce, siloed_commitments[0]);
+
+    read_requests[0] = siloed_commitments[0];
     read_request_membership_witnesses[0].is_transient = true;
 
-    private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
+
+    private_inputs.previous_kernel.public_inputs.end.new_nullifiers = new_nullifiers;
+    private_inputs.previous_kernel.public_inputs.end.new_commitments = siloed_commitments;
     private_inputs.previous_kernel.public_inputs.end.read_requests = read_requests;
     private_inputs.previous_kernel.public_inputs.end.read_request_membership_witnesses =
         read_request_membership_witnesses;
@@ -58,7 +69,7 @@ TEST_F(native_private_kernel_ordering_tests, native_matching_one_read_request_to
     }
     ASSERT_FALSE(builder.failed());
     ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == 1);
-    ASSERT_TRUE(public_inputs.end.new_commitments[0] == fr(1282));
+    ASSERT_TRUE(public_inputs.end.new_commitments[0] == unique_siloed_commitments[0]);
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1074): read_request*s
     // can be removed from final public inputs
     ASSERT_TRUE(array_length(public_inputs.end.read_requests) == 0);
@@ -69,23 +80,32 @@ TEST_F(native_private_kernel_ordering_tests, native_matching_some_read_requests_
 {
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
-    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> new_nullifiers{};
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> siloed_commitments{};
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> unique_siloed_commitments{};
     std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
     std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
-    new_commitments[0] = fr(1285);
-    new_commitments[1] = fr(1283);
-    new_commitments[2] = fr(1282);
-    new_commitments[3] = fr(1284);
+    new_nullifiers[0] = NT::fr::random_element();
+    const auto& first_nullifier = new_nullifiers[0];
+    // create random commitments to input to ordering circuit, and compute their "unique" versions
+    // to be expected at the output
+    for (size_t c_idx = 0; c_idx < MAX_NEW_COMMITMENTS_PER_TX; c_idx++) {
+        siloed_commitments[c_idx] = NT::fr::random_element();  // create random commitment
+        // ordering circuit applies nonces to commitments
+        const auto nonce = compute_commitment_nonce<NT>(first_nullifier, c_idx);
+        unique_siloed_commitments[c_idx] =
+            siloed_commitments[c_idx] == 0 ? 0 : compute_unique_commitment<NT>(nonce, siloed_commitments[c_idx]);
+    }
 
-
-    read_requests[0] = fr(1283);
-    read_requests[1] = fr(1284);
+    read_requests[0] = siloed_commitments[1];
+    read_requests[1] = siloed_commitments[3];
     read_request_membership_witnesses[0].is_transient = true;
     read_request_membership_witnesses[1].is_transient = true;
 
-    private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
+    private_inputs.previous_kernel.public_inputs.end.new_nullifiers = new_nullifiers;
+    private_inputs.previous_kernel.public_inputs.end.new_commitments = siloed_commitments;
     private_inputs.previous_kernel.public_inputs.end.read_requests = read_requests;
     private_inputs.previous_kernel.public_inputs.end.read_request_membership_witnesses =
         read_request_membership_witnesses;
@@ -99,11 +119,11 @@ TEST_F(native_private_kernel_ordering_tests, native_matching_some_read_requests_
         info("failure: ", failure);
     }
     ASSERT_FALSE(builder.failed());
-    ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == 4);
-    ASSERT_TRUE(public_inputs.end.new_commitments[0] == fr(1285));
-    ASSERT_TRUE(public_inputs.end.new_commitments[1] == fr(1283));
-    ASSERT_TRUE(public_inputs.end.new_commitments[2] == fr(1282));
-    ASSERT_TRUE(public_inputs.end.new_commitments[3] == fr(1284));
+    ASSERT_TRUE(array_length(public_inputs.end.new_commitments) == MAX_NEW_COMMITMENTS_PER_TX);
+    // ensure that commitments had nonce applied properly and all appear at output
+    for (size_t c_idx = 0; c_idx < MAX_NEW_COMMITMENTS_PER_TX; c_idx++) {
+        ASSERT_TRUE(public_inputs.end.new_commitments[c_idx] == unique_siloed_commitments[c_idx]);
+    }
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1074): read_request*s
     // can be removed from final public inputs
     ASSERT_TRUE(array_length(public_inputs.end.read_requests) == 0);
@@ -114,31 +134,23 @@ TEST_F(native_private_kernel_ordering_tests, native_read_request_unknown_fails)
 {
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
-    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> siloed_commitments{};
     std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
     std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
-    new_commitments[0] = fr(1285);
-    new_commitments[1] = fr(1283);
-    new_commitments[2] = fr(1282);
-    new_commitments[3] = fr(1284);
+    for (size_t c_idx = 0; c_idx < MAX_NEW_COMMITMENTS_PER_TX; c_idx++) {
+        siloed_commitments[c_idx] = NT::fr::random_element();  // create random commitment
+        read_requests[c_idx] = siloed_commitments[c_idx];      // create random read requests
+        // ^ will match each other!
+        read_request_membership_witnesses[c_idx].is_transient = true;  // ordering circuit only allows transient reads
+    }
+    read_requests[3] = NT::fr::random_element();  // force one read request not to match
 
-
-    read_requests[0] = fr(1284);
-    read_requests[1] = fr(1282);
-    read_requests[2] = fr(1283);
-    read_requests[3] = fr(1286);
-    read_request_membership_witnesses[0].is_transient = true;
-    read_request_membership_witnesses[1].is_transient = true;
-    read_request_membership_witnesses[2].is_transient = true;
-    read_request_membership_witnesses[3].is_transient = true;
-
-    private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
+    private_inputs.previous_kernel.public_inputs.end.new_commitments = siloed_commitments;
     private_inputs.previous_kernel.public_inputs.end.read_requests = read_requests;
     private_inputs.previous_kernel.public_inputs.end.read_request_membership_witnesses =
         read_request_membership_witnesses;
-
 
     DummyBuilder builder = DummyBuilder("native_private_kernel_ordering_tests__native_read_request_unknown_fails");
     native_private_kernel_circuit_ordering(builder, private_inputs.previous_kernel);
@@ -151,18 +163,18 @@ TEST_F(native_private_kernel_ordering_tests, native_unresolved_non_transient_rea
 {
     auto private_inputs = do_private_call_get_kernel_inputs_inner(false, deposit, standard_test_args());
 
-    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
+    std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> siloed_commitments{};
     std::array<fr, MAX_READ_REQUESTS_PER_TX> read_requests{};
     std::array<ReadRequestMembershipWitness<NT, PRIVATE_DATA_TREE_HEIGHT>, MAX_READ_REQUESTS_PER_TX>
         read_request_membership_witnesses{};
 
-    new_commitments[0] = fr(1285);
+    siloed_commitments[0] = NT::fr::random_element();
 
 
-    read_requests[0] = fr(1285);
+    read_requests[0] = siloed_commitments[0];
     read_request_membership_witnesses[0].is_transient = false;  // ordering circuit only allows transient reads
 
-    private_inputs.previous_kernel.public_inputs.end.new_commitments = new_commitments;
+    private_inputs.previous_kernel.public_inputs.end.new_commitments = siloed_commitments;
     private_inputs.previous_kernel.public_inputs.end.read_requests = read_requests;
     private_inputs.previous_kernel.public_inputs.end.read_request_membership_witnesses =
         read_request_membership_witnesses;

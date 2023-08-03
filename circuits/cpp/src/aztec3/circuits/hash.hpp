@@ -100,29 +100,29 @@ typename NCT::fr compute_commitment_nonce(typename NCT::fr first_nullifier, type
 }
 
 template <typename NCT>
-typename NCT::fr compute_unique_commitment(typename NCT::fr nonce, typename NCT::fr inner_commitment)
-{
-    using fr = typename NCT::fr;
-
-    std::vector<fr> const inputs = {
-        nonce,
-        inner_commitment,
-    };
-
-    return NCT::hash(inputs, aztec3::GeneratorIndex::UNIQUE_COMMITMENT);
-}
-
-template <typename NCT>
-typename NCT::fr silo_commitment(typename NCT::address contract_address, typename NCT::fr commitment)
+typename NCT::fr silo_commitment(typename NCT::address contract_address, typename NCT::fr inner_commitment)
 {
     using fr = typename NCT::fr;
 
     std::vector<fr> const inputs = {
         contract_address.to_field(),
-        commitment,
+        inner_commitment,
     };
 
-    return NCT::hash(inputs, aztec3::GeneratorIndex::OUTER_COMMITMENT);
+    return NCT::hash(inputs, aztec3::GeneratorIndex::SILOED_COMMITMENT);
+}
+
+template <typename NCT>
+typename NCT::fr compute_unique_commitment(typename NCT::fr nonce, typename NCT::fr siloed_commitment)
+{
+    using fr = typename NCT::fr;
+
+    std::vector<fr> const inputs = {
+        nonce,
+        siloed_commitment,
+    };
+
+    return NCT::hash(inputs, aztec3::GeneratorIndex::UNIQUE_COMMITMENT);
 }
 
 template <typename NCT>

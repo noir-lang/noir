@@ -141,7 +141,7 @@ enum GeneratorIndex {
     COMMITMENT = 1,              // Size = 7 (unused)
     COMMITMENT_NONCE,            // Size = 2
     UNIQUE_COMMITMENT,           // Size = 2
-    OUTER_COMMITMENT,            // Size = 2
+    SILOED_COMMITMENT,           // Size = 2
     NULLIFIER,                   // Size = 4 (unused)
     INITIALISATION_NULLIFIER,    // Size = 2 (unused)
     OUTER_NULLIFIER,             // Size = 2
