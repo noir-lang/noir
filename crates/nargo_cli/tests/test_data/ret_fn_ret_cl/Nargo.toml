@@ -1,5 +1,6 @@
 [package]
 name = "ret_fn_ret_cl"
+type = "bin"
 authors = [""]
 compiler_version = "0.7.1"
 
