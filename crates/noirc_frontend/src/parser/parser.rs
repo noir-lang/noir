@@ -34,10 +34,10 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl,
-    TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, FunctionDefinition, Ident,
+    IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
+    NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
+    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -827,8 +827,10 @@ fn optional_distinctness() -> impl NoirParser<AbiDistinctness> {
 }
 
 fn maybe_comp_time() -> impl NoirParser<()> {
-    keyword(Keyword::CompTime).or_not().validate(|opt, span, emit| if opt.is_some() {
-        emit(ParserError::with_reason(ParserErrorReason::ComptimeDeprecated, span));
+    keyword(Keyword::CompTime).or_not().validate(|opt, span, emit| {
+        if opt.is_some() {
+            emit(ParserError::with_reason(ParserErrorReason::ComptimeDeprecated, span));
+        }
     })
 }
 

@@ -30,6 +30,10 @@ pub enum RuntimeError {
     UnInitialized { name: String, location: Option<Location> },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, location: Option<Location> },
+    #[error(
+        "Could not determine loop bound at compile-time. Loop bounds must be compile-time known"
+    )]
+    UnknownLoopBound { location: Option<Location> },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -50,31 +54,33 @@ pub enum InternalError {
     UnExpected { expected: String, found: String, location: Option<Location> },
 }
 
-impl From<RuntimeError> for FileDiagnostic {
-    fn from(error: RuntimeError) -> Self {
-        match error {
-            RuntimeError::InternalError(ref ice_error) => match ice_error {
+impl RuntimeError {
+    fn location(&self) -> Option<Location> {
+        match self {
+            RuntimeError::InternalError(
                 InternalError::DegreeNotReduced { location }
                 | InternalError::EmptyArray { location }
                 | InternalError::General { location, .. }
                 | InternalError::MissingArg { location, .. }
                 | InternalError::NotAConstant { location, .. }
                 | InternalError::UndeclaredAcirVar { location }
-                | InternalError::UnExpected { location, .. } => {
-                    let file_id = location.map(|loc| loc.file).unwrap();
-                    FileDiagnostic { file_id, diagnostic: error.into() }
-                }
-            },
-            RuntimeError::FailedConstraint { location, .. }
+                | InternalError::UnExpected { location, .. },
+            )
+            | RuntimeError::FailedConstraint { location, .. }
             | RuntimeError::IndexOutOfBounds { location, .. }
             | RuntimeError::InvalidRangeConstraint { location, .. }
             | RuntimeError::TypeConversion { location, .. }
             | RuntimeError::UnInitialized { location, .. }
-            | RuntimeError::UnsupportedIntegerSize { location, .. } => {
-                let file_id = location.map(|loc| loc.file).unwrap();
-                FileDiagnostic { file_id, diagnostic: error.into() }
-            }
+            | RuntimeError::UnknownLoopBound { location, .. }
+            | RuntimeError::UnsupportedIntegerSize { location, .. } => *location,
         }
+    }
+}
+
+impl From<RuntimeError> for FileDiagnostic {
+    fn from(error: RuntimeError) -> Self {
+        let file_id = error.location().map(|loc| loc.file).unwrap();
+        FileDiagnostic { file_id, diagnostic: error.into() }
     }
 }
 
@@ -87,13 +93,8 @@ impl From<RuntimeError> for Diagnostic {
                 "".to_string(),
                 noirc_errors::Span::new(0..0)
             ),
-            RuntimeError::FailedConstraint { location, .. }
-            | RuntimeError::IndexOutOfBounds { location, .. }
-            | RuntimeError::InvalidRangeConstraint { location, .. }
-            | RuntimeError::TypeConversion { location, .. }
-            | RuntimeError::UnInitialized { location, .. }
-            | RuntimeError::UnsupportedIntegerSize { location, .. }  => {
-                let span = if let Some(loc) = location { loc.span } else { noirc_errors::Span::new(0..0) };
+            _ => {
+                let span = if let Some(loc) = error.location() { loc.span } else { noirc_errors::Span::new(0..0) };
                 Diagnostic::simple_error("".to_owned(), error.to_string(), span)
             }
         }
