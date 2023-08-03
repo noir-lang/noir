@@ -5,7 +5,6 @@ pragma solidity >=0.8.18;
 import {Test} from "forge-std/Test.sol";
 
 import {Hash} from "@aztec/core/libraries/Hash.sol";
-import {Constants} from "@aztec/core/libraries/Constants.sol";
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";
 import {DecoderHelper} from "./DecoderHelper.sol";
 import {Registry} from "@aztec/core/messagebridge/Registry.sol";
@@ -16,6 +15,8 @@ import {Rollup} from "@aztec/core/Rollup.sol";
 /**
  * Blocks are generated using the `integration_l1_publisher.test.ts` tests.
  * Main use of these test is shorter cycles when updating the decoder contract.
+ * All tests here are skipped (all tests are prefixed with an underscore)!
+ * This is because we implicitly test the decoding in integration_l1_publisher.test.ts
  */
 contract DecoderTest is Test {
   DecoderHelper internal helper;
@@ -41,7 +42,7 @@ contract DecoderTest is Test {
     registry.upgrade(address(rollup), address(inbox), address(outbox));
   }
 
-  function testEmptyBlock() public virtual {
+  function _testEmptyBlock() public virtual {
     (bytes32 diffRoot, bytes32 l1ToL2MessagesHash) =
       helper.computeDiffRootAndMessagesHash(block_empty_1);
     assertEq(
@@ -90,7 +91,7 @@ contract DecoderTest is Test {
     }
   }
 
-  function testMixBlock() public virtual {
+  function _testMixBlock() public virtual {
     (
       uint256 l2BlockNumber,
       bytes32 startStateHash,
@@ -141,7 +142,7 @@ contract DecoderTest is Test {
     }
   }
 
-  function testComputeKernelLogsIterationWithoutLogs() public {
+  function _testComputeKernelLogsIterationWithoutLogs() public {
     bytes memory kernelLogsLength = hex"00000004"; // 4 bytes containing value 4
     bytes memory iterationLogsLength = hex"00000000"; // 4 empty bytes indicating that length of this iteration's logs is 0
     bytes memory encodedLogs = abi.encodePacked(kernelLogsLength, iterationLogsLength);
@@ -158,7 +159,7 @@ contract DecoderTest is Test {
     assertEq(logsHash, referenceLogsHash, "Incorrect logs hash");
   }
 
-  function testComputeKernelLogs1Iteration() public {
+  function _testComputeKernelLogs1Iteration() public {
     // || K_LOGS_LEN | I1_LOGS_LEN | I1_LOGS ||
     // K_LOGS_LEN = 4 + 8 = 12 (hex"0000000c")
     // I1_LOGS_LEN = 8 (hex"00000008")
@@ -182,7 +183,7 @@ contract DecoderTest is Test {
     assertEq(logsHash, referenceLogsHash, "Incorrect logs hash");
   }
 
-  function testComputeKernelLogs2Iterations() public {
+  function _TESTComputeKernelLogs2Iterations() public {
     // || K_LOGS_LEN | I1_LOGS_LEN | I1_LOGS | I2_LOGS_LEN | I2_LOGS ||
     // K_LOGS_LEN = 4 + 8 + 4 + 20 = 36 (hex"00000024")
     // I1_LOGS_LEN = 8 (hex"00000008")
@@ -211,7 +212,7 @@ contract DecoderTest is Test {
     assertEq(logsHash, referenceLogsHashFromIteration2, "Incorrect logs hash");
   }
 
-  function testComputeKernelLogsMiddleIterationWithoutLogs() public {
+  function _TESTComputeKernelLogsMiddleIterationWithoutLogs() public {
     // || K_LOGS_LEN | I1_LOGS_LEN | I1_LOGS | I2_LOGS_LEN | I2_LOGS | I3_LOGS_LEN | I3_LOGS ||
     // K_LOGS_LEN = 4 + 8 + 4 + 0 + 4 + 20 = 40 (hex"00000028")
     // I1_LOGS_LEN = 8 (hex"00000008")

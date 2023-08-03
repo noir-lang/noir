@@ -6,7 +6,7 @@ import {Test} from "forge-std/Test.sol";
 import {IInbox} from "@aztec/core/interfaces/messagebridge/IInbox.sol";
 import {Inbox} from "@aztec/core/messagebridge/Inbox.sol";
 import {Registry} from "@aztec/core/messagebridge/Registry.sol";
-import {Constants} from "@aztec/core/libraries/Constants.sol";
+import {Constants} from "@aztec/core/libraries/ConstantsGen.sol";
 import {Errors} from "@aztec/core/libraries/Errors.sol";
 
 import {DataStructures} from "@aztec/core/libraries/DataStructures.sol";

@@ -40,7 +40,7 @@ struct ConstantsPacker {
              NVP(NUM_ENCRYPTED_LOGS_HASHES_PER_TX,
                  NUM_UNENCRYPTED_LOGS_HASHES_PER_TX,
                  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
-                 KERNELS_PER_ROLLUP,
+                 KERNELS_PER_BASE_ROLLUP,
                  VK_TREE_HEIGHT,
                  FUNCTION_TREE_HEIGHT,
                  CONTRACT_TREE_HEIGHT,
@@ -82,7 +82,16 @@ struct ConstantsPacker {
                  EMPTY_NULLIFIED_COMMITMENT,
                  CALL_PRIVATE_FUNCTION_RETURN_SIZE,
                  PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
-                 PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH));  // <-- Add names of new constants here
+                 PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,
+                 KERNELS_PER_BASE_ROLLUP,
+                 COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP,
+                 NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP,
+                 PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP,
+                 CONTRACTS_NUM_BYTES_PER_BASE_ROLLUP,
+                 CONTRACT_DATA_NUM_BYTES_PER_BASE_ROLLUP,
+                 CONTRACT_DATA_NUM_BYTES_PER_BASE_ROLLUP_UNPADDED,
+                 L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP,
+                 LOGS_HASHES_NUM_BYTES_PER_BASE_ROLLUP));  // <-- Add names of new constants here
     }
 };
 

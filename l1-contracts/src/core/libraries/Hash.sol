@@ -3,7 +3,7 @@
 pragma solidity >=0.8.18;
 
 // Libraries
-import {Constants} from "./Constants.sol";
+import {Constants} from "./ConstantsGen.sol";
 import {DataStructures} from "./DataStructures.sol";
 
 /**

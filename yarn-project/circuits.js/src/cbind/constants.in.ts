@@ -40,6 +40,29 @@ async function main(): Promise<void> {
 
   const noirTargetPath = join(__dirname, '../../../noir-libs/noir-aztec/src/constants_gen.nr');
   fs.writeFileSync(noirTargetPath, resultNoir);
+
+  // Solidity
+  const resultSolidity: string = `// GENERATED FILE - DO NOT EDIT, RUN yarn remake-constants in circuits.js
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2023 Aztec Labs.
+pragma solidity >=0.8.18;
+
+/**
+ * @title Constants Library
+ * @author Aztec Labs
+ * @notice Library that contains constants used throughout the Aztec protocol
+ */
+library Constants {
+  // Prime field modulus
+  uint256 internal constant P =
+    21888242871839275222246405745257275088548364400416034343698204186575808495617;
+  uint256 internal constant MAX_FIELD_VALUE = P - 1;
+
+${processConstantsSolidity(constants)}
+}\n`;
+
+  const solidityTargetPath = join(__dirname, '../../../../l1-contracts/src/core/libraries/ConstantsGen.sol');
+  fs.writeFileSync(solidityTargetPath, resultSolidity);
 }
 
 /**
@@ -106,6 +129,21 @@ function processEnumNoir(enumValues: { [key: string]: number }, enumPrefix: stri
     code.push(`global ${enumPrefix}${key} = ${value};`);
   });
   return code.join('\n') + '\n';
+}
+
+/**
+ * Processes a collection of constants and generates code to export them as Solidity constants.
+ *
+ * @param constants - An object containing key-value pairs representing constants.
+ * @param prefix - A prefix to add to the constant names.
+ * @returns A string containing code that exports the constants as Noir constants.
+ */
+function processConstantsSolidity(constants: { [key: string]: number }, prefix = ''): string {
+  const code: string[] = [];
+  Object.entries(constants).forEach(([key, value]) => {
+    code.push(`  uint256 internal constant ${prefix}${key} = ${value};`);
+  });
+  return code.join('\n');
 }
 
 // eslint-disable-next-line no-console

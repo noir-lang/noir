@@ -64,11 +64,25 @@ constexpr size_t MAX_READ_REQUESTS_PER_TX = MAX_PRIVATE_CALL_STACK_LENGTH_PER_CA
 constexpr size_t NUM_ENCRYPTED_LOGS_HASHES_PER_TX = 1;
 constexpr size_t NUM_UNENCRYPTED_LOGS_HASHES_PER_TX = 1;
 
-
-// ROLLUP CONSTANTS
+////////////////////////////////////////////////////////////////////////////////
+// ROLLUP CONTRACT CONSTANTS - constants used only in l1-contracts
+////////////////////////////////////////////////////////////////////////////////
 constexpr size_t NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP = 16;
 // TODO(961): Use this constant everywhere instead of hard-coded "2".
-constexpr size_t KERNELS_PER_ROLLUP = 2;
+constexpr size_t KERNELS_PER_BASE_ROLLUP = 2;
+constexpr size_t COMMITMENTS_NUM_BYTES_PER_BASE_ROLLUP = KERNELS_PER_BASE_ROLLUP * MAX_NEW_COMMITMENTS_PER_TX * 32;
+constexpr size_t NULLIFIERS_NUM_BYTES_PER_BASE_ROLLUP = KERNELS_PER_BASE_ROLLUP * MAX_NEW_NULLIFIERS_PER_TX * 32;
+constexpr size_t PUBLIC_DATA_WRITES_NUM_BYTES_PER_BASE_ROLLUP =
+    KERNELS_PER_BASE_ROLLUP * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX * 64;  // old value, new value
+constexpr size_t CONTRACTS_NUM_BYTES_PER_BASE_ROLLUP = KERNELS_PER_BASE_ROLLUP * MAX_NEW_CONTRACTS_PER_TX * 32;
+constexpr size_t CONTRACT_DATA_NUM_BYTES_PER_BASE_ROLLUP =
+    KERNELS_PER_BASE_ROLLUP * MAX_NEW_CONTRACTS_PER_TX * 64;  // aztec address + eth address (padded to 0x20)
+constexpr size_t CONTRACT_DATA_NUM_BYTES_PER_BASE_ROLLUP_UNPADDED =
+    KERNELS_PER_BASE_ROLLUP * MAX_NEW_CONTRACTS_PER_TX *
+    52;  // same as prev except doesn't pad eth address. So 0x20 (aztec address) + 0x14 (eth address)
+constexpr size_t L2_TO_L1_MSGS_NUM_BYTES_PER_BASE_ROLLUP = KERNELS_PER_BASE_ROLLUP * MAX_NEW_L2_TO_L1_MSGS_PER_TX * 32;
+constexpr size_t LOGS_HASHES_NUM_BYTES_PER_BASE_ROLLUP =
+    KERNELS_PER_BASE_ROLLUP * 2 * 32;  // 1 for encrypted + 1 for unencrypted
 
 
 // TREES RELATED CONSTANTS
@@ -90,9 +104,10 @@ constexpr size_t ROLLUP_VK_TREE_HEIGHT = 8;  // TODO: update
 constexpr size_t CONTRACT_SUBTREE_HEIGHT = 1;
 constexpr size_t CONTRACT_SUBTREE_SIBLING_PATH_LENGTH = CONTRACT_TREE_HEIGHT - CONTRACT_SUBTREE_HEIGHT;
 constexpr size_t PRIVATE_DATA_SUBTREE_HEIGHT =
-    static_cast<size_t>(log2(KERNELS_PER_ROLLUP * MAX_NEW_COMMITMENTS_PER_TX));
+    static_cast<size_t>(log2(KERNELS_PER_BASE_ROLLUP * MAX_NEW_COMMITMENTS_PER_TX));
 constexpr size_t PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH = PRIVATE_DATA_TREE_HEIGHT - PRIVATE_DATA_SUBTREE_HEIGHT;
-constexpr size_t NULLIFIER_SUBTREE_HEIGHT = static_cast<size_t>(log2(KERNELS_PER_ROLLUP * MAX_NEW_NULLIFIERS_PER_TX));
+constexpr size_t NULLIFIER_SUBTREE_HEIGHT =
+    static_cast<size_t>(log2(KERNELS_PER_BASE_ROLLUP * MAX_NEW_NULLIFIERS_PER_TX));
 constexpr size_t NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH = NULLIFIER_TREE_HEIGHT - NULLIFIER_SUBTREE_HEIGHT;
 constexpr size_t L1_TO_L2_MSG_SUBTREE_HEIGHT = static_cast<size_t>(log2(NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP));
 constexpr size_t L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH = L1_TO_L2_MSG_TREE_HEIGHT - L1_TO_L2_MSG_SUBTREE_HEIGHT;

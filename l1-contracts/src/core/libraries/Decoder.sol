@@ -3,7 +3,7 @@
 pragma solidity >=0.8.18;
 
 // Libraries
-import {Constants} from "@aztec/core/libraries/Constants.sol";
+import {Constants} from "@aztec/core/libraries/ConstantsGen.sol";
 import {Hash} from "@aztec/core/libraries/Hash.sol";
 
 /**
@@ -217,7 +217,7 @@ library Decoder {
 
       // Commitments
       uint256 count = read4(_l2Block, offset);
-      vars.baseLeaves = new bytes32[](count / (Constants.COMMITMENTS_PER_TX * 2));
+      vars.baseLeaves = new bytes32[](count / (Constants.MAX_NEW_COMMITMENTS_PER_TX * 2));
       offsets.commitment = BLOCK_HEADER_OFFSET + 0x4;
       offset += 0x4 + count * 0x20;
       offsets.nullifier = offset + 0x4; // + 0x4 to offset by next read4
@@ -347,10 +347,10 @@ library Decoder {
     bytes32[] memory l1ToL2Msgs;
     bytes32 l1ToL2MsgsHash;
     {
-      // `l1ToL2Msgs` is fixed size so if `lengths.l1Tol2MsgsCount` < `Constants.L1_TO_L2_MSGS_PER_BASE_ROLLUP` the array
+      // `l1ToL2Msgs` is fixed size so if `lengths.l1Tol2MsgsCount` < `Constants.NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP` the array
       // will contain some zero values.
       uint256 l1ToL2MsgsHashPreimageSize = 0x20 * vars.l1Tol2MsgsCount;
-      l1ToL2Msgs = new bytes32[](Constants.L1_TO_L2_MSGS_PER_BASE_ROLLUP);
+      l1ToL2Msgs = new bytes32[](Constants.NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP);
       assembly {
         calldatacopy(
           add(l1ToL2Msgs, 0x20),
