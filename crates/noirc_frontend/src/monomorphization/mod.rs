@@ -689,12 +689,12 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Function(args, ret, env) => {
                 let args = vecmap(args, Self::convert_type);
                 let ret = Box::new(Self::convert_type(ret));
-                let env = Box::new(Self::convert_type(env));
-                match (*env).clone() {
-                    ast::Type::Unit => ast::Type::Function(args, ret, env),
-                    ast::Type::Tuple(elements) => ast::Type::Tuple(vec![
-                        elements[0].clone(),
-                        ast::Type::Function(args, ret, env),
+                let env = Self::convert_type(env);
+                match &env {
+                    ast::Type::Unit => ast::Type::Function(args, ret, Box::new(env)),
+                    ast::Type::Tuple(_elements) => ast::Type::Tuple(vec![
+                        env.clone(),
+                        ast::Type::Function(args, ret, Box::new(env)),
                     ]),
                     _ => {
                         unreachable!(
