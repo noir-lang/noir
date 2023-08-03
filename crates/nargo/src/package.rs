@@ -4,7 +4,7 @@ use noirc_frontend::graph::CrateName;
 
 use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PackageType {
     Library,
     Binary,
@@ -61,10 +61,10 @@ impl Package {
     }
 
     pub fn is_binary(&self) -> bool {
-        matches!(self.package_type, PackageType::Binary)
+        self.package_type == PackageType::Binary
     }
 
     pub fn is_library(&self) -> bool {
-        matches!(self.package_type, PackageType::Library)
+        self.package_type == PackageType::Library
     }
 }
