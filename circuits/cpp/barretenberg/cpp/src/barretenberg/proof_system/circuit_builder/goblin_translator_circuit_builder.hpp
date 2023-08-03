@@ -299,12 +299,18 @@ class GoblinTranslatorCircuitBuilder : CircuitBuilderBase<arithmetization::Gobli
          * @brief Check correctness of limbs values
          *
          */
-        auto check_binary_limbs_maximum_values = []<size_t total_limbs>(const std::array<Fr, total_limbs>& limbs) {
+        auto check_binary_limbs_maximum_values = []<size_t total_limbs>(const std::array<Fr, total_limbs>& limbs,
+                                                                        bool relaxed_last_limb = false) {
             if constexpr (total_limbs == (NUM_BINARY_LIMBS + 1)) {
                 for (size_t i = 0; i < NUM_BINARY_LIMBS - 1; i++) {
                     ASSERT(uint256_t(limbs[i]) < SHIFT_1);
                 }
-                ASSERT(uint256_t(limbs[NUM_BINARY_LIMBS - 1]) < (uint256_t(1) << NUM_LAST_LIMB_BITS));
+                if (!relaxed_last_limb) {
+                    ASSERT(uint256_t(limbs[NUM_BINARY_LIMBS - 1]) < (uint256_t(1) << NUM_LAST_LIMB_BITS));
+                } else {
+
+                    ASSERT(uint256_t(limbs[NUM_BINARY_LIMBS - 1]) < (SHIFT_1));
+                }
             } else {
                 for (size_t i = 0; i < total_limbs; i++) {
                     ASSERT(uint256_t(limbs[i]) < SHIFT_1);
@@ -332,7 +338,7 @@ class GoblinTranslatorCircuitBuilder : CircuitBuilderBase<arithmetization::Gobli
         check_binary_limbs_maximum_values(acc_step.z_2_limbs);
         check_binary_limbs_maximum_values(acc_step.previous_accumulator);
         check_binary_limbs_maximum_values(acc_step.current_accumulator);
-        check_binary_limbs_maximum_values(acc_step.quotient_binary_limbs);
+        check_binary_limbs_maximum_values(acc_step.quotient_binary_limbs, /*relaxed_last_limb=*/true);
 
         // Insert limbs used in bigfield evaluations
         insert_pair_into_wire(P_X_LOW_LIMBS, acc_step.P_x_limbs[0], acc_step.P_x_limbs[1]);
@@ -696,4 +702,18 @@ class GoblinTranslatorCircuitBuilder : CircuitBuilderBase<arithmetization::Gobli
         return true;
     }
 };
+template <typename Fq, typename Fr>
+GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(
+    Fr op_code, Fr p_x_lo, Fr p_x_hi, Fr p_y_lo, Fr p_y_hi, Fr z_1, Fr z_2, Fq previous_accumulator, Fq v, Fq x);
+extern template GoblinTranslatorCircuitBuilder::AccumulationInput generate_witness_values(
+    barretenberg::fr op_code,
+    barretenberg::fr p_x_lo,
+    barretenberg::fr p_x_hi,
+    barretenberg::fr p_y_lo,
+    barretenberg::fr p_y_hi,
+    barretenberg::fr z_1,
+    barretenberg::fr z_2,
+    barretenberg::fq previous_accumulator,
+    barretenberg::fq v,
+    barretenberg::fq x);
 } // namespace proof_system

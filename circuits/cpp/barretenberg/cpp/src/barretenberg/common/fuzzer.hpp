@@ -1,4 +1,5 @@
 #pragma once
+#include "barretenberg/numeric/uint256/uint256.hpp"
 #include "barretenberg/proof_system/circuit_builder/standard_circuit_builder.hpp"
 #include "barretenberg/proof_system/circuit_builder/turbo_circuit_builder.hpp"
 #include <concepts>
@@ -184,6 +185,102 @@ concept InstructionWeightsEnabled = requires {
                                         typename T::InstructionWeights;
                                         T::InstructionWeights::_LIMIT;
                                     };
+
+/**
+ * @brief Mutate the value of a field element
+ *
+ * @tparam T PRNG class
+ * @param e Initial element value
+ * @param rng PRNG
+ * @param havoc_config Mutation configuration
+ * @return Mutated element
+ */
+template <typename T, typename FF>
+inline static FF mutateFieldElement(FF e, T& rng)
+    requires SimpleRng<T>
+{
+    // With a certain probability, we apply changes to the Montgomery form, rather than the plain form. This
+    // has merit, since the computation is performed in montgomery form and comparisons are often performed
+    // in it, too. Libfuzzer comparison tracing logic can then be enabled in Montgomery form
+    bool convert_to_montgomery = (rng.next() & 1);
+    uint256_t value_data;
+    // Conversion at the start
+#define MONT_CONVERSION_LOCAL                                                                                          \
+    if (convert_to_montgomery) {                                                                                       \
+        value_data = uint256_t(e.to_montgomery_form());                                                                \
+    } else {                                                                                                           \
+        value_data = uint256_t(e);                                                                                     \
+    }
+    // Inverse conversion at the end
+#define INV_MONT_CONVERSION_LOCAL                                                                                      \
+    if (convert_to_montgomery) {                                                                                       \
+        e = FF(value_data).from_montgomery_form();                                                                     \
+    } else {                                                                                                           \
+        e = FF(value_data);                                                                                            \
+    }
+
+    // Pick the last value from the mutation distrivution vector
+    // Choose mutation
+    const size_t choice = rng.next() % 4;
+    // 50% probability to use standard mutation
+    if (choice < 2) {
+        // Delegate mutation to libfuzzer (bit/byte mutations, autodictionary, etc)
+        MONT_CONVERSION_LOCAL
+        LLVMFuzzerMutate((uint8_t*)&value_data, sizeof(uint256_t), sizeof(uint256_t));
+        INV_MONT_CONVERSION_LOCAL
+    } else if (choice < 3) { // 25% to use small additions
+
+        // Small addition/subtraction
+        if (convert_to_montgomery) {
+            e = e.to_montgomery_form();
+        }
+        if (rng.next() & 1) {
+            value_data = e + FF(rng.next() & 0xff);
+        } else {
+            value_data = e - FF(rng.next() & 0xff);
+        }
+        if (convert_to_montgomery) {
+            e = e.from_montgomery_form();
+        }
+    } else { // 25% to use special values
+
+        // Substitute field element with a special value
+        MONT_CONVERSION_LOCAL
+        switch (rng.next() % 8) {
+        case 0:
+            e = FF::zero();
+            break;
+        case 1:
+            e = FF::one();
+            break;
+        case 2:
+            e = -FF::one();
+            break;
+        case 3:
+            e = FF::one().sqrt().second;
+            break;
+        case 4:
+            e = FF::one().sqrt().second.invert();
+            break;
+        case 5:
+            e = FF::get_root_of_unity(8);
+            break;
+        case 6:
+            e = FF(2);
+            break;
+        case 7:
+            e = FF((FF::modulus - 1) / 2);
+            break;
+        default:
+            abort();
+            break;
+        }
+        INV_MONT_CONVERSION_LOCAL
+    }
+    // Return instruction
+    return e;
+}
+
 /**
  * @brief A templated class containing most of the fuzzing logic for a generic Arithmetic class
  *
