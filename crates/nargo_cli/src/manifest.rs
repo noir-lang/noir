@@ -43,22 +43,44 @@ impl PackageConfig {
             None => return Err(ManifestError::MissingPackageType(root_dir.join("Nargo.toml"))),
         };
 
-        let entry_path = match package_type {
-            PackageType::Library => root_dir.join("src").join("lib").with_extension(FILE_EXTENSION),
-            PackageType::Binary => root_dir.join("src").join("main").with_extension(FILE_EXTENSION),
+        let entry_path = if let Some(entry_path) = &self.package.entry {
+            let custom_entry_path = root_dir.join(entry_path);
+            if custom_entry_path.exists() {
+                custom_entry_path
+            } else {
+                return Err(ManifestError::MissingEntryFile {
+                    toml: root_dir.join("Nargo.toml"),
+                    entry: custom_entry_path,
+                });
+            }
+        } else {
+            let default_entry_path = match package_type {
+                PackageType::Library => {
+                    root_dir.join("src").join("lib").with_extension(FILE_EXTENSION)
+                }
+                PackageType::Binary => {
+                    root_dir.join("src").join("main").with_extension(FILE_EXTENSION)
+                }
+            };
+
+            if default_entry_path.exists() {
+                default_entry_path
+            } else {
+                return Err(ManifestError::MissingDefaultEntryFile {
+                    toml: root_dir.join("Nargo.toml"),
+                    entry: default_entry_path,
+                    package_type,
+                });
+            }
         };
 
-        if entry_path.exists() {
-            Ok(Package {
-                root_dir: root_dir.to_path_buf(),
-                entry_path,
-                package_type,
-                name,
-                dependencies,
-            })
-        } else {
-            Err(ManifestError::MissingEntryFile(entry_path, package_type))
-        }
+        Ok(Package {
+            root_dir: root_dir.to_path_buf(),
+            entry_path,
+            package_type,
+            name,
+            dependencies,
+        })
     }
 }
 
@@ -116,6 +138,7 @@ struct PackageMetadata {
     name: String,
     #[serde(alias = "type")]
     package_type: Option<String>,
+    entry: Option<PathBuf>,
     description: Option<String>,
     authors: Option<Vec<String>>,
     // If not compiler version is supplied, the latest is used
