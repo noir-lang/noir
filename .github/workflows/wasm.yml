@@ -161,7 +161,8 @@ jobs:
           name: nargo
           path: ./nargo
 
-      - name: Install dependencies and Run noir-wasm-testing program
+      - name: Compile test program with Nargo CLI
+        working-directory: ./crates/wasm/noir-script
         run: |
           nargo_binary=$(find $(pwd) -name "nargo" -type f)
           echo "nargo binary found at $nargo_binary."
@@ -173,7 +174,7 @@ jobs:
           echo "Library dependencies of nargo binary:"
           ldd $nargo_binary
           if [ -x "$nargo_binary" ]; then
-            $nargo_binary -p "${{ github.workspace }}/noir-script" compile
+            $nargo_binary compile
           else
             echo "nargo binary NOT found or is not executable."
             exit 1
