@@ -151,8 +151,8 @@ pub enum TraitItemType {
 /// the same trait type.
 #[derive(Debug, Eq)]
 pub struct Trait {
-    /// A unique id representing this struct type. Used to check if two
-    /// struct types are equal.
+    /// A unique id representing this trait type. Used to check if two
+    /// struct traits are equal.
     pub id: TraitId,
 
     pub items: Vec<TraitItemType>,

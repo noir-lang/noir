@@ -63,9 +63,12 @@ pub struct NodeInterner {
 
     // Trait map.
     //
-    // Each struct definition is possibly shared across multiple type nodes.
+    // Each trait definition is possibly shared across multiple type nodes.
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
+    //
+    // TODO: We may be able to remove the Shared wrapper once traits are no longer types.
+    // We'd just lookup their methods as needed through the NodeInterner.
     traits: HashMap<TraitId, Shared<Trait>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,

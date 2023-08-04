@@ -652,10 +652,6 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(fields)
             }
 
-            HirType::Trait(def, _args) => {
-                unreachable!("Not sure what to do here def = {:?}", def)
-            }
-
             HirType::Tuple(fields) => {
                 let fields = vecmap(fields, Self::convert_type);
                 ast::Type::Tuple(fields)
@@ -675,6 +671,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Forall(_, _)
             | HirType::Constant(_)
             | HirType::NotConstant
+            | HirType::Trait(..)
             | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
