@@ -167,7 +167,7 @@ mod path_normalization {
                 ("/", "/"),                             // Handles root
                 ("/foo/bar/../baz/../bar", "/foo/bar"), // Handles backtracking
                 ("/././././././././baz", "/baz"),       // Removes noops
-                (r"C:/foo", "C:/foo"),                  // Retains Windows prefixes
+                ("C:/foo", "C:/foo"),                   // Retains Windows prefixes
             ],
             |(unnormalized, normalized)| (PathBuf::from(unnormalized), PathBuf::from(normalized)),
         );
