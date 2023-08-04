@@ -68,13 +68,6 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
 
-      - name: Checkout Build Nargo repo
-        uses: actions/checkout@v3
-        with:
-          repository: noir-lang/build-nargo
-          path: build-nargo
-          ref: ${{ inputs.build-nargo-ref || 'master' }}
-
       - uses: actions/cache@v3
         with:
           path: |
