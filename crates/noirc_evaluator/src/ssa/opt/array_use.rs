@@ -15,7 +15,7 @@ impl Ssa {
     /// Map arrays with the last instruction that uses it
     /// For this we simply process all the instructions in execution order
     /// and update the map whenever there is a match
-    pub(crate) fn array_use(&self) -> HashMap<ValueId, InstructionId> {
+    pub(crate) fn find_last_array_uses(&self) -> HashMap<ValueId, InstructionId> {
         let mut array_use = HashMap::new();
         for func in self.functions.values() {
             let mut reverse_post_order = PostOrder::with_function(func).into_vec();

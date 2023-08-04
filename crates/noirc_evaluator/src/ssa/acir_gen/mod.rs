@@ -112,10 +112,10 @@ impl Ssa {
         self,
         brillig: Brillig,
         abi_distinctness: AbiDistinctness,
-        array_use: &HashMap<ValueId, InstructionId>,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let context = Context::new();
-        let mut generated_acir = context.convert_ssa(self, brillig, array_use)?;
+        let mut generated_acir = context.convert_ssa(self, brillig, last_array_uses)?;
 
         match abi_distinctness {
             AbiDistinctness::Distinct => {
@@ -159,11 +159,11 @@ impl Context {
         self,
         ssa: Ssa,
         brillig: Brillig,
-        array_use: &HashMap<ValueId, InstructionId>,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let main_func = ssa.main();
         match main_func.runtime() {
-            RuntimeType::Acir => self.convert_acir_main(main_func, &ssa, brillig, array_use),
+            RuntimeType::Acir => self.convert_acir_main(main_func, &ssa, brillig, last_array_uses),
             RuntimeType::Brillig => self.convert_brillig_main(main_func, brillig),
         }
     }
@@ -173,14 +173,14 @@ impl Context {
         main_func: &Function,
         ssa: &Ssa,
         brillig: Brillig,
-        array_use: &HashMap<ValueId, InstructionId>,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, array_use)?;
+            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
         }
 
         self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
@@ -317,7 +317,7 @@ impl Context {
         dfg: &DataFlowGraph,
         ssa: &Ssa,
         brillig: &Brillig,
-        array_use: &HashMap<ValueId, InstructionId>,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_location(dfg.get_location(&instruction_id));
@@ -397,7 +397,14 @@ impl Context {
                 self.current_side_effects_enabled_var = acir_var;
             }
             Instruction::ArrayGet { array, index } => {
-                self.handle_array_operation(instruction_id, *array, *index, None, dfg, array_use)?;
+                self.handle_array_operation(
+                    instruction_id,
+                    *array,
+                    *index,
+                    None,
+                    dfg,
+                    last_array_uses,
+                )?;
             }
             Instruction::ArraySet { array, index, value } => {
                 self.handle_array_operation(
@@ -406,7 +413,7 @@ impl Context {
                     *index,
                     Some(*value),
                     dfg,
-                    array_use,
+                    last_array_uses,
                 )?;
             }
             Instruction::Allocate => {
@@ -462,7 +469,7 @@ impl Context {
         index: ValueId,
         store_value: Option<ValueId>,
         dfg: &DataFlowGraph,
-        array_use: &HashMap<ValueId, InstructionId>,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
 
@@ -521,7 +528,7 @@ impl Context {
             AcirValue::DynamicArray(_) => (),
         }
         let resolved_array = dfg.resolve(array);
-        let map_array = array_use.get(&resolved_array) == Some(&instruction);
+        let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
         if let Some(store) = store_value {
             self.array_set(instruction, array, index, store, dfg, map_array)?;
         } else {
