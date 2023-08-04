@@ -158,7 +158,11 @@ impl DefCollector {
                     .import(name.clone(), ns);
 
                 if let Err((first_def, second_def)) = result {
-                    let err = DefCollectorErrorKind::DuplicateImport { first_def, second_def };
+                    let err = DefCollectorErrorKind::Duplicate {
+                        typ: "import".to_string(),
+                        first_def,
+                        second_def,
+                    };
                     errors.push(err.into_file_diagnostic(root_file_id));
                 }
             }
@@ -252,8 +256,11 @@ fn collect_impls(
                     let result = module.declare_function(method.name_ident().clone(), *method_id);
 
                     if let Err((first_def, second_def)) = result {
-                        let err =
-                            DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                        let err = DefCollectorErrorKind::Duplicate {
+                            typ: "function".to_string(),
+                            first_def,
+                            second_def,
+                        };
                         errors.push(err.into_file_diagnostic(unresolved.file_id));
                     }
                 }
@@ -367,21 +374,9 @@ fn resolve_traits(
     _crate_id: CrateId,
     _errors: &mut [FileDiagnostic],
 ) {
-    // We must first go through the struct list once to ensure all IDs are pushed to
-    // the def_interner map. This lets structs refer to each other regardless of declaration order
-    // without resolve_struct_fields non-deterministically unwrapping a value
-    // that isn't in the HashMap.
     for (type_id, typ) in &traits {
         context.def_interner.push_empty_trait(*type_id, typ);
     }
-    /*
-        for (type_id, typ) in traits {
-            let (generics, fields) = resolve_struct_fields(context, crate_id, typ, errors);
-            context.def_interner.update_trait(type_id, |struct_def| {
-                struct_def.generics = generics;
-            });
-        }
-    */
 }
 
 fn resolve_struct_fields(

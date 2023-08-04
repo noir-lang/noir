@@ -87,19 +87,16 @@ fn check_trait_method_implementation_parameters(
     trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
     if noir_function.def.parameters.len() != parameters.len() {
-        return Err(DefCollectorErrorKind::SimpleError {
+        return Err(DefCollectorErrorKind::GenericError {
             primary_message: format!("Mismatch signature [Number of parameters] of method with name `{}` that implemetns trait `{}`", noir_function.name(), trait_name),
             secondary_message: "".to_string(),
             span: noir_function.name_ident().span(),
         });
     }
     for (count, (pattern, typ, _abi_vis)) in noir_function.def.parameters.iter().enumerate() {
-        let (expected_name, expected_type) = &parameters[count];
-        if pattern.name_ident().0.contents != expected_name.0.contents {
-            // we allow different namings of parameters
-        }
+        let (_expected_name, expected_type) = &parameters[count];
         if typ != expected_type {
-            return Err(DefCollectorErrorKind::SimpleError {
+            return Err(DefCollectorErrorKind::GenericError {
                 primary_message: format!(
                     "Mismatch signature of method {} that implemtns trait {}",
                     noir_function.name(),
@@ -131,8 +128,8 @@ fn check_trait_method_implementation_return_type(
     noir_function: &NoirFunction,
     trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
-    if return_type != &noir_function.return_type() {
-        Err(DefCollectorErrorKind::SimpleError {
+    if !(return_type == &noir_function.return_type()) {
+        Err(DefCollectorErrorKind::GenericError {
             primary_message: format!(
                 "mismatch return type of method with name {} that implemetns trait {}",
                 noir_function.name(),
@@ -187,7 +184,7 @@ fn check_trait_method_implementation(
         }
     }
 
-    Err(DefCollectorErrorKind::SimpleError {
+    Err(DefCollectorErrorKind::GenericError {
         primary_message: format!(
             "method with name {} is not part of trait {}, therefore it can't be implemented",
             noir_function.name(),
@@ -217,7 +214,11 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_global(name, stmt_id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateGlobal { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: "global".to_string(),
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -309,7 +310,7 @@ impl<'a> ModCollector<'a> {
                         ));
                     }
                     _ => {
-                        let error = DefCollectorErrorKind::SimpleError {
+                        let error = DefCollectorErrorKind::GenericError {
                             primary_message: format!(
                                 "{} is not a trait, therefore it can't be implemented",
                                 trait_name
@@ -321,7 +322,7 @@ impl<'a> ModCollector<'a> {
                     }
                 },
                 None => {
-                    let error = DefCollectorErrorKind::SimpleError {
+                    let error = DefCollectorErrorKind::GenericError {
                         primary_message: format!("Trait {} not found", trait_name),
                         secondary_message: "".to_string(),
                         span: trait_name.span(),
@@ -362,7 +363,11 @@ impl<'a> ModCollector<'a> {
                 .declare_function(name, func_id);
 
             if let Err((first_def, second_def)) = result {
-                let error = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let error = DefCollectorErrorKind::Duplicate {
+                    typ: "function".to_string(),
+                    first_def,
+                    second_def,
+                };
                 errors.push(error.into_file_diagnostic(self.file_id));
             }
         }
@@ -392,7 +397,11 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_struct(name, id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateTypeDef { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: "type definition".to_string(),
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -431,7 +440,11 @@ impl<'a> ModCollector<'a> {
                 .declare_type_alias(name, type_alias_id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: "function".to_string(),
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -461,11 +474,15 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_trait(name, id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateTraitDef { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: "trait definition".to_string(),
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
-            // And store the TypeId -> TraitType mapping somewhere it is reachable
+            // And store the TraitId -> TraitType mapping somewhere it is reachable
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
                 module_id: self.module_id,
@@ -579,7 +596,11 @@ impl<'a> ModCollector<'a> {
             if let Err((first_def, second_def)) =
                 modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
             {
-                let err = DefCollectorErrorKind::DuplicateModuleDecl { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: "module".to_string(),
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
                 return None;
             }

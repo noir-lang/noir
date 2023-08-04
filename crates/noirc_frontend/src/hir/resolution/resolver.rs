@@ -1699,28 +1699,6 @@ mod test {
         }
     }
 
-    fn resolve_struct_method_call_expr() {
-        let src = r#"
-
-        struct Foo {
-            bar: Field
-        }
-
-        impl Foo {
-            fn default(x: Field,_y: Field) -> Self {
-                Self { bar: x }
-            }
-        }
-
-        fn main(x: Field, y: Field) {
-            let _foo = Foo::default(x,y);
-        }
-        "#;
-
-        let errors = resolve_src_code(src, vec!["main"]);
-        assert!(errors.is_empty());
-    }
-
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
         match err {
             ResolverError::PathResolutionError(PathResolutionError::Unresolved(name)) => {
