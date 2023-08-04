@@ -25,10 +25,10 @@ pub use program::CompiledProgram;
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
-    #[arg(long)]
+    #[arg(long, hide = true)]
     pub show_ssa: bool,
 
-    #[arg(long)]
+    #[arg(long, hide = true)]
     pub show_brillig: bool,
 
     /// Display the ACIR for compiled circuit
