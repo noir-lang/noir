@@ -17,7 +17,7 @@ pub(crate) struct NewCommand {
 
     /// Name of the package [default: package directory name]
     #[clap(long)]
-    path: Option<String>,
+    name: Option<String>,
 
     #[clap(flatten)]
     init_config: InitCommand,

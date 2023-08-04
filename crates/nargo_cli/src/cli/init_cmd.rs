@@ -14,13 +14,13 @@ pub(crate) struct InitCommand {
     /// Name of the package [default: current directory name]
     #[clap(long)]
     name: Option<String>,
-}
+
     /// Use a library template
-    #[arg(long, conflicts_with="bin")]
+    #[arg(long, conflicts_with = "bin")]
     pub(crate) lib: bool,
 
     /// Use a binary template [default]
-    #[arg(long, conflicts_with="lib")]
+    #[arg(long, conflicts_with = "lib")]
     pub(crate) bin: bool,
 }
 
@@ -66,8 +66,11 @@ pub(crate) fn run<B: Backend>(
 }
 
 /// Initializes a new Noir project in `package_dir`.
-pub(crate) fn initialize_project(package_dir: PathBuf, package_name: &str, package_type: PackageType) {
-    // TODO: Should this reject if we have non-Unicode filepaths?
+pub(crate) fn initialize_project(
+    package_dir: PathBuf,
+    package_name: &str,
+    package_type: PackageType,
+) {
     let src_dir = package_dir.join(SRC_DIR);
     create_named_dir(&src_dir, "src");
 
