@@ -4,21 +4,125 @@ on:
   push:
     branches:
       - jb/noir-testing-workflow
+      - tom/noir-wasm-testing
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build Wasm
+  build-barretenberg:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v3
+
+      - name: Checkout Build Nargo repo
+        uses: actions/checkout@v3
+        with:
+          repository: noir-lang/build-nargo
+          path: build-nargo
+          ref: ${{ inputs.build-nargo-ref || 'master' }}
+
+      - name: Collect locked barretenberg rev
+        run: |
+          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./flake.lock)" >> $GITHUB_ENV
+          echo "BB_REV is ${{ env.BB_REV }}"
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v12
+        with:
+          name: barretenberg
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      # Upload does not work with symlinks, using this workaround:
+      # https://github.com/actions/upload-artifact/issues/92#issuecomment-1080347032
+      - name: Build barretenberg as libbarretenberg-wasm32
+        run: |
+          echo "BB_REV is ${{ env.BB_REV }}"
+          nix build "github:AztecProtocol/barretenberg/${{ env.BB_REV }}#wasm32"
+          echo "ARTIFACT_UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: libbarretenberg-wasm32
+          path: ${{ env.ARTIFACT_UPLOAD_PATH }}
+          retention-days: 3
+
+  build-nargo:
+    needs: [build-barretenberg]
+    runs-on: ubuntu-22.04
+    env:
+      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-unknown-linux-gnu]
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v3
+
+      - name: Checkout Build Nargo repo
+        uses: actions/checkout@v3
+        with:
+          repository: noir-lang/build-nargo
+          path: build-nargo
+          ref: ${{ inputs.build-nargo-ref || 'master' }}
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: libbarretenberg-wasm32
+          path: ${{ github.workspace }}/libbarretenberg-wasm32
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build Nargo
+        env:
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
+        run: |
+          cargo install cross --force --git https://github.com/cross-rs/cross
+          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo
+          path: ./dist/*
+          retention-days: 3
+
+  build-wasm:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
 
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v22
+      - uses: cachix/install-nix-action@v20
         with:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
@@ -27,29 +131,63 @@ jobs:
         run: |
           nix build -L .#wasm
 
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noir_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
+
+  test:
+    needs: [build-wasm, build-nargo]
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout noir-wasm-testing
         uses: actions/checkout@v3
         with:
           repository: noir-lang/noir-wasm-testing
-          path: noir-wasm-testing
+
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noir_wasm
+          path: ./@noir-lang_noir_wasm
 
       - name: Inject built wasm into noir-wasm-testing
         run: |
-          mkdir ./noir-wasm-testing/@noir-lang_noir_wasm
-          cp -r -L ./result/* ./noir-wasm-testing/@noir-lang_noir_wasm
-          jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./noir-wasm-testing/package.json > ./noir-wasm-testing/package.json.tmp
-          mv ./noir-wasm-testing/package.json.tmp ./noir-wasm-testing/package.json
+          jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./package.json > ./package.json.tmp
+          mv ./package.json.tmp ./package.json
 
-      - name: Run build.sh in noir-wasm-testing
-        working-directory: ./noir-wasm-testing
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
+
+      - name: Install dependencies and Run noir-wasm-testing program
         run: |
-          chmod +x build.sh
-          ./build.sh
+          nargo_binary=$(find $(pwd) -name "nargo" -type f)
+          echo "nargo binary found at $nargo_binary."
+          ls -l $nargo_binary
+          echo "Attempting to make nargo binary executable:"
+          chmod +x $nargo_binary || echo "chmod failed with exit code $?"
+          echo "File permissions after chmod:"
+          ls -l $nargo_binary
+          echo "Library dependencies of nargo binary:"
+          ldd $nargo_binary
+          if [ -x "$nargo_binary" ]; then
+            $nargo_binary -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
+          else
+            echo "nargo binary NOT found or is not executable."
+            exit 1
+          fi
 
       - name: Install dependencies
-        working-directory: ./noir-wasm-testing
         run: npm install
 
       - name: Run tests
-        working-directory: ./noir-wasm-testing
         run: npm test
