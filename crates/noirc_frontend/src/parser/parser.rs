@@ -1740,7 +1740,7 @@ mod test {
             vec![
                 "fn func_name() {}",
                 "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
-                "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
+                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
                 "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
