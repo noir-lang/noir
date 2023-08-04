@@ -4,7 +4,7 @@ pub(crate) mod brillig_directive;
 pub(crate) mod brillig_fn;
 pub(crate) mod brillig_slice_ops;
 
-use crate::ssa_refactor::ir::{function::Function, post_order::PostOrder};
+use crate::ssa::ir::{function::Function, post_order::PostOrder};
 
 use std::collections::HashMap;
 

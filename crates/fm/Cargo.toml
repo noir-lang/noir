@@ -17,3 +17,4 @@ wasm-bindgen.workspace = true
 
 [dev-dependencies]
 tempfile = "3.2.0"
+iter-extended.workspace = true
