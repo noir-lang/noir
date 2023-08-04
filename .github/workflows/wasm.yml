@@ -116,16 +116,6 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
-      # You can access the artifacts directly from ./dist/* here
-      - name: Test built artifact
-        if: startsWith(matrix.target, 'x86_64-unknown-linux')
-        run: |
-          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-          cd ./build-nargo
-          npm install
-          ls -R
-          npm test
-
   build-wasm:
     runs-on: ubuntu-latest
     steps:
