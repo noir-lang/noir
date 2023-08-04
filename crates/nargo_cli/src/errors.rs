@@ -85,7 +85,7 @@ pub(crate) enum CompileError {
     #[error("Package `{0}` is expected to have a `main` function but it does not")]
     MissingMainFunction(CrateName),
 
-    /// Errors encountered while compiling the noir program.
+    /// Errors encountered while compiling the Noir program.
     /// These errors are already written to stderr.
     #[error("Aborting due to {} previous error{}", .0.error_count, if .0.error_count == 1 { "" } else { "s" })]
     ReportedErrors(ReportedErrors),
