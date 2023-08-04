@@ -147,7 +147,4 @@ pub(crate) enum ManifestError {
 
     #[error("Package `{0}` has type `bin` but you cannot depend on binary packages")]
     BinaryDependency(CrateName),
-
-    #[error("Missing `name` field in {toml}")]
-    MissingNameField { toml: PathBuf },
 }

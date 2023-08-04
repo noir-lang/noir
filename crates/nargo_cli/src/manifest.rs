@@ -21,11 +21,7 @@ struct PackageConfig {
 
 impl PackageConfig {
     fn resolve_to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
-        let name = if let Some(name) = &self.package.name {
-            name.parse().map_err(|_| ManifestError::InvalidPackageName)?
-        } else {
-            return Err(ManifestError::MissingNameField { toml: root_dir.join("Nargo.toml") });
-        };
+        let name = self.package.name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in self.dependencies.iter() {
@@ -138,7 +134,8 @@ struct WorkspaceConfig {
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 struct PackageMetadata {
-    name: Option<String>,
+    #[serde(default = "panic_missing_name")]
+    name: String,
     #[serde(alias = "type")]
     package_type: Option<String>,
     entry: Option<PathBuf>,
@@ -152,6 +149,26 @@ struct PackageMetadata {
     compiler_version: Option<String>,
     backend: Option<String>,
     license: Option<String>,
+}
+
+// TODO: Remove this after a couple of breaking releases (added in 0.10.0)
+fn panic_missing_name() -> String {
+    panic!(
+        r#"
+
+Failed to parse `Nargo.toml`.
+
+`Nargo.toml` now requires a "name" field for Noir packages.
+
+```toml
+[package]
+name = "package_name"
+```
+
+Modify your `Nargo.toml` similarly to above and rerun the command.
+
+"#
+    )
 }
 
 #[derive(Debug, Deserialize, Clone)]
