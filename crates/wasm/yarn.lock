@@ -222,10 +222,6 @@
   resolved "https://registry.yarnpkg.com/@noir-lang/noir-source-resolver/-/noir-source-resolver-1.1.2.tgz#724f58e095722762e3880ca9e08edc35742e8f05"
   integrity sha512-GRiAR7z2RxdUt07fL3X303sm3Qs4Ec9lPDCQ5uwK7xDD2nK6KaNBNQyl+JrotCxsMhoh7MVh38SZSOOCxaJgUQ==
 
-"@noir-lang/noir_wasm@github:noir-lang/noir_wasm":
-  version "0.9.1-0164a92.0"
-  resolved "https://codeload.github.com/noir-lang/noir_wasm/tar.gz/be1ada9a86b1042b2058b929f8b04ea643c047c6"
-
 "@puppeteer/browsers@0.5.0":
   version "0.5.0"
   resolved "https://registry.yarnpkg.com/@puppeteer/browsers/-/browsers-0.5.0.tgz#1a1ee454b84a986b937ca2d93146f25a3fe8b670"
