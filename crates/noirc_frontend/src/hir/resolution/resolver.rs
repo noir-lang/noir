@@ -35,7 +35,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
-    Shared, StructType, TraitType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
+    Shared, StructType, Trait, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
     UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
@@ -1228,7 +1228,7 @@ impl<'a> Resolver<'a> {
         self.interner.get_struct(type_id)
     }
 
-    pub fn get_trait(&self, type_id: TraitId) -> Shared<TraitType> {
+    pub fn get_trait(&self, type_id: TraitId) -> Shared<Trait> {
         self.interner.get_trait(type_id)
     }
 

@@ -11,7 +11,7 @@ use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait, Unr
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::types::{StructType, TraitType, Type};
+use crate::hir_def::types::{StructType, Trait, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -66,7 +66,7 @@ pub struct NodeInterner {
     // Each struct definition is possibly shared across multiple type nodes.
     // It is also mutated through the RefCell during name resolution to append
     // methods from impls to the type.
-    traits: HashMap<TraitId, Shared<TraitType>>,
+    traits: HashMap<TraitId, Shared<Trait>>,
 
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
@@ -327,7 +327,7 @@ impl NodeInterner {
     pub fn push_empty_trait(&mut self, type_id: TraitId, typ: &UnresolvedTrait) {
         self.traits.insert(
             type_id,
-            Shared::new(TraitType::new(
+            Shared::new(Trait::new(
                 type_id,
                 typ.trait_def.name.clone(),
                 typ.trait_def.span,
@@ -591,7 +591,7 @@ impl NodeInterner {
         &self.type_aliases[id.0]
     }
 
-    pub fn get_trait(&self, id: TraitId) -> Shared<TraitType> {
+    pub fn get_trait(&self, id: TraitId) -> Shared<Trait> {
         self.traits[&id].clone()
     }
 

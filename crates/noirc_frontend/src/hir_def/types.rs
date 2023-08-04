@@ -54,7 +54,7 @@ pub enum Type {
     /// A user-defined trait type. The `Shared<TraitType>` field here refers to
     /// the shared definition for each instance of this trait type. The `Vec<Type>`
     /// represents the generic arguments (if any) to this trait type.
-    Trait(Shared<TraitType>, Vec<Type>),
+    Trait(Shared<Trait>, Vec<Type>),
 
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
@@ -150,7 +150,7 @@ pub enum TraitItemType {
 /// rust struct will be shared across all Type::Trait variants that represent
 /// the same trait type.
 #[derive(Debug, Eq)]
-pub struct TraitType {
+pub struct Trait {
     /// A unique id representing this struct type. Used to check if two
     /// struct types are equal.
     pub id: TraitId,
@@ -180,31 +180,31 @@ impl PartialEq for StructType {
     }
 }
 
-impl std::hash::Hash for TraitType {
+impl std::hash::Hash for Trait {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
 }
 
-impl PartialEq for TraitType {
+impl PartialEq for Trait {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl TraitType {
+impl Trait {
     pub fn new(
         id: TraitId,
         name: Ident,
         span: Span,
         items: Vec<TraitItemType>,
         generics: Generics,
-    ) -> TraitType {
-        TraitType { id, name, span, items, generics }
+    ) -> Trait {
+        Trait { id, name, span, items, generics }
     }
 }
 
-impl std::fmt::Display for TraitType {
+impl std::fmt::Display for Trait {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
     }
