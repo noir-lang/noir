@@ -162,12 +162,12 @@ mod path_normalization {
 
     #[test]
     fn normalizes_paths_correctly() {
+        // Note that tests are run on unix so prefix handling can't be tested (as these only exist on Windows)
         let test_cases = vecmap(
             [
                 ("/", "/"),                             // Handles root
                 ("/foo/bar/../baz/../bar", "/foo/bar"), // Handles backtracking
                 ("/././././././././baz", "/baz"),       // Removes noops
-                ("C:/foo", "C:/foo"),                   // Retains Windows prefixes
             ],
             |(unnormalized, normalized)| (PathBuf::from(unnormalized), PathBuf::from(normalized)),
         );
