@@ -25,8 +25,8 @@ export class PackedArguments {
     return new PackedArguments(...PackedArguments.getFields(fields));
   }
 
-  static async fromArgs(args: Fr[], wasm: CircuitsWasm) {
-    return new PackedArguments(args, await computeVarArgsHash(wasm, args));
+  static async fromArgs(args: Fr[], wasm?: CircuitsWasm) {
+    return new PackedArguments(args, await computeVarArgsHash(wasm ?? (await CircuitsWasm.get()), args));
   }
 
   toBuffer() {

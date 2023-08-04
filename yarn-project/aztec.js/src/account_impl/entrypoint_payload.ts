@@ -1,7 +1,7 @@
 import { CircuitsWasm, Fr } from '@aztec/circuits.js';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import { sha256 } from '@aztec/foundation/crypto';
-import { ExecutionRequest, PackedArguments, emptyExecutionRequest } from '@aztec/types';
+import { FunctionCall, PackedArguments, emptyFunctionCall } from '@aztec/types';
 
 // These must match the values defined in yarn-project/noir-libs/noir-aztec/src/entrypoint.nr
 const ACCOUNT_MAX_PRIVATE_CALLS = 2;
@@ -24,8 +24,8 @@ export type EntrypointPayload = {
 
 /** Assembles an entrypoint payload from a set of private and public function calls */
 export async function buildPayload(
-  privateCalls: ExecutionRequest[],
-  publicCalls: ExecutionRequest[],
+  privateCalls: FunctionCall[],
+  publicCalls: FunctionCall[],
 ): Promise<{
   /** The payload for the entrypoint function */
   payload: EntrypointPayload;
@@ -35,8 +35,8 @@ export async function buildPayload(
   const nonce = Fr.random();
 
   const calls = [
-    ...padArrayEnd(privateCalls, emptyExecutionRequest(), ACCOUNT_MAX_PRIVATE_CALLS),
-    ...padArrayEnd(publicCalls, emptyExecutionRequest(), ACCOUNT_MAX_PUBLIC_CALLS),
+    ...padArrayEnd(privateCalls, emptyFunctionCall(), ACCOUNT_MAX_PRIVATE_CALLS),
+    ...padArrayEnd(publicCalls, emptyFunctionCall(), ACCOUNT_MAX_PUBLIC_CALLS),
   ];
 
   const packedArguments = [];

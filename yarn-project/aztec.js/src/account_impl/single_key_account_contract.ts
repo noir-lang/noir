@@ -8,14 +8,15 @@ import {
 } from '@aztec/circuits.js';
 import { Signer } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, encodeArguments } from '@aztec/foundation/abi';
-import { ExecutionRequest, PackedArguments, TxExecutionRequest } from '@aztec/types';
+import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types';
 
 import partition from 'lodash.partition';
 
 import SchnorrSingleKeyAccountContractAbi from '../abis/schnorr_single_key_account_contract.json' assert { type: 'json' };
 import { generatePublicKey } from '../index.js';
+import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from '../utils/defaults.js';
 import { buildPayload, hashPayload } from './entrypoint_payload.js';
-import { AccountImplementation } from './index.js';
+import { AccountImplementation, CreateTxRequestOpts } from './index.js';
 
 /**
  * Account contract implementation that uses a single key for signing and encryption. This public key is not
@@ -28,18 +29,21 @@ export class SingleKeyAccountContract implements AccountImplementation {
     private partialContractAddress: PartialContractAddress,
     private privateKey: PrivateKey,
     private signer: Signer,
+    private chainId: number = DEFAULT_CHAIN_ID,
+    private version: number = DEFAULT_VERSION,
   ) {}
 
   getAddress(): AztecAddress {
     return this.address;
   }
 
-  async createAuthenticatedTxRequest(
-    executions: ExecutionRequest[],
-    txContext: TxContext,
+  async createTxExecutionRequest(
+    executions: FunctionCall[],
+    opts: CreateTxRequestOpts = {},
   ): Promise<TxExecutionRequest> {
-    this.checkSender(executions);
-    this.checkIsNotDeployment(txContext);
+    if (opts.origin && !opts.origin.equals(this.address)) {
+      throw new Error(`Sender ${opts.origin.toString()} does not match account address ${this.address.toString()}`);
+    }
 
     const [privateCalls, publicCalls] = partition(executions, exec => exec.functionData.isPrivate);
     const wasm = await CircuitsWasm.get();
@@ -55,7 +59,7 @@ export class SingleKeyAccountContract implements AccountImplementation {
       argsHash: packedArgs.hash,
       origin: this.address,
       functionData: FunctionData.fromAbi(abi),
-      txContext,
+      txContext: TxContext.empty(this.chainId, this.version),
       packedArguments: [...callsPackedArguments, packedArgs],
     });
 
@@ -69,20 +73,5 @@ export class SingleKeyAccountContract implements AccountImplementation {
     const abi = (SchnorrSingleKeyAccountContractAbi as any as ContractAbi).functions.find(f => f.name === 'entrypoint');
     if (!abi) throw new Error(`Entrypoint abi for account contract not found`);
     return abi;
-  }
-
-  private checkIsNotDeployment(txContext: TxContext) {
-    if (txContext.isContractDeploymentTx) {
-      throw new Error(`Cannot yet deploy contracts from an account contract`);
-    }
-  }
-
-  private checkSender(executions: ExecutionRequest[]) {
-    const wrongSender = executions.find(e => !e.from.equals(this.address));
-    if (wrongSender) {
-      throw new Error(
-        `Sender ${wrongSender.from.toString()} does not match account address ${this.address.toString()}`,
-      );
-    }
   }
 }

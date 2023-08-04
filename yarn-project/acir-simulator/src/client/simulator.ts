@@ -6,7 +6,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { ExecutionRequest, TxExecutionRequest } from '@aztec/types';
+import { FunctionCall, TxExecutionRequest } from '@aztec/types';
 
 import { PackedArgsCache } from '../packed_args_cache.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
@@ -87,6 +87,7 @@ export class AcirSimulator {
   /**
    * Runs an unconstrained function.
    * @param request - The transaction request.
+   * @param origin - The sender of the request.
    * @param entryPointABI - The ABI of the entry point function.
    * @param contractAddress - The address of the contract.
    * @param portalContractAddress - The address of the portal contract.
@@ -94,7 +95,8 @@ export class AcirSimulator {
    * @returns The return values of the function.
    */
   public async runUnconstrained(
-    request: ExecutionRequest,
+    request: FunctionCall,
+    origin: AztecAddress,
     entryPointABI: FunctionAbi,
     contractAddress: AztecAddress,
     portalContractAddress: EthAddress,
@@ -104,7 +106,7 @@ export class AcirSimulator {
       throw new Error(`Cannot run ${entryPointABI.functionType} function as constrained`);
     }
     const callContext = new CallContext(
-      request.from!,
+      origin,
       contractAddress,
       portalContractAddress,
       false,
@@ -150,8 +152,7 @@ export class AcirSimulator {
       const preimageLen = (abi.parameters[3].type as ArrayType).length;
       const extendedPreimage = notePreimage.concat(Array(preimageLen - notePreimage.length).fill(Fr.ZERO));
 
-      const execRequest: ExecutionRequest = {
-        from: AztecAddress.ZERO,
+      const execRequest: FunctionCall = {
         to: AztecAddress.ZERO,
         functionData: FunctionData.empty(),
         args: encodeArguments(abi, [contractAddress, nonce, storageSlot, extendedPreimage]),
@@ -159,6 +160,7 @@ export class AcirSimulator {
 
       const [[innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier]] = await this.runUnconstrained(
         execRequest,
+        AztecAddress.ZERO,
         abi,
         AztecAddress.ZERO,
         EthAddress.ZERO,

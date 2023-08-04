@@ -1,11 +1,10 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, SentTx, Wallet, generatePublicKey } from '@aztec/aztec.js';
-import { Fr, PrivateKey, TxContext, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { AztecAddress, BatchCall, Wallet, generatePublicKey } from '@aztec/aztec.js';
+import { Fr, PrivateKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { generateFunctionSelector } from '@aztec/foundation/abi';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { DebugLogger } from '@aztec/foundation/log';
-import { retryUntil } from '@aztec/foundation/retry';
 import { EscrowContractAbi, ZkTokenContractAbi } from '@aztec/noir-contracts/artifacts';
 import { EscrowContract, ZkTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, PublicKey } from '@aztec/types';
@@ -93,20 +92,11 @@ describe('e2e_escrow_contract', () => {
     await expectBalance(owner, 50n);
 
     const actions = [
-      await zkTokenContract.methods.transfer(10, owner, recipient).request(),
-      await escrowContract.methods.withdraw(zkTokenContract.address, 20, recipient).request(),
+      zkTokenContract.methods.transfer(10, owner, recipient).request(),
+      escrowContract.methods.withdraw(zkTokenContract.address, 20, recipient).request(),
     ];
 
-    // TODO: We need a nicer interface for batch actions
-    const nodeInfo = await wallet.getNodeInfo();
-    const txContext = TxContext.empty(new Fr(nodeInfo.chainId), new Fr(nodeInfo.version));
-    const txRequest = await wallet.createAuthenticatedTxRequest(actions, txContext);
-    logger(`Executing batch transfer from ${wallet.getAddress()}`);
-    const tx = await wallet.simulateTx(txRequest);
-    const sentTx = new SentTx(aztecRpcServer, wallet.sendTx(tx));
-    await sentTx.isMined();
-
-    await retryUntil(() => aztecRpcServer.isAccountSynchronised(recipient), 'account sync', 30);
+    await new BatchCall(wallet, actions).send().wait();
     await expectBalance(recipient, 30n);
   }, 120_000);
 });

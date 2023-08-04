@@ -15,7 +15,7 @@ export {
   ContractDeploymentTx,
   ContractPublicData,
   DeployedContract,
-  ExecutionRequest,
+  FunctionCall,
   L2BlockL2Logs,
   NodeInfo,
   PackedArguments,
@@ -26,7 +26,7 @@ export {
   TxHash,
   TxReceipt,
   TxStatus,
-  emptyExecutionRequest,
+  emptyFunctionCall,
 } from '@aztec/types';
 
 export { createDebugLogger } from '@aztec/foundation/log';

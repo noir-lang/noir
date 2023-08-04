@@ -18,9 +18,10 @@ export class Fr {
    */
   public readonly value: bigint;
 
-  constructor(value: bigint | number) {
-    this.value = BigInt(value);
-    if (value > Fr.MAX_VALUE) {
+  constructor(value: bigint | number | Fr) {
+    const isFr = (value: bigint | number | Fr): value is Fr => !!(value as Fr).toBigInt;
+    this.value = isFr(value) ? value.toBigInt() : BigInt(value);
+    if (this.value > Fr.MAX_VALUE) {
       throw new Error(`Fr out of range ${value}.`);
     }
   }

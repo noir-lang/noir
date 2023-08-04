@@ -5,7 +5,7 @@ import { CircuitsWasm, Fr, PrivateKey, TxContext } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { PokeableTokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, ExecutionRequest, PackedArguments, TxExecutionRequest, TxStatus } from '@aztec/types';
+import { AztecRPC, FunctionCall, PackedArguments, TxExecutionRequest, TxStatus } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './utils.js';
 
@@ -17,16 +17,15 @@ class SignerlessWallet extends BaseWallet {
   getAddress(): AztecAddress {
     return AztecAddress.ZERO;
   }
-  async createAuthenticatedTxRequest(
-    executions: ExecutionRequest[],
-    txContext: TxContext,
-  ): Promise<TxExecutionRequest> {
+  async createTxExecutionRequest(executions: FunctionCall[]): Promise<TxExecutionRequest> {
     if (executions.length !== 1) {
       throw new Error(`Unexpected number of executions. Expected 1, received ${executions.length})`);
     }
     const [execution] = executions;
     const wasm = await CircuitsWasm.get();
     const packedArguments = await PackedArguments.fromArgs(execution.args, wasm);
+    const { chainId, version } = await this.rpc.getNodeInfo();
+    const txContext = TxContext.empty(chainId, version);
     return Promise.resolve(
       new TxExecutionRequest(execution.to, execution.functionData, packedArguments.hash, txContext, [packedArguments]),
     );

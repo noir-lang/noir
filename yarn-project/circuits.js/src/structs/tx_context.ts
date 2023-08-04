@@ -136,8 +136,8 @@ export class TxContext {
     );
   }
 
-  static empty(chainId: Fr = Fr.ZERO, version: Fr = Fr.ZERO) {
-    return new TxContext(false, false, false, ContractDeploymentData.empty(), chainId, version);
+  static empty(chainId: Fr | number = 0, version: Fr | number = 0) {
+    return new TxContext(false, false, false, ContractDeploymentData.empty(), new Fr(chainId), new Fr(version));
   }
 
   /**

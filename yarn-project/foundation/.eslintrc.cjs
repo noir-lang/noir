@@ -6,6 +6,8 @@ const contexts = [
   'ClassDeclaration[implements.length=0] MethodDefinition[accessibility=public]',
   // TODO: All methods public by default in a class that does not implement an interface
   // 'ClassDeclaration[implements.length=0] MethodDefinition[accessibility=undefined][key.type=Identifier]',
+  // TODO: All export const from the top level of a file
+  // 'ExportNamedDeclaration[declaration.type=VariableDeclaration]',
   // Legacy contexts (needs review)
   'TSParameterProperty[accessibility=public]',
   'TSPropertySignature',

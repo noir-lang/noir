@@ -46,7 +46,7 @@ export class DeploySentTx<TContract extends ContractBase = Contract> extends Sen
   }
 
   protected getContractInstance(wallet?: Wallet, address?: AztecAddress): Promise<TContract> {
-    const isWallet = (rpc: AztecRPC | Wallet): rpc is Wallet => !!(rpc as Wallet).createAuthenticatedTxRequest;
+    const isWallet = (rpc: AztecRPC | Wallet): rpc is Wallet => !!(rpc as Wallet).createTxExecutionRequest;
     const contractWallet = wallet ?? (isWallet(this.arc) && this.arc);
     if (!contractWallet) throw new Error(`A wallet is required for creating a contract instance`);
     if (!address) throw new Error(`Contract address is missing from transaction receipt`);

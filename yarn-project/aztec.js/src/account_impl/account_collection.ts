@@ -1,7 +1,7 @@
-import { AztecAddress, TxContext } from '@aztec/circuits.js';
-import { ExecutionRequest, TxExecutionRequest } from '@aztec/types';
+import { AztecAddress } from '@aztec/circuits.js';
+import { FunctionCall, TxExecutionRequest } from '@aztec/types';
 
-import { AccountImplementation } from './index.js';
+import { AccountImplementation, CreateTxRequestOpts } from './index.js';
 
 /**
  * A concrete account implementation that manages multiple accounts.
@@ -23,14 +23,13 @@ export class AccountCollection implements AccountImplementation {
     return AztecAddress.fromString(this.accounts.keys().next().value as string);
   }
 
-  public createAuthenticatedTxRequest(
-    executions: ExecutionRequest[],
-    txContext: TxContext,
+  public createTxExecutionRequest(
+    executions: FunctionCall[],
+    opts: CreateTxRequestOpts = {},
   ): Promise<TxExecutionRequest> {
-    // TODO: Check all executions have the same origin
-    const sender = executions[0].from;
+    const sender = opts.origin ?? this.getAddress();
     const impl = this.accounts.get(sender.toString());
     if (!impl) throw new Error(`No account implementation registered for ${sender}`);
-    return impl.createAuthenticatedTxRequest(executions, txContext);
+    return impl.createTxExecutionRequest(executions, opts);
   }
 }

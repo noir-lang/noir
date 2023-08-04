@@ -1,6 +1,7 @@
 import { PublicExecution, PublicExecutionResult, PublicExecutor } from '@aztec/acir-simulator';
 import {
   ARGS_LENGTH,
+  AztecAddress,
   CallContext,
   CircuitsWasm,
   EthAddress,
@@ -27,7 +28,7 @@ import {
   ContractDataSource,
   ContractPublicData,
   EncodedContractFunction,
-  ExecutionRequest,
+  FunctionCall,
   FunctionL2Logs,
   SiblingPath,
   Tx,
@@ -169,8 +170,7 @@ describe('public_processor', () => {
 
       const publicExecutionResult = makePublicExecutionResultFromRequest(callRequest);
       publicExecutionResult.nestedExecutions = [
-        makePublicExecutionResult({
-          from: publicExecutionResult.execution.contractAddress,
+        makePublicExecutionResult(publicExecutionResult.execution.contractAddress, {
           to: makeAztecAddress(30),
           functionData: new FunctionData(makeSelector(5), false, false, false),
           args: new Array(ARGS_LENGTH).fill(Fr.ZERO),
@@ -203,10 +203,11 @@ function makePublicExecutionResultFromRequest(item: PublicCallRequest): PublicEx
 }
 
 function makePublicExecutionResult(
-  tx: ExecutionRequest,
+  from: AztecAddress,
+  tx: FunctionCall,
   nestedExecutions: PublicExecutionResult[] = [],
 ): PublicExecutionResult {
-  const callContext = new CallContext(tx.from, tx.to, EthAddress.ZERO, false, false, false);
+  const callContext = new CallContext(from, tx.to, EthAddress.ZERO, false, false, false);
   const execution: PublicExecution = {
     callContext,
     contractAddress: tx.to,
