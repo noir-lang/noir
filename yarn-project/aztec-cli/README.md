@@ -143,11 +143,10 @@ Syntax:
 aztec-cli deploy <contractAbi> [options]
 ```
 
-- `contractAbi`: Path to the compiled Noir contract's ABI file in JSON format.
-- `constructorArgs` (optional): Contract constructor arguments.
-
 Options:
 
+- `-c, --contract-abi <fileLocation>`: Path to the compiled Noir contract's ABI file in JSON format. You can also use one of Aztec's example contracts found in [@aztec/noir-contracts](https://www.npmjs.com/package/@aztec/noir-contracts), e.g. ZkTokenContractAbi. You can get a full ist of the available contracts with `aztec-cli example-contracts`
+- `-a, --args <constructorArgs...>` (optional): Contract constructor arguments Default: [].
 - `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
 - `-k, --public-key <string>`: Public key of the deployer. If not provided, it will check the RPC for existing ones.
 
@@ -156,7 +155,13 @@ This command deploys a compiled Noir contract to Aztec. It requires the path to 
 Example usage:
 
 ```shell
-aztec-cli deploy path/to/contract.abi.json ...args
+aztec-cli deploy -c path/to/contract.abi.json -a ...args
+```
+
+With an Aztec example contract:
+
+```shell
+aztec-cli deploy -c ZkTokenContractAbi -a 333 0x134567890abcdef
 ```
 
 ### check-deploy
@@ -169,10 +174,9 @@ Syntax:
 aztec-cli check-deploy <contractAddress> [options]
 ```
 
-- `contractAddress`: An Aztec address to check if the contract has been deployed to.
-
 Options:
 
+- `-ca, --contract-address <address>`: An Aztec address to check if the contract has been deployed to.
 - `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
 
 This command checks if a contract is deployed to the specified Aztec address. It verifies if the contract is present at the given address and displays the result.
@@ -180,7 +184,7 @@ This command checks if a contract is deployed to the specified Aztec address. It
 Example usage:
 
 ```shell
-aztec-cli check-deploy 0x123456789abcdef123456789abcdef12345678
+aztec-cli check-deploy -ca 0x123456789abcdef123456789abcdef12345678
 ```
 
 ### get-tx-receipt
@@ -232,9 +236,33 @@ Example usage:
 aztec-cli get-contract-data 0x123456789abcdef123456789abcdef12345678
 ```
 
+### register-public-key
+
+Register an account's public key to the RPC server.
+To read about how keys are generated and used, head to our docs [here](https://github.com/AztecProtocol/aztec-packages/blob/master/docs/docs/aztec/developer/wallet-providers/keys.md#addresses-partial-addresses-and-public-keys).
+
+Syntax:
+
+```shell
+aztec-cli register-public-key [options]
+```
+
+Options:
+
+- `-a, --address <aztecAddress>`: The account's Aztec address.
+- `-p, --public-key <publicKey>`: 'The account public key.'
+- `-pa, --partial-address <partialAddress`: 'The partially computed address of the account contract.'
+- `-u, --rpc-url <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
+
+Example usage:
+
+```shell
+aztec-cli register-public-key -p 0x20d9d93c4a9eb2b4bdb70ead07d28d1edb74bfd78443a8c36b098b024cd26f0e0647f5dbe3619453f42eb788c2beed0294c84676425047aadac23294605c4af9 -a 0x111fdc0f6bf831ca59f05863199762d643b782699d7ce6feaae40a923baf60af -pa 0x72bf7c9537875b0af267b4a8c497927e251f5988af6e30527feb16299042ed
+```
+
 ### get-accounts
 
-Gets all the Aztec accounts.
+Gets all the Aztec accounts stored in an Aztec RPC.
 
 Syntax:
 
@@ -278,7 +306,7 @@ Example usage:
 aztec-cli get-account-public-key 0x123456789abcdef123456789abcdef12345678
 ```
 
-### call-fn
+### send
 
 Calls a function on an Aztec contract.
 
@@ -288,13 +316,13 @@ Syntax:
 aztec-cli call-fn <contractAbi> <contractAddress> <functionName> [functionArgs...] [options]
 ```
 
-- `contractAbi`: The compiled contract's ABI in JSON format.
-- `contractAddress`: Address of the contract.
 - `functionName`: Name of the function to call.
-- `functionArgs` (optional): Function arguments.
 
 Options:
 
+- `'-a, --args [functionArgs...]` (optional): Function arguments. Default: [].
+- `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. ZkTokenContractAbi.
+- `-ca, --contract-address <address>`: Address of the contract.
 - `-k, --private-key <string>`: The sender's private key.
 - `-u, --rpcUrl <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
 
@@ -303,7 +331,7 @@ This command calls a function on an Aztec contract. It requires the contract's A
 Example usage:
 
 ```shell
-aztec-cli call-fn path/to/contract.abi.json 0x123456789abcdef123456789abcdef12345678 transfer 100
+aztec-cli send transfer -ca 0x123456789abcdef123456789abcdef12345678 -a 100 -c path/to/abi.json
 ```
 
 ### view-fn
@@ -313,16 +341,16 @@ Simulates the execution of a view (read-only) function on a deployed contract, w
 Syntax:
 
 ```shell
-aztec-cli view-fn <contractAbi> <contractAddress> <functionName> [functionArgs...] [options]
+aztec-cli call <contractAbi> <contractAddress> <functionName> [functionArgs...] [options]
 ```
 
-- `contractAbi`: The compiled contract's ABI in JSON format.
-- `contractAddress`: Address of the contract.
 - `functionName`: Name of the function to view.
-- `functionArgs` (optional): Function arguments.
 
 Options:
 
+- `'-a, --args [functionArgs...]` (optional): Function arguments. Default: [].
+- `-c, --contract-abi <fileLocation>`: The compiled contract's ABI in JSON format. You can also use one of Aztec's example contracts found in (@aztec/noir-contracts)[https://www.npmjs.com/package/@aztec/noir-contracts], e.g. ZkTokenContractAbi.
+- `-ca, --contract-address <address>`: Address of the contract.
 - `-f, --from <string>`: Public key of the transaction viewer. If empty, it will try to find an account in the RPC.
 - `-u, --rpcUrl <string>`: URL of the Aztec RPC. Default: `http://localhost:8080`.
 
@@ -331,7 +359,7 @@ This command simulates the execution of a view function on a deployed contract w
 Example usage:
 
 ```shell
-aztec-cli view-fn path/to/contract.abi.json 0x123456789abcdef123456789abcdef12345678 balanceOf 0xabcdef1234567890abcdef1234567890abcdef12
+aztec-cli call balanceOf -c path/to/contract.abi.json -ca 0x123456789abcdef123456789abcdef12345678 -a balanceOf 0xabcdef1234567890abcdef1234567890abcdef12
 ```
 
 ### parse-parameter-struct
@@ -388,7 +416,7 @@ Gets the current Aztec L2 block number.
 Syntax:
 
 ```shell
-aztec-cli block-num [options]
+aztec-cli block-number
 ```
 
 Options:
@@ -397,10 +425,14 @@ Options:
 
 This command retrieves and displays the current Aztec L2 block number.
 
-Example usage:
+### example-contracts
+
+Lists the contracts available in [@aztec/noir-contracts](https://github.com/AztecProtocol/aztec-packages/tree/master/yarn-project/noir-contracts)
+
+Syntax:
 
 ```shell
-aztec-cli block-num
+aztec-cli example-contracts
 ```
 
 ## Conclusion
