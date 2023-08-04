@@ -1237,6 +1237,7 @@ version = "0.9.0"
 dependencies = [
  "cfg-if",
  "codespan-reporting",
+ "iter-extended",
  "rust-embed",
  "serde",
  "tempfile",

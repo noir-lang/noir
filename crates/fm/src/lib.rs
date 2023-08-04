@@ -30,7 +30,7 @@ pub struct FileManager {
 impl FileManager {
     pub fn new(root: &Path) -> Self {
         Self {
-            root: root.to_path_buf(),
+            root: root.normalize(),
             file_map: Default::default(),
             id_to_path: Default::default(),
             path_to_id: Default::default(),
@@ -44,7 +44,7 @@ impl FileManager {
             // TODO: The stdlib path should probably be an absolute path rooted in something people would never create
             file_name.to_path_buf()
         } else {
-            self.resolve_path(file_name)
+            self.root.join(file_name).normalize()
         };
 
         // Check that the resolved path already exists in the file map, if it is, we return it.
@@ -99,41 +99,82 @@ impl FileManager {
 
         Err(candidate_files.remove(0).as_os_str().to_str().unwrap().to_owned())
     }
+}
 
-    /// Resolve a path within the FileManager, removing all `.` and `..` segments.
-    /// Additionally, relative paths will be resolved against the FileManager's root.
-    pub fn resolve_path(&self, path: &Path) -> PathBuf {
-        // This is a replacement for `std::fs::canonicalize` that doesn't verify the path exists.
-        //
-        // Plucked from https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-        // Advice from https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/
-        let mut components = path.components().peekable();
-        let mut ret = match components.peek().cloned() {
-            Some(c @ Component::Prefix(..)) => {
-                components.next();
-                PathBuf::from(c.as_os_str())
+pub trait NormalizePath {
+    /// Replacement for `std::fs::canonicalize` that doesn't verify the path exists.
+    ///
+    /// Plucked from https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+    /// Advice from https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/
+    fn normalize(&self) -> PathBuf;
+}
+
+impl NormalizePath for PathBuf {
+    fn normalize(&self) -> PathBuf {
+        let components = self.components();
+        resolve_components(components)
+    }
+}
+
+impl NormalizePath for &Path {
+    fn normalize(&self) -> PathBuf {
+        let components = self.components();
+        resolve_components(components)
+    }
+}
+
+fn resolve_components<'a>(components: impl Iterator<Item = Component<'a>>) -> PathBuf {
+    let mut components = components.peekable();
+
+    // Preserve path prefix if one exists.
+    let mut normalized_path = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+        components.next();
+        PathBuf::from(c.as_os_str())
+    } else {
+        PathBuf::new()
+    };
+
+    for component in components {
+        match component {
+            Component::Prefix(..) => unreachable!("Path cannot contain multiple prefixes"),
+            Component::RootDir => {
+                normalized_path.push(component.as_os_str());
             }
-            Some(Component::RootDir) => PathBuf::new(),
-            // If the first component isn't a RootDir or a Prefix, we know it is relative and needs to be joined to root
-            _ => self.root.clone(),
-        };
-
-        for component in components {
-            match component {
-                Component::Prefix(..) => unreachable!(),
-                Component::RootDir => {
-                    ret.push(component.as_os_str());
-                }
-                Component::CurDir => {}
-                Component::ParentDir => {
-                    ret.pop();
-                }
-                Component::Normal(c) => {
-                    ret.push(c);
-                }
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized_path.pop();
+            }
+            Component::Normal(c) => {
+                normalized_path.push(c);
             }
         }
-        ret
+    }
+
+    normalized_path
+}
+
+#[cfg(test)]
+mod path_normalization {
+    use iter_extended::vecmap;
+    use std::path::PathBuf;
+
+    use crate::NormalizePath;
+
+    #[test]
+    fn normalizes_paths_correctly() {
+        // Note that tests are run on unix so prefix handling can't be tested (as these only exist on Windows)
+        let test_cases = vecmap(
+            [
+                ("/", "/"),                             // Handles root
+                ("/foo/bar/../baz/../bar", "/foo/bar"), // Handles backtracking
+                ("/././././././././baz", "/baz"),       // Removes no-ops
+            ],
+            |(unnormalized, normalized)| (PathBuf::from(unnormalized), PathBuf::from(normalized)),
+        );
+
+        for (path, expected_result) in test_cases {
+            assert_eq!(path.normalize(), expected_result);
+        }
     }
 }
 
