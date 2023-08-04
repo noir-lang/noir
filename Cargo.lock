@@ -358,13 +358,12 @@ dependencies = [
 [[package]]
 name = "async-lsp"
 version = "0.0.4"
-source = "git+https://github.com/oxalica/async-lsp?rev=09dbcc11046f7a188a80137f8d36484d86c78c78#09dbcc11046f7a188a80137f8d36484d86c78c78"
+source = "git+https://github.com/oxalica/async-lsp?rev=09ccde114333a71349885e156c896a39480c750f#09ccde114333a71349885e156c896a39480c750f"
 dependencies = [
- "either",
  "futures",
  "lsp-types 0.94.0",
  "pin-project-lite",
- "rustix 0.37.23",
+ "rustix 0.38.4",
  "serde",
  "serde_json",
  "thiserror",
@@ -372,7 +371,7 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
- "windows-sys 0.48.0",
+ "waitpid-any",
 ]
 
 [[package]]
@@ -2023,6 +2022,7 @@ dependencies = [
  "termcolor",
  "thiserror",
  "tokio",
+ "tokio-util",
  "toml",
  "tower",
  "url",
@@ -3368,6 +3368,7 @@ checksum = "806fe8c2c87eccc8b3267cbae29ed3ab2d0bd37fca70ab622e46aaa9375ddb7d"
 dependencies = [
  "bytes",
  "futures-core",
+ "futures-io",
  "futures-sink",
  "pin-project-lite",
  "tokio",
@@ -3580,6 +3581,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f200f5b12eb75f8c1ed65abd4b2db8a6e1b138a20de009dacee265a2498f3f6"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "waitpid-any"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54f8c3c56044fc359f905b72879576a15d49c46d085ed6266a98826716f14033"
+dependencies = [
+ "rustix 0.38.4",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

@@ -57,4 +57,4 @@ wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
 
 [patch.crates-io]
-async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09dbcc11046f7a188a80137f8d36484d86c78c78" }
+async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09ccde114333a71349885e156c896a39480c750f" }
