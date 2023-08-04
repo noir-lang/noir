@@ -29,9 +29,12 @@ fn hello_world_example() {
     // `nargo check`
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("check");
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Constraint system successfully built!"));
+    cmd.assert().success().stdout(predicate::str::contains("Finished!"));
+
+    // `nargo tomlgen`
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("tomlgen");
+    cmd.assert().success().stdout(predicate::str::contains("Toml files successfully generated!"));
 
     project_dir.child("Prover.toml").assert(predicate::path::is_file());
     project_dir.child("Verifier.toml").assert(predicate::path::is_file());

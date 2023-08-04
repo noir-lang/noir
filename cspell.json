@@ -59,6 +59,7 @@
         "struct",
         "subexpression",
         "subtyping",
+        "tomlgen",
         "typevar",
         "typevars",
         "udiv",
