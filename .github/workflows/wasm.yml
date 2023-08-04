@@ -146,21 +146,14 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout noir-wasm-testing
+      - name: Checkout noir-lang/noir
         uses: actions/checkout@v3
-        with:
-          repository: noir-lang/noir-wasm-testing
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
           path: ./@noir-lang_noir_wasm
-
-      - name: Inject built wasm into noir-wasm-testing
-        run: |
-          jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./package.json > ./package.json.tmp
-          mv ./package.json.tmp ./package.json
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -187,12 +180,15 @@ jobs:
           fi
 
       - name: Install dependencies
-        run: npm install
+        working-directory: ./crates/wasm
+        run: yarn install
       
       - name: Install playwright deps
+        working-directory: ./crates/wasm
         run: |
           npx playwright install
           npx playwright install-deps
 
       - name: Run tests
-        run: npm run test:browser
+        working-directory: ./crates/wasm
+        run: yarn test:browser
