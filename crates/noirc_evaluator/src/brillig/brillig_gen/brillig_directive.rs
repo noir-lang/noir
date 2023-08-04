@@ -87,3 +87,53 @@ pub(crate) fn directive_quotient(bit_size: u32) -> Vec<BrilligOpcode> {
         BrilligOpcode::Stop,
     ]
 }
+
+/// Generates brillig bytecode which computes `(a - pow) / b + 1` if a >= pow,
+/// It returns `0` if a < pow
+///
+///
+pub(crate) fn directive_truncate_helper(bit_size: u32) -> Vec<BrilligOpcode> {
+    // `a` is (0) (i.e register index 0)
+    // `b` is (1)
+    // `pow` is (2)
+    vec![
+        // If the predicate is zero, we jump to the exit segment
+        BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::LessThan,
+            lhs: RegisterIndex::from(0),
+            rhs: RegisterIndex::from(2),
+            destination: RegisterIndex::from(3),
+            bit_size,
+        },
+        BrilligOpcode::JumpIf { condition: RegisterIndex::from(3), location: 7 },
+        //(0) = a-pow
+        BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Sub,
+            lhs: RegisterIndex::from(0),
+            rhs: RegisterIndex::from(2),
+            destination: RegisterIndex::from(0),
+            bit_size,
+        },
+        //(0) = (0)/(1) = (a-pow)/b
+        BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::UnsignedDiv,
+            lhs: RegisterIndex::from(0),
+            rhs: RegisterIndex::from(1),
+            destination: RegisterIndex::from(0),
+            bit_size,
+        },
+        BrilligOpcode::Const { destination: RegisterIndex::from(1), value: Value::from(1_usize) },
+        //(0)= (0)+1
+        BrilligOpcode::BinaryIntOp {
+            op: BinaryIntOp::Add,
+            lhs: RegisterIndex::from(0),
+            rhs: RegisterIndex::from(1),
+            destination: RegisterIndex::from(0),
+            bit_size,
+        },
+        BrilligOpcode::Stop,
+        // Exit segment: we return 0
+        BrilligOpcode::Const { destination: RegisterIndex::from(0), value: Value::from(0_usize) },
+        BrilligOpcode::Stop,
+    ]
+}

@@ -432,6 +432,8 @@ impl GeneratedAcir {
             }
         }
 
+        // Avoids overflow: 'q*b+r < 2^max_q_bits*2^max_rhs_bits'
+        assert!(max_q_bits + max_rhs_bits < FieldElement::max_num_bits() - 1);
         let (q_witness, r_witness) =
             self.brillig_quotient(lhs.clone(), rhs.clone(), predicate.clone(), max_bit_size + 1);
 
