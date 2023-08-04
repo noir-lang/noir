@@ -30,9 +30,7 @@ pub enum RuntimeError {
     UnInitialized { name: String, location: Option<Location> },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, location: Option<Location> },
-    #[error(
-        "Could not determine loop bound at compile-time. Loop bounds must be compile-time known"
-    )]
+    #[error("Could not determine loop bound at compile-time")]
     UnknownLoopBound { location: Option<Location> },
 }
 
