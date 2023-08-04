@@ -281,7 +281,19 @@ impl FunctionBuilder {
         destination: BasicBlockId,
         arguments: Vec<ValueId>,
     ) {
-        self.terminate_block_with(TerminatorInstruction::Jmp { destination, arguments });
+        self.terminate_with_jmp_with_location(destination, arguments, None);
+    }
+
+    /// Terminate the current block with a jmp instruction to jmp to the given
+    /// block with the given arguments. This version also remembers the Location of the jmp
+    /// for issuing error messages.
+    pub(crate) fn terminate_with_jmp_with_location(
+        &mut self,
+        destination: BasicBlockId,
+        arguments: Vec<ValueId>,
+        location: Option<Location>,
+    ) {
+        self.terminate_block_with(TerminatorInstruction::Jmp { destination, arguments, location });
     }
 
     /// Terminate the current block with a jmpif instruction to jmp with the given arguments

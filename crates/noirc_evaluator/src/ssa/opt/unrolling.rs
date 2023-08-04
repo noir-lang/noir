@@ -204,7 +204,7 @@ fn get_induction_variable(
     block: BasicBlockId,
 ) -> Result<ValueId, Option<Location>> {
     match function.dfg[block].terminator() {
-        Some(TerminatorInstruction::Jmp { arguments, .. }) => {
+        Some(TerminatorInstruction::Jmp { arguments, location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
             // block parameters. If that becomes the case we'll need to figure out which variable
             // is generally constant and increasing to guess which parameter is the induction
@@ -214,7 +214,7 @@ fn get_induction_variable(
             if function.dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
             } else {
-                Err(function.dfg.get_value_location(&value))
+                Err(*location)
             }
         }
         _ => Err(None),
@@ -354,7 +354,7 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 self.handle_jmpif(*condition, *then_destination, *else_destination)
             }
-            TerminatorInstruction::Jmp { destination, arguments } => {
+            TerminatorInstruction::Jmp { destination, arguments, location: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     assert_eq!(arguments.len(), 1);
                     self.induction_value = Some((self.insert_block, arguments[0]));
@@ -383,7 +383,8 @@ impl<'f> LoopIteration<'f> {
 
                 self.source_block = self.get_original_block(destination);
 
-                let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new() };
+                let arguments = Vec::new();
+                let jmp = TerminatorInstruction::Jmp { destination, arguments, location: None };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
             }

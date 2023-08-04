@@ -116,7 +116,7 @@ impl<'block> BrilligBlock<'block> {
                     self.create_block_label_for_current_function(*else_destination),
                 );
             }
-            TerminatorInstruction::Jmp { destination, arguments } => {
+            TerminatorInstruction::Jmp { destination, arguments, location: _ } => {
                 let target = &dfg[*destination];
                 for (src, dest) in arguments.iter().zip(target.parameters()) {
                     // Destination variable might have already been created by another block that jumps to this target
