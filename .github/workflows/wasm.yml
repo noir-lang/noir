@@ -54,7 +54,7 @@ jobs:
           path: ${{ env.ARTIFACT_UPLOAD_PATH }}
           retention-days: 3
 
-  build-linux:
+  build-nargo:
     needs: [build-barretenberg]
     runs-on: ubuntu-22.04
     env:
@@ -123,136 +123,82 @@ jobs:
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
           cd ./build-nargo
           npm install
+          ls -R
           npm test
 
-  # build-wasm:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v3
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
 
-  #     - uses: cachix/install-nix-action@v20
-  #       with:
-  #         nix_path: nixpkgs=channel:nixos-22.11
-  #         github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-  #     - name: Build wasm package
-  #       run: |
-  #         nix build -L .#wasm
+      - name: Build wasm package
+        run: |
+          nix build -L .#wasm
 
-  #     - name: Dereference symlink
-  #       run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+      - name: Dereference symlink
+        run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
 
-  #     - name: Upload artifact
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: noir_wasm
-  #         path: ${{ env.UPLOAD_PATH }}
-  #         retention-days: 3
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: noir_wasm
+          path: ${{ env.UPLOAD_PATH }}
+          retention-days: 3
 
-  # build-nargo:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v3
+  test:
+    needs: [build-wasm, build-nargo]
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout noir-wasm-testing
+        uses: actions/checkout@v3
+        with:
+          repository: noir-lang/noir-wasm-testing
+          ref: use-injected-nargo
 
-  #     - uses: cachix/install-nix-action@v20
-  #       with:
-  #         nix_path: nixpkgs=channel:nixos-22.11
-  #         github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download wasm package artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: noir_wasm
+          path: ./@noir-lang_noir_wasm
 
-  #     - uses: cachix/cachix-action@v12
-  #       with:
-  #         name: barretenberg
+      - name: Inject built wasm into noir-wasm-testing
+        run: |
+          jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./package.json > ./package.json.tmp
+          mv ./package.json.tmp ./package.json
 
-  #     - name: Restore nix store cache
-  #       id: nix-store-cache
-  #       uses: actions/cache@v3
-  #       with:
-  #         path: /tmp/nix-cache
-  #         key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
+      - name: Download nargo binary
+        uses: actions/download-artifact@v3
+        with:
+          name: nargo
+          path: ./nargo
 
-  #     - name: Copy cache into nix store
-  #       if: steps.nix-store-cache.outputs.cache-hit == 'true'
-  #       run: |
-  #         for narinfo in /tmp/nix-cache/*.narinfo; do
-  #           path=$(head -n 1 "$narinfo" | awk '{print $2}')
-  #           nix copy --no-check-sigs --from "file:///tmp/nix-cache" "$path"
-  #         done
+      - name: Install dependencies and Run noir-wasm-testing program
+        run: |
+          nargo_binary=$(find $(pwd) -name "nargo" -type f)
+          echo "nargo binary found at $nargo_binary."
+          ls -l $nargo_binary
+          echo "Attempting to make nargo binary executable:"
+          chmod +x $nargo_binary || echo "chmod failed with exit code $?"
+          echo "File permissions after chmod:"
+          ls -l $nargo_binary
+          echo "Library dependencies of nargo binary:"
+          ldd $nargo_binary
+          if [ -x "$nargo_binary" ]; then
+            $nargo_binary -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
+          else
+            echo "nargo binary NOT found or is not executable."
+            exit 1
+          fi
 
-  #     - name: Build nargo
-  #       run: |
-  #         nix build -L .
+      - name: Install dependencies
+        run: npm install
 
-  #     - name: Dereference symlink
-  #       run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
-
-  #     - name: Upload artifact
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: nargo
-  #         path: ${{ env.UPLOAD_PATH }}
-  #         retention-days: 3
-
-  # test:
-  #   needs: [build-wasm, build-nargo]
-  #   name: Test
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout noir-wasm-testing
-  #       uses: actions/checkout@v3
-  #       with:
-  #         repository: noir-lang/noir-wasm-testing
-  #         ref: use-injected-nargo
-
-  #     - name: Download wasm package artifact
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: noir_wasm
-  #         path: ./@noir-lang_noir_wasm
-
-  #     - name: Inject built wasm into noir-wasm-testing
-  #       run: |
-  #         jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./package.json > ./package.json.tmp
-  #         mv ./package.json.tmp ./package.json
-
-  #     - name: Download nargo binary
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: nargo
-  #         path: ./nargo
-
-  #     - name: Install dependencies and Run noir-wasm-testing program
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y libomp-dev
-  #         echo "Locating libomp.so"
-  #         libomp_path=$(find /usr/ -name libomp.so*)
-  #         echo "libomp.so located at $libomp_path"
-  #         nargo_binary=$(find $(pwd) -name "nargo" -type f)
-  #         echo "nargo binary found at $nargo_binary."
-  #         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu/
-  #         sudo ln -s /usr/lib/x86_64-linux-gnu/libomp.so.5 /usr/lib/x86_64-linux-gnu/libomp.so
-
-  #         echo "Initial file permissions:"
-  #         ls -l $nargo_binary
-  #         echo "Attempting to make nargo binary executable:"
-  #         chmod +x $nargo_binary || echo "chmod failed with exit code $?"
-  #         echo "File permissions after chmod:"
-  #         ls -l $nargo_binary
-  #         echo "Updating LD_LIBRARY_PATH"
-  #         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(dirname $libomp_path)
-  #         echo "Library dependencies of nargo binary:"
-  #         ldd $nargo_binary
-  #         if [ -x "$nargo_binary" ]; then
-  #           $nargo_binary -p "${{ github.workspace }}/src/noir-script" compile noir-wasm-testing
-  #         else
-  #           echo "nargo binary NOT found or is not executable."
-  #           exit 1
-  #         fi
-
-  #     - name: Install dependencies
-  #       run: npm install
-
-  #     - name: Run tests
-  #       run: npm test
+      - name: Run tests
+        run: npm test
