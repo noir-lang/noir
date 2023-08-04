@@ -10,7 +10,7 @@ import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
 
 import { Chain, HttpTransport, PublicClient } from 'viem';
 
-import { delay, deployAndInitializeNonNativeL2TokenContracts, setNextBlockTimestamp, setup } from './utils.js';
+import { delay, deployAndInitializeNonNativeL2TokenContracts, setNextBlockTimestamp, setup } from './fixtures/utils.js';
 
 describe('archiver integration with l1 to l2 messages', () => {
   let aztecNode: AztecNodeService | undefined;

@@ -11,7 +11,7 @@ import {
 } from '@aztec/noir-contracts/artifacts';
 import { ChildContract } from '@aztec/noir-contracts/types';
 
-import { CreateAccountImplFn, createNewAccount, deployContract, setup } from './utils.js';
+import { CreateAccountImplFn, createNewAccount, deployContract, setup } from './fixtures/utils.js';
 
 function itShouldBehaveLikeAnAccountContract(
   abi: ContractAbi,

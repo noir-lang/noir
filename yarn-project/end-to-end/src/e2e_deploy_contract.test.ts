@@ -6,7 +6,7 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
-import { setup } from './utils.js';
+import { setup } from './fixtures/utils.js';
 
 describe('e2e_deploy_contract', () => {
   let aztecNode: AztecNodeService | undefined;

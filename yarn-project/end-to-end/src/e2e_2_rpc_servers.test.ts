@@ -12,7 +12,7 @@ import {
   expectsNumOfEncryptedLogsInTheLastBlockToBe,
   setup,
   setupAztecRPCServer,
-} from './utils.js';
+} from './fixtures/utils.js';
 
 const { SANDBOX_URL = '' } = process.env;
 

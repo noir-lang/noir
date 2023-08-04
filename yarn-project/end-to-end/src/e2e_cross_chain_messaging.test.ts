@@ -6,8 +6,8 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
-import { CrossChainTestHarness } from './cross_chain/test_harness.js';
-import { delay, setup } from './utils.js';
+import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
+import { delay, setup } from './fixtures/utils.js';
 
 describe('e2e_cross_chain_messaging', () => {
   let aztecNode: AztecNodeService;

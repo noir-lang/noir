@@ -7,7 +7,7 @@ import { retryUntil } from '@aztec/foundation/retry';
 import { PokeableTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, FunctionCall, PackedArguments, TxExecutionRequest, TxStatus } from '@aztec/types';
 
-import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './utils.js';
+import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
 /**
  * Wallet implementation which creates a simple transaction request without any signing.

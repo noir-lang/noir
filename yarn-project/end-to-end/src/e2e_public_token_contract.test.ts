@@ -8,7 +8,7 @@ import { AztecRPC, L2BlockL2Logs, TxStatus } from '@aztec/types';
 import times from 'lodash.times';
 
 import { CheatCodes } from './cheat_codes.js';
-import { setup } from './utils.js';
+import { setup } from './fixtures/utils.js';
 
 describe('e2e_public_token_contract', () => {
   let aztecNode: AztecNodeService | undefined;

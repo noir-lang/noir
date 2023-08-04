@@ -8,7 +8,7 @@ import { ChildContractAbi, ParentContractAbi } from '@aztec/noir-contracts/artif
 import { ChildContract, ParentContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
-import { setup } from './utils.js';
+import { setup } from './fixtures/utils.js';
 
 describe('e2e_nested_contract', () => {
   let aztecNode: AztecNodeService | undefined;

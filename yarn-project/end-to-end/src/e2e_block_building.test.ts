@@ -7,7 +7,7 @@ import { AztecRPC, TxStatus } from '@aztec/types';
 
 import times from 'lodash.times';
 
-import { setup } from './utils.js';
+import { setup } from './fixtures/utils.js';
 
 describe('e2e_block_building', () => {
   let aztecNode: AztecNodeService | undefined;

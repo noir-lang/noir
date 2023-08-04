@@ -5,7 +5,11 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { ZkTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
-import { expectUnencryptedLogsFromLastBlockToBe, expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './utils.js';
+import {
+  expectUnencryptedLogsFromLastBlockToBe,
+  expectsNumOfEncryptedLogsInTheLastBlockToBe,
+  setup,
+} from './fixtures/utils.js';
 
 describe('e2e_zk_token_contract', () => {
   let aztecNode: AztecNodeService | undefined;

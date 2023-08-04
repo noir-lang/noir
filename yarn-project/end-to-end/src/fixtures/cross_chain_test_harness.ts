@@ -13,7 +13,7 @@ import { AztecRPC, TxStatus } from '@aztec/types';
 import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
 
 import { CheatCodes } from '../cheat_codes.js';
-import { deployAndInitializeNonNativeL2TokenContracts } from '../utils.js';
+import { deployAndInitializeNonNativeL2TokenContracts } from './utils.js';
 
 /**
  * A Class for testing cross chain interactions, contains common interactions

@@ -5,7 +5,7 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { PendingCommitmentsContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
-import { setup } from './utils.js';
+import { setup } from './fixtures/utils.js';
 
 describe('e2e_pending_commitments_contract', () => {
   let aztecNode: AztecNodeService | undefined;

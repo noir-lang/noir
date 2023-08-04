@@ -11,8 +11,8 @@ import { AztecRPC, TxStatus } from '@aztec/types';
 import { getContract, parseEther } from 'viem';
 
 import { CheatCodes } from './cheat_codes.js';
-import { CrossChainTestHarness } from './cross_chain/test_harness.js';
-import { delay, deployAndInitializeNonNativeL2TokenContracts, setup } from './utils.js';
+import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
+import { delay, deployAndInitializeNonNativeL2TokenContracts, setup } from './fixtures/utils.js';
 
 // PSA: This tests works on forked mainnet. There is a dump of the data in `dumpedState` such that we
 // don't need to burn through RPC requests.
@@ -21,7 +21,8 @@ import { delay, deployAndInitializeNonNativeL2TokenContracts, setup } from './ut
 // anvil --fork-url https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c --fork-block-number 17514288 --chain-id 31337
 // For CI, this is configured in `run_tests.sh` and `docker-compose.yml`
 
-const dumpedState = 'src/dumps/uniswap_state';
+const dumpedState = 'src/fixtures/dumps/uniswap_state';
+// When taking a dump use the block number of the fork to improve speed.
 const EXPECTED_FORKED_BLOCK = 0; //17514288;
 // We tell the archiver to only sync from this block.
 process.env.SEARCH_START_BLOCK = EXPECTED_FORKED_BLOCK.toString();

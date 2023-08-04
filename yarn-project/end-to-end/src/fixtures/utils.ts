@@ -51,7 +51,7 @@ import {
 } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 
-import { CheatCodes, L1CheatCodes } from './cheat_codes.js';
+import { CheatCodes, L1CheatCodes } from '../cheat_codes.js';
 import { MNEMONIC, localAnvil } from './fixtures.js';
 
 const { SANDBOX_URL = '' } = process.env;

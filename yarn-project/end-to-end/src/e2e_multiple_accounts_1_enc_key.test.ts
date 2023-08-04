@@ -13,7 +13,7 @@ import {
   expectUnencryptedLogsFromLastBlockToBe,
   expectsNumOfEncryptedLogsInTheLastBlockToBe,
   setup,
-} from './utils.js';
+} from './fixtures/utils.js';
 
 describe('e2e_multiple_accounts_1_enc_key', () => {
   let aztecNode: AztecNodeService | undefined;

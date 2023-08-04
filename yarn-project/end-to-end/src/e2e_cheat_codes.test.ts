@@ -3,7 +3,7 @@ import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecRPC } from '@aztec/types';
 
 import { CheatCodes } from './cheat_codes.js';
-import { setup } from './utils.js';
+import { setup } from './fixtures/utils.js';
 
 describe('e2e_cheat_codes', () => {
   let aztecNode: AztecNodeService | undefined;
