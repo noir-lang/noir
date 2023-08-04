@@ -1,4 +1,5 @@
 import { sha256 } from '@aztec/foundation/crypto';
+import { Point } from '@aztec/foundation/fields';
 import { BufferReader, serializeBufferToVector } from '@aztec/foundation/serialize';
 
 import { randomBytes } from 'crypto';
@@ -69,7 +70,9 @@ export class FunctionL2Logs {
   public static random(numLogs: number): FunctionL2Logs {
     const logs: Buffer[] = [];
     for (let i = 0; i < numLogs; i++) {
-      logs.push(randomBytes(144));
+      const randomEphPubKey = Point.random();
+      const randomLogContent = randomBytes(144 - Point.SIZE_IN_BYTES);
+      logs.push(Buffer.concat([randomLogContent, randomEphPubKey.toBuffer()]));
     }
     return new FunctionL2Logs(logs);
   }

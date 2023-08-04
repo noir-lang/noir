@@ -22,6 +22,7 @@ import {
   ContractPublicData,
   DeployedContract,
   FunctionCall,
+  INITIAL_L2_BLOCK_NUM,
   KeyStore,
   L2BlockL2Logs,
   LogType,
@@ -69,7 +70,7 @@ export class AztecRPCServer implements AztecRPC {
    * @returns A promise that resolves when the server has started successfully.
    */
   public async start() {
-    await this.synchroniser.start(1, 1, this.config.l2BlockPollingIntervalMS);
+    await this.synchroniser.start(INITIAL_L2_BLOCK_NUM, 1, this.config.l2BlockPollingIntervalMS);
     const info = await this.getNodeInfo();
     this.log.info(`Started RPC server connected to chain ${info.chainId} version ${info.version}`);
   }
