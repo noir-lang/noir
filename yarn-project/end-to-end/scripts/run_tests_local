@@ -6,11 +6,6 @@ set -e
 export TEST=$1
 export COMPOSE_FILE=${2:-./scripts/docker-compose.yml}
 
-if [ "$TEST" = "uniswap_trade_on_l1_from_l2.test.ts" ]; then
-  export FORK_URL=https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c
-  export FORK_BLOCK_NUMBER=17514288
-fi
-
 if [ -n "$COMMIT_HASH" ]; then
   aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 278380418400.dkr.ecr.us-east-2.amazonaws.com
 

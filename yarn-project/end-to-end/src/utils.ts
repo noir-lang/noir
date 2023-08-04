@@ -51,7 +51,7 @@ import {
 } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 
-import { CheatCodes } from './cheat_codes.js';
+import { CheatCodes, L1CheatCodes } from './cheat_codes.js';
 import { MNEMONIC, localAnvil } from './fixtures.js';
 
 const { SANDBOX_URL = '' } = process.env;
@@ -275,7 +275,10 @@ export async function setupAztecRPCServer(
  * Sets up the environment for the end-to-end tests.
  * @param numberOfAccounts - The number of new accounts to be created once the RPC server is initiated.
  */
-export async function setup(numberOfAccounts = 1): Promise<{
+export async function setup(
+  numberOfAccounts = 1,
+  stateLoad: string | undefined = undefined,
+): Promise<{
   /**
    * The Aztec Node service.
    */
@@ -310,6 +313,12 @@ export async function setup(numberOfAccounts = 1): Promise<{
   cheatCodes: CheatCodes;
 }> {
   const config = getConfigEnvVars();
+
+  if (stateLoad) {
+    const l1CheatCodes = new L1CheatCodes(config.rpcUrl);
+    await l1CheatCodes.loadChainState(stateLoad);
+  }
+
   const logger = getLogger();
   const hdAccount = mnemonicToAccount(MNEMONIC);
 

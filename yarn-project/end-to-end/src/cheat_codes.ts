@@ -3,6 +3,8 @@ import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecRPC } from '@aztec/types';
 
+import fs from 'fs';
+
 const toFr = (value: Fr | bigint): Fr => {
   return typeof value === 'bigint' ? new Fr(value) : value;
 };
@@ -32,7 +34,7 @@ export class CheatCodes {
 /**
  * A class that provides utility functions for interacting with the L1 chain.
  */
-class L1CheatCodes {
+export class L1CheatCodes {
   constructor(
     /**
      * The RPC client to use for interacting with the chain
@@ -102,6 +104,29 @@ class L1CheatCodes {
     this.logger(`Set next block timestamp to ${timestamp}`);
   }
 
+  /**
+   * Dumps the current chain state to a file.
+   * @param fileName - The file name to dump state into
+   */
+  public async dumpChainState(fileName: string): Promise<void> {
+    const res = await this.rpcCall('anvil_dumpState', []);
+    if (res.error) throw new Error(`Error dumping state: ${res.error.message}`);
+    const jsonContent = JSON.stringify(res.result);
+    fs.writeFileSync(`${fileName}.json`, jsonContent, 'utf8');
+    this.logger(`Dumped state to ${fileName}`);
+  }
+
+  /**
+   * Loads the chain state from a file.
+   * @param fileName - The file name to load state from
+   */
+  public async loadChainState(fileName: string): Promise<void> {
+    const data = JSON.parse(fs.readFileSync(`${fileName}.json`, 'utf8'));
+    const res = await this.rpcCall('anvil_loadState', [data]);
+    if (res.error) throw new Error(`Error loading state: ${res.error.message}`);
+    this.logger(`Loaded state from ${fileName}`);
+  }
+
   // Good basis for the remaining functions:
   // https://github.com/foundry-rs/foundry/blob/master/anvil/core/src/eth/mod.rs
 }
@@ -109,7 +134,7 @@ class L1CheatCodes {
 /**
  * A class that provides utility functions for interacting with the L2 chain.
  */
-class L2CheatCodes {
+export class L2CheatCodes {
   constructor(
     /**
      * The RPC client to use for interacting with the chain
