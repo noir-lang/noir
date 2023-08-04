@@ -117,14 +117,14 @@ impl<'interner> TypeChecker<'interner> {
             }
         });
 
-        if let (Type::Function(_, _, env_a), Type::Function(_, _, env_b)) = (&lvalue_type, &expr_type) {
-            env_a.unify(&env_b, span, &mut self.errors, || {
-                TypeCheckError::TypeMismatchWithSource {
-                    rhs: expr_type.clone(),
-                    lhs: lvalue_type.clone(),
-                    span,
-                    source: Source::Assignment,
-                }
+        if let (Type::Function(_, _, env_a), Type::Function(_, _, env_b)) =
+            (&lvalue_type, &expr_type)
+        {
+            env_a.unify(env_b, span, &mut self.errors, || TypeCheckError::TypeMismatchWithSource {
+                rhs: expr_type.clone(),
+                lhs: lvalue_type.clone(),
+                span,
+                source: Source::Assignment,
             });
         }
     }
