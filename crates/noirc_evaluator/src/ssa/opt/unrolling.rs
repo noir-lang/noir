@@ -20,9 +20,15 @@ use crate::{
     errors::RuntimeError,
     ssa::{
         ir::{
-            basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph,
-            dom::DominatorTree, function::Function, function_inserter::FunctionInserter,
-            instruction::TerminatorInstruction, post_order::PostOrder, value::ValueId,
+            basic_block::BasicBlockId,
+            cfg::ControlFlowGraph,
+            dfg::DataFlowGraph,
+            dom::DominatorTree,
+            function::{Function, RuntimeType},
+            function_inserter::FunctionInserter,
+            instruction::TerminatorInstruction,
+            post_order::PostOrder,
+            value::ValueId,
         },
         ssa_gen::Ssa,
     },
@@ -33,7 +39,8 @@ impl Ssa {
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     pub(crate) fn unroll_loops(mut self) -> Result<Ssa, RuntimeError> {
         for function in self.functions.values_mut() {
-            find_all_loops(function).unroll_each_loop(function, true)?;
+            let abort_on_error = function.runtime() == RuntimeType::Acir;
+            find_all_loops(function).unroll_each_loop(function, abort_on_error)?;
         }
         Ok(self)
     }
