@@ -1121,7 +1121,7 @@ impl Context {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::{rc::Rc, collections::HashMap};
 
     use acvm::{
         acir::{
@@ -1161,7 +1161,7 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let acir = context.convert_ssa(ssa, Brillig::default()).unwrap();
+        let acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
