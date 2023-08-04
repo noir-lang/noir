@@ -27,9 +27,6 @@ pub enum ParserErrorReason {
     PatternInTraitFunctionParameter,
     #[error("Traits are an experimental feature that are not yet in a working state")]
     TraitsAreExperimental,
-    // TODO(GenericParameterNotFoundInFunction): Consider implementing this
-    // #[error("The identifier '{0}' specified in the where clause is not present in the list of generic parameters of the function")]
-    // GenericParameterNotFoundInFunction(String),
     #[error("Where clauses are allowed only on functions with generic parameters")]
     WhereClauseOnNonGenericFunction,
 }
