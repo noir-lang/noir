@@ -167,7 +167,7 @@ mod path_normalization {
             [
                 ("/", "/"),                             // Handles root
                 ("/foo/bar/../baz/../bar", "/foo/bar"), // Handles backtracking
-                ("/././././././././baz", "/baz"),       // Removes noops
+                ("/././././././././baz", "/baz"),       // Removes no-ops
             ],
             |(unnormalized, normalized)| (PathBuf::from(unnormalized), PathBuf::from(normalized)),
         );
