@@ -1,5 +1,5 @@
 import { initialiseResolver } from "@noir-lang/noir-source-resolver";
-import { compile, acir_read_bytes } from "../../../result";
+import { compile } from "../dist/";
 
 export const noirSourcePath = "../../noir-script/src/main.nr";
 export const nargoArtifactPath = "../../noir-script/target/noir_wasm_testing.json";
@@ -23,11 +23,6 @@ export async function compileNoirSource(noir_source: string): Promise<any> {
     const compiled_noir = compile({});
 
     console.log("Noir source compilation done.");
-
-    const acirBuffer = Uint8Array.from(atob(compiled_noir.circuit), c => c.charCodeAt(0))
-    const circuit = acir_read_bytes(acirBuffer)
-
-    console.log(circuit.opcodes[2]);
 
     return compiled_noir.circuit;
   } catch (e) {
