@@ -79,14 +79,14 @@ fn list_files_and_folders_in<P: AsRef<Path>>(path: P) -> Option<ReadDir> {
 fn prepare_dependencies(
     context: &mut Context,
     parent_crate: CrateId,
-    dependencies: BTreeMap<CrateName, Dependency>,
+    dependencies: &BTreeMap<CrateName, Dependency>,
 ) {
-    for (dep_name, dep) in dependencies.into_iter() {
+    for (dep_name, dep) in dependencies.iter() {
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
                 let crate_id = prepare_crate(context, &package.entry_path);
-                add_dep(context, parent_crate, crate_id, dep_name);
-                prepare_dependencies(context, crate_id, package.dependencies.to_owned());
+                add_dep(context, parent_crate, crate_id, dep_name.clone());
+                prepare_dependencies(context, crate_id, &package.dependencies);
             }
         }
     }
@@ -99,7 +99,7 @@ fn prepare_package(package: &Package) -> (Context, CrateId) {
 
     let crate_id = prepare_crate(&mut context, &package.entry_path);
 
-    prepare_dependencies(&mut context, crate_id, package.dependencies.to_owned());
+    prepare_dependencies(&mut context, crate_id, &package.dependencies);
 
     (context, crate_id)
 }
