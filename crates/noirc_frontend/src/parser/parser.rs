@@ -390,8 +390,7 @@ fn optional_default_value() -> impl NoirParser<Option<Expression>> {
 }
 
 fn trait_constant_declaration() -> impl NoirParser<TraitItem> {
-    // TODO: Shall we use `comptime` or `const` here?
-    keyword(Keyword::CompTime)
+    keyword(Keyword::Let)
         .ignore_then(ident())
         .then_ignore(just(Token::Colon))
         .then(parse_type())
@@ -1831,12 +1830,8 @@ mod test {
                 "trait TraitAcceptingMutableRef { fn foo(&mut self); }",
                 "trait TraitWithTypeBoundOperation { fn identity() -> Self; }",
                 "trait TraitWithAssociatedType { type Element; fn item(self, index: Field) -> Self::Element; }",
-                // TODO: Shall we use `const` instead?
-                "trait TraitWithAssociatedConstant { comptime Size: Field; }",
-                "trait TraitWithAssociatedConstantWithDefaultValue { comptime Size: Field = 10; }",
-                "trait GenericTrait<T> { fn elem(&mut self, index: Field) -> T; }",
-                "trait GenericTraitWithConstraints<T> where T: SomeTrait { fn elem(self, index: Field) -> T; }",
-                "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C> { comptime Size: Field; fn zero() -> Self; }",
+                "trait TraitWithAssociatedConstant { let Size: Field; }",
+                "trait TraitWithAssociatedConstantWithDefaultValue { let Size: Field = 10; }",
             ],
         );
 
@@ -1846,6 +1841,11 @@ mod test {
                 "trait MissingBody",
                 "trait WrongDelimiter { fn foo() -> u8, fn bar() -> u8 }",
                 "trait WhereClauseWithoutGenerics where A: SomeTrait { }",
+                // TODO: when implemnt generics in traits the following 3 should pass
+                "trait GenericTrait<T> { fn elem(&mut self, index: Field) -> T; }",
+                "trait GenericTraitWithConstraints<T> where T: SomeTrait { fn elem(self, index: Field) -> T; }",
+                "trait TraitWithMultipleGenericParams<A, B, C> where A: SomeTrait, B: AnotherTrait<C> { comptime Size: Field; fn zero() -> Self; }",
+
             ],
         );
     }
