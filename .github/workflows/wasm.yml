@@ -157,7 +157,7 @@ jobs:
       - name: Compile test program with Nargo CLI
         working-directory: ./crates/wasm/noir-script
         run: |
-          nargo_binary=$(find {{ github.workspace }}/nargo -name "nargo" -type f)
+          nargo_binary=$(find ${{ github.workspace }}/nargo -name "nargo" -type f)
           echo "nargo binary found at $nargo_binary."
           ls -l $nargo_binary
           echo "Attempting to make nargo binary executable:"
