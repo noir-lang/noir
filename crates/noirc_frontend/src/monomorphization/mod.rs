@@ -335,6 +335,8 @@ impl<'interner> Monomorphizer<'interner> {
                     index_type: Self::convert_type(&self.interner.id_type(for_expr.start_range)),
                     start_range: Box::new(start),
                     end_range: Box::new(end),
+                    start_range_location: self.interner.expr_location(&for_expr.start_range),
+                    end_range_location: self.interner.expr_location(&for_expr.end_range),
                     block,
                 })
             }

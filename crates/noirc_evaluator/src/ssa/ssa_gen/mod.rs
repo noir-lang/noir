@@ -297,7 +297,10 @@ impl<'a> FunctionContext<'a> {
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
         let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
 
+        self.builder.set_location(for_expr.start_range_location);
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range);
+
+        self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range);
 
         self.builder.terminate_with_jmp(loop_entry, vec![start_index]);
