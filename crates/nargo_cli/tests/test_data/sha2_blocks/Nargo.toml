@@ -1,5 +1,6 @@
 [package]
 name = "sha2_blocks"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

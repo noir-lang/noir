@@ -2,4 +2,4 @@ exclude = []
 
 
 # List of tests (as their directory name) expecting to fail: if the test pass, we report an error.
-fail = ["brillig_assert_fail", "dep_impl_primitive", "workspace_fail", "workspace_missing_toml"]
+fail = ["brillig_assert_fail", "dep_impl_primitive", "depend_on_bin", "workspace_fail", "workspace_missing_toml"]

@@ -10,7 +10,7 @@ use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 
-use super::compile_cmd::compile_circuit;
+use super::compile_cmd::compile_package;
 use super::fs::{
     common_reference_string::{
         read_cached_common_reference_string, update_common_reference_string,
@@ -21,9 +21,9 @@ use super::fs::{
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
+use crate::find_package_manifest;
 use crate::manifest::resolve_workspace_from_toml;
 use crate::{cli::execute_cmd::execute_program, errors::CliError};
-use crate::{find_package_manifest, prepare_package};
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
@@ -96,8 +96,7 @@ pub(crate) fn prove_package<B: Backend>(
                 .map_err(CliError::CommonReferenceStringError)?;
         (common_reference_string, program, None)
     } else {
-        let (mut context, crate_id) = prepare_package(package);
-        let program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
+        let (context, program) = compile_package(backend, package, compile_options)?;
         let common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;

@@ -1,5 +1,8 @@
 use crate::{
-    errors::CliError, find_package_manifest, manifest::resolve_workspace_from_toml, prepare_package,
+    errors::{CliError, CompileError},
+    find_package_manifest,
+    manifest::resolve_workspace_from_toml,
+    prepare_package,
 };
 use acvm::Backend;
 use clap::Args;
@@ -7,7 +10,6 @@ use iter_extended::btree_map;
 use nargo::package::Package;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
-use noirc_errors::reporter::ReportedErrors;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::Context,
@@ -42,33 +44,37 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn check_package(
-    package: &Package,
-    compile_options: &CompileOptions,
-) -> Result<(), ReportedErrors> {
+fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<(), CompileError> {
     let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 
-    // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-    if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
-        let path_to_prover_input = package.prover_input_path();
-        let path_to_verifier_input = package.verifier_input_path();
-
-        // If they are not available, then create them and populate them based on the ABI
-        if !path_to_prover_input.exists() {
-            let prover_toml = create_input_toml_template(parameters.clone(), None);
-            write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
-        }
-        if !path_to_verifier_input.exists() {
-            let public_inputs = parameters.into_iter().filter(|param| param.is_public()).collect();
-
-            let verifier_toml = create_input_toml_template(public_inputs, return_type);
-            write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
-        }
+    if package.is_library() {
+        // Libraries do not have ABIs.
+        Ok(())
     } else {
-        // This means that this is a library. Libraries do not have ABIs.
+        // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
+        if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
+            let path_to_prover_input = package.prover_input_path();
+            let path_to_verifier_input = package.verifier_input_path();
+
+            // If they are not available, then create them and populate them based on the ABI
+            if !path_to_prover_input.exists() {
+                let prover_toml = create_input_toml_template(parameters.clone(), None);
+                write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+            }
+            if !path_to_verifier_input.exists() {
+                let public_inputs =
+                    parameters.into_iter().filter(|param| param.is_public()).collect();
+
+                let verifier_toml = create_input_toml_template(public_inputs, return_type);
+                write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
+            }
+
+            Ok(())
+        } else {
+            Err(CompileError::MissingMainFunction(package.name.clone()))
+        }
     }
-    Ok(())
 }
 
 /// Generates the contents of a toml file with fields for each of the passed parameters.
@@ -223,7 +229,7 @@ pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
-) -> Result<(), ReportedErrors> {
+) -> Result<(), CompileError> {
     let result = check_crate(context, crate_id, deny_warnings).map(|warnings| ((), warnings));
     super::compile_cmd::report_errors(result, context, deny_warnings)
 }

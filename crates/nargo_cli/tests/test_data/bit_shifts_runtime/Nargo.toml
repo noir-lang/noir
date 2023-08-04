@@ -1,5 +1,6 @@
 [package]
 name = "bit_shifts_runtime"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

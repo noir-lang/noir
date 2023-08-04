@@ -3,9 +3,10 @@ use acvm::{
     SmartContract,
 };
 use hex::FromHexError;
-use nargo::NargoError;
+use nargo::{package::PackageType, NargoError};
 use noirc_abi::errors::{AbiError, InputParserError};
 use noirc_errors::reporter::ReportedErrors;
+use noirc_frontend::graph::CrateName;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -39,11 +40,6 @@ pub(crate) enum CliError<B: Backend> {
     #[error("Failed to verify proof {}", .0.display())]
     InvalidProof(PathBuf),
 
-    /// Errors encountered while compiling the noir program.
-    /// These errors are already written to stderr.
-    #[error("Aborting due to {} previous error{}", .0.error_count, if .0.error_count == 1 { "" } else { "s" })]
-    ReportedErrors(ReportedErrors),
-
     /// ABI encoding/decoding error
     #[error(transparent)]
     AbiError(#[from] AbiError),
@@ -63,6 +59,10 @@ pub(crate) enum CliError<B: Backend> {
     #[error(transparent)]
     ManifestError(#[from] ManifestError),
 
+    /// Error from the compilation pipeline
+    #[error(transparent)]
+    CompileError(#[from] CompileError),
+
     /// Backend error caused by a function on the SmartContract trait
     #[error(transparent)]
     SmartContractError(<B as SmartContract>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
@@ -76,7 +76,22 @@ pub(crate) enum CliError<B: Backend> {
     CommonReferenceStringError(<B as CommonReferenceString>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
 }
 
-impl<B: Backend> From<ReportedErrors> for CliError<B> {
+/// Errors covering situations where a package cannot be compiled.
+#[derive(Debug, Error)]
+pub(crate) enum CompileError {
+    #[error("Package `{0}` has type `lib` but only `bin` types can be compiled")]
+    LibraryCrate(CrateName),
+
+    #[error("Package `{0}` is expected to have a `main` function but it does not")]
+    MissingMainFunction(CrateName),
+
+    /// Errors encountered while compiling the Noir program.
+    /// These errors are already written to stderr.
+    #[error("Aborting due to {} previous error{}", .0.error_count, if .0.error_count == 1 { "" } else { "s" })]
+    ReportedErrors(ReportedErrors),
+}
+
+impl From<ReportedErrors> for CompileError {
     fn from(errors: ReportedErrors) -> Self {
         Self::ReportedErrors(errors)
     }
@@ -89,11 +104,17 @@ pub(crate) enum ManifestError {
     #[error("cannot find a Nargo.toml in {}", .0.display())]
     MissingFile(PathBuf),
 
-    #[error("Cannot read file {0}. Does it exist?")]
+    #[error("Cannot read file {0} - does it exist?")]
     ReadFailed(PathBuf),
 
     #[error("Nargo.toml is missing a parent directory")]
     MissingParent,
+
+    #[error("Missing `type` field in {0}")]
+    MissingPackageType(PathBuf),
+
+    #[error("Cannot use `{1}` for `type` field in {0}")]
+    InvalidPackageType(PathBuf, String),
 
     /// Package manifest is unreadable.
     #[error("Nargo.toml is badly formed, could not parse.\n\n {0}")]
@@ -102,17 +123,8 @@ pub(crate) enum ManifestError {
     #[error("Unxpected workspace definition found in {0}")]
     UnexpectedWorkspace(PathBuf),
 
-    /// Package does not contain Noir source files.
-    #[error("cannot find src directory in path {0}")]
-    NoSourceDir(PathBuf),
-
-    /// Package has neither of `main.nr` and `lib.nr`.
-    #[error("package must contain either a `lib.nr`(Library) or a `main.nr`(Binary).")]
-    ContainsZeroCrates,
-
-    /// Package has both a `main.nr` (for binaries) and `lib.nr` (for libraries)
-    #[error("package cannot contain both a `lib.nr` and a `main.nr`")]
-    ContainsMultipleCrates,
+    #[error("Cannot find file {0} which is required due to specifying the `{1}` package type")]
+    MissingEntryFile(PathBuf, PackageType),
 
     /// Invalid character `-` in package name
     #[error("invalid character `-` in package name")]
@@ -122,9 +134,12 @@ pub(crate) enum ManifestError {
     #[error("{0}")]
     GitError(String),
 
-    #[error("Selected package ({0}) was not found")]
-    MissingSelectedPackage(String),
+    #[error("Selected package `{0}` was not found")]
+    MissingSelectedPackage(CrateName),
 
     #[error("Default package was not found. Does {0} exist in your workspace?")]
     MissingDefaultPackage(PathBuf),
+
+    #[error("Package `{0}` has type `bin` but you cannot depend on binary packages")]
+    BinaryDependency(CrateName),
 }
