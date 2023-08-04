@@ -1,5 +1,6 @@
 [package]
 name = "bool_or"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

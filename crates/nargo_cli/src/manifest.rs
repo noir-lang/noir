@@ -3,8 +3,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use fm::{NormalizePath, FILE_EXTENSION};
 use nargo::{
-    package::{Dependency, Package},
+    package::{Dependency, Package, PackageType},
     workspace::Workspace,
 };
 use noirc_frontend::graph::CrateName;
@@ -15,12 +16,17 @@ use crate::{errors::ManifestError, git::clone_git_repo};
 #[derive(Debug, Deserialize, Clone)]
 struct PackageConfig {
     package: PackageMetadata,
+    #[serde(default)]
     dependencies: BTreeMap<String, DependencyConfig>,
 }
 
 impl PackageConfig {
     fn resolve_to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
-        let name = self.package.name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
+        let name = if let Some(name) = &self.package.name {
+            name.parse().map_err(|_| ManifestError::InvalidPackageName)?
+        } else {
+            return Err(ManifestError::MissingNameField { toml: root_dir.join("Nargo.toml") });
+        };
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in self.dependencies.iter() {
@@ -30,9 +36,56 @@ impl PackageConfig {
             dependencies.insert(name, resolved_dep);
         }
 
-        let (entry_path, crate_type) = crate::lib_or_bin(root_dir)?;
+        let package_type = match self.package.package_type.as_deref() {
+            Some("lib") => PackageType::Library,
+            Some("bin") => PackageType::Binary,
+            Some(invalid) => {
+                return Err(ManifestError::InvalidPackageType(
+                    root_dir.join("Nargo.toml"),
+                    invalid.to_string(),
+                ))
+            }
+            None => return Err(ManifestError::MissingPackageType(root_dir.join("Nargo.toml"))),
+        };
 
-        Ok(Package { root_dir: root_dir.to_path_buf(), entry_path, crate_type, name, dependencies })
+        let entry_path = if let Some(entry_path) = &self.package.entry {
+            let custom_entry_path = root_dir.join(entry_path);
+            if custom_entry_path.exists() {
+                custom_entry_path
+            } else {
+                return Err(ManifestError::MissingEntryFile {
+                    toml: root_dir.join("Nargo.toml"),
+                    entry: custom_entry_path,
+                });
+            }
+        } else {
+            let default_entry_path = match package_type {
+                PackageType::Library => {
+                    root_dir.join("src").join("lib").with_extension(FILE_EXTENSION)
+                }
+                PackageType::Binary => {
+                    root_dir.join("src").join("main").with_extension(FILE_EXTENSION)
+                }
+            };
+
+            if default_entry_path.exists() {
+                default_entry_path
+            } else {
+                return Err(ManifestError::MissingDefaultEntryFile {
+                    toml: root_dir.join("Nargo.toml"),
+                    entry: default_entry_path,
+                    package_type,
+                });
+            }
+        };
+
+        Ok(Package {
+            root_dir: root_dir.to_path_buf(),
+            entry_path,
+            package_type,
+            name,
+            dependencies,
+        })
     }
 }
 
@@ -86,8 +139,10 @@ struct WorkspaceConfig {
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 struct PackageMetadata {
-    #[serde(default = "panic_missing_name")]
-    name: String,
+    name: Option<String>,
+    #[serde(alias = "type")]
+    package_type: Option<String>,
+    entry: Option<PathBuf>,
     description: Option<String>,
     authors: Option<Vec<String>>,
     // If not compiler version is supplied, the latest is used
@@ -98,26 +153,6 @@ struct PackageMetadata {
     compiler_version: Option<String>,
     backend: Option<String>,
     license: Option<String>,
-}
-
-// TODO: Remove this after a couple of breaking releases (added in 0.10.0)
-fn panic_missing_name() -> String {
-    panic!(
-        r#"
-
-Failed to parse `Nargo.toml`.
-
-`Nargo.toml` now requires a "name" field for Noir packages.
-
-```toml
-[package]
-name = "package_name"
-```
-
-Modify your `Nargo.toml` similarly to above and rerun the command.
-
-"#
-    )
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -131,19 +166,27 @@ enum DependencyConfig {
 
 impl DependencyConfig {
     fn resolve_to_dependency(&self, pkg_root: &Path) -> Result<Dependency, ManifestError> {
-        match self {
+        let dep = match self {
             Self::Github { git, tag } => {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
                 let toml_path = dir_path.join("Nargo.toml");
                 let package = resolve_package_from_toml(&toml_path)?;
-                Ok(Dependency::Remote { package })
+                Dependency::Remote { package }
             }
             Self::Path { path } => {
                 let dir_path = pkg_root.join(path);
                 let toml_path = dir_path.join("Nargo.toml");
                 let package = resolve_package_from_toml(&toml_path)?;
-                Ok(Dependency::Local { package })
+                Dependency::Local { package }
             }
+        };
+
+        // Cannot depend on a binary
+        // TODO: Can we depend upon contracts?
+        if dep.is_binary() {
+            Err(ManifestError::BinaryDependency(dep.package_name().clone()))
+        } else {
+            Ok(dep)
         }
     }
 }
@@ -162,7 +205,7 @@ fn toml_to_workspace(
                     members: vec![member],
                 }
             } else {
-                return Err(ManifestError::MissingSelectedPackage(member.name.into()));
+                return Err(ManifestError::MissingSelectedPackage(member.name));
             }
         }
         Config::Workspace { workspace_config } => {
@@ -193,7 +236,7 @@ fn toml_to_workspace(
             // we want to present an error to users
             if selected_package_index.is_none() {
                 if let Some(selected_name) = selected_package {
-                    return Err(ManifestError::MissingSelectedPackage(selected_name.into()));
+                    return Err(ManifestError::MissingSelectedPackage(selected_name));
                 }
                 if let Some(default_path) = workspace_config.default_member {
                     return Err(ManifestError::MissingDefaultPackage(default_path));
@@ -208,7 +251,8 @@ fn toml_to_workspace(
 }
 
 fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
-    let toml_as_string = std::fs::read_to_string(toml_path)
+    let toml_path = toml_path.normalize();
+    let toml_as_string = std::fs::read_to_string(&toml_path)
         .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?;
     let root_dir = toml_path.parent().ok_or(ManifestError::MissingParent)?;
     let nargo_toml =
@@ -254,6 +298,19 @@ fn parse_standard_toml() {
         rand = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
         cool = { tag = "next", git = "https://github.com/rust-lang-nursery/rand"}
         hello = {path = "./noir_driver"}
+    "#;
+
+    assert!(Config::try_from(String::from(src)).is_ok());
+    assert!(Config::try_from(src).is_ok());
+}
+
+#[test]
+fn parse_package_toml_no_deps() {
+    let src = r#"
+        [package]
+        name = "test"
+        authors = ["kev", "foo"]
+        compiler_version = "0.1"
     "#;
 
     assert!(Config::try_from(String::from(src)).is_ok());

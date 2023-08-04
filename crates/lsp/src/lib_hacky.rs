@@ -22,7 +22,7 @@ use lsp_types::{
 use noirc_driver::{check_crate, prepare_crate, propagate_dep};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 use noirc_frontend::{
-    graph::{CrateGraph, CrateId, CrateType},
+    graph::{CrateGraph, CrateId},
     hir::Context,
 };
 
@@ -286,7 +286,7 @@ fn create_context_at_path(
     }
     let nargo_toml_path = find_nearest_parent_file(&file_path, &["Nargo.toml"]);
 
-    let current_crate_id = prepare_crate(&mut context, &file_path, CrateType::Binary);
+    let current_crate_id = prepare_crate(&mut context, &file_path);
 
     // TODO(AD): undo hacky dependency resolution
     if let Some(nargo_toml_path) = nargo_toml_path {
@@ -297,7 +297,7 @@ fn create_context_at_path(
                     .parent()
                     .unwrap() // TODO
                     .join(PathBuf::from(&dependency_path).join("src").join("lib.nr"));
-                let library_crate = prepare_crate(&mut context, &path_to_lib, CrateType::Library);
+                let library_crate = prepare_crate(&mut context, &path_to_lib);
                 propagate_dep(&mut context, library_crate, &crate_name.parse().unwrap());
             }
         }

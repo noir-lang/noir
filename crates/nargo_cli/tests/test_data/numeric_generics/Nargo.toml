@@ -1,5 +1,6 @@
 [package]
 name = "numeric_generics"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

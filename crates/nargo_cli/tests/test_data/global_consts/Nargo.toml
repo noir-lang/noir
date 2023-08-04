@@ -1,5 +1,6 @@
 [package]
 name = "global_consts"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

@@ -776,7 +776,7 @@ impl<'block> BrilligBlock<'block> {
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
         let value = &dfg[value_id];
 
-        let variable = match value {
+        match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
@@ -843,8 +843,7 @@ impl<'block> BrilligBlock<'block> {
             _ => {
                 todo!("ICE: Cannot convert value {value:?}")
             }
-        };
-        variable
+        }
     }
 
     /// Converts an SSA `ValueId` into a `RegisterIndex`. Initializes if necessary.

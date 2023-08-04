@@ -36,6 +36,8 @@ fn main() -> pub Field {
     x += 1;
     assert(closure_capturing_mutable(1) == 5);
 
+    regression_2154();
+
     let ret = twice(add1, 3);
 
     test_array_functions();
@@ -84,4 +86,22 @@ fn add1(x: Field) -> Field {
 
 fn twice(f: fn(Field) -> Field, x: Field) -> Field {
     f(f(x))
+}
+
+// Fixing an ICE, where rewriting the closures
+// during monomorphization didn't correspond
+// to an internal `if` type
+// found by @jfecher:
+// https://github.com/noir-lang/noir/pull/1959#issuecomment-1658992989
+// issue https://github.com/noir-lang/noir/issues/2154
+fn regression_2154() {
+    let x: u32 = 32;
+
+    let closure_if_else = if x > 2 {
+        || x
+    } else {
+        || x + 2342
+    };
+
+    assert(closure_if_else() == 32);
 }
