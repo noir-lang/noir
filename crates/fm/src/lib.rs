@@ -125,7 +125,9 @@ impl NormalizePath for &Path {
 
 fn resolve_components<'a>(components: impl Iterator<Item = Component<'a>>) -> PathBuf {
     let mut components = components.peekable();
-    let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+
+    // Preserve path prefix if one exists.
+    let mut normalized_path = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
         components.next();
         PathBuf::from(c.as_os_str())
     } else {
@@ -134,21 +136,46 @@ fn resolve_components<'a>(components: impl Iterator<Item = Component<'a>>) -> Pa
 
     for component in components {
         match component {
-            Component::Prefix(..) => unreachable!(),
+            Component::Prefix(..) => unreachable!("Path cannot contain multiple prefixes"),
             Component::RootDir => {
-                ret.push(component.as_os_str());
+                normalized_path.push(component.as_os_str());
             }
             Component::CurDir => {}
             Component::ParentDir => {
-                ret.pop();
+                normalized_path.pop();
             }
             Component::Normal(c) => {
-                ret.push(c);
+                normalized_path.push(c);
             }
         }
     }
 
-    ret
+    normalized_path
+}
+
+#[cfg(test)]
+mod path_normalization {
+    use iter_extended::vecmap;
+    use std::path::PathBuf;
+
+    use crate::NormalizePath;
+
+    #[test]
+    fn normalizes_paths_correctly() {
+        let test_cases = vecmap(
+            [
+                ("/", "/"),                             // Handles root
+                ("/foo/bar/../baz/../bar", "/foo/bar"), // Handles backtracking
+                ("/././././././././baz", "/baz"),       // Removes noops
+                (r"C:/foo", "C:/foo"),                  // Retains Windows prefixes
+            ],
+            |(unnormalized, normalized)| (PathBuf::from(unnormalized), PathBuf::from(normalized)),
+        );
+
+        for (path, expected_result) in test_cases {
+            assert_eq!(path.normalize(), expected_result);
+        }
+    }
 }
 
 /// Takes a path to a noir file. This will panic on paths to directories
