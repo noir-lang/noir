@@ -10,7 +10,7 @@ use std::path::PathBuf;
 /// Create a Noir project in the current directory.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {
-    /// Name of the package [default = current directory name]
+    /// Name of the package [default: current directory name]
     #[clap(long)]
     name: Option<String>,
 }

@@ -11,7 +11,7 @@ pub(crate) struct NewCommand {
     /// The path to save the new project
     path: PathBuf,
 
-    /// Name of the package [default = package directory name]
+    /// Name of the package [default: package directory name]
     #[clap(long)]
     name: Option<String>,
 }
