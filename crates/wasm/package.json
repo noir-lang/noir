@@ -24,11 +24,11 @@
     "test:browser": "web-test-runner"
   },
   "peerDependencies": {
-    "@noir-lang/noir-source-resolver": "1.1.3"
+    "@noir-lang/noir-source-resolver": "1.1.2"
   },
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
-    "@noir-lang/noir-source-resolver": "^1.1.3",
+    "@noir-lang/noir-source-resolver": "1.1.2",
     "@web/dev-server-esbuild": "^0.3.6",
     "@web/test-runner": "^0.15.3",
     "@web/test-runner-playwright": "^0.10.0",

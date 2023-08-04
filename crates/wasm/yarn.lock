@@ -217,7 +217,7 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@noir-lang/noir-source-resolver@^1.1.2":
+"@noir-lang/noir-source-resolver@1.1.2":
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/@noir-lang/noir-source-resolver/-/noir-source-resolver-1.1.2.tgz#724f58e095722762e3880ca9e08edc35742e8f05"
   integrity sha512-GRiAR7z2RxdUt07fL3X303sm3Qs4Ec9lPDCQ5uwK7xDD2nK6KaNBNQyl+JrotCxsMhoh7MVh38SZSOOCxaJgUQ==
