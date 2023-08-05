@@ -5,18 +5,19 @@ use async_lsp::{
 };
 use clap::Args;
 use noir_lsp::NargoLspService;
-use noirc_driver::CompileOptions;
 use tokio::io::BufReader;
 use tower::ServiceBuilder;
 
 use super::NargoConfig;
 use crate::errors::CliError;
 
+/// Starts the Noir LSP server
+///
+/// Starts an LSP server which allows IDEs such as VS Code to display diagnostics in Noir source.
+///
+/// VS Code Noir Language Support: https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir
 #[derive(Debug, Clone, Args)]
-pub(crate) struct LspCommand {
-    #[clap(flatten)]
-    compile_options: CompileOptions,
-}
+pub(crate) struct LspCommand;
 
 pub(crate) fn run<B: Backend>(
     // Backend is currently unused, but we might want to use it to inform the lsp in the future

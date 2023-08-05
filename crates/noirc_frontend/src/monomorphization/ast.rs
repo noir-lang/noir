@@ -29,7 +29,6 @@ pub enum Expression {
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
-
     Let(Let),
     Constrain(Box<Expression>, Location),
     Assign(Assign),
@@ -83,12 +82,14 @@ pub enum Literal {
     Integer(FieldElement, Type),
     Bool(bool),
     Str(String),
+    FmtStr(String, u64, Box<Expression>),
 }
 
 #[derive(Debug, Clone)]
 pub struct Unary {
     pub operator: crate::UnaryOp,
     pub rhs: Box<Expression>,
+    pub result_type: Type,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -99,6 +100,12 @@ pub struct Binary {
     pub operator: BinaryOp,
     pub rhs: Box<Expression>,
     pub location: Location,
+}
+
+#[derive(Debug, Clone)]
+pub struct Lambda {
+    pub function: Ident,
+    pub env: Ident,
 }
 
 #[derive(Debug, Clone)]
@@ -118,7 +125,7 @@ pub struct Cast {
 #[derive(Debug, Clone)]
 pub struct ArrayLiteral {
     pub contents: Vec<Expression>,
-    pub element_type: Type,
+    pub typ: Type,
 }
 
 #[derive(Debug, Clone)]
@@ -176,6 +183,7 @@ pub enum LValue {
     Ident(Ident),
     Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
     MemberAccess { object: Box<LValue>, field_index: usize },
+    Dereference { reference: Box<LValue>, element_type: Type },
 }
 
 pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
@@ -205,10 +213,12 @@ pub enum Type {
     Integer(Signedness, /*bits:*/ u32), // u32 = Integer(unsigned, 32)
     Bool,
     String(/*len:*/ u64), // String(4) = str[4]
+    FmtString(/*len:*/ u64, Box<Type>),
     Unit,
     Tuple(Vec<Type>),
-    Vec(Box<Type>),
-    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
+    Slice(Box<Type>),
+    MutableReference(Box<Type>),
+    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>, /*env:*/ Box<Type>),
 }
 
 impl Type {
@@ -310,17 +320,25 @@ impl std::fmt::Display for Type {
                 Signedness::Signed => write!(f, "i{bits}"),
             },
             Type::Bool => write!(f, "bool"),
-            Type::String(len) => write!(f, "str[{len}]"),
+            Type::String(len) => write!(f, "str<{len}>"),
+            Type::FmtString(len, elements) => {
+                write!(f, "fmtstr<{len}, {elements}>")
+            }
             Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Type::Function(args, ret) => {
+            Type::Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
-                write!(f, "fn({}) -> {}", args.join(", "), ret)
+                let closure_env_text = match **env {
+                    Type::Unit => "".to_string(),
+                    _ => format!(" with closure environment {env}"),
+                };
+                write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
-            Type::Vec(element) => write!(f, "Vec<{element}>"),
+            Type::Slice(element) => write!(f, "[{element}"),
+            Type::MutableReference(element) => write!(f, "&mut {element}"),
         }
     }
 }

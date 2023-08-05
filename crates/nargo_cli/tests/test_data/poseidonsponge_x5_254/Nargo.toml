@@ -1,5 +1,7 @@
 [package]
-name = "Variable-length Poseidon-128 sponge test on 7 elements with alpha = 5"
+name = "poseidonsponge_x5_254"
+description = "Variable-length Poseidon-128 sponge test on 7 elements with alpha = 5"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

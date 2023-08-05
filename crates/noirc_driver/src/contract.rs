@@ -41,6 +41,8 @@ pub struct ContractFunction {
 
     pub function_type: ContractFunctionType,
 
+    pub is_internal: bool,
+
     pub abi: Abi,
 
     #[serde(serialize_with = "serialize_circuit", deserialize_with = "deserialize_circuit")]

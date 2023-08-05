@@ -1,0 +1,7 @@
+[package]
+name = "brillig_acir_as_brillig"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

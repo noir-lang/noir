@@ -1,4 +1,6 @@
 [package]
+name = "5_over"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

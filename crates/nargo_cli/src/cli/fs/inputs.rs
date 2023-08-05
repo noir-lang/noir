@@ -40,6 +40,7 @@ pub(crate) fn read_inputs_from_file<P: AsRef<Path>>(
 pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
     input_map: &InputMap,
     return_value: &Option<InputValue>,
+    abi: &Abi,
     path: P,
     file_name: &str,
     format: Format,
@@ -53,10 +54,10 @@ pub(crate) fn write_inputs_to_file<P: AsRef<Path>>(
         Some(return_value) => {
             let mut input_map = input_map.clone();
             input_map.insert(MAIN_RETURN_NAME.to_owned(), return_value.clone());
-            format.serialize(&input_map)?
+            format.serialize(&input_map, abi)?
         }
         // If no return value exists, then we can serialize the original map directly.
-        None => format.serialize(input_map)?,
+        None => format.serialize(input_map, abi)?,
     };
 
     write_to_file(serialized_output.as_bytes(), &file_path);
@@ -69,6 +70,7 @@ mod tests {
     use std::{collections::BTreeMap, vec};
 
     use acvm::FieldElement;
+    use nargo::constants::VERIFIER_INPUT_FILE;
     use noirc_abi::{
         input_parser::{Format, InputValue},
         Abi, AbiParameter, AbiType, AbiVisibility,
@@ -76,7 +78,6 @@ mod tests {
     use tempdir::TempDir;
 
     use super::{read_inputs_from_file, write_inputs_to_file};
-    use crate::constants::VERIFIER_INPUT_FILE;
 
     #[test]
     fn write_and_read_recovers_inputs_and_return_value() {
@@ -113,6 +114,7 @@ mod tests {
         write_inputs_to_file(
             &input_map,
             &return_value,
+            &abi,
             &input_dir,
             VERIFIER_INPUT_FILE,
             Format::Toml,

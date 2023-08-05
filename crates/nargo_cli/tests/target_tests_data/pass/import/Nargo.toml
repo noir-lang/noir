@@ -1,4 +1,6 @@
 [package]
+name = "pass_import"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

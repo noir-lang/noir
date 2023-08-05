@@ -1,4 +1,6 @@
 [package]
+name = "struct_fields_ordering"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

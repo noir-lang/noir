@@ -1,5 +1,7 @@
 [package]
-name = "ECDSA secp256k1 verification"
+name = "ecdsa_secp256k1"
+description = "ECDSA secp256k1 verification"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

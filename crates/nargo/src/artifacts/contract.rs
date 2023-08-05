@@ -28,6 +28,8 @@ pub struct PreprocessedContractFunction {
 
     pub function_type: ContractFunctionType,
 
+    pub is_internal: bool,
+
     pub abi: Abi,
 
     #[serde(
@@ -36,6 +38,6 @@ pub struct PreprocessedContractFunction {
     )]
     pub bytecode: Circuit,
 
-    pub proving_key: Vec<u8>,
-    pub verification_key: Vec<u8>,
+    pub proving_key: Option<Vec<u8>>,
+    pub verification_key: Option<Vec<u8>>,
 }

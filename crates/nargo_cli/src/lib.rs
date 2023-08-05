@@ -7,21 +7,26 @@
 //! This name was used because it sounds like `cargo` and
 //! Noir Package Manager abbreviated is npm, which is already taken.
 
-use noirc_frontend::graph::CrateType;
+use fm::FileManager;
+use nargo::package::{Dependency, Package};
+use noirc_driver::{add_dep, prepare_crate};
+use noirc_frontend::{
+    graph::{CrateGraph, CrateId, CrateName},
+    hir::Context,
+};
 use std::{
+    collections::BTreeMap,
     fs::ReadDir,
     path::{Path, PathBuf},
 };
 
+use errors::ManifestError;
+
 mod backends;
 pub mod cli;
-mod constants;
 mod errors;
 mod git;
 mod manifest;
-mod resolver;
-
-use nargo::manifest::InvalidPackageError;
 
 fn nargo_crates() -> PathBuf {
     dirs::home_dir().unwrap().join("nargo")
@@ -30,7 +35,7 @@ fn nargo_crates() -> PathBuf {
 /// Returns the path of the root directory of the package containing `current_path`.
 ///
 /// Returns a `CliError` if no parent directories of `current_path` contain a manifest file.
-fn find_package_root(current_path: &Path) -> Result<PathBuf, InvalidPackageError> {
+fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
     let manifest_path = find_package_manifest(current_path)?;
 
     let package_root =
@@ -42,27 +47,11 @@ fn find_package_root(current_path: &Path) -> Result<PathBuf, InvalidPackageError
 /// Returns the path of the manifest file (`Nargo.toml`) of the package containing `current_path`.
 ///
 /// Returns a `CliError` if no parent directories of `current_path` contain a manifest file.
-fn find_package_manifest(current_path: &Path) -> Result<PathBuf, InvalidPackageError> {
+fn find_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> {
     current_path
         .ancestors()
         .find_map(|dir| find_file(dir, "Nargo", "toml"))
-        .ok_or_else(|| InvalidPackageError::MissingManifestFile(current_path.to_path_buf()))
-}
-
-fn lib_or_bin(current_path: &Path) -> Result<(PathBuf, CrateType), InvalidPackageError> {
-    // A library has a lib.nr and a binary has a main.nr
-    // You cannot have both.
-    let src_path = find_dir(current_path, "src")
-        .ok_or_else(|| InvalidPackageError::NoSourceDir(current_path.to_path_buf()))?;
-
-    let lib_nr_path = find_file(&src_path, "lib", "nr");
-    let bin_nr_path = find_file(&src_path, "main", "nr");
-    match (lib_nr_path, bin_nr_path) {
-        (Some(_), Some(_)) => Err(InvalidPackageError::ContainsMultipleCrates),
-        (None, Some(path)) => Ok((path, CrateType::Binary)),
-        (Some(path), None) => Ok((path, CrateType::Library)),
-        (None, None) => Err(InvalidPackageError::ContainsZeroCrates),
-    }
+        .ok_or_else(|| ManifestError::MissingFile(current_path.to_path_buf()))
 }
 
 // Looks for file named `file_name` in path
@@ -71,12 +60,6 @@ fn find_file<P: AsRef<Path>>(path: P, file_name: &str, extension: &str) -> Optio
     let file_name = format!("{file_name}.{extension}");
 
     find_artifact(entries, &file_name)
-}
-
-// Looks for directory named `dir_name` in path
-fn find_dir<P: AsRef<Path>>(path: P, dir_name: &str) -> Option<PathBuf> {
-    let entries = list_files_and_folders_in(path)?;
-    find_artifact(entries, dir_name)
 }
 
 // There is no distinction between files and folders
@@ -91,4 +74,32 @@ fn find_artifact(entries: ReadDir, artifact_name: &str) -> Option<PathBuf> {
 
 fn list_files_and_folders_in<P: AsRef<Path>>(path: P) -> Option<ReadDir> {
     std::fs::read_dir(path).ok()
+}
+
+fn prepare_dependencies(
+    context: &mut Context,
+    parent_crate: CrateId,
+    dependencies: &BTreeMap<CrateName, Dependency>,
+) {
+    for (dep_name, dep) in dependencies.iter() {
+        match dep {
+            Dependency::Remote { package } | Dependency::Local { package } => {
+                let crate_id = prepare_crate(context, &package.entry_path);
+                add_dep(context, parent_crate, crate_id, dep_name.clone());
+                prepare_dependencies(context, crate_id, &package.dependencies);
+            }
+        }
+    }
+}
+
+fn prepare_package(package: &Package) -> (Context, CrateId) {
+    let fm = FileManager::new(&package.root_dir);
+    let graph = CrateGraph::default();
+    let mut context = Context::new(fm, graph);
+
+    let crate_id = prepare_crate(&mut context, &package.entry_path);
+
+    prepare_dependencies(&mut context, crate_id, &package.dependencies);
+
+    (context, crate_id)
 }

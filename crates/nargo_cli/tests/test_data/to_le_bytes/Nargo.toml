@@ -1,4 +1,6 @@
 [package]
+name = "to_le_bytes"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 
