@@ -127,7 +127,7 @@ impl Ssa {
                     Vec::with_capacity(generated_acir.return_witnesses.len());
 
                 for mut return_witness in generated_acir.return_witnesses.clone() {
-                    // If witness has aleady been used then create a new one
+                    // If witness has already been used then create a new one
                     // to guarantee that the return witnesses are distinct
                     if distinct_return_witness.contains(&return_witness) {
                         return_witness = generated_acir
