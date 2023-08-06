@@ -1008,7 +1008,7 @@ impl AcirContext {
                     self.brillig_constant_array_output(
                         element_types,
                         *size,
-                        &mut memory.iter().skip(mem_ptr).copied(),
+                        &mut memory.iter().skip(mem_ptr),
                     )
                 }
             }
@@ -1018,11 +1018,11 @@ impl AcirContext {
     }
 
     /// Recursively create [`AcirValue`]s for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    fn brillig_constant_array_output(
+    fn brillig_constant_array_output<'a>(
         &mut self,
         element_types: &[AcirType],
         size: usize,
-        memory_iter: &mut impl Iterator<Item = Value>,
+        memory_iter: &mut impl Iterator<Item = &'a Value>,
     ) -> AcirValue {
         let mut array_values = im::Vector::new();
         for _ in 0..size {
