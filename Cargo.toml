@@ -57,4 +57,5 @@ wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
 
 [patch.crates-io]
-async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09ccde114333a71349885e156c896a39480c750f" }
+# We need to use a patched version of async-lsp to use unreleased fixes for Windows (see #2168)
+async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "0bfc8e4c4a3d875b073a0db3bd7d3710835a5465" }

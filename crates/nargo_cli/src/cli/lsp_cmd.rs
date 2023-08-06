@@ -54,6 +54,6 @@ pub(crate) fn run<B: Backend>(
             tokio_util::compat::TokioAsyncWriteCompatExt::compat_write(tokio::io::stdout()),
         );
 
-        server.run_bufferred(stdin, stdout).await.map_err(CliError::LspError)
+        server.run_buffered(stdin, stdout).await.map_err(CliError::LspError)
     })
 }

@@ -358,7 +358,7 @@ dependencies = [
 [[package]]
 name = "async-lsp"
 version = "0.0.4"
-source = "git+https://github.com/oxalica/async-lsp?rev=09ccde114333a71349885e156c896a39480c750f#09ccde114333a71349885e156c896a39480c750f"
+source = "git+https://github.com/oxalica/async-lsp?rev=0bfc8e4c4a3d875b073a0db3bd7d3710835a5465#0bfc8e4c4a3d875b073a0db3bd7d3710835a5465"
 dependencies = [
  "futures",
  "lsp-types 0.94.0",
