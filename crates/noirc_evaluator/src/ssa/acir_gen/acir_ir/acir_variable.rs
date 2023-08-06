@@ -1004,8 +1004,12 @@ impl AcirContext {
                     AcirValue::Var(var, output.clone())
                 }
                 AcirType::Array(element_types, size) => {
-                    let mut mem_ptr = register_value.to_usize();
-                    self.brillig_constant_array_output(element_types, *size, &memory, &mut mem_ptr)
+                    let mem_ptr = register_value.to_usize();
+                    self.brillig_constant_array_output(
+                        element_types,
+                        *size,
+                        &mut memory.iter().skip(mem_ptr).copied(),
+                    )
                 }
             }
         });
@@ -1018,8 +1022,7 @@ impl AcirContext {
         &mut self,
         element_types: &[AcirType],
         size: usize,
-        memory: &[Value],
-        mem_ptr: &mut usize,
+        memory_iter: &mut impl Iterator<Item = Value>,
     ) -> AcirValue {
         let mut array_values = im::Vector::new();
         for _ in 0..size {
@@ -1029,17 +1032,15 @@ impl AcirContext {
                         let nested_acir_value = self.brillig_constant_array_output(
                             nested_element_types,
                             *nested_size,
-                            memory,
-                            mem_ptr,
+                            memory_iter,
                         );
                         array_values.push_back(nested_acir_value);
                     }
                     AcirType::NumericType(_) => {
-                        let var = self.add_data(AcirVarData::Const(memory[*mem_ptr].to_field()));
+                        let memory_value =
+                            memory_iter.next().expect("ICE: Unexpected end of memory");
+                        let var = self.add_data(AcirVarData::Const(memory_value.to_field()));
                         array_values.push_back(AcirValue::Var(var, element_type.clone()));
-
-                        // Advance pointer
-                        *mem_ptr += 1;
                     }
                 }
             }
