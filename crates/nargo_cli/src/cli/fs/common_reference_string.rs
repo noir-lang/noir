@@ -28,9 +28,9 @@ pub(crate) fn read_cached_common_reference_string() -> Vec<u8> {
 
 pub(crate) fn update_common_reference_string<B: CommonReferenceString>(
     backend: &B,
-    common_reference_string: &[u8],
+    mut common_reference_string: Vec<u8>,
     circuit: &Circuit,
-) -> Result<Vec<u8>, B::Error> {
+) -> Result<(), B::Error> {
     use tokio::runtime::Builder;
 
     let runtime = Builder::new_current_thread().enable_all().build().unwrap();
@@ -43,7 +43,10 @@ pub(crate) fn update_common_reference_string<B: CommonReferenceString>(
         backend.update_common_reference_string(common_reference_string.to_vec(), circuit)
     };
 
-    runtime.block_on(fut)
+    runtime.block_on(async {
+        common_reference_string = fut.await?;
+        Ok(())
+    })
 }
 
 pub(crate) fn write_cached_common_reference_string(common_reference_string: &[u8]) {

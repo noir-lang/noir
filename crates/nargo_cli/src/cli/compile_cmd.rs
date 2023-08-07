@@ -1,9 +1,7 @@
-use acvm::acir::circuit::OpcodeLabel;
-use acvm::{acir::circuit::Circuit, Backend};
-use iter_extended::try_vecmap;
-use iter_extended::vecmap;
+use acvm::Backend;
+use nargo::ops::PreprocessedProgram;
+use nargo::ops::{optimize_program, preprocess_function, OptimizedProgram};
 use nargo::package::Package;
-use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use noirc_driver::{
     compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
 };
@@ -11,8 +9,6 @@ use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
 
 use clap::Args;
-
-use nargo::ops::{preprocess_contract_function, preprocess_program};
 
 use crate::errors::{CliError, CompileError};
 use crate::manifest::resolve_workspace_from_toml;
@@ -23,7 +19,7 @@ use super::fs::{
         read_cached_common_reference_string, update_common_reference_string,
         write_cached_common_reference_string,
     },
-    program::{save_contract_to_file, save_program_to_file},
+    program::save_program_to_file,
 };
 use super::NargoConfig;
 
@@ -65,58 +61,43 @@ pub(crate) fn run<B: Backend>(
         for package in &workspace {
             let (mut context, crate_id) = prepare_package(package);
             let result = compile_contracts(&mut context, crate_id, &args.compile_options);
-            let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
+            let compiled_program =
+                report_errors(result, &context, args.compile_options.deny_warnings)?;
 
-            // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
-            // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
-            // are compiled via nargo-core and then the PreprocessedContract is constructed here.
-            // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
-            let preprocessed_contracts: Result<Vec<PreprocessedContract>, CliError<B>> =
-                try_vecmap(contracts, |contract| {
-                    let preprocessed_contract_functions =
-                        try_vecmap(contract.functions, |mut func| {
-                            func.bytecode = optimize_circuit(backend, func.bytecode)?.0;
-                            common_reference_string = update_common_reference_string(
-                                backend,
-                                &common_reference_string,
-                                &func.bytecode,
-                            )
-                            .map_err(CliError::CommonReferenceStringError)?;
+            let optimized_program = optimize_program(backend, compiled_program)?;
 
-                            preprocess_contract_function(
-                                backend,
-                                args.include_keys,
-                                &common_reference_string,
-                                func,
-                            )
-                            .map_err(CliError::ProofSystemCompilerError)
-                        })?;
+            let preprocessed_program = preprocess_program(
+                backend,
+                common_reference_string,
+                optimized_program,
+                args.include_keys,
+            )?;
 
-                    Ok(PreprocessedContract {
-                        name: contract.name,
-                        backend: String::from(BACKEND_IDENTIFIER),
-                        functions: preprocessed_contract_functions,
-                    })
-                });
-            for contract in preprocessed_contracts? {
-                save_contract_to_file(
-                    &contract,
-                    &format!("{}-{}", package.name, contract.name),
-                    &circuit_dir,
-                );
-            }
+            save_program_to_file(
+                &preprocessed_program,
+                &format!(
+                    "{}_{}",
+                    package.name,
+                    // TODO: Turn into proper error
+                    compiled_program.name.expect("Contract needs a name")
+                )
+                .parse()
+                .expect("Valid crate name"),
+                &circuit_dir,
+            );
         }
     } else {
         for package in &workspace {
-            let (_, program) = compile_package(backend, package, &args.compile_options)?;
+            let (_, compiled_program) = compile_package(backend, package, &args.compile_options)?;
+            let optimized_program = optimize_program(backend, compiled_program)?;
 
-            common_reference_string =
-                update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                    .map_err(CliError::CommonReferenceStringError)?;
+            let preprocessed_program = preprocess_program(
+                backend,
+                common_reference_string,
+                optimized_program,
+                args.include_keys,
+            )?;
 
-            let (preprocessed_program, _) =
-                preprocess_program(backend, args.include_keys, &common_reference_string, program)
-                    .map_err(CliError::ProofSystemCompilerError)?;
             save_program_to_file(&preprocessed_program, &package.name, &circuit_dir);
         }
     }
@@ -138,34 +119,8 @@ pub(crate) fn compile_package<B: Backend>(
     let (mut context, crate_id) = prepare_package(package);
     let result = compile_main(&mut context, crate_id, compile_options);
     let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
-    // Apply backend specific optimizations.
-    let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit)
-        .expect("Backend does not support an opcode that is in the IR");
-
-    // TODO(#2110): Why does this set `program.circuit` to `optimized_circuit` instead of the function taking ownership
-    // and requiring we use `optimized_circuit` everywhere after
-    program.circuit = optimized_circuit;
-    let opcode_ids = vecmap(opcode_labels, |label| match label {
-        OpcodeLabel::Unresolved => {
-            unreachable!("Compiled circuit opcodes must resolve to some index")
-        }
-        OpcodeLabel::Resolved(index) => index as usize,
-    });
-    program.debug.update_acir(opcode_ids);
 
     Ok((context, program))
-}
-
-pub(super) fn optimize_circuit<B: Backend>(
-    backend: &B,
-    circuit: Circuit,
-) -> Result<(Circuit, Vec<OpcodeLabel>), CliError<B>> {
-    let result = acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
-        backend.supports_opcode(opcode)
-    })
-    .map_err(|_| NargoError::CompilationError)?;
-
-    Ok(result)
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
@@ -181,4 +136,34 @@ pub(crate) fn report_errors<T>(
 
     noirc_errors::reporter::report_all(&context.file_manager, &warnings, deny_warnings);
     Ok(t)
+}
+
+pub(crate) fn preprocess_program<B: Backend>(
+    backend: &B,
+    // TODO: This will become more streamlined when backends control their CRS. Then, we can move it into nargo-core
+    mut common_reference_string: Vec<u8>,
+    // Takes ownership so you don't use an optimized program after it has been preprocessed
+    program: OptimizedProgram,
+    // TODO: This will be removed when we always generate pkey and vkey everytime we preprocess
+    include_keys: bool,
+) -> Result<PreprocessedProgram, CliError<B>> {
+    let mut preprocessed_functions = Vec::new();
+    for func in program.functions {
+        update_common_reference_string(backend, common_reference_string, &func.bytecode)
+            .map_err(CliError::CommonReferenceStringError)?;
+
+        let preprocessed_func =
+            preprocess_function(backend, include_keys, &common_reference_string, func)
+                .map_err(CliError::ProofSystemCompilerError)?;
+
+        preprocessed_functions.push(preprocessed_func);
+    }
+
+    let preprocessed_program = PreprocessedProgram {
+        name: program.name,
+        backend: String::from(BACKEND_IDENTIFIER),
+        functions: preprocessed_functions,
+    };
+
+    Ok(preprocessed_program)
 }

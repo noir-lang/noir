@@ -7,7 +7,7 @@ pub mod type_check;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner};
-use def_map::{Contract, CrateDefMap};
+use def_map::CrateDefMap;
 use fm::FileManager;
 use std::collections::HashMap;
 
@@ -103,7 +103,7 @@ impl Context {
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain
-    pub fn get_all_contracts(&self, crate_id: &CrateId) -> Vec<Contract> {
+    pub fn get_all_contracts(&self, crate_id: &CrateId) -> Option<(String, Vec<FuncId>)> {
         self.def_map(crate_id)
             .expect("The local crate should be analyzed already")
             .get_all_contracts()

@@ -3,24 +3,26 @@
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+use acvm::acir::circuit::Circuit;
 use clap::Args;
 use fm::FileId;
-use noirc_abi::FunctionSignature;
+use noirc_abi::{Abi, FunctionSignature};
+use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName};
-use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
+use noirc_frontend::hir::def_map::CrateDefMap;
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
 use noirc_frontend::node_interner::FuncId;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-mod contract;
 mod program;
 
-pub use contract::{CompiledContract, ContractFunction, ContractFunctionType};
+pub use program::CompiledFunction;
 pub use program::CompiledProgram;
+pub use program::FunctionType;
 
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
@@ -147,7 +149,7 @@ pub fn compile_main(
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
     let warnings = check_crate(context, crate_id, options.deny_warnings)?;
 
-    let main = match context.get_main_function(&crate_id) {
+    let main_func_id = match context.get_main_function(&crate_id) {
         Some(m) => m,
         None => {
             // TODO(#2155): This error might be a better to exist in Nargo
@@ -161,12 +163,14 @@ pub fn compile_main(
         }
     };
 
-    let compiled_program = compile_no_check(context, options, main)?;
+    let compiled_function = compile_function(context, &main_func_id, options)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
-        println!("{}", compiled_program.circuit);
+        println!("{}", compiled_function.bytecode);
     }
+
+    let compiled_program = CompiledProgram { name: None, functions: vec![compiled_function] };
 
     Ok((compiled_program, warnings))
 }
@@ -176,17 +180,18 @@ pub fn compile_contracts(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
-) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
+) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
     let warnings = check_crate(context, crate_id, options.deny_warnings)?;
 
-    let contracts = context.get_all_contracts(&crate_id);
-    let mut compiled_contracts = vec![];
+    // TODO: surface this error
+    let (contract_name, funcs) = context.get_all_contracts(&crate_id).expect("Not a contract");
+    let mut compiled_functions = vec![];
     let mut errors = warnings;
 
-    for contract in contracts {
-        match compile_contract(context, contract, options) {
-            Ok(contract) => compiled_contracts.push(contract),
-            Err(mut more_errors) => errors.append(&mut more_errors),
+    for func_id in &funcs {
+        match compile_function(context, func_id, options) {
+            Ok(contract) => compiled_functions.push(contract),
+            Err(err) => errors.push(err),
         }
     }
 
@@ -194,18 +199,18 @@ pub fn compile_contracts(
         Err(errors)
     } else {
         if options.print_acir {
-            for compiled_contract in &compiled_contracts {
-                for contract_function in &compiled_contract.functions {
-                    println!(
-                        "Compiled ACIR for {}::{} (unoptimized):",
-                        compiled_contract.name, contract_function.name
-                    );
-                    println!("{}", contract_function.bytecode);
-                }
+            for compiled_function in &compiled_functions {
+                println!(
+                    "Compiled ACIR for {}::{} (unoptimized):",
+                    compiled_function.name, contract_name
+                );
+                println!("{}", compiled_function.bytecode);
             }
         }
+        let compiled_program =
+            CompiledProgram { name: Some(contract_name), functions: compiled_functions };
         // errors here is either empty or contains only warnings
-        Ok((compiled_contracts, errors))
+        Ok((compiled_program, errors))
     }
 }
 
@@ -218,44 +223,31 @@ fn has_errors(errors: &[FileDiagnostic], deny_warnings: bool) -> bool {
     }
 }
 
-/// Compile all of the functions associated with a Noir contract.
-fn compile_contract(
+fn compile_function(
     context: &Context,
-    contract: Contract,
+    func_id: &FuncId,
     options: &CompileOptions,
-) -> Result<CompiledContract, Vec<FileDiagnostic>> {
-    let mut functions = Vec::new();
-    let mut errs = Vec::new();
-    for function_id in &contract.functions {
-        let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, options, *function_id) {
-            Ok(function) => function,
-            Err(err) => {
-                errs.push(err);
-                continue;
-            }
-        };
-        let func_meta = context.def_interner.function_meta(function_id);
-        let func_type = func_meta
-            .contract_function_type
-            .expect("Expected contract function to have a contract visibility");
+) -> Result<CompiledFunction, FileDiagnostic> {
+    let name = context.function_name(func_id).to_owned();
+    let (bytecode, debug, abi) = match compile_no_check(context, options, *func_id) {
+        Ok(function) => function,
+        Err(err) => return Err(err),
+    };
+    let func_meta = context.def_interner.function_meta(func_id);
+    let func_type = func_meta
+        .contract_function_type
+        .expect("Expected contract function to have a contract visibility");
 
-        let function_type = ContractFunctionType::new(func_type, func_meta.is_unconstrained);
+    let function_type = FunctionType::new(func_type, func_meta.is_unconstrained);
 
-        functions.push(ContractFunction {
-            name,
-            function_type,
-            is_internal: func_meta.is_internal.unwrap_or(false),
-            abi: function.abi,
-            bytecode: function.circuit,
-        });
-    }
-
-    if errs.is_empty() {
-        Ok(CompiledContract { name: contract.name, functions })
-    } else {
-        Err(errs)
-    }
+    Ok(CompiledFunction {
+        name,
+        function_type,
+        is_internal: func_meta.is_internal.unwrap_or(false),
+        abi,
+        bytecode,
+        debug,
+    })
 }
 
 /// Compile the current crate. Assumes self.check_crate is called beforehand!
@@ -267,10 +259,10 @@ pub fn compile_no_check(
     context: &Context,
     options: &CompileOptions,
     main_function: FuncId,
-) -> Result<CompiledProgram, FileDiagnostic> {
+) -> Result<(Circuit, DebugInfo, Abi), FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let (circuit, debug, abi) = create_circuit(program, options.show_ssa, options.show_brillig)?;
 
-    Ok(CompiledProgram { circuit, debug, abi })
+    Ok((circuit, debug, abi))
 }

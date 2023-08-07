@@ -3,8 +3,8 @@ use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use log::debug;
 use noirc_driver::{
-    check_crate, compile_contracts, compile_no_check, prepare_crate, propagate_dep, CompileOptions,
-    CompiledContract,
+    check_crate, compile_contracts, compile_main, prepare_crate, propagate_dep, CompileOptions,
+    CompiledProgram,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
 use serde::{Deserialize, Serialize};
@@ -93,28 +93,26 @@ pub fn compile(args: JsValue) -> JsValue {
     check_crate(&mut context, crate_id, false).expect("Crate check failed");
 
     if options.contracts {
-        let compiled_contracts =
-            compile_contracts(&mut context, crate_id, &options.compile_options)
-                .expect("Contract compilation failed")
-                .0;
+        let compiled_program = compile_contracts(&mut context, crate_id, &options.compile_options)
+            .expect("Contract compilation failed")
+            .0;
 
-        let optimized_contracts: Vec<CompiledContract> =
-            compiled_contracts.into_iter().map(optimize_contract).collect();
+        let optimized_program = optimize_program(compiled_program);
 
-        <JsValue as JsValueSerdeExt>::from_serde(&optimized_contracts).unwrap()
+        <JsValue as JsValueSerdeExt>::from_serde(&optimized_program).unwrap()
     } else {
-        let main = context.get_main_function(&crate_id).expect("Could not find main function!");
-        let mut compiled_program =
-            compile_no_check(&context, &options.compile_options, main).expect("Compilation failed");
+        let compiled_program = compile_main(&mut context, crate_id, &options.compile_options)
+            .expect("Compilation failed")
+            .0;
 
-        compiled_program.circuit = optimize_circuit(compiled_program.circuit);
+        let optimized_program = optimize_program(compiled_program);
 
-        <JsValue as JsValueSerdeExt>::from_serde(&compiled_program).unwrap()
+        <JsValue as JsValueSerdeExt>::from_serde(&optimized_program).unwrap()
     }
 }
 
-fn optimize_contract(contract: CompiledContract) -> CompiledContract {
-    CompiledContract {
+fn optimize_program(contract: CompiledProgram) -> CompiledProgram {
+    CompiledProgram {
         name: contract.name,
         functions: contract
             .functions

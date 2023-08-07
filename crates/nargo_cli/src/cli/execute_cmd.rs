@@ -3,6 +3,7 @@ use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
+use nargo::ops::{execute_function, optimize_program, SolvedFunction};
 use nargo::package::Package;
 use nargo::NargoError;
 use noirc_abi::input_parser::{Format, InputValue};
@@ -47,17 +48,19 @@ pub(crate) fn run<B: Backend>(
     let witness_dir = &workspace.target_directory_path();
 
     for package in &workspace {
-        let (return_value, solved_witness) =
+        let solved_functions =
             execute_package(backend, package, &args.prover_name, &args.compile_options)?;
 
-        println!("[{}] Circuit witness successfully solved", package.name);
-        if let Some(return_value) = return_value {
-            println!("[{}] Circuit output: {return_value:?}", package.name);
-        }
-        if let Some(witness_name) = &args.witness_name {
-            let witness_path = save_witness_to_dir(solved_witness, witness_name, witness_dir)?;
+        for func in solved_functions {
+            println!("[{}] Circuit witness successfully solved", package.name);
+            if let Some(return_value) = func.return_value {
+                println!("[{}] Circuit output: {return_value:?}", package.name);
+            }
+            if let Some(witness_name) = &args.witness_name {
+                let witness_path = save_witness_to_dir(func.witness, witness_name, witness_dir)?;
 
-            println!("[{}] Witness saved to {}", package.name, witness_path.display());
+                println!("[{}] Witness saved to {}", package.name, witness_path.display());
+            }
         }
     }
     Ok(())
@@ -68,79 +71,43 @@ fn execute_package<B: Backend>(
     package: &Package,
     prover_name: &str,
     compile_options: &CompileOptions,
-) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
+) -> Result<Vec<SolvedFunction>, CliError<B>> {
     let (context, compiled_program) = compile_package(backend, package, compile_options)?;
-    let CompiledProgram { abi, circuit, debug } = compiled_program;
+    let optimized_program = optimize_program(backend, compiled_program)?;
 
-    // Parse the initial witness values from Prover.toml
-    let (inputs_map, _) =
-        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
+    let mut solved_functions = Vec::new();
+    for func in optimized_program.functions {
+        // Parse the initial witness values from Prover.toml
+        let (inputs_map, _) =
+            read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &func.abi)?;
 
-    let solved_witness =
-        execute_program(backend, circuit, &abi, &inputs_map, Some((debug, context)))?;
-    let public_abi = abi.public_abi();
-    let (_, return_value) = public_abi.decode(&solved_witness)?;
-
-    Ok((return_value, solved_witness))
-}
-
-fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Option<usize> {
-    let solving_err = match nargo_err {
-        nargo::NargoError::SolvingError(err) => err,
-        _ => return None,
-    };
-
-    match solving_err {
-        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { opcode_label } => {
-            match opcode_label {
-                OpcodeLabel::Unresolved => {
-                    unreachable!("Cannot resolve index for unsatisfied constraint")
-                }
-                OpcodeLabel::Resolved(opcode_index) => Some(*opcode_index as usize),
+        let solved_func = match execute_function(backend, func, inputs_map) {
+            Err(err @ NargoError::UnsatisfiedConstraint(opcode_idx)) => {
+                // TODO: This should resolve to a ReportedErrors error type
+                report_unsatisfied_constraint_error(opcode_idx, &func.debug, &context);
+                return Err(err.into());
             }
-        }
-        _ => None,
+            Err(err) => return Err(err.into()),
+            Ok(func) => func,
+        };
+
+        solved_functions.push(solved_func);
     }
-}
-fn report_unsatisfied_constraint_error(
-    opcode_idx: Option<usize>,
-    debug: &DebugInfo,
-    context: &Context,
-) {
-    if let Some(opcode_index) = opcode_idx {
-        if let Some(loc) = debug.opcode_location(opcode_index) {
-            noirc_errors::reporter::report(
-                &context.file_manager,
-                &CustomDiagnostic::simple_error(
-                    "Unsatisfied constraint".to_string(),
-                    "Constraint failed".to_string(),
-                    loc.span,
-                ),
-                Some(loc.file),
-                false,
-            );
-        }
-    }
+
+    Ok(solved_functions)
 }
 
-pub(crate) fn execute_program<B: Backend>(
-    backend: &B,
-    circuit: Circuit,
-    abi: &Abi,
-    inputs_map: &InputMap,
-    debug_data: Option<(DebugInfo, Context)>,
-) -> Result<WitnessMap, CliError<B>> {
-    let initial_witness = abi.encode(inputs_map, None)?;
-    let solved_witness_err = nargo::ops::execute_circuit(backend, circuit, initial_witness, true);
-    match solved_witness_err {
-        Ok(solved_witness) => Ok(solved_witness),
-        Err(err) => {
-            if let Some((debug, context)) = debug_data {
-                let opcode_idx = extract_unsatisfied_constraint_from_nargo_error(&err);
-                report_unsatisfied_constraint_error(opcode_idx, &debug, &context);
-            }
-
-            Err(crate::errors::CliError::NargoError(err))
-        }
+fn report_unsatisfied_constraint_error(opcode_idx: usize, debug: &DebugInfo, context: &Context) {
+    if let Some(loc) = debug.opcode_location(opcode_idx) {
+        noirc_errors::reporter::report(
+            &context.file_manager,
+            &CustomDiagnostic::simple_error(
+                "Unsatisfied constraint".to_string(),
+                "Constraint failed".to_string(),
+                loc.span,
+            ),
+            Some(loc.file),
+            false,
+        );
     }
 }

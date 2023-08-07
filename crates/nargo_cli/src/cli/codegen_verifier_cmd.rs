@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::compile_cmd::preprocess_program;
 use super::NargoConfig;
 use super::{
     compile_cmd::compile_package,
@@ -17,10 +18,8 @@ use crate::errors::CliError;
 use crate::{find_package_manifest, manifest::resolve_workspace_from_toml};
 use acvm::Backend;
 use clap::Args;
-use nargo::{
-    ops::{codegen_verifier, preprocess_program},
-    package::Package,
-};
+use nargo::ops::optimize_program;
+use nargo::{ops::codegen_verifier, package::Package};
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 
@@ -70,33 +69,36 @@ fn smart_contract_for_package<B: Backend>(
     circuit_build_path: PathBuf,
     compile_options: &CompileOptions,
 ) -> Result<String, CliError<B>> {
-    let common_reference_string = read_cached_common_reference_string();
+    let mut common_reference_string = read_cached_common_reference_string();
     let (common_reference_string, preprocessed_program) = if circuit_build_path.exists() {
         let program = read_program_from_file(circuit_build_path)?;
-        let common_reference_string =
-            update_common_reference_string(backend, &common_reference_string, &program.bytecode)
+        // TODO: This will go away when backends manage their own CRS.
+        for func in program.functions {
+            update_common_reference_string(backend, common_reference_string, &func.bytecode)
                 .map_err(CliError::CommonReferenceStringError)?;
+        }
         (common_reference_string, program)
     } else {
-        let (_, program) = compile_package(backend, package, compile_options)?;
-        let common_reference_string =
-            update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                .map_err(CliError::CommonReferenceStringError)?;
-        let (program, _) = preprocess_program(backend, true, &common_reference_string, program)
-            .map_err(CliError::ProofSystemCompilerError)?;
-        (common_reference_string, program)
+        let (_, compiled_program) = compile_package(backend, package, compile_options)?;
+        let optimized_program = optimize_program(backend, compiled_program)?;
+        let preprocessed_program =
+            preprocess_program(backend, common_reference_string, optimized_program, true)?;
+        (common_reference_string, preprocessed_program)
     };
 
-    let verification_key = preprocessed_program
+    // TODO: Should this be made to work with contracts? If not, it needs to bubble a proper error message.
+    if preprocessed_program.functions.len() != 1 {
+        panic!("Solidity verifier generation can only be used on packages with a single function")
+    }
+
+    let func = preprocessed_program.functions[0];
+
+    let verification_key = func
         .verification_key
         .expect("Verification key should exist as `true` is passed to `preprocess_program`");
-    let smart_contract_string = codegen_verifier(
-        backend,
-        &common_reference_string,
-        &preprocessed_program.bytecode,
-        &verification_key,
-    )
-    .map_err(CliError::SmartContractError)?;
+    let smart_contract_string =
+        codegen_verifier(backend, &common_reference_string, &func.bytecode, &verification_key)
+            .map_err(CliError::SmartContractError)?;
 
     write_cached_common_reference_string(&common_reference_string);
 

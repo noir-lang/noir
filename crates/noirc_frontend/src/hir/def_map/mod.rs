@@ -145,20 +145,15 @@ impl CrateDefMap {
 
     /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
     /// and collect them all into a Vec.
-    pub fn get_all_contracts(&self) -> Vec<Contract> {
-        self.modules
-            .iter()
-            .filter_map(|(id, module)| {
-                if module.is_contract {
-                    let functions =
-                        module.value_definitions().filter_map(|id| id.as_function()).collect();
-                    let name = self.get_module_path(id, module.parent);
-                    Some(Contract { name, functions })
-                } else {
-                    None
-                }
-            })
-            .collect()
+    pub fn get_all_contracts(&self) -> Option<(String, Vec<FuncId>)> {
+        let contract = self.modules.iter().find(|(_, module)| module.is_contract);
+        if let Some((id, module)) = contract {
+            let name = self.get_module_path(id, module.parent);
+            let funcs = module.value_definitions().filter_map(|id| id.as_function()).collect();
+            Some((name, funcs))
+        } else {
+            None
+        }
     }
 
     /// Find a child module's name by inspecting its parent.
@@ -192,14 +187,6 @@ impl CrateDefMap {
             String::new()
         }
     }
-}
-
-/// A 'contract' in Noir source code with the given name and functions.
-/// This is not an AST node, it is just a convenient form to return for CrateDefMap::get_all_contracts.
-pub struct Contract {
-    /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
-    pub name: String,
-    pub functions: Vec<FuncId>,
 }
 
 /// Given a FileId, fetch the File, from the FileManager and parse it's content

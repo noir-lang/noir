@@ -14,6 +14,9 @@ pub enum NargoError {
 
     #[error(transparent)]
     ForeignCallError(#[from] ForeignCallError),
+
+    #[error("Unsatisified constraint at index {0}")]
+    UnsatisfiedConstraint(usize),
 }
 
 #[derive(Debug, Error)]
