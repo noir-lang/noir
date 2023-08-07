@@ -1,16 +1,16 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { RpcServerConfig, createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
 import {
-  AccountCollection,
-  AccountImplementation,
   AccountWallet,
   AztecAddress,
   Contract,
   ContractDeployer,
   DeployMethod,
+  Entrypoint,
+  EntrypointCollection,
   EthAddress,
   SentTx,
-  SingleKeyAccountContract,
+  SingleKeyAccountEntrypoint,
   Wallet,
   createAztecRpcClient as createJsonRpcClient,
   generatePublicKey,
@@ -192,7 +192,7 @@ export async function setupAztecRPCServer(
 
   const aztecRpcServer = await createRpcServer(rpcConfig, aztecNode, logger, useLogSuffix);
 
-  const accountCollection = new AccountCollection();
+  const accountCollection = new EntrypointCollection();
   const txContexts: TxContext[] = [];
 
   logger('RPC server created, deploying accounts...');
@@ -250,7 +250,7 @@ export async function setupAztecRPCServer(
     );
     accountCollection.registerAccount(
       context.deploymentData.address,
-      new SingleKeyAccountContract(
+      new SingleKeyAccountEntrypoint(
         context.deploymentData.address,
         context.deploymentData.partialAddress,
         context.privateKey,
@@ -388,7 +388,7 @@ export type CreateAccountImplFn = (
   useProperKey: boolean,
   partialAddress: PartialContractAddress,
   encryptionPrivateKey: PrivateKey,
-) => Promise<AccountImplementation>;
+) => Promise<Entrypoint>;
 
 /**
  * Creates a new account.

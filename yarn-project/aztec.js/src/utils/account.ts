@@ -4,8 +4,9 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
+import { SingleKeyAccountEntrypoint } from '../account/entrypoint/single_key_account_entrypoint.js';
 import { AccountWallet, Wallet } from '../aztec_rpc_client/wallet.js';
-import { AccountCollection, ContractDeployer, SingleKeyAccountContract, generatePublicKey } from '../index.js';
+import { ContractDeployer, EntrypointCollection, generatePublicKey } from '../index.js';
 
 /**
  * Creates an Aztec Account.
@@ -19,7 +20,7 @@ export async function createAccounts(
   numberOfAccounts = 1,
   logger = createDebugLogger('aztec:aztec.js:accounts'),
 ): Promise<Wallet> {
-  const accountImpls = new AccountCollection();
+  const accountImpls = new EntrypointCollection();
 
   for (let i = 0; i < numberOfAccounts; ++i) {
     // TODO(#662): Let the aztec rpc server generate the keypair rather than hardcoding the private key
@@ -43,7 +44,7 @@ export async function createAccounts(
     logger(`Created account ${address.toString()} with public key ${publicKey.toString()}`);
     accountImpls.registerAccount(
       address,
-      new SingleKeyAccountContract(address, deploymentInfo.partialAddress, privKey, await Schnorr.new()),
+      new SingleKeyAccountEntrypoint(address, deploymentInfo.partialAddress, privKey, await Schnorr.new()),
     );
   }
   return new AccountWallet(aztecRpcClient, accountImpls);
@@ -61,14 +62,14 @@ export async function getAccountWallet(
   privateKey: PrivateKey,
   salt: Fr,
 ) {
-  const accountCollection = new AccountCollection();
+  const accountCollection = new EntrypointCollection();
   const publicKey = await generatePublicKey(privateKey);
   const deploymentInfo = await getContractDeploymentInfo(accountContractAbi, [], salt, publicKey);
   const address = deploymentInfo.address;
 
   accountCollection.registerAccount(
     address,
-    new SingleKeyAccountContract(address, deploymentInfo.partialAddress, privateKey, await Schnorr.new()),
+    new SingleKeyAccountEntrypoint(address, deploymentInfo.partialAddress, privateKey, await Schnorr.new()),
   );
   return new AccountWallet(aztecRpcClient, accountCollection);
 }

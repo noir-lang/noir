@@ -6,16 +6,16 @@ import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types'
 
 import partition from 'lodash.partition';
 
-import EcdsaAccountContractAbi from '../abis/ecdsa_account_contract.json' assert { type: 'json' };
-import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from '../utils/defaults.js';
+import EcdsaAccountContractAbi from '../../abis/ecdsa_account_contract.json' assert { type: 'json' };
+import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from '../../utils/defaults.js';
 import { buildPayload, hashPayload } from './entrypoint_payload.js';
-import { AccountImplementation, CreateTxRequestOpts } from './index.js';
+import { CreateTxRequestOpts, Entrypoint } from './index.js';
 
 /**
  * Account contract implementation that keeps a signing public key in storage, and is retrieved on
  * every new request in order to validate the payload signature.
  */
-export class StoredKeyAccountContract implements AccountImplementation {
+export class StoredKeyAccountEntrypoint implements Entrypoint {
   private log: DebugLogger;
 
   constructor(
@@ -26,10 +26,6 @@ export class StoredKeyAccountContract implements AccountImplementation {
     private version: number = DEFAULT_VERSION,
   ) {
     this.log = createDebugLogger('aztec:client:accounts:stored_key');
-  }
-
-  getAddress(): AztecAddress {
-    return this.address;
   }
 
   async createTxExecutionRequest(

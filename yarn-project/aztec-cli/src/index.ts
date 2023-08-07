@@ -354,10 +354,7 @@ async function main() {
         accountCreationSalt,
       );
       const contract = await Contract.create(contractAddress, contractAbi, wallet);
-      const origin = (await wallet.getAccounts()).find(addr => addr.equals(wallet.getAddress()));
-      const tx = contract.methods[functionName](...functionArgs).send({
-        origin,
-      });
+      const tx = contract.methods[functionName](...functionArgs).send();
       await tx.isMined();
       log('\nTX has been mined');
       const receipt = await tx.getReceipt();

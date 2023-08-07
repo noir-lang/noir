@@ -15,8 +15,9 @@ const STATEMENT_TYPES = ['type', 'params', 'return'] as const;
 const log = createConsoleLogger('aztec:noir-contracts');
 
 const PROJECT_CONTRACTS = [
-  { name: 'SchnorrSingleKeyAccount', target: '../aztec.js/src/abis/', exclude: ['bytecode', 'verificationKey'] },
-  { name: 'EcdsaAccount', target: '../aztec.js/src/abis/', exclude: ['bytecode', 'verificationKey'] },
+  { name: 'SchnorrSingleKeyAccount', target: '../aztec.js/src/abis/', exclude: [] },
+  { name: 'SchnorrMultiKeyAccount', target: '../aztec.js/src/abis/', exclude: [] },
+  { name: 'EcdsaAccount', target: '../aztec.js/src/abis/', exclude: [] },
 ];
 
 /**

@@ -14,12 +14,12 @@ import {
   TxReceipt,
 } from '@aztec/types';
 
-import { AccountImplementation, CreateTxRequestOpts } from '../account_impl/index.js';
+import { CreateTxRequestOpts, Entrypoint } from '../account/entrypoint/index.js';
 
 /**
  * The wallet interface.
  */
-export type Wallet = AccountImplementation & AztecRPC;
+export type Wallet = Entrypoint & AztecRPC;
 
 /**
  * A base class for Wallet implementations
@@ -27,7 +27,6 @@ export type Wallet = AccountImplementation & AztecRPC;
 export abstract class BaseWallet implements Wallet {
   constructor(protected readonly rpc: AztecRPC) {}
 
-  abstract getAddress(): AztecAddress;
   abstract createTxExecutionRequest(execs: FunctionCall[], opts?: CreateTxRequestOpts): Promise<TxExecutionRequest>;
 
   addAccount(privKey: PrivateKey, address: AztecAddress, partialContractAddress: Fr): Promise<AztecAddress> {
@@ -103,11 +102,8 @@ export abstract class BaseWallet implements Wallet {
  * A simple wallet implementation that forwards authentication requests to a provided account implementation.
  */
 export class AccountWallet extends BaseWallet {
-  constructor(rpc: AztecRPC, protected accountImpl: AccountImplementation) {
+  constructor(rpc: AztecRPC, protected accountImpl: Entrypoint) {
     super(rpc);
-  }
-  getAddress(): AztecAddress {
-    return this.accountImpl.getAddress();
   }
   createTxExecutionRequest(executions: FunctionCall[], opts: CreateTxRequestOpts = {}): Promise<TxExecutionRequest> {
     return this.accountImpl.createTxExecutionRequest(executions, opts);

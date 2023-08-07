@@ -12,18 +12,18 @@ import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types'
 
 import partition from 'lodash.partition';
 
-import SchnorrSingleKeyAccountContractAbi from '../abis/schnorr_single_key_account_contract.json' assert { type: 'json' };
-import { generatePublicKey } from '../index.js';
-import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from '../utils/defaults.js';
+import SchnorrSingleKeyAccountContractAbi from '../../abis/schnorr_single_key_account_contract.json' assert { type: 'json' };
+import { generatePublicKey } from '../../index.js';
+import { DEFAULT_CHAIN_ID, DEFAULT_VERSION } from '../../utils/defaults.js';
 import { buildPayload, hashPayload } from './entrypoint_payload.js';
-import { AccountImplementation, CreateTxRequestOpts } from './index.js';
+import { CreateTxRequestOpts, Entrypoint } from './index.js';
 
 /**
  * Account contract implementation that uses a single key for signing and encryption. This public key is not
  * stored in the contract, but rather verified against the contract address. Note that this approach is not
  * secure and should not be used in real use cases.
  */
-export class SingleKeyAccountContract implements AccountImplementation {
+export class SingleKeyAccountEntrypoint implements Entrypoint {
   constructor(
     private address: AztecAddress,
     private partialContractAddress: PartialContractAddress,
@@ -32,10 +32,6 @@ export class SingleKeyAccountContract implements AccountImplementation {
     private chainId: number = DEFAULT_CHAIN_ID,
     private version: number = DEFAULT_VERSION,
   ) {}
-
-  getAddress(): AztecAddress {
-    return this.address;
-  }
 
   async createTxExecutionRequest(
     executions: FunctionCall[],

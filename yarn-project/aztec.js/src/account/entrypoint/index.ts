@@ -1,9 +1,9 @@
 import { AztecAddress } from '@aztec/circuits.js';
 import { FunctionCall, TxExecutionRequest } from '@aztec/types';
 
-export * from './account_collection.js';
-export * from './single_key_account_contract.js';
-export * from './stored_key_account_contract.js';
+export * from './entrypoint_collection.js';
+export * from './single_key_account_entrypoint.js';
+export * from './stored_key_account_entrypoint.js';
 
 /** Options for creating a tx request out of a set of function calls. */
 export type CreateTxRequestOpts = {
@@ -11,14 +11,11 @@ export type CreateTxRequestOpts = {
   origin?: AztecAddress;
 };
 
-/** Represents an implementation for a user account contract. Knows how to encode and sign a tx for that particular implementation. */
-export interface AccountImplementation {
-  /**
-   * Returns the address for the account contract used by this implementation.
-   * @returns The address.
-   */
-  getAddress(): AztecAddress;
-
+/**
+ * Represents a transaction entrypoint in an account contract.
+ * Knows how to assemble a transaction execution request given a set of function calls.
+ */
+export interface Entrypoint {
   /**
    * Generates an authenticated request out of set of intents
    * @param executions - The execution intents to be run.
