@@ -169,7 +169,8 @@ enum GeneratorIndex {
     /**
      * Indices with size ≤ 16
      */
-    TX_REQUEST = 33,  // Size = 14
+    TX_REQUEST = 33,    // Size = 14
+    SIGNATURE_PAYLOAD,  // Size = 13
     /**
      * Indices with size ≤ 44
      */

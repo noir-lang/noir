@@ -14,6 +14,7 @@ contract SchnorrSingleKeyAccount {
     use dep::aztec::types::vec::BoundedVec;
     use dep::aztec::types::point::Point;
     use dep::aztec::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;
+    use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
 
     fn entrypoint(
         inputs: pub PrivateContextInputs,
@@ -32,9 +33,9 @@ contract SchnorrSingleKeyAccount {
         let mut context = Context::new(inputs, abi::hash_args(args.storage));
 
         // Verify payload signature
-        // TODO: Use pedersen to make the payload hash cheaper to compute
-        let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
-        let payload_hash: [u8; 32] = std::hash::sha256(payload_bytes);
+        let payload_fields: [Field; entrypoint::ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
+        let message_field: Field = std::hash::pedersen_with_separator(payload_fields, GENERATOR_INDEX__SIGNATURE_PAYLOAD)[0];
+        let message_bytes = message_field.to_be_bytes(32);
 
         // Convert owner pubkey into fields
         let mut x: Field = 0;
@@ -50,7 +51,7 @@ contract SchnorrSingleKeyAccount {
         
         // Verify signature of the payload hash
         // TODO: Find out why this signature verification never fails
-        let verification = std::schnorr::verify_signature(x, y, signature, payload_hash);
+        let verification = std::schnorr::verify_signature(x, y, signature, message_bytes);
         assert(verification == true);
 
         // Verify public key against address

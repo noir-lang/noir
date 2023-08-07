@@ -17,6 +17,7 @@ contract EcdsaAccount {
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
     use dep::aztec::types::vec::BoundedVec;
     use dep::aztec::types::point::Point;
+    use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
 
     use dep::aztec::constants_gen::MAX_NOTE_FIELDS_LENGTH;
     use dep::aztec::note::{
@@ -49,10 +50,11 @@ contract EcdsaAccount {
 
         // Verify payload signature using Ethereum's signing scheme
         // Note that noir expects the hash of the message/challenge as input to the ECDSA verification.
-        let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
-        let challenge: [u8; 32] = std::hash::sha256(payload_bytes);
-        let hashed_challenge: [u8; 32] = std::hash::sha256(challenge);
-        let verification = std::ecdsa_secp256k1::verify_signature(public_key.x, public_key.y, signature, hashed_challenge);
+        let payload_fields: [Field; entrypoint::ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
+        let message_field: Field = std::hash::pedersen_with_separator(payload_fields, GENERATOR_INDEX__SIGNATURE_PAYLOAD)[0];
+        let message_bytes = message_field.to_be_bytes(32);
+        let hashed_message: [u8; 32] = std::hash::sha256(message_bytes);
+        let verification = std::ecdsa_secp256k1::verify_signature(public_key.x, public_key.y, signature, hashed_message);
         assert(verification == true);
 
         payload.execute_calls(&mut context);

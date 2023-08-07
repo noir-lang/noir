@@ -16,6 +16,9 @@ WASM_EXPORT void pedersen__compress(uint8_t const* inputs_buffer, uint8_t* outpu
 WASM_EXPORT void pedersen_plookup_compress(uint8_t const* inputs_buffer, uint8_t* output);
 
 WASM_EXPORT void pedersen__compress_with_hash_index(uint8_t const* inputs_buffer, uint8_t* output, uint32_t hash_index);
+WASM_EXPORT void pedersen_plookup_compress_with_hash_index(uint8_t const* inputs_buffer,
+                                                           uint8_t* output,
+                                                           uint32_t hash_index);
 
 WASM_EXPORT void pedersen__commit(uint8_t const* inputs_buffer, uint8_t* output);
 WASM_EXPORT void pedersen_plookup_commit(uint8_t const* inputs_buffer, uint8_t* output);

@@ -21,6 +21,7 @@ contract SchnorrMultiKeyAccount {
     use dep::aztec::note::note_header::NoteHeader;
     use dep::aztec::constants_gen::MAX_NOTE_FIELDS_LENGTH;
     use dep::aztec::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;
+    use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;
 
     use crate::storage::Storage;
     use crate::public_key_note::PublicKeyNote;
@@ -44,12 +45,12 @@ contract SchnorrMultiKeyAccount {
         let public_key = storage.signing_public_key.get_note(&mut context);
 
         // Verify payload signature
-        // TODO: Use pedersen to make the payload hash cheaper to compute
-        let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
-        let payload_hash: [u8; 32] = std::hash::sha256(payload_bytes);
+        let payload_fields: [Field; entrypoint::ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
+        let message_field: Field = std::hash::pedersen_with_separator(payload_fields, GENERATOR_INDEX__SIGNATURE_PAYLOAD)[0];
+        let message_bytes = message_field.to_be_bytes(32);
 
-        // Verify signature of the payload hash
-        let verification = std::schnorr::verify_signature(public_key.x, public_key.y, signature, payload_hash);
+        // Verify signature of the payload bytes
+        let verification = std::schnorr::verify_signature(public_key.x, public_key.y, signature, message_bytes);
         assert(verification == true);
 
         // Execute calls

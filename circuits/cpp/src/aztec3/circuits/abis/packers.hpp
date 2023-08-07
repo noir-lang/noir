@@ -130,6 +130,7 @@ struct GeneratorIndexPacker {
         int GLOBAL_VARIABLES = GeneratorIndex::GLOBAL_VARIABLES;
         int PARTIAL_CONTRACT_ADDRESS = GeneratorIndex::PARTIAL_CONTRACT_ADDRESS;
         int TX_REQUEST = GeneratorIndex::TX_REQUEST;
+        int SIGNATURE_PAYLOAD = GeneratorIndex::SIGNATURE_PAYLOAD;
         int VK = GeneratorIndex::VK;
         int PRIVATE_CIRCUIT_PUBLIC_INPUTS = GeneratorIndex::PRIVATE_CIRCUIT_PUBLIC_INPUTS;
         int PUBLIC_CIRCUIT_PUBLIC_INPUTS = GeneratorIndex::PUBLIC_CIRCUIT_PUBLIC_INPUTS;
@@ -166,6 +167,7 @@ struct GeneratorIndexPacker {
                  GLOBAL_VARIABLES,
                  PARTIAL_CONTRACT_ADDRESS,
                  TX_REQUEST,
+                 SIGNATURE_PAYLOAD,
                  VK,
                  PRIVATE_CIRCUIT_PUBLIC_INPUTS,
                  PUBLIC_CIRCUIT_PUBLIC_INPUTS,

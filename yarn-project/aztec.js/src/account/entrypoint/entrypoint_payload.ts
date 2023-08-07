@@ -1,6 +1,7 @@
-import { CircuitsWasm, Fr } from '@aztec/circuits.js';
+import { CircuitsWasm, Fr, GeneratorIndex } from '@aztec/circuits.js';
+import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { sha256 } from '@aztec/foundation/crypto';
+import { IWasmModule } from '@aztec/foundation/wasm';
 import { FunctionCall, PackedArguments, emptyFunctionCall } from '@aztec/types';
 
 // These must match the values defined in yarn-project/noir-libs/noir-aztec/src/entrypoint.nr
@@ -60,10 +61,13 @@ export async function buildPayload(
   };
 }
 
-/** Hashes an entrypoint payload (useful for signing) */
-export function hashPayload(payload: EntrypointPayload) {
-  // TODO: Switch to keccak when avaiable in Noir
-  return sha256(Buffer.concat(flattenPayload(payload).map(fr => fr.toBuffer())));
+/** Compresses an entrypoint payload to a 32-byte buffer (useful for signing) */
+export function hashPayload(payload: EntrypointPayload, wasm: IWasmModule) {
+  return pedersenPlookupCompressWithHashIndex(
+    wasm,
+    flattenPayload(payload).map(fr => fr.toBuffer()),
+    GeneratorIndex.SIGNATURE_PAYLOAD,
+  );
 }
 
 /** Flattens an entrypoint payload */

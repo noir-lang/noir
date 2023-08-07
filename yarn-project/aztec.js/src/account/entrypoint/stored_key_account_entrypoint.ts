@@ -39,9 +39,9 @@ export class StoredKeyAccountEntrypoint implements Entrypoint {
     const [privateCalls, publicCalls] = partition(executions, exec => exec.functionData.isPrivate);
     const wasm = await CircuitsWasm.get();
     const { payload, packedArguments: callsPackedArguments } = await buildPayload(privateCalls, publicCalls);
-    const hash = hashPayload(payload);
-    const signature = this.signer.constructSignature(hash, this.privateKey).toBuffer();
-    this.log(`Signed challenge ${hash.toString('hex')} as ${signature.toString('hex')}`);
+    const message = hashPayload(payload, wasm);
+    const signature = this.signer.constructSignature(message, this.privateKey).toBuffer();
+    this.log(`Signed challenge ${message.toString('hex')} as ${signature.toString('hex')}`);
 
     const args = [payload, signature];
     const abi = this.getEntrypointAbi();
