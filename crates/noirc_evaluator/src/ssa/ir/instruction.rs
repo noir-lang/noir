@@ -571,6 +571,22 @@ impl Binary {
                     let one = dfg.make_constant(FieldElement::one(), Type::bool());
                     return SimplifyResult::SimplifiedTo(one);
                 }
+                if operand_type == Type::bool() {
+                    // Simplify forms of `(boolean == true)` into `boolean`
+                    if lhs_is_one {
+                        return SimplifyResult::SimplifiedTo(self.rhs);
+                    }
+                    if rhs_is_one {
+                        return SimplifyResult::SimplifiedTo(self.lhs);
+                    }
+                    // Simplify forms of `(boolean == false)` into `!boolean`
+                    if lhs_is_zero {
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(self.rhs));
+                    }
+                    if rhs_is_zero {
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(self.lhs));
+                    }
+                }
             }
             BinaryOp::Lt => {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
