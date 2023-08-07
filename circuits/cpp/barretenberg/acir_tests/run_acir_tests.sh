@@ -18,39 +18,23 @@ if [ ! -d acir_tests ]; then
     git clone -b $BRANCH --filter=blob:none --no-checkout https://github.com/noir-lang/noir.git
     cd noir
     git sparse-checkout init --cone
-    git sparse-checkout set crates/nargo_cli/tests/test_data
+    git sparse-checkout set crates/nargo_cli/tests/execution_success
     git checkout
     cd ..
-    mv noir/crates/nargo_cli/tests/test_data acir_tests
+    mv noir/crates/nargo_cli/tests/execution_success acir_tests
     rm -rf noir
   fi
 fi
 
 cd acir_tests
 
-# Parse exclude and fail directories from cargo.toml
-exclude_dirs=$(grep "^exclude" config.toml | sed 's/exclude = \[//;s/\]//;s/\"//g;s/ //g' | tr ',' '\n')
-fail_dirs=$(grep "^fail" config.toml | sed 's/fail = \[//;s/\]//;s/\"//g;s/ //g' | tr ',' '\n')
-
 # Convert them to array
-exclude_array=($exclude_dirs)
-fail_array=($fail_dirs)
 skip_array=(diamond_deps_0 workspace workspace_default_member)
 
 function test() {
   echo -n "Testing $1... "
 
   dir_name=$(basename "$1")
-  if [[ " ${exclude_array[@]} " =~ " $dir_name " ]]; then
-    echo -e "\033[33mSKIPPED\033[0m (excluded)"
-    return
-  fi
-
-  if [[ " ${fail_array[@]} " =~ " $dir_name " ]]; then
-    echo -e "\033[33mSKIPPED\033[0m (would fail)"
-    return
-  fi
-
   if [[ " ${skip_array[@]} " =~ " $dir_name " ]]; then
     echo -e "\033[33mSKIPPED\033[0m (hardcoded to skip)"
     return
