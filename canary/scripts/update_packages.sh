@@ -4,7 +4,7 @@ COMMIT_TAG=$1
 
 if [ -z "$COMMIT_TAG" ]; then 
   echo "No commit tag provided." 
-  exit 1
+  exit 0
 fi
 
 VERSION=$(npx semver $COMMIT_TAG)
