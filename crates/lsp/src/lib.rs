@@ -24,10 +24,7 @@ use lsp_types::{
 };
 use noirc_driver::{check_crate, prepare_crate};
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
-use noirc_frontend::{
-    graph::{CrateGraph, CrateType},
-    hir::Context,
-};
+use noirc_frontend::{graph::CrateGraph, hir::Context};
 use serde_json::Value as JsonValue;
 use tower::Service;
 
@@ -190,7 +187,7 @@ fn on_code_lens_request(
         }
     };
 
-    let crate_id = prepare_crate(&mut context, file_path, CrateType::Binary);
+    let crate_id = prepare_crate(&mut context, file_path);
 
     // We ignore the warnings and errors produced by compilation for producing codelenses
     // because we can still get the test functions even if compilation fails
@@ -283,7 +280,7 @@ fn on_did_save_text_document(
         }
     };
 
-    let crate_id = prepare_crate(&mut context, file_path, CrateType::Binary);
+    let crate_id = prepare_crate(&mut context, file_path);
 
     let mut diagnostics = Vec::new();
 

@@ -1,0 +1,7 @@
+[package]
+name = "higher_order_fn_selector"
+type = "bin"
+authors = [""]
+compiler_version = "0.8.0"
+
+[dependencies]

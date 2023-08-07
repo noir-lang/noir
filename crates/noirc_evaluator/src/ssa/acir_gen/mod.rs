@@ -24,7 +24,11 @@ use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunction
 use crate::errors::{InternalError, RuntimeError};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
-    acir::{brillig::Opcode, circuit::opcodes::BlockId, native_types::Expression},
+    acir::{
+        brillig::Opcode,
+        circuit::opcodes::BlockId,
+        native_types::{Expression, Witness},
+    },
     FieldElement,
 };
 use iter_extended::{try_vecmap, vecmap};
@@ -112,23 +116,26 @@ impl Ssa {
         self,
         brillig: Brillig,
         abi_distinctness: AbiDistinctness,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let context = Context::new();
-        let mut generated_acir = context.convert_ssa(self, brillig)?;
+        let mut generated_acir = context.convert_ssa(self, brillig, last_array_uses)?;
 
         match abi_distinctness {
             AbiDistinctness::Distinct => {
-                // Create a witness for each return witness we have
-                // to guarantee that the return witnesses are distinct
-                let distinct_return_witness: Vec<_> = generated_acir
-                    .return_witnesses
-                    .clone()
-                    .into_iter()
-                    .map(|return_witness| {
-                        generated_acir
-                            .create_witness_for_expression(&Expression::from(return_witness))
-                    })
-                    .collect();
+                let mut distinct_return_witness: Vec<Witness> =
+                    Vec::with_capacity(generated_acir.return_witnesses.len());
+
+                for mut return_witness in generated_acir.return_witnesses.clone() {
+                    // If witness has already been used then create a new one
+                    // to guarantee that the return witnesses are distinct
+                    if distinct_return_witness.contains(&return_witness) {
+                        return_witness = generated_acir
+                            .create_witness_for_expression(&Expression::from(return_witness));
+                    }
+
+                    distinct_return_witness.push(return_witness);
+                }
 
                 generated_acir.return_witnesses = distinct_return_witness;
                 Ok(generated_acir)
@@ -154,10 +161,15 @@ impl Context {
     }
 
     /// Converts SSA into ACIR
-    fn convert_ssa(self, ssa: Ssa, brillig: Brillig) -> Result<GeneratedAcir, RuntimeError> {
+    fn convert_ssa(
+        self,
+        ssa: Ssa,
+        brillig: Brillig,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
+    ) -> Result<GeneratedAcir, RuntimeError> {
         let main_func = ssa.main();
         match main_func.runtime() {
-            RuntimeType::Acir => self.convert_acir_main(main_func, &ssa, brillig),
+            RuntimeType::Acir => self.convert_acir_main(main_func, &ssa, brillig, last_array_uses),
             RuntimeType::Brillig => self.convert_brillig_main(main_func, brillig),
         }
     }
@@ -167,13 +179,14 @@ impl Context {
         main_func: &Function,
         ssa: &Ssa,
         brillig: Brillig,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let dfg = &main_func.dfg;
         let entry_block = &dfg[main_func.entry_block()];
         let input_witness = self.convert_ssa_block_params(entry_block.parameters(), dfg)?;
 
         for instruction_id in entry_block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig)?;
+            self.convert_ssa_instruction(*instruction_id, dfg, ssa, &brillig, last_array_uses)?;
         }
 
         self.convert_ssa_return(entry_block.unwrap_terminator(), dfg)?;
@@ -310,6 +323,7 @@ impl Context {
         dfg: &DataFlowGraph,
         ssa: &Ssa,
         brillig: &Brillig,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_location(dfg.get_location(&instruction_id));
@@ -389,10 +403,24 @@ impl Context {
                 self.current_side_effects_enabled_var = acir_var;
             }
             Instruction::ArrayGet { array, index } => {
-                self.handle_array_operation(instruction_id, *array, *index, None, dfg)?;
+                self.handle_array_operation(
+                    instruction_id,
+                    *array,
+                    *index,
+                    None,
+                    dfg,
+                    last_array_uses,
+                )?;
             }
             Instruction::ArraySet { array, index, value } => {
-                self.handle_array_operation(instruction_id, *array, *index, Some(*value), dfg)?;
+                self.handle_array_operation(
+                    instruction_id,
+                    *array,
+                    *index,
+                    Some(*value),
+                    dfg,
+                    last_array_uses,
+                )?;
             }
             Instruction::Allocate => {
                 unreachable!("Expected all allocate instructions to be removed before acir_gen")
@@ -447,6 +475,7 @@ impl Context {
         index: ValueId,
         store_value: Option<ValueId>,
         dfg: &DataFlowGraph,
+        last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
         let array_value = &dfg[array];
         dbg!(array_value.get_type());
@@ -515,9 +544,10 @@ impl Context {
             }
             AcirValue::DynamicArray(_) => (),
         }
-
+        let resolved_array = dfg.resolve(array);
+        let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
         if let Some(store) = store_value {
-            self.array_set(instruction, array, index, store, dfg)?;
+            self.array_set(instruction, array, index, store, dfg, map_array)?;
         } else {
             self.array_get(instruction, array, index, dfg)?;
         }
@@ -579,6 +609,7 @@ impl Context {
         index: ValueId,
         store_value: ValueId,
         dfg: &DataFlowGraph,
+        map_array: bool,
     ) -> Result<(), InternalError> {
         // Fetch the internal SSA ID for the array
         let array = dfg.resolve(array);
@@ -613,24 +644,30 @@ impl Context {
         }
 
         // Since array_set creates a new array, we create a new block ID for this
-        // array.
+        // array, unless map_array is true. In that case, we operate directly on block_id
+        // and we do not create a new block ID.
         let result_id = dfg
             .instruction_results(instruction)
             .first()
             .expect("Array set does not have one result");
-        let result_block_id = self.block_id(result_id);
-
-        // Initialize the new array with the values from the old array
-        let init_values = try_vecmap(0..len, |i| {
-            let index = AcirValue::Var(
-                self.acir_context.add_constant(FieldElement::from(i as u128)),
-                AcirType::NumericType(NumericType::NativeField),
-            );
-            let var = index.into_var()?;
-            let read = self.acir_context.read_from_memory(block_id, &var)?;
-            Ok(AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField)))
-        })?;
-        self.initialize_array(result_block_id, len, Some(&init_values))?;
+        let result_block_id;
+        if map_array {
+            self.memory_blocks.insert(*result_id, block_id);
+            result_block_id = block_id;
+        } else {
+            // Initialize the new array with the values from the old array
+            result_block_id = self.block_id(result_id);
+            let init_values = try_vecmap(0..len, |i| {
+                let index = AcirValue::Var(
+                    self.acir_context.add_constant(FieldElement::from(i as u128)),
+                    AcirType::NumericType(NumericType::NativeField),
+                );
+                let var = index.into_var()?;
+                let read = self.acir_context.read_from_memory(block_id, &var)?;
+                Ok(AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField)))
+            })?;
+            self.initialize_array(result_block_id, len, Some(&init_values))?;
+        }
 
         // Write the new value into the new array at the specified index
         let index_var = self.convert_value(index, dfg).into_var()?;
@@ -1101,7 +1138,7 @@ impl Context {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::{collections::HashMap, rc::Rc};
 
     use acvm::{
         acir::{
@@ -1141,7 +1178,7 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let acir = context.convert_ssa(ssa, Brillig::default()).unwrap();
+        let acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];

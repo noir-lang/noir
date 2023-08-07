@@ -1,0 +1,8 @@
+[package]
+name = "depend_on_bin"
+type = "bin"
+authors = [""]
+compiler_version = "0.8.0"
+
+[dependencies]
+bin_dep = { path = "../../test_libraries/bin_dep" }

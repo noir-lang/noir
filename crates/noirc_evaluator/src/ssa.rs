@@ -66,13 +66,13 @@ pub(crate) fn optimize_into_acir(
             .dead_instruction_elimination()
             .print(print_ssa_passes, "After Dead Instruction Elimination:");
     }
-    ssa.into_acir(brillig, abi_distinctness)
+    let last_array_uses = ssa.find_last_array_uses();
+    ssa.into_acir(brillig, abi_distinctness, &last_array_uses)
 }
 
-/// Compiles the Program into ACIR and applies optimizations to the arithmetic gates
-/// This is analogous to `ssa:create_circuit` and this method is called when one wants
-/// to use the new ssa module to process Noir code.
-// TODO: This no longer needs to return a result, but it is kept to match the signature of `create_circuit`
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Circuit].
+///
+/// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 pub fn create_circuit(
     program: Program,
     enable_ssa_logging: bool,

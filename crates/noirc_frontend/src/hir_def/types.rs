@@ -1206,11 +1206,13 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a, _env_a), Function(params_b, ret_b, _env_b)) => {
+            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
                 if params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b.iter()) {
                         a.try_unify(b, span)?;
                     }
+
+                    env_a.try_unify(env_b, span)?;
 
                     ret_b.try_unify(ret_a, span)
                 } else {
@@ -1413,11 +1415,13 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a, _env_a), Function(params_b, ret_b, _env_b)) => {
+            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
                 if params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b) {
                         a.is_subtype_of(b, span)?;
                     }
+
+                    env_a.is_subtype_of(env_b, span)?;
 
                     // return types are contravariant, so this must be ret_b <: ret_a instead of the reverse
                     ret_b.is_subtype_of(ret_a, span)

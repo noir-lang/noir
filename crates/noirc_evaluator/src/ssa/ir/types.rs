@@ -61,6 +61,17 @@ impl Type {
     pub(crate) fn field() -> Type {
         Type::Numeric(NumericType::NativeField)
     }
+
+    /// Returns the size of the element type for this array/slice.
+    /// The size of a type is defined as representing how many Fields are needed
+    /// to represent the type. This is 1 for every primitive type, and is the number of fields
+    /// for any flattened tuple type.
+    pub(crate) fn element_size(&self) -> usize {
+        match self {
+            Type::Array(elements, _) | Type::Slice(elements) => elements.len(),
+            other => panic!("element_size: Expected array or slice, found {other}"),
+        }
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.

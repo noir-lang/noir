@@ -1,6 +1,0 @@
-[package]
-name = "constant_return"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

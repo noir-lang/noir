@@ -1,6 +1,0 @@
-[package]
-name = "ret_fn_ret_cl"
-authors = [""]
-compiler_version = "0.7.1"
-
-[dependencies]

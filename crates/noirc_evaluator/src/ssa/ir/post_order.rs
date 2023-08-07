@@ -27,6 +27,10 @@ impl PostOrder {
         PostOrder(Self::compute_post_order(func))
     }
 
+    pub(crate) fn into_vec(self) -> Vec<BasicBlockId> {
+        self.0
+    }
+
     // Computes the post-order of the function by doing a depth-first traversal of the
     // function's entry block's previously unvisited children. Each block is sequenced according
     // to when the traversal exits it.

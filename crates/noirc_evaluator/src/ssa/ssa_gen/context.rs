@@ -641,10 +641,8 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn element_size(&self, array: ValueId) -> FieldElement {
-        match self.builder.type_of_value(array) {
-            Type::Array(elements, _) | Type::Slice(elements) => (elements.len() as u128).into(),
-            t => panic!("Uncaught type error: tried to take element size of non-array type {t}"),
-        }
+        let size = self.builder.type_of_value(array).element_size();
+        FieldElement::from(size as u128)
     }
 
     /// Given an lhs containing only references, create a store instruction to store each value of
