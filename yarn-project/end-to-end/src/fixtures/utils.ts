@@ -2,28 +2,18 @@ import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/azte
 import { RpcServerConfig, createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
 import {
   AccountWallet,
+  Account as AztecAccount,
   AztecAddress,
   Contract,
   ContractDeployer,
-  DeployMethod,
-  Entrypoint,
   EntrypointCollection,
   EthAddress,
-  SentTx,
-  SingleKeyAccountEntrypoint,
   Wallet,
   createAztecRpcClient as createJsonRpcClient,
-  generatePublicKey,
   getL1ContractAddresses,
+  getUnsafeSchnorrAccount,
 } from '@aztec/aztec.js';
-import {
-  DeploymentInfo,
-  PartialContractAddress,
-  PrivateKey,
-  PublicKey,
-  getContractDeploymentInfo,
-} from '@aztec/circuits.js';
-import { Schnorr } from '@aztec/circuits.js/barretenberg';
+import { PrivateKey, PublicKey } from '@aztec/circuits.js';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
@@ -31,7 +21,6 @@ import { mustSucceedFetch } from '@aztec/foundation/json-rpc/client';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
-import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { NonNativeTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, L2BlockL2Logs, LogType, TxStatus } from '@aztec/types';
 
@@ -128,34 +117,6 @@ const setupL1Contracts = async (l1RpcUrl: string, account: HDAccount, logger: De
 };
 
 /**
- * Container to hold information about txs
- */
-type TxContext = {
-  /**
-   * The fully built and sent transaction.
-   */
-  tx: SentTx | undefined;
-  /**
-   * The deploy method.
-   */
-  deployMethod: DeployMethod;
-
-  /**
-   * Contract address salt.
-   */
-  salt: Fr;
-
-  /**
-   * The user's private key.
-   */
-  privateKey: PrivateKey;
-  /**
-   * The fully derived deployment data.
-   */
-  deploymentData: DeploymentInfo;
-};
-
-/**
  * Sets up Aztec RPC Server.
  * @param numberOfAccounts - The number of new accounts to be created once the RPC server is initiated.
  * @param aztecNode - The instance of an aztec node, if one is required
@@ -189,83 +150,29 @@ export async function setupAztecRPCServer(
   logger: DebugLogger;
 }> {
   const rpcConfig = getRpcConfigEnvVars();
-
   const aztecRpcServer = await createRpcServer(rpcConfig, aztecNode, logger, useLogSuffix);
 
-  const accountCollection = new EntrypointCollection();
-  const txContexts: TxContext[] = [];
-
   logger('RPC server created, deploying accounts...');
+  const accounts: AztecAccount[] = [];
 
+  // Prepare deployments
   for (let i = 0; i < numberOfAccounts; ++i) {
-    // We use the well-known private key and the validating account contract for the first account,
-    // and generate random key pairs for the rest.
-    // TODO(#662): Let the aztec rpc server generate the key pair rather than hardcoding the private key
     const privateKey = i === 0 && firstPrivKey !== null ? firstPrivKey! : PrivateKey.random();
-    const publicKey = await generatePublicKey(privateKey);
-    const salt = Fr.random();
-    const deploymentData = await getContractDeploymentInfo(SchnorrSingleKeyAccountContractAbi, [], salt, publicKey);
-
-    const contractDeployer = new ContractDeployer(SchnorrSingleKeyAccountContractAbi, aztecRpcServer!, publicKey);
-    const deployMethod = contractDeployer.deploy();
-    await deployMethod.simulate({ contractAddressSalt: salt });
-    txContexts.push({
-      tx: undefined,
-      deployMethod,
-      salt,
-      privateKey,
-      deploymentData,
-    });
+    const account = getUnsafeSchnorrAccount(aztecRpcServer, privateKey);
+    await account.getDeployMethod().then(d => d.simulate({ contractAddressSalt: account.salt }));
+    accounts.push(account);
   }
 
-  // We do this in a separate loop to try and get all transactions into the same rollup.
-  // Doing this here will submit the transactions with minimal delay between them.
-  for (const context of txContexts) {
-    logger(`Deploying account contract for ${context.deploymentData.address.toString()}`);
-    context.tx = context.deployMethod.send();
-  }
+  // Send them and await them to be mined
+  const txs = await Promise.all(accounts.map(account => account.deploy()));
+  await Promise.all(txs.map(tx => tx.wait({ interval: 0.1 })));
 
-  // Await for all txs to be mined (see #1392)
-  for (const context of txContexts) {
-    await context.tx!.isMined({ interval: 0.1 });
-  }
-
-  // Register the corresponding accounts
-  for (const context of txContexts) {
-    const publicKey = await generatePublicKey(context.privateKey);
-    const receipt = await context.tx!.getReceipt();
-    if (receipt.status !== TxStatus.MINED) {
-      throw new Error(`Deployment tx not mined (status is ${receipt.status})`);
-    }
-    const receiptAddress = receipt.contractAddress!;
-    if (!receiptAddress.equals(context.deploymentData.address)) {
-      throw new Error(
-        `Deployment address does not match for account contract (expected ${context.deploymentData.address} got ${receiptAddress})`,
-      );
-    }
-    await aztecRpcServer!.addAccount(
-      context.privateKey,
-      context.deploymentData.address,
-      context.deploymentData.partialAddress,
-    );
-    accountCollection.registerAccount(
-      context.deploymentData.address,
-      new SingleKeyAccountEntrypoint(
-        context.deploymentData.address,
-        context.deploymentData.partialAddress,
-        context.privateKey,
-        await Schnorr.new(),
-      ),
-    );
-    logger(`Created account ${context.deploymentData.address.toString()} with public key ${publicKey.toString()}`);
-  }
-
-  const accounts = await aztecRpcServer!.getAccounts();
-  const wallet = new AccountWallet(aztecRpcServer!, accountCollection);
+  // Assemble them into a single wallet
+  const wallet = new AccountWallet(aztecRpcServer, await EntrypointCollection.fromAccounts(accounts));
 
   return {
     aztecRpcServer: aztecRpcServer!,
-    accounts,
+    accounts: await aztecRpcServer!.getAccounts(),
     wallet,
     logger,
   };
@@ -372,50 +279,6 @@ export async function deployContract(
   expect(await tx.isMined({ interval: 0.1 })).toBeTruthy();
   const receipt = await tx.getReceipt();
   return { address: receipt.contractAddress!, partialContractAddress: deployMethod.partialContractAddress! };
-}
-
-/**
- * Represents a function that creates an AccountImplementation object asynchronously.
- *
- * @param address - The Aztec address associated with the account.
- * @param useProperKey - A flag indicating whether the proper key should be used during account creation.
- * @param partialAddress - The partial contract address associated with the account.
- * @param encryptionPrivateKey - The encryption private key used during account creation.
- * @returns A Promise that resolves to an AccountImplementation object.
- */
-export type CreateAccountImplFn = (
-  address: AztecAddress,
-  useProperKey: boolean,
-  partialAddress: PartialContractAddress,
-  encryptionPrivateKey: PrivateKey,
-) => Promise<Entrypoint>;
-
-/**
- * Creates a new account.
- * @param aztecRpcServer - The AztecRPC server to interact with.
- * @param abi - The ABI (Application Binary Interface) of the account contract.
- * @param args - The arguments to pass to the account contract's constructor.
- * @param encryptionPrivateKey - The encryption private key used by the account.
- * @param useProperKey - A flag indicating whether the proper key should be used during account creation.
- * @param createAccountImpl - A function that creates an AccountImplementation object.
- * @returns A Promise that resolves to an object containing the created wallet, account address, and partial address.
- */
-export async function createNewAccount(
-  aztecRpcServer: AztecRPC,
-  abi: ContractAbi,
-  args: any[],
-  encryptionPrivateKey: PrivateKey,
-  useProperKey: boolean,
-  createAccountImpl: CreateAccountImplFn,
-) {
-  const salt = Fr.random();
-  const publicKey = await generatePublicKey(encryptionPrivateKey);
-  const { address, partialAddress } = await getContractDeploymentInfo(abi, args, salt, publicKey);
-  await aztecRpcServer.addAccount(encryptionPrivateKey, address, partialAddress);
-  await deployContract(aztecRpcServer, publicKey, abi, args, salt);
-  const account = await createAccountImpl(address, useProperKey, partialAddress, encryptionPrivateKey);
-  const wallet = new AccountWallet(aztecRpcServer, account);
-  return { wallet, address, partialAddress };
 }
 
 /**

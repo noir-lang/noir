@@ -1,15 +1,12 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, StoredKeyAccountEntrypoint, Wallet, generatePublicKey } from '@aztec/aztec.js';
+import { AztecAddress, Wallet, generatePublicKey, getSchnorrAccount } from '@aztec/aztec.js';
 import { PrivateKey } from '@aztec/circuits.js';
-import { Schnorr } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
-import { SchnorrMultiKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ZkTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
 import {
-  createNewAccount,
   expectUnencryptedLogsFromLastBlockToBe,
   expectsNumOfEncryptedLogsInTheLastBlockToBe,
   setup,
@@ -31,28 +28,13 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     ({ aztecNode, aztecRpcServer, logger } = await setup(0));
 
     const encryptionPrivateKey = PrivateKey.random();
+
     for (let i = 0; i < numAccounts; i++) {
       logger(`Deploying account contract ${i}/3...`);
       const signingPrivateKey = PrivateKey.random();
-      const createWallet = async (address: AztecAddress, useProperKey: boolean) =>
-        new StoredKeyAccountEntrypoint(
-          address,
-          useProperKey ? signingPrivateKey : PrivateKey.random(),
-          await Schnorr.new(),
-        );
-
-      const schnorr = await Schnorr.new();
-      const signingPublicKey = schnorr.computePublicKey(signingPrivateKey);
-      const constructorArgs = [signingPublicKey.x, signingPublicKey.y];
-
-      const { wallet, address } = await createNewAccount(
-        aztecRpcServer,
-        SchnorrMultiKeyAccountContractAbi,
-        constructorArgs,
-        encryptionPrivateKey,
-        true,
-        createWallet,
-      );
+      const account = getSchnorrAccount(aztecRpcServer, encryptionPrivateKey, signingPrivateKey);
+      const wallet = await account.waitDeploy({ interval: 0.1 });
+      const { address } = await account.getCompleteAddress();
       wallets.push(wallet);
       accounts.push(address);
     }
@@ -66,13 +48,11 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     }
 
     logger(`Deploying ZK Token...`);
-    const tx = ZkTokenContract.deploy(aztecRpcServer, initialBalance, accounts[0]).send();
-    const receipt = await tx.getReceipt();
-    zkTokenAddress = receipt.contractAddress!;
-    await tx.isMined({ interval: 0.1 });
-    const minedReceipt = await tx.getReceipt();
-    expect(minedReceipt.status).toEqual(TxStatus.MINED);
-    logger('ZK Token deployed');
+    zkTokenAddress = await ZkTokenContract.deploy(wallets[0], initialBalance, accounts[0])
+      .send()
+      .deployed()
+      .then(c => c.address);
+    logger(`ZK Token deployed at ${zkTokenAddress}`);
   }, 100_000);
 
   afterEach(async () => {

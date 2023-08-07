@@ -1,6 +1,7 @@
 import { AztecAddress } from '@aztec/circuits.js';
 import { FunctionCall, TxExecutionRequest } from '@aztec/types';
 
+import { Account } from '../account.js';
 import { CreateTxRequestOpts, Entrypoint } from './index.js';
 
 /**
@@ -9,6 +10,25 @@ import { CreateTxRequestOpts, Entrypoint } from './index.js';
  */
 export class EntrypointCollection implements Entrypoint {
   private entrypoints: Map<string, Entrypoint> = new Map();
+
+  constructor(entrypoints: [AztecAddress, Entrypoint][] = []) {
+    for (const [key, value] of entrypoints) {
+      this.registerAccount(key, value);
+    }
+  }
+
+  /**
+   * Creates a new instance out of a set of Accounts.
+   * @param accounts - Accounts to register in this entrypoint.
+   * @returns A new instance.
+   */
+  static async fromAccounts(accounts: Account[]) {
+    const collection = new EntrypointCollection();
+    for (const account of accounts) {
+      collection.registerAccount((await account.getCompleteAddress()).address, await account.getEntrypoint());
+    }
+    return collection;
+  }
 
   /**
    * Registers an entrypoint against an aztec address

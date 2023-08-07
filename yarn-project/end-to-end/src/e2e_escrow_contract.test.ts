@@ -40,15 +40,15 @@ describe('e2e_escrow_contract', () => {
 
     // Generate private key for escrow contract, register key in rpc server, and deploy
     // Note that we need to register it first if we want to emit an encrypted note for it in the constructor
-    // TODO: We need a nicer interface for deploying contracts!
     escrowPrivateKey = PrivateKey.random();
     escrowPublicKey = await generatePublicKey(escrowPrivateKey);
     const salt = Fr.random();
     const deployInfo = await getContractDeploymentInfo(EscrowContractAbi, [owner], salt, escrowPublicKey);
     await aztecRpcServer.addAccount(escrowPrivateKey, deployInfo.address, deployInfo.partialAddress);
-    const escrowDeployTx = EscrowContract.deployWithPublicKey(wallet, escrowPublicKey, owner);
-    await escrowDeployTx.send({ contractAddressSalt: salt }).wait();
-    escrowContract = await EscrowContract.create(escrowDeployTx.completeContractAddress!, wallet);
+
+    escrowContract = await EscrowContract.deployWithPublicKey(wallet, escrowPublicKey, owner)
+      .send({ contractAddressSalt: salt })
+      .deployed();
     logger(`Escrow contract deployed at ${escrowContract.address}`);
 
     // Deploy ZK token contract and mint funds for the escrow contract
