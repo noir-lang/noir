@@ -24,7 +24,11 @@ use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunction
 use crate::errors::{InternalError, RuntimeError};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
-    acir::{brillig::Opcode, circuit::opcodes::BlockId, native_types::Expression},
+    acir::{
+        brillig::Opcode,
+        circuit::opcodes::BlockId,
+        native_types::{Expression, Witness},
+    },
     FieldElement,
 };
 use iter_extended::{try_vecmap, vecmap};
@@ -119,17 +123,19 @@ impl Ssa {
 
         match abi_distinctness {
             AbiDistinctness::Distinct => {
-                // Create a witness for each return witness we have
-                // to guarantee that the return witnesses are distinct
-                let distinct_return_witness: Vec<_> = generated_acir
-                    .return_witnesses
-                    .clone()
-                    .into_iter()
-                    .map(|return_witness| {
-                        generated_acir
-                            .create_witness_for_expression(&Expression::from(return_witness))
-                    })
-                    .collect();
+                let mut distinct_return_witness: Vec<Witness> =
+                    Vec::with_capacity(generated_acir.return_witnesses.len());
+
+                for mut return_witness in generated_acir.return_witnesses.clone() {
+                    // If witness has already been used then create a new one
+                    // to guarantee that the return witnesses are distinct
+                    if distinct_return_witness.contains(&return_witness) {
+                        return_witness = generated_acir
+                            .create_witness_for_expression(&Expression::from(return_witness));
+                    }
+
+                    distinct_return_witness.push(return_witness);
+                }
 
                 generated_acir.return_witnesses = distinct_return_witness;
                 Ok(generated_acir)
@@ -1121,7 +1127,7 @@ impl Context {
 
 #[cfg(test)]
 mod tests {
-    use std::{rc::Rc, collections::HashMap};
+    use std::{collections::HashMap, rc::Rc};
 
     use acvm::{
         acir::{
