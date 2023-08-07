@@ -579,6 +579,13 @@ impl Binary {
                     if rhs_is_one {
                         return SimplifyResult::SimplifiedTo(self.lhs);
                     }
+                    // Simplify forms of `(boolean == false)` into `!boolean`
+                    if lhs_is_zero {
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(self.rhs));
+                    }
+                    if rhs_is_zero {
+                        return SimplifyResult::SimplifiedToInstruction(Instruction::Not(self.lhs));
+                    }
                 }
             }
             BinaryOp::Lt => {
