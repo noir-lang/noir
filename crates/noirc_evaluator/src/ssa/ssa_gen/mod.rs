@@ -268,6 +268,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
         let lhs = self.codegen_non_tuple_expression(&cast.lhs);
         let typ = Self::convert_non_tuple_type(&cast.r#type);
+        self.builder.set_location(cast.location);
         self.builder.insert_cast(lhs, typ).into()
     }
 

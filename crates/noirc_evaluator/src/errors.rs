@@ -22,7 +22,7 @@ pub enum RuntimeError {
     InternalError(#[from] InternalError),
     #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
     IndexOutOfBounds { index: usize, array_size: usize, location: Option<Location> },
-    #[error("All Witnesses are by default u{num_bits:?} Applying this type does not apply any constraints.\n We also currently do not allow integers of size more than {num_bits:?}, this will be handled by BigIntegers.")]
+    #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, location: Option<Location> },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, location: Option<Location> },
