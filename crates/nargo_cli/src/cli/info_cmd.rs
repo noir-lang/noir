@@ -70,8 +70,10 @@ fn count_opcodes_and_gates_with_path<B: Backend, P: AsRef<Path>>(
                 contract.name,
                 total_num_opcodes
             );
-            println!("Backend circuit size for contract {}: {total_circuit_size}", contract.name);
-            println!();
+            println!(
+                "Backend circuit size for contract {}: {total_circuit_size} \n",
+                contract.name
+            );
 
             for info in function_info {
                 println!(
@@ -85,9 +87,8 @@ fn count_opcodes_and_gates_with_path<B: Backend, P: AsRef<Path>>(
             }
         }
 
-        println!();
         println!(
-            "Total ACIR opcodes generated for language {:?} in All Contracts: {}",
+            "\nTotal ACIR opcodes generated for language {:?} in All Contracts: {}",
             backend.np_language(),
             total_num_opcodes_in_all_contracts
         );
