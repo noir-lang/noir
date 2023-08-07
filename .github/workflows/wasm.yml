@@ -3,8 +3,7 @@ name: Wasm
 on:
   push:
     branches:
-      - jb/noir-testing-workflow
-      - tom/noir-wasm-testing
+      - "*"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
@@ -61,8 +60,6 @@ jobs:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
     strategy:
       fail-fast: false
-      matrix:
-        target: [x86_64-unknown-linux-gnu]
 
     steps:
       - name: Checkout Noir repo
@@ -101,7 +98,6 @@ jobs:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo install cross --force --git https://github.com/cross-rs/cross
-          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
         run: |
