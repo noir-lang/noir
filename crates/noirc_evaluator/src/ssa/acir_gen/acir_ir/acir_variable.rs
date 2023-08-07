@@ -274,9 +274,11 @@ impl AcirContext {
         self.add_data(result_data)
     }
 
-    /// Adds a new Variable to context whose value will
-    /// be constrained to be the inverse of `var`.
-    pub(crate) fn inv_var(
+    /// Adds a new Variable to context whose value will be the inverse of `var`.
+    ///
+    /// Note: This relationship is NOT constrained within the circuit.
+    /// In order to perform a safe inverse see the `inv_var` method.
+    pub(crate) fn unsafe_inv_var(
         &mut self,
         var: AcirVar,
         predicate: AcirVar,
@@ -300,6 +302,18 @@ impl AcirContext {
         )?;
         let inverted_var = Self::expect_one_var(results);
 
+        Ok(inverted_var)
+    }
+
+    /// Adds a new Variable to context whose value will
+    /// be constrained to be the inverse of `var`.
+    pub(crate) fn inv_var(
+        &mut self,
+        var: AcirVar,
+        predicate: AcirVar,
+    ) -> Result<AcirVar, RuntimeError> {
+        let inverted_var = self.unsafe_inv_var(var, predicate)?;
+
         let should_be_one = self.mul_var(inverted_var, var)?;
         self.maybe_eq_predicate(should_be_one, predicate)?;
 
@@ -310,6 +324,12 @@ impl AcirContext {
     pub(crate) fn assert_eq_one(&mut self, var: AcirVar) -> Result<(), RuntimeError> {
         let one = self.add_constant(FieldElement::one());
         self.assert_eq_var(var, one)
+    }
+
+    // Constrains `var` to be equal to the constant value `0`
+    pub(crate) fn assert_eq_zero(&mut self, var: AcirVar) -> Result<(), RuntimeError> {
+        let zero = self.add_constant(FieldElement::zero());
+        self.assert_eq_var(var, zero)
     }
 
     // Constrains `var` to be equal to predicate if the predicate is true
@@ -336,8 +356,66 @@ impl AcirContext {
         }
     }
 
-    /// Returns an `AcirVar` that is `1` if `lhs` equals `rhs` and
-    /// 0 otherwise.
+    /// Returns a `AcirVar` that is constrained to be:
+    /// - `1` if `lhs == rhs`
+    /// - `0` otherwise
+    ///
+    /// Intuition: the equality of two Expressions is linked to whether
+    /// their difference has an inverse; `a == b` implies that `a - b == 0`
+    /// which implies that a - b has no inverse. So if two variables are equal,
+    /// their difference will have no inverse.
+    ///
+    /// First, lets create a new variable that is equal to the difference
+    /// of the two expressions: `t = lhs - rhs` (constraint has been applied)
+    ///
+    /// Next lets create a new variable `y` which will be the Witness that we will ultimately
+    /// return indicating whether `lhs == rhs`.
+    /// Note: During this process we need to apply constraints that ensure that it is a boolean.
+    /// But right now with no constraints applied to it, it is essentially a free variable.
+    ///
+    /// Next we apply the following constraint `y * t == 0`.
+    /// This implies that either `y` or `t` or both is `0`.
+    /// - If `t == 0`, then this means that `lhs == rhs`.
+    /// - If `y == 0`, this does not mean anything at this point in time, due to it having no
+    /// constraints.
+    ///
+    /// Naively, we could apply the following constraint: `y == 1 - t`.
+    /// This along with the previous `y * t == 0` constraint means that
+    /// `y` or `t` needs to be zero, but they both cannot be zero.
+    ///
+    /// This equation however falls short when lhs != rhs because then `t`
+    /// may not be `1`. If `t` is non-zero, then `y` is also non-zero due to
+    /// `y == 1 - t` and the equation `y * t == 0` fails.  
+    ///
+    /// To fix, we introduce another free variable called `z` and apply the following
+    /// constraint instead: `y == 1 - t * z`.
+    ///
+    /// When `lhs == rhs`, `t` is `0` and so `y` is `1`.
+    /// When `lhs != rhs`, `t` is non-zero, however the prover can set `z = 1/t`
+    /// which will make `y = 1 - t * 1/t = 0`.
+    ///
+    /// We now arrive at the conclusion that when `lhs == rhs`, `y` is `1` and when
+    /// `lhs != rhs`, then `y` is `0`.
+    ///  
+    /// Bringing it all together, We introduce three variables `y`, `t` and `z`,
+    /// With the following equations:
+    /// - `t == lhs - rhs`
+    /// - `y == 1 - tz` (`z` is a value that is chosen to be the inverse of `t` by the prover)
+    /// - `y * t == 0`
+    ///
+    /// Lets convince ourselves that the prover cannot prove an untrue statement.
+    ///
+    /// Assume that `lhs == rhs`, can the prover return `y == 0`?
+    ///
+    /// When `lhs == rhs`, `t` is 0. There is no way to make `y` be zero
+    /// since `y = 1 - 0 * z = 1`.
+    ///
+    /// Assume that `lhs != rhs`, can the prover return `y == 1`?
+    ///
+    /// When `lhs != rhs`, then `t` is non-zero.
+    /// By setting `z` to be `0`, we can make `y` equal to `1`.
+    /// This is easily observed: `y = 1 - t * 0`
+    /// Now since `y` is one, this means that `t` needs to be zero, or else `y * t == 0` will fail.
     pub(crate) fn eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
@@ -350,9 +428,26 @@ impl AcirContext {
             return Ok(self.add_constant(diff_expr.is_zero().into()));
         }
 
-        let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
-        let result_var = self.add_data(AcirVarData::Witness(is_equal_witness));
-        Ok(result_var)
+        let t = self.sub_var(lhs, rhs)?;
+
+        let t_witness = self.add_variable();
+        self.assert_eq_var(t_witness, t)?;
+
+        // Safety: see method documentation for justification on usage of `unsafe_inv_var`.
+        let one = self.add_constant(FieldElement::one());
+        let z = self.unsafe_inv_var(t_witness, one)?;
+
+        let zt = self.mul_var(z, t_witness)?;
+
+        let y = self.add_variable();
+        let y_is_boolean = self.add_var(zt, y)?;
+
+        self.assert_eq_one(y_is_boolean)?;
+
+        let yt = self.mul_var(y, t)?;
+        self.assert_eq_zero(yt)?;
+
+        Ok(y)
     }
 
     /// Returns an `AcirVar` that is the XOR result of `lhs` & `rhs`.
