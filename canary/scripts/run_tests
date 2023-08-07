@@ -1,0 +1,27 @@
+#!/bin/bash
+# This script is used to run an e2e test in CI (see config.yml and cond_spot_run_tests).
+# It sets a few environment variables used inside the docker-compose.yml, pulls images, and runs docker-compose.
+set -e
+
+export TEST=$1
+export COMPOSE_FILE=${2:-docker-compose.yml}
+
+if [ -z "$COMMIT_TAG" ]; then
+  echo "Will only run the canary on tagged builds. Skipping."
+  exit 0
+fi
+
+if [ "$TEST" = "uniswap_trade_on_l1_from_l2.test.ts" ]; then
+  export FORK_URL=https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c
+  export FORK_BLOCK_NUMBER=17514288
+fi
+
+if [ -n "$COMMIT_HASH" ]; then
+  $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
+
+  docker pull 278380418400.dkr.ecr.us-east-2.amazonaws.com/canary:cache-$COMMIT_HASH
+  docker tag 278380418400.dkr.ecr.us-east-2.amazonaws.com/canary:cache-$COMMIT_HASH aztecprotocol/canary:latest
+fi
+
+docker-compose rm -f
+docker-compose -f $COMPOSE_FILE up --exit-code-from canary

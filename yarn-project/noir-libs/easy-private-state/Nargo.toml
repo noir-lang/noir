@@ -2,6 +2,7 @@
 name = "easy_private_state"
 authors = ["aztec-labs"]
 compiler_version = "0.7.1"
+type = "lib"
 
 [dependencies]
 aztec = { path = "../noir-aztec" }

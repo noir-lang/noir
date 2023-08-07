@@ -39,7 +39,7 @@ async function waitThenDeploy(rpcUrl: string, hdAccount: HDAccount) {
       return chainId;
     },
     'isEthRpcReady',
-    30,
+    600,
     1,
   );
 

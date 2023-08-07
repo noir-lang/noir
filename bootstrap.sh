@@ -36,6 +36,11 @@ fi
 
 circuits/cpp/bootstrap.sh
 
+# Build the canary
+cd canary 
+yarn build 
+cd ..
+
 if [ "$(uname)" = "Darwin" ]; then
   # works around https://github.com/AztecProtocol/aztec3-packages/issues/158
   echo "Note: not sourcing nvm on Mac, see github #158"

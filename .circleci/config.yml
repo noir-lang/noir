@@ -822,9 +822,8 @@ jobs:
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_pending_commitments_contract.test.ts
           working_directory: yarn-project/end-to-end
 
-
   uniswap-trade-on-l1-from-l2:
-    machine:       
+    machine:
       image: ubuntu-2004:202010-01
     resource_class: large
     steps:
@@ -997,6 +996,37 @@ jobs:
           command: |
             deploy_ecr aztec-sandbox
             deploy_dockerhub aztec-sandbox
+
+  deploy-end:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: "Noop"
+          command: echo Noop
+
+  build-canary:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build and test"
+          command: build canary true
+
+  run-canary:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: spot_run_tests canary uniswap_trade_on_l1_from_l2.test.ts docker-compose.yml
 
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /^v.*/
@@ -1227,4 +1257,20 @@ workflows:
       - deploy-npm:
           requires:
             - e2e-end
+          <<: *deploy_defaults
+
+      - deploy-end:
+          requires:
+            - deploy-dockerhub
+            - deploy-npm
+          <<: *deploy_defaults
+
+      - build-canary:
+          requires:
+            - deploy-end
+          <<: *deploy_defaults
+
+      - run-canary:
+          requires:
+            - build-canary
           <<: *deploy_defaults

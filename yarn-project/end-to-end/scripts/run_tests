@@ -9,7 +9,7 @@ export COMPOSE_FILE=${2:-docker-compose.yml}
 if [ -n "$COMMIT_HASH" ]; then
   $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 
-  for REPO in aztec.js end-to-end; do
+  for REPO in aztec.js end-to-end aztec-sandbox; do
     docker pull 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$COMMIT_HASH
     docker tag 278380418400.dkr.ecr.us-east-2.amazonaws.com/$REPO:cache-$COMMIT_HASH aztecprotocol/$REPO:latest
   done

@@ -25,12 +25,15 @@
 set -euo pipefail
 
 REPOSITORY=$1
+FORCE_BUILD=${2:-"false"}
 DOCKERFILE=$(query_manifest dockerfile $REPOSITORY)
 PROJECT_DIR=$(query_manifest projectDir $REPOSITORY)
+BUILD_DIR=$(query_manifest buildDir $REPOSITORY)
 
 echo "Repository: $REPOSITORY"
 echo "Working directory: $PWD"
 echo "Dockerfile: $DOCKERFILE"
+echo "Build directory: $BUILD_DIR"
 
 init_submodules $REPOSITORY
 
@@ -49,10 +52,10 @@ ensure_repo $REPOSITORY $ECR_REGION refresh_lifecycle
 LAST_SUCCESSFUL_COMMIT=$(last_successful_commit $REPOSITORY)
 echo "Last successful commit: $LAST_SUCCESSFUL_COMMIT"
 
-cd $(query_manifest buildDir $REPOSITORY)
+cd $BUILD_DIR
 
 # If we have previously successful commit, we can early out if nothing relevant has changed since.
-if check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
+if [[ $FORCE_BUILD == 'false' ]] && check_rebuild "$LAST_SUCCESSFUL_COMMIT" $REPOSITORY; then
   echo "No rebuild necessary. Retagging..."
   STAGES=$(cat $DOCKERFILE | sed -n -e 's/^FROM .* AS \(.*\)/\1/p')
   for STAGE in $STAGES; do

@@ -15,6 +15,7 @@
 PROJECTS=(
   circuits:circuits/cpp:./dockerfiles/Dockerfile.wasm-linux-clang:circuits-wasm-linux-clang
   l1-contracts:l1-contracts
+  noir-contracts:yarn-project:DockerFile.build:noir-contracts-build
   noir-contracts:yarn-project
   yarn-project-base:yarn-project
   end-to-end:yarn-project
