@@ -370,14 +370,14 @@ fn simplify_signature(
 
 fn simplify_sort(dfg: &mut DataFlowGraph, arguments: &[ValueId]) -> SimplifyResult {
     match dfg.get_array_constant(arguments[0]) {
-        Some((input, _)) if array_is_constant(dfg, &input) => {
-            let (_, element_type) = dfg.get_numeric_constant_with_type(input[0]).unwrap();
+        Some((input, _)) => {
+            let inputs: Option<Vec<FieldElement>> =
+                input.iter().map(|id| dfg.get_numeric_constant(*id)).collect();
 
-            let mut sorted_inputs: Vec<FieldElement> = vecmap(input, |id| {
-                dfg.get_numeric_constant(id).expect("value id from array should point at constant")
-            });
+            let Some(mut sorted_inputs) = inputs else { return SimplifyResult::None };
             sorted_inputs.sort_unstable();
 
+            let (_, element_type) = dfg.get_numeric_constant_with_type(input[0]).unwrap();
             let result_array = make_constant_array(dfg, sorted_inputs, element_type);
             SimplifyResult::SimplifiedTo(result_array)
         }
