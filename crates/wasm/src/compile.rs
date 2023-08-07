@@ -6,10 +6,7 @@ use noirc_driver::{
     check_crate, compile_contracts, compile_no_check, prepare_crate, propagate_dep, CompileOptions,
     CompiledContract,
 };
-use noirc_frontend::{
-    graph::{CrateGraph, CrateType},
-    hir::Context,
-};
+use noirc_frontend::{graph::CrateGraph, hir::Context};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use wasm_bindgen::prelude::*;
@@ -63,7 +60,7 @@ impl Default for WASMCompileOptions {
 
 fn add_noir_lib(context: &mut Context, crate_name: &str) {
     let path_to_lib = Path::new(&crate_name).join("lib.nr");
-    let library_crate = prepare_crate(context, &path_to_lib, CrateType::Library);
+    let library_crate = prepare_crate(context, &path_to_lib);
 
     propagate_dep(context, library_crate, &crate_name.parse().unwrap());
 }
@@ -87,7 +84,7 @@ pub fn compile(args: JsValue) -> JsValue {
     let mut context = Context::new(fm, graph);
 
     let path = Path::new(&options.entry_point);
-    let crate_id = prepare_crate(&mut context, path, CrateType::Binary);
+    let crate_id = prepare_crate(&mut context, path);
 
     for dependency in options.optional_dependencies_set {
         add_noir_lib(&mut context, dependency.as_str());

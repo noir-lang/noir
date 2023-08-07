@@ -1,0 +1,8 @@
+[package]
+name = "poseidon_bn254_hash"
+description = "Poseidon 254-bit permutation test on 3 elements with alpha = 5"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

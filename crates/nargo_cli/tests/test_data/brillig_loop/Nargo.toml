@@ -1,6 +1,0 @@
-[package]
-name = "brillig_loop"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

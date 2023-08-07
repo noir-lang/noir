@@ -1,17 +1,20 @@
 use std::path::PathBuf;
 
-use super::fs::{
-    common_reference_string::{
-        read_cached_common_reference_string, update_common_reference_string,
-        write_cached_common_reference_string,
-    },
-    create_named_dir,
-    program::read_program_from_file,
-    write_to_file,
-};
 use super::NargoConfig;
-use crate::{cli::compile_cmd::compile_circuit, errors::CliError};
-use crate::{find_package_manifest, manifest::resolve_workspace_from_toml, prepare_package};
+use super::{
+    compile_cmd::compile_package,
+    fs::{
+        common_reference_string::{
+            read_cached_common_reference_string, update_common_reference_string,
+            write_cached_common_reference_string,
+        },
+        create_named_dir,
+        program::read_program_from_file,
+        write_to_file,
+    },
+};
+use crate::errors::CliError;
+use crate::{find_package_manifest, manifest::resolve_workspace_from_toml};
 use acvm::Backend;
 use clap::Args;
 use nargo::{
@@ -75,8 +78,7 @@ fn smart_contract_for_package<B: Backend>(
                 .map_err(CliError::CommonReferenceStringError)?;
         (common_reference_string, program)
     } else {
-        let (mut context, crate_id) = prepare_package(package);
-        let program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
+        let (_, program) = compile_package(backend, package, compile_options)?;
         let common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;

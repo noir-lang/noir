@@ -1,0 +1,7 @@
+[package]
+name = "debug_logs"
+type = "bin"
+authors = [""]
+compiler_version = "0.8.0"
+
+[dependencies]

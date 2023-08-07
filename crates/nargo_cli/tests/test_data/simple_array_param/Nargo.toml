@@ -1,6 +1,0 @@
-[package]
-name = "simple_array_param"
-authors = [""]
-compiler_version = "0.6.0"
-
-[dependencies]
