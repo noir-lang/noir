@@ -6,8 +6,9 @@ use std::{
 
 use acvm::Backend;
 use clap::Args;
+use nargo::constants::TARGET_DIR;
 
-use crate::{constants::TARGET_DIR, errors::CliError};
+use crate::errors::CliError;
 
 use super::NargoConfig;
 
