@@ -319,6 +319,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirExpression::Cast(cast) => ast::Expression::Cast(ast::Cast {
                 lhs: Box::new(self.expr(cast.lhs)),
                 r#type: Self::convert_type(&cast.r#type),
+                location: self.interner.expr_location(&expr),
             }),
 
             HirExpression::For(for_expr) => {
