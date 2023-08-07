@@ -630,9 +630,6 @@ impl AcirContext {
         let rhs_expr = self.var_to_expression(rhs)?;
         let predicate_expr = self.var_to_expression(predicate)?;
 
-        // TODO: check what happens when we do (a as u8) >= (b as u32)
-        // TODO: The frontend should shout in this case
-
         let is_greater_than_eq =
             self.acir_ir.more_than_eq_comparison(&lhs_expr, &rhs_expr, bit_size, predicate_expr)?;
 

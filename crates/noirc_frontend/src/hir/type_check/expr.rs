@@ -1088,7 +1088,13 @@ impl<'interner> TypeChecker<'interner> {
         };
 
         match op {
-            crate::UnaryOp::Minus => unify(Type::polymorphic_integer(self.interner)),
+            crate::UnaryOp::Minus => {
+                let expected = Type::polymorphic_integer(self.interner);
+                rhs_type.unify(&expected, span, &mut self.errors, || {
+                    TypeCheckError::InvalidUnaryOp { kind: rhs_type.to_string(), span }
+                });
+                expected
+            }
             crate::UnaryOp::Not => {
                 let rhs_type = rhs_type.follow_bindings();
 
