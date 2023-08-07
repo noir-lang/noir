@@ -9,6 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # TODO: Replace this step with downloading a wasm binary from a set release of Barretenberg
   build-barretenberg:
     runs-on: ubuntu-latest
     steps:
@@ -142,7 +143,6 @@ jobs:
           nargo_binary=${{ github.workspace }}/nargo/nargo
           chmod +x $nargo_binary
           $nargo_binary compile
-          
 
       - name: Install dependencies
         working-directory: ./crates/wasm
