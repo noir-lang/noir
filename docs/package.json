@@ -10,7 +10,7 @@
     "build": "yarn preprocess && docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
-    "clear": "docusaurus clear",
+    "clear": "rm -rf 'processed-docs' 'processed-docs-cache' && docusaurus clear",
     "serve": "docusaurus serve",
     "preprocess": "yarn node ./src/preprocess/index.js",
     "preprocess:dev": "nodemon --config nodemon.json ./src/preprocess/index.js",

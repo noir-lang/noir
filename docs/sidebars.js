@@ -14,142 +14,305 @@
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 const sidebars = {
   docsSidebar: [
-    "intro",
-
-    "embedding-github-code",
-
-    "vision",
+    {
+      type: "html",
+      value: '<span class="sidebar-divider" />',
+    },
+    {
+      type: "html",
+      className: "sidebar-title",
+      value: "About Aztec",
+      defaultStyle: true,
+    },
 
     {
-      label: "Aztec",
+      label: "What is Aztec?",
+      type: "category",
+      link: { type: "doc", id: "intro" },
+      items: ["about_aztec/history/history", "about_aztec/overview"],
+    },
+
+    "about_aztec/vision",
+
+    {
+      label: "Roadmap",
       type: "category",
       link: {
         type: "doc",
-        id: "aztec/overview",
+        id: "about_aztec/roadmap/main",
+      },
+      items: [
+        "about_aztec/roadmap/features_initial_ldt",
+        "about_aztec/roadmap/milestones",
+        "about_aztec/roadmap/cryptography_roadmap",
+      ],
+    },
+
+    "about_aztec/how_to_contribute",
+
+    {
+      type: "html",
+      value: '<span class="sidebar-divider" />',
+    },
+    {
+      type: "html",
+      className: "sidebar-title",
+      value: "Specification",
+      defaultStyle: true,
+    },
+
+    {
+      label: "Foundational Concepts",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "concepts/foundation/main",
+      },
+      items: [
+        "concepts/foundation/state_model",
+        {
+          label: "Accounts",
+          type: "category",
+          link: { type: "doc", id: "concepts/foundation/accounts/main" },
+          items: ["concepts/foundation/accounts/keys"],
+        },
+        "concepts/foundation/contracts",
+        "concepts/foundation/transactions",
+        "concepts/foundation/blocks",
+        "concepts/foundation/globals",
+        {
+          label: "Communication",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/foundation/communication/main",
+          },
+          items: [
+            "concepts/foundation/communication/public_private_calls",
+            "concepts/foundation/communication/cross_chain_calls",
+          ],
+        },
+        {
+          label: "Nodes and Clients",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/foundation/nodes_clients/main",
+          },
+          items: [
+            "concepts/foundation/nodes_clients/execution_client",
+            "concepts/foundation/nodes_clients/prover_client",
+            "concepts/foundation/nodes_clients/sequencer_client",
+          ],
+        },
+        "concepts/foundation/block_production",
+        "concepts/foundation/upgrade_mechanism",
+      ],
+    },
+
+    {
+      label: "Advanced Concepts",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "concepts/advanced/main",
       },
       items: [
         {
-          label: "How it works",
+          label: "Data Structures",
           type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/advanced/data_structures/main",
+          },
           items: [
-            "aztec/how-it-works/private-smart-contracts",
-            "aztec/how-it-works/private-state",
-            "aztec/how-it-works/private-public-execution",
-            "aztec/how-it-works/l1-l2-messaging", // TODO: move to protocol?
+            "concepts/advanced/data_structures/trees",
+            "concepts/advanced/data_structures/indexed_merkle_tree",
           ],
         },
-
         {
-          label: "Developer",
+          label: "Circuits",
           type: "category",
+          link: {
+            type: "doc",
+            id: "concepts/advanced/circuits/main",
+          },
           items: [
             {
-              label: "Dapps",
+              label: "Kernels",
               type: "category",
+              link: {
+                type: "doc",
+                id: "concepts/advanced/circuits/kernels/main",
+              },
               items: [
-                "aztec/developer/dapps/building-dapps", // TODO
+                "concepts/advanced/circuits/kernels/private_kernel",
+                "concepts/advanced/circuits/kernels/public_kernel",
               ],
             },
             {
-              label: "Noir Contracts",
+              label: "Rollup Circuits",
               type: "category",
+              link: {
+                type: "doc",
+                id: "concepts/advanced/circuits/rollup_circuits/main",
+              },
               items: [
-                "aztec/developer/noir-contracts/noir-contracts",
-                "aztec/developer/noir-contracts/getting-started",
-                "aztec/developer/noir-contracts/concepts",
-                "aztec/developer/noir-contracts/compiling-contracts",
-                "aztec/developer/noir-contracts/testing-contracts",
-                "aztec/developer/noir-contracts/errors",
-              ],
-            },
-            {
-              label: "Portal Contracts",
-              type: "category",
-              items: ["aztec/developer/portal-contracts/portal-contracts"],
-            },
-            {
-              label: "Sandbox",
-              type: "category",
-              items: [
-                "aztec/developer/sandbox/sandbox",
-                "aztec/developer/sandbox/components",
-                "aztec/developer/sandbox/errors",
-              ],
-            },
-            {
-              label: "Wallet Providers",
-              type: "category",
-              items: [
-                "aztec/developer/wallet-providers/building-a-wallet",
-                "aztec/developer/wallet-providers/keys",
-                "aztec/developer/wallet-providers/account-abstraction",
-                "aztec/developer/wallet-providers/writing-an-account-contract",
+                "concepts/advanced/circuits/rollup_circuits/base_rollup",
+                "concepts/advanced/circuits/rollup_circuits/merge_rollup",
+                "concepts/advanced/circuits/rollup_circuits/root_rollup",
               ],
             },
           ],
         },
 
+        "concepts/advanced/public_vm",
+
+        "concepts/advanced/contract_creation",
+        "concepts/advanced/rollup_contract",
+      ],
+    },
+
+    {
+      type: "html",
+      value: '<span class="sidebar-divider" />',
+    },
+    {
+      type: "html",
+      className: "sidebar-title",
+      value: "Developer Documentation",
+      defaultStyle: true,
+    },
+
+    {
+      label: "Getting Started",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/getting_started/main",
+      },
+      items: [
+        "dev_docs/getting_started/noir",
+        "dev_docs/getting_started/sandbox",
+      ],
+    },
+
+    {
+      label: "Contracts",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/contracts/main",
+      },
+      items: [
+        "dev_docs/contracts/concepts",
+        "dev_docs/contracts/layout",
+        "dev_docs/contracts/control_structure",
+        "dev_docs/contracts/globals",
+        "dev_docs/contracts/events",
+        "dev_docs/contracts/storage",
+        "dev_docs/contracts/types",
+        "dev_docs/contracts/visibility",
+        "dev_docs/contracts/functions",
+        "dev_docs/contracts/constrain",
+        "dev_docs/contracts/compiling",
+        "dev_docs/contracts/deploying",
         {
-          label: "Protocol",
+          label: "Resources",
+          type: "category",
+          items: [
+            "dev_docs/contracts/resources/style_guide",
+            {
+              label: "Common Patterns",
+              type: "category",
+              link: {
+                type: "doc",
+                id: "dev_docs/contracts/resources/common_patterns/main",
+              },
+              items: [
+                "dev_docs/contracts/resources/common_patterns/sending_tokens_to_user",
+                "dev_docs/contracts/resources/common_patterns/sending_tokens_to_contract",
+                "dev_docs/contracts/resources/common_patterns/access_control",
+                "dev_docs/contracts/resources/common_patterns/interacting_with_l1",
+              ],
+            },
+          ],
+        },
+        {
+          label: "Security Considerations",
           type: "category",
           items: [
             {
-              label: "Trees",
+              label: "Breaking changes",
               type: "category",
-              items: [
-                "aztec/protocol/trees/trees",
-                "aztec/protocol/trees/indexed-merkle-tree",
-              ],
+              link: {
+                type: "doc",
+                id: "dev_docs/contracts/security/breaking_changes/main",
+              },
+              items: ["dev_docs/contracts/security/breaking_changes/v0"],
             },
-
-            {
-              label: "Circuits",
-              type: "category",
-              items: [
-                "aztec/protocol/circuits/circuits",
-                "aztec/protocol/circuits/private-kernel",
-                "aztec/protocol/circuits/public-kernel",
-                "aztec/protocol/circuits/rollup",
-                "aztec/protocol/circuits/public-vm",
-              ],
-            },
-
-            "aztec/protocol/contract-creation",
-          ],
-        },
-
-        {
-          label: "Cryptography",
-          type: "category",
-          items: ["aztec/cryptography/cryptography"],
-        },
-
-        {
-          label: "Roadmap",
-          type: "category",
-          items: [
-            "aztec/milestones/features-initial-ldt",
-            "aztec/milestones/milestones",
-            "aztec/milestones/cryptography-roadmap",
-          ],
-        },
-
-        {
-          label: "History",
-          type: "category",
-          items: [
-            "aztec/history/history",
-            "aztec/history/differences-to-aztec-connect",
           ],
         },
       ],
     },
 
-    "noir",
+    {
+      label: "Sandbox",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/sandbox/main",
+      },
+      items: ["dev_docs/sandbox/components", "dev_docs/sandbox/common_errors"],
+    },
 
-    "aztec-connect-sunset",
+    {
+      label: "Testing",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/testing/main",
+      },
+      items: [
+        "dev_docs/testing/writing_a_test",
+        "dev_docs/testing/cheat_codes",
+      ],
+    },
 
-    "glossary",
+    {
+      label: "Wallets",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/wallets/main",
+      },
+      items: [
+        "dev_docs/wallets/building_a_wallet",
+        "dev_docs/wallets/writing_an_account_contract",
+      ],
+    },
+
+    {
+      type: "html",
+      value: '<span class="sidebar-divider" />',
+    },
+    {
+      type: "html",
+      className: "sidebar-title",
+      value: "Miscellaneous",
+      defaultStyle: true,
+    },
+
+    "misc/glossary",
+
+    {
+      type: "html",
+      value: '<span class="sidebar-divider" />',
+    },
+
+    "misc/aztec_connect_sunset",
+
+    "embedding_github_code",
   ],
 };
 
