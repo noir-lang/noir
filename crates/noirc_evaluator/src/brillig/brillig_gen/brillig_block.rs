@@ -588,7 +588,7 @@ impl<'block> BrilligBlock<'block> {
         arguments: &[ValueId],
     ) {
         let slice_id = arguments[0];
-        let subitem_count = self.get_ssa_item_size(slice_id, dfg);
+        let element_size = dfg.type_of_value(slice_id).element_size();
         let source_variable = self.convert_ssa_value(slice_id, dfg);
         let source_vector = self.convert_array_or_vector_to_vector(source_variable);
 
@@ -600,7 +600,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
-                let item_values = vecmap(&arguments[1..subitem_count + 1], |arg| {
+                let item_values = vecmap(&arguments[1..element_size + 1], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
                 self.slice_push_back_operation(target_vector, source_vector, &item_values);
@@ -612,7 +612,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg,
                 );
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
-                let item_values = vecmap(&arguments[1..subitem_count + 1], |arg| {
+                let item_values = vecmap(&arguments[1..element_size + 1], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
                 self.slice_push_front_operation(target_vector, source_vector, &item_values);
@@ -625,7 +625,7 @@ impl<'block> BrilligBlock<'block> {
 
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
-                let pop_variables = vecmap(&results[1..subitem_count + 1], |result| {
+                let pop_variables = vecmap(&results[1..element_size + 1], |result| {
                     self.function_context.create_variable(self.brillig_context, *result, dfg)
                 });
 
@@ -634,13 +634,13 @@ impl<'block> BrilligBlock<'block> {
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
                 let results = dfg.instruction_results(instruction_id);
 
-                let pop_variables = vecmap(&results[0..subitem_count], |result| {
+                let pop_variables = vecmap(&results[0..element_size], |result| {
                     self.function_context.create_variable(self.brillig_context, *result, dfg)
                 });
 
                 let target_variable = self.function_context.create_variable(
                     self.brillig_context,
-                    results[subitem_count],
+                    results[element_size],
                     dfg,
                 );
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
@@ -655,12 +655,11 @@ impl<'block> BrilligBlock<'block> {
 
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
-                // TODO: Remove after https://github.com/noir-lang/noir/issues/2083 is fixed
+                // Remove if indexing in insert is changed to flattened indexing
+                // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
                 let user_index = self.convert_ssa_register_value(arguments[1], dfg);
 
-                let converted_index = self
-                    .brillig_context
-                    .make_constant(self.get_ssa_item_size(target_id, dfg).into());
+                let converted_index = self.brillig_context.make_constant(element_size.into());
 
                 self.brillig_context.memory_op(
                     converted_index,
@@ -669,7 +668,7 @@ impl<'block> BrilligBlock<'block> {
                     BinaryIntOp::Mul,
                 );
 
-                let items = vecmap(&arguments[2..subitem_count + 2], |arg| {
+                let items = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
@@ -684,12 +683,11 @@ impl<'block> BrilligBlock<'block> {
                     self.function_context.create_variable(self.brillig_context, target_id, dfg);
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
-                // TODO: Remove after https://github.com/noir-lang/noir/issues/2083 is fixed
+                // Remove if indexing in insert is changed to flattened indexing
+                // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
                 let user_index = self.convert_ssa_register_value(arguments[1], dfg);
 
-                let converted_index = self
-                    .brillig_context
-                    .make_constant(self.get_ssa_item_size(target_id, dfg).into());
+                let converted_index = self.brillig_context.make_constant(element_size.into());
                 self.brillig_context.memory_op(
                     converted_index,
                     user_index,
@@ -697,7 +695,7 @@ impl<'block> BrilligBlock<'block> {
                     BinaryIntOp::Mul,
                 );
 
-                let removed_items = vecmap(&results[1..subitem_count + 1], |result| {
+                let removed_items = vecmap(&results[1..element_size + 1], |result| {
                     self.function_context.create_variable(self.brillig_context, *result, dfg)
                 });
 
@@ -910,22 +908,6 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
-    /// Gets the number of subitems an array item has.
-    /// This allows operations like returning the user-defined length of an array where every item has multiple fields.
-    /// Such as an array/slice of structs.
-    fn get_ssa_item_size(&self, array_id: ValueId, dfg: &DataFlowGraph) -> usize {
-        let array_type = dfg[array_id].get_type();
-        match array_type {
-            Type::Array(item_types, _) | Type::Slice(item_types) => {
-                // To match SSA indexes, all subitems are stored as one single value
-                item_types.len()
-            }
-            _ => {
-                unreachable!("ICE: Cannot get item size of {array_type:?}")
-            }
-        }
-    }
-
     /// Gets the "user-facing" length of an array.
     /// An array of structs with two fields would be stored as an 2 * array.len() heap array/heap vector.
     /// So we divide the length by the number of subitems in an item to get the user-facing length.
@@ -936,18 +918,19 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
     ) {
         let array_variable = self.convert_ssa_value(array_id, dfg);
-        let item_size = self.get_ssa_item_size(array_id, dfg);
+        let element_size = dfg.type_of_value(array_id).element_size();
 
         match array_variable {
             RegisterOrMemory::HeapArray(HeapArray { size, .. }) => {
-                self.brillig_context.const_instruction(result_register, (size / item_size).into());
+                self.brillig_context
+                    .const_instruction(result_register, (size / element_size).into());
             }
             RegisterOrMemory::HeapVector(HeapVector { size, .. }) => {
                 self.brillig_context.usize_op(
                     size,
                     result_register,
                     BinaryIntOp::UnsignedDiv,
-                    item_size,
+                    element_size,
                 );
             }
             _ => {
