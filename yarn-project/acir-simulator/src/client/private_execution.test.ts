@@ -492,17 +492,23 @@ describe('Private Execution test suite', () => {
       const wasm = await CircuitsWasm.get();
       const secret = new Fr(1n);
       const secretHash = computeSecretMessageHash(wasm, secret);
-      const commitment = Fr.fromBuffer(hash([toBufferBE(amount, 32), secretHash.toBuffer()]));
-      const siloedCommitment = siloCommitment(wasm, contractAddress, commitment);
+      const preimage = [toBufferBE(amount, 32), secretHash.toBuffer()];
+      const noteHash = Fr.fromBuffer(hash(preimage));
+      const storageSlot = new Fr(2);
+      const innerNoteHash = hash([storageSlot.toBuffer(), noteHash.toBuffer()]);
+      const siloedNoteHash = siloCommitment(wasm, contractAddress, Fr.fromBuffer(innerNoteHash));
+      // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): should insert
+      // uniqueSiloedNoteHash in tree and that should be what is expected in Noir
+      //const uniqueSiloedNoteHash = computeUniqueCommitment(wasm, nonce, Fr.fromBuffer(innerNoteHash));
 
-      const tree = await insertLeaves([siloedCommitment]);
+      const tree = await insertLeaves([siloedNoteHash]);
 
       oracle.getCommitmentOracle.mockImplementation(async () => {
         // Check the calculated commitment is correct
         return Promise.resolve({
-          commitment: siloedCommitment,
-          index: 0n,
+          commitment: siloedNoteHash,
           siblingPath: (await tree.getSiblingPath(0n, false)).toFieldArray(),
+          index: 0n,
         });
       });
 
@@ -519,7 +525,7 @@ describe('Private Execution test suite', () => {
       // Check the commitment read request was created successfully.
       const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
       expect(readRequests).toHaveLength(1);
-      expect(readRequests[0]).toEqual(siloedCommitment);
+      expect(readRequests[0]).toEqual(siloedNoteHash);
     });
   });
 

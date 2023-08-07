@@ -297,11 +297,13 @@ describe('ACIR public execution simulator', () => {
       // Assert the commitment was created
       expect(result.newCommitments.length).toEqual(1);
 
-      const expectedNewCommitmentValue = pedersenPlookupCommitInputs(
+      const expectedNoteHash = pedersenPlookupCommitInputs(
         wasm,
         params.map(a => a.toBuffer()),
       );
-      expect(result.newCommitments[0].toBuffer()).toEqual(expectedNewCommitmentValue);
+      const storageSlot = new Fr(2); // matches storage.nr
+      const expectedInnerNoteHash = pedersenPlookupCommitInputs(wasm, [storageSlot.toBuffer(), expectedNoteHash]);
+      expect(result.newCommitments[0].toBuffer()).toEqual(expectedInnerNoteHash);
     });
 
     it('Should be able to create a L2 to L1 message from the public context', async () => {

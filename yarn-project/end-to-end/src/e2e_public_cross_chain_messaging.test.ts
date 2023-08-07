@@ -82,7 +82,7 @@ describe('e2e_public_cross_chain_messaging', () => {
     // Generate a claim secret using pedersen
     const l1TokenBalance = 1000000n;
     const bridgeAmount = 100n;
-    const publicBalanceSlot = 2n;
+    const publicBalanceSlot = 3n; // check contract's storage.nr for slot assignment
 
     const [secret, secretHash] = await crossChainTestHarness.generateClaimSecret();
 

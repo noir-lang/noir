@@ -208,6 +208,10 @@ export class ClientTxExecutionContext {
    * @returns The commitment data.
    */
   public async getCommitment(contractAddress: AztecAddress, commitment: ACVMField) {
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): only works
+    // for noteHashes/commitments created by public functions! Once public kernel or
+    // base rollup circuit injects nonces, this can be used with commitments created by
+    // private functions as well.
     const commitmentInputs = await this.db.getCommitmentOracle(contractAddress, fromACVMField(commitment));
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1029): support pending commitments here
     this.readRequestPartialWitnesses.push(ReadRequestMembershipWitness.empty(commitmentInputs.index));

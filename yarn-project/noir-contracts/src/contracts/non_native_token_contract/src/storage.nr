@@ -1,11 +1,9 @@
-use dep::aztec::state_vars::{
-    map::Map,
-    set::Set,
-    public_state::PublicState,
-    type_serialisation::field_serialisation::{
-        FIELD_SERIALISED_LEN,
-        FieldSerialisationMethods,
-    },
+mod transparent_note;
+
+use crate::transparent_note::{
+    TransparentNote,
+    TransparentNoteMethods,
+    TRANSPARENT_NOTE_LEN,
 };
 
 use dep::value_note::value_note::{
@@ -14,8 +12,18 @@ use dep::value_note::value_note::{
     VALUE_NOTE_LEN,
 };
 
+use dep::aztec::state_vars::{
+    map::Map,
+    set::Set,
+    public_state::PublicState,
+};
+use dep::aztec::state_vars::type_serialisation::field_serialisation::FieldSerialisationMethods;
+use dep::aztec::state_vars::type_serialisation::field_serialisation::FIELD_SERIALISED_LEN;
+
 struct Storage {
     balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,
+
+    pending_shields: Set<TransparentNote, TRANSPARENT_NOTE_LEN>,
 
     public_balances: Map<PublicState<Field, FIELD_SERIALISED_LEN>>,
 }
@@ -23,8 +31,9 @@ struct Storage {
 impl Storage {
     fn init() -> Self {
         Storage {
-            balances: Map::new(1, |slot| Set::new(slot, ValueNoteMethods)),
-            public_balances: Map::new(2, |slot| PublicState::new(slot, FieldSerialisationMethods)),
+            balances: Map::new(1, |s| Set::new(s, ValueNoteMethods)),
+            pending_shields: Set::new(2, TransparentNoteMethods),
+            public_balances: Map::new(3, |s| PublicState::new(s, FieldSerialisationMethods)),
         }
     }
 }

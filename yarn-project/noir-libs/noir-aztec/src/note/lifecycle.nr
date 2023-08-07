@@ -1,9 +1,11 @@
+use crate::abi::PublicContextInputs;
 use crate::context::Context;
 use crate::note::{
     note_header::NoteHeader,
     note_interface::NoteInterface,
     utils::compute_inner_note_hash,
 };
+use crate::oracle::create_commitment::create_commitment;
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
 use crate::types::option::Option;
@@ -14,19 +16,34 @@ fn create_note<Note, N>(
     note: &mut Note,
     note_interface: NoteInterface<Note, N>,
 ) {
-    let mut inner_note_hash = 0;
     let contract_address = context.inputs.call_context.storage_contract_address;
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0 };
     let set_header = note_interface.set_header;
     set_header(note, header);
-    inner_note_hash = compute_inner_note_hash(note_interface, *note);
+    let inner_note_hash = compute_inner_note_hash(note_interface, *note);
 
     let serialise = note_interface.serialise;
     let preimage = serialise(*note);
     assert(notify_created_note(storage_slot, preimage, inner_note_hash) == 0);    
 
     context.push_new_note_hash(inner_note_hash);
+}
+
+fn create_note_hash_from_public<Note, N>(
+    inputs: PublicContextInputs,
+    storage_slot: Field,
+    note: &mut Note,
+    note_interface: NoteInterface<Note, N>,
+) {
+    let contract_address = inputs.call_context.storage_contract_address;
+
+    let header = NoteHeader { contract_address, storage_slot, nonce: 0 };
+    let set_header = note_interface.set_header;
+    set_header(note, header);
+    let inner_note_hash = compute_inner_note_hash(note_interface, *note);
+
+    create_commitment(inner_note_hash);
 }
 
 fn destroy_note<Note, N>(

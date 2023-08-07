@@ -65,7 +65,7 @@ describe('e2e_public_to_private_messaging', () => {
     const l1TokenBalance = 1000000n;
     const bridgeAmount = 100n;
     const shieldAmount = 50n;
-    const publicBalanceSlot = 2n;
+    const publicBalanceSlot = 3n; // check contract's storage.nr for slot assignment
 
     const [secret, secretHash] = await crossChainTestHarness.generateClaimSecret();
 
