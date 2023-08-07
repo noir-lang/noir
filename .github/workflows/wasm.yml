@@ -146,21 +146,10 @@ jobs:
       - name: Compile test program with Nargo CLI
         working-directory: ./crates/wasm/noir-script
         run: |
-          nargo_binary=$(find ${{ github.workspace }}/nargo -name "nargo" -type f)
-          echo "nargo binary found at $nargo_binary."
-          ls -l $nargo_binary
-          echo "Attempting to make nargo binary executable:"
-          chmod +x $nargo_binary || echo "chmod failed with exit code $?"
-          echo "File permissions after chmod:"
-          ls -l $nargo_binary
-          echo "Library dependencies of nargo binary:"
-          ldd $nargo_binary
-          if [ -x "$nargo_binary" ]; then
-            $nargo_binary compile
-          else
-            echo "nargo binary NOT found or is not executable."
-            exit 1
-          fi
+          nargo_binary=${{ github.workspace }}/nargo/nargo
+          chmod +x $nargo_binary
+          $nargo_binary compile
+          
 
       - name: Install dependencies
         working-directory: ./crates/wasm
