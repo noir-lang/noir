@@ -383,6 +383,7 @@ export class AztecRPCServer implements AztecRPC {
       contractAddress,
       portalContract,
       historicRoots,
+      this.node,
     );
     this.log('Unconstrained simulation completed!');
 

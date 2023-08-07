@@ -346,4 +346,11 @@ contract NonNativeToken {
             note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
         }
     }
+
+    unconstrained fn publicBalanceOf(
+        owner: Field,
+    ) -> Field {
+        let storage = Storage::init();
+        storage.public_balances.at(owner).read()
+    }
 }

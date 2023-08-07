@@ -306,4 +306,22 @@ contract Lending {
         debt_loc.write(static_debt - amount);
         1
     }
+
+    unconstrained fn getTot(
+        assetId: Field,
+    ) -> [Field; 2]{
+        let storage = Storage::init();
+        let asset = storage.assets.at(assetId);
+        let tot = asset.read();
+        [tot.interest_accumulator as Field, tot.last_updated_ts as Field]
+    }
+
+    unconstrained fn getPosition(
+        owner: Field,
+    ) -> [Field; 2] {
+        let storage = Storage::init();
+        let collateral = storage.collateral.at(owner).read();
+        let debt = storage.static_debt.at(owner).read();
+        [collateral, debt] 
+    }
 }

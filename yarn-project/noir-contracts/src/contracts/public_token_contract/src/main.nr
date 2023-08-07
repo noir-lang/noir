@@ -61,4 +61,10 @@ contract PublicToken {
         }
     }
 
+    unconstrained fn publicBalanceOf(
+        owner: Field,
+    ) -> Field {
+        let storage = Storage::init();
+        storage.balances.at(owner).read()
+    }
 }
