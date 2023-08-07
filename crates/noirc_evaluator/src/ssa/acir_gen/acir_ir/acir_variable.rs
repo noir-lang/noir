@@ -159,6 +159,21 @@ impl AcirContext {
         self.acir_ir.current_location = location;
     }
 
+    /// Converts an [`AcirVar`] to a [`Witness`]
+    fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
+        let expression = self.var_to_expression(var)?;
+        Ok(self.acir_ir.get_or_create_witness(&expression))
+    }
+
+    /// Converts an [`AcirVar`] to an [`Expression`]
+    fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
+        let var_data = match self.vars.get(&var) {
+            Some(var_data) => var_data,
+            None => return Err(InternalError::UndeclaredAcirVar { location: self.get_location() }),
+        };
+        Ok(var_data.to_expression().into_owned())
+    }
+
     /// True if the given AcirVar refers to a constant one value
     pub(crate) fn is_constant_one(&self, var: &AcirVar) -> bool {
         match self.vars[var] {
@@ -969,21 +984,6 @@ impl AcirContext {
         }
 
         Ok(outputs_var)
-    }
-
-    /// Converts an [`AcirVar`] to a [`Witness`]
-    fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
-        let expression = self.var_to_expression(var)?;
-        Ok(self.acir_ir.get_or_create_witness(&expression))
-    }
-
-    /// Converts an [`AcirVar`] to an [`Expression`]
-    fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
-        let var_data = match self.vars.get(&var) {
-            Some(var_data) => var_data,
-            None => return Err(InternalError::UndeclaredAcirVar { location: self.get_location() }),
-        };
-        Ok(var_data.to_expression().into_owned())
     }
 
     /// Constrain lhs to be less than rhs
