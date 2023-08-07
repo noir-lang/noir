@@ -1,9 +1,8 @@
 name: Wasm
 
 on:
-  push:
-    branches:
-      - "*"
+  pull_request:
+  merge_group:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
@@ -56,10 +55,6 @@ jobs:
   build-nargo:
     needs: [build-barretenberg]
     runs-on: ubuntu-22.04
-    env:
-      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-    strategy:
-      fail-fast: false
 
     steps:
       - name: Checkout Noir repo
@@ -83,14 +78,12 @@ jobs:
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
-        with:
-          targets: ${{ matrix.target }}
 
       - name: Build Nargo
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
-          cargo install cross --force --git https://github.com/cross-rs/cross
+          cargo build --package nargo_cli --release --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
         run: |
