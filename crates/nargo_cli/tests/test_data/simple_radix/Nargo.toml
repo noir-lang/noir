@@ -1,5 +1,6 @@
 [package]
 name = "simple_radix"
+type = "bin"
 authors = [""]
 compiler_version = "0.6.0"
 

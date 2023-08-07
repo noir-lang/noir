@@ -30,7 +30,7 @@ pub struct FileManager {
 impl FileManager {
     pub fn new(root: &Path) -> Self {
         Self {
-            root: normalize_path(root),
+            root: root.normalize(),
             file_map: Default::default(),
             id_to_path: Default::default(),
             path_to_id: Default::default(),
@@ -44,7 +44,7 @@ impl FileManager {
             // TODO: The stdlib path should probably be an absolute path rooted in something people would never create
             file_name.to_path_buf()
         } else {
-            normalize_path(&self.root.join(file_name))
+            self.root.join(file_name).normalize()
         };
 
         // Check that the resolved path already exists in the file map, if it is, we return it.
@@ -80,7 +80,7 @@ impl FileManager {
         self.id_to_path.get(&file_id).unwrap().0.as_path()
     }
 
-    pub fn resolve_path(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
+    pub fn find_module(&mut self, anchor: FileId, mod_name: &str) -> Result<FileId, String> {
         let mut candidate_files = Vec::new();
 
         let anchor_path = self.path(anchor).to_path_buf();
@@ -101,13 +101,33 @@ impl FileManager {
     }
 }
 
-/// Replacement for `std::fs::canonicalize` that doesn't verify the path exists.
-///
-/// Plucked from https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
-/// Advice from https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/
-fn normalize_path(path: &Path) -> PathBuf {
-    let mut components = path.components().peekable();
-    let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+pub trait NormalizePath {
+    /// Replacement for `std::fs::canonicalize` that doesn't verify the path exists.
+    ///
+    /// Plucked from https://github.com/rust-lang/cargo/blob/fede83ccf973457de319ba6fa0e36ead454d2e20/src/cargo/util/paths.rs#L61
+    /// Advice from https://www.reddit.com/r/rust/comments/hkkquy/comment/fwtw53s/
+    fn normalize(&self) -> PathBuf;
+}
+
+impl NormalizePath for PathBuf {
+    fn normalize(&self) -> PathBuf {
+        let components = self.components();
+        resolve_components(components)
+    }
+}
+
+impl NormalizePath for &Path {
+    fn normalize(&self) -> PathBuf {
+        let components = self.components();
+        resolve_components(components)
+    }
+}
+
+fn resolve_components<'a>(components: impl Iterator<Item = Component<'a>>) -> PathBuf {
+    let mut components = components.peekable();
+
+    // Preserve path prefix if one exists.
+    let mut normalized_path = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
         components.next();
         PathBuf::from(c.as_os_str())
     } else {
@@ -116,20 +136,46 @@ fn normalize_path(path: &Path) -> PathBuf {
 
     for component in components {
         match component {
-            Component::Prefix(..) => unreachable!(),
+            Component::Prefix(..) => unreachable!("Path cannot contain multiple prefixes"),
             Component::RootDir => {
-                ret.push(component.as_os_str());
+                normalized_path.push(component.as_os_str());
             }
             Component::CurDir => {}
             Component::ParentDir => {
-                ret.pop();
+                normalized_path.pop();
             }
             Component::Normal(c) => {
-                ret.push(c);
+                normalized_path.push(c);
             }
         }
     }
-    ret
+
+    normalized_path
+}
+
+#[cfg(test)]
+mod path_normalization {
+    use iter_extended::vecmap;
+    use std::path::PathBuf;
+
+    use crate::NormalizePath;
+
+    #[test]
+    fn normalizes_paths_correctly() {
+        // Note that tests are run on unix so prefix handling can't be tested (as these only exist on Windows)
+        let test_cases = vecmap(
+            [
+                ("/", "/"),                             // Handles root
+                ("/foo/bar/../baz/../bar", "/foo/bar"), // Handles backtracking
+                ("/././././././././baz", "/baz"),       // Removes no-ops
+            ],
+            |(unnormalized, normalized)| (PathBuf::from(unnormalized), PathBuf::from(normalized)),
+        );
+
+        for (path, expected_result) in test_cases {
+            assert_eq!(path.normalize(), expected_result);
+        }
+    }
 }
 
 /// Takes a path to a noir file. This will panic on paths to directories
@@ -149,7 +195,7 @@ mod tests {
 
     fn create_dummy_file(dir: &TempDir, file_name: &Path) {
         let file_path = dir.path().join(file_name);
-        let _file = std::fs::File::create(file_path.clone()).unwrap();
+        let _file = std::fs::File::create(file_path).unwrap();
     }
 
     #[test]
@@ -165,7 +211,7 @@ mod tests {
 
         let dep_file_name = Path::new("foo.nr");
         create_dummy_file(&dir, dep_file_name);
-        fm.resolve_path(file_id, "foo").unwrap();
+        fm.find_module(file_id, "foo").unwrap();
     }
     #[test]
     fn path_resolve_file_module_other_ext() {
@@ -175,7 +221,7 @@ mod tests {
 
         let mut fm = FileManager::new(dir.path());
 
-        let file_id = fm.add_file(&file_name).unwrap();
+        let file_id = fm.add_file(file_name).unwrap();
 
         assert!(fm.path(file_id).ends_with("foo"));
     }
@@ -189,7 +235,7 @@ mod tests {
         let file_name = Path::new("lib.nr");
         create_dummy_file(&dir, file_name);
 
-        let file_id = fm.add_file(&file_name).unwrap();
+        let file_id = fm.add_file(file_name).unwrap();
 
         // Create a sub directory
         // we now have:
@@ -212,10 +258,10 @@ mod tests {
         create_dummy_file(&dir, Path::new(&format!("{}.nr", sub_dir_name)));
 
         // First check for the sub_dir.nr file and add it to the FileManager
-        let sub_dir_file_id = fm.resolve_path(file_id, sub_dir_name).unwrap();
+        let sub_dir_file_id = fm.find_module(file_id, sub_dir_name).unwrap();
 
         // Now check for files in it's subdirectory
-        fm.resolve_path(sub_dir_file_id, "foo").unwrap();
+        fm.find_module(sub_dir_file_id, "foo").unwrap();
     }
 
     /// Tests that two identical files that have different paths are treated as the same file
@@ -238,7 +284,7 @@ mod tests {
         let second_file_name = PathBuf::from(sub_sub_dir.path()).join("./../../lib.nr");
 
         // Add both files to the file manager
-        let file_id = fm.add_file(&file_name).unwrap();
+        let file_id = fm.add_file(file_name).unwrap();
         let second_file_id = fm.add_file(&second_file_name).unwrap();
 
         assert_eq!(file_id, second_file_id);

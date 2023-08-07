@@ -1,5 +1,6 @@
 [package]
-name = "brillig_slices"
+name = "brillig_nested_slices"
+type = "bin"
 authors = [""]
 compiler_version = "0.6.0"
 

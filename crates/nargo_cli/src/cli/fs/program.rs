@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use nargo::artifacts::{contract::PreprocessedContract, program::PreprocessedProgram};
+use noirc_frontend::graph::CrateName;
 
 use crate::errors::FilesystemError;
 
@@ -8,10 +9,11 @@ use super::{create_named_dir, write_to_file};
 
 pub(crate) fn save_program_to_file<P: AsRef<Path>>(
     compiled_program: &PreprocessedProgram,
-    circuit_name: &str,
+    crate_name: &CrateName,
     circuit_dir: P,
 ) -> PathBuf {
-    save_build_artifact_to_file(compiled_program, circuit_name, circuit_dir)
+    let circuit_name: String = crate_name.into();
+    save_build_artifact_to_file(compiled_program, &circuit_name, circuit_dir)
 }
 pub(crate) fn save_contract_to_file<P: AsRef<Path>>(
     compiled_contract: &PreprocessedContract,

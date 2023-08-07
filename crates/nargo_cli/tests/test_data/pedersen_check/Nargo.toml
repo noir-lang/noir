@@ -1,5 +1,6 @@
 [package]
 name = "pedersen_check"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

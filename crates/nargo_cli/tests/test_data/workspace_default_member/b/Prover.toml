@@ -1,0 +1,3 @@
+# Deliberately setting these to fail to prove this is NOT executed since a default is specified
+x = "1"
+y = "1"

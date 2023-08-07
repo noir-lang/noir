@@ -3,38 +3,31 @@ use std::path::{Path, PathBuf};
 use acvm::Backend;
 use clap::Args;
 use nargo::artifacts::program::PreprocessedProgram;
+use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::ops::{preprocess_program, prove_execution, verify_proof};
+use nargo::package::Package;
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
+use noirc_frontend::graph::CrateName;
 
-use super::NargoConfig;
-use super::{
-    compile_cmd::compile_circuit,
-    fs::{
-        common_reference_string::{
-            read_cached_common_reference_string, update_common_reference_string,
-            write_cached_common_reference_string,
-        },
-        inputs::{read_inputs_from_file, write_inputs_to_file},
-        program::read_program_from_file,
-        proof::save_proof_to_dir,
+use super::compile_cmd::compile_package;
+use super::fs::{
+    common_reference_string::{
+        read_cached_common_reference_string, update_common_reference_string,
+        write_cached_common_reference_string,
     },
+    inputs::{read_inputs_from_file, write_inputs_to_file},
+    program::read_program_from_file,
+    proof::save_proof_to_dir,
 };
-use crate::{
-    cli::execute_cmd::execute_program,
-    constants::{PROOFS_DIR, PROVER_INPUT_FILE, TARGET_DIR, VERIFIER_INPUT_FILE},
-    errors::CliError,
-};
+use super::NargoConfig;
+use crate::find_package_manifest;
+use crate::manifest::resolve_workspace_from_toml;
+use crate::{cli::execute_cmd::execute_program, errors::CliError};
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct ProveCommand {
-    /// The name of the proof
-    proof_name: Option<String>,
-
-    /// The name of the circuit build files (ACIR, proving and verification keys)
-    circuit_name: Option<String>,
-
     /// The name of the toml file which contains the inputs for the prover
     #[clap(long, short, default_value = PROVER_INPUT_FILE)]
     prover_name: String,
@@ -47,11 +40,12 @@ pub(crate) struct ProveCommand {
     #[arg(long)]
     verify: bool,
 
+    /// The name of the package to prove
+    #[clap(long)]
+    package: Option<CrateName>,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
-
-    #[clap(long)]
-    package: Option<String>,
 }
 
 pub(crate) fn run<B: Backend>(
@@ -59,65 +53,56 @@ pub(crate) fn run<B: Backend>(
     args: ProveCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let proof_dir = config.program_dir.join(PROOFS_DIR);
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let proof_dir = workspace.proofs_directory_path();
 
-    let circuit_build_path = args
-        .circuit_name
-        .map(|circuit_name| config.program_dir.join(TARGET_DIR).join(circuit_name));
+    for package in &workspace {
+        let circuit_build_path = workspace.package_build_path(package);
 
-    prove_with_path(
-        backend,
-        args.proof_name,
-        args.prover_name,
-        args.verifier_name,
-        args.package,
-        config.program_dir,
-        proof_dir,
-        circuit_build_path,
-        args.verify,
-        &args.compile_options,
-    )?;
+        prove_package(
+            backend,
+            package,
+            &args.prover_name,
+            &args.verifier_name,
+            &proof_dir,
+            circuit_build_path,
+            args.verify,
+            &args.compile_options,
+        )?;
+    }
 
     Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
+pub(crate) fn prove_package<B: Backend>(
     backend: &B,
-    proof_name: Option<String>,
-    prover_name: String,
-    verifier_name: String,
-    package: Option<String>,
-    program_dir: P,
-    proof_dir: P,
-    circuit_build_path: Option<PathBuf>,
+    package: &Package,
+    prover_name: &str,
+    verifier_name: &str,
+    proof_dir: &Path,
+    circuit_build_path: PathBuf,
     check_proof: bool,
     compile_options: &CompileOptions,
-) -> Result<Option<PathBuf>, CliError<B>> {
+) -> Result<(), CliError<B>> {
     let common_reference_string = read_cached_common_reference_string();
 
-    let (common_reference_string, preprocessed_program, debug_data) = match circuit_build_path {
-        Some(circuit_build_path) => {
-            let program = read_program_from_file(circuit_build_path)?;
-            let common_reference_string = update_common_reference_string(
-                backend,
-                &common_reference_string,
-                &program.bytecode,
-            )
-            .map_err(CliError::CommonReferenceStringError)?;
-            (common_reference_string, program, None)
-        }
-        None => {
-            let (program, context) =
-                compile_circuit(backend, package, program_dir.as_ref(), compile_options)?;
-            let common_reference_string =
-                update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                    .map_err(CliError::CommonReferenceStringError)?;
-            let (program, debug) =
-                preprocess_program(backend, true, &common_reference_string, program)
-                    .map_err(CliError::ProofSystemCompilerError)?;
-            (common_reference_string, program, Some((debug, context)))
-        }
+    let (common_reference_string, preprocessed_program, debug_data) = if circuit_build_path.exists()
+    {
+        let program = read_program_from_file(circuit_build_path)?;
+        let common_reference_string =
+            update_common_reference_string(backend, &common_reference_string, &program.bytecode)
+                .map_err(CliError::CommonReferenceStringError)?;
+        (common_reference_string, program, None)
+    } else {
+        let (context, program) = compile_package(backend, package, compile_options)?;
+        let common_reference_string =
+            update_common_reference_string(backend, &common_reference_string, &program.circuit)
+                .map_err(CliError::CommonReferenceStringError)?;
+        let (program, debug) = preprocess_program(backend, true, &common_reference_string, program)
+            .map_err(CliError::ProofSystemCompilerError)?;
+        (common_reference_string, program, Some((debug, context)))
     };
 
     write_cached_common_reference_string(&common_reference_string);
@@ -127,7 +112,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
-        read_inputs_from_file(&program_dir, prover_name.as_str(), Format::Toml, &abi)?;
+        read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
 
     let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map, debug_data)?;
 
@@ -139,8 +124,8 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         &public_inputs,
         &return_value,
         &public_abi,
-        &program_dir,
-        verifier_name.as_str(),
+        &package.root_dir,
+        verifier_name,
         Format::Toml,
     )?;
 
@@ -170,12 +155,7 @@ pub(crate) fn prove_with_path<B: Backend, P: AsRef<Path>>(
         }
     }
 
-    let proof_path = if let Some(proof_name) = proof_name {
-        Some(save_proof_to_dir(&proof, &proof_name, proof_dir)?)
-    } else {
-        println!("{}", hex::encode(&proof));
-        None
-    };
+    save_proof_to_dir(&proof, &String::from(&package.name), proof_dir)?;
 
-    Ok(proof_path)
+    Ok(())
 }

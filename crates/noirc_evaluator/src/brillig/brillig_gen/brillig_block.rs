@@ -1,12 +1,13 @@
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
-use crate::ssa_refactor::ir::function::FunctionId;
-use crate::ssa_refactor::ir::instruction::{Endian, Intrinsic};
-use crate::ssa_refactor::ir::{
+use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
-    instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+    function::FunctionId,
+    instruction::{
+        Binary, BinaryOp, Endian, Instruction, InstructionId, Intrinsic, TerminatorInstruction,
+    },
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -340,10 +341,10 @@ impl<'block> BrilligBlock<'block> {
                         dfg.instruction_results(instruction_id)[0],
                         dfg,
                     );
-
+                    let heap_vec = self.brillig_context.extract_heap_vector(target_slice);
                     self.brillig_context.radix_instruction(
                         source,
-                        self.function_context.extract_heap_vector(target_slice),
+                        heap_vec,
                         radix,
                         limb_count,
                         matches!(endianness, Endian::Big),
@@ -359,10 +360,10 @@ impl<'block> BrilligBlock<'block> {
                     );
 
                     let radix = self.brillig_context.make_constant(2_usize.into());
-
+                    let heap_vec = self.brillig_context.extract_heap_vector(target_slice);
                     self.brillig_context.radix_instruction(
                         source,
-                        self.function_context.extract_heap_vector(target_slice),
+                        heap_vec,
                         radix,
                         limb_count,
                         matches!(endianness, Endian::Big),
@@ -609,7 +610,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg.instruction_results(instruction_id)[0],
                     dfg,
                 );
-                let target_vector = self.function_context.extract_heap_vector(target_variable);
+                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
                 let item_values = vecmap(&arguments[1..subitem_count + 1], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
@@ -621,7 +622,7 @@ impl<'block> BrilligBlock<'block> {
                     dfg.instruction_results(instruction_id)[0],
                     dfg,
                 );
-                let target_vector = self.function_context.extract_heap_vector(target_variable);
+                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
                 let item_values = vecmap(&arguments[1..subitem_count + 1], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
@@ -633,7 +634,7 @@ impl<'block> BrilligBlock<'block> {
                 let target_variable =
                     self.function_context.create_variable(self.brillig_context, results[0], dfg);
 
-                let target_vector = self.function_context.extract_heap_vector(target_variable);
+                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
                 let pop_variables = vecmap(&results[1..subitem_count + 1], |result| {
                     self.function_context.create_variable(self.brillig_context, *result, dfg)
@@ -653,7 +654,7 @@ impl<'block> BrilligBlock<'block> {
                     results[subitem_count],
                     dfg,
                 );
-                let target_vector = self.function_context.extract_heap_vector(target_variable);
+                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
                 self.slice_pop_front_operation(target_vector, source_vector, &pop_variables);
             }
@@ -663,7 +664,7 @@ impl<'block> BrilligBlock<'block> {
                 let target_variable =
                     self.function_context.create_variable(self.brillig_context, target_id, dfg);
 
-                let target_vector = self.function_context.extract_heap_vector(target_variable);
+                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
                 // TODO: Remove after https://github.com/noir-lang/noir/issues/2083 is fixed
                 let user_index = self.convert_ssa_register_value(arguments[1], dfg);
@@ -692,7 +693,7 @@ impl<'block> BrilligBlock<'block> {
 
                 let target_variable =
                     self.function_context.create_variable(self.brillig_context, target_id, dfg);
-                let target_vector = self.function_context.extract_heap_vector(target_variable);
+                let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
                 // TODO: Remove after https://github.com/noir-lang/noir/issues/2083 is fixed
                 let user_index = self.convert_ssa_register_value(arguments[1], dfg);
@@ -805,7 +806,7 @@ impl<'block> BrilligBlock<'block> {
     fn convert_ssa_value(&mut self, value_id: ValueId, dfg: &DataFlowGraph) -> RegisterOrMemory {
         let value = &dfg[value_id];
 
-        let variable = match value {
+        match value {
             Value::Param { .. } | Value::Instruction { .. } => {
                 // All block parameters and instruction results should have already been
                 // converted to registers so we fetch from the cache.
@@ -872,8 +873,7 @@ impl<'block> BrilligBlock<'block> {
             _ => {
                 todo!("ICE: Cannot convert value {value:?}")
             }
-        };
-        variable
+        }
     }
 
     /// Converts an SSA `ValueId` into a `RegisterIndex`. Initializes if necessary.
@@ -907,7 +907,7 @@ impl<'block> BrilligBlock<'block> {
             Type::Slice(_) => {
                 let variable =
                     self.function_context.create_variable(self.brillig_context, result, dfg);
-                let vector = self.function_context.extract_heap_vector(variable);
+                let vector = self.brillig_context.extract_heap_vector(variable);
 
                 // Set the pointer to the current stack frame
                 // The stack pointer will then be update by the caller of this method
@@ -1027,8 +1027,6 @@ pub(crate) fn convert_ssa_binary_op_to_brillig_binary_op(
             BinaryOp::And => BinaryIntOp::And,
             BinaryOp::Or => BinaryIntOp::Or,
             BinaryOp::Xor => BinaryIntOp::Xor,
-            BinaryOp::Shl => BinaryIntOp::Shl,
-            BinaryOp::Shr => BinaryIntOp::Shr,
         };
 
         BrilligBinaryOp::Integer { op: operation, bit_size }

@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     hir::type_check::TypeCheckError,
-    node_interner::{ExprId, NodeInterner},
+    node_interner::{ExprId, NodeInterner, TypeAliasId},
 };
 use iter_extended::vecmap;
 use noirc_abi::AbiType;
@@ -39,6 +39,10 @@ pub enum Type {
     /// is either a type variable of some kind or a Type::Constant.
     String(Box<Type>),
 
+    /// FmtString(N, Vec<E>) is an array of characters of length N that contains
+    /// a list of fields specified inside the string by the following regular expression r"\{([\S]+)\}"
+    FmtString(Box<Type>, Box<Type>),
+
     /// The unit type `()`.
     Unit,
 
@@ -66,8 +70,11 @@ pub enum Type {
     /// like `fn foo<T, U>(...) {}`. Unlike TypeVariables, they cannot be bound over.
     NamedGeneric(TypeVariable, Rc<String>),
 
-    /// A functions with arguments, and a return type.
-    Function(Vec<Type>, Box<Type>),
+    /// A functions with arguments, a return type and environment.
+    /// the environment should be `Unit` by default,
+    /// for closures it should contain a `Tuple` type with the captured
+    /// variable types.
+    Function(Vec<Type>, Box<Type>, Box<Type>),
 
     /// &mut T
     MutableReference(Box<Type>),
@@ -219,6 +226,72 @@ impl StructType {
 impl std::fmt::Display for StructType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.name)
+    }
+}
+
+/// Wrap around an unsolved type
+#[derive(Debug, Clone, Eq)]
+pub struct TypeAliasType {
+    pub name: Ident,
+    pub id: TypeAliasId,
+    pub typ: Type,
+    pub generics: Generics,
+    pub span: Span,
+}
+
+impl std::hash::Hash for TypeAliasType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for TypeAliasType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl std::fmt::Display for TypeAliasType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)?;
+
+        if !self.generics.is_empty() {
+            let generics = vecmap(&self.generics, |(_, binding)| binding.borrow().to_string());
+            write!(f, "{}", generics.join(", "))?;
+        }
+
+        Ok(())
+    }
+}
+
+impl TypeAliasType {
+    pub fn new(
+        id: TypeAliasId,
+        name: Ident,
+        span: Span,
+        typ: Type,
+        generics: Generics,
+    ) -> TypeAliasType {
+        TypeAliasType { id, typ, name, span, generics }
+    }
+
+    pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
+        assert_eq!(self.typ, Type::Error);
+        self.typ = new_typ;
+        self.generics = new_generics;
+    }
+
+    pub fn get_type(&self, generic_args: &[Type]) -> Type {
+        assert_eq!(self.generics.len(), generic_args.len());
+
+        let substitutions = self
+            .generics
+            .iter()
+            .zip(generic_args)
+            .map(|((old_id, old_var), new)| (*old_id, (old_var.clone(), new.clone())))
+            .collect();
+
+        self.typ.substitute(&substitutions)
     }
 }
 
@@ -589,6 +662,10 @@ impl Type {
         matches!(self.follow_bindings(), Type::FieldElement(_))
     }
 
+    pub fn is_signed(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(_, Signedness::Signed, _))
+    }
+
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
         // True if the given type is a NamedGeneric with the target_id
         let named_generic_id_matches_target = |typ: &Type| {
@@ -608,7 +685,6 @@ impl Type {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::String(_)
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_, _)
@@ -624,9 +700,10 @@ impl Type {
             Type::Tuple(fields) => {
                 fields.iter().any(|field| field.contains_numeric_typevar(target_id))
             }
-            Type::Function(parameters, return_type) => {
+            Type::Function(parameters, return_type, env) => {
                 parameters.iter().any(|parameter| parameter.contains_numeric_typevar(target_id))
                     || return_type.contains_numeric_typevar(target_id)
+                    || env.contains_numeric_typevar(target_id)
             }
             Type::Struct(struct_type, generics) => {
                 generics.iter().enumerate().any(|(i, generic)| {
@@ -638,6 +715,11 @@ impl Type {
                 })
             }
             Type::MutableReference(element) => element.contains_numeric_typevar(target_id),
+            Type::String(length) => named_generic_id_matches_target(length),
+            Type::FmtString(length, elements) => {
+                elements.contains_numeric_typevar(target_id)
+                    || named_generic_id_matches_target(length)
+            }
         }
     }
 
@@ -704,6 +786,9 @@ impl std::fmt::Display for Type {
             }
             Type::Bool(comp_time) => write!(f, "{comp_time}bool"),
             Type::String(len) => write!(f, "str<{len}>"),
+            Type::FmtString(len, elements) => {
+                write!(f, "fmtstr<{len}, {elements}>")
+            }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
             Type::NamedGeneric(binding, name) => match &*binding.borrow() {
@@ -716,9 +801,15 @@ impl std::fmt::Display for Type {
                 let typevars = vecmap(typevars, |(var, _)| var.to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret) => {
-                let args = vecmap(args, ToString::to_string);
-                write!(f, "fn({}) -> {}", args.join(", "), ret)
+            Type::Function(args, ret, env) => {
+                let closure_env_text = match **env {
+                    Type::Unit => "".to_string(),
+                    _ => format!(" with closure environment {env}"),
+                };
+
+                let args = vecmap(args.iter(), ToString::to_string);
+
+                write!(f, "fn({}) -> {ret}{closure_env_text}", args.join(", "))
             }
             Type::MutableReference(element) => {
                 write!(f, "&mut {element}")
@@ -1057,6 +1148,13 @@ impl Type {
                 elem_a.try_unify(elem_b, span)
             }
 
+            (String(len_a), String(len_b)) => len_a.try_unify(len_b, span),
+
+            (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
+                len_a.try_unify(len_b, span)?;
+                elements_a.try_unify(elements_b, span)
+            }
+
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
                     Err(SpanKind::None)
@@ -1108,9 +1206,9 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
+            (Function(params_a, ret_a, _env_a), Function(params_b, ret_b, _env_b)) => {
                 if params_a.len() == params_b.len() {
-                    for (a, b) in params_a.iter().zip(params_b) {
+                    for (a, b) in params_a.iter().zip(params_b.iter()) {
                         a.try_unify(b, span)?;
                     }
 
@@ -1258,6 +1356,13 @@ impl Type {
                 elem_a.is_subtype_of(elem_b, span)
             }
 
+            (String(len_a), String(len_b)) => len_a.is_subtype_of(len_b, span),
+
+            (FmtString(len_a, elements_a), FmtString(len_b, elements_b)) => {
+                len_a.is_subtype_of(len_b, span)?;
+                elements_a.is_subtype_of(elements_b, span)
+            }
+
             (Tuple(elements_a), Tuple(elements_b)) => {
                 if elements_a.len() != elements_b.len() {
                     Err(SpanKind::None)
@@ -1308,7 +1413,7 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a), Function(params_b, ret_b)) => {
+            (Function(params_a, ret_a, _env_a), Function(params_b, ret_b, _env_b)) => {
                 if params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b) {
                         a.is_subtype_of(b, span)?;
@@ -1396,6 +1501,7 @@ impl Type {
                     .expect("Cannot have variable sized strings as a parameter to main");
                 AbiType::String { length: size }
             }
+            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
             Type::Error => unreachable!(),
             Type::Unit => unreachable!(),
             Type::Constant(_) => unreachable!(),
@@ -1409,7 +1515,7 @@ impl Type {
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(_, _) => unreachable!(),
+            Type::Function(_, _, _) => unreachable!(),
             Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
             Type::NotConstant => unreachable!(),
         }
@@ -1497,6 +1603,11 @@ impl Type {
                 let size = Box::new(size.substitute(type_bindings));
                 Type::String(size)
             }
+            Type::FmtString(size, fields) => {
+                let size = Box::new(size.substitute(type_bindings));
+                let fields = Box::new(fields.substitute(type_bindings));
+                Type::FmtString(size, fields)
+            }
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
                 substitute_binding(binding)
             }
@@ -1519,10 +1630,11 @@ impl Type {
                 let typ = Box::new(typ.substitute(type_bindings));
                 Type::Forall(typevars.clone(), typ)
             }
-            Type::Function(args, ret) => {
+            Type::Function(args, ret, env) => {
                 let args = vecmap(args, |arg| arg.substitute(type_bindings));
                 let ret = Box::new(ret.substitute(type_bindings));
-                Type::Function(args, ret)
+                let env = Box::new(env.substitute(type_bindings));
+                Type::Function(args, ret, env)
             }
             Type::MutableReference(element) => {
                 Type::MutableReference(Box::new(element.substitute(type_bindings)))
@@ -1543,6 +1655,11 @@ impl Type {
         match self {
             Type::Array(len, elem) => len.occurs(target_id) || elem.occurs(target_id),
             Type::String(len) => len.occurs(target_id),
+            Type::FmtString(len, fields) => {
+                let len_occurs = len.occurs(target_id);
+                let field_occurs = fields.occurs(target_id);
+                len_occurs || field_occurs
+            }
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
@@ -1554,8 +1671,10 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|(id, _)| *id == target_id) && typ.occurs(target_id)
             }
-            Type::Function(args, ret) => {
-                args.iter().any(|arg| arg.occurs(target_id)) || ret.occurs(target_id)
+            Type::Function(args, ret, env) => {
+                args.iter().any(|arg| arg.occurs(target_id))
+                    || ret.occurs(target_id)
+                    || env.occurs(target_id)
             }
             Type::MutableReference(element) => element.occurs(target_id),
 
@@ -1582,6 +1701,11 @@ impl Type {
                 Array(Box::new(size.follow_bindings()), Box::new(elem.follow_bindings()))
             }
             String(size) => String(Box::new(size.follow_bindings())),
+            FmtString(size, args) => {
+                let size = Box::new(size.follow_bindings());
+                let args = Box::new(args.follow_bindings());
+                FmtString(size, args)
+            }
             Struct(def, args) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 Struct(def.clone(), args)
@@ -1595,11 +1719,13 @@ impl Type {
                 self.clone()
             }
 
-            Function(args, ret) => {
+            Function(args, ret, env) => {
                 let args = vecmap(args, |arg| arg.follow_bindings());
                 let ret = Box::new(ret.follow_bindings());
-                Function(args, ret)
+                let env = Box::new(env.follow_bindings());
+                Function(args, ret, env)
             }
+
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types
@@ -1640,7 +1766,10 @@ fn convert_array_expression_to_slice(
     interner.push_expr_location(func, location.span, location.file);
 
     interner.push_expr_type(&call, target_type.clone());
-    interner.push_expr_type(&func, Type::Function(vec![array_type], Box::new(target_type)));
+    interner.push_expr_type(
+        &func,
+        Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit)),
+    );
 }
 
 impl BinaryTypeOperator {
