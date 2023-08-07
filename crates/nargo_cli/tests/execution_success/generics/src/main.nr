@@ -54,4 +54,18 @@ fn main(x: Field, y: Field) {
     let two = y;
     let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };
     assert(nested_generics.other.other == bar1.get_other());
+
+    let _ = regression_2055([1, 2, 3]);
+}
+
+fn regression_2055<LEN>(bytes: [u8; LEN]) -> Field {
+    let mut f = 0;
+    let mut b = 1;
+    let mut len = LEN - 1; // FAILS
+    for i in 0..LEN {
+        let j = len - i;
+        f += (bytes[j] as Field) * b;
+        b *= 256;
+    }
+    f
 }
