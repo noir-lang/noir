@@ -9,6 +9,8 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
+use crate::ssa::ir::{value::Value, instruction::Intrinsic, types::NumericType};
+
 use self::{
     context::FunctionContext,
     value::{Tree, Values},
@@ -118,6 +120,7 @@ impl<'a> FunctionContext<'a> {
         match literal {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                dbg!(array.typ.clone());
                 let typ = Self::convert_non_tuple_type(&array.typ);
                 self.codegen_array(elements, typ)
             }
@@ -161,6 +164,21 @@ impl<'a> FunctionContext<'a> {
     /// The value returned from this function is always that of the allocate instruction.
     fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
         let mut array = im::Vector::new();
+
+        // Slice sizes are stored as the first element of the array value
+        // Storing the size here enables runtime checks against slice sizes
+        // match typ {
+        //     Type::Array(..) => {
+        //         dbg!("codegen an array");
+        //         dbg!(elements.clone());
+        //     }
+        //     Type::Slice(_) => {
+        //         dbg!("codegen a slice");
+        //         let len = self.builder.field_constant(elements.len() as u128);
+        //         array.push_back(len);
+        //     }
+        //     _ => unreachable!("ICE: attempting to codegen {typ} during array codegen"),
+        // };
 
         for element in elements {
             element.for_each(|element| {
@@ -251,6 +269,12 @@ impl<'a> FunctionContext<'a> {
         element_type: &ast::Type,
         location: Location,
     ) -> Values {
+        let array_value = &self.builder.current_function.dfg[array];
+        
+        dbg!(array_value.clone());
+        let len = &self.builder.current_function.dfg.try_get_array_length(array);
+        dbg!(len);
+
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size = self.builder.field_constant(type_size as u128);
@@ -258,10 +282,38 @@ impl<'a> FunctionContext<'a> {
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, type_size);
 
         let mut field_index = 0u128;
+        // let array_type = &self.builder.type_of_value(array);
+        // match array_type {
+        //     Type::Slice(_) => {
+        //         field_index = 1;
+        //     }
+        //     Type::Array(..) => (),
+        //     _ => unreachable!("must have array or slice but got {array_type}"),
+        // }
         Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
-            self.builder.insert_array_get(array, offset, typ).into()
+
+            let array_type = &self.builder.type_of_value(array);
+            match array_type {
+                Type::Slice(_) => {
+                    dbg!("about to insert bounds for slice accesses");
+                    let array_len_func = self.builder.import_intrinsic_id(Intrinsic::ArrayLen);
+                    let results = self.insert_call(array_len_func, vec![array], &ast::Type::Field, location);
+                    let array_len = match results.into_leaf() {
+                        value::Value::Normal(id) => id,
+                        value::Value::Mutable(_, _) => panic!("ahhh"),
+                    };
+                    let array_len_int = self.builder.insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 }));
+                    let is_offset_out_of_bounds = self.builder.insert_binary(offset, BinaryOp::Lt, array_len_int);
+                    self.builder.insert_constrain(is_offset_out_of_bounds);
+                    self.builder.insert_array_get(array, offset, typ).into()
+                }
+                Type::Array(..) => {
+                    self.builder.insert_array_get(array, offset, typ).into()
+                }
+                _ => unreachable!("must have array or slice but got {array_type}"),
+            }
         })
     }
 
@@ -432,7 +484,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Values {
         let lhs = self.extract_current_value(&assign.lvalue);
         let rhs = self.codegen_expression(&assign.expression);
-
+        dbg!("got a codegen_assign");
         self.assign_new_value(lhs, rhs);
         Self::unit_value()
     }

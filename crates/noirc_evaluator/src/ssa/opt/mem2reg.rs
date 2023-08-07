@@ -244,6 +244,8 @@ impl PerFunctionContext {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[block_id];
         println!("BLOCK: {block_id}");
+        let mut predecessors = cfg.predecessors(block_id);
+        dbg!(predecessors.len());
         // dbg!(predecessors.len());
         // for predecessor in predecessors.clone() {
         //     dbg!(predecessor);
@@ -275,10 +277,11 @@ impl PerFunctionContext {
                         address = *value;
                     }
 
-                    let mut predecessors = cfg.predecessors(block_id);
                     if predecessors.len() == 1 {
                         let predecessor = predecessors.next().expect("Already checked length of predecessors");
-                        drop(predecessors);
+                        dbg!(predecessor);
+                        // TODO: move predecessors check back to Load instruction when done
+                        // drop(predecessors);
 
                         if let Some(last_value) = self.last_stores_with_block.get(&(address, predecessor)) {
                             println!("last_value: {last_value}");
@@ -312,23 +315,6 @@ impl PerFunctionContext {
                             protected_allocations.insert(address);
                         }
                     }
-
-                    // dbg!(self.last_stores.get(&address).is_some());
-                    // if let Some(last_value) = self.last_stores.get(&address) {
-                    //     println!("last_value: {last_value}");
-                    //     let result_value = *dfg
-                    //         .instruction_results(*instruction_id)
-                    //         .first()
-                    //         .expect("ICE: Load instructions should have single result");
-                    //     println!("result_value: {result_value}");
-                    //     println!("last_value: {last_value}");
-                    //     // dbg!(loads_to_substitute.contains_key(instruction_id));
-                    //     // dbg!(load_values_to_substitute.contains_key(&result_value));
-                    //     loads_to_substitute.insert(*instruction_id, *last_value);
-                    //     load_values_to_substitute.insert(result_value, *last_value);
-                    // } else {
-                    //     protected_allocations.insert(address);
-                    // }
                 }
                 Instruction::Call { arguments, .. } => {
                     for arg in arguments {
@@ -337,14 +323,12 @@ impl PerFunctionContext {
                         }
                     }
                 }
-                Instruction::Allocate => {
-                    dbg!("got allocate");
-                }
                 _ => {
                     // Nothing to do
                 }
             }
         }
+        drop(predecessors);
 
         // Identify any arrays that are returned from this function
         if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {
@@ -555,6 +539,7 @@ mod tests {
             .count()
     }
 
+    // TODO: update this now that we remove loads across multiple blocks
     // Test that loads across multiple blocks are not removed
     #[test]
     fn multiple_blocks() {
@@ -606,7 +591,9 @@ mod tests {
         //     store v0, Field 6
         //     return v2, v3, Field 6 // Optimized to constant 6
         // }
+        println!("ssa before mem2reg: {ssa}");
         let ssa = ssa.mem2reg();
+        println!("ssa: {ssa}");
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);
 

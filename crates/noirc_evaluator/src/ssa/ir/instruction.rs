@@ -297,9 +297,28 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
-                if let (Some((array, _)), Some(index)) = (array, index) {
+                if let (Some((array, typ)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
+                    match typ {
+                        Type::Array(..) => {
+                            dbg!("got array");
+                        }
+                        Type::Slice(_) => {
+                            // The first value of a slice should always be its size. 
+                            // This value must be set during runtime 
+                            let len = dfg.get_numeric_constant(array[0]);
+                            dbg!("got slice");
+                            dbg!(len);
+                            dbg!(index);
+                            dbg!(array.len());
+                            dbg!(dfg.get_numeric_constant(array[index]));
+                            // if index < array.len() - 1 {
+                            //     return SimplifiedTo(array[index]);
+                            // }
+                        }
+                        _ => unreachable!("Expected an array or slice and got {typ}"),
+                    }
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }
@@ -307,6 +326,7 @@ impl Instruction {
                 None
             }
             Instruction::ArraySet { array, index, value } => {
+                dbg!("ARRAY_SET");
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array, index) {
@@ -344,11 +364,7 @@ impl Instruction {
                 None
             }
             Instruction::Allocate { .. } => None,
-            Instruction::Load { address } => {
-                let array = dfg.get_array_constant(*address);
-                dbg!(array.clone());
-                None
-            }
+            Instruction::Load { .. } => None,
             Instruction::Store { .. } => None,
         }
     }

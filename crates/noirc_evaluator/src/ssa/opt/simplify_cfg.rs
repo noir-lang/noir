@@ -58,13 +58,7 @@ fn simplify_function(function: &mut Function) {
         if predecessors.len() == 1 {
             let predecessor = predecessors.next().expect("Already checked length of predecessors");
             drop(predecessors);
-
-            // let basic_block = &function.dfg[block];
-            // dbg!(basic_block.instructions());
-            // for instruction in basic_block.instructions() {
-
-            // }
-
+            
             // If the block has only 1 predecessor, we can safely remove its block parameters
             remove_block_parameters(function, block, predecessor);
 

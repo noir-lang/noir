@@ -448,8 +448,18 @@ impl Context {
         store_value: Option<ValueId>,
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        let index_const = dfg.get_numeric_constant(index);
+        let array_value = &dfg[array];
+        dbg!(array_value.get_type());
+        let len = match array_value {
+            Value::Array { array, .. } => {
+                array.len()
+            }
+            _ => panic!("Expected slice type"),
+        };
+        dbg!(len);
 
+        let index_const = dfg.get_numeric_constant(index);
+        dbg!(index_const.clone());
         match self.convert_value(array, dfg) {
             AcirValue::Var(acir_var, _) => {
                 return Err(RuntimeError::InternalError(InternalError::UnExpected {
@@ -459,6 +469,7 @@ impl Context {
                 }))
             }
             AcirValue::Array(array) => {
+                dbg!(array.clone());
                 if let Some(index_const) = index_const {
                     let array_size = array.len();
                     let index = match index_const.try_to_u64() {

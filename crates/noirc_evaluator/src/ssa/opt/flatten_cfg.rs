@@ -144,7 +144,7 @@ use crate::ssa::{
         dfg::InsertInstructionResult,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction, Intrinsic, Binary},
         types::Type,
         value::ValueId,
         value::Value,
@@ -439,22 +439,53 @@ impl<'f> Context<'f> {
         };
         dbg!(len);
 
+        let else_len = match else_value {
+            Value::Array { array, .. } => {
+                array.len()
+            }
+            _ => panic!("Expected slice type"),
+        };
+        dbg!(else_len);
+
+        let len = if len > else_len { len } else { else_len };
+
+        // let then_len_value_id = self.inserter.function.dfg.make_constant((len as u128 - 1).into(), Type::field());
+        // let else_len_value_id = self.inserter.function.dfg.make_constant((else_len as u128 - 1).into(), Type::field());
+        // println!("then_len_value_id: {then_len_value_id}, else_len_value_id: {else_len_value_id}");
+        // merged.push_back(self.merge_values(
+        //     then_condition,
+        //     else_condition,
+        //     then_len_value_id,
+        //     else_len_value_id,
+        // ));
+
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
-                let index = ((i * element_types.len() + element_index) as u128).into();
-                let index = self.inserter.function.dfg.make_constant(index, Type::field());
+                let index_value = ((i * element_types.len() + element_index) as u128).into();
+                let index = self.inserter.function.dfg.make_constant(index_value, Type::field());
 
                 let typevars = Some(vec![element_type.clone()]);
 
-                let mut get_element = |array, typevars| {
-                    let get = Instruction::ArrayGet { array, index };
-                    self.insert_instruction_with_typevars(get, typevars).first()
+                dbg!(index_value.clone());
+                // Works but leads to slices with more values at the end
+                let mut get_element = |array, typevars, len| {
+                    if (len - 1) < index_value.to_u128() as usize {
+                        self.inserter.function.dfg.make_constant(FieldElement::zero(), Type::field())
+                    } else {
+                        dbg!("got here: {index_value}");
+                        let get = Instruction::ArrayGet { array, index };
+                        self.insert_instruction_with_typevars(get, typevars).first()
+                    }
                 };
 
-                let then_element = get_element(then_value_id, typevars.clone());
-                let else_element = get_element(else_value_id, typevars);
-                dbg!(self.inserter.function.dfg.type_of_value(then_element));
-                dbg!(self.inserter.function.dfg.type_of_value(else_element));
+                let then_element = get_element(then_value_id, typevars.clone(), len);
+                let else_element = get_element(else_value_id, typevars, else_len);
+                // dbg!(then_element);
+                // dbg!(else_element);
+                // dbg!(&self.inserter.function.dfg[then_element]);
+                // dbg!(&self.inserter.function.dfg[else_element]);
+                // dbg!(self.inserter.function.dfg.type_of_value(then_element));
+                // dbg!(self.inserter.function.dfg.type_of_value(else_element));
 
                 merged.push_back(self.merge_values(
                     then_condition,
@@ -463,7 +494,8 @@ impl<'f> Context<'f> {
                     else_element,
                 ));
             }
-        }
+        }  
+        dbg!(merged.clone());
 
         self.inserter.function.dfg.make_array(merged, typ)
     }
@@ -532,6 +564,7 @@ impl<'f> Context<'f> {
 
         let then_location = self.inserter.function.dfg.get_value_location(&then_value);
         let else_location = self.inserter.function.dfg.get_value_location(&else_value);
+
         let merge_location = then_location.or(else_location);
 
         // We must cast the bool conditions to the actual numeric type used by each value.
@@ -642,19 +675,11 @@ impl<'f> Context<'f> {
         else_branch: Branch,
     ) -> BasicBlockId {
         assert_eq!(self.cfg.predecessors(destination).len(), 2);
-
-        let then_block = self.inserter.function.dfg[then_branch.last_block].terminator();
-        let else_block = self.inserter.function.dfg[else_branch.last_block].terminator();
-        dbg!(then_block);
-        dbg!(else_block);
-
+        
         let then_args =
             self.inserter.function.dfg[then_branch.last_block].terminator_arguments().to_vec();
         let else_args =
             self.inserter.function.dfg[else_branch.last_block].terminator_arguments().to_vec();
-
-        dbg!(then_args.clone());
-        dbg!(else_args.clone());
 
         let params = self.inserter.function.dfg.block_parameters(destination);
         assert_eq!(params.len(), then_args.len());
@@ -665,6 +690,7 @@ impl<'f> Context<'f> {
         });
         dbg!("inline_branch_end");
         dbg!(args.clone());
+
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
             self.merge_values(then_branch.condition, else_branch.condition, then_arg, else_arg)

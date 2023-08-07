@@ -155,6 +155,7 @@ impl DataFlowGraph {
         match instruction.simplify(self, block) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::SimplifiedToMultiple(simplification) => {
+                dbg!(simplification.clone());
                 SimplifiedToMultiple(simplification)
             }
             SimplifyResult::Remove => InstructionRemoved,
@@ -456,6 +457,7 @@ impl std::ops::IndexMut<BasicBlockId> for DataFlowGraph {
 // The result of calling DataFlowGraph::insert_instruction can
 // be a list of results or a single ValueId if the instruction was simplified
 // to an existing value.
+#[derive(Debug)]
 pub(crate) enum InsertInstructionResult<'dfg> {
     Results(&'dfg [ValueId]),
     SimplifiedTo(ValueId),
