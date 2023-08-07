@@ -71,6 +71,8 @@ pub enum TypeCheckError {
     IntegerBitWidth { bit_width_x: u32, bit_width_y: u32, span: Span },
     #[error("{kind} cannot be used in an infix operation")]
     InvalidInfixOp { kind: &'static str, span: Span },
+    #[error("{kind} cannot be used in a unary operation")]
+    InvalidUnaryOp { kind: String, span: Span },
     #[error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.")]
     InvalidBitwiseOperationOnField { span: Span },
     #[error("Integer cannot be used with type {typ}")]
@@ -174,6 +176,7 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::IntegerSignedness { span, .. }
             | TypeCheckError::IntegerBitWidth { span, .. }
             | TypeCheckError::InvalidInfixOp { span, .. }
+            | TypeCheckError::InvalidUnaryOp { span, .. }
             | TypeCheckError::InvalidBitwiseOperationOnField { span, .. }
             | TypeCheckError::IntegerTypeMismatch { span, .. }
             | TypeCheckError::FieldComparison { span, .. }
