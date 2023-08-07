@@ -647,9 +647,6 @@ impl AcirContext {
         let lhs_expr = lhs_data.to_expression();
         let rhs_expr = rhs_data.to_expression();
 
-        // TODO: check what happens when we do (a as u8) >= (b as u32)
-        // TODO: The frontend should shout in this case
-
         let predicate_data = &self.vars[&predicate];
         let predicate = predicate_data.to_expression().into_owned();
 
