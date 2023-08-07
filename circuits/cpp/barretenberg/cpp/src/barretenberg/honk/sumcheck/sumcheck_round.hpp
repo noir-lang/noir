@@ -55,19 +55,16 @@ namespace proof_system::honk::sumcheck {
  @todo TODO(#390): Template only on Flavor? Is it useful to have these decoupled?
  */
 
-template <typename Flavor> class SumcheckRound {
+template <typename Flavor> class SumcheckProverRound {
 
     using Relations = typename Flavor::Relations;
     using RelationUnivariates = typename Flavor::RelationUnivariates;
-    using RelationEvaluations = typename Flavor::RelationValues;
 
   public:
     using FF = typename Flavor::FF;
     template <size_t univariate_length>
     using ExtendedEdges = typename Flavor::template ExtendedEdges<univariate_length>;
-    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
 
-    bool round_failed = false;
     size_t round_size; // a power of 2
 
     Relations relations;
@@ -75,24 +72,18 @@ template <typename Flavor> class SumcheckRound {
     static constexpr size_t MAX_RELATION_LENGTH = Flavor::MAX_RELATION_LENGTH;
     static constexpr size_t MAX_RANDOM_RELATION_LENGTH = Flavor::MAX_RANDOM_RELATION_LENGTH;
 
-    FF target_total_sum = 0;
-
     RelationUnivariates univariate_accumulators;
-    RelationEvaluations relation_evaluations;
 
     // TODO(#224)(Cody): this should go away
     BarycentricData<FF, 2, MAX_RELATION_LENGTH> barycentric_2_to_max = BarycentricData<FF, 2, MAX_RELATION_LENGTH>();
 
     // Prover constructor
-    SumcheckRound(size_t initial_round_size)
+    SumcheckProverRound(size_t initial_round_size)
         : round_size(initial_round_size)
     {
         // Initialize univariate accumulators to 0
         zero_univariates(univariate_accumulators);
     }
-
-    // Verifier constructor
-    explicit SumcheckRound() { zero_elements(relation_evaluations); };
 
     /**
      * @brief Given a tuple t = (t_0, t_1, ..., t_{NUM_RELATIONS-1}) and a challenge α,
@@ -201,62 +192,6 @@ template <typename Flavor> class SumcheckRound {
         return batch_over_relations(alpha, pow_univariate);
     }
 
-    /**
-     * @brief Calculate the contribution of each relation to the expected value of the full Honk relation.
-     *
-     * @details For each relation, use the purported values (supplied by the prover) of the multivariates to calculate
-     * a contribution to the purported value of the full Honk relation. These are stored in `evaluations`. Adding these
-     * together, with appropriate scaling factors, produces the expected value of the full Honk relation. This value is
-     * checked against the final value of the target total sum, defined as sigma_d.
-     */
-    FF compute_full_honk_relation_purported_value(ClaimedEvaluations purported_evaluations,
-                                                  const RelationParameters<FF>& relation_parameters,
-                                                  const PowUnivariate<FF>& pow_univariate,
-                                                  const FF alpha)
-    {
-        accumulate_relation_evaluations<>(
-            purported_evaluations, relation_parameters, pow_univariate.partial_evaluation_constant);
-
-        auto running_challenge = FF(1);
-        auto output = FF(0);
-        scale_and_batch_elements(relation_evaluations, alpha, running_challenge, output);
-        return output;
-    }
-
-    /**
-     * @brief check if S^{l}(0) + S^{l}(1) = S^{l-1}(u_{l-1}) = sigma_{l} (or 0 if l=0)
-     *
-     * @param univariate T^{l}(X), the round univariate that is equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^l } )
-     */
-    bool check_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate)
-    {
-        // S^{l}(0) = ( (1−0) + 0⋅ζ^{ 2^l } ) ⋅ T^{l}(0) = T^{l}(0)
-        // S^{l}(1) = ( (1−1) + 1⋅ζ^{ 2^l } ) ⋅ T^{l}(1) = ζ^{ 2^l } ⋅ T^{l}(1)
-        FF total_sum = univariate.value_at(0) + univariate.value_at(1);
-        // target_total_sum = sigma_{l} =
-        bool sumcheck_round_failed = (target_total_sum != total_sum);
-        round_failed = round_failed || sumcheck_round_failed;
-        return !sumcheck_round_failed;
-    };
-
-    /**
-     * @brief After checking that the univariate is good for this round, compute the next target sum.
-     *
-     * @param univariate T^l(X), given by its evaluations over {0,1,2,...},
-     * equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^l } )
-     * @param round_challenge u_l
-     * @return FF sigma_{l+1} = S^l(u_l)
-     */
-    FF compute_next_target_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate, FF& round_challenge)
-    {
-        // IMPROVEMENT(Cody): Use barycentric static method, maybe implement evaluation as member
-        // function on Univariate.
-        auto barycentric = BarycentricData<FF, MAX_RANDOM_RELATION_LENGTH, MAX_RANDOM_RELATION_LENGTH>();
-        // Evaluate T^{l}(u_{l})
-        target_total_sum = barycentric.evaluate(univariate, round_challenge);
-        return target_total_sum;
-    }
-
   private:
     /**
      * @brief For a given edge, calculate the contribution of each relation to the prover round univariate (S_l in the
@@ -286,34 +221,6 @@ template <typename Flavor> class SumcheckRound {
         if constexpr (relation_idx + 1 < NUM_RELATIONS) {
             accumulate_relation_univariates<relation_idx + 1>(
                 univariate_accumulators, extended_edges, relation_parameters, scaling_factor);
-        }
-    }
-
-    // TODO(#224)(Cody): make uniform with accumulate_relation_univariates
-    /**
-     * @brief Calculate the contribution of each relation to the expected value of the full Honk relation.
-     *
-     * @details For each relation, use the purported values (supplied by the prover) of the multivariates to calculate
-     * a contribution to the purported value of the full Honk relation. These are stored in `evaluations`. Adding these
-     * together, with appropriate scaling factors, produces the expected value of the full Honk relation. This value is
-     * checked against the final value of the target total sum (called sigma_0 in the thesis).
-     */
-    template <size_t relation_idx = 0>
-    // TODO(#224)(Cody): Input should be an array?
-    void accumulate_relation_evaluations(ClaimedEvaluations purported_evaluations,
-                                         const RelationParameters<FF>& relation_parameters,
-                                         const FF& partial_evaluation_constant)
-    {
-        std::get<relation_idx>(relations).add_full_relation_value_contribution(
-            std::get<relation_idx>(relation_evaluations),
-            purported_evaluations,
-            relation_parameters,
-            partial_evaluation_constant);
-
-        // Repeat for the next relation.
-        if constexpr (relation_idx + 1 < NUM_RELATIONS) {
-            accumulate_relation_evaluations<relation_idx + 1>(
-                purported_evaluations, relation_parameters, partial_evaluation_constant);
         }
     }
 
@@ -422,6 +329,152 @@ template <typename Flavor> class SumcheckRound {
     }
 
     /**
+     * @brief Componentwise addition of two tuples
+     * @details Used for adding tuples of Univariates but in general works for any object for which += is
+     * defined. The result is stored in the first tuple.
+     *
+     * @tparam T Type of the elements contained in the tuples
+     * @param tuple_1 First summand. Result stored in this tuple
+     * @param tuple_2 Second summand
+     */
+    template <typename... T>
+    static constexpr void add_tuples(std::tuple<T...>& tuple_1, const std::tuple<T...>& tuple_2)
+    {
+        auto add_tuples_helper = [&]<std::size_t... I>(std::index_sequence<I...>) { ((std::get<I>(tuple_1) += std::get<I>(tuple_2)), ...); };
+        
+        add_tuples_helper(std::make_index_sequence<sizeof...(T)>{});
+    }
+
+    /**
+     * @brief Componentwise addition of nested tuples (tuples of tuples)
+     * @details Used for summing tuples of tuples of Univariates. Needed for Sumcheck multithreading. Each thread
+     * accumulates realtion contributions across a portion of the hypecube and then the results are accumulated into a
+     * single nested tuple.
+     *
+     * @tparam Tuple
+     * @tparam Index Index into outer tuple
+     * @param tuple_1 First nested tuple summand. Result stored here
+     * @param tuple_2 Second summand
+     */
+    template <typename Tuple, std::size_t Index = 0>
+    static constexpr void add_nested_tuples(Tuple& tuple_1, const Tuple& tuple_2)
+    {
+        if constexpr (Index < std::tuple_size<Tuple>::value) {
+            add_tuples(std::get<Index>(tuple_1), std::get<Index>(tuple_2));
+            add_nested_tuples<Tuple, Index + 1>(tuple_1, tuple_2);
+        }
+    }
+};
+
+template <typename Flavor> class SumcheckVerifierRound {
+
+    using Relations = typename Flavor::Relations;
+    using RelationEvaluations = typename Flavor::RelationValues;
+
+  public:
+    using FF = typename Flavor::FF;
+    using ClaimedEvaluations = typename Flavor::ClaimedEvaluations;
+
+    bool round_failed = false;
+
+    Relations relations;
+    static constexpr size_t NUM_RELATIONS = Flavor::NUM_RELATIONS;
+    static constexpr size_t MAX_RANDOM_RELATION_LENGTH = Flavor::MAX_RANDOM_RELATION_LENGTH;
+
+    FF target_total_sum = 0;
+
+    RelationEvaluations relation_evaluations;
+
+    // Verifier constructor
+    explicit SumcheckVerifierRound() { zero_elements(relation_evaluations); };
+
+    /**
+     * @brief Calculate the contribution of each relation to the expected value of the full Honk relation.
+     *
+     * @details For each relation, use the purported values (supplied by the prover) of the multivariates to calculate
+     * a contribution to the purported value of the full Honk relation. These are stored in `evaluations`. Adding these
+     * together, with appropriate scaling factors, produces the expected value of the full Honk relation. This value is
+     * checked against the final value of the target total sum, defined as sigma_d.
+     */
+    FF compute_full_honk_relation_purported_value(ClaimedEvaluations purported_evaluations,
+                                                  const RelationParameters<FF>& relation_parameters,
+                                                  const PowUnivariate<FF>& pow_univariate,
+                                                  const FF alpha)
+    {
+        accumulate_relation_evaluations<>(
+            purported_evaluations, relation_parameters, pow_univariate.partial_evaluation_constant);
+
+        auto running_challenge = FF(1);
+        auto output = FF(0);
+        scale_and_batch_elements(relation_evaluations, alpha, running_challenge, output);
+        return output;
+    }
+
+    /**
+     * @brief check if S^{l}(0) + S^{l}(1) = S^{l-1}(u_{l-1}) = sigma_{l} (or 0 if l=0)
+     *
+     * @param univariate T^{l}(X), the round univariate that is equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^l } )
+     */
+    bool check_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate)
+    {
+        // S^{l}(0) = ( (1−0) + 0⋅ζ^{ 2^l } ) ⋅ T^{l}(0) = T^{l}(0)
+        // S^{l}(1) = ( (1−1) + 1⋅ζ^{ 2^l } ) ⋅ T^{l}(1) = ζ^{ 2^l } ⋅ T^{l}(1)
+        FF total_sum = univariate.value_at(0) + univariate.value_at(1);
+        // target_total_sum = sigma_{l} =
+        bool sumcheck_round_failed = (target_total_sum != total_sum);
+        round_failed = round_failed || sumcheck_round_failed;
+        return !sumcheck_round_failed;
+    };
+
+    /**
+     * @brief After checking that the univariate is good for this round, compute the next target sum.
+     *
+     * @param univariate T^l(X), given by its evaluations over {0,1,2,...},
+     * equal to S^{l}(X)/( (1−X) + X⋅ζ^{ 2^l } )
+     * @param round_challenge u_l
+     * @return FF sigma_{l+1} = S^l(u_l)
+     */
+    FF compute_next_target_sum(Univariate<FF, MAX_RANDOM_RELATION_LENGTH>& univariate, FF& round_challenge)
+    {
+        // IMPROVEMENT(Cody): Use barycentric static method, maybe implement evaluation as member
+        // function on Univariate.
+        auto barycentric = BarycentricData<FF, MAX_RANDOM_RELATION_LENGTH, MAX_RANDOM_RELATION_LENGTH>();
+        // Evaluate T^{l}(u_{l})
+        target_total_sum = barycentric.evaluate(univariate, round_challenge);
+        return target_total_sum;
+    }
+
+  private:
+    // TODO(#224)(Cody): make uniform with accumulate_relation_univariates
+    /**
+     * @brief Calculate the contribution of each relation to the expected value of the full Honk relation.
+     *
+     * @details For each relation, use the purported values (supplied by the prover) of the multivariates to calculate
+     * a contribution to the purported value of the full Honk relation. These are stored in `evaluations`. Adding these
+     * together, with appropriate scaling factors, produces the expected value of the full Honk relation. This value is
+     * checked against the final value of the target total sum (called sigma_0 in the thesis).
+     */
+    template <size_t relation_idx = 0>
+    // TODO(#224)(Cody): Input should be an array?
+    void accumulate_relation_evaluations(ClaimedEvaluations purported_evaluations,
+                                         const RelationParameters<FF>& relation_parameters,
+                                         const FF& partial_evaluation_constant)
+    {
+        std::get<relation_idx>(relations).add_full_relation_value_contribution(
+            std::get<relation_idx>(relation_evaluations),
+            purported_evaluations,
+            relation_parameters,
+            partial_evaluation_constant);
+
+        // Repeat for the next relation.
+        if constexpr (relation_idx + 1 < NUM_RELATIONS) {
+            accumulate_relation_evaluations<relation_idx + 1>(
+                purported_evaluations, relation_parameters, partial_evaluation_constant);
+        }
+    }
+
+  public:
+    /**
      * Utility methods for tuple of arrays
      */
 
@@ -466,42 +519,6 @@ template <typename Flavor> class SumcheckRound {
 
         if constexpr (idx + 1 < sizeof...(Ts)) {
             apply_to_tuple_of_arrays<Operation, idx + 1>(operation, tuple);
-        }
-    }
-
-    /**
-     * @brief Componentwise addition of two tuples
-     * @details Used for adding tuples of Univariates but in general works for any object for which += is
-     * defined. The result is stored in the first tuple.
-     *
-     * @tparam T Type of the elements contained in the tuples
-     * @param tuple_1 First summand. Result stored in this tuple
-     * @param tuple_2 Second summand
-     */
-    template <typename... T>
-    static constexpr void add_tuples(std::tuple<T...>& tuple_1, const std::tuple<T...>& tuple_2)
-    {
-        [&]<std::size_t... I>(std::index_sequence<I...>) { ((std::get<I>(tuple_1) += std::get<I>(tuple_2)), ...); }
-        (std::make_index_sequence<sizeof...(T)>{});
-    }
-
-    /**
-     * @brief Componentwise addition of nested tuples (tuples of tuples)
-     * @details Used for summing tuples of tuples of Univariates. Needed for Sumcheck multithreading. Each thread
-     * accumulates realtion contributions across a portion of the hypecube and then the results are accumulated into a
-     * single nested tuple.
-     *
-     * @tparam Tuple
-     * @tparam Index Index into outer tuple
-     * @param tuple_1 First nested tuple summand. Result stored here
-     * @param tuple_2 Second summand
-     */
-    template <typename Tuple, std::size_t Index = 0>
-    static constexpr void add_nested_tuples(Tuple& tuple_1, const Tuple& tuple_2)
-    {
-        if constexpr (Index < std::tuple_size<Tuple>::value) {
-            add_tuples(std::get<Index>(tuple_1), std::get<Index>(tuple_2));
-            add_nested_tuples<Tuple, Index + 1>(tuple_1, tuple_2);
         }
     }
 };

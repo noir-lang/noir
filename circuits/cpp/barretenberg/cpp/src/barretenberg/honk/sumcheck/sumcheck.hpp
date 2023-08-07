@@ -28,7 +28,7 @@ template <typename Flavor> class SumcheckProver {
     ProverTranscript<FF>& transcript;
     const size_t multivariate_n;
     const size_t multivariate_d;
-    SumcheckRound<Flavor> round;
+    SumcheckProverRound<Flavor> round;
 
     /**
     *
@@ -164,7 +164,7 @@ template <typename Flavor> class SumcheckVerifier {
 
     VerifierTranscript<FF>& transcript;
     const size_t multivariate_d;
-    SumcheckRound<Flavor> round;
+    SumcheckVerifierRound<Flavor> round;
 
     // verifier instantiates sumcheck with circuit size and a verifier transcript
     explicit SumcheckVerifier(size_t multivariate_n, VerifierTranscript<FF>& transcript)

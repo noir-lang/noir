@@ -38,7 +38,7 @@ static Univariate<FF, max_relation_length> compute_round_univariate(
 {
     size_t round_size = 2;
     // Improvement(Cody): This is ugly? Maye supply some/all of this data through "flavor" class?
-    auto round = SumcheckRound<Flavor>(round_size);
+    auto round = SumcheckProverRound<Flavor>(round_size);
 
     ProverPolynomials full_polynomials;
     full_polynomials.w_l = input_polynomials[0];
@@ -142,7 +142,7 @@ static FF compute_full_purported_value(std::array<FF, NUM_POLYNOMIALS>& input_va
     purported_evaluations.lagrange_first = input_values[16];
     purported_evaluations.lagrange_last = input_values[17];
 
-    auto round = SumcheckRound<Flavor>();
+    auto round = SumcheckVerifierRound<Flavor>();
     PowUnivariate<FF> pow_univariate(1);
     FF full_purported_value = round.compute_full_honk_relation_purported_value(
         purported_evaluations, relation_parameters, pow_univariate, alpha);
@@ -298,12 +298,12 @@ TEST(SumcheckRound, TupleOfTuplesOfUnivariates)
     // Use scale_univariate_accumulators to scale by challenge powers
     FF challenge = 5;
     FF running_challenge = 1;
-    SumcheckRound<Flavor>::scale_univariates(tuple_of_tuples, challenge, running_challenge);
+    SumcheckProverRound<Flavor>::scale_univariates(tuple_of_tuples, challenge, running_challenge);
 
     // Use extend_and_batch_univariates to extend to MAX_LENGTH then accumulate
     PowUnivariate<FF> pow_univariate(1);
     auto result = Univariate<FF, MAX_LENGTH>();
-    SumcheckRound<Flavor>::extend_and_batch_univariates(tuple_of_tuples, pow_univariate, result);
+    SumcheckProverRound<Flavor>::extend_and_batch_univariates(tuple_of_tuples, pow_univariate, result);
 
     // Repeat the batching process manually
     auto result_expected = barycentric_util_1.extend(univariate_1) * 1 +
@@ -314,7 +314,7 @@ TEST(SumcheckRound, TupleOfTuplesOfUnivariates)
     EXPECT_EQ(result, result_expected);
 
     // Reinitialize univariate accumulators to zero
-    SumcheckRound<Flavor>::zero_univariates(tuple_of_tuples);
+    SumcheckProverRound<Flavor>::zero_univariates(tuple_of_tuples);
 
     // Check that reinitialization was successful
     Univariate<FF, 3> expected_1({ 0, 0, 0 });
@@ -345,7 +345,7 @@ TEST(SumcheckRound, TuplesOfEvaluationArrays)
     FF challenge = 5;
     FF running_challenge = 1;
     FF result = 0;
-    SumcheckRound<Flavor>::scale_and_batch_elements(tuple_of_arrays, challenge, running_challenge, result);
+    SumcheckVerifierRound<Flavor>::scale_and_batch_elements(tuple_of_arrays, challenge, running_challenge, result);
 
     // Repeat the batching process manually
     auto result_expected =
@@ -355,7 +355,7 @@ TEST(SumcheckRound, TuplesOfEvaluationArrays)
     EXPECT_EQ(result, result_expected);
 
     // Reinitialize univariate accumulators to zero
-    SumcheckRound<Flavor>::zero_elements(tuple_of_arrays);
+    SumcheckVerifierRound<Flavor>::zero_elements(tuple_of_arrays);
 
     EXPECT_EQ(std::get<0>(tuple_of_arrays)[0], 0);
     EXPECT_EQ(std::get<1>(tuple_of_arrays)[0], 0);
@@ -390,7 +390,7 @@ TEST(SumcheckRound, AddTuplesOfTuplesOfUnivariates)
     auto tuple_of_tuples_2 =
         std::make_tuple(std::make_tuple(univariate_4), std::make_tuple(univariate_5, univariate_6));
 
-    SumcheckRound<Flavor>::add_nested_tuples(tuple_of_tuples_1, tuple_of_tuples_2);
+    SumcheckProverRound<Flavor>::add_nested_tuples(tuple_of_tuples_1, tuple_of_tuples_2);
 
     EXPECT_EQ(std::get<0>(std::get<0>(tuple_of_tuples_1)), expected_sum_1);
     EXPECT_EQ(std::get<0>(std::get<1>(tuple_of_tuples_1)), expected_sum_2);
