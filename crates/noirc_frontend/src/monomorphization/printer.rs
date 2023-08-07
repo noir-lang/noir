@@ -96,6 +96,11 @@ impl AstPrinter {
             super::ast::Literal::Integer(x, _) => x.fmt(f),
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => s.fmt(f),
+            super::ast::Literal::FmtStr(s, _, _) => {
+                write!(f, "f\"")?;
+                s.fmt(f)?;
+                write!(f, "\"")
+            }
         }
     }
 
@@ -262,6 +267,10 @@ impl AstPrinter {
                 self.print_lvalue(object, f)?;
                 write!(f, ".{field_index}")
             }
+            LValue::Dereference { reference, .. } => {
+                write!(f, "*")?;
+                self.print_lvalue(reference, f)
+            }
         }
     }
 }
@@ -273,7 +282,7 @@ impl Display for Definition {
             Definition::Function(id) => write!(f, "f{}", id.0),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),
-            Definition::Oracle(name, _) => write!(f, "{name}"),
+            Definition::Oracle(name) => write!(f, "{name}"),
         }
     }
 }

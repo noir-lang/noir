@@ -19,16 +19,22 @@ use crate::{
         expr::*,
         function::{FuncMeta, Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
+        types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
-    CompTime, FunctionKind, TypeBinding, TypeBindings,
+    ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
 
 pub mod ast;
 pub mod printer;
+
+struct LambdaContext {
+    env_ident: Box<ast::Expression>,
+    captures: Vec<HirCapturedVar>,
+}
 
 /// The context struct for the monomorphization pass.
 ///
@@ -57,6 +63,8 @@ struct Monomorphizer<'interner> {
 
     /// Used to reference existing definitions in the HIR
     interner: &'interner NodeInterner,
+
+    lambda_envs_stack: Vec<LambdaContext>,
 
     next_local_id: u32,
     next_function_id: u32,
@@ -103,6 +111,7 @@ impl<'interner> Monomorphizer<'interner> {
             next_local_id: 0,
             next_function_id: 0,
             interner,
+            lambda_envs_stack: Vec::new(),
         }
     }
 
@@ -153,13 +162,11 @@ impl<'interner> Monomorphizer<'interner> {
                         let id = self.queue_function(id, expr_id, typ);
                         Definition::Function(id)
                     }
-
                     FunctionKind::Oracle => {
                         let attr =
                             meta.attributes.expect("Oracle function must have an oracle attribute");
-                        let id = self.queue_function(id, expr_id, typ);
                         match attr {
-                            Attribute::Oracle(name) => Definition::Oracle(name, id),
+                            Attribute::Oracle(name) => Definition::Oracle(name),
                             _ => unreachable!("Oracle function must have an oracle attribute"),
                         }
                     }
@@ -193,7 +200,8 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = Self::convert_type(meta.return_type());
         let parameters = self.parameters(meta.parameters);
         let body = self.expr(*self.interner.function(&f).as_expr());
-        let unconstrained = meta.is_unconstrained;
+        let unconstrained = meta.is_unconstrained
+            || matches!(meta.contract_function_type, Some(ContractFunctionType::Open));
 
         let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
@@ -222,7 +230,6 @@ impl<'interner> Monomorphizer<'interner> {
     ) {
         match param {
             HirPattern::Identifier(ident) => {
-                //let value = self.expand_parameter(typ, new_params);
                 let new_id = self.next_local_id();
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
@@ -263,22 +270,32 @@ impl<'interner> Monomorphizer<'interner> {
         match self.interner.expression(&expr) {
             HirExpression::Ident(ident) => self.ident(ident, expr),
             HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
+            HirExpression::Literal(HirLiteral::FmtStr(contents, idents)) => {
+                let fields = vecmap(idents, |ident| self.expr(ident));
+                Literal(FmtStr(
+                    contents,
+                    fields.len() as u64,
+                    Box::new(ast::Expression::Tuple(fields)),
+                ))
+            }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let typ = Self::convert_type(&self.interner.id_type(expr));
                 Literal(Integer(value, typ))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
-                HirArrayLiteral::Standard(array) => self.standard_array(array),
+                HirArrayLiteral::Standard(array) => self.standard_array(expr, array),
                 HirArrayLiteral::Repeated { repeated_element, length } => {
-                    self.repeated_array(repeated_element, length)
+                    self.repeated_array(expr, repeated_element, length)
                 }
             },
+            HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
             HirExpression::Block(block) => self.block(block.0),
 
             HirExpression::Prefix(prefix) => ast::Expression::Unary(ast::Unary {
                 operator: prefix.operator,
                 rhs: Box::new(self.expr(prefix.rhs)),
+                result_type: Self::convert_type(&self.interner.id_type(expr)),
             }),
 
             HirExpression::Infix(infix) => {
@@ -340,7 +357,7 @@ impl<'interner> Monomorphizer<'interner> {
             }
             HirExpression::Constructor(constructor) => self.constructor(constructor, expr),
 
-            HirExpression::Lambda(lambda) => self.lambda(lambda),
+            HirExpression::Lambda(lambda) => self.lambda(lambda, expr),
 
             HirExpression::MethodCall(_) => {
                 unreachable!("Encountered HirExpression::MethodCall during monomorphization")
@@ -349,63 +366,31 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn standard_array(&mut self, array: Vec<node_interner::ExprId>) -> ast::Expression {
-        let element_type = Self::convert_type(&self.interner.id_type(array[0]));
-        let contents = vecmap(array, |id| self.expr(id));
-        Self::aos_to_soa(contents, element_type)
+    fn standard_array(
+        &mut self,
+        array: node_interner::ExprId,
+        array_elements: Vec<node_interner::ExprId>,
+    ) -> ast::Expression {
+        let typ = Self::convert_type(&self.interner.id_type(array));
+        let contents = vecmap(array_elements, |id| self.expr(id));
+        ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
     }
 
     fn repeated_array(
         &mut self,
+        array: node_interner::ExprId,
         repeated_element: node_interner::ExprId,
         length: HirType,
     ) -> ast::Expression {
-        let element_type = Self::convert_type(&self.interner.id_type(repeated_element));
+        let typ = Self::convert_type(&self.interner.id_type(array));
+
         let contents = self.expr(repeated_element);
         let length = length
             .evaluate_to_u64()
             .expect("Length of array is unknown when evaluating numeric generic");
 
         let contents = vec![contents; length as usize];
-        Self::aos_to_soa(contents, element_type)
-    }
-
-    /// Convert an array in (potentially) array of structs form into struct of arrays form.
-    /// This will do nothing if the given array element type is a primitive type like Field.
-    ///
-    ///
-    /// TODO Remove side effects from clones
-    fn aos_to_soa(
-        array_contents: Vec<ast::Expression>,
-        element_type: ast::Type,
-    ) -> ast::Expression {
-        match element_type {
-            ast::Type::Field
-            | ast::Type::Integer(_, _)
-            | ast::Type::Bool
-            | ast::Type::Unit
-            | ast::Type::Function(_, _) => {
-                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
-                    contents: array_contents,
-                    element_type,
-                }))
-            }
-
-            ast::Type::Tuple(elements) => ast::Expression::Tuple(vecmap(
-                elements.into_iter().enumerate(),
-                |(i, element_type)| {
-                    let contents = vecmap(&array_contents, |element| {
-                        ast::Expression::ExtractTupleField(Box::new(element.clone()), i)
-                    });
-
-                    Self::aos_to_soa(contents, element_type)
-                },
-            )),
-
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
-                unreachable!("Nested arrays, arrays of strings, and Vecs are not supported")
-            }
-        }
+        ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral { contents, typ }))
     }
 
     fn index(&mut self, id: node_interner::ExprId, index: HirIndexExpression) -> ast::Expression {
@@ -414,41 +399,7 @@ impl<'interner> Monomorphizer<'interner> {
         let collection = Box::new(self.expr(index.collection));
         let index = Box::new(self.expr(index.index));
         let location = self.interner.expr_location(&id);
-        Self::aos_to_soa_index(collection, index, element_type, location)
-    }
-
-    /// Unpack an array index into an array of structs into a struct of arrays index if needed.
-    /// E.g. transforms my_pair_array[i] into (my_pair1_array[i], my_pair2_array[i])
-    fn aos_to_soa_index(
-        collection: Box<ast::Expression>,
-        index: Box<ast::Expression>,
-        element_type: ast::Type,
-        location: Location,
-    ) -> ast::Expression {
-        match element_type {
-            ast::Type::Field
-            | ast::Type::Integer(_, _)
-            | ast::Type::Bool
-            | ast::Type::Unit
-            | ast::Type::Function(_, _) => {
-                ast::Expression::Index(ast::Index { collection, index, element_type, location })
-            }
-
-            ast::Type::Tuple(elements) => {
-                let elements = elements.into_iter().enumerate();
-                ast::Expression::Tuple(vecmap(elements, |(i, element_type)| {
-                    // collection should itself be a tuple of arrays
-                    let collection =
-                        Box::new(ast::Expression::ExtractTupleField(collection.clone(), i));
-
-                    Self::aos_to_soa_index(collection, index.clone(), element_type, location)
-                }))
-            }
-
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
-                unreachable!("Nested arrays and arrays of strings or Vecs are not supported")
-            }
-        }
+        ast::Expression::Index(ast::Index { collection, index, element_type, location })
     }
 
     fn statement(&mut self, id: StmtId) -> ast::Expression {
@@ -599,6 +550,15 @@ impl<'interner> Monomorphizer<'interner> {
         ast::Expression::Block(definitions)
     }
 
+    /// Find a captured variable in the innermost closure
+    fn lookup_captured(&mut self, id: node_interner::DefinitionId) -> Option<ast::Expression> {
+        let ctx = self.lambda_envs_stack.last()?;
+        ctx.captures
+            .iter()
+            .position(|capture| capture.ident.id == id)
+            .map(|index| ast::Expression::ExtractTupleField(ctx.env_ident.clone(), index))
+    }
+
     /// A local (ie non-global) ident only
     fn local_ident(&mut self, ident: &HirIdent) -> Option<ast::Ident> {
         let definition = self.interner.definition(ident.id);
@@ -622,14 +582,25 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let definition = self.lookup_function(*func_id, expr_id, &typ);
                 let typ = Self::convert_type(&typ);
-                let ident = ast::Ident { location, mutable, definition, name, typ };
-                ast::Expression::Ident(ident)
+                let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone() };
+                let ident_expression = ast::Expression::Ident(ident);
+                if self.is_function_closure_type(&typ) {
+                    ast::Expression::Tuple(vec![
+                        ast::Expression::ExtractTupleField(
+                            Box::new(ident_expression.clone()),
+                            0usize,
+                        ),
+                        ast::Expression::ExtractTupleField(Box::new(ident_expression), 1usize),
+                    ])
+                } else {
+                    ident_expression
+                }
             }
             DefinitionKind::Global(expr_id) => self.expr(*expr_id),
-            DefinitionKind::Local(_) => {
+            DefinitionKind::Local(_) => self.lookup_captured(ident.id).unwrap_or_else(|| {
                 let ident = self.local_ident(&ident).unwrap();
                 ast::Expression::Ident(ident)
-            }
+            }),
             DefinitionKind::GenericType(type_variable) => {
                 let value = match &*type_variable.borrow() {
                     TypeBinding::Unbound(_) => {
@@ -653,31 +624,55 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool(_) => ast::Type::Bool,
             HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
+            HirType::FmtString(size, fields) => {
+                let size = size.evaluate_to_u64().unwrap_or(0);
+                let fields = Box::new(Self::convert_type(fields.as_ref()));
+                ast::Type::FmtString(size, fields)
+            }
             HirType::Unit => ast::Type::Unit,
 
             HirType::Array(length, element) => {
-                let length = length.evaluate_to_u64().unwrap_or(0);
-                let element = Self::convert_type(element.as_ref());
-                Self::aos_to_soa_type(length, element)
+                let element = Box::new(Self::convert_type(element.as_ref()));
+
+                if let Some(length) = length.evaluate_to_u64() {
+                    ast::Type::Array(length, element)
+                } else {
+                    ast::Type::Slice(element)
+                }
             }
 
-            HirType::PolymorphicInteger(_, binding)
-            | HirType::TypeVariable(binding)
-            | HirType::NamedGeneric(binding, _) => {
+            HirType::NamedGeneric(binding, _) => {
                 if let TypeBinding::Bound(binding) = &*binding.borrow() {
                     return Self::convert_type(binding);
                 }
 
-                // Default any remaining unbound type variables to Field.
+                // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
                 // NOTE: Make sure to review this if there is ever type-directed dispatch,
                 // like automatic solving of traits. It should be fine since it is strictly
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
-                *binding.borrow_mut() =
-                    TypeBinding::Bound(HirType::FieldElement(CompTime::No(None)));
+                *binding.borrow_mut() = TypeBinding::Bound(HirType::field(None));
                 ast::Type::Field
+            }
+
+            HirType::TypeVariable(binding, kind) => {
+                if let TypeBinding::Bound(binding) = &*binding.borrow() {
+                    return Self::convert_type(binding);
+                }
+
+                // Default any remaining unbound type variables.
+                // This should only happen if the variable in question is unused
+                // and within a larger generic type.
+                // NOTE: Make sure to review this if there is ever type-directed dispatch,
+                // like automatic solving of traits. It should be fine since it is strictly
+                // after type checking, but care should be taken that it doesn't change which
+                // impls are chosen.
+                let default = kind.default_type();
+                let monomorphized_default = Self::convert_type(&default);
+                *binding.borrow_mut() = TypeBinding::Bound(default);
+                monomorphized_default
             }
 
             HirType::Struct(def, args) => {
@@ -691,40 +686,59 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(fields)
             }
 
-            HirType::Function(args, ret) => {
+            HirType::Function(args, ret, env) => {
                 let args = vecmap(args, Self::convert_type);
                 let ret = Box::new(Self::convert_type(ret));
-                ast::Type::Function(args, ret)
+                let env = Self::convert_type(env);
+                match &env {
+                    ast::Type::Unit => ast::Type::Function(args, ret, Box::new(env)),
+                    ast::Type::Tuple(_elements) => ast::Type::Tuple(vec![
+                        env.clone(),
+                        ast::Type::Function(args, ret, Box::new(env)),
+                    ]),
+                    _ => {
+                        unreachable!(
+                            "internal Type::Function env should be either a Unit or a Tuple, not {env}"
+                        )
+                    }
+                }
             }
 
-            HirType::Vec(element) => {
+            HirType::MutableReference(element) => {
                 let element = Self::convert_type(element);
-                ast::Type::Vec(Box::new(element))
+                ast::Type::MutableReference(Box::new(element))
             }
 
-            HirType::Forall(_, _) | HirType::Constant(_) | HirType::Error => {
+            HirType::Forall(_, _)
+            | HirType::Constant(_)
+            | HirType::NotConstant
+            | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }
         }
     }
 
-    /// Converts arrays of structs (AOS) into structs of arrays (SOA).
-    /// This is required since our SSA pass does not support arrays of structs.
-    fn aos_to_soa_type(length: u64, element: ast::Type) -> ast::Type {
-        match element {
-            ast::Type::Field
-            | ast::Type::Integer(_, _)
-            | ast::Type::Bool
-            | ast::Type::Unit
-            | ast::Type::Function(_, _) => ast::Type::Array(length, Box::new(element)),
-
-            ast::Type::Tuple(elements) => {
-                ast::Type::Tuple(vecmap(elements, |typ| Self::aos_to_soa_type(length, typ)))
+    fn is_function_closure(&self, raw_func_id: node_interner::ExprId) -> bool {
+        let t = Self::convert_type(&self.interner.id_type(raw_func_id));
+        if self.is_function_closure_type(&t) {
+            true
+        } else if let ast::Type::Tuple(elements) = t {
+            if elements.len() == 2 {
+                matches!(elements[1], ast::Type::Function(_, _, _))
+            } else {
+                false
             }
+        } else {
+            false
+        }
+    }
 
-            ast::Type::Array(_, _) | ast::Type::String(_) | ast::Type::Vec(_) => {
-                unreachable!("Nested arrays and arrays of strings are not supported")
-            }
+    fn is_function_closure_type(&self, t: &ast::Type) -> bool {
+        if let ast::Type::Function(_, _, env) = t {
+            let e = (*env).clone();
+            matches!(*e, ast::Type::Tuple(_captures))
+        } else {
+            false
         }
     }
 
@@ -733,14 +747,118 @@ impl<'interner> Monomorphizer<'interner> {
         call: HirCallExpression,
         id: node_interner::ExprId,
     ) -> ast::Expression {
-        let func = Box::new(self.expr(call.func));
-        let arguments = vecmap(&call.arguments, |id| self.expr(*id));
+        let original_func = Box::new(self.expr(call.func));
+        let mut arguments = vecmap(&call.arguments, |id| self.expr(*id));
+        let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+        let func: Box<ast::Expression>;
         let return_type = self.interner.id_type(id);
         let return_type = Self::convert_type(&return_type);
         let location = call.location;
 
-        self.try_evaluate_call(&func, &call.arguments, &return_type)
-            .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }))
+        if let ast::Expression::Ident(ident) = original_func.as_ref() {
+            if let Definition::Oracle(name) = &ident.definition {
+                if name.as_str() == "println" {
+                    // Oracle calls are required to be wrapped in an unconstrained function
+                    // Thus, the only argument to the `println` oracle is expected to always be an ident
+                    self.append_abi_arg(&hir_arguments[0], &mut arguments);
+                }
+            }
+        }
+
+        let mut block_expressions = vec![];
+
+        let is_closure = self.is_function_closure(call.func);
+        if is_closure {
+            let extracted_func: ast::Expression;
+            let hir_call_func = self.interner.expression(&call.func);
+            if let HirExpression::Lambda(l) = hir_call_func {
+                let (setup, closure_variable) = self.lambda_with_setup(l, call.func);
+                block_expressions.push(setup);
+                extracted_func = closure_variable;
+            } else {
+                extracted_func = *original_func;
+            }
+            func = Box::new(ast::Expression::ExtractTupleField(
+                Box::new(extracted_func.clone()),
+                1usize,
+            ));
+            let env_argument = ast::Expression::ExtractTupleField(Box::new(extracted_func), 0usize);
+            arguments.insert(0, env_argument);
+        } else {
+            func = original_func.clone();
+        };
+
+        let call = self
+            .try_evaluate_call(&func, &return_type)
+            .unwrap_or(ast::Expression::Call(ast::Call { func, arguments, return_type, location }));
+
+        if !block_expressions.is_empty() {
+            block_expressions.push(call);
+            ast::Expression::Block(block_expressions)
+        } else {
+            call
+        }
+    }
+
+    /// Adds a function argument that contains type metadata that is required to tell
+    /// a caller (such as nargo) how to convert values passed to an foreign call
+    /// back to a human-readable string.
+    /// The values passed to an foreign call will be a simple list of field elements,
+    /// thus requiring extra metadata to correctly decode this list of elements.
+    ///
+    /// The Noir compiler has an `AbiType` that handles encoding/decoding a list
+    /// of field elements to/from JSON. The type metadata attached in this method
+    /// is the serialized `AbiType` for the argument passed to the function.
+    /// The caller that is running a Noir program should then deserialize the `AbiType`,
+    /// and accurately decode the list of field elements passed to the foreign call.
+    fn append_abi_arg(
+        &mut self,
+        hir_argument: &HirExpression,
+        arguments: &mut Vec<ast::Expression>,
+    ) {
+        match hir_argument {
+            HirExpression::Ident(ident) => {
+                let typ = self.interner.id_type(ident.id);
+                let typ: Type = typ.follow_bindings();
+                let is_fmt_str = match typ {
+                    // A format string has many different possible types that need to be handled.
+                    // Loop over each element in the format string to fetch each type's relevant metadata
+                    Type::FmtString(_, elements) => {
+                        match *elements {
+                            Type::Tuple(element_types) => {
+                                for typ in element_types {
+                                    Self::append_abi_arg_inner(&typ, arguments);
+                                }
+                            }
+                            _ => unreachable!(
+                                "ICE: format string type should be a tuple but got a {elements}"
+                            ),
+                        }
+                        true
+                    }
+                    _ => {
+                        Self::append_abi_arg_inner(&typ, arguments);
+                        false
+                    }
+                };
+                // The caller needs information as to whether it is handling a format string or a single type
+                arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
+            }
+            _ => unreachable!("logging expr {:?} is not supported", arguments[0]),
+        }
+    }
+
+    fn append_abi_arg_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+        if let HirType::Array(size, _) = typ {
+            if let HirType::NotConstant = **size {
+                unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
+            }
+        }
+        let abi_type = typ.as_abi_type();
+        let abi_as_string =
+            serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
+
+        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
     }
 
     /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
@@ -752,59 +870,52 @@ impl<'interner> Monomorphizer<'interner> {
     fn try_evaluate_call(
         &mut self,
         func: &ast::Expression,
-        arguments: &[node_interner::ExprId],
         result_type: &ast::Type,
     ) -> Option<ast::Expression> {
         if let ast::Expression::Ident(ident) = func {
             if let Definition::Builtin(opcode) = &ident.definition {
-                if opcode == "array_len" {
-                    let typ = self.interner.id_type(arguments[0]);
-                    let len = typ.evaluate_to_u64().unwrap();
-                    return Some(ast::Expression::Literal(ast::Literal::Integer(
-                        (len as u128).into(),
-                        ast::Type::Field,
-                    )));
-                } else if opcode == "modulus_num_bits" {
-                    return Some(ast::Expression::Literal(ast::Literal::Integer(
+                // TODO(#1736): Move this builtin to the SSA pass
+                return match opcode.as_str() {
+                    "modulus_num_bits" => Some(ast::Expression::Literal(ast::Literal::Integer(
                         (FieldElement::max_num_bits() as u128).into(),
                         ast::Type::Field,
-                    )));
-                } else if opcode == "zeroed" {
-                    return Some(self.zeroed_value_of_type(result_type));
-                }
-
-                let modulus = FieldElement::modulus();
-
-                if opcode == "modulus_le_bits" {
-                    let bits = modulus.to_radix_le(2);
-                    return Some(self.modulus_array_literal(bits, 1));
-                } else if opcode == "modulus_be_bits" {
-                    let bits = modulus.to_radix_be(2);
-                    return Some(self.modulus_array_literal(bits, 1));
-                } else if opcode == "modulus_be_bytes" {
-                    let bytes = modulus.to_bytes_be();
-                    return Some(self.modulus_array_literal(bytes, 8));
-                } else if opcode == "modulus_le_bytes" {
-                    let bytes = modulus.to_bytes_le();
-                    return Some(self.modulus_array_literal(bytes, 8));
-                }
+                    ))),
+                    "zeroed" => Some(self.zeroed_value_of_type(result_type)),
+                    "modulus_le_bits" => {
+                        let bits = FieldElement::modulus().to_radix_le(2);
+                        Some(self.modulus_array_literal(bits, 1))
+                    }
+                    "modulus_be_bits" => {
+                        let bits = FieldElement::modulus().to_radix_be(2);
+                        Some(self.modulus_array_literal(bits, 1))
+                    }
+                    "modulus_be_bytes" => {
+                        let bytes = FieldElement::modulus().to_bytes_be();
+                        Some(self.modulus_array_literal(bytes, 8))
+                    }
+                    "modulus_le_bytes" => {
+                        let bytes = FieldElement::modulus().to_bytes_le();
+                        Some(self.modulus_array_literal(bytes, 8))
+                    }
+                    _ => None,
+                };
             }
         }
         None
     }
 
     fn modulus_array_literal(&self, bytes: Vec<u8>, arr_elem_bits: u32) -> ast::Expression {
+        use ast::*;
+        let int_type = Type::Integer(crate::Signedness::Unsigned, arr_elem_bits);
+
         let bytes_as_expr = vecmap(bytes, |byte| {
-            ast::Expression::Literal(ast::Literal::Integer(
-                (byte as u128).into(),
-                ast::Type::Integer(crate::Signedness::Unsigned, arr_elem_bits),
-            ))
+            Expression::Literal(Literal::Integer((byte as u128).into(), int_type.clone()))
         });
-        let arr_literal = ast::ArrayLiteral {
-            contents: bytes_as_expr,
-            element_type: ast::Type::Integer(crate::Signedness::Unsigned, arr_elem_bits),
-        };
-        ast::Expression::Literal(ast::Literal::Array(arr_literal))
+
+        let typ = Type::Array(bytes_as_expr.len() as u64, Box::new(int_type));
+
+        let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
+        Expression::Literal(Literal::Array(arr_literal))
     }
 
     fn queue_function(
@@ -846,7 +957,9 @@ impl<'interner> Monomorphizer<'interner> {
 
         match index_lvalue {
             Some((index, element_type, location)) => {
-                Self::aos_to_soa_assign(expression, Box::new(lvalue), index, element_type, location)
+                let lvalue =
+                    ast::LValue::Index { array: Box::new(lvalue), index, element_type, location };
+                ast::Expression::Assign(ast::Assign { lvalue, expression })
             }
             None => ast::Expression::Assign(ast::Assign { expression, lvalue }),
         }
@@ -884,42 +997,26 @@ impl<'interner> Monomorphizer<'interner> {
                 let element_type = Self::convert_type(&typ);
                 (array, Some((index, element_type, location)))
             }
-        }
-    }
-
-    fn aos_to_soa_assign(
-        expression: Box<ast::Expression>,
-        lvalue: Box<ast::LValue>,
-        index: Box<ast::Expression>,
-        typ: ast::Type,
-        location: Location,
-    ) -> ast::Expression {
-        match typ {
-            ast::Type::Tuple(fields) => {
-                let fields = fields.into_iter().enumerate();
-                ast::Expression::Block(vecmap(fields, |(i, field)| {
-                    let expression = ast::Expression::ExtractTupleField(expression.clone(), i);
-                    let lvalue =
-                        ast::LValue::MemberAccess { object: lvalue.clone(), field_index: i };
-                    Self::aos_to_soa_assign(
-                        Box::new(expression),
-                        Box::new(lvalue),
-                        index.clone(),
-                        field,
-                        location,
-                    )
-                }))
-            }
-
-            // No changes if the element_type is not a tuple
-            element_type => {
-                let lvalue = ast::LValue::Index { array: lvalue, index, element_type, location };
-                ast::Expression::Assign(ast::Assign { lvalue, expression })
+            HirLValue::Dereference { lvalue, element_type } => {
+                let (reference, index) = self.lvalue(*lvalue);
+                let reference = Box::new(reference);
+                let element_type = Self::convert_type(&element_type);
+                let lvalue = ast::LValue::Dereference { reference, element_type };
+                (lvalue, index)
             }
         }
     }
 
-    fn lambda(&mut self, lambda: HirLambda) -> ast::Expression {
+    fn lambda(&mut self, lambda: HirLambda, expr: node_interner::ExprId) -> ast::Expression {
+        if lambda.captures.is_empty() {
+            self.lambda_no_capture(lambda)
+        } else {
+            let (setup, closure_variable) = self.lambda_with_setup(lambda, expr);
+            ast::Expression::Block(vec![setup, closure_variable])
+        }
+    }
+
+    fn lambda_no_capture(&mut self, lambda: HirLambda) -> ast::Expression {
         let ret_type = Self::convert_type(&lambda.return_type);
         let lambda_name = "lambda";
         let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
@@ -940,7 +1037,8 @@ impl<'interner> Monomorphizer<'interner> {
         let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
 
-        let typ = ast::Type::Function(parameter_types, Box::new(ret_type));
+        let typ =
+            ast::Type::Function(parameter_types, Box::new(ret_type), Box::new(ast::Type::Unit));
 
         let name = lambda_name.to_owned();
         ast::Expression::Ident(ast::Ident {
@@ -950,6 +1048,133 @@ impl<'interner> Monomorphizer<'interner> {
             name,
             typ,
         })
+    }
+
+    fn lambda_with_setup(
+        &mut self,
+        lambda: HirLambda,
+        expr: node_interner::ExprId,
+    ) -> (ast::Expression, ast::Expression) {
+        // returns (<closure setup>, <closure variable>)
+        //   which can be used directly in callsites or transformed
+        //   directly to a single `Expression`
+        // for other cases by `lambda` which is called by `expr`
+        //
+        // it solves the problem of detecting special cases where
+        // we call something like
+        // `{let env$.. = ..;}.1({let env$.. = ..;}.0, ..)`
+        // which was leading to redefinition errors
+        //
+        // instead of detecting and extracting
+        // patterns in the resulting tree,
+        // which seems more fragile, we directly reuse the return parameters
+        // of this function in those cases
+        let ret_type = Self::convert_type(&lambda.return_type);
+        let lambda_name = "lambda";
+        let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
+
+        // Manually convert to Parameters type so we can reuse the self.parameters method
+        let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
+            Param(pattern, typ, noirc_abi::AbiVisibility::Private)
+        }));
+
+        let mut converted_parameters = self.parameters(parameters);
+
+        let id = self.next_function_id();
+        let name = lambda_name.to_owned();
+        let return_type = ret_type.clone();
+
+        let env_local_id = self.next_local_id();
+        let env_name = "env";
+        let env_tuple = ast::Expression::Tuple(vecmap(&lambda.captures, |capture| {
+            match capture.transitive_capture_index {
+                Some(field_index) => match self.lambda_envs_stack.last() {
+                    Some(lambda_ctx) => ast::Expression::ExtractTupleField(
+                        lambda_ctx.env_ident.clone(),
+                        field_index,
+                    ),
+                    None => unreachable!(
+                        "Expected to find a parent closure environment, but found none"
+                    ),
+                },
+                None => {
+                    let ident = self.local_ident(&capture.ident).unwrap();
+                    ast::Expression::Ident(ident)
+                }
+            }
+        }));
+        let expr_type = self.interner.id_type(expr);
+        let env_typ = if let types::Type::Function(_, _, function_env_type) = expr_type {
+            Self::convert_type(&function_env_type)
+        } else {
+            unreachable!("expected a Function type for a Lambda node")
+        };
+
+        let env_let_stmt = ast::Expression::Let(ast::Let {
+            id: env_local_id,
+            mutable: false,
+            name: env_name.to_string(),
+            expression: Box::new(env_tuple),
+        });
+
+        let location = None; // TODO: This should match the location of the lambda expression
+        let mutable = false;
+        let definition = Definition::Local(env_local_id);
+
+        let env_ident = ast::Expression::Ident(ast::Ident {
+            location,
+            mutable,
+            definition,
+            name: env_name.to_string(),
+            typ: env_typ.clone(),
+        });
+
+        self.lambda_envs_stack.push(LambdaContext {
+            env_ident: Box::new(env_ident.clone()),
+            captures: lambda.captures,
+        });
+        let body = self.expr(lambda.body);
+        self.lambda_envs_stack.pop();
+
+        let lambda_fn_typ: ast::Type =
+            ast::Type::Function(parameter_types, Box::new(ret_type), Box::new(env_typ.clone()));
+        let lambda_fn = ast::Expression::Ident(ast::Ident {
+            definition: Definition::Function(id),
+            mutable: false,
+            location: None, // TODO: This should match the location of the lambda expression
+            name: name.clone(),
+            typ: lambda_fn_typ.clone(),
+        });
+
+        let mut parameters = vec![];
+        parameters.push((env_local_id, true, env_name.to_string(), env_typ.clone()));
+        parameters.append(&mut converted_parameters);
+
+        let unconstrained = false;
+        let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
+        self.push_function(id, function);
+
+        let lambda_value = ast::Expression::Tuple(vec![env_ident, lambda_fn]);
+        let block_local_id = self.next_local_id();
+        let block_ident_name = "closure_variable";
+        let block_let_stmt = ast::Expression::Let(ast::Let {
+            id: block_local_id,
+            mutable: false,
+            name: block_ident_name.to_string(),
+            expression: Box::new(ast::Expression::Block(vec![env_let_stmt, lambda_value])),
+        });
+
+        let closure_definition = Definition::Local(block_local_id);
+
+        let closure_ident = ast::Expression::Ident(ast::Ident {
+            location,
+            mutable: false,
+            definition: closure_definition,
+            name: block_ident_name.to_string(),
+            typ: ast::Type::Tuple(vec![env_typ, lambda_fn_typ]),
+        });
+
+        (block_let_stmt, closure_ident)
     }
 
     /// Implements std::unsafe::zeroed by returning an appropriate zeroed
@@ -968,19 +1193,42 @@ impl<'interner> Monomorphizer<'interner> {
                 let element = self.zeroed_value_of_type(element_type.as_ref());
                 ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
                     contents: vec![element; *length as usize],
-                    element_type: element_type.as_ref().clone(),
+                    typ: ast::Type::Array(*length, element_type.clone()),
                 }))
             }
             ast::Type::String(length) => {
                 ast::Expression::Literal(ast::Literal::Str("\0".repeat(*length as usize)))
             }
+            ast::Type::FmtString(length, fields) => {
+                let zeroed_tuple = self.zeroed_value_of_type(fields);
+                let fields_len = match &zeroed_tuple {
+                    ast::Expression::Tuple(fields) => fields.len() as u64,
+                    _ => unreachable!("ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"),
+                };
+                ast::Expression::Literal(ast::Literal::FmtStr(
+                    "\0".repeat(*length as usize),
+                    fields_len,
+                    Box::new(zeroed_tuple),
+                ))
+            }
             ast::Type::Tuple(fields) => {
                 ast::Expression::Tuple(vecmap(fields, |field| self.zeroed_value_of_type(field)))
             }
-            ast::Type::Function(parameter_types, ret_type) => {
-                self.create_zeroed_function(parameter_types, ret_type)
+            ast::Type::Function(parameter_types, ret_type, env) => {
+                self.create_zeroed_function(parameter_types, ret_type, env)
             }
-            ast::Type::Vec(_) => panic!("Cannot create a zeroed Vec value. This type is currently unimplemented and meant to be unusable outside of unconstrained functions"),
+            ast::Type::Slice(element_type) => {
+                ast::Expression::Literal(ast::Literal::Array(ast::ArrayLiteral {
+                    contents: vec![],
+                    typ: ast::Type::Slice(element_type.clone()),
+                }))
+            }
+            ast::Type::MutableReference(element) => {
+                use crate::UnaryOp::MutableReference;
+                let rhs = Box::new(self.zeroed_value_of_type(element));
+                let result_type = typ.clone();
+                ast::Expression::Unary(ast::Unary { rhs, result_type, operator: MutableReference })
+            }
         }
     }
 
@@ -994,6 +1242,7 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         parameter_types: &[ast::Type],
         ret_type: &ast::Type,
+        env_type: &ast::Type,
     ) -> ast::Expression {
         let lambda_name = "zeroed_lambda";
 
@@ -1016,7 +1265,11 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name: lambda_name.to_owned(),
-            typ: ast::Type::Function(parameter_types.to_owned(), Box::new(ret_type.clone())),
+            typ: ast::Type::Function(
+                parameter_types.to_owned(),
+                Box::new(ret_type.clone()),
+                Box::new(env_type.clone()),
+            ),
         })
     }
 }
@@ -1024,7 +1277,7 @@ impl<'interner> Monomorphizer<'interner> {
 fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
     match typ {
         HirType::Tuple(fields) => fields.clone(),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_tuple_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
@@ -1035,7 +1288,7 @@ fn unwrap_tuple_type(typ: &HirType) -> Vec<HirType> {
 fn unwrap_struct_type(typ: &HirType) -> Vec<(String, HirType)> {
     match typ {
         HirType::Struct(def, args) => def.borrow().get_fields(args),
-        HirType::TypeVariable(binding) => match &*binding.borrow() {
+        HirType::TypeVariable(binding, TypeVariableKind::Normal) => match &*binding.borrow() {
             TypeBinding::Bound(binding) => unwrap_struct_type(binding),
             TypeBinding::Unbound(_) => unreachable!(),
         },
@@ -1052,5 +1305,169 @@ fn perform_instantiation_bindings(bindings: &TypeBindings) {
 fn undo_instantiation_bindings(bindings: TypeBindings) {
     for (id, (var, _)) in bindings {
         *var.borrow_mut() = TypeBinding::Unbound(id);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use fm::FileId;
+    use iter_extended::vecmap;
+
+    use crate::{
+        graph::CrateId,
+        hir::{
+            def_map::{
+                CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, ModuleOrigin,
+            },
+            resolution::{
+                import::PathResolutionError, path_resolver::PathResolver, resolver::Resolver,
+            },
+        },
+        hir_def::function::HirFunction,
+        node_interner::{FuncId, NodeInterner},
+        parse_program,
+    };
+
+    use super::monomorphize;
+
+    // TODO: refactor into a more general test utility?
+    // mostly copied from hir / type_check / mod.rs and adapted a bit
+    fn type_check_src_code(src: &str, func_namespace: Vec<String>) -> (FuncId, NodeInterner) {
+        let (program, errors) = parse_program(src);
+        let mut interner = NodeInterner::default();
+
+        // Using assert_eq here instead of assert(errors.is_empty()) displays
+        // the whole vec if the assert fails rather than just two booleans
+        assert_eq!(errors, vec![]);
+
+        let main_id = interner.push_fn(HirFunction::empty());
+        interner.push_function_definition("main".into(), main_id);
+
+        let func_ids = vecmap(&func_namespace, |name| {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(name.into(), id);
+            id
+        });
+
+        let mut path_resolver = TestPathResolver(HashMap::new());
+        for (name, id) in func_namespace.into_iter().zip(func_ids.clone()) {
+            path_resolver.insert_func(name.to_owned(), id);
+        }
+
+        let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
+        let file = FileId::default();
+
+        let mut modules = arena::Arena::new();
+        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+
+        def_maps.insert(
+            CrateId::dummy_id(),
+            CrateDefMap {
+                root: path_resolver.local_module_id(),
+                modules,
+                krate: CrateId::dummy_id(),
+                extern_prelude: HashMap::new(),
+            },
+        );
+
+        let func_meta = vecmap(program.functions, |nf| {
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
+            let (hir_func, func_meta, _resolver_errors) =
+                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
+            // TODO: not sure why, we do get an error here,
+            // but otherwise seem to get an ok monomorphization result
+            // assert_eq!(resolver_errors, vec![]);
+            (hir_func, func_meta)
+        });
+
+        println!("Before update_fn");
+
+        for ((hir_func, meta), func_id) in func_meta.into_iter().zip(func_ids.clone()) {
+            interner.update_fn(func_id, hir_func);
+            interner.push_fn_meta(meta, func_id);
+        }
+
+        println!("Before type_check_func");
+
+        // Type check section
+        let errors = crate::hir::type_check::type_check_func(
+            &mut interner,
+            func_ids.first().cloned().unwrap(),
+        );
+        assert_eq!(errors, vec![]);
+        (func_ids.first().cloned().unwrap(), interner)
+    }
+
+    // TODO: refactor into a more general test utility?
+    // TestPathResolver struct and impls copied from hir / type_check / mod.rs
+    struct TestPathResolver(HashMap<String, ModuleDefId>);
+
+    impl PathResolver for TestPathResolver {
+        fn resolve(
+            &self,
+            _def_maps: &HashMap<CrateId, CrateDefMap>,
+            path: crate::Path,
+        ) -> Result<ModuleDefId, PathResolutionError> {
+            // Not here that foo::bar and hello::foo::bar would fetch the same thing
+            let name = path.segments.last().unwrap();
+            let mod_def = self.0.get(&name.0.contents).cloned();
+            mod_def.ok_or_else(move || PathResolutionError::Unresolved(name.clone()))
+        }
+
+        fn local_module_id(&self) -> LocalModuleId {
+            // This is not LocalModuleId::dummy since we need to use this to index into a Vec
+            // later and do not want to push u32::MAX number of elements before we do.
+            LocalModuleId(arena::Index::from_raw_parts(0, 0))
+        }
+
+        fn module_id(&self) -> ModuleId {
+            ModuleId { krate: CrateId::dummy_id(), local_id: self.local_module_id() }
+        }
+    }
+
+    impl TestPathResolver {
+        fn insert_func(&mut self, name: String, func_id: FuncId) {
+            self.0.insert(name, func_id.into());
+        }
+    }
+
+    // a helper test method
+    // TODO: maybe just compare trimmed src/expected
+    // for easier formatting?
+    fn check_rewrite(src: &str, expected: &str) {
+        let (func, interner) = type_check_src_code(src, vec!["main".to_string()]);
+        let program = monomorphize(func, &interner);
+        // println!("[{}]", program);
+        assert!(format!("{}", program) == expected);
+    }
+
+    #[test]
+    fn simple_closure_with_no_captured_variables() {
+        let src = r#"
+        fn main() -> Field {
+            let x = 1;
+            let closure = || x;
+            closure()
+        }
+        "#;
+
+        let expected_rewrite = r#"fn main$f0() -> Field {
+    let x$0 = 1;
+    let closure$3 = {
+        let closure_variable$2 = {
+            let env$1 = (x$l0);
+            (env$l1, lambda$f1)
+        };
+        closure_variable$l2
+    };
+    closure$l3.1(closure$l3.0)
+}
+fn lambda$f1(mut env$l1: (Field)) -> Field {
+    env$l1.0
+}
+"#;
+        check_rewrite(src, expected_rewrite);
     }
 }

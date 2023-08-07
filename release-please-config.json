@@ -1,0 +1,24 @@
+{
+  "release-type": "simple",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "prerelease": true,
+  "pull-request-title-pattern": "chore(noir): Release ${version}",
+  "group-pull-request-title-pattern": "chore(noir): Release ${version}",
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "noir",
+      "include-component-in-tag": false,
+      "extra-files": [
+        "Cargo.toml",
+        "flake.nix",
+        {
+          "type": "json",
+          "path": "crates/wasm/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  }
+}

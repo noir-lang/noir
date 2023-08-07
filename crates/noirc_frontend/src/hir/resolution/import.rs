@@ -152,6 +152,7 @@ fn resolve_name_in_module(
             ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
             // TODO: If impls are ever implemented, types can be used in a path
             ModuleDefId::TypeId(id) => id.0,
+            ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
 
@@ -192,11 +193,11 @@ fn resolve_external_dep(
     let path = &directive.path.segments;
     //
     // Fetch the root module from the prelude
-    let crate_name = path.first().unwrap().0.contents.clone();
+    let crate_name = path.first().unwrap();
     let dep_module = current_def_map
         .extern_prelude
-        .get(&crate_name)
-        .unwrap_or_else(|| panic!("error reporter: could not find crate {crate_name}"));
+        .get(&crate_name.0.contents)
+        .ok_or_else(|| PathResolutionError::Unresolved(crate_name.to_owned()))?;
 
     // Create an import directive for the dependency crate
     let path_without_crate_name = &path[1..]; // XXX: This will panic if the path is of the form `use dep::std` Ideal algorithm will not distinguish between crate and module

@@ -1,0 +1,7 @@
+[package]
+name = "simple_shift_left_right"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

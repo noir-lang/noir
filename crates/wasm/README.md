@@ -1,18 +1,19 @@
-# Noir wasm
+# Noir Lang WASM JavaScript Package
 
-## Dependencies
+This JavaScript package enables users to compile a Noir program, i.e. generating its artifacts.
 
-In order to build the wasm package, the following must be installed:
+The package also handles dependency management like how Nargo (Noir's CLI tool) opreates, but the package is used just for compilation, not proving, verifying and simulating functions.
 
-- [wasm-pack](https://github.com/rustwasm/wasm-pack)
-- [jq](https://github.com/stedolan/jq)
+## Building from source
 
-## Build
-
-The wasm package can be built using the command below:
+Outside of the [noir repo](https://github.com/noir-lang/noir), this package can be built using the command below:
 
 ```bash
-./build-wasm
+nix build -L github:noir-lang/noir/master#wasm
 ```
 
-Using `wasm-pack` directly isn't recommended as it doesn't generate a complete `package.json` file, resulting in files being omitted from the published package.
+If you are within the noir repo and would like to build local changes, you can use:
+
+```bash
+nix build -L #wasm
+```

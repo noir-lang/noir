@@ -18,15 +18,7 @@ jobs:
         uses: google-github-actions/release-please-action@v3
         with:
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
-          release-type: simple
-          package-name: noir
-          bump-minor-pre-major: true
-          bump-patch-for-minor-pre-major: true
-          prerelease: true # Marks GitHub Releases for 0.x.x versions as "Pre-release"
-          pull-request-title-pattern: "chore(noir): Release ${version}"
-          extra-files: |
-            Cargo.toml
-            flake.nix
+          command: manifest
 
   update-lockfile:
     name: Update lockfile

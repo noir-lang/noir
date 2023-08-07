@@ -6,6 +6,7 @@ node_modules
 pkg/
 
 # Nix stuff
+**/outputs
 result
 .envrc.local
 .direnv/
@@ -18,3 +19,6 @@ result
 *.pk
 *.vk
 **/Verifier.toml
+**/target
+!crates/nargo_cli/tests/execution_success/*/target
+!crates/nargo_cli/tests/execution_success/*/target/witness.tr

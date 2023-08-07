@@ -1,75 +1,80 @@
-use crate::errors::CliError;
+use crate::{
+    errors::{CliError, CompileError},
+    find_package_manifest,
+    manifest::resolve_workspace_from_toml,
+    prepare_package,
+};
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
+use nargo::package::Package;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::CompileOptions;
-use noirc_errors::reporter;
-use std::path::{Path, PathBuf};
+use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
+use noirc_frontend::{
+    graph::{CrateId, CrateName},
+    hir::Context,
+};
 
+use super::fs::write_to_file;
 use super::NargoConfig;
-use super::{compile_cmd::setup_driver, fs::write_to_file};
-use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 
 /// Checks the constraint system for errors
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CheckCommand {
+    /// The name of the package to check
+    #[clap(long)]
+    package: Option<CrateName>,
+
     #[clap(flatten)]
     compile_options: CompileOptions,
 }
 
 pub(crate) fn run<B: Backend>(
-    backend: &B,
+    _backend: &B,
     args: CheckCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    check_from_path(backend, config.program_dir, &args.compile_options)?;
-    println!("Constraint system successfully built!");
+    let toml_path = find_package_manifest(&config.program_dir)?;
+    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+
+    for package in &workspace {
+        check_package(package, &args.compile_options)?;
+        println!("[{}] Constraint system successfully built!", package.name);
+    }
     Ok(())
 }
 
-fn check_from_path<B: Backend, P: AsRef<Path>>(
-    backend: &B,
-    program_dir: P,
-    compile_options: &CompileOptions,
-) -> Result<(), CliError<B>> {
-    let mut driver = setup_driver(backend, program_dir.as_ref())?;
+fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<(), CompileError> {
+    let (mut context, crate_id) = prepare_package(package);
+    check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 
-    let result = driver.check_crate();
-    if let Err(errs) = result {
-        let file_manager = driver.file_manager();
-        let error_count = reporter::report_all(file_manager, &errs, compile_options.deny_warnings);
-        if error_count != 0 {
-            reporter::finish_report(error_count);
-            return Err(CliError::CompilationError);
-        }
-    }
-
-    // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-    if let Some((parameters, return_type)) = driver.compute_function_signature() {
-        // XXX: The root config should return an enum to determine if we are looking for .json or .toml
-        // For now it is hard-coded to be toml.
-        //
-        // Check for input.toml and verifier.toml
-        let path_to_root = PathBuf::from(program_dir.as_ref());
-        let path_to_prover_input = path_to_root.join(format!("{PROVER_INPUT_FILE}.toml"));
-        let path_to_verifier_input = path_to_root.join(format!("{VERIFIER_INPUT_FILE}.toml"));
-
-        // If they are not available, then create them and populate them based on the ABI
-        if !path_to_prover_input.exists() {
-            let prover_toml = create_input_toml_template(parameters.clone(), None);
-            write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
-        }
-        if !path_to_verifier_input.exists() {
-            let public_inputs = parameters.into_iter().filter(|param| param.is_public()).collect();
-
-            let verifier_toml = create_input_toml_template(public_inputs, return_type);
-            write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
-        }
+    if package.is_library() {
+        // Libraries do not have ABIs.
+        Ok(())
     } else {
-        // This means that this is a library. Libraries do not have ABIs.
+        // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
+        if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
+            let path_to_prover_input = package.prover_input_path();
+            let path_to_verifier_input = package.verifier_input_path();
+
+            // If they are not available, then create them and populate them based on the ABI
+            if !path_to_prover_input.exists() {
+                let prover_toml = create_input_toml_template(parameters.clone(), None);
+                write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+            }
+            if !path_to_verifier_input.exists() {
+                let public_inputs =
+                    parameters.into_iter().filter(|param| param.is_public()).collect();
+
+                let verifier_toml = create_input_toml_template(public_inputs, return_type);
+                write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
+            }
+
+            Ok(())
+        } else {
+            Err(CompileError::MissingMainFunction(package.name.clone()))
+        }
     }
-    Ok(())
 }
 
 /// Generates the contents of a toml file with fields for each of the passed parameters.
@@ -113,6 +118,8 @@ mod tests {
 
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
     use noirc_driver::CompileOptions;
+
+    use crate::{find_package_manifest, manifest::resolve_workspace_from_toml};
 
     use super::create_input_toml_template;
 
@@ -163,16 +170,15 @@ d2 = ["", "", ""]
         let pass_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
 
-        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(
-                super::check_from_path(&backend, path.clone(), &config).is_ok(),
-                "path: {}",
-                path.display()
-            );
+            let toml_path = find_package_manifest(&path).unwrap();
+            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
+            for package in &workspace {
+                assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
+            }
         }
     }
 
@@ -182,16 +188,19 @@ d2 = ["", "", ""]
         let fail_dir =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
 
-        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions::default();
         let paths = std::fs::read_dir(fail_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(
-                super::check_from_path(&backend, path.clone(), &config).is_err(),
-                "path: {}",
-                path.display()
-            );
+            let toml_path = find_package_manifest(&path).unwrap();
+            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
+            for package in &workspace {
+                assert!(
+                    super::check_package(package, &config).is_err(),
+                    "path: {}",
+                    path.display()
+                );
+            }
         }
     }
 
@@ -200,17 +209,27 @@ d2 = ["", "", ""]
         let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
 
-        let backend = crate::backends::ConcreteBackend::default();
         let config = CompileOptions { deny_warnings: false, ..Default::default() };
 
         let paths = std::fs::read_dir(pass_dir).unwrap();
         for path in paths.flatten() {
             let path = path.path();
-            assert!(
-                super::check_from_path(&backend, path.clone(), &config).is_ok(),
-                "path: {}",
-                path.display()
-            );
+            let toml_path = find_package_manifest(&path).unwrap();
+            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
+            for package in &workspace {
+                assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
+            }
         }
     }
+}
+
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub(crate) fn check_crate_and_report_errors(
+    context: &mut Context,
+    crate_id: CrateId,
+    deny_warnings: bool,
+) -> Result<(), CompileError> {
+    let result = check_crate(context, crate_id, deny_warnings).map(|warnings| ((), warnings));
+    super::compile_cmd::report_errors(result, context, deny_warnings)
 }

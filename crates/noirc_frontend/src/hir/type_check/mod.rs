@@ -22,7 +22,10 @@ use crate::{
     Type,
 };
 
+type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
+
 pub struct TypeChecker<'interner> {
+    delayed_type_checks: Vec<TypeCheckFn>,
     current_function: Option<FuncId>,
     interner: &'interner mut NodeInterner,
     errors: Vec<TypeCheckError>,
@@ -47,10 +50,11 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         type_checker.bind_pattern(&param.0, param.1);
     }
 
-    let (function_last_type, mut errors) = type_checker.check_function_body(function_body_id);
+    let (function_last_type, delayed_type_check_functions, mut errors) =
+        type_checker.check_function_body(function_body_id);
 
     // Go through any delayed type checking errors to see if they are resolved, or error otherwise.
-    for type_check_fn in interner.take_delayed_type_check_functions() {
+    for type_check_fn in delayed_type_check_functions {
         if let Err(error) = type_check_fn() {
             errors.push(error);
         }
@@ -59,13 +63,17 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.make_subtype_of(&declared_return_type, func_span, &mut errors, || {
-            TypeCheckError::TypeMismatch {
+        function_last_type.make_subtype_with_coercions(
+            &declared_return_type,
+            *function_body_id,
+            interner,
+            &mut errors,
+            || TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
                 expr_typ: function_last_type.to_string(),
                 expr_span: func_span,
-            }
-        });
+            },
+        );
     }
 
     errors
@@ -73,16 +81,33 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
 impl<'interner> TypeChecker<'interner> {
     fn new(current_function: FuncId, interner: &'interner mut NodeInterner) -> Self {
-        Self { current_function: Some(current_function), interner, errors: vec![] }
+        Self {
+            delayed_type_checks: Vec::new(),
+            current_function: Some(current_function),
+            interner,
+            errors: vec![],
+        }
     }
 
-    fn check_function_body(mut self, body: &ExprId) -> (Type, Vec<TypeCheckError>) {
+    pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
+        self.delayed_type_checks.push(f);
+    }
+
+    fn check_function_body(
+        mut self,
+        body: &ExprId,
+    ) -> (Type, Vec<TypeCheckFn>, Vec<TypeCheckError>) {
         let body_type = self.check_expression(body);
-        (body_type, self.errors)
+        (body_type, self.delayed_type_checks, self.errors)
     }
 
     pub fn check_global(id: &StmtId, interner: &'interner mut NodeInterner) -> Vec<TypeCheckError> {
-        let mut this = Self { current_function: None, interner, errors: vec![] };
+        let mut this = Self {
+            delayed_type_checks: Vec::new(),
+            current_function: None,
+            interner,
+            errors: vec![],
+        };
         this.check_statement(id);
         this.errors
     }
@@ -109,10 +134,16 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         actual: &Type,
         expected: &Type,
-        span: Span,
+        expression: ExprId,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        actual.make_subtype_of(expected, span, &mut self.errors, make_error);
+        actual.make_subtype_with_coercions(
+            expected,
+            expression,
+            self.interner,
+            &mut self.errors,
+            make_error,
+        );
     }
 }
 
@@ -121,6 +152,7 @@ impl<'interner> TypeChecker<'interner> {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
+    use std::vec;
 
     use fm::FileId;
     use iter_extended::vecmap;
@@ -208,11 +240,17 @@ mod test {
         let func_meta = FuncMeta {
             name,
             kind: FunctionKind::Normal,
+            module_id: ModuleId::dummy_id(),
             attributes: None,
             location,
             contract_function_type: None,
+            is_internal: None,
             is_unconstrained: false,
-            typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
+            typ: Type::Function(
+                vec![Type::field(None), Type::field(None)],
+                Box::new(Type::Unit),
+                Box::new(Type::Unit),
+            ),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiVisibility::Private),
                 Param(Identifier(y), Type::field(None), noirc_abi::AbiVisibility::Private),
@@ -281,7 +319,29 @@ mod test {
 
         type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
     }
+    #[test]
+    fn basic_closure() {
+        let src = r#"
+            fn main(x : Field) -> pub Field {
+                let closure = |y| y + x;
+                closure(x)
+            }
+        "#;
 
+        type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
+    }
+
+    #[test]
+    fn closure_with_no_args() {
+        let src = r#"
+        fn main(x : Field) -> pub Field {
+            let closure = || x;
+            closure()
+        }
+       "#;
+
+        type_check_src_code(src, vec![String::from("main")]);
+    }
     // This is the same Stub that is in the resolver, maybe we can pull this out into a test module and re-use?
     struct TestPathResolver(HashMap<String, ModuleDefId>);
 
@@ -356,7 +416,8 @@ mod test {
 
         let func_meta = vecmap(program.functions, |nf| {
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
-            let (hir_func, func_meta, resolver_errors) = resolver.resolve_function(nf, main_id);
+            let (hir_func, func_meta, resolver_errors) =
+                resolver.resolve_function(nf, main_id, ModuleId::dummy_id());
             assert_eq!(resolver_errors, vec![]);
             (hir_func, func_meta)
         });

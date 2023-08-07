@@ -64,6 +64,11 @@
         # We include rust-src to ensure rust-analyzer works.
         # See https://discourse.nixos.org/t/rust-src-not-found-and-other-misadventures-of-developing-rust-on-nixos/11570/4
         extensions = [ "rust-src" ];
+        targets = [ "wasm32-unknown-unknown" ]
+          ++ pkgs.lib.optional (pkgs.hostPlatform.isx86_64 && pkgs.hostPlatform.isLinux) "x86_64-unknown-linux-gnu"
+          ++ pkgs.lib.optional (pkgs.hostPlatform.isAarch64 && pkgs.hostPlatform.isLinux) "aarch64-unknown-linux-gnu"
+          ++ pkgs.lib.optional (pkgs.hostPlatform.isx86_64 && pkgs.hostPlatform.isDarwin) "x86_64-apple-darwin"
+          ++ pkgs.lib.optional (pkgs.hostPlatform.isAarch64 && pkgs.hostPlatform.isDarwin) "aarch64-apple-darwin";
       };
 
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
@@ -83,14 +88,7 @@
         BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
       };
 
-      testEnvironment = sharedEnvironment // {
-        # Barretenberg fails if tests are run on multiple threads, so we set the test thread
-        # count to 1 throughout the entire project
-        #
-        # Note: Setting this allows for consistent behavior across build and shells, but is mostly
-        # hidden from the developer - i.e. when they see the command being run via `nix flake check`
-        RUST_TEST_THREADS = "1";
-      };
+      testEnvironment = sharedEnvironment // {};
 
       # The `self.rev` property is only available when the working tree is not dirty
       GIT_COMMIT = if (self ? rev) then self.rev else "unknown";
@@ -119,7 +117,7 @@
 
       sharedArgs = {
         # x-release-please-start-version
-        version = "0.6.0";
+        version = "0.9.0";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
@@ -164,6 +162,19 @@
         buildInputs = [ ] ++ extraBuildInputs;
       };
 
+      # Combine the environmnet with cargo args needed to build wasm package
+      noirWasmArgs = sharedEnvironment // sharedArgs // {
+        pname = "noir_wasm";
+
+        src = ./.;
+
+        cargoExtraArgs = "--package noir_wasm --target wasm32-unknown-unknown";
+
+        buildInputs = [ ] ++ extraBuildInputs;
+
+        doCheck = false;
+      };
+
       # The `port` is parameterized to support parallel test runs without colliding static servers
       testArgs = port: testEnvironment // {
         # We provide `barretenberg-transcript00` from the overlay to the tests as a URL hosted via a static server
@@ -192,6 +203,7 @@
       # Build *just* the cargo dependencies, so we can reuse all of that work between runs
       native-cargo-artifacts = craneLib.buildDepsOnly nativeArgs;
       wasm-cargo-artifacts = craneLib.buildDepsOnly wasmArgs;
+      noir-wasm-cargo-artifacts = craneLib.buildDepsOnly noirWasmArgs;
 
       noir-native = craneLib.buildPackage (nativeArgs // {
         inherit GIT_COMMIT GIT_DIRTY;
@@ -210,6 +222,13 @@
         # We don't want to run checks or tests when just building the project
         doCheck = false;
       });
+
+      wasm-bindgen-cli = pkgs.callPackage ./wasm-bindgen-cli.nix {
+        rustPlatform = pkgs.makeRustPlatform {
+          rustc = rustToolchain;
+          cargo = rustToolchain;
+        };
+      };
     in
     rec {
       checks = {
@@ -252,12 +271,50 @@
           git
           nil
           nixpkgs-fmt
+          toml2json
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
+          wasm-bindgen-cli
+          jq
         ];
 
         shellHook = ''
           eval "$(starship init bash)"
         '';
       });
+
+      # TODO: This fails with a "section too large" error on MacOS so we should limit to linux targets
+      # or fix the failure
+      packages.wasm = craneLib.buildPackage (noirWasmArgs // {
+
+        inherit GIT_COMMIT;
+        inherit GIT_DIRTY;
+        doCheck = false;
+
+        cargoArtifacts = noir-wasm-cargo-artifacts;
+
+        COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
+        VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
+        PKG_PATH = "./pkg";
+
+        nativeBuildInputs = with pkgs; [
+          which
+          git
+          jq
+          rustToolchain
+          wasm-bindgen-cli
+          binaryen
+          toml2json
+        ];
+
+        postBuild = ''
+          bash crates/wasm/postBuild.sh
+        '';
+
+        installPhase = ''
+          bash crates/wasm/installPhase.sh
+        '';
+
+      });
     });
 }
+

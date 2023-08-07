@@ -1,5 +1,6 @@
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
+use crate::hir_def::expr::HirIdent;
 use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
@@ -7,7 +8,7 @@ use crate::hir_def::types::Type;
 use crate::node_interner::{DefinitionId, ExprId, StmtId};
 use crate::CompTime;
 
-use super::errors::TypeCheckError;
+use super::errors::{Source, TypeCheckError};
 use super::TypeChecker;
 
 impl<'interner> TypeChecker<'interner> {
@@ -107,12 +108,13 @@ impl<'interner> TypeChecker<'interner> {
         });
 
         let span = self.interner.expr_span(&assign_stmt.expression);
-        self.make_subtype_of(&expr_type, &lvalue_type, span, || {
-            let msg = format!(
-                "Cannot assign an expression of type {expr_type} to a value of type {lvalue_type}"
-            );
-
-            TypeCheckError::Unstructured { msg, span }
+        self.make_subtype_of(&expr_type, &lvalue_type, assign_stmt.expression, || {
+            TypeCheckError::TypeMismatchWithSource {
+                rhs: expr_type.clone(),
+                lhs: lvalue_type.clone(),
+                span,
+                source: Source::Assignment,
+            }
         });
     }
 
@@ -123,29 +125,48 @@ impl<'interner> TypeChecker<'interner> {
                 let typ = if ident.id == DefinitionId::dummy_id() {
                     Type::Error
                 } else {
-                    let definition = self.interner.definition(ident.id);
-                    if !definition.mutable {
-                        self.errors.push(TypeCheckError::Unstructured {
-                            msg: format!(
-                                "Variable {} must be mutable to be assigned to",
-                                definition.name
-                            ),
-                            span: ident.location.span,
-                        });
-                    }
                     // Do we need to store TypeBindings here?
-                    self.interner.id_type(ident.id).instantiate(self.interner).0
+                    let typ = self.interner.id_type(ident.id).instantiate(self.interner).0;
+                    let typ = typ.follow_bindings();
+
+                    if let Some(definition) = self.interner.try_definition(ident.id) {
+                        if !definition.mutable && !matches!(typ, Type::MutableReference(_)) {
+                            self.errors.push(TypeCheckError::VariableMustBeMutable {
+                                name: definition.name.clone(),
+                                span: ident.location.span,
+                            });
+                        }
+                    }
+
+                    typ
                 };
 
                 (typ.clone(), HirLValue::Ident(ident, typ))
             }
             HirLValue::MemberAccess { object, field_name, .. } => {
                 let (lhs_type, object) = self.check_lvalue(*object, assign_span);
-                let object = Box::new(object);
-
+                let mut object = Box::new(object);
                 let span = field_name.span();
+
+                let object_ref = &mut object;
+
                 let (typ, field_index) = self
-                    .check_field_access(&lhs_type, &field_name.0.contents, span)
+                    .check_field_access(
+                        &lhs_type,
+                        &field_name.0.contents,
+                        span,
+                        move |_, _, element_type| {
+                            // We must create a temporary value first to move out of object_ref before
+                            // we eventually reassign to it.
+                            let id = DefinitionId::dummy_id();
+                            let location = Location::new(span, fm::FileId::dummy());
+                            let tmp_value =
+                                HirLValue::Ident(HirIdent { location, id }, Type::Error);
+
+                            let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
+                            *object_ref = Box::new(HirLValue::Dereference { lvalue, element_type });
+                        },
+                    )
                     .unwrap_or((Type::Error, 0));
 
                 let field_index = Some(field_index);
@@ -155,12 +176,12 @@ impl<'interner> TypeChecker<'interner> {
                 let index_type = self.check_expression(&index);
                 let expr_span = self.interner.expr_span(&index);
 
-                index_type.make_subtype_of(
-                    &Type::field(Some(expr_span)),
+                index_type.unify(
+                    &Type::polymorphic_integer(self.interner),
                     expr_span,
                     &mut self.errors,
                     || TypeCheckError::TypeMismatch {
-                        expected_typ: "Field".to_owned(),
+                        expected_typ: "an integer".to_owned(),
                         expr_typ: index_type.to_string(),
                         expr_span,
                     },
@@ -184,6 +205,22 @@ impl<'interner> TypeChecker<'interner> {
                 };
 
                 (typ.clone(), HirLValue::Index { array, index, typ })
+            }
+            HirLValue::Dereference { lvalue, element_type: _ } => {
+                let (reference_type, lvalue) = self.check_lvalue(*lvalue, assign_span);
+                let lvalue = Box::new(lvalue);
+
+                let element_type = Type::type_variable(self.interner.next_type_variable_id());
+                let expected_type = Type::MutableReference(Box::new(element_type.clone()));
+                reference_type.unify(&expected_type, assign_span, &mut self.errors, || {
+                    TypeCheckError::TypeMismatch {
+                        expected_typ: expected_type.to_string(),
+                        expr_typ: reference_type.to_string(),
+                        expr_span: assign_span,
+                    }
+                });
+
+                (element_type.clone(), HirLValue::Dereference { lvalue, element_type })
             }
         }
     }
@@ -222,7 +259,7 @@ impl<'interner> TypeChecker<'interner> {
             // Now check if LHS is the same type as the RHS
             // Importantly, we do not coerce any types implicitly
             let expr_span = self.interner.expr_span(&rhs_expr);
-            self.make_subtype_of(&expr_type, &annotated_type, expr_span, || {
+            self.make_subtype_of(&expr_type, &annotated_type, rhs_expr, || {
                 TypeCheckError::TypeMismatch {
                     expected_typ: annotated_type.to_string(),
                     expr_typ: expr_type.to_string(),

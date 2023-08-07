@@ -11,10 +11,10 @@ use super::labels::ParsingRuleLabel;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParserErrorReason {
-    #[error("Arrays must have at least one element")]
-    ZeroSizedArray,
     #[error("Unexpected '{0}', expected a field name")]
     ExpectedFieldName(Token),
+    #[error("expected a pattern but found a type - {0}")]
+    ExpectedPatternButFoundType(Token),
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
     #[error("constrain keyword is deprecated")]
@@ -23,6 +23,10 @@ pub enum ParserErrorReason {
     InvalidArrayLengthExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
+    #[error("Patterns aren't allowed in a trait's function declarations")]
+    PatternInTraitFunctionParameter,
+    #[error("Traits are an experimental feature that are not yet in a working state")]
+    TraitsAreExperimental,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -68,6 +72,14 @@ impl ParserError {
         error.reason = Some(reason);
         error
     }
+
+    pub fn found(&self) -> &Token {
+        &self.found
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
 }
 
 impl std::fmt::Display for ParserError {
@@ -105,6 +117,9 @@ impl From<ParserError> for Diagnostic {
                         "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
                         error.span,
                     ),
+                    reason @ ParserErrorReason::ExpectedPatternButFoundType(ty) => {
+                        Diagnostic::simple_error(reason.to_string(), format!("{ty} is a type and cannot be used as a variable name"), error.span)
+                    }
                     other => {
 
                         Diagnostic::simple_error(format!("{other}"), String::new(), error.span)

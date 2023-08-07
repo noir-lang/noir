@@ -1,21 +1,21 @@
 mod json;
 mod toml;
 
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
 use acvm::FieldElement;
 use serde::Serialize;
 
-use crate::errors::InputParserError;
-use crate::{Abi, AbiType};
+use crate::errors::{AbiError, InputParserError};
+use crate::{decode_value, Abi, AbiType};
 /// This is what all formats eventually transform into
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum InputValue {
     Field(FieldElement),
-    Vec(Vec<FieldElement>),
     String(String),
+    Vec(Vec<InputValue>),
     Struct(BTreeMap<String, InputValue>),
 }
 
@@ -32,14 +32,12 @@ impl InputValue {
                 field_element.is_one() || field_element.is_zero()
             }
 
-            (InputValue::Vec(field_elements), AbiType::Array { length, typ, .. }) => {
-                if field_elements.len() != *length as usize {
+            (InputValue::Vec(array_elements), AbiType::Array { length, typ, .. }) => {
+                if array_elements.len() != *length as usize {
                     return false;
                 }
                 // Check that all of the array's elements' values match the ABI as well.
-                field_elements
-                    .iter()
-                    .all(|field_element| Self::Field(*field_element).matches_abi(typ))
+                array_elements.iter().all(|input_value| input_value.matches_abi(typ))
             }
 
             (InputValue::String(string), AbiType::String { length }) => {
@@ -69,10 +67,33 @@ impl InputValue {
     }
 }
 
-/// Parses the initial Witness Values that are needed to seed the
-/// Partial Witness generator
-pub trait InitialWitnessParser {
-    fn parse_initial_witness<P: AsRef<Path>>(&self, path: P) -> BTreeMap<String, InputValue>;
+/// In order to display an `InputValue` we need an `AbiType` to accurately
+/// convert the value into a human-readable format.
+pub struct InputValueDisplay {
+    input_value: InputValue,
+    abi_type: AbiType,
+}
+
+impl InputValueDisplay {
+    pub fn try_from_fields(
+        field_iterator: &mut impl Iterator<Item = FieldElement>,
+        abi_type: AbiType,
+    ) -> Result<Self, AbiError> {
+        let input_value = decode_value(field_iterator, &abi_type)?;
+        Ok(InputValueDisplay { input_value, abi_type })
+    }
+}
+
+impl std::fmt::Display for InputValueDisplay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // From the docs: https://doc.rust-lang.org/std/fmt/struct.Error.html
+        // This type does not support transmission of an error other than that an error
+        // occurred. Any extra information must be arranged to be transmitted through
+        // some other means.
+        let json_value = json::JsonTypes::try_from_input_value(&self.input_value, &self.abi_type)
+            .map_err(|_| std::fmt::Error)?;
+        write!(f, "{}", serde_json::to_string(&json_value).map_err(|_| std::fmt::Error)?)
+    }
 }
 
 /// The different formats that are supported when parsing
@@ -106,11 +127,12 @@ impl Format {
 
     pub fn serialize(
         &self,
-        w_map: &BTreeMap<String, InputValue>,
+        input_map: &BTreeMap<String, InputValue>,
+        abi: &Abi,
     ) -> Result<String, InputParserError> {
         match self {
-            Format::Json => json::serialize_to_json(w_map),
-            Format::Toml => toml::serialize_to_toml(w_map),
+            Format::Json => json::serialize_to_json(input_map, abi),
+            Format::Toml => toml::serialize_to_toml(input_map, abi),
         }
     }
 }
@@ -163,14 +185,20 @@ mod serialization_tests {
                 "bar".into(),
                 InputValue::Struct(BTreeMap::from([
                     ("field1".into(), InputValue::Field(255u128.into())),
-                    ("field2".into(), InputValue::Vec(vec![true.into(), false.into()])),
+                    (
+                        "field2".into(),
+                        InputValue::Vec(vec![
+                            InputValue::Field(true.into()),
+                            InputValue::Field(false.into()),
+                        ]),
+                    ),
                 ])),
             ),
             (MAIN_RETURN_NAME.into(), InputValue::String("hello".to_owned())),
         ]);
 
         for format in Format::iter() {
-            let serialized_inputs = format.serialize(&input_map).unwrap();
+            let serialized_inputs = format.serialize(&input_map, &abi).unwrap();
 
             let reconstructed_input_map = format.parse(&serialized_inputs, &abi).unwrap();
 

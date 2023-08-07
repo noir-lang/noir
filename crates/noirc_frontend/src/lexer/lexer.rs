@@ -102,7 +102,8 @@ impl<'a> Lexer<'a> {
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
-            Some('"') => Ok(self.eat_string_literal()),
+            Some('"') => Ok(self.eat_string_literal(false)),
+            Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
@@ -176,23 +177,10 @@ impl<'a> Lexer<'a> {
                 if self.peek_char_is('/') {
                     self.next_char();
                     return self.parse_comment();
+                } else if self.peek_char_is('*') {
+                    self.next_char();
+                    return self.parse_block_comment();
                 }
-                Ok(spanned_prev_token)
-            }
-            Token::Underscore => {
-                let next_char = self.peek_char();
-                let peeked_char = match next_char {
-                    Some(peek_char) => peek_char,
-                    None => return Ok(spanned_prev_token),
-                };
-
-                if peeked_char.is_ascii_alphabetic() {
-                    // Okay to unwrap here because we already peeked to
-                    // see that we have a character
-                    let current_char = self.next_char().unwrap();
-                    return self.eat_word(current_char);
-                }
-
                 Ok(spanned_prev_token)
             }
             _ => Err(LexerErrorKind::NotADoubleChar {
@@ -241,7 +229,7 @@ impl<'a> Lexer<'a> {
             '0'..='9' => self.eat_digit(initial_char),
             _ => Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
-                found: initial_char,
+                found: initial_char.into(),
                 expected: "an alpha numeric character".to_owned(),
             }),
         }
@@ -251,22 +239,19 @@ impl<'a> Lexer<'a> {
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
-                found: self.next_char().unwrap(),
+                found: self.next_char(),
                 expected: "[".to_owned(),
             });
         }
         self.next_char();
 
-        let (word, start, end) = self.eat_while(None, |ch| {
-            (ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_' || ch == '(' || ch == ')')
-                && (ch != ']')
-        });
+        let (word, start, end) = self.eat_while(None, |ch| ch != ']');
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
                 expected: "]".to_owned(),
-                found: self.next_char().unwrap(),
+                found: self.next_char(),
             });
         }
         self.next_char();
@@ -323,16 +308,58 @@ impl<'a> Lexer<'a> {
         Ok(integer_token.into_span(start, end))
     }
 
-    fn eat_string_literal(&mut self) -> SpannedToken {
+    fn eat_string_literal(&mut self, is_format_string: bool) -> SpannedToken {
         let (str_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '"');
-        let str_literal_token = Token::Str(str_literal);
+        let str_literal_token =
+            if is_format_string { Token::FmtStr(str_literal) } else { Token::Str(str_literal) };
         self.next_char(); // Advance past the closing quote
         str_literal_token.into_span(start_span, end_span)
+    }
+
+    fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
+        if self.peek_char_is('"') {
+            self.next_char();
+            Ok(self.eat_string_literal(true))
+        } else {
+            self.eat_alpha_numeric('f')
+        }
     }
 
     fn parse_comment(&mut self) -> SpannedTokenResult {
         let _ = self.eat_while(None, |ch| ch != '\n');
         self.next_token()
+    }
+
+    fn parse_block_comment(&mut self) -> SpannedTokenResult {
+        let span = Span::new(self.position..self.position + 1);
+        let mut depth = 1usize;
+
+        while let Some(ch) = self.next_char() {
+            match ch {
+                '/' if self.peek_char_is('*') => {
+                    self.next_char();
+                    depth += 1;
+                }
+                '*' if self.peek_char_is('/') => {
+                    self.next_char();
+                    depth -= 1;
+
+                    // This block comment is closed, so for a construction like "/* */ */"
+                    // there will be a successfully parsed block comment "/* */"
+                    // and " */" will be processed separately.
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if depth == 0 {
+            self.next_token()
+        } else {
+            Err(LexerErrorKind::UnterminatedBlockComment { span })
+        }
     }
 
     /// Skips white space. They are not significant in the source language
@@ -400,6 +427,33 @@ fn test_single_double_char() {
 }
 
 #[test]
+fn invalid_attribute() {
+    let input = "#";
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap();
+    assert!(token.is_err());
+}
+
+#[test]
+fn deprecated_attribute() {
+    let input = r#"#[deprecated]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated(None)));
+}
+
+#[test]
+fn deprecated_attribute_with_note() {
+    let input = r#"#[deprecated("hello")]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Deprecated("hello".to_string().into())));
+}
+
+#[test]
 fn test_custom_gate_syntax() {
     let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
 
@@ -461,6 +515,16 @@ fn test_arithmetic_sugar() {
 }
 
 #[test]
+fn unterminated_block_comment() {
+    let input = "/*/";
+
+    let mut lexer = Lexer::new(input);
+    let token = lexer.next().unwrap();
+
+    assert!(token.is_err());
+}
+
+#[test]
 fn test_comment() {
     let input = "// hello
         let x = 5
@@ -480,6 +544,49 @@ fn test_comment() {
     }
 }
 
+#[test]
+fn test_block_comment() {
+    let input = "
+    /* comment */
+    let x = 5
+    /* comment */
+    ";
+
+    let expected = vec![
+        Token::Keyword(Keyword::Let),
+        Token::Ident("x".to_string()),
+        Token::Assign,
+        Token::Int(FieldElement::from(5_i128)),
+    ];
+
+    let mut lexer = Lexer::new(input);
+    for token in expected.into_iter() {
+        let first_lexer_output = lexer.next_token().unwrap();
+        assert_eq!(first_lexer_output, token);
+    }
+}
+
+#[test]
+fn test_nested_block_comments() {
+    let input = "
+    /*   /* */  /** */  /*! */  */
+    let x = 5
+    /*   /* */  /** */  /*! */  */
+    ";
+
+    let expected = vec![
+        Token::Keyword(Keyword::Let),
+        Token::Ident("x".to_string()),
+        Token::Assign,
+        Token::Int(FieldElement::from(5_i128)),
+    ];
+
+    let mut lexer = Lexer::new(input);
+    for token in expected.into_iter() {
+        let first_lexer_output = lexer.next_token().unwrap();
+        assert_eq!(first_lexer_output, token);
+    }
+}
 #[test]
 fn test_eat_string_literal() {
     let input = "let _word = \"hello\"";

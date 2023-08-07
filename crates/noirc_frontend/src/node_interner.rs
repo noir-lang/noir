@@ -7,9 +7,8 @@ use noirc_errors::{Location, Span, Spanned};
 
 use crate::ast::Ident;
 use crate::graph::CrateId;
-use crate::hir::def_collector::dc_crate::UnresolvedStruct;
+use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTypeAlias};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
-use crate::hir::type_check::TypeCheckError;
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
 use crate::hir_def::types::{StructType, Type};
@@ -18,7 +17,10 @@ use crate::hir_def::{
     function::{FuncMeta, HirFunction},
     stmt::HirStatement,
 };
-use crate::{Shared, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
+use crate::{
+    Generics, Shared, TypeAliasType, TypeBinding, TypeBindings, TypeVariable, TypeVariableId,
+    TypeVariableKind,
+};
 
 /// The node interner is the central storage location of all nodes in Noir's Hir (the
 /// various node types can be found in hir_def). The interner is also used to collect
@@ -53,6 +55,12 @@ pub struct NodeInterner {
     // methods from impls to the type.
     structs: HashMap<StructId, Shared<StructType>>,
 
+    // Type Aliases map.
+    //
+    // Map type aliases to the actual type.
+    // When resolving types, check against this map to see if a type alias is defined.
+    type_aliases: Vec<TypeAliasType>,
+
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
@@ -66,16 +74,12 @@ pub struct NodeInterner {
 
     next_type_variable_id: usize,
 
-    delayed_type_checks: Vec<TypeCheckFn>,
-
     /// A map from a struct type and method name to a function id for the method.
     struct_methods: HashMap<(StructId, String), FuncId>,
 
     /// Methods on primitive types defined in the stdlib.
     primitive_methods: HashMap<(TypeMethodKey, String), FuncId>,
 }
-
-type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct DefinitionId(usize);
@@ -134,6 +138,15 @@ impl StructId {
     // after resolution
     pub fn dummy_id() -> StructId {
         StructId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+pub struct TypeAliasId(pub usize);
+
+impl TypeAliasId {
+    pub fn dummy_id() -> TypeAliasId {
+        TypeAliasId(std::usize::MAX)
     }
 }
 
@@ -218,11 +231,11 @@ impl DefinitionKind {
         matches!(self, DefinitionKind::Global(..))
     }
 
-    pub fn get_rhs(self) -> Option<ExprId> {
+    pub fn get_rhs(&self) -> Option<ExprId> {
         match self {
             DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(id) => Some(id),
-            DefinitionKind::Local(id) => id,
+            DefinitionKind::Global(id) => Some(*id),
+            DefinitionKind::Local(id) => *id,
             DefinitionKind::GenericType(_) => None,
         }
     }
@@ -248,11 +261,11 @@ impl Default for NodeInterner {
             definitions: vec![],
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
+            type_aliases: Vec::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
             globals: HashMap::new(),
-            delayed_type_checks: vec![],
             struct_methods: HashMap::new(),
             primitive_methods: HashMap::new(),
         };
@@ -311,9 +324,31 @@ impl NodeInterner {
         );
     }
 
+    pub fn push_type_alias(&mut self, typ: &UnresolvedTypeAlias) -> TypeAliasId {
+        let type_id = TypeAliasId(self.type_aliases.len());
+
+        self.type_aliases.push(TypeAliasType::new(
+            type_id,
+            typ.type_alias_def.name.clone(),
+            typ.type_alias_def.span,
+            Type::Error,
+            vecmap(&typ.type_alias_def.generics, |_| {
+                let id = TypeVariableId(0);
+                (id, Shared::new(TypeBinding::Unbound(id)))
+            }),
+        ));
+
+        type_id
+    }
+
     pub fn update_struct(&mut self, type_id: StructId, f: impl FnOnce(&mut StructType)) {
         let mut value = self.structs.get_mut(&type_id).unwrap().borrow_mut();
         f(&mut value);
+    }
+
+    pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
+        let type_alias_type = &mut self.type_aliases[type_id.0];
+        type_alias_type.set_type_and_generics(typ, generics);
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
@@ -479,8 +514,18 @@ impl NodeInterner {
         }
     }
 
+    /// Retrieves the definition where the given id was defined.
+    /// This will panic if given DefinitionId::dummy_id. Use try_definition for
+    /// any call with a possibly undefined variable.
     pub fn definition(&self, id: DefinitionId) -> &DefinitionInfo {
         &self.definitions[id.0]
+    }
+
+    /// Tries to retrieve the given id's definition.
+    /// This function should be used during name resolution or type checking when we cannot be sure
+    /// all variables have corresponding definitions (in case of an error in the user's code).
+    pub fn try_definition(&self, id: DefinitionId) -> Option<&DefinitionInfo> {
+        self.definitions.get(id.0)
     }
 
     /// Returns the name of the definition
@@ -500,6 +545,10 @@ impl NodeInterner {
 
     pub fn get_struct(&self, id: StructId) -> Shared<StructType> {
         self.structs[&id].clone()
+    }
+
+    pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
+        &self.type_aliases[id.0]
     }
 
     pub fn get_global(&self, stmt_id: &StmtId) -> Option<GlobalInfo> {
@@ -533,8 +582,7 @@ impl NodeInterner {
     }
 
     pub fn next_type_variable(&mut self) -> Type {
-        let binding = TypeBinding::Unbound(self.next_type_variable_id());
-        Type::TypeVariable(Shared::new(binding))
+        Type::type_variable(self.next_type_variable_id())
     }
 
     pub fn store_instantiation_bindings(
@@ -559,14 +607,6 @@ impl NodeInterner {
 
     pub fn function_definition_id(&self, function: FuncId) -> DefinitionId {
         self.function_definition_ids[&function]
-    }
-
-    pub fn push_delayed_type_check(&mut self, f: TypeCheckFn) {
-        self.delayed_type_checks.push(f);
-    }
-
-    pub fn take_delayed_type_check_functions(&mut self) -> Vec<TypeCheckFn> {
-        std::mem::take(&mut self.delayed_type_checks)
     }
 
     /// Add a method to a type.
@@ -618,7 +658,6 @@ enum TypeMethodKey {
     Unit,
     Tuple,
     Function,
-    Vec,
 }
 
 fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
@@ -628,20 +667,22 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
         Type::FieldElement(_) => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
         Type::Integer(_, _, _) => Some(FieldOrInt),
-        Type::PolymorphicInteger(_, _) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::IntegerOrField(_)) => Some(FieldOrInt),
         Type::Bool(_) => Some(Bool),
         Type::String(_) => Some(String),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
-        Type::Function(_, _) => Some(Function),
-        Type::Vec(_) => Some(Vec),
+        Type::Function(_, _, _) => Some(Function),
+        Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types
-        Type::TypeVariable(_)
+        Type::TypeVariable(_, _)
         | Type::NamedGeneric(_, _)
         | Type::Forall(_, _)
         | Type::Constant(_)
         | Type::Error
-        | Type::Struct(_, _) => None,
+        | Type::NotConstant
+        | Type::Struct(_, _)
+        | Type::FmtString(_, _) => None,
     }
 }

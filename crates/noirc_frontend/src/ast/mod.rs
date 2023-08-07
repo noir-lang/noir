@@ -8,6 +8,8 @@ mod expression;
 mod function;
 mod statement;
 mod structure;
+mod traits;
+mod type_alias;
 
 pub use expression::*;
 pub use function::*;
@@ -15,6 +17,8 @@ pub use function::*;
 use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
+pub use traits::*;
+pub use type_alias::*;
 
 use crate::{
     parser::{ParserError, ParserErrorReason},
@@ -34,18 +38,14 @@ pub enum UnresolvedType {
     Bool(CompTime),
     Expression(UnresolvedTypeExpression),
     String(Option<UnresolvedTypeExpression>),
+    FormatString(UnresolvedTypeExpression, Box<UnresolvedType>),
     Unit,
 
     /// A Named UnresolvedType can be a struct type or a type variable
     Named(Path, Vec<UnresolvedType>),
 
-    /// A vector of some element type.
-    /// It is expected the length of the generics is 1 so the inner Vec is technically unnecessary,
-    /// but we keep them all around to verify generic count after parsing for better error messages.
-    ///
-    /// The Span here encompasses the entire type and is used to issue an error if exactly 1
-    /// generic argument is not given.
-    Vec(Vec<UnresolvedType>, Span),
+    /// &mut T
+    MutableReference(Box<UnresolvedType>),
 
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
@@ -105,17 +105,15 @@ impl std::fmt::Display for UnresolvedType {
             Expression(expression) => expression.fmt(f),
             Bool(is_const) => write!(f, "{is_const}bool"),
             String(len) => match len {
-                None => write!(f, "str[]"),
-                Some(len) => write!(f, "str[{len}]"),
+                None => write!(f, "str<_>"),
+                Some(len) => write!(f, "str<{len}>"),
             },
+            FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
             Function(args, ret) => {
                 let args = vecmap(args, ToString::to_string);
                 write!(f, "fn({}) -> {ret}", args.join(", "))
             }
-            Vec(args, _span) => {
-                let args = vecmap(args, ToString::to_string);
-                write!(f, "Vec<{}>", args.join(", "))
-            }
+            MutableReference(element) => write!(f, "&mut {element}"),
             Unit => write!(f, "()"),
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),

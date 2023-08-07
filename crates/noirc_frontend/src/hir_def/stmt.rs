@@ -60,7 +60,7 @@ impl HirPattern {
     pub fn field_count(&self) -> usize {
         match self {
             HirPattern::Identifier(_) => 0,
-            HirPattern::Mutable(_, _) => 0,
+            HirPattern::Mutable(pattern, _) => pattern.field_count(),
             HirPattern::Tuple(fields, _) => fields.len(),
             HirPattern::Struct(_, fields, _) => fields.len(),
         }
@@ -96,5 +96,9 @@ pub enum HirLValue {
         array: Box<HirLValue>,
         index: ExprId,
         typ: Type,
+    },
+    Dereference {
+        lvalue: Box<HirLValue>,
+        element_type: Type,
     },
 }

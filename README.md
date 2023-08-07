@@ -15,7 +15,7 @@ Once you have read through the documentation, you can visit [Awesome Noir](https
 Backends:
 
 - Barretenberg via FFI
-- Marlin via arkworks
+- Marlin via arkworks (Note -- latest interfaces may not be updated to support Marlin backend. Please open an issue if this is relevant to your project and requires attention.)
 
 Compiler:
 

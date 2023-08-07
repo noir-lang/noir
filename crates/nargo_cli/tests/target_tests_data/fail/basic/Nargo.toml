@@ -1,4 +1,6 @@
 [package]
+name = "fail_basic"
+type = "bin"
 authors = [""]
 compiler_version = "0.1"
 

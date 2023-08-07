@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use crate::{constants::PROOF_EXT, errors::FilesystemError};
+use nargo::constants::PROOF_EXT;
+
+use crate::errors::FilesystemError;
 
 use super::{create_named_dir, write_to_file};
 
