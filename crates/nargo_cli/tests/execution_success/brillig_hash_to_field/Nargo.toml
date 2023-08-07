@@ -1,0 +1,7 @@
+[package]
+name = "brillig_hash_to_field"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]

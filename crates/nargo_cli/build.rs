@@ -1,5 +1,4 @@
 use rustc_version::{version, Version};
-use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -32,43 +31,25 @@ fn main() {
     let destination = Path::new(&out_dir).join("execute.rs");
     let mut test_file = File::create(destination).unwrap();
 
-    generate_tests(&mut test_file);
-}
-
-fn load_conf(conf_path: &Path) -> BTreeMap<String, Vec<String>> {
-    let config_str = std::fs::read_to_string(conf_path).unwrap();
-
-    let mut conf_data = match toml::from_str(&config_str) {
-        Ok(t) => t,
-        Err(_) => {
-            BTreeMap::from([("exclude".to_string(), Vec::new()), ("fail".to_string(), Vec::new())])
-        }
-    };
-    if conf_data.get("exclude").is_none() {
-        conf_data.insert("exclude".to_string(), Vec::new());
-    }
-    if conf_data.get("fail").is_none() {
-        conf_data.insert("fail".to_string(), Vec::new());
-    }
-    conf_data
-}
-
-fn generate_tests(test_file: &mut File) {
     // Try to find the directory that Cargo sets when it is running; otherwise fallback to assuming the CWD
     // is the root of the repository and append the crate path
     let manifest_dir = match std::env::var("CARGO_MANIFEST_DIR") {
         Ok(dir) => PathBuf::from(dir),
         Err(_) => std::env::current_dir().unwrap().join("crates").join("nargo_cli"),
     };
-    let test_sub_dir = "test_data";
-    let test_data_dir = manifest_dir.join("tests").join(test_sub_dir);
-    let config_path = test_data_dir.join("config.toml");
+    let test_dir = manifest_dir.join("tests");
 
-    // Load config.toml file from `test_data` directory
-    let config_data: BTreeMap<String, Vec<String>> = load_conf(&config_path);
+    generate_execution_success_tests(&mut test_file, &test_dir);
+    generate_compile_success_tests(&mut test_file, &test_dir);
+    generate_compile_failure_tests(&mut test_file, &test_dir);
+}
+
+fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "execution_success";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
 
     let test_case_dirs =
-        fs::read_dir(&test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
     for test_dir in test_case_dirs {
         let test_name =
@@ -80,28 +61,93 @@ fn generate_tests(test_file: &mut File) {
         };
         let test_dir = &test_dir.path();
 
-        let exclude_macro =
-            if config_data["exclude"].contains(&test_name) { "#[ignore]" } else { "" };
-
-        let should_fail = config_data["fail"].contains(&test_name);
-
         write!(
             test_file,
             r#"
-{exclude_macro}
 #[test]
-fn execute_{test_sub_dir}_{test_name}() {{
+fn execution_success_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("execute");
 
-    if {should_fail} {{
-        cmd.assert().failure();
-    }} else {{
-        cmd.assert().success();
-    }}
+    cmd.assert().success();
+}}
+            "#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+fn generate_compile_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "compile_success";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn compile_success_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("info");
+
+    // `compile_success` tests should be able to compile down to an empty circuit.
+    cmd.assert().stdout(predicate::str::contains("Total ACIR opcodes generated for language PLONKCSat {{ width: 3 }}: 0"));
+}}
+            "#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "compile_failure";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn compile_failure_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("execute");
+
+    cmd.assert().failure();
 }}
             "#,
             test_dir = test_dir.display(),

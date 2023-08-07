@@ -11,6 +11,11 @@ use tower::ServiceBuilder;
 use super::NargoConfig;
 use crate::errors::CliError;
 
+/// Starts the Noir LSP server
+///
+/// Starts an LSP server which allows IDEs such as VS Code to display diagnostics in Noir source.
+///
+/// VS Code Noir Language Support: https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir
 #[derive(Debug, Clone, Args)]
 pub(crate) struct LspCommand;
 

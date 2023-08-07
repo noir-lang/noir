@@ -1,6 +1,0 @@
-[package]
-name = "signed_division"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

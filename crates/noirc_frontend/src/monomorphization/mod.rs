@@ -689,8 +689,19 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Function(args, ret, env) => {
                 let args = vecmap(args, Self::convert_type);
                 let ret = Box::new(Self::convert_type(ret));
-                let env = Box::new(Self::convert_type(env));
-                ast::Type::Function(args, ret, env)
+                let env = Self::convert_type(env);
+                match &env {
+                    ast::Type::Unit => ast::Type::Function(args, ret, Box::new(env)),
+                    ast::Type::Tuple(_elements) => ast::Type::Tuple(vec![
+                        env.clone(),
+                        ast::Type::Function(args, ret, Box::new(env)),
+                    ]),
+                    _ => {
+                        unreachable!(
+                            "internal Type::Function env should be either a Unit or a Tuple, not {env}"
+                        )
+                    }
+                }
             }
 
             HirType::MutableReference(element) => {

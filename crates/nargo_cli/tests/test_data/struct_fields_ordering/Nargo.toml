@@ -1,6 +1,0 @@
-[package]
-name = "struct_fields_ordering"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

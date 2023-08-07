@@ -1,6 +1,0 @@
-[package]
-name = "schnorr"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

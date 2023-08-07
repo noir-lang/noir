@@ -1,6 +1,0 @@
-[package]
-name = "unconstrained_empty"
-authors = [""]
-compiler_version = "0.6.0"
-
-[dependencies]
