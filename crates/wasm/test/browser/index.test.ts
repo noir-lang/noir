@@ -29,11 +29,6 @@ describe("noir wasm compilation", () => {
 
     const cliCircuitBase64 = await getPrecompiledSource();
 
-    console.log("wasm", wasmCircuitBase64);
-
-    console.log("cli", cliCircuitBase64);
-
-    console.log("Compilation is a match? ", wasmCircuitBase64 === cliCircuitBase64);
 
     expect(wasmCircuitBase64).to.equal(cliCircuitBase64);
   }).timeout(10e3);
