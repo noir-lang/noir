@@ -63,13 +63,17 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
-        function_last_type.make_subtype_of(&declared_return_type, func_span, &mut errors, || {
-            TypeCheckError::TypeMismatch {
+        function_last_type.make_subtype_with_coercions(
+            &declared_return_type,
+            *function_body_id,
+            interner,
+            &mut errors,
+            || TypeCheckError::TypeMismatch {
                 expected_typ: declared_return_type.to_string(),
                 expr_typ: function_last_type.to_string(),
                 expr_span: func_span,
-            }
-        });
+            },
+        );
     }
 
     errors
@@ -130,10 +134,16 @@ impl<'interner> TypeChecker<'interner> {
         &mut self,
         actual: &Type,
         expected: &Type,
-        span: Span,
+        expression: ExprId,
         make_error: impl FnOnce() -> TypeCheckError,
     ) {
-        actual.make_subtype_of(expected, span, &mut self.errors, make_error);
+        actual.make_subtype_with_coercions(
+            expected,
+            expression,
+            self.interner,
+            &mut self.errors,
+            make_error,
+        );
     }
 }
 
@@ -142,6 +152,7 @@ impl<'interner> TypeChecker<'interner> {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
+    use std::vec;
 
     use fm::FileId;
     use iter_extended::vecmap;
@@ -235,7 +246,11 @@ mod test {
             contract_function_type: None,
             is_internal: None,
             is_unconstrained: false,
-            typ: Type::Function(vec![Type::field(None), Type::field(None)], Box::new(Type::Unit)),
+            typ: Type::Function(
+                vec![Type::field(None), Type::field(None)],
+                Box::new(Type::Unit),
+                Box::new(Type::Unit),
+            ),
             parameters: vec![
                 Param(Identifier(x), Type::field(None), noirc_abi::AbiVisibility::Private),
                 Param(Identifier(y), Type::field(None), noirc_abi::AbiVisibility::Private),
@@ -304,7 +319,29 @@ mod test {
 
         type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
     }
+    #[test]
+    fn basic_closure() {
+        let src = r#"
+            fn main(x : Field) -> pub Field {
+                let closure = |y| y + x;
+                closure(x)
+            }
+        "#;
 
+        type_check_src_code(src, vec![String::from("main"), String::from("foo")]);
+    }
+
+    #[test]
+    fn closure_with_no_args() {
+        let src = r#"
+        fn main(x : Field) -> pub Field {
+            let closure = || x;
+            closure()
+        }
+       "#;
+
+        type_check_src_code(src, vec![String::from("main")]);
+    }
     // This is the same Stub that is in the resolver, maybe we can pull this out into a test module and re-use?
     struct TestPathResolver(HashMap<String, ModuleDefId>);
 

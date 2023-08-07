@@ -65,13 +65,6 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
 
-      - name: Checkout Build Nargo repo
-        uses: actions/checkout@v3
-        with:
-          repository: noir-lang/build-nargo
-          path: build-nargo
-          ref: ${{ inputs.build-nargo-ref || 'master' }}
-
       - uses: actions/cache@v3
         with:
           path: |
@@ -142,21 +135,14 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout noir-wasm-testing
+      - name: Checkout noir-lang/noir
         uses: actions/checkout@v3
-        with:
-          repository: noir-lang/noir-wasm-testing
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./@noir-lang_noir_wasm
-
-      - name: Inject built wasm into noir-wasm-testing
-        run: |
-          jq '.dependencies["@noir-lang/noir_wasm"] = "file:./@noir-lang_noir_wasm"' ./package.json > ./package.json.tmp
-          mv ./package.json.tmp ./package.json
+          path: ./crates/wasm/dist
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
@@ -164,9 +150,10 @@ jobs:
           name: nargo
           path: ./nargo
 
-      - name: Install dependencies and Run noir-wasm-testing program
+      - name: Compile test program with Nargo CLI
+        working-directory: ./crates/wasm/noir-script
         run: |
-          nargo_binary=$(find $(pwd) -name "nargo" -type f)
+          nargo_binary=$(find ${{ github.workspace }}/nargo -name "nargo" -type f)
           echo "nargo binary found at $nargo_binary."
           ls -l $nargo_binary
           echo "Attempting to make nargo binary executable:"
@@ -176,14 +163,22 @@ jobs:
           echo "Library dependencies of nargo binary:"
           ldd $nargo_binary
           if [ -x "$nargo_binary" ]; then
-            $nargo_binary -p "${{ github.workspace }}/noir-script" compile
+            $nargo_binary compile
           else
             echo "nargo binary NOT found or is not executable."
             exit 1
           fi
 
       - name: Install dependencies
-        run: npm install
+        working-directory: ./crates/wasm
+        run: yarn install
+      
+      - name: Install playwright deps
+        working-directory: ./crates/wasm
+        run: |
+          npx playwright install
+          npx playwright install-deps
 
       - name: Run tests
-        run: npm test
+        working-directory: ./crates/wasm
+        run: yarn test:browser

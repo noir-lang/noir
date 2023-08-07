@@ -8,10 +8,12 @@ use std::path::PathBuf;
 /// Create a Noir project in a new directory.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct NewCommand {
-    /// Name of the package
-    package_name: String,
     /// The path to save the new project
-    path: Option<PathBuf>,
+    path: PathBuf,
+
+    /// Name of the package [default: package directory name]
+    #[clap(long)]
+    name: Option<String>,
 }
 
 pub(crate) fn run<B: Backend>(
@@ -20,12 +22,14 @@ pub(crate) fn run<B: Backend>(
     args: NewCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let package_dir = config.program_dir.join(args.package_name);
+    let package_dir = config.program_dir.join(&args.path);
 
     if package_dir.exists() {
         return Err(CliError::DestinationAlreadyExists(package_dir));
     }
 
-    initialize_project(package_dir);
+    let package_name =
+        args.name.unwrap_or_else(|| args.path.file_name().unwrap().to_str().unwrap().to_owned());
+    initialize_project(package_dir, &package_name);
     Ok(())
 }

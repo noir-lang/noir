@@ -12,12 +12,13 @@
 //
 // XXX: Resolver does not check for unused functions
 use crate::hir_def::expr::{
-    HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
-    HirConstructorExpression, HirExpression, HirForExpression, HirIdent, HirIfExpression,
-    HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral, HirMemberAccess,
-    HirMethodCallExpression, HirPrefixExpression,
+    HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCapturedVar,
+    HirCastExpression, HirConstructorExpression, HirExpression, HirForExpression, HirIdent,
+    HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
+    HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
 use crate::token::Attribute;
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -33,9 +34,9 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, Path, Pattern, Shared,
-    StructType, Type, TypeBinding, TypeVariable, UnaryOp, UnresolvedGenerics, UnresolvedType,
-    UnresolvedTypeExpression, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
+    Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
+    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -56,6 +57,13 @@ const SELF_TYPE_NAME: &str = "Self";
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 type ScopeForest = GenericScopeForest<String, ResolverMeta>;
+
+pub struct LambdaContext {
+    captures: Vec<HirCapturedVar>,
+    /// the index in the scope tree
+    /// (sometimes being filled by ScopeTree's find method)
+    scope_index: usize,
+}
 
 /// The primary jobs of the Resolver are to validate that every variable found refers to exactly 1
 /// definition in scope, and to convert the AST into the HIR.
@@ -80,12 +88,10 @@ pub struct Resolver<'a> {
     /// were declared in.
     generics: Vec<(Rc<String>, TypeVariable, Span)>,
 
-    /// Lambdas share the function scope of the function they're defined in,
-    /// so to identify whether they use any variables from the parent function
-    /// we keep track of the scope index a variable is declared in. When a lambda
-    /// is declared we push a scope and set this lambda_index to the scope index.
-    /// Any variable from a scope less than that must be from the parent function.
-    lambda_index: usize,
+    /// When resolving lambda expressions, we need to keep track of the variables
+    /// that are captured. We do this in order to create the hidden environment
+    /// parameter for the lambda function.
+    lambda_stack: Vec<LambdaContext>,
 }
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -111,7 +117,7 @@ impl<'a> Resolver<'a> {
             self_type: None,
             generics: Vec::new(),
             errors: Vec::new(),
-            lambda_index: 0,
+            lambda_stack: Vec::new(),
             file,
         }
     }
@@ -122,10 +128,6 @@ impl<'a> Resolver<'a> {
 
     fn push_err(&mut self, err: ResolverError) {
         self.errors.push(err);
-    }
-
-    fn current_lambda_index(&self) -> usize {
-        self.scopes.current_scope_index()
     }
 
     /// Resolving a function involves interning the metadata
@@ -278,25 +280,25 @@ impl<'a> Resolver<'a> {
     //
     // If a variable is not found, then an error is logged and a dummy id
     // is returned, for better error reporting UX
-    fn find_variable_or_default(&mut self, name: &Ident) -> HirIdent {
+    fn find_variable_or_default(&mut self, name: &Ident) -> (HirIdent, usize) {
         self.find_variable(name).unwrap_or_else(|error| {
             self.push_err(error);
             let id = DefinitionId::dummy_id();
             let location = Location::new(name.span(), self.file);
-            HirIdent { location, id }
+            (HirIdent { location, id }, 0)
         })
     }
 
-    fn find_variable(&mut self, name: &Ident) -> Result<HirIdent, ResolverError> {
+    fn find_variable(&mut self, name: &Ident) -> Result<(HirIdent, usize), ResolverError> {
         // Find the definition for this Ident
         let scope_tree = self.scopes.current_scope_tree();
         let variable = scope_tree.find(&name.0.contents);
 
         let location = Location::new(name.span(), self.file);
-        if let Some((variable_found, _)) = variable {
+        if let Some((variable_found, scope)) = variable {
             variable_found.num_times_used += 1;
             let id = variable_found.ident.id;
-            Ok(HirIdent { location, id })
+            Ok((HirIdent { location, id }, scope))
         } else {
             Err(ResolverError::VariableNotDeclared {
                 name: name.0.contents.clone(),
@@ -333,11 +335,12 @@ impl<'a> Resolver<'a> {
             UnresolvedType::FieldElement(comp_time) => Type::FieldElement(comp_time),
             UnresolvedType::Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
-                if size.is_none() {
-                    return Type::Slice(elem);
-                }
-                let resolved_size = self.resolve_array_size(size, new_variables);
-                Type::Array(Box::new(resolved_size), elem)
+                let size = if size.is_none() {
+                    Type::NotConstant
+                } else {
+                    self.resolve_array_size(size, new_variables)
+                };
+                Type::Array(Box::new(size), elem)
             }
             UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
             UnresolvedType::Integer(comp_time, sign, bits) => Type::Integer(comp_time, sign, bits),
@@ -345,6 +348,11 @@ impl<'a> Resolver<'a> {
             UnresolvedType::String(size) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::String(Box::new(resolved_size))
+            }
+            UnresolvedType::FormatString(size, fields) => {
+                let resolved_size = self.convert_expression_type(size);
+                let fields = self.resolve_type_inner(*fields, new_variables);
+                Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
             UnresolvedType::Unit => Type::Unit,
             UnresolvedType::Unspecified => Type::Error,
@@ -356,7 +364,8 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Function(args, ret) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
-                Type::Function(args, ret)
+                let env = Box::new(Type::Unit);
+                Type::Function(args, ret, env)
             }
             UnresolvedType::MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
@@ -396,26 +405,51 @@ impl<'a> Resolver<'a> {
         }
 
         let span = path.span();
+        let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
+
+        if let Some(type_alias_type) = self.lookup_type_alias(path.clone()) {
+            let expected_generic_count = type_alias_type.generics.len();
+            let type_alias_string = type_alias_type.to_string();
+            let id = type_alias_type.id;
+
+            self.verify_generics_count(expected_generic_count, &mut args, span, || {
+                type_alias_string
+            });
+
+            return self.interner.get_type_alias(id).get_type(&args);
+        }
+
         match self.lookup_struct_or_error(path) {
             Some(struct_type) => {
-                let mut args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let expected_generic_count = struct_type.borrow().generics.len();
 
-                if args.len() != expected_generic_count {
-                    self.push_err(ResolverError::IncorrectGenericCount {
-                        span,
-                        struct_type: struct_type.borrow().to_string(),
-                        actual: args.len(),
-                        expected: expected_generic_count,
-                    });
-
-                    // Fix the generic count so we can continue typechecking
-                    args.resize_with(expected_generic_count, || Type::Error);
-                }
+                self.verify_generics_count(expected_generic_count, &mut args, span, || {
+                    struct_type.borrow().to_string()
+                });
 
                 Type::Struct(struct_type, args)
             }
             None => Type::Error,
+        }
+    }
+
+    fn verify_generics_count(
+        &mut self,
+        expected_count: usize,
+        args: &mut Vec<Type>,
+        span: Span,
+        type_name: impl FnOnce() -> String,
+    ) {
+        if args.len() != expected_count {
+            self.errors.push(ResolverError::IncorrectGenericCount {
+                span,
+                struct_type: type_name(),
+                actual: args.len(),
+                expected: expected_count,
+            });
+
+            // Fix the generic count so we can continue typechecking
+            args.resize_with(expected_count, || Type::Error);
         }
     }
 
@@ -485,29 +519,40 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn get_ident_from_path(&mut self, path: Path) -> HirIdent {
+    fn get_ident_from_path(&mut self, path: Path) -> (HirIdent, usize) {
         let location = Location::new(path.span(), self.file);
 
         let error = match path.as_ident().map(|ident| self.find_variable(ident)) {
-            Some(Ok(ident)) => return ident,
+            Some(Ok(found)) => return found,
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
-                Ok(id) => return HirIdent { location, id },
+                Ok(id) => return (HirIdent { location, id }, 0),
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
-                Ok(id) => return HirIdent { location, id },
+                Ok(id) => return (HirIdent { location, id }, 0),
                 Err(error) => error,
             },
         };
         self.push_err(error);
         let id = DefinitionId::dummy_id();
-        HirIdent { location, id }
+        (HirIdent { location, id }, 0)
     }
 
     /// Translates an UnresolvedType to a Type
     pub fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
         self.resolve_type_inner(typ, &mut vec![])
+    }
+
+    pub fn resolve_type_aliases(
+        mut self,
+        unresolved: NoirTypeAlias,
+    ) -> (Type, Generics, Vec<ResolverError>) {
+        let generics = self.add_generics(&unresolved.generics);
+        self.resolve_local_globals();
+        let typ = self.resolve_type(unresolved.typ);
+
+        (typ, generics, self.errors)
     }
 
     pub fn take_errors(self) -> Vec<ResolverError> {
@@ -662,7 +707,7 @@ impl<'a> Resolver<'a> {
             });
         }
 
-        let mut typ = Type::Function(parameter_types, return_type);
+        let mut typ = Type::Function(parameter_types, return_type, Box::new(Type::Unit));
 
         if !generics.is_empty() {
             typ = Type::Forall(generics, Box::new(typ));
@@ -774,22 +819,19 @@ impl<'a> Resolver<'a> {
             Type::FieldElement(_)
             | Type::Integer(_, _, _)
             | Type::Bool(_)
-            | Type::String(_)
             | Type::Unit
             | Type::Error
             | Type::TypeVariable(_, _)
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
+            | Type::NotConstant
             | Type::Forall(_, _) => (),
 
-            Type::Array(length, _) => {
+            Type::Array(length, element_type) => {
                 if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
                     found.insert(name.to_string(), type_variable.clone());
                 }
-            }
-
-            Type::Slice(typ) => {
-                Self::find_numeric_generics_in_type(typ, found);
+                Self::find_numeric_generics_in_type(element_type, found);
             }
 
             Type::Tuple(fields) => {
@@ -797,12 +839,14 @@ impl<'a> Resolver<'a> {
                     Self::find_numeric_generics_in_type(field, found);
                 }
             }
-            Type::Function(parameters, return_type) => {
+
+            Type::Function(parameters, return_type, _env) => {
                 for parameter in parameters {
                     Self::find_numeric_generics_in_type(parameter, found);
                 }
                 Self::find_numeric_generics_in_type(return_type, found);
             }
+
             Type::Struct(struct_type, generics) => {
                 for (i, generic) in generics.iter().enumerate() {
                     if let Type::NamedGeneric(type_variable, name) = generic {
@@ -815,6 +859,17 @@ impl<'a> Resolver<'a> {
                 }
             }
             Type::MutableReference(element) => Self::find_numeric_generics_in_type(element, found),
+            Type::String(length) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+            }
+            Type::FmtString(length, fields) => {
+                if let Type::NamedGeneric(type_variable, name) = length.as_ref() {
+                    found.insert(name.to_string(), type_variable.clone());
+                }
+                Self::find_numeric_generics_in_type(fields, found);
+            }
         }
     }
 
@@ -864,7 +919,7 @@ impl<'a> Resolver<'a> {
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
         match lvalue {
             LValue::Ident(ident) => {
-                HirLValue::Ident(self.find_variable_or_default(&ident), Type::Error)
+                HirLValue::Ident(self.find_variable_or_default(&ident).0, Type::Error)
             }
             LValue::MemberAccess { object, field_name } => {
                 let object = Box::new(self.resolve_lvalue(*object));
@@ -878,6 +933,39 @@ impl<'a> Resolver<'a> {
             LValue::Dereference(lvalue) => {
                 let lvalue = Box::new(self.resolve_lvalue(*lvalue));
                 HirLValue::Dereference { lvalue, element_type: Type::Error }
+            }
+        }
+    }
+
+    fn resolve_local_variable(&mut self, hir_ident: HirIdent, var_scope_index: usize) {
+        let mut transitive_capture_index: Option<usize> = None;
+
+        for lambda_index in 0..self.lambda_stack.len() {
+            if self.lambda_stack[lambda_index].scope_index > var_scope_index {
+                // Beware: the same variable may be captured multiple times, so we check
+                // for its presence before adding the capture below.
+                let pos = self.lambda_stack[lambda_index]
+                    .captures
+                    .iter()
+                    .position(|capture| capture.ident.id == hir_ident.id);
+
+                if pos.is_none() {
+                    self.lambda_stack[lambda_index]
+                        .captures
+                        .push(HirCapturedVar { ident: hir_ident, transitive_capture_index });
+                }
+
+                if lambda_index + 1 < self.lambda_stack.len() {
+                    // There is more than one closure between the current scope and
+                    // the scope of the variable, so this is a propagated capture.
+                    // We need to track the transitive capture index as we go up in
+                    // the closure stack.
+                    transitive_capture_index = Some(pos.unwrap_or(
+                        // If this was a fresh capture, we added it to the end of
+                        // the captures vector:
+                        self.lambda_stack[lambda_index].captures.len() - 1,
+                    ));
+                }
             }
         }
     }
@@ -906,6 +994,7 @@ impl<'a> Resolver<'a> {
                 }
                 Literal::Integer(integer) => HirLiteral::Integer(integer),
                 Literal::Str(str) => HirLiteral::Str(str),
+                Literal::FmtStr(str) => self.resolve_fmt_str_literal(str, expr.span),
                 Literal::Unit => HirLiteral::Unit,
             }),
             ExpressionKind::Variable(path) => {
@@ -913,7 +1002,20 @@ impl<'a> Resolver<'a> {
                 // Otherwise, then it is referring to an Identifier
                 // This lookup allows support of such statements: let x = foo::bar::SOME_GLOBAL + 10;
                 // If the expression is a singular indent, we search the resolver's current scope as normal.
-                let hir_ident = self.get_ident_from_path(path);
+                let (hir_ident, var_scope_index) = self.get_ident_from_path(path);
+
+                if hir_ident.id != DefinitionId::dummy_id() {
+                    match self.interner.definition(hir_ident.id).kind {
+                        DefinitionKind::Function(_) => {}
+                        DefinitionKind::Global(_) => {}
+                        DefinitionKind::GenericType(_) => {}
+                        // We ignore the above definition kinds because only local variables can be captured by closures.
+                        DefinitionKind::Local(_) => {
+                            self.resolve_local_variable(hir_ident, var_scope_index);
+                        }
+                    }
+                }
+
                 HirExpression::Ident(hir_ident)
             }
             ExpressionKind::Prefix(prefix) => {
@@ -941,6 +1043,7 @@ impl<'a> Resolver<'a> {
             ExpressionKind::Call(call_expr) => {
                 // Get the span and name of path for error reporting
                 let func = self.resolve_expression(*call_expr.func);
+
                 let arguments = vecmap(call_expr.arguments, |arg| self.resolve_expression(arg));
                 let location = Location::new(expr.span, self.file);
                 HirExpression::Call(HirCallExpression { func, arguments, location })
@@ -1034,8 +1137,9 @@ impl<'a> Resolver<'a> {
             // We must stay in the same function scope as the parent function to allow for closures
             // to capture variables. This is currently limited to immutable variables.
             ExpressionKind::Lambda(lambda) => self.in_new_scope(|this| {
-                let new_index = this.current_lambda_index();
-                let old_index = std::mem::replace(&mut this.lambda_index, new_index);
+                let scope_index = this.scopes.current_scope_index();
+
+                this.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index });
 
                 let parameters = vecmap(lambda.parameters, |(pattern, typ)| {
                     let parameter = DefinitionKind::Local(None);
@@ -1045,8 +1149,14 @@ impl<'a> Resolver<'a> {
                 let return_type = this.resolve_inferred_type(lambda.return_type);
                 let body = this.resolve_expression(lambda.body);
 
-                this.lambda_index = old_index;
-                HirExpression::Lambda(HirLambda { parameters, return_type, body })
+                let lambda_context = this.lambda_stack.pop().unwrap();
+
+                HirExpression::Lambda(HirLambda {
+                    parameters,
+                    return_type,
+                    body,
+                    captures: lambda_context.captures,
+                })
             }),
         };
 
@@ -1236,6 +1346,10 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    fn lookup_type_alias(&mut self, path: Path) -> Option<&TypeAliasType> {
+        self.lookup(path).ok().map(|id| self.interner.get_type_alias(id))
+    }
+
     fn resolve_path(&mut self, path: Path) -> Result<ModuleDefId, ResolverError> {
         self.path_resolver.resolve(self.def_maps, path).map_err(ResolverError::PathResolutionError)
     }
@@ -1290,6 +1404,36 @@ impl<'a> Resolver<'a> {
         let module_id = self.path_resolver.module_id();
         module_id.module(self.def_maps).is_contract
     }
+
+    fn resolve_fmt_str_literal(&mut self, str: String, call_expr_span: Span) -> HirLiteral {
+        let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}")
+            .expect("ICE: an invalid regex pattern was used for checking format strings");
+        let mut fmt_str_idents = Vec::new();
+        for field in re.find_iter(&str) {
+            let matched_str = field.as_str();
+            let ident_name = &matched_str[1..(matched_str.len() - 1)];
+
+            let scope_tree = self.scopes.current_scope_tree();
+            let variable = scope_tree.find(ident_name);
+            if let Some((old_value, _)) = variable {
+                old_value.num_times_used += 1;
+                let expr_id = self.interner.push_expr(HirExpression::Ident(old_value.ident));
+                self.interner.push_expr_location(expr_id, call_expr_span, self.file);
+                fmt_str_idents.push(expr_id);
+            } else if ident_name.parse::<usize>().is_ok() {
+                self.errors.push(ResolverError::NumericConstantInFormatString {
+                    name: ident_name.to_owned(),
+                    span: call_expr_span,
+                });
+            } else {
+                self.errors.push(ResolverError::VariableNotDeclared {
+                    name: ident_name.to_owned(),
+                    span: call_expr_span,
+                });
+            }
+        }
+        HirLiteral::FmtStr(str, fmt_str_idents)
+    }
 }
 
 /// Gives an error if a user tries to create a mutable reference
@@ -1324,6 +1468,7 @@ pub fn verify_mutable_reference(interner: &NodeInterner, rhs: ExprId) -> Result<
 #[cfg(test)]
 mod test {
 
+    use core::panic;
     use std::collections::HashMap;
 
     use fm::FileId;
@@ -1332,10 +1477,14 @@ mod test {
     use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
     use crate::hir::resolution::errors::ResolverError;
     use crate::hir::resolution::import::PathResolutionError;
+    use crate::hir::resolution::resolver::StmtId;
 
     use crate::graph::CrateId;
+    use crate::hir_def::expr::HirExpression;
     use crate::hir_def::function::HirFunction;
+    use crate::hir_def::stmt::HirStatement;
     use crate::node_interner::{FuncId, NodeInterner};
+    use crate::ParsedModule;
     use crate::{
         hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
         parse_program, Path,
@@ -1345,28 +1494,23 @@ mod test {
 
     // func_namespace is used to emulate the fact that functions can be imported
     // and functions can be forward declared
-    fn resolve_src_code(src: &str, func_namespace: Vec<&str>) -> Vec<ResolverError> {
+    fn init_src_code_resolution(
+        src: &str,
+    ) -> (ParsedModule, NodeInterner, HashMap<CrateId, CrateDefMap>, FileId, TestPathResolver) {
         let (program, errors) = parse_program(src);
-        assert!(errors.is_empty());
-
-        let mut interner = NodeInterner::default();
-
-        let func_ids = vecmap(&func_namespace, |name| {
-            let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(name.to_string(), id);
-            id
-        });
-
-        let mut path_resolver = TestPathResolver(HashMap::new());
-        for (name, id) in func_namespace.into_iter().zip(func_ids) {
-            path_resolver.insert_func(name.to_owned(), id);
+        if !errors.is_empty() {
+            panic!("Unexpected parse errors in test code: {:?}", errors);
         }
+
+        let interner: NodeInterner = NodeInterner::default();
 
         let mut def_maps: HashMap<CrateId, CrateDefMap> = HashMap::new();
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
         modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+
+        let path_resolver = TestPathResolver(HashMap::new());
 
         def_maps.insert(
             CrateId::dummy_id(),
@@ -1378,16 +1522,111 @@ mod test {
             },
         );
 
+        (program, interner, def_maps, file, path_resolver)
+    }
+
+    // func_namespace is used to emulate the fact that functions can be imported
+    // and functions can be forward declared
+    fn resolve_src_code(src: &str, func_namespace: Vec<&str>) -> Vec<ResolverError> {
+        let (program, mut interner, def_maps, file, mut path_resolver) =
+            init_src_code_resolution(src);
+
+        let func_ids = vecmap(&func_namespace, |name| {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(name.to_string(), id);
+            id
+        });
+
+        for (name, id) in func_namespace.into_iter().zip(func_ids) {
+            path_resolver.insert_func(name.to_owned(), id);
+        }
+
         let mut errors = Vec::new();
         for func in program.functions {
             let id = interner.push_fn(HirFunction::empty());
             interner.push_function_definition(func.name().to_string(), id);
+
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
             let (_, _, err) = resolver.resolve_function(func, id, ModuleId::dummy_id());
             errors.extend(err);
         }
 
         errors
+    }
+
+    fn get_program_captures(src: &str) -> Vec<Vec<String>> {
+        let (program, mut interner, def_maps, file, mut path_resolver) =
+            init_src_code_resolution(src);
+
+        let mut all_captures: Vec<Vec<String>> = Vec::new();
+        for func in program.functions {
+            let id = interner.push_fn(HirFunction::empty());
+            interner.push_function_definition(func.name().clone().to_string(), id);
+            path_resolver.insert_func(func.name().to_owned(), id);
+
+            let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
+            let (hir_func, _, _) = resolver.resolve_function(func, id, ModuleId::dummy_id());
+
+            // Iterate over function statements and apply filtering function
+            parse_statement_blocks(
+                hir_func.block(&interner).statements(),
+                &interner,
+                &mut all_captures,
+            );
+        }
+        all_captures
+    }
+
+    fn parse_statement_blocks(
+        stmts: &[StmtId],
+        interner: &NodeInterner,
+        result: &mut Vec<Vec<String>>,
+    ) {
+        let mut expr: HirExpression;
+
+        for stmt_id in stmts.iter() {
+            let hir_stmt = interner.statement(stmt_id);
+            match hir_stmt {
+                HirStatement::Expression(expr_id) => {
+                    expr = interner.expression(&expr_id);
+                }
+                HirStatement::Let(let_stmt) => {
+                    expr = interner.expression(&let_stmt.expression);
+                }
+                HirStatement::Assign(assign_stmt) => {
+                    expr = interner.expression(&assign_stmt.expression);
+                }
+                HirStatement::Constrain(constr_stmt) => {
+                    expr = interner.expression(&constr_stmt.0);
+                }
+                HirStatement::Semi(semi_expr) => {
+                    expr = interner.expression(&semi_expr);
+                }
+                HirStatement::Error => panic!("Invalid HirStatement!"),
+            }
+            get_lambda_captures(expr, &interner, result); // TODO: dyn filter function as parameter
+        }
+    }
+
+    fn get_lambda_captures(
+        expr: HirExpression,
+        interner: &NodeInterner,
+        result: &mut Vec<Vec<String>>,
+    ) {
+        if let HirExpression::Lambda(lambda_expr) = expr {
+            let mut cur_capture = Vec::new();
+
+            for capture in lambda_expr.captures.iter() {
+                cur_capture.push(interner.definition(capture.ident.id).name.clone());
+            }
+            result.push(cur_capture);
+
+            // Check for other captures recursively within the lambda body
+            let hir_body_expr = interner.expression(&lambda_expr.body);
+            if let HirExpression::Block(block_expr) = hir_body_expr.clone() {
+                parse_statement_blocks(block_expr.statements(), interner, result);
+            }
+        }
     }
 
     #[test]
@@ -1569,10 +1808,140 @@ mod test {
                 x
             }
         "#;
+        let errors = resolve_src_code(src, vec!["main", "foo"]);
+        if !errors.is_empty() {
+            println!("Unexpected errors: {:?}", errors);
+            assert!(false); // there should be no errors
+        }
+    }
+
+    #[test]
+    fn resolve_basic_closure() {
+        let src = r#"
+            fn main(x : Field) -> pub Field {
+                let closure = |y| y + x;
+                closure(x)
+            }
+        "#;
+
+        let errors = resolve_src_code(src, vec!["main", "foo"]);
+        if !errors.is_empty() {
+            panic!("Unexpected errors: {:?}", errors);
+        }
+    }
+
+    #[test]
+    fn resolve_simplified_closure() {
+        // based on bug https://github.com/noir-lang/noir/issues/1088
+
+        let src = r#"fn do_closure(x: Field) -> Field {
+            let y = x;
+            let ret_capture = || {
+              y
+            };
+            ret_capture()
+          }
+
+          fn main(x: Field) {
+              assert(do_closure(x) == 100);
+          }
+
+          "#;
+        let parsed_captures = get_program_captures(src);
+        let mut expected_captures = vec![];
+        expected_captures.push(vec!["y".to_string()]);
+        assert_eq!(expected_captures, parsed_captures);
+    }
+
+    #[test]
+    fn resolve_complex_closures() {
+        let src = r#"
+            fn main(x: Field) -> pub Field {
+                let closure_without_captures = |x| x + x;
+                let a = closure_without_captures(1);
+
+                let closure_capturing_a_param = |y| y + x;
+                let b = closure_capturing_a_param(2);
+
+                let closure_capturing_a_local_var = |y| y + b;
+                let c = closure_capturing_a_local_var(3);
+
+                let closure_with_transitive_captures = |y| {
+                    let d = 5;
+                    let nested_closure = |z| {
+                        let doubly_nested_closure = |w| w + x + b;
+                        a + z + y + d + x + doubly_nested_closure(4) + x + y
+                    };
+                    let res = nested_closure(5);
+                    res
+                };
+
+                a + b + c + closure_with_transitive_captures(6)
+            }
+        "#;
 
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         assert!(errors.is_empty());
+        if !errors.is_empty() {
+            println!("Unexpected errors: {:?}", errors);
+            assert!(false); // there should be no errors
+        }
+
+        let expected_captures = vec![
+            vec![],
+            vec!["x".to_string()],
+            vec!["b".to_string()],
+            vec!["x".to_string(), "b".to_string(), "a".to_string()],
+            vec![
+                "x".to_string(),
+                "b".to_string(),
+                "a".to_string(),
+                "y".to_string(),
+                "d".to_string(),
+            ],
+            vec!["x".to_string(), "b".to_string()],
+        ];
+
+        let parsed_captures = get_program_captures(src);
+
+        assert_eq!(expected_captures, parsed_captures);
     }
+
+    #[test]
+    fn resolve_fmt_strings() {
+        let src = r#"
+            fn main() {
+                let string = f"this is i: {i}";
+                println(string);
+                
+                println(f"I want to print {0}");
+
+                let new_val = 10;
+                println(f"randomstring{new_val}{new_val}");
+            }
+            fn println<T>(x : T) -> T {
+                x
+            }
+        "#;
+
+        let errors = resolve_src_code(src, vec!["main", "println"]);
+        assert!(errors.len() == 2, "Expected 2 errors, got: {:?}", errors);
+
+        for err in errors {
+            match &err {
+                ResolverError::VariableNotDeclared { name, .. } => {
+                    assert_eq!(name, "i");
+                }
+                ResolverError::NumericConstantInFormatString { name, .. } => {
+                    assert_eq!(name, "0");
+                }
+                _ => unimplemented!(),
+            };
+        }
+    }
+
+    // possible TODO: Create a more sophisticated set of search functions over the HIR, so we can check
+    //       that the correct variables are captured in each closure
 
     fn path_unresolved_error(err: ResolverError, expected_unresolved_path: &str) {
         match err {
