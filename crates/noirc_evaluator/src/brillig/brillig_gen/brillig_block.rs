@@ -304,18 +304,7 @@ impl<'block> BrilligBlock<'block> {
                         dfg,
                     );
                     let param_id = arguments[0];
-                    let param_variable = self.convert_ssa_value(param_id, dfg);
-
-                    self.brillig_context
-                        .length_of_variable_instruction(param_variable, result_register);
-
-                    let item_size = self.get_ssa_item_size(param_id, dfg);
-
-                    self.brillig_context.usize_op_in_place(
-                        result_register,
-                        BinaryIntOp::UnsignedDiv,
-                        item_size,
-                    );
+                    self.convert_ssa_array_len(param_id, result_register, dfg);
                 }
                 Value::Intrinsic(
                     Intrinsic::SlicePushBack
@@ -933,6 +922,36 @@ impl<'block> BrilligBlock<'block> {
             }
             _ => {
                 unreachable!("ICE: Cannot get item size of {array_type:?}")
+            }
+        }
+    }
+
+    /// Gets the "user-facing" length of an array.
+    /// An array of structs with two fields would be stored as an 2 * array.len() heap array/heap vector.
+    /// So we divide the length by the number of subitems in an item to get the user-facing length.
+    fn convert_ssa_array_len(
+        &mut self,
+        array_id: ValueId,
+        result_register: RegisterIndex,
+        dfg: &DataFlowGraph,
+    ) {
+        let array_variable = self.convert_ssa_value(array_id, dfg);
+        let item_size = self.get_ssa_item_size(array_id, dfg);
+
+        match array_variable {
+            RegisterOrMemory::HeapArray(HeapArray { size, .. }) => {
+                self.brillig_context.const_instruction(result_register, (size / item_size).into());
+            }
+            RegisterOrMemory::HeapVector(HeapVector { size, .. }) => {
+                self.brillig_context.usize_op(
+                    size,
+                    result_register,
+                    BinaryIntOp::UnsignedDiv,
+                    item_size,
+                );
+            }
+            _ => {
+                unreachable!("ICE: Cannot get length of {array_variable:?}")
             }
         }
     }
