@@ -39,11 +39,12 @@ fn main() {
     };
     let test_dir = manifest_dir.join("tests");
 
-    generate_tests(&mut test_file, &test_dir);
+    generate_execution_success_tests(&mut test_file, &test_dir);
+    generate_compile_success_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 }
 
-fn generate_tests(test_file: &mut File, test_data_dir: &Path) {
+fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_sub_dir = "execution_success";
     let test_data_dir = test_data_dir.join(test_sub_dir);
 
@@ -72,6 +73,44 @@ fn execution_success_{test_name}() {{
     cmd.arg("execute");
 
     cmd.assert().success();
+}}
+            "#,
+            test_dir = test_dir.display(),
+        )
+        .expect("Could not write templated test file.");
+    }
+}
+
+fn generate_compile_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "compile_success";
+    let test_data_dir = test_data_dir.join(test_sub_dir);
+
+    let test_case_dirs =
+        fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
+
+    for test_dir in test_case_dirs {
+        let test_name =
+            test_dir.file_name().into_string().expect("Directory can't be converted to string");
+        if test_name.contains('-') {
+            panic!(
+                "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
+            );
+        };
+        let test_dir = &test_dir.path();
+
+        write!(
+            test_file,
+            r#"
+#[test]
+fn compile_success_{test_name}() {{
+    let test_program_dir = PathBuf::from("{test_dir}");
+
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.arg("--program-dir").arg(test_program_dir);
+    cmd.arg("info");
+
+    // `compile_success` tests should be able to compile down to an empty circuit.
+    cmd.assert().stdout(predicate::str::contains("Total ACIR opcodes generated for language PLONKCSat {{ width: 3 }}: 0"));
 }}
             "#,
             test_dir = test_dir.display(),
