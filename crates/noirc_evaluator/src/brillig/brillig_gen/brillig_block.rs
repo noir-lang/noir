@@ -683,7 +683,7 @@ impl<'block> BrilligBlock<'block> {
                     self.function_context.create_variable(self.brillig_context, target_id, dfg);
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
-                // Remove if indexing in insert is changed to flattened indexing
+                // Remove if indexing in remove is changed to flattened indexing
                 // https://github.com/noir-lang/noir/issues/1889#issuecomment-1668048587
                 let user_index = self.convert_ssa_register_value(arguments[1], dfg);
 
