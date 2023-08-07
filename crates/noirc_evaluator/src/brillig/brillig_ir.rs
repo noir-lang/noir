@@ -548,24 +548,6 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
     }
 
-    pub(crate) fn length_of_variable_instruction(
-        &mut self,
-        variable: RegisterOrMemory,
-        result: RegisterIndex,
-    ) {
-        match variable {
-            RegisterOrMemory::RegisterIndex(_) => {
-                self.const_instruction(result, 1_u128.into());
-            }
-            RegisterOrMemory::HeapArray(HeapArray { size, .. }) => {
-                self.const_instruction(result, size.into());
-            }
-            RegisterOrMemory::HeapVector(HeapVector { size, .. }) => {
-                self.mov_instruction(result, size);
-            }
-        }
-    }
-
     /// Stores a variable by saving its registers to memory
     pub(crate) fn store_variable_instruction(
         &mut self,
