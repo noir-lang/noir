@@ -322,7 +322,7 @@ mod tests {
     use crate::brillig::brillig_ir::artifact::BrilligParameter;
     use crate::brillig::brillig_ir::tests::{create_and_run_vm, create_context};
     use crate::brillig::brillig_ir::BrilligContext;
-    use crate::ssa_refactor::ir::map::Id;
+    use crate::ssa::ir::map::Id;
 
     fn create_test_environment() -> (FunctionContext, BrilligContext) {
         let function_context = FunctionContext {
