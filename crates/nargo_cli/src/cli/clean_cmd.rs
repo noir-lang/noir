@@ -33,7 +33,7 @@ pub(crate) fn run<B: Backend>(
     let target_dir = config.program_dir.join(TARGET_DIR);
     let cache_dir = match env::var("NARGO_BACKEND_CACHE_DIR") {
         Ok(cache_dir) => PathBuf::from(cache_dir),
-        Err(_) => dirs::home_dir().unwrap().join(".nargo"),
+        Err(_) => dirs::home_dir().unwrap().join(".nargo/backends"),
     };
 
     if args.cache {
