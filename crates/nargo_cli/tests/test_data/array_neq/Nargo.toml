@@ -1,6 +1,0 @@
-[package]
-name = "array_neq"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

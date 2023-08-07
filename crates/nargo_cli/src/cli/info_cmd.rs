@@ -5,13 +5,14 @@ use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 
 use crate::{
-    cli::compile_cmd::compile_circuit, errors::CliError, find_package_manifest,
-    manifest::resolve_workspace_from_toml, prepare_package,
+    cli::compile_cmd::compile_package, errors::CliError, find_package_manifest,
+    manifest::resolve_workspace_from_toml,
 };
 
 use super::NargoConfig;
 
 /// Provides detailed information on a circuit
+///
 /// Current information provided:
 /// 1. The number of ACIR opcodes
 /// 2. Counts the final number gates in the circuit used by a backend
@@ -45,8 +46,7 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let (mut context, crate_id) = prepare_package(package);
-    let compiled_program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
+    let (_, compiled_program) = compile_package(backend, package, compile_options)?;
 
     let num_opcodes = compiled_program.circuit.opcodes.len();
 

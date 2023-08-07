@@ -2,19 +2,19 @@ use acvm::acir::circuit::OpcodeLabel;
 use acvm::{acir::circuit::Circuit, Backend};
 use iter_extended::try_vecmap;
 use iter_extended::vecmap;
+use nargo::package::Package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use noirc_driver::{
     compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
 };
-use noirc_errors::reporter::ReportedErrors;
-use noirc_frontend::graph::{CrateId, CrateName};
+use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
 
 use clap::Args;
 
 use nargo::ops::{preprocess_contract_function, preprocess_program};
 
-use crate::errors::CliError;
+use crate::errors::{CliError, CompileError};
 use crate::manifest::resolve_workspace_from_toml;
 use crate::{find_package_manifest, prepare_package};
 
@@ -108,8 +108,7 @@ pub(crate) fn run<B: Backend>(
         }
     } else {
         for package in &workspace {
-            let (mut context, crate_id) = prepare_package(package);
-            let program = compile_circuit(backend, &mut context, crate_id, &args.compile_options)?;
+            let (_, program) = compile_package(backend, package, &args.compile_options)?;
 
             common_reference_string =
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
@@ -127,14 +126,18 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-pub(crate) fn compile_circuit<B: Backend>(
+pub(crate) fn compile_package<B: Backend>(
     backend: &B,
-    context: &mut Context,
-    crate_id: CrateId,
+    package: &Package,
     compile_options: &CompileOptions,
-) -> Result<CompiledProgram, ReportedErrors> {
-    let result = compile_main(context, crate_id, compile_options);
-    let mut program = report_errors(result, context, compile_options.deny_warnings)?;
+) -> Result<(Context, CompiledProgram), CompileError> {
+    if package.is_library() {
+        return Err(CompileError::LibraryCrate(package.name.clone()));
+    }
+
+    let (mut context, crate_id) = prepare_package(package);
+    let result = compile_main(&mut context, crate_id, compile_options);
+    let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
     // Apply backend specific optimizations.
     let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit)
         .expect("Backend does not support an opcode that is in the IR");
@@ -150,7 +153,7 @@ pub(crate) fn compile_circuit<B: Backend>(
     });
     program.debug.update_acir(opcode_ids);
 
-    Ok(program)
+    Ok((context, program))
 }
 
 pub(super) fn optimize_circuit<B: Backend>(
@@ -171,7 +174,7 @@ pub(crate) fn report_errors<T>(
     result: Result<(T, Warnings), ErrorsAndWarnings>,
     context: &Context,
     deny_warnings: bool,
-) -> Result<T, ReportedErrors> {
+) -> Result<T, CompileError> {
     let (t, warnings) = result.map_err(|errors| {
         noirc_errors::reporter::report_all(&context.file_manager, &errors, deny_warnings)
     })?;

@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{collections::VecDeque, rc::Rc};
 
 use acvm::{acir::BlackBoxFunc, BlackBoxResolutionError, FieldElement};
 use iter_extended::vecmap;
@@ -53,22 +53,22 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ArrayLen => {
             let slice = dfg.get_array_constant(arguments[0]);
-            if let Some((slice, _)) = slice {
-                SimplifyResult::SimplifiedTo(
-                    dfg.make_constant((slice.len() as u128).into(), Type::field()),
-                )
+            if let Some((slice, typ)) = slice {
+                let length = FieldElement::from((slice.len() / typ.element_size()) as u128);
+                SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
             } else if let Some(length) = dfg.try_get_array_length(arguments[0]) {
-                SimplifyResult::SimplifiedTo(
-                    dfg.make_constant((length as u128).into(), Type::field()),
-                )
+                let length = FieldElement::from(length as u128);
+                SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[0]);
-            if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
-                slice.push_back(elem);
+            if let Some((mut slice, element_type)) = slice {
+                for elem in &arguments[1..] {
+                    slice.push_back(*elem);
+                }
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifyResult::SimplifiedTo(new_slice)
             } else {
@@ -77,8 +77,10 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SlicePushFront => {
             let slice = dfg.get_array_constant(arguments[0]);
-            if let (Some((mut slice, element_type)), elem) = (slice, arguments[1]) {
-                slice.push_front(elem);
+            if let Some((mut slice, element_type)) = slice {
+                for elem in arguments[1..].iter().rev() {
+                    slice.push_front(*elem);
+                }
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifyResult::SimplifiedTo(new_slice)
             } else {
@@ -87,22 +89,41 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SlicePopBack => {
             let slice = dfg.get_array_constant(arguments[0]);
-            if let Some((mut slice, element_type)) = slice {
-                let elem =
-                    slice.pop_back().expect("There are no elements in this slice to be removed");
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifyResult::SimplifiedToMultiple(vec![new_slice, elem])
+            if let Some((mut slice, typ)) = slice {
+                let element_count = typ.element_size();
+                let mut results = VecDeque::with_capacity(element_count + 1);
+
+                // We must pop multiple elements in the case of a slice of tuples
+                for _ in 0..element_count {
+                    let elem = slice
+                        .pop_back()
+                        .expect("There are no elements in this slice to be removed");
+                    results.push_front(elem);
+                }
+
+                let new_slice = dfg.make_array(slice, typ);
+                results.push_front(new_slice);
+
+                SimplifyResult::SimplifiedToMultiple(results.into())
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::SlicePopFront => {
             let slice = dfg.get_array_constant(arguments[0]);
-            if let Some((mut slice, element_type)) = slice {
-                let elem =
-                    slice.pop_front().expect("There are no elements in this slice to be removed");
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifyResult::SimplifiedToMultiple(vec![elem, new_slice])
+            if let Some((mut slice, typ)) = slice {
+                let element_count = typ.element_size();
+
+                // We must pop multiple elements in the case of a slice of tuples
+                let mut results = vecmap(0..element_count, |_| {
+                    slice.pop_front().expect("There are no elements in this slice to be removed")
+                });
+
+                let new_slice = dfg.make_array(slice, typ);
+
+                // The slice is the last item returned for pop_front
+                results.push(new_slice);
+                SimplifyResult::SimplifiedToMultiple(results)
             } else {
                 SimplifyResult::None
             }
@@ -110,11 +131,16 @@ pub(super) fn simplify_call(
         Intrinsic::SliceInsert => {
             let slice = dfg.get_array_constant(arguments[0]);
             let index = dfg.get_numeric_constant(arguments[1]);
-            if let (Some((mut slice, element_type)), Some(index), value) =
-                (slice, index, arguments[2])
-            {
-                slice.insert(index.to_u128() as usize, value);
-                let new_slice = dfg.make_array(slice, element_type);
+            if let (Some((mut slice, typ)), Some(index)) = (slice, index) {
+                let elements = &arguments[2..];
+                let mut index = index.to_u128() as usize * elements.len();
+
+                for elem in &arguments[2..] {
+                    slice.insert(index, *elem);
+                    index += 1;
+                }
+
+                let new_slice = dfg.make_array(slice, typ);
                 SimplifyResult::SimplifiedTo(new_slice)
             } else {
                 SimplifyResult::None
@@ -123,16 +149,25 @@ pub(super) fn simplify_call(
         Intrinsic::SliceRemove => {
             let slice = dfg.get_array_constant(arguments[0]);
             let index = dfg.get_numeric_constant(arguments[1]);
-            if let (Some((mut slice, element_type)), Some(index)) = (slice, index) {
-                let removed_elem = slice.remove(index.to_u128() as usize);
-                let new_slice = dfg.make_array(slice, element_type);
-                SimplifyResult::SimplifiedToMultiple(vec![new_slice, removed_elem])
+            if let (Some((mut slice, typ)), Some(index)) = (slice, index) {
+                let element_count = typ.element_size();
+                let mut results = Vec::with_capacity(element_count + 1);
+                let index = index.to_u128() as usize * element_count;
+
+                for _ in 0..element_count {
+                    results.push(slice.remove(index));
+                }
+
+                let new_slice = dfg.make_array(slice, typ);
+                results.insert(0, new_slice);
+                SimplifyResult::SimplifiedToMultiple(results)
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
-        Intrinsic::Println | Intrinsic::Sort => SimplifyResult::None,
+        Intrinsic::Sort => simplify_sort(dfg, arguments),
+        Intrinsic::Println => SimplifyResult::None,
     }
 }
 
@@ -328,6 +363,23 @@ fn simplify_signature(
 
             let valid_signature = dfg.make_constant(valid_signature.into(), Type::bool());
             SimplifyResult::SimplifiedTo(valid_signature)
+        }
+        _ => SimplifyResult::None,
+    }
+}
+
+fn simplify_sort(dfg: &mut DataFlowGraph, arguments: &[ValueId]) -> SimplifyResult {
+    match dfg.get_array_constant(arguments[0]) {
+        Some((input, _)) => {
+            let inputs: Option<Vec<FieldElement>> =
+                input.iter().map(|id| dfg.get_numeric_constant(*id)).collect();
+
+            let Some(mut sorted_inputs) = inputs else { return SimplifyResult::None };
+            sorted_inputs.sort_unstable();
+
+            let (_, element_type) = dfg.get_numeric_constant_with_type(input[0]).unwrap();
+            let result_array = make_constant_array(dfg, sorted_inputs, element_type);
+            SimplifyResult::SimplifiedTo(result_array)
         }
         _ => SimplifyResult::None,
     }

@@ -1,6 +1,0 @@
-[package]
-name = "to_le_bytes"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

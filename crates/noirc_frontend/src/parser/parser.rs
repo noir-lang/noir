@@ -368,7 +368,7 @@ fn trait_definition() -> impl NoirParser<TopLevelStatement> {
         .then(trait_body())
         .then_ignore(just(Token::RightBrace))
         .validate(|((name, generics), items), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
+            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::Trait(NoirTrait { name, generics, items })
         })
 }
@@ -467,7 +467,7 @@ fn trait_implementation() -> impl NoirParser<TopLevelStatement> {
             let (((impl_generics, trait_name), trait_generics), (object_type, object_type_span)) =
                 other_args;
 
-            emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
+            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TopLevelStatement::TraitImpl(TraitImpl {
                 impl_generics,
                 trait_name,
@@ -499,7 +499,7 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
         .then(ident())
         .then(generic_type_args(parse_type()))
         .validate(|((typ, trait_name), trait_generics), span, emit| {
-            emit(ParserError::with_reason(ParserErrorReason::TraitsAreExperimental, span));
+            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TraitConstraint { typ, trait_name, trait_generics }
         });
 
@@ -878,7 +878,14 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
                 Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
             }
         }))
-        .map(UnresolvedType::from_int_token)
+        .validate(|token, span, emit| {
+            let typ = UnresolvedType::from_int_token(token);
+            if let UnresolvedType::Integer(_, crate::Signedness::Signed, _) = &typ {
+                let reason = ParserErrorReason::ExperimentalFeature("Signed integer types");
+                emit(ParserError::with_reason(reason, span));
+            }
+            typ
+        })
 }
 
 fn named_type(type_parser: impl NoirParser<UnresolvedType>) -> impl NoirParser<UnresolvedType> {
@@ -1530,7 +1537,7 @@ mod test {
             "y[x+a]",
             " foo [foo+5]",
             "baz[bar]",
-            "foo.bar[3] as Field .baz as i32 [7]",
+            "foo.bar[3] as Field .baz as u32 [7]",
         ];
         parse_all(atom_or_right_unary(expression(), expression_no_constructors(), true), valid);
     }
@@ -1943,7 +1950,7 @@ mod test {
 
     #[test]
     fn parse_member_access() {
-        let cases = vec!["a.b", "a + b.c", "foo.bar as i32"];
+        let cases = vec!["a.b", "a + b.c", "foo.bar as u32"];
         parse_all(expression(), cases);
     }
 

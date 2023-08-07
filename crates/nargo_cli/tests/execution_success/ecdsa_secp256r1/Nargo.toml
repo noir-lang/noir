@@ -1,0 +1,8 @@
+[package]
+name = "ecdsa_secp256r1"
+description = "ECDSA secp256r1 verification"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]
