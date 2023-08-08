@@ -102,19 +102,3 @@ fn regression_2083() {
     assert(x.0 == 5);
     assert(x.1 == 6);
 }
-
-// // TODO: this is still broken using the new mem2reg pass
-// fn main(x : Field, y : pub Field) {
-//     let q = &mut &mut 0;
-//     let q1 = *q;
-//     let q2 = *q;
-
-//     if x != y {
-//         *q1 = 1;
-//         // mem2reg will know q1 = 1, but not that q2 = 1
-//         *q2 = 2; // now we'd expect q1 == q2 == 2, but mem2reg now thinks x1 = 1 & x2 = 2
-        
-//         // This now passes and we've broken mem2reg :(
-//         assert(*q1 == 1);
-//     }
-// }
