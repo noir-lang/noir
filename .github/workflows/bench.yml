@@ -112,6 +112,11 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
 
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.66.0
+
       - name: Check if benchmarks build
         run: cargo check --workspace --benches --all-features
 
