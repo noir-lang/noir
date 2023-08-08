@@ -41,7 +41,7 @@ pub(crate) fn run<B: Backend>(
                 .service(router)
         });
 
-        // Prefer truely asynchronous piped stdin/stdout without blocking tasks.
+        // Prefer truly asynchronous piped stdin/stdout without blocking tasks.
         #[cfg(unix)]
         let (stdin, stdout) = (
             async_lsp::stdio::PipeStdin::lock_tokio().unwrap(),
