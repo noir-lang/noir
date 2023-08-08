@@ -141,8 +141,8 @@ jobs:
         if: matrix.target == 'x86_64-apple-darwin'
         run: |
           cp ./noir/target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-          npm install
-          npm test
+          yarn install
+          yarn test
 
       - name: Upload binaries to Noir Repo
         uses: svenstaro/upload-release-action@v2
@@ -241,8 +241,8 @@ jobs:
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
           cp ./noir/target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
-          npm install
-          npm test
+          yarn install
+          yarn test
 
       - name: Upload binaries to Noir Repo
         uses: svenstaro/upload-release-action@v2
@@ -334,8 +334,8 @@ jobs:
         run: |
           cp ./noir/target/${{ matrix.target }}/release/nargo.exe ~/.cargo/bin/
 
-          npm install
-          npm test
+          yarn install
+          yarn test
 
       - name: Upload binaries to Noir Repo
         uses: svenstaro/upload-release-action@v2
