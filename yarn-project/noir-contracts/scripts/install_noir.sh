@@ -2,7 +2,7 @@
 # Script to install noirup and the latest nargo
 set -eu
 
-VERSION="nightly"
+VERSION="aztec"
 
 export NARGO_HOME="$(pwd)/.nargo"
 NARGO_BIN_DIR="$NARGO_HOME/bin"
