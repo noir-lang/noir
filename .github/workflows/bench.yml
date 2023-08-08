@@ -47,11 +47,11 @@ jobs:
           cmake --build --preset ${{ env.PRESET }}
           sudo cmake --install build
 
-      - name: Checkout main sources
+      - name: Checkout master sources
         uses: actions/checkout@v3
         with:
-          ref: main
-          path: main
+          ref: master
+          path: master
 
       - name: Checkout PR sources
         uses: actions/checkout@v3
@@ -68,8 +68,8 @@ jobs:
         run: |
           sudo apt install valgrind
 
-      - name: Set main baseline
-        run: cargo bench --bench iai --manifest-path main/Cargo.toml
+      - name: Set master baseline
+        run: cargo bench --bench iai --manifest-path master/Cargo.toml
 
       - name: Compare PR benchmark
         shell: 'script -q -e -c "bash {0}"' # required to workaround /dev/tty not being available
