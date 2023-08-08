@@ -17,12 +17,16 @@ pub(crate) struct NewCommand {
     name: Option<String>,
 
     /// Use a library template
-    #[arg(long, conflicts_with = "bin")]
+    #[arg(long, conflicts_with = "bin", conflicts_with = "contract")]
     pub(crate) lib: bool,
 
     /// Use a binary template [default]
-    #[arg(long, conflicts_with = "lib")]
+    #[arg(long, conflicts_with = "lib", conflicts_with = "contract")]
     pub(crate) bin: bool,
+
+    /// Use a contract template
+    #[arg(long, conflicts_with = "lib", conflicts_with = "bin")]
+    pub(crate) contract: bool,
 }
 
 pub(crate) fn run<B: Backend>(
@@ -39,7 +43,13 @@ pub(crate) fn run<B: Backend>(
 
     let package_name =
         args.name.unwrap_or_else(|| args.path.file_name().unwrap().to_str().unwrap().to_owned());
-    let package_type = if args.lib { PackageType::Library } else { PackageType::Binary };
+    let package_type = if args.lib {
+        PackageType::Library
+    } else if args.contract {
+        PackageType::Contract
+    } else {
+        PackageType::Binary
+    };
     initialize_project(package_dir, &package_name, package_type);
     Ok(())
 }

@@ -39,6 +39,7 @@ impl PackageConfig {
         let package_type = match self.package.package_type.as_deref() {
             Some("lib") => PackageType::Library,
             Some("bin") => PackageType::Binary,
+            Some("contract") => PackageType::Contract,
             Some(invalid) => {
                 return Err(ManifestError::InvalidPackageType(
                     root_dir.join("Nargo.toml"),
@@ -63,7 +64,7 @@ impl PackageConfig {
                 PackageType::Library => {
                     root_dir.join("src").join("lib").with_extension(FILE_EXTENSION)
                 }
-                PackageType::Binary => {
+                PackageType::Binary | PackageType::Contract => {
                     root_dir.join("src").join("main").with_extension(FILE_EXTENSION)
                 }
             };
