@@ -135,6 +135,8 @@ jobs:
         if: matrix.target == 'x86_64-apple-darwin'
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
+
+          cd release-tests
           yarn install
           yarn test
 
@@ -231,6 +233,8 @@ jobs:
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
+
+          cd release-tests
           yarn install
           yarn test
 
@@ -320,6 +324,7 @@ jobs:
         run: |
           cp ./target/${{ matrix.target }}/release/nargo.exe ~/.cargo/bin/
 
+          cd release-tests
           yarn install
           yarn test
 
