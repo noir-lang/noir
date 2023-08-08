@@ -9,7 +9,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
-        cfg::ControlFlowGraph,
+        cfg::ControlFlowGraph, types::Type,
     },
     ssa_gen::Ssa,
 };
@@ -50,14 +50,14 @@ impl Ssa {
             let mut all_protected_allocations = HashSet::new();
             let mut context = PerFunctionContext::new();
 
+            // Maps Load instruction id -> value to replace the result of the load with
+            let mut loads_to_substitute = HashMap::new();
+
+            // Maps Load result id -> value to replace the result of the load with
+            let mut load_values_to_substitute = HashMap::new();
+
             for block in function.reachable_blocks() {
                 let cfg = ControlFlowGraph::with_function(function);
-
-                // Maps Load instruction id -> value to replace the result of the load with
-                let mut loads_to_substitute = HashMap::new();
-
-                // Maps Load result id -> value to replace the result of the load with
-                let mut load_values_to_substitute = HashMap::new();
 
                 let allocations_protected_by_block =
                     context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg, &mut loads_to_substitute, &mut load_values_to_substitute, block, &cfg);
@@ -85,11 +85,12 @@ struct PerBlockContext {
 struct PerFunctionContext {
     last_stores: BTreeMap<AllocId, ValueId>,
     last_stores_with_block: BTreeMap<(AllocId, BasicBlockId), ValueId>,
+    last_references: BTreeMap<AllocId, ValueId>,
     store_ids: Vec<InstructionId>,
 }
 impl PerFunctionContext {
     fn new() -> Self {
-        PerFunctionContext { last_stores: BTreeMap::new(), last_stores_with_block: BTreeMap::new(), store_ids: Vec::new() }
+        PerFunctionContext { last_stores: BTreeMap::new(), last_stores_with_block: BTreeMap::new(), last_references: BTreeMap::new(), store_ids: Vec::new() }
     }
 }
 
@@ -245,17 +246,6 @@ impl PerFunctionContext {
         let block = &dfg[block_id];
         println!("BLOCK: {block_id}");
 
-        // dbg!(predecessors.len());
-        // for predecessor in predecessors.clone() {
-        //     dbg!(predecessor);
-        // }
-
-        // Maps Load instruction id -> value to replace the result of the load with
-        // let mut loads_to_substitute = HashMap::new();
-
-        // Maps Load result id -> value to replace the result of the load with
-        // let mut load_values_to_substitute = HashMap::new();
-
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
@@ -314,6 +304,7 @@ impl PerFunctionContext {
                     } else {
                         protected_allocations.insert(address);
                     }
+                    // dbg!(load_values_to_substitute.clone());
                 }
                 Instruction::Call { arguments, .. } => {
                     for arg in arguments {

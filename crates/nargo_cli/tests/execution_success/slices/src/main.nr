@@ -11,7 +11,7 @@ fn main(x : Field, y : pub Field) {
     } else {
         slice
     };
-    assert(slice[2] == 10);
+    assert(slice[3] == 10);
     assert(slice.len() == 3);
 
     let mut slice = [0; 2];
