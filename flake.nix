@@ -38,7 +38,7 @@
     };
 
     barretenberg = {
-      url = "github:AztecProtocol/barretenberg";
+      url = "github:AztecProtocol/barretenberg?tag=barretenberg-v0.3.6";
       # All of these inputs (a.k.a. dependencies) need to align with inputs we
       # use so they use the `inputs.*.follows` syntax to reference our inputs
       inputs = {
@@ -88,7 +88,7 @@
         BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
       };
 
-      testEnvironment = sharedEnvironment // {};
+      testEnvironment = sharedEnvironment // { };
 
       # The `self.rev` property is only available when the working tree is not dirty
       GIT_COMMIT = if (self ? rev) then self.rev else "unknown";
