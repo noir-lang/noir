@@ -1,7 +1,7 @@
 import { Fr, PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { AztecRPC, PrivateKey } from '@aztec/types';
 
-import { AccountWallet, ContractDeployer, DeployMethod, WaitOpts, Wallet, generatePublicKey } from '../index.js';
+import { AccountWallet, ContractDeployer, DeployMethod, WaitOpts, generatePublicKey } from '../index.js';
 import { CompleteAddress, isCompleteAddress } from './complete_address.js';
 import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
 import { AccountContract, Entrypoint, Salt } from './index.js';
@@ -71,9 +71,9 @@ export class Account {
    * instances to be interacted with from this account.
    * @returns A Wallet instance.
    */
-  public async getWallet(): Promise<Wallet> {
+  public async getWallet(): Promise<AccountWallet> {
     const entrypoint = await this.getEntrypoint();
-    return new AccountWallet(this.rpc, entrypoint);
+    return new AccountWallet(this.rpc, entrypoint, await this.getCompleteAddress());
   }
 
   /**
@@ -82,7 +82,7 @@ export class Account {
    * Use the returned wallet to create Contract instances to be interacted with from this account.
    * @returns A Wallet instance.
    */
-  public async register(): Promise<Wallet> {
+  public async register(): Promise<AccountWallet> {
     const { address, partialAddress } = await this.getCompleteAddress();
     await this.rpc.addAccount(this.encryptionPrivateKey, address, partialAddress);
     return this.getWallet();
@@ -130,7 +130,8 @@ export class Account {
    * @param opts - Options to wait for the tx to be mined.
    * @returns A Wallet instance.
    */
-  public async waitDeploy(opts: WaitOpts = {}): Promise<Wallet> {
-    return (await this.deploy()).getWallet(opts);
+  public async waitDeploy(opts: WaitOpts = {}): Promise<AccountWallet> {
+    await this.deploy().then(tx => tx.wait(opts));
+    return this.getWallet();
   }
 }

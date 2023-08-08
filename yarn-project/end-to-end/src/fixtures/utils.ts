@@ -1,12 +1,12 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { RpcServerConfig, createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
 import {
-  AccountWallet,
   Account as AztecAccount,
   AztecAddress,
   Contract,
   ContractDeployer,
   EntrypointCollection,
+  EntrypointWallet,
   EthAddress,
   Wallet,
   createAztecRpcClient as createJsonRpcClient,
@@ -168,7 +168,7 @@ export async function setupAztecRPCServer(
   await Promise.all(txs.map(tx => tx.wait({ interval: 0.1 })));
 
   // Assemble them into a single wallet
-  const wallet = new AccountWallet(aztecRpcServer, await EntrypointCollection.fromAccounts(accounts));
+  const wallet = new EntrypointWallet(aztecRpcServer, await EntrypointCollection.fromAccounts(accounts));
 
   return {
     aztecRpcServer: aztecRpcServer!,

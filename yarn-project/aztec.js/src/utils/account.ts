@@ -5,7 +5,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { SingleKeyAccountEntrypoint } from '../account/entrypoint/single_key_account_entrypoint.js';
-import { AccountWallet, Wallet } from '../aztec_rpc_client/wallet.js';
+import { EntrypointWallet, Wallet } from '../aztec_rpc_client/wallet.js';
 import { ContractDeployer, EntrypointCollection, generatePublicKey } from '../index.js';
 
 /**
@@ -47,7 +47,7 @@ export async function createAccounts(
       new SingleKeyAccountEntrypoint(address, deploymentInfo.partialAddress, privKey, await Schnorr.new()),
     );
   }
-  return new AccountWallet(aztecRpcClient, accountImpls);
+  return new EntrypointWallet(aztecRpcClient, accountImpls);
 }
 
 /**
@@ -71,5 +71,5 @@ export async function getAccountWallet(
     address,
     new SingleKeyAccountEntrypoint(address, deploymentInfo.partialAddress, privateKey, await Schnorr.new()),
   );
-  return new AccountWallet(aztecRpcClient, accountCollection);
+  return new EntrypointWallet(aztecRpcClient, accountCollection);
 }

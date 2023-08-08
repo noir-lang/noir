@@ -15,6 +15,7 @@ import {
 } from '@aztec/types';
 
 import { CreateTxRequestOpts, Entrypoint } from '../account/entrypoint/index.js';
+import { CompleteAddress } from '../index.js';
 
 /**
  * The wallet interface.
@@ -99,13 +100,27 @@ export abstract class BaseWallet implements Wallet {
 }
 
 /**
- * A simple wallet implementation that forwards authentication requests to a provided account implementation.
+ * A simple wallet implementation that forwards authentication requests to a provided entrypoint implementation.
  */
-export class AccountWallet extends BaseWallet {
+export class EntrypointWallet extends BaseWallet {
   constructor(rpc: AztecRPC, protected accountImpl: Entrypoint) {
     super(rpc);
   }
   createTxExecutionRequest(executions: FunctionCall[], opts: CreateTxRequestOpts = {}): Promise<TxExecutionRequest> {
     return this.accountImpl.createTxExecutionRequest(executions, opts);
+  }
+}
+
+/**
+ * A wallet implementation that forwards authentication requests to a provided account.
+ */
+export class AccountWallet extends EntrypointWallet {
+  constructor(rpc: AztecRPC, protected accountImpl: Entrypoint, protected address: CompleteAddress) {
+    super(rpc, accountImpl);
+  }
+
+  /** Returns the complete address of the account that implements this wallet. */
+  public getCompleteAddress() {
+    return this.address;
   }
 }

@@ -1,6 +1,6 @@
 import { AztecRPC, PrivateKey } from '@aztec/types';
 
-import { Fr } from '../index.js';
+import { AccountContract, AccountWallet, AztecAddress, Fr } from '../index.js';
 import { Account } from './account.js';
 import { CompleteAddress } from './complete_address.js';
 import { EcdsaAccountContract } from './contract/ecdsa_account_contract.js';
@@ -64,4 +64,38 @@ export function getUnsafeSchnorrAccount(
     new SingleKeyAccountContract(encryptionAndSigningPrivateKey),
     saltOrAddress,
   );
+}
+
+/**
+ * Gets a wallet for an already registered account using Schnorr signatures with a single key for encryption and authentication.
+ * @param rpc - An AztecRPC server instance.
+ * @param address - Address for the account.
+ * @param signingPrivateKey - Grumpkin key used for note encryption and signing transactions.
+ * @returns A wallet for this account that can be used to interact with a contract instance.
+ */
+export function getUnsafeSchnorrWallet(
+  rpc: AztecRPC,
+  address: AztecAddress,
+  signingKey: PrivateKey,
+): Promise<AccountWallet> {
+  return getWallet(rpc, address, new SingleKeyAccountContract(signingKey));
+}
+
+/**
+ * Gets a wallet for an already registered account.
+ * @param rpc - An AztecRPC server instance.
+ * @param address - Address for the account.
+ * @param accountContract - Account contract implementation.
+ * * @returns A wallet for this account that can be used to interact with a contract instance.
+ */
+export async function getWallet(
+  rpc: AztecRPC,
+  address: AztecAddress,
+  accountContract: AccountContract,
+): Promise<AccountWallet> {
+  const [publicKey, partialAddress] = await rpc.getPublicKeyAndPartialAddress(address);
+  const nodeInfo = await rpc.getNodeInfo();
+  const completeAddress: CompleteAddress = { publicKey, partialAddress, address };
+  const entrypoint = await accountContract.getEntrypoint(completeAddress, nodeInfo);
+  return new AccountWallet(rpc, entrypoint, completeAddress);
 }
