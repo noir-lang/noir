@@ -13,7 +13,8 @@ use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TypeAliasId};
 use crate::{
     ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTypeAlias, ParsedModule, Shared, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
+    NoirTypeAlias, ParsedModule, Shared, StructType, Type, TypeBinding, UnresolvedGenerics,
+    UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -233,7 +234,19 @@ fn collect_impls(
 
             extend_errors(errors, unresolved.file_id, resolver.take_errors());
 
-            if let Some(type_module) = get_local_id_from_type(&typ) {
+            if let Some(struct_type) = get_struct_type(&typ) {
+                let struct_type = struct_type.borrow();
+                let type_module = struct_type.id.0.local_id;
+
+                // `impl`s are only allowed on types defined within the current crate
+                if struct_type.id.0.krate != crate_id {
+                    let span = *span;
+                    let type_name = struct_type.name.to_string();
+                    let error = DefCollectorErrorKind::ForeignImpl { span, type_name };
+                    errors.push(error.into_file_diagnostic(unresolved.file_id));
+                    continue;
+                }
+
                 // Grab the module defined by the struct type. Note that impls are a case
                 // where the module the methods are added to is not the same as the module
                 // they are resolved in.
@@ -258,9 +271,9 @@ fn collect_impls(
     }
 }
 
-fn get_local_id_from_type(typ: &Type) -> Option<LocalModuleId> {
+fn get_struct_type(typ: &Type) -> Option<&Shared<StructType>> {
     match typ {
-        Type::Struct(definition, _) => Some(definition.borrow().id.0.local_id),
+        Type::Struct(definition, _) => Some(definition),
         _ => None,
     }
 }

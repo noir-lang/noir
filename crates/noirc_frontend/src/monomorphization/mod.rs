@@ -11,7 +11,6 @@
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::FunctionSignature;
-use noirc_errors::Location;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
@@ -956,56 +955,34 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn assign(&mut self, assign: HirAssignStatement) -> ast::Expression {
         let expression = Box::new(self.expr(assign.expression));
-        let (lvalue, index_lvalue) = self.lvalue(assign.lvalue);
-
-        match index_lvalue {
-            Some((index, element_type, location)) => {
-                let lvalue =
-                    ast::LValue::Index { array: Box::new(lvalue), index, element_type, location };
-                ast::Expression::Assign(ast::Assign { lvalue, expression })
-            }
-            None => ast::Expression::Assign(ast::Assign { expression, lvalue }),
-        }
+        let lvalue = self.lvalue(assign.lvalue);
+        ast::Expression::Assign(ast::Assign { expression, lvalue })
     }
 
-    /// Returns the lvalue along with an optional LValue::Index to add to the end, if needed.
-    /// This is added to the end separately as part of converting arrays of structs to structs
-    /// of arrays.
     fn lvalue(
         &mut self,
         lvalue: HirLValue,
-    ) -> (ast::LValue, Option<(Box<ast::Expression>, ast::Type, Location)>) {
+    ) -> ast::LValue {
         match lvalue {
             HirLValue::Ident(ident, _) => {
-                let lvalue = ast::LValue::Ident(self.local_ident(&ident).unwrap());
-                (lvalue, None)
+                ast::LValue::Ident(self.local_ident(&ident).unwrap())
             }
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let field_index = field_index.unwrap();
-                let (object, index) = self.lvalue(*object);
-                let object = Box::new(object);
-                let lvalue = ast::LValue::MemberAccess { object, field_index };
-                (lvalue, index)
+                let object = Box::new(self.lvalue(*object));
+                ast::LValue::MemberAccess { object, field_index }
             }
             HirLValue::Index { array, index, typ } => {
                 let location = self.interner.expr_location(&index);
-
-                let (array, prev_index) = self.lvalue(*array);
-                assert!(
-                    prev_index.is_none(),
-                    "Nested arrays are currently unsupported in noir: location is {location:?}"
-                );
-
+                let array = Box::new(self.lvalue(*array));
                 let index = Box::new(self.expr(index));
                 let element_type = Self::convert_type(&typ);
-                (array, Some((index, element_type, location)))
+                ast::LValue::Index { array, index, element_type, location }
             }
             HirLValue::Dereference { lvalue, element_type } => {
-                let (reference, index) = self.lvalue(*lvalue);
-                let reference = Box::new(reference);
+                let reference = Box::new(self.lvalue(*lvalue));
                 let element_type = Self::convert_type(&element_type);
-                let lvalue = ast::LValue::Dereference { reference, element_type };
-                (lvalue, index)
+                ast::LValue::Dereference { reference, element_type }
             }
         }
     }
