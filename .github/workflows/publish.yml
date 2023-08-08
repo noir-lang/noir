@@ -24,13 +24,11 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
         with:
-          repository: noir-lang/noir
-          path: noir
           ref: ${{ inputs.noir-ref || 'master' }}
 
       - name: Collect locked barretenberg rev
         run: |
-          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./noir/flake.lock)" >> $GITHUB_ENV
+          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./flake.lock)" >> $GITHUB_ENV
 
       - uses: cachix/install-nix-action@v20
         with:
@@ -84,8 +82,6 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
         with:
-          repository: noir-lang/noir
-          path: noir
           ref: ${{ inputs.noir-ref || 'master' }}
 
       - name: Setup for Apple Silicon
@@ -117,14 +113,12 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build environment and Compile
-        working-directory: noir
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
-        working-directory: noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
@@ -134,13 +128,13 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nargo-${{ matrix.target }}
-          path: ./noir/dist/*
+          path: ./dist/*
           retention-days: 3
 
       - name: Test built artifact
         if: matrix.target == 'x86_64-apple-darwin'
         run: |
-          cp ./noir/target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
+          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
           yarn install
           yarn test
 
@@ -150,7 +144,7 @@ jobs:
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
-          file: ./noir/nargo-${{ matrix.target }}.tar.gz
+          file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.noir-ref || 'nightly' }} # This will fail if noir-ref is not a tag (e.g. testing a branch)
@@ -190,8 +184,6 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
         with:
-          repository: noir-lang/noir
-          path: noir
           ref: ${{ inputs.noir-ref || 'master' }}
 
       - uses: actions/cache@v3
@@ -216,7 +208,6 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build Nargo
-        working-directory: noir
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
@@ -224,7 +215,6 @@ jobs:
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
-        working-directory: noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
@@ -234,13 +224,13 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nargo-${{ matrix.target }}
-          path: ./noir/dist/*
+          path: ./dist/*
           retention-days: 3
 
       - name: Test built artifact
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
         run: |
-          cp ./noir/target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
+          cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
           yarn install
           yarn test
 
@@ -250,7 +240,7 @@ jobs:
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
-          file: ./noir/nargo-${{ matrix.target }}.tar.gz
+          file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.noir-ref || 'nightly' }} # This will fail if noir-ref is not a tag (e.g. testing a branch)
@@ -283,8 +273,6 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
         with:
-          repository: noir-lang/noir
-          path: noir
           ref: ${{ inputs.noir-ref || 'master' }}
 
       - uses: actions/cache@v3
@@ -309,14 +297,12 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build environment and Compile
-        working-directory: noir
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
-        working-directory: noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo.exe ./dist/nargo.exe
@@ -326,13 +312,13 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nargo-${{ matrix.target }}
-          path: ./noir/dist/*
+          path: ./dist/*
           retention-days: 3
 
       - name: Test built artifact
         shell: powershell
         run: |
-          cp ./noir/target/${{ matrix.target }}/release/nargo.exe ~/.cargo/bin/
+          cp ./target/${{ matrix.target }}/release/nargo.exe ~/.cargo/bin/
 
           yarn install
           yarn test
@@ -343,7 +329,7 @@ jobs:
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
-          file: ./noir/nargo-${{ matrix.target }}.zip
+          file: ./nargo-${{ matrix.target }}.zip
           asset_name: nargo-${{ matrix.target }}.zip
           overwrite: true
           tag: ${{ inputs.noir-ref || 'nightly' }} # This will fail if noir-ref is not a tag (e.g. testing a branch)
