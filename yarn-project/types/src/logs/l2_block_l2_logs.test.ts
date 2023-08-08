@@ -18,4 +18,11 @@ describe('L2BlockL2Logs', () => {
 
     expect(recovered.getSerializedLength()).toEqual(buffer.length);
   });
+
+  it('serialises to and from JSON', () => {
+    const l2Logs = L2BlockL2Logs.random(3, 6, 2);
+    const json = l2Logs.toJSON();
+    const recovered = L2BlockL2Logs.fromJSON(json);
+    expect(recovered).toEqual(l2Logs);
+  });
 });

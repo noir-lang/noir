@@ -78,4 +78,24 @@ export class L2BlockL2Logs {
     }
     return logs;
   }
+
+  /**
+   * Convert a L2BlockL2Logs class object to a plain JSON object.
+   * @returns A plain object with L2BlockL2Logs properties.
+   */
+  public toJSON() {
+    return {
+      txLogs: this.txLogs.map(log => log.toJSON()),
+    };
+  }
+
+  /**
+   * Convert a plain JSON object to a L2BlockL2Logs class object.
+   * @param obj - A plain L2BlockL2Logs JSON object.
+   * @returns A L2BlockL2Logs class object.
+   */
+  public static fromJSON(obj: any) {
+    const txLogs = obj.txLogs.map((log: any) => TxL2Logs.fromJSON(log));
+    return new L2BlockL2Logs(txLogs);
+  }
 }

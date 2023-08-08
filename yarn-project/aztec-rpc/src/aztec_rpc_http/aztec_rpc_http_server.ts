@@ -5,6 +5,7 @@ import {
   ContractData,
   ContractDeploymentTx,
   ContractPublicData,
+  L2BlockL2Logs,
   PrivateKey,
   Tx,
   TxExecutionRequest,
@@ -36,7 +37,7 @@ export function getHttpRpcServer(aztecRpcServer: AztecRPCServer): JsonRpcServer 
       PrivateKey,
       Fr,
     },
-    { Tx, ContractDeploymentTx, TxReceipt },
+    { Tx, ContractDeploymentTx, TxReceipt, L2BlockL2Logs },
     false,
     ['start', 'stop'],
   );

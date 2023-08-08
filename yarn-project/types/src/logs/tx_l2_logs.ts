@@ -71,4 +71,24 @@ export class TxL2Logs {
     }
     return new TxL2Logs(functionLogs);
   }
+
+  /**
+   * Convert a TxL2Logs class object to a plain JSON object.
+   * @returns A plain object with TxL2Logs properties.
+   */
+  public toJSON() {
+    return {
+      functionLogs: this.functionLogs.map(log => log.toJSON()),
+    };
+  }
+
+  /**
+   * Convert a plain JSON object to a TxL2Logs class object.
+   * @param obj - A plain TxL2Logs JSON object.
+   * @returns A TxL2Logs class object.
+   */
+  public static fromJSON(obj: any) {
+    const functionLogs = obj.functionLogs.map((log: any) => FunctionL2Logs.fromJSON(log));
+    return new TxL2Logs(functionLogs);
+  }
 }
