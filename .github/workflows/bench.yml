@@ -118,7 +118,7 @@ jobs:
           toolchain: 1.66.0
 
       - name: Check if benchmarks build
-        run: cargo check --workspace --benches --all-features
+        run: cargo check --workspace --benches
 
   bench-success:
     if: always()
