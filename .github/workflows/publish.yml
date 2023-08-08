@@ -21,7 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.tag || $GITHUB_REF }}
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
 
       - name: Collect locked barretenberg rev
         run: |
@@ -76,7 +76,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.tag || $GITHUB_REF }}
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
           path: ./noir
 
       - name: Setup for Apple Silicon
@@ -180,7 +180,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.tag || $GITHUB_REF }}
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
           path: ./noir
 
       - uses: actions/cache@v3
@@ -272,7 +272,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ inputs.tag || $GITHUB_REF }}
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
           path: ./noir
 
       - uses: actions/cache@v3
