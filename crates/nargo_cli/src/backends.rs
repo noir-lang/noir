@@ -1,6 +1,6 @@
 pub(crate) use acvm_backend_barretenberg::Barretenberg as ConcreteBackend;
 
-#[cfg(not(any(feature = "plonk_bn254", feature = "plonk_bn254_wasm", feature = "flat_witness")))]
+#[cfg(not(any(feature = "plonk_bn254", feature = "plonk_bn254_wasm")))]
 compile_error!("please specify a backend to compile with");
 
 #[cfg(all(feature = "plonk_bn254", feature = "plonk_bn254_wasm"))]
