@@ -1121,7 +1121,7 @@ impl Context {
 
 #[cfg(test)]
 mod tests {
-    use std::{rc::Rc, collections::HashMap};
+    use std::{collections::HashMap, rc::Rc};
 
     use acvm::{
         acir::{

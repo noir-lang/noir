@@ -22,6 +22,8 @@ pub enum DefCollectorErrorKind {
     PathResolutionError(PathResolutionError),
     #[error("Non-struct type used in impl")]
     NonStructTypeInImpl { span: Span },
+    #[error("Cannot `impl` a type defined outside the current crate")]
+    ForeignImpl { span: Span, type_name: String },
 }
 
 impl DefCollectorErrorKind {
@@ -99,6 +101,11 @@ impl From<DefCollectorErrorKind> for Diagnostic {
             DefCollectorErrorKind::NonStructTypeInImpl { span } => Diagnostic::simple_error(
                 "Non-struct type used in impl".into(),
                 "Only struct types may have implementation methods".into(),
+                span,
+            ),
+            DefCollectorErrorKind::ForeignImpl { span, type_name } => Diagnostic::simple_error(
+                "Cannot `impl` a type that was defined outside the current crate".into(),
+                format!("{type_name} was defined outside the current crate"),
                 span,
             ),
         }
