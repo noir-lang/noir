@@ -3,7 +3,7 @@ mod public_key_note;
 
 // Account contract that uses Schnorr signatures for authentication.
 // The signing key is stored in an immutable private note and should be different from the encryption/nullifying key.
-contract SchnorrMultiKeyAccount {
+contract SchnorrAccount {
     use dep::std;
     use dep::aztec::entrypoint;
     use dep::aztec::entrypoint::EntrypointPayload;
