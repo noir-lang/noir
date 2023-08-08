@@ -4,11 +4,8 @@
 //! the HIR of each function and outputs the inferred type of each HIR node into the NodeInterner,
 //! keyed by the ID of the node.
 //!
-//! The algorithm for checking and inferring types itself is somewhat ad-hoc. It includes both
-//! unification and subtyping, with the only difference between the two being how CompTime
-//! is handled (See note on CompTime and make_subtype_of for details). Additionally, although
-//! this algorithm features inference via TypeVariables, there is no generalization step as
-//! all functions are required to give their full signatures. Closures are inferred but are
+//! Although this algorithm features inference via TypeVariables, there is no generalization step
+//! as all functions are required to give their full signatures. Closures are inferred but are
 //! never generalized and thus cannot be used polymorphically.
 mod errors;
 mod expr;

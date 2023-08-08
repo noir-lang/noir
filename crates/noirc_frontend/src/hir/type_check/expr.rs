@@ -882,7 +882,6 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     // Given a binary operator and another type. This method will produce the output type
-    // XXX: Review these rules. In particular, the interaction between integers, comptime and private/public variables
     fn infix_operand_type_rules(
         &mut self,
         lhs_type: &Type,

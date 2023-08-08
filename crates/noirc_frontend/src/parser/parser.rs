@@ -125,7 +125,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
         keyword(Keyword::Global).labelled(ParsingRuleLabel::Global),
         ident().map(Pattern::Identifier),
     );
-    let p = then_commit(p, global_type_annotation());
+    let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, literal_or_collection(expression()).map_with_span(Expression::new));
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
@@ -548,13 +548,7 @@ fn check_statements_require_semicolon(
     })
 }
 
-/// Parse an optional ': type' and implicitly add a 'comptime' to the type
-fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
-    ignore_then_commit(just(Token::Colon), parse_type())
-        .or_not()
-        .map(|opt| opt.unwrap_or(UnresolvedType::Unspecified))
-}
-
+/// Parse an optional ': type'
 fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
     ignore_then_commit(just(Token::Colon), parse_type())
         .or_not()

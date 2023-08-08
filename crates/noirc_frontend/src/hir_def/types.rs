@@ -675,8 +675,7 @@ impl Type {
     }
 
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
-    /// other PolymorphicInt type, or type variable. If use_subtype is true, the CompTime fields
-    /// of each will be checked via sub-typing rather than unification.
+    /// other PolymorphicInt type, or type variable.
     pub fn try_bind_to_polymorphic_int(&self, var: &TypeVariable) -> Result<(), UnificationError> {
         let target_id = match &*var.borrow() {
             TypeBinding::Bound(_) => unreachable!(),

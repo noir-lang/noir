@@ -577,7 +577,7 @@ mod tests {
         // }
         // The final block count is not 1 because unrolling creates some unnecessary jmps.
         // If a simplify cfg pass is ran afterward, the expected block count will be 1.
-        let ssa = ssa.unroll_loops().unwrap();
+        let ssa = ssa.unroll_loops().expect("All loops should be unrolled");
         assert_eq!(ssa.main().reachable_blocks().len(), 5);
     }
 

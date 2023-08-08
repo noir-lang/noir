@@ -208,7 +208,6 @@ pub struct Function {
 /// - All type variables and generics removed
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
-/// - No CompTime
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
