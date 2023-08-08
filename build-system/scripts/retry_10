@@ -1,7 +1,7 @@
 set -eu
 # Retries up to 10 times with 10 second intervals
 for i in $(seq 1 10); do
-    "$@" && return || sleep 10
+    "$@" && exit || sleep 10
 done
 echo "$@ failed after 10 attempts"
 exit 1
