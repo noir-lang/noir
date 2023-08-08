@@ -19,6 +19,34 @@ jobs:
     # Only run benchmarks in merge groups
     if: github.event_name != 'pull_request'
     steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v3
+
+      - name: Collect locked barretenberg rev
+        run: |
+          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./flake.lock)" >> $GITHUB_ENV
+          echo "BB_REV is ${{ env.BB_REV }}"
+
+      - name: Checkout barretenberg
+        uses: actions/checkout@v3
+        with:
+          repository: AztecProtocol/barretenberg
+          path: barretenberg
+          ref: ${{ env.BB_REV }}
+
+      - name: Setup Linux environment
+        run: |
+          sudo apt update
+          sudo apt install libomp-dev cmake ninja-build
+          echo "PRESET=default" >> $GITHUB_ENV
+
+      - name: Build and install barretenberg
+        working-directory: barretenberg/cpp
+        run: |
+          cmake --preset ${{ env.PRESET }} -DTESTING=OFF -DBENCHMARKS=OFF -DCMAKE_BUILD_TYPE=RelWithAssert -DDISABLE_ASM=ON -DDISABLE_ADX=ON
+          cmake --build --preset ${{ env.PRESET }}
+          sudo cmake --install build
+
       - name: Checkout main sources
         uses: actions/checkout@v3
         with:
@@ -31,14 +59,10 @@ jobs:
           clean: false
           path: pr
 
-      - uses: cachix/install-nix-action@v22
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
-          nix_path: nixpkgs=channel:nixos-22.11
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: cachix/cachix-action@v12
-        with:
-          name: barretenberg
+          toolchain: 1.66.0
 
       - name: Install Valgrind
         run: |
@@ -57,16 +81,36 @@ jobs:
     name: check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Noir repo
         uses: actions/checkout@v3
-      - uses: cachix/install-nix-action@v22
-        with:
-          nix_path: nixpkgs=channel:nixos-22.11
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: cachix/cachix-action@v12
+      - name: Collect locked barretenberg rev
+        run: |
+          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./flake.lock)" >> $GITHUB_ENV
+          echo "BB_REV is ${{ env.BB_REV }}"
+
+      - name: Checkout barretenberg
+        uses: actions/checkout@v3
         with:
-          name: barretenberg
+          repository: AztecProtocol/barretenberg
+          path: barretenberg
+          ref: ${{ env.BB_REV }}
+
+      - name: Setup Linux environment
+        run: |
+          sudo apt update
+          sudo apt install libomp-dev cmake ninja-build
+          echo "PRESET=default" >> $GITHUB_ENV
+
+      - name: Build and install barretenberg
+        working-directory: barretenberg/cpp
+        run: |
+          cmake --preset ${{ env.PRESET }} -DTESTING=OFF -DBENCHMARKS=OFF -DCMAKE_BUILD_TYPE=RelWithAssert -DDISABLE_ASM=ON -DDISABLE_ADX=ON
+          cmake --build --preset ${{ env.PRESET }}
+          sudo cmake --install build
+
+      - name: Checkout Noir repo
+        uses: actions/checkout@v3
 
       - name: Check if benchmarks build
         run: cargo check --workspace --benches --all-features
