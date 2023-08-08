@@ -22,6 +22,5 @@ macro_rules! iai_command {
     };
 }
 iai_command!(execution, "execute");
-iai_command!(prove, "prove");
 
-iai::main!(iai_selected_tests_execution, iai_selected_tests_prove);
+iai::main!(iai_selected_tests_execution);

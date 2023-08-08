@@ -26,11 +26,10 @@ macro_rules! criterion_command {
     };
 }
 criterion_command!(execution, "execute");
-criterion_command!(prove, "prove");
 
 criterion_group! {
     name = benches;
     config = Criterion::default().sample_size(20).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
-    targets =  criterion_selected_tests_execution, criterion_selected_tests_prove
+    targets =  criterion_selected_tests_execution
 }
 criterion_main!(benches);
