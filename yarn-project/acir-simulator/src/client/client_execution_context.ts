@@ -1,4 +1,5 @@
-import { PrivateHistoricTreeRoots, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
+import { CircuitsWasm, PrivateHistoricTreeRoots, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
+import { siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -236,12 +237,15 @@ export class ClientTxExecutionContext {
   }
 
   /**
-   * Adding a nullifier into the current set of all pending nullifiers created
+   * Adding a siloed nullifier into the current set of all pending nullifiers created
    * within the current transaction/execution.
    * @param innerNullifier - The pending nullifier to add in the list (not yet siloed by contract address).
+   * @param contractAddress - The contract address
    */
-  public pushNewNullifier(innerNullifier: Fr) {
-    this.pendingNullifiers.add(innerNullifier);
+  public async pushNewNullifier(innerNullifier: Fr, contractAddress: AztecAddress) {
+    const wasm = await CircuitsWasm.get();
+    const siloedNullifier = siloNullifier(wasm, contractAddress, innerNullifier);
+    this.pendingNullifiers.add(siloedNullifier);
   }
 
   /**

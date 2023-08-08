@@ -92,13 +92,13 @@ export class PrivateFunctionExecution {
         });
         return Promise.resolve(ZERO_ACVM_FIELD);
       },
-      notifyNullifiedNote: ([slot], [nullifier], acvmPreimage, [innerNoteHash]) => {
+      notifyNullifiedNote: async ([slot], [nullifier], acvmPreimage, [innerNoteHash]) => {
         newNullifiers.push({
           preimage: acvmPreimage.map(f => fromACVMField(f)),
           storageSlot: fromACVMField(slot),
           nullifier: fromACVMField(nullifier),
         });
-        this.context.pushNewNullifier(fromACVMField(nullifier));
+        await this.context.pushNewNullifier(fromACVMField(nullifier), this.contractAddress);
         this.context.nullifyPendingNotes(fromACVMField(innerNoteHash), this.contractAddress, fromACVMField(slot));
         return Promise.resolve(ZERO_ACVM_FIELD);
       },
