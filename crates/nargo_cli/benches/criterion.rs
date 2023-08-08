@@ -8,7 +8,7 @@ use std::process::Command;
 
 include!("./utils.rs");
 
-macro_rules! iai_command {
+macro_rules! criterion_command {
     ($command_name:tt, $command_string:expr) => {
         paste! {
             fn [<criterion_selected_tests_ $command_name>](c: &mut Criterion) {
@@ -26,8 +26,8 @@ macro_rules! iai_command {
         }
     };
 }
-iai_command!(execution, "execute");
-iai_command!(prove, "prove");
+criterion_command!(execution, "execute");
+criterion_command!(prove, "prove");
 
 criterion_group! {
     name = benches;
