@@ -3,9 +3,6 @@ name: Publish Nargo
 on:
   workflow_dispatch:
     inputs:
-      noir-ref:
-        description: The noir reference to checkout
-        required: false
       publish:
         description: Whether to publish the build artifacts
         type: boolean
@@ -20,11 +17,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Checkout Noir repo
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.noir-ref || 'master' }}
 
       - name: Collect locked barretenberg rev
         run: |
@@ -78,11 +70,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Checkout Noir repo
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.noir-ref || 'master' }}
 
       - name: Setup for Apple Silicon
         if: matrix.target == 'aarch64-apple-darwin'
@@ -183,11 +170,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Checkout Noir repo
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.noir-ref || 'master' }}
-
       - uses: actions/cache@v3
         with:
           path: |
@@ -273,11 +255,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Checkout Noir repo
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ inputs.noir-ref || 'master' }}
 
       - uses: actions/cache@v3
         with:
