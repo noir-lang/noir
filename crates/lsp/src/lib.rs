@@ -1,20 +1,16 @@
-mod lib_hacky;
-use std::env;
-
 use std::{
     future::{self, Future},
     ops::{self, ControlFlow},
-    path::PathBuf,
     pin::Pin,
     task::{self, Poll},
 };
 
 use async_lsp::{
-    router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, ErrorCode,
-    LanguageClient, LspService, ResponseError,
+    router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LanguageClient,
+    LspService, ResponseError,
 };
 use codespan_reporting::files;
-use fm::FileManager;
+use fm::FILE_EXTENSION;
 use lsp_types::{
     notification, request, CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic,
     DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
@@ -22,9 +18,10 @@ use lsp_types::{
     InitializeParams, InitializeResult, InitializedParams, Position, PublishDiagnosticsParams,
     Range, ServerCapabilities, TextDocumentSyncOptions,
 };
-use noirc_driver::{check_crate, prepare_crate};
+use nargo::prepare_package;
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
+use noirc_driver::check_crate;
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
-use noirc_frontend::{graph::CrateGraph, hir::Context};
 use serde_json::Value as JsonValue;
 use tower::Service;
 
@@ -33,13 +30,12 @@ const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
 pub struct LspState {
-    root_path: Option<PathBuf>,
     client: ClientSocket,
 }
 
 impl LspState {
     fn new(client: &ClientSocket) -> Self {
-        Self { client: client.clone(), root_path: None }
+        Self { client: client.clone() }
     }
 }
 
@@ -49,35 +45,6 @@ pub struct NargoLspService {
 
 impl NargoLspService {
     pub fn new(client: &ClientSocket) -> Self {
-        // Using conditional running with lib_hacky to prevent non-hacky code from being identified as dead code
-        // Secondarily, provides a runtime way to stress the non-hacky code.
-        if env::var("NOIR_LSP_NO_HACK").is_err() {
-            let state = LspState::new(client);
-            let mut router = Router::new(state);
-            router
-                .request::<request::Initialize, _>(lib_hacky::on_initialize)
-                .request::<request::Shutdown, _>(lib_hacky::on_shutdown)
-                .request::<request::CodeLensRequest, _>(lib_hacky::on_code_lens_request)
-                .notification::<notification::Initialized>(lib_hacky::on_initialized)
-                .notification::<notification::DidChangeConfiguration>(
-                    lib_hacky::on_did_change_configuration,
-                )
-                .notification::<notification::DidOpenTextDocument>(
-                    lib_hacky::on_did_open_text_document,
-                )
-                .notification::<notification::DidChangeTextDocument>(
-                    lib_hacky::on_did_change_text_document,
-                )
-                .notification::<notification::DidCloseTextDocument>(
-                    lib_hacky::on_did_close_text_document,
-                )
-                .notification::<notification::DidSaveTextDocument>(
-                    lib_hacky::on_did_save_text_document,
-                )
-                .notification::<notification::Exit>(lib_hacky::on_exit);
-            return Self { router };
-        }
-
         let state = LspState::new(client);
         let mut router = Router::new(state);
         router
@@ -134,13 +101,9 @@ impl LspService for NargoLspService {
 // and params passed in.
 
 fn on_initialize(
-    state: &mut LspState,
-    params: InitializeParams,
+    _state: &mut LspState,
+    _params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
-    if let Some(root_uri) = params.root_uri {
-        state.root_path = root_uri.to_file_path().ok();
-    }
-
     async {
         let text_document_sync =
             TextDocumentSyncOptions { save: Some(true.into()), ..Default::default() };
@@ -167,57 +130,52 @@ fn on_shutdown(
 }
 
 fn on_code_lens_request(
-    state: &mut LspState,
+    _state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
-    let file_path = &params.text_document.uri.to_file_path().unwrap();
+    let file_path = params.text_document.uri.to_file_path().unwrap();
+    let program_dir = file_path.parent().unwrap();
 
-    let mut context = match &state.root_path {
-        Some(root_path) => {
-            let fm = FileManager::new(root_path);
-            let graph = CrateGraph::default();
-            Context::new(fm, graph)
-        }
-        None => {
-            let err = ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                "Unable to determine the project root path",
-            );
-            return future::ready(Err(err));
-        }
-    };
-
-    let crate_id = prepare_crate(&mut context, file_path);
-
-    // We ignore the warnings and errors produced by compilation for producing codelenses
-    // because we can still get the test functions even if compilation fails
-    let _ = check_crate(&mut context, crate_id, false);
-
-    let fm = &context.file_manager;
-    let files = fm.as_simple_files();
-    let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
+    let toml_path = find_package_manifest(program_dir).unwrap();
+    let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
 
     let mut lenses: Vec<CodeLens> = vec![];
-    for (func_name, func_id) in tests {
-        let location = context.function_meta(&func_id).name.location;
-        let file_id = location.file;
-        // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
-        if file_id.as_usize() != 0 {
-            continue;
+
+    for package in &workspace {
+        let (mut context, crate_id) = prepare_package(package);
+        // We ignore the warnings and errors produced by compilation for producing codelenses
+        // because we can still get the test functions even if compilation fails
+        let _ = check_crate(&mut context, crate_id, false);
+
+        let fm = &context.file_manager;
+        let files = fm.as_simple_files();
+        let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
+
+        for (func_name, func_id) in tests {
+            let location = context.function_meta(&func_id).name.location;
+            let file_id = location.file;
+
+            // Ignore diagnostics for any file that wasn't the file we saved
+            // TODO: In the future, we could create "related" diagnostics for these files
+            // TODO: This currently just appends the `.nr` file extension that we store as a constant,
+            // but that won't work if we accept other extensions
+            if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                continue;
+            }
+
+            let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
+                .unwrap_or_default();
+
+            let command = Command {
+                title: TEST_CODELENS_TITLE.into(),
+                command: TEST_COMMAND.into(),
+                arguments: Some(vec![func_name.into()]),
+            };
+
+            let lens = CodeLens { range, command: command.into(), data: None };
+
+            lenses.push(lens);
         }
-
-        let range =
-            byte_span_to_range(files, file_id.as_usize(), location.span.into()).unwrap_or_default();
-
-        let command = Command {
-            title: TEST_CODELENS_TITLE.into(),
-            command: TEST_COMMAND.into(),
-            arguments: Some(vec![func_name.into()]),
-        };
-
-        let lens = CodeLens { range, command: command.into(), data: None };
-
-        lenses.push(lens);
     }
 
     let res = if lenses.is_empty() { Ok(None) } else { Ok(Some(lenses)) };
@@ -264,60 +222,56 @@ fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let file_path = &params.text_document.uri.to_file_path().unwrap();
-    let mut context = match &state.root_path {
-        Some(root_path) => {
-            let fm = FileManager::new(root_path);
-            let graph = CrateGraph::default();
-            Context::new(fm, graph)
-        }
-        None => {
-            let err = ResponseError::new(
-                ErrorCode::REQUEST_FAILED,
-                "Unable to determine the project root path",
-            );
-            return ControlFlow::Break(Err(err.into()));
-        }
-    };
+    let file_path = params.text_document.uri.to_file_path().unwrap();
+    let program_dir = file_path.parent().unwrap();
 
-    let crate_id = prepare_crate(&mut context, file_path);
+    let toml_path = find_package_manifest(program_dir).unwrap();
+    let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
 
     let mut diagnostics = Vec::new();
 
-    let file_diagnostics = match check_crate(&mut context, crate_id, false) {
-        Ok(warnings) => warnings,
-        Err(errors_and_warnings) => errors_and_warnings,
-    };
+    for package in &workspace {
+        let (mut context, crate_id) = prepare_package(package);
 
-    if !file_diagnostics.is_empty() {
-        let fm = &context.file_manager;
-        let files = fm.as_simple_files();
+        let file_diagnostics = match check_crate(&mut context, crate_id, false) {
+            Ok(warnings) => warnings,
+            Err(errors_and_warnings) => errors_and_warnings,
+        };
 
-        for FileDiagnostic { file_id, diagnostic } in file_diagnostics {
-            // TODO(#1681): This file_id never be 0 because the "path" where it maps is the directory, not a file
-            if file_id.as_usize() != 0 {
-                continue;
-            }
+        if !file_diagnostics.is_empty() {
+            let fm = &context.file_manager;
+            let files = fm.as_simple_files();
 
-            let mut range = Range::default();
-
-            // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
-            for sec in diagnostic.secondaries {
-                // Not using `unwrap_or_default` here because we don't want to overwrite a valid range with a default range
-                if let Some(r) = byte_span_to_range(files, file_id.as_usize(), sec.span.into()) {
-                    range = r
+            for FileDiagnostic { file_id, diagnostic } in file_diagnostics {
+                // Ignore diagnostics for any file that wasn't the file we saved
+                // TODO: In the future, we could create "related" diagnostics for these files
+                // TODO: This currently just appends the `.nr` file extension that we store as a constant,
+                // but that won't work if we accept other extensions
+                if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                    continue;
                 }
+
+                let mut range = Range::default();
+
+                // TODO: Should this be the first item in secondaries? Should we bail when we find a range?
+                for sec in diagnostic.secondaries {
+                    // Not using `unwrap_or_default` here because we don't want to overwrite a valid range with a default range
+                    if let Some(r) = byte_span_to_range(files, file_id.as_usize(), sec.span.into())
+                    {
+                        range = r
+                    }
+                }
+                let severity = match diagnostic.kind {
+                    DiagnosticKind::Error => Some(DiagnosticSeverity::ERROR),
+                    DiagnosticKind::Warning => Some(DiagnosticSeverity::WARNING),
+                };
+                diagnostics.push(Diagnostic {
+                    range,
+                    severity,
+                    message: diagnostic.message,
+                    ..Diagnostic::default()
+                })
             }
-            let severity = match diagnostic.kind {
-                DiagnosticKind::Error => Some(DiagnosticSeverity::ERROR),
-                DiagnosticKind::Warning => Some(DiagnosticSeverity::WARNING),
-            };
-            diagnostics.push(Diagnostic {
-                range,
-                severity,
-                message: diagnostic.message,
-                ..Diagnostic::default()
-            })
         }
     }
 
