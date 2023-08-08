@@ -5,7 +5,6 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use paste::paste;
 use pprof::criterion::{Output, PProfProfiler};
 use std::process::Command;
-
 include!("./utils.rs");
 
 macro_rules! criterion_command {
