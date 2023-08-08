@@ -50,6 +50,7 @@
         "nand",
         "pedersen",
         "peekable",
+        "pprof",
         "preprocess",
         "pseudocode",
         "schnorr",
