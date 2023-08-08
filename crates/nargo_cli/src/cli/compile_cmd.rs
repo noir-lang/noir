@@ -37,10 +37,6 @@ pub(crate) struct CompileCommand {
     #[arg(long)]
     include_keys: bool,
 
-    /// Compile each contract function used within the program
-    #[arg(short, long)]
-    contracts: bool,
-
     /// The name of the package to compile
     #[clap(long)]
     package: Option<CrateName>,
@@ -60,10 +56,10 @@ pub(crate) fn run<B: Backend>(
 
     let mut common_reference_string = read_cached_common_reference_string();
 
-    // If contracts is set we're compiling every function in a 'contract' rather than just 'main'.
-    if args.contracts {
-        for package in &workspace {
-            let (mut context, crate_id) = prepare_package(package);
+    for package in &workspace {
+        let (mut context, crate_id) = prepare_package(package);
+        // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
+        if package.is_contract() {
             let result = compile_contracts(&mut context, crate_id, &args.compile_options);
             let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
 
@@ -105,9 +101,7 @@ pub(crate) fn run<B: Backend>(
                     &circuit_dir,
                 );
             }
-        }
-    } else {
-        for package in &workspace {
+        } else {
             let (_, program) = compile_package(backend, package, &args.compile_options)?;
 
             common_reference_string =

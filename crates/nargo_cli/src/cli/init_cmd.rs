@@ -37,6 +37,13 @@ fn test_main() {
 }
 "#;
 
+const CONTRACT_EXAMPLE: &str = r#"contract Main {
+    fn double(x: Field) -> pub Field { x * 2 }
+    fn triple(x: Field) -> pub Field { x * 3 }
+    internal fn quadruple(x: Field) -> pub Field { x * 4 }
+}
+"#;
+
 const LIB_EXAMPLE: &str = r#"fn my_util(x : Field, y : Field) -> bool {
     x != y
 }
@@ -88,6 +95,9 @@ compiler_version = "{CARGO_PKG_VERSION}"
     // This uses the `match` syntax instead of `if` so we get a compile error when we add new package types (which likely need new template files)
     match package_type {
         PackageType::Binary => write_to_file(BIN_EXAMPLE.as_bytes(), &src_dir.join("main.nr")),
+        PackageType::Contract => {
+            write_to_file(CONTRACT_EXAMPLE.as_bytes(), &src_dir.join("main.nr"))
+        }
         PackageType::Library => write_to_file(LIB_EXAMPLE.as_bytes(), &src_dir.join("lib.nr")),
     };
     println!("Project successfully created! It is located at {}", package_dir.display());
