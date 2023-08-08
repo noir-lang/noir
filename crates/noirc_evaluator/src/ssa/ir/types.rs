@@ -37,6 +37,11 @@ pub(crate) enum Type {
 }
 
 impl Type {
+    /// Returns whether the `Type` represents an unsigned numeric type.
+    pub(crate) fn is_unsigned(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::Unsigned { .. }))
+    }
+
     /// Create a new signed integer type with the given amount of bits.
     pub(crate) fn signed(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Signed { bit_size })
