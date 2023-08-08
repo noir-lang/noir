@@ -159,7 +159,7 @@ jobs:
     needs: [build-barretenberg]
     runs-on: ubuntu-22.04
     env:
-      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+      CROSS_CONFIG: ${{ github.workspace }}/noir/.github/Cross.toml
     strategy:
       fail-fast: false
       matrix:
