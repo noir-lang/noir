@@ -1,0 +1,361 @@
+name: Publish Nargo
+
+on:
+  workflow_dispatch:
+    inputs:
+      noir-ref:
+        description: The noir reference to checkout
+        required: false
+      publish:
+        description: Whether to publish the build artifacts
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 2 * * *" # run at 2 AM UTC
+  push:
+
+jobs:
+  build-barretenberg:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Checkout Noir repo
+        uses: actions/checkout@v3
+        with:
+          repository: noir-lang/noir
+          path: noir
+          ref: ${{ inputs.noir-ref || 'master' }}
+
+      - name: Collect locked barretenberg rev
+        run: |
+          echo "BB_REV=$(jq -r .nodes.barretenberg.locked.rev ./noir/flake.lock)" >> $GITHUB_ENV
+
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-22.11
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: cachix/cachix-action@v12
+        with:
+          name: barretenberg
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      # Upload does not work with symlinks, using this workaround:
+      # https://github.com/actions/upload-artifact/issues/92#issuecomment-1080347032
+      - name: Build barretenberg as libbarretenberg-wasm32
+        run: |
+          nix build "github:AztecProtocol/barretenberg/${{ env.BB_REV }}#wasm32"
+          echo "ARTIFACT_UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: libbarretenberg-wasm32
+          path: ${{ env.ARTIFACT_UPLOAD_PATH }}
+          retention-days: 3
+
+      # If we're performing a nightly build and it fails acceptance tests then raise an issue.
+      - name: Alert on nightly build failure
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          update_existing: true
+          filename: .github/NIGHTLY_BUILD_FAILURE.md
+
+  build-apple-darwin:
+    needs: [build-barretenberg]
+    runs-on: macos-latest
+    env:
+      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+    strategy:
+      matrix:
+        target: [x86_64-apple-darwin, aarch64-apple-darwin]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Checkout Noir repo
+        uses: actions/checkout@v3
+        with:
+          repository: noir-lang/noir
+          path: noir
+          ref: ${{ inputs.noir-ref || 'master' }}
+
+      - name: Setup for Apple Silicon
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          sudo xcode-select -s /Applications/Xcode_13.2.1.app/Contents/Developer/
+          echo "SDKROOT=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-path)" >> $GITHUB_ENV
+          echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: libbarretenberg-wasm32
+          path: ${{ github.workspace }}/libbarretenberg-wasm32
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build environment and Compile
+        working-directory: noir
+        env:
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
+        run: |
+          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
+
+      - name: Package artifacts
+        working-directory: noir
+        run: |
+          mkdir dist
+          cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo-${{ matrix.target }}
+          path: ./noir/dist/*
+          retention-days: 3
+
+      - name: Test built artifact
+        if: matrix.target == 'x86_64-apple-darwin'
+        run: |
+          cp ./noir/target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
+          npm install
+          npm test
+
+      - name: Upload binaries to Noir Repo
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
+          file: ./noir/nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          overwrite: true
+          tag: ${{ inputs.noir-ref || 'nightly' }} # This will fail if noir-ref is not a tag (e.g. testing a branch)
+
+      # If we're performing a nightly build and it fails acceptance tests then raise an issue.
+      - name: Alert on nightly build failure
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          update_existing: true
+          filename: .github/NIGHTLY_BUILD_FAILURE.md
+
+  build-linux:
+    needs: [build-barretenberg]
+    runs-on: ubuntu-22.04
+    env:
+      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          [
+            x86_64-unknown-linux-gnu,
+            x86_64-unknown-linux-musl,
+            aarch64-unknown-linux-gnu,
+            aarch64-unknown-linux-musl,
+          ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Checkout Noir repo
+        uses: actions/checkout@v3
+        with:
+          repository: noir-lang/noir
+          path: noir
+          ref: ${{ inputs.noir-ref || 'master' }}
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: libbarretenberg-wasm32
+          path: ${{ github.workspace }}/libbarretenberg-wasm32
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build Nargo
+        working-directory: noir
+        env:
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
+        run: |
+          cargo install cross --force --git https://github.com/cross-rs/cross
+          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
+
+      - name: Package artifacts
+        working-directory: noir
+        run: |
+          mkdir dist
+          cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
+          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-${{ matrix.target }}.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo-${{ matrix.target }}
+          path: ./noir/dist/*
+          retention-days: 3
+
+      - name: Test built artifact
+        if: startsWith(matrix.target, 'x86_64-unknown-linux')
+        run: |
+          cp ./noir/target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
+          npm install
+          npm test
+
+      - name: Upload binaries to Noir Repo
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
+          file: ./noir/nargo-${{ matrix.target }}.tar.gz
+          asset_name: nargo-${{ matrix.target }}.tar.gz
+          overwrite: true
+          tag: ${{ inputs.noir-ref || 'nightly' }} # This will fail if noir-ref is not a tag (e.g. testing a branch)
+
+      # If we're performing a nightly build and it fails acceptance tests then raise an issue.
+      - name: Alert on nightly build failure
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          update_existing: true
+          filename: .github/NIGHTLY_BUILD_FAILURE.md
+
+  build-windows:
+    needs: [build-barretenberg]
+    runs-on: windows-2022
+    env:
+      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+    strategy:
+      matrix:
+        target: [x86_64-pc-windows-msvc]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Checkout Noir repo
+        uses: actions/checkout@v3
+        with:
+          repository: noir-lang/noir
+          path: noir
+          ref: ${{ inputs.noir-ref || 'master' }}
+
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: libbarretenberg-wasm32
+          path: ${{ github.workspace }}/libbarretenberg-wasm32
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.66.0
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build environment and Compile
+        working-directory: noir
+        env:
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
+        run: |
+          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
+
+      - name: Package artifacts
+        working-directory: noir
+        run: |
+          mkdir dist
+          cp ./target/${{ matrix.target }}/release/nargo.exe ./dist/nargo.exe
+          7z a -tzip nargo-${{ matrix.target }}.zip ./dist/*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nargo-${{ matrix.target }}
+          path: ./noir/dist/*
+          retention-days: 3
+
+      - name: Test built artifact
+        shell: powershell
+        run: |
+          cp ./noir/target/${{ matrix.target }}/release/nargo.exe ~/.cargo/bin/
+
+          npm install
+          npm test
+
+      - name: Upload binaries to Noir Repo
+        uses: svenstaro/upload-release-action@v2
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        with:
+          repo_name: noir-lang/noir
+          repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
+          file: ./noir/nargo-${{ matrix.target }}.zip
+          asset_name: nargo-${{ matrix.target }}.zip
+          overwrite: true
+          tag: ${{ inputs.noir-ref || 'nightly' }} # This will fail if noir-ref is not a tag (e.g. testing a branch)
+
+      # If we're performing a nightly build and it fails acceptance tests then raise an issue.
+      - name: Alert on nightly build failure
+        uses: JasonEtco/create-an-issue@v2
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          update_existing: true
+          filename: .github/NIGHTLY_BUILD_FAILURE.md
