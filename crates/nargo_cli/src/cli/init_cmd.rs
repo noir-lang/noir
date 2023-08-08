@@ -38,9 +38,9 @@ fn test_main() {
 "#;
 
 const CONTRACT_EXAMPLE: &str = r#"contract Main {
-    fn double(x: Field) -> pub Field { x * 2 }
+    internal fn double(x: Field) -> pub Field { x * 2 }
     fn triple(x: Field) -> pub Field { x * 3 }
-    internal fn quadruple(x: Field) -> pub Field { x * 4 }
+    fn quadruple(x: Field) -> pub Field { double(double(x)) }
 }
 "#;
 
