@@ -1,24 +1,137 @@
+const { match } = require("assert");
 const fs = require("fs");
 const path = require("path");
 
 const getLineNumberFromIndex = (fileContent, index) => {
-  return fileContent.substr(0, index).split("\n").length;
+  return fileContent.substring(0, index).split("\n").length;
 };
 
+/**
+ * Search for lines of the form
+ */
+function processHighlighting(codeSnippet, identifier) {
+  const lines = codeSnippet.split("\n");
+  /**
+   * For an identifier = bar:
+   *
+   * Matches of the form: `highlight-next-line:foo:bar:baz` will be replaced with "highlight-next-line".
+   * Matches of the form: `highlight-next-line:foo:baz` will be replaced with "".
+   */
+  const regex1 = /highlight-next-line:([a-zA-Z0-9-._:]+)/;
+  const replacement1 = "highlight-next-line";
+  const regex2 = /highlight-start:([a-zA-Z0-9-._:]+)/;
+  const replacement2 = "highlight-start";
+  const regex3 = /highlight-end:([a-zA-Z0-9-._:]+)/;
+  const replacement3 = "highlight-end";
+  const regex4 = /this-will-error:([a-zA-Z0-9-._:]+)/;
+  const replacement4 = "this-will-error";
+
+  let result = "";
+  let mutated = false;
+
+  const processLine = (line, regex, replacement) => {
+    const match = line.match(regex);
+    if (match) {
+      mutated = true;
+
+      const identifiers = match[1].split(":");
+      if (identifiers.includes(identifier)) {
+        line = line.replace(match[0], replacement);
+      } else {
+        // Remove matched text completely
+        line = line.replace(match[0], "");
+      }
+    } else {
+      // No match: it's an ordinary line of code.
+    }
+    return line.trim() == "//" || line.trim() == "#" ? "" : line;
+  };
+
+  for (let line of lines) {
+    mutated = false;
+    line = processLine(line, regex1, replacement1);
+    line = processLine(line, regex2, replacement2);
+    line = processLine(line, regex3, replacement3);
+    line = processLine(line, regex4, replacement4);
+    result += line === "" && mutated ? "" : line + "\n";
+  }
+
+  return result.trim();
+}
+
 function extractCodeSnippet(filePath, identifier) {
-  const fileContent = fs.readFileSync(filePath, "utf-8");
+  let fileContent = fs.readFileSync(filePath, "utf-8");
+  let lineRemovalCount = 0;
+  let linesToRemove = [];
 
-  const startTag = `// docs:start:${identifier}`;
-  const endTag = `// docs:end:${identifier}`;
-  const startIndex = fileContent.indexOf(startTag);
-  const endIndex = fileContent.indexOf(endTag);
+  // const startCommonRegexStr = "docs:start:([a-zA-Z0-9-:]+)";
+  // const startRegexStr = `\/\/\s+${startCommonRegexStr}|#s+${startCommonRegexStr}`; // Allow for languages with `//` and `#` comment symbols.
+  // const startRegex = new RegExp(startRegexStr, "g");
 
-  if (startIndex === -1 || endIndex === -1) {
-    if (startIndex === -1 && endIndex === -1) {
+  // const endCommonRegexStr = "docs:end:([a-zA-Z0-9-:]+)";
+  // const endRegexStr = `\/\/\s+${endCommonRegexStr}|#s+${endCommonRegexStr}`; // Allow for languages with `//` and `#` comment symbols.
+  // const endRegex = new RegExp(endRegexStr, "g");
+
+  const startRegex = /(?:\/\/|#)\s+docs:start:([a-zA-Z0-9-._:]+)/g; // `g` will iterate through the regex.exec loop
+  const endRegex = /(?:\/\/|#)\s+docs:end:([a-zA-Z0-9-._:]+)/g;
+
+  // const startRegex = /\/\/\s+docs:start:([a-zA-Z0-9-:]+)/g; // `g` will iterate through the regex.exec loop
+  // const endRegex = /\/\/\s+docs:end:([a-zA-Z0-9-:]+)/g;
+
+  const lookForMatch = (regex) => {
+    let match;
+    let matchFound = false;
+    let matchedLineNum = null;
+    let actualMatch = null;
+    let lines = fileContent.split("\n");
+    while ((match = regex.exec(fileContent))) {
+      if (match !== null) {
+        const identifiers = match[1].split(":");
+        let tempMatch = identifiers.includes(identifier) ? match : null;
+
+        if (tempMatch === null) {
+          // If it's not a match, we'll make a note that we should remove the matched text, because it's from some other identifier and should appear in the snippet for this identifier.
+          for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+            if (line.trim() == match[0].trim()) {
+              linesToRemove.push(i);
+              ++lineRemovalCount;
+            }
+          }
+        } else {
+          if (matchFound === true) {
+            throw new Error(
+              `Duplicate for regex ${regex} and identifier ${identifier}`
+            );
+          }
+          matchFound = true;
+          matchedLineNum = getLineNumberFromIndex(fileContent, tempMatch.index);
+          actualMatch = tempMatch;
+        }
+      }
+    }
+
+    return [actualMatch, matchedLineNum];
+  };
+
+  let [startMatch, lineNum1] = lookForMatch(startRegex);
+  let [endMatch, lineNum2] = lookForMatch(endRegex);
+
+  if (startMatch !== null) {
+    const startIdentifiers = startMatch[1].split(":");
+    startMatch = startIdentifiers.includes(identifier) ? startMatch : null;
+  }
+  if (endMatch !== null) {
+    const endIdentifiers = endMatch[1].split(":");
+    endMatch = endIdentifiers.includes(identifier) ? endMatch : null;
+  }
+
+  if (startMatch === null || endMatch === null) {
+    if (startMatch === null && endMatch === null) {
       throw new Error(
         `Identifier "${identifier}" not found in file "${filePath}"`
       );
-    } else if (startIndex === -1) {
+    } else if (startMatch === null) {
       throw new Error(
         `Start line "docs:start:${identifier}" not found in file "${filePath}"`
       );
@@ -29,14 +142,30 @@ function extractCodeSnippet(filePath, identifier) {
     }
   }
 
-  const slicedContent = fileContent
-    .slice(startIndex + startTag.length, endIndex)
-    .trim();
+  let startIndex = startMatch.index;
+  let endIndex = endMatch.index;
+
+  let lines = fileContent.split("\n");
+
+  lines = lines.filter((l, i) => {
+    return !linesToRemove.includes(i);
+  });
+
+  lines = lines.filter((l, i) => {
+    return i + 1 > lineNum1 && i + 1 < lineNum2 - lineRemovalCount;
+  });
+
+  fileContent = lines.join("\n");
+
+  let codeSnippet = lines.join("\n");
 
   const startLine = getLineNumberFromIndex(fileContent, startIndex) + 1;
-  const endLine = getLineNumberFromIndex(fileContent, endIndex) - 1;
+  const endLine =
+    getLineNumberFromIndex(fileContent, endIndex) - 1 - lineRemovalCount;
 
-  return [slicedContent, startLine, endLine];
+  codeSnippet = processHighlighting(codeSnippet, identifier);
+
+  return [codeSnippet, startLine, endLine];
 }
 
 async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
@@ -80,7 +209,7 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
             codeFilePath
           )}#L${startLine}-L${endLine}`;
 
-          const replacement = `\`\`\`${language} title=${identifier} showLineNumbers \n${codeSnippet}\n\`\`\`\n> [Link to source code.](${url})\n`;
+          const replacement = `\`\`\`${language} title="${identifier}" showLineNumbers \n${codeSnippet}\n\`\`\`\n> [<sup><sub>Source code: ${url}</sub></sup>](${url})\n`;
 
           // Replace the include tag with the code snippet
           updatedContent = updatedContent.replace(fullMatch, replacement);
@@ -158,7 +287,7 @@ async function writeProcessedFiles(docsDir, destDir, cachedDestDir, content) {
         const cachedFileContent = fs.readFileSync(cachedDestFilePath, "utf-8");
         if (existingFileContent !== cachedFileContent) {
           throw new Error(
-            `It looks like you might have accidentally edited files in the 'processed-docs/' dir instead of the 'docs/' dir (because there's a discrepancy between 'preprocessed-docs' and 'preprocessed-docs-cache', but they should always be the same unless they're tampered-with).\n\nWe don't want you to accidentally overwrite your work.\n\nCopy your work to the 'docs/' dir, and revert your 'processed-docs/' changes.\n\nI.e. copy from here: ${destFilePath}\n\nto here: ${content.filepath}\n\nIf this error's safety assumption is wrong, and you'd like to proceed with building, please delete the cached file ${cachedDestFilePath} and rerun the build.\n\n`
+            `It looks like you might have accidentally edited files in the 'processed-docs/' dir instead of the 'docs/' dir (because there's a discrepancy between 'preprocessed-docs' and 'preprocessed-docs-cache', but they should always be the same unless they're tampered-with).\n\nWe don't want you to accidentally overwrite your work.\n\nCopy your work to the 'docs/' dir, and revert your 'processed-docs/' changes.\n\nI.e. copy from here: ${destFilePath}\n\nto here: ${content.filepath}\n\nIf this error's safety assumption is wrong, and you'd like to proceed with building, please delete the cached file ${cachedDestFilePath} and rerun the build.\n\nAnd if you've not made any changes at all to the docs and you've just pulled master and are wondering what is going on, you might want to run \`yarn clear\` from this docs dir.`
           );
         }
       }

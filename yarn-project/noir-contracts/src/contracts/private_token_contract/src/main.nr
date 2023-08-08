@@ -1,7 +1,6 @@
-mod claim_note;
 mod storage;
 
-contract ZkToken {
+contract PrivateToken {
     // Libs
     use dep::value_note::{
         balance_utils,
@@ -18,9 +17,9 @@ contract ZkToken {
     };
     use dep::aztec::log::emit_unencrypted_log;
 
+    // docs:start:storage-import
     use crate::storage::Storage;
-    use crate::claim_note::{ClaimNote, ClaimNoteMethods};
-
+    // docs:end:storage-import
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
     fn constructor(
@@ -93,61 +92,6 @@ contract ZkToken {
         context.finish()
     }
 
-    fn createClaims(
-        //*********************************/
-        // Should eventually be hidden:
-        inputs: PrivateContextInputs,
-        //*********************************/
-        amounts: [Field; 2], 
-        secrets: [Field; 2], 
-        sender: Field
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amounts[0], amounts[1], secrets[0], secrets[1], sender]));
-
-        // Pick from the set of sender's notes to spend amount.
-        let sender_balance = storage.balances.at(sender);
-        let total = amounts[0] + amounts[1];
-        spend_notes(&mut context, sender_balance, total, sender);
-
-        // Create claim notes.
-        let claims = storage.claims;
-        let mut note0 = ClaimNote::new(amounts[0], secrets[0]);
-        let mut note1 = ClaimNote::new(amounts[1], secrets[1]);
-
-        // Insert the new claim notes to the set.
-        claims.insert(&mut context, &mut note0);
-        claims.insert(&mut context, &mut note1);
-
-        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
-        context.finish()
-    }
-
-    fn claim(
-        //*********************************/
-        // Should eventually be hidden:
-        inputs: PrivateContextInputs,
-        //*********************************/
-        amount: Field,
-        secret: Field,
-        owner: Field
-    ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, secret, owner]));
-
-        // Remove the claim note if it exists in the set.
-        let mut note = ClaimNote::new(amount, secret);
-        storage.claims.assert_contains(&mut context, &mut note);
-        storage.claims.remove(&mut context, note);
-
-        // Send the value note.
-        let balance = storage.balances.at(owner);
-        send_note(&mut context, balance, amount, owner);
-
-        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
-        context.finish()
-    }
-
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).
     unconstrained fn getBalance(
         owner: Field,
@@ -166,10 +110,6 @@ contract ZkToken {
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
-        if (storage_slot == 2) {
-            note_utils::compute_note_hash_and_nullifier(ClaimNoteMethods, note_header, preimage)
-        } else {
-            note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
-        }
+        note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
 }

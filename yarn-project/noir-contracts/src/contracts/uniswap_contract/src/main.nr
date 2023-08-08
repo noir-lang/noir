@@ -63,14 +63,14 @@ contract Uniswap {
         // inputAsset.withdraw(inputAmount, sender, recipient=l1UniswapPortal, callerOnL1=l1UniswapPortal) 
         // only uniswap portal can call this (done to safeguard ordering of message consumption)
         // ref: https://docs.aztec.network/aztec/how-it-works/l1-l2-messaging#designated-caller
-        let callStackItem = context.call_private_function(inputAsset, withdrawFnSelector, [
+        let return_values = context.call_private_function(inputAsset, withdrawFnSelector, [
             inputAmount,
             sender,
             l1UniswapPortal,
             l1UniswapPortal,
         ]);
         
-        let result = callStackItem.public_inputs.return_values[0];
+        let result = return_values[0];
         context.return_values.push(result);
 
         // Send the swap message to L1 portal

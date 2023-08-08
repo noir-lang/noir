@@ -96,6 +96,26 @@ impl Context {
         }
     }
 
+    fn msg_sender(self) -> Field {
+        self.inputs.call_context.msg_sender
+    }
+
+    fn this_address(self) -> Field {
+        self.inputs.call_context.storage_contract_address
+    }
+
+    fn this_portal_address(self) -> Field {
+        self.inputs.call_context.portal_contract_address
+    }
+
+    fn chain_id(self) -> Field {
+        self.inputs.private_global_variables.chain_id
+    }
+
+    fn version(self) -> Field {
+        self.inputs.private_global_variables.version
+    }
+
     fn finish(self) -> abi::PrivateCircuitPublicInputs {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)
         let encrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];
@@ -165,10 +185,18 @@ impl Context {
         contract_address: Field, 
         function_selector: Field, 
         args: [Field; ARGS_COUNT]
-    ) -> PrivateCallStackItem {
+    ) -> [Field; RETURN_VALUES_LENGTH] {
         let args_hash = hash_args(args);
         assert(args_hash == arguments::pack_arguments(args));
         self.call_private_function_with_packed_args(contract_address, function_selector, args_hash)
+    }
+
+    fn call_private_function_no_args(
+        &mut self,
+        contract_address: Field, 
+        function_selector: Field, 
+    ) -> [Field; RETURN_VALUES_LENGTH] {
+        self.call_private_function_with_packed_args(contract_address, function_selector, 0)
     }
 
     fn call_private_function_with_packed_args(
@@ -176,7 +204,7 @@ impl Context {
         contract_address: Field,
         function_selector: Field,
         args_hash: Field
-    ) -> PrivateCallStackItem {
+    ) -> [Field; RETURN_VALUES_LENGTH] {
         let fields = call_private_function_internal(
             contract_address, 
             function_selector, 
@@ -253,7 +281,7 @@ impl Context {
 
         self.private_call_stack.push(item.hash());
 
-        item
+        item.public_inputs.return_values
     }
 
     fn call_public_function<ARGS_COUNT>(
@@ -261,10 +289,18 @@ impl Context {
         contract_address: Field, 
         function_selector: Field, 
         args: [Field; ARGS_COUNT]
-    ) -> PublicCallStackItem {
+    ) -> [Field; RETURN_VALUES_LENGTH] {
         let args_hash = hash_args(args);
         assert(args_hash == arguments::pack_arguments(args));
         self.call_public_function_with_packed_args(contract_address, function_selector, args_hash)
+    }
+
+    fn call_public_function_no_args(
+        &mut self,
+        contract_address: Field, 
+        function_selector: Field,
+    ) -> [Field; RETURN_VALUES_LENGTH] {
+        self.call_public_function_with_packed_args(contract_address, function_selector, 0)
     }
 
     fn call_public_function_with_packed_args(
@@ -272,7 +308,7 @@ impl Context {
         contract_address: Field,
         function_selector: Field,
         args_hash: Field
-    ) -> PublicCallStackItem {
+    ) -> [Field; RETURN_VALUES_LENGTH] {
         let fields = enqueue_public_function_call_internal(
             contract_address, 
             function_selector, 
@@ -330,6 +366,6 @@ impl Context {
 
         self.public_call_stack.push(item.hash());
 
-        item
+        item.public_inputs.return_values
     }
 }

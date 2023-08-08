@@ -2,7 +2,7 @@ import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
-import { ZkTokenContract } from '@aztec/noir-contracts/types';
+import { PrivateTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
 import {
@@ -11,14 +11,14 @@ import {
   setup,
 } from './fixtures/utils.js';
 
-describe('e2e_zk_token_contract', () => {
+describe('e2e_private_token_contract', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
   let accounts: AztecAddress[];
   let logger: DebugLogger;
 
-  let contract: ZkTokenContract;
+  let contract: PrivateTokenContract;
 
   beforeEach(async () => {
     ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
@@ -39,7 +39,7 @@ describe('e2e_zk_token_contract', () => {
 
   const deployContract = async (initialBalance: bigint, owner: AztecAddress) => {
     logger(`Deploying L2 contract...`);
-    contract = await ZkTokenContract.deploy(wallet, initialBalance, owner).send().deployed();
+    contract = await PrivateTokenContract.deploy(wallet, initialBalance, owner).send().deployed();
     logger(`L2 contract deployed at ${contract.address}`);
   };
 
@@ -47,7 +47,7 @@ describe('e2e_zk_token_contract', () => {
    * Milestone 1.3.
    * https://hackmd.io/AG5rb9DyTRu3y7mBptWauA
    */
-  it('1.3 should deploy zk token contract with initial token minted to the account', async () => {
+  it('1.3 should deploy private token contract with initial token minted to the account', async () => {
     const initialBalance = 987n;
     await deployContract(initialBalance, accounts[0]);
     await expectBalance(accounts[0], initialBalance);

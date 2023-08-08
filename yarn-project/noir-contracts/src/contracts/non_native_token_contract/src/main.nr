@@ -201,7 +201,7 @@ contract NonNativeToken {
 
 
     // Transfers `amount` of tokens from `sender`'s private balance to a `recipient`.
-    // Note: Copied from ZkToken
+    // Note: Copied from PrivateToken
     fn transfer(
         //*********************************/
         // Should eventually be hidden:

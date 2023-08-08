@@ -76,13 +76,13 @@ Please note that any example contract set out herein is provided solely for info
   Alternatively you can run `yarn noir:build CONTRACT1 CONTRACT2...` to build a subset of contracts:
 
   ```
-  yarn noir:build zk_token public_token
+  yarn noir:build private_token public_token
   ```
 
   To view compilation output, including errors, run with the `VERBOSE=1` flag:
 
   ```
-  VERBOSE=1 yarn noir:build zk_token public_token
+  VERBOSE=1 yarn noir:build private_token public_token
   ```
 
 ## Creating a new contract package

@@ -1,7 +1,7 @@
 import * as AztecJs from '@aztec/aztec.js';
 import { AztecAddress, PrivateKey } from '@aztec/circuits.js';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
-import { SchnorrSingleKeyAccountContractAbi, ZkTokenContractAbi } from '@aztec/noir-contracts/artifacts';
+import { PrivateTokenContractAbi, SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 
 import { Server } from 'http';
 import Koa from 'koa';
@@ -108,14 +108,14 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
     expect(result).toEqual(account.toString());
   });
 
-  it('Deploys ZK Token contract', async () => {
+  it('Deploys Private Token contract', async () => {
     const txHash = await page.evaluate(
-      async (rpcUrl, initialBalance, ZkTokenContractAbi) => {
+      async (rpcUrl, initialBalance, PrivateTokenContractAbi) => {
         const { DeployMethod, createAztecRpcClient, mustSucceedFetch } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
         const owner = (await client.getAccounts())[0];
         const publicKey = await client.getPublicKey(owner);
-        const tx = new DeployMethod(publicKey, client, ZkTokenContractAbi, [33n, owner]).send();
+        const tx = new DeployMethod(publicKey, client, PrivateTokenContractAbi, [33n, owner]).send();
         await tx.isMined();
         // eslint-disable-next-line no-console
         console.log('Contract Deployed');
@@ -124,7 +124,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
       },
       SANDBOX_URL,
       initialBalance,
-      ZkTokenContractAbi,
+      PrivateTokenContractAbi,
     );
 
     const txResult = await testClient.getTxReceipt(AztecJs.TxHash.fromString(txHash));
@@ -134,7 +134,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
 
   it("Gets the owner's balance", async () => {
     const result = await page.evaluate(
-      async (rpcUrl, privateKey, SchnorrSingleKeyAccountContractAbi, contractAddress, ZkTokenContractAbi) => {
+      async (rpcUrl, privateKey, SchnorrSingleKeyAccountContractAbi, contractAddress, PrivateTokenContractAbi) => {
         const { Contract, AztecAddress, Fr, PrivateKey, createAztecRpcClient, getAccountWallet, mustSucceedFetch } =
           window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
@@ -145,7 +145,11 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
           PrivateKey.fromString(privateKey!),
           Fr.ZERO,
         );
-        const contract = await Contract.create(AztecAddress.fromString(contractAddress), ZkTokenContractAbi, wallet);
+        const contract = await Contract.create(
+          AztecAddress.fromString(contractAddress),
+          PrivateTokenContractAbi,
+          wallet,
+        );
         const [balance] = await contract.methods.getBalance(owner).view({ from: owner });
         return balance;
       },
@@ -153,7 +157,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
       privKey.toString(),
       SchnorrSingleKeyAccountContractAbi,
       contractAddress.toString(),
-      ZkTokenContractAbi,
+      PrivateTokenContractAbi,
     );
     logger('Owner balance:', result);
     expect(result).toEqual(initialBalance);
@@ -166,7 +170,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         privateKey,
         contractAddress,
         transferAmount,
-        ZkTokenContractAbi,
+        PrivateTokenContractAbi,
         SchnorrSingleKeyAccountContractAbi,
       ) => {
         const { AztecAddress, Contract, Fr, PrivateKey, createAztecRpcClient, getAccountWallet, mustSucceedFetch } =
@@ -182,7 +186,11 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
           PrivateKey.fromString(privateKey!),
           Fr.ZERO,
         );
-        const contract = await Contract.create(AztecAddress.fromString(contractAddress), ZkTokenContractAbi, wallet);
+        const contract = await Contract.create(
+          AztecAddress.fromString(contractAddress),
+          PrivateTokenContractAbi,
+          wallet,
+        );
         const tx = contract.methods.transfer(transferAmount, owner, receiver).send({ origin: owner });
         await tx.isMined();
         // eslint-disable-next-line no-console
@@ -194,7 +202,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
       privKey.toString(),
       contractAddress.toString(),
       transferAmount,
-      ZkTokenContractAbi,
+      PrivateTokenContractAbi,
       SchnorrSingleKeyAccountContractAbi,
     );
     expect(result).toEqual(transferAmount);

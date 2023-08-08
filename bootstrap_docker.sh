@@ -38,5 +38,5 @@ build_local $TARGET_PROJECT $ONLY_TARGET
 if [ -z "$TARGET_PROJECT" ]; then
   echo
   echo "Success! You could now run e.g.:"
-  echo "  docker run -ti --rm aztecprotocol/end-to-end:latest e2e_zk_token_contract.test"
+  echo "  docker run -ti --rm aztecprotocol/end-to-end:latest e2e_private_token_contract.test"
 fi

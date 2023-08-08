@@ -3,7 +3,7 @@ import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Wallet, generatePublicKey, getSchnorrAccount } from '@aztec/aztec.js';
 import { PrivateKey } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
-import { ZkTokenContract } from '@aztec/noir-contracts/types';
+import { PrivateTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
 import {
@@ -19,7 +19,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
   const accounts: AztecAddress[] = [];
   let logger: DebugLogger;
 
-  let zkTokenAddress: AztecAddress;
+  let privateTokenAddress: AztecAddress;
 
   const initialBalance = 987n;
   const numAccounts = 3;
@@ -47,12 +47,12 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
       expect(accountEncryptionPublicKey).toEqual(encryptionPublicKey);
     }
 
-    logger(`Deploying ZK Token...`);
-    zkTokenAddress = await ZkTokenContract.deploy(wallets[0], initialBalance, accounts[0])
+    logger(`Deploying Private Token...`);
+    privateTokenAddress = await PrivateTokenContract.deploy(wallets[0], initialBalance, accounts[0])
       .send()
       .deployed()
       .then(c => c.address);
-    logger(`ZK Token deployed at ${zkTokenAddress}`);
+    logger(`Private Token deployed at ${privateTokenAddress}`);
   }, 100_000);
 
   afterEach(async () => {
@@ -67,7 +67,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const owner = accounts[userIndex];
 
     // Then check the balance
-    const contractWithWallet = await ZkTokenContract.create(zkTokenAddress, wallet);
+    const contractWithWallet = await PrivateTokenContract.create(privateTokenAddress, wallet);
     const [balance] = await contractWithWallet.methods.getBalance(owner).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
@@ -84,7 +84,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const sender = accounts[senderIndex];
     const receiver = accounts[receiverIndex];
 
-    const contractWithWallet = await ZkTokenContract.create(zkTokenAddress, wallets[senderIndex]);
+    const contractWithWallet = await PrivateTokenContract.create(privateTokenAddress, wallets[senderIndex]);
 
     const tx = contractWithWallet.methods.transfer(transferAmount, sender, receiver).send({ origin: sender });
     await tx.isMined({ interval: 0.1 });

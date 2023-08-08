@@ -2,13 +2,13 @@ use crate::oracle::storage::storage_read;
 use crate::oracle::storage::storage_write;
 use crate::state_vars::type_serialisation::TypeSerialisationInterface;
 
-struct PublicState<T, N> {
+struct PublicState<T, T_SERIALISED_LEN> {
     storage_slot: Field,
-    serialisation_methods: TypeSerialisationInterface<T, N>,
+    serialisation_methods: TypeSerialisationInterface<T, T_SERIALISED_LEN>,
 }
 
-impl<T, N> PublicState<T, N> {
-    fn new(storage_slot: Field, serialisation_methods: TypeSerialisationInterface<T, N>) -> Self {
+impl<T, T_SERIALISED_LEN> PublicState<T, T_SERIALISED_LEN> {
+    fn new(storage_slot: Field, serialisation_methods: TypeSerialisationInterface<T, T_SERIALISED_LEN>) -> Self {
         PublicState { storage_slot, serialisation_methods }
     }
 

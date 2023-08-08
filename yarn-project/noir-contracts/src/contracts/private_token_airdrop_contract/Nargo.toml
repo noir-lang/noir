@@ -1,5 +1,5 @@
 [package]
-name = "zk_token_contract"
+name = "private_token_airdrop_contract"
 authors = [""]
 compiler_version = "0.1"
 type = "bin"

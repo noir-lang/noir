@@ -401,8 +401,8 @@ describe('sequencer/solo_block_builder', () => {
       expect(l2Block.number).toEqual(blockNumber);
     }, 20_000);
 
-    // This test specifically tests nullifier values which previously caused e2e_zk_token test to fail
-    it('e2e_zk_token edge case regression test on nullifier values', async () => {
+    // This test specifically tests nullifier values which previously caused e2e_private_token test to fail
+    it('e2e_private_token edge case regression test on nullifier values', async () => {
       const simulator = await WasmRollupCircuitSimulator.new();
       const prover = new EmptyRollupProver();
       builder = new SoloBlockBuilder(builderDb, vks, simulator, prover);

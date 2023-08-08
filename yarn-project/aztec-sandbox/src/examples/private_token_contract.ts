@@ -1,7 +1,7 @@
 import { AztecAddress, Contract, Fr, PrivateKey, Wallet, createAccounts, createAztecRpcClient } from '@aztec/aztec.js';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
-import { ZkTokenContract } from '@aztec/noir-contracts/types';
+import { PrivateTokenContract } from '@aztec/noir-contracts/types';
 
 const logger = createDebugLogger('aztec:http-rpc-client');
 
@@ -16,23 +16,23 @@ const INITIAL_BALANCE = 333n;
 const SECONDARY_AMOUNT = 33n;
 
 /**
- * Deploys the ZK Token contract.
+ * Deploys the Private Token contract.
  * @param owner - The address that the initial balance will belong to.
- * @returns An Aztec Contract object with the zk token's ABI.
+ * @returns An Aztec Contract object with the private token's ABI.
  */
 async function deployZKContract(owner: AztecAddress) {
   logger('Deploying L2 contract...');
-  const tx = ZkTokenContract.deploy(aztecRpcClient, INITIAL_BALANCE, owner).send();
+  const tx = PrivateTokenContract.deploy(aztecRpcClient, INITIAL_BALANCE, owner).send();
   const receipt = await tx.getReceipt();
-  const contract = await ZkTokenContract.create(receipt.contractAddress!, wallet);
+  const contract = await PrivateTokenContract.create(receipt.contractAddress!, wallet);
   await tx.isMined();
   logger('L2 contract deployed');
   return contract;
 }
 
 /**
- * Gets a user's balance from a ZK Token contract.
- * @param contract - The ZK Token contract.
+ * Gets a user's balance from a Private Token contract.
+ * @param contract - The Private Token contract.
  * @param ownerAddress - Balance owner's Aztec Address.
  * @returns The owner's current balance of the token.
  */

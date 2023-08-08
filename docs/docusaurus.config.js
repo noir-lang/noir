@@ -99,7 +99,7 @@ const config = {
       docs: {
         sidebar: {
           hideable: true,
-          autoCollapseCategories: true,
+          autoCollapseCategories: false,
         },
       },
       navbar: {
@@ -165,7 +165,21 @@ const config = {
       prism: {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
-        additionalLanguages: ["rust", "solidity", "cpp"],
+        // https://prismjs.com/#supported-languages
+        // Commented-out languages exists in `node_modules/prismjs/components/` so I'm not sure why they don't work.
+        additionalLanguages: [
+          "rust",
+          "solidity",
+          "cpp",
+          "javascript",
+          // "typescript",
+          "json",
+          // "bash",
+          // "solidity",
+          "toml",
+          "markdown",
+          "docker",
+        ],
         magicComments: [
           // Remember to extend the default highlight class name as well!
           {

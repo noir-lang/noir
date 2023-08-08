@@ -37,17 +37,8 @@ build() {
   cd src/contracts/$CONTRACT_FOLDER
   rm -f target/*
 
-  # If VERBOSE is not set, compile with 'nargo' and redirect standard error (stderr) to /dev/null and standard output (stdout) to /dev/null.
   # If the compilation fails, rerun the compilation with 'nargo' and show the compiler output.
   nargo compile --contracts;
-}
-
-process() {
-  CONTRACT_NAME=$1
-
-  cd $ROOT
-  echo "Copying output for $CONTRACT_NAME"
-  NODE_OPTIONS=--no-warnings yarn ts-node --esm src/scripts/copy_output.ts $CONTRACT_NAME
 }
 
 echo "Using $(nargo --version)"

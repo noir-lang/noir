@@ -1,7 +1,7 @@
+// docs:start:easy_private_token_contract
 mod storage;
 
-contract EasyZkToken {
-    // Libs
+contract EasyPrivateToken {
     use dep::value_note::{
             balance_utils,
             value_note::{
@@ -23,12 +23,13 @@ contract EasyZkToken {
 
     use crate::storage::Storage;
 
-    // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
+    /**
+     * Initialise the contract's initial state variables.
+     */ 
     fn constructor(
-        //*********************************/
-        // Should eventually be hidden:
+        /*********************************/
         inputs: PrivateContextInputs,
-        //*********************************/
+        /*********************************/
         initial_supply: u120, 
         owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
@@ -108,3 +109,4 @@ contract EasyZkToken {
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
 }
+// docs:end:easy_private_token_contract

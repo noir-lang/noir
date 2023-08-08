@@ -1,5 +1,5 @@
 [package]
-name = "easy_zk_token_contract"
+name = "easy_private_token_contract"
 authors = [""]
 compiler_version = "0.1"
 type = "bin"

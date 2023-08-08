@@ -5,8 +5,8 @@ import { Fr, PrivateKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { generateFunctionSelector } from '@aztec/foundation/abi';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { DebugLogger } from '@aztec/foundation/log';
-import { EscrowContractAbi, ZkTokenContractAbi } from '@aztec/noir-contracts/artifacts';
-import { EscrowContract, ZkTokenContract } from '@aztec/noir-contracts/types';
+import { EscrowContractAbi, PrivateTokenContractAbi } from '@aztec/noir-contracts/artifacts';
+import { EscrowContract, PrivateTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, PublicKey } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
@@ -18,7 +18,7 @@ describe('e2e_escrow_contract', () => {
   let accounts: AztecAddress[];
   let logger: DebugLogger;
 
-  let zkTokenContract: ZkTokenContract;
+  let privateTokenContract: PrivateTokenContract;
   let escrowContract: EscrowContract;
   let owner: AztecAddress;
   let recipient: AztecAddress;
@@ -28,7 +28,7 @@ describe('e2e_escrow_contract', () => {
 
   beforeAll(() => {
     // Validate transfer selector. If this fails, then make sure to change it in the escrow contract.
-    const transferAbi = ZkTokenContractAbi.functions.find(f => f.name === 'transfer')!;
+    const transferAbi = PrivateTokenContractAbi.functions.find(f => f.name === 'transfer')!;
     const transferSelector = generateFunctionSelector(transferAbi.name, transferAbi.parameters);
     expect(transferSelector).toEqual(toBufferBE(0xdcd4c318n, 4));
   });
@@ -51,9 +51,9 @@ describe('e2e_escrow_contract', () => {
       .deployed();
     logger(`Escrow contract deployed at ${escrowContract.address}`);
 
-    // Deploy ZK token contract and mint funds for the escrow contract
-    zkTokenContract = await ZkTokenContract.deploy(wallet, 100n, escrowContract.address).send().deployed();
-    logger(`Token contract deployed at ${zkTokenContract.address}`);
+    // Deploy Private Token contract and mint funds for the escrow contract
+    privateTokenContract = await PrivateTokenContract.deploy(wallet, 100n, escrowContract.address).send().deployed();
+    logger(`Token contract deployed at ${privateTokenContract.address}`);
   }, 100_000);
 
   afterEach(async () => {
@@ -62,7 +62,7 @@ describe('e2e_escrow_contract', () => {
   }, 30_000);
 
   const expectBalance = async (who: AztecAddress, expectedBalance: bigint) => {
-    const [balance] = await zkTokenContract.methods.getBalance(who).view({ from: who });
+    const [balance] = await privateTokenContract.methods.getBalance(who).view({ from: who });
     logger(`Account ${who} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };
@@ -73,7 +73,7 @@ describe('e2e_escrow_contract', () => {
     await expectBalance(escrowContract.address, 100n);
 
     logger(`Withdrawing funds from token contract to ${recipient}`);
-    await escrowContract.methods.withdraw(zkTokenContract.address, 30, recipient).send().wait();
+    await escrowContract.methods.withdraw(privateTokenContract.address, 30, recipient).send().wait();
 
     await expectBalance(owner, 0n);
     await expectBalance(recipient, 30n);
@@ -82,18 +82,18 @@ describe('e2e_escrow_contract', () => {
 
   it('refuses to withdraw funds as a non-owner', async () => {
     await expect(
-      escrowContract.methods.withdraw(zkTokenContract.address, 30, recipient).simulate({ origin: recipient }),
+      escrowContract.methods.withdraw(privateTokenContract.address, 30, recipient).simulate({ origin: recipient }),
     ).rejects.toThrowError();
   }, 60_000);
 
   it('moves funds using multiple keys on the same tx (#1010)', async () => {
     logger(`Minting funds in token contract to ${owner}`);
-    await zkTokenContract.methods.mint(50, owner).send().wait();
+    await privateTokenContract.methods.mint(50, owner).send().wait();
     await expectBalance(owner, 50n);
 
     const actions = [
-      zkTokenContract.methods.transfer(10, owner, recipient).request(),
-      escrowContract.methods.withdraw(zkTokenContract.address, 20, recipient).request(),
+      privateTokenContract.methods.transfer(10, owner, recipient).request(),
+      escrowContract.methods.withdraw(privateTokenContract.address, 20, recipient).request(),
     ];
 
     await new BatchCall(wallet, actions).send().wait();

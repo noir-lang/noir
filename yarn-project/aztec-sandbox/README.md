@@ -42,7 +42,7 @@ Before running locally you'll need to:
 
 From the `aztec-sandbox` directory, you can run the two existing examples:
 
-- Deployment, mint and transfer on an Aztec ZK Token
+- Deployment, mint and transfer on an Aztec Private Token
   - `yarn run:example:token`
 - An L1 / L2 uniswap token trade.
   - `yarn run:example:uniswap`

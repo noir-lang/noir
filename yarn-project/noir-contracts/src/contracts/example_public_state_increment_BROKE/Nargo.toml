@@ -1,0 +1,8 @@
+[package]
+name = "example_public_state_increment_contract"
+authors = [""]
+compiler_version = "0.1"
+type = "bin"
+
+[dependencies]
+aztec = { path = "../../../../noir-libs/noir-aztec" }

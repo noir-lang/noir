@@ -32,6 +32,55 @@ use crate::oracle::debug_log;
 use crate::types::vec::BoundedVec;
 use crate::types::point::Point;
 
+struct PrivateGlobalVariables {
+    chain_id: Field,
+    version: Field,
+}
+
+impl PrivateGlobalVariables {
+    fn serialize(self) -> [Field; 2] {
+        [self.chain_id, self.version]
+    }
+}
+
+struct PublicGlobalVariables {
+    chain_id: Field,
+    version: Field,
+    block_number: Field,
+    timestamp: Field,
+}
+
+impl PublicGlobalVariables {
+    fn serialize(self) -> [Field; 4] {
+        [self.chain_id, self.version, self.block_number, self.timestamp]
+    }
+}
+
+struct ContractDeploymentData {
+    deployer_public_key: Point,
+    constructor_vk_hash : Field,
+    function_tree_root : Field,
+    contract_address_salt : Field,
+    portal_contract_address : Field,
+}
+
+impl ContractDeploymentData {
+    fn serialize(self) -> [Field; CONTRACT_DEPLOYMENT_DATA_LENGTH] {
+        [
+            self.deployer_public_key.x,
+            self.deployer_public_key.y,
+            self.constructor_vk_hash,
+            self.function_tree_root,
+            self.contract_address_salt,
+            self.portal_contract_address,
+        ]
+    }
+
+    fn hash(self) -> Field {
+        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA)[0]
+    }
+}
+
 // PrivateContextInputs are expected to be provided to each private function
 struct PrivateContextInputs {
     call_context : CallContext,
@@ -100,55 +149,6 @@ impl CommitmentTreesRoots {
 
 fn empty_commitment_trees_roots() -> CommitmentTreesRoots {
     CommitmentTreesRoots{ private_data_tree_root: 0, nullifier_tree_root: 0, contract_tree_root: 0, l1_to_l2_messages_tree_root: 0, blocks_tree_root: 0 }
-}
-
-struct ContractDeploymentData {
-    deployer_public_key: Point,
-    constructor_vk_hash : Field,
-    function_tree_root : Field,
-    contract_address_salt : Field,
-    portal_contract_address : Field,
-}
-
-impl ContractDeploymentData {
-    fn serialize(self) -> [Field; CONTRACT_DEPLOYMENT_DATA_LENGTH] {
-        [
-            self.deployer_public_key.x,
-            self.deployer_public_key.y,
-            self.constructor_vk_hash,
-            self.function_tree_root,
-            self.contract_address_salt,
-            self.portal_contract_address,
-        ]
-    }
-
-    fn hash(self) -> Field {
-        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA)[0]
-    }
-}
-
-struct PrivateGlobalVariables {
-    chain_id: Field,
-    version: Field,
-}
-
-impl PrivateGlobalVariables {
-    fn serialize(self) -> [Field; 2] {
-        [self.chain_id, self.version]
-    }
-}
-
-struct PublicGlobalVariables {
-    chain_id: Field,
-    version: Field,
-    block_number: Field,
-    timestamp: Field,
-}
-
-impl PublicGlobalVariables {
-    fn serialize(self) -> [Field; 4] {
-        [self.chain_id, self.version, self.block_number, self.timestamp]
-    }
 }
 
 struct FunctionData {
