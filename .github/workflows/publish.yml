@@ -70,6 +70,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          path: ./noir
 
       - name: Setup for Apple Silicon
         if: matrix.target == 'aarch64-apple-darwin'
@@ -100,12 +102,14 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build environment and Compile
+        working-directory: ./noir
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
+        working-directory: ./noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
@@ -115,11 +119,12 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nargo-${{ matrix.target }}
-          path: ./dist/*
+          path: ./noir/dist/*
           retention-days: 3
 
       - name: Test built artifact
         if: matrix.target == 'x86_64-apple-darwin'
+        working-directory: ./noir
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
 
@@ -169,6 +174,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          path: ./noir
 
       - uses: actions/cache@v3
         with:
@@ -192,6 +199,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build Nargo
+        working-directory: ./noir
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
@@ -199,6 +207,7 @@ jobs:
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
+        working-directory: ./noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
@@ -208,11 +217,12 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nargo-${{ matrix.target }}
-          path: ./dist/*
+          path: ./noir/dist/*
           retention-days: 3
 
       - name: Test built artifact
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
+        working-directory: ./noir
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
 
@@ -255,6 +265,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          path: ./noir
 
       - uses: actions/cache@v3
         with:
@@ -278,12 +290,14 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build environment and Compile
+        working-directory: ./noir
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
+        working-directory: ./noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo.exe ./dist/nargo.exe
@@ -293,10 +307,11 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nargo-${{ matrix.target }}
-          path: ./dist/*
+          path: ./noir/dist/*
           retention-days: 3
 
       - name: Test built artifact
+        working-directory: ./noir
         shell: powershell
         run: |
           cp ./target/${{ matrix.target }}/release/nargo.exe ~/.cargo/bin/
