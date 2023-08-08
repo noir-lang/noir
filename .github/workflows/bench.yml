@@ -1,0 +1,52 @@
+# Adapted from https://github.com/paradigmxyz/reth/blob/main/.github/workflows/bench.yml
+name: Bench
+
+on:
+  pull_request:
+  merge_group:
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: Bench selected tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main sources
+        uses: actions/checkout@v3
+        with:
+          ref: main
+          path: main
+
+      - name: Checkout PR sources
+        uses: actions/checkout@v3
+        with:
+          clean: false
+          path: pr
+
+      - name: Install Valgrind
+        run: |
+          sudo apt install valgrind
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            main -> target
+            pr -> target
+          cache-on-failure: true
+
+      - name: Set main baseline
+        run: cargo bench --bench iai --manifest-path main/Cargo.toml
+
+      - name: Compare PR benchmark
+        shell: 'script -q -e -c "bash {0}"' # required to workaround /dev/tty not being available
+        run: |
+          ./pr/.github/scripts/compare_iai.sh

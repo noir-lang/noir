@@ -55,6 +55,22 @@ tempdir = "0.3.7"
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
+criterion = "0.5.0"
+paste = "1.0.14"
+pprof = { version = "0.12", features = [
+    "flamegraph",
+    "frame-pointer",
+    "criterion",
+] }
+iai = "0.1.1"
+
+[[bench]]
+name = "criterion"
+harness = false
+
+[[bench]]
+name = "iai"
+harness = false
 
 [features]
 default = ["plonk_bn254"]
@@ -62,4 +78,3 @@ default = ["plonk_bn254"]
 plonk_bn254 = ["acvm-backend-barretenberg/native"]
 plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]
 flat_witness = ["acvm-backend-barretenberg/native"]
-
