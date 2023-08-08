@@ -1,9 +1,3 @@
-[build]
-# pre-build = [
-#     "dpkg --add-architecture $CROSS_DEB_ARCH",
-#     "apt-get update && apt-get install --assume-yes xz-utils pkgconfig build-essential cmake openssl libssl-dev libomp-dev libssl-dev:$CROSS_DEB_ARCH libomp-dev:$CROSS_DEB_ARCH",
-# ]
-
 [build.env]
 passthrough = [
     "HOME",
