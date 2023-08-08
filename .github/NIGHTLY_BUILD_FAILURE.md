@@ -1,6 +1,6 @@
 ---
 title: "nightly build failed"
-assignees: kobyhallx, phated, tomafrench
+assignees: kobyhallx, phated, tomafrench, kevaundray
 labels: bug
 ---
 
