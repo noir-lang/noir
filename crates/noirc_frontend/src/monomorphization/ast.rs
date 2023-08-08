@@ -123,6 +123,7 @@ pub struct If {
 pub struct Cast {
     pub lhs: Box<Expression>,
     pub r#type: Type,
+    pub location: Location,
 }
 
 #[derive(Debug, Clone)]

@@ -1008,7 +1008,16 @@ impl<'a> Resolver<'a> {
                     match self.interner.definition(hir_ident.id).kind {
                         DefinitionKind::Function(_) => {}
                         DefinitionKind::Global(_) => {}
-                        DefinitionKind::GenericType(_) => {}
+                        DefinitionKind::GenericType(_) => {
+                            // Initialize numeric generics to a polymorphic integer type in case
+                            // they're used in expressions. We must do this here since the type
+                            // checker does not check definition kinds and otherwise expects
+                            // parameters to already be typed.
+                            if self.interner.id_type(hir_ident.id) == Type::Error {
+                                let typ = Type::polymorphic_integer(self.interner);
+                                self.interner.push_definition_type(hir_ident.id, typ);
+                            }
+                        }
                         // We ignore the above definition kinds because only local variables can be captured by closures.
                         DefinitionKind::Local(_) => {
                             self.resolve_local_variable(hir_ident, var_scope_index);

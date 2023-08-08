@@ -25,10 +25,10 @@ pub enum ParserErrorReason {
     EarlyReturn,
     #[error("Patterns aren't allowed in a trait's function declarations")]
     PatternInTraitFunctionParameter,
-    #[error("Traits are an experimental feature that are not yet in a working state")]
-    TraitsAreExperimental,
     #[error("comptime keyword is deprecated")]
     ComptimeDeprecated,
+    #[error("{0} are experimental and aren't fully supported yet")]
+    ExperimentalFeature(&'static str),
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -122,6 +122,11 @@ impl From<ParserError> for Diagnostic {
                     ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
                         "Use of deprecated keyword 'comptime'".into(),
                         "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
+                        error.span,
+                    ),
+                    ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(
+                        reason.to_string(),
+                        "".into(),
                         error.span,
                     ),
                     reason @ ParserErrorReason::ExpectedPatternButFoundType(ty) => {

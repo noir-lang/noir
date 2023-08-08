@@ -857,12 +857,13 @@ impl Type {
                 }
             }
 
-            (Function(params_a, ret_a, _env_a), Function(params_b, ret_b, _env_b)) => {
+            (Function(params_a, ret_a, env_a), Function(params_b, ret_b, env_b)) => {
                 if params_a.len() == params_b.len() {
                     for (a, b) in params_a.iter().zip(params_b.iter()) {
                         a.try_unify(b)?;
                     }
 
+                    env_a.try_unify(env_b)?;
                     ret_b.try_unify(ret_a)
                 } else {
                     Err(UnificationError)
