@@ -37,7 +37,8 @@ fi
 circuits/cpp/bootstrap.sh
 
 # Build the canary
-cd canary 
+cd canary
+yarn install --immutable
 yarn build 
 cd ..
 
