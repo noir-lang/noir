@@ -9,10 +9,14 @@ fn resolve_folder_name(base: &url::Url, tag: &str) -> String {
     folder_name
 }
 
-pub(crate) fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
+fn nargo_crates() -> PathBuf {
+    dirs::home_dir().unwrap().join("nargo")
+}
+
+fn git_dep_location(base: &url::Url, tag: &str) -> PathBuf {
     let folder_name = resolve_folder_name(base, tag);
 
-    super::nargo_crates().join(folder_name)
+    nargo_crates().join(folder_name)
 }
 
 /// XXX: I'd prefer to use a GitHub library however, there

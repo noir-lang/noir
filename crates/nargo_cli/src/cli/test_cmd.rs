@@ -3,14 +3,12 @@ use std::io::Write;
 use acvm::{acir::native_types::WitnessMap, Backend};
 use clap::Args;
 use nargo::{ops::execute_circuit, package::Package};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{compile_no_check, CompileOptions};
 use noirc_frontend::{graph::CrateName, hir::Context, node_interner::FuncId};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{
-    cli::check_cmd::check_crate_and_report_errors, errors::CliError, find_package_manifest,
-    manifest::resolve_workspace_from_toml, prepare_package,
-};
+use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError, prepare_package};
 
 use super::{compile_cmd::optimize_circuit, NargoConfig};
 

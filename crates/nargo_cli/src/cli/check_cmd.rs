@@ -1,13 +1,12 @@
 use crate::{
     errors::{CliError, CompileError},
-    find_package_manifest,
-    manifest::resolve_workspace_from_toml,
     prepare_package,
 };
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
 use nargo::package::Package;
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
 use noirc_frontend::{
@@ -116,10 +115,9 @@ fn create_input_toml_template(
 mod tests {
     use std::path::PathBuf;
 
+    use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
     use noirc_driver::CompileOptions;
-
-    use crate::{find_package_manifest, manifest::resolve_workspace_from_toml};
 
     use super::create_input_toml_template;
 

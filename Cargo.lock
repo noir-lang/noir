@@ -2010,6 +2010,7 @@ dependencies = [
  "hex",
  "iter-extended",
  "nargo",
+ "nargo_toml",
  "noir_lsp",
  "noirc_abi",
  "noirc_driver",
@@ -2025,6 +2026,20 @@ dependencies = [
  "tokio",
  "toml",
  "tower",
+ "url",
+]
+
+[[package]]
+name = "nargo_toml"
+version = "0.9.0"
+dependencies = [
+ "dirs",
+ "fm",
+ "nargo",
+ "noirc_frontend",
+ "serde",
+ "thiserror",
+ "toml",
  "url",
 ]
 
