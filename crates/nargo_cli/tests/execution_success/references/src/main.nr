@@ -33,6 +33,7 @@ fn main(mut x: Field) {
 
     regression_1887();
     regression_2054();
+    regression_2030();
 }
 
 fn add1(x: &mut Field) {
@@ -86,4 +87,13 @@ fn regression_2054() {
 
     x += 1;
     assert(z == 2);
+}
+
+// The compiler was still trying to convert an LValue from an array of structs to struct of arrays indexing,
+// even though this conversion was mostly removed elsewhere.
+fn regression_2030() {
+    let ref = &mut 0;
+    let mut array = [ref, ref];
+    let _ = *array[0];
+    *array[0] = 1;
 }
