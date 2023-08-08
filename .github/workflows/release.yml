@@ -54,7 +54,7 @@ jobs:
     name: Build binaries
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
-    uses: ./.github/workflows/workflow-2.yml
+    uses: ./.github/workflows/publish.yml
     with:
       tag: ${{ needs.release-please.outputs.tag-name }}
       publish: true
