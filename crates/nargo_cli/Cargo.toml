@@ -18,10 +18,8 @@ build-data = "0.1.3"
 toml.workspace = true
 
 [dependencies]
-cfg-if.workspace = true
 clap.workspace = true
 dirs.workspace = true
-url.workspace = true
 iter-extended.workspace = true
 nargo.workspace = true
 nargo_toml.workspace = true
@@ -31,7 +29,6 @@ noirc_frontend.workspace = true
 noirc_abi.workspace = true
 noirc_errors.workspace = true
 acvm.workspace = true
-fm.workspace = true
 toml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -56,6 +53,7 @@ tempdir = "0.3.7"
 assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
+fm.workspace = true
 
 [features]
 default = ["plonk_bn254"]

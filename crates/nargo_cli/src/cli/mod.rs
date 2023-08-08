@@ -60,7 +60,7 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
 }
 
-pub fn start_cli() -> eyre::Result<()> {
+pub(crate) fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.
