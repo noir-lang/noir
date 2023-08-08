@@ -44,13 +44,6 @@ jobs:
         run: |
           sudo apt install valgrind
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            main -> target
-            pr -> target
-          cache-on-failure: true
-
       - name: Set main baseline
         run: cargo bench --bench iai --manifest-path main/Cargo.toml
 
