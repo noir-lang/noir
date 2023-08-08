@@ -182,6 +182,13 @@ impl AcirContext {
         }
     }
 
+    pub(crate) fn get_constant(&self, var: &AcirVar) -> Option<FieldElement> {
+        match self.vars[var] {
+            AcirVarData::Const(field) => Some(field),
+            _ => None, 
+        }
+    }
+
     /// Adds a new Variable to context whose value will
     /// be constrained to be the negation of `var`.
     ///

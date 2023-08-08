@@ -982,6 +982,7 @@ impl Context {
         dfg: &DataFlowGraph,
         result_ids: &[ValueId],
     ) -> Result<Vec<AcirValue>, RuntimeError> {
+        dbg!(arguments.clone());
         match intrinsic {
             Intrinsic::BlackBox(black_box) => {
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
@@ -1040,7 +1041,9 @@ impl Context {
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
-                    AcirValue::Var(_, _) => unreachable!("Non-array passed to array.len() method"),
+                    AcirValue::Var(..) => {
+                        unreachable!("Non-array passed to array.len() method")
+                    }
                     AcirValue::Array(values) => (values.len() as u128).into(),
                     AcirValue::DynamicArray(array) => (array.len as u128).into(),
                 };

@@ -300,25 +300,25 @@ impl Instruction {
                 if let (Some((array, typ)), Some(index)) = (array, index) {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
-                    match typ {
-                        Type::Array(..) => {
-                            dbg!("got array");
-                        }
-                        Type::Slice(_) => {
-                            // The first value of a slice should always be its size. 
-                            // This value must be set during runtime 
-                            let len = dfg.get_numeric_constant(array[0]);
-                            dbg!("got slice");
-                            dbg!(len);
-                            dbg!(index);
-                            dbg!(array.len());
-                            dbg!(dfg.get_numeric_constant(array[index]));
-                            // if index < array.len() - 1 {
-                            //     return SimplifiedTo(array[index]);
-                            // }
-                        }
-                        _ => unreachable!("Expected an array or slice and got {typ}"),
-                    }
+                    // match typ {
+                    //     Type::Array(..) => {
+                    //         dbg!("got array");
+                    //     }
+                    //     Type::Slice(_) => {
+                    //         // The first value of a slice should always be its size. 
+                    //         // This value must be set during runtime 
+                    //         let len = dfg.get_numeric_constant(array[0]);
+                    //         dbg!("got slice");
+                    //         dbg!(len);
+                    //         dbg!(index);
+                    //         dbg!(array.len());
+                    //         // dbg!(dfg.get_numeric_constant(array[index]));
+                    //         // if index < array.len() - 1 {
+                    //         //     return SimplifiedTo(array[index]);
+                    //         // }
+                    //     }
+                    //     _ => unreachable!("Expected an array or slice and got {typ}"),
+                    // }
                     if index < array.len() {
                         return SimplifiedTo(array[index]);
                     }

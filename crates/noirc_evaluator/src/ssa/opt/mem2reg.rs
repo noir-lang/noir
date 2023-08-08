@@ -244,8 +244,7 @@ impl PerFunctionContext {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[block_id];
         println!("BLOCK: {block_id}");
-        let mut predecessors = cfg.predecessors(block_id);
-        dbg!(predecessors.len());
+
         // dbg!(predecessors.len());
         // for predecessor in predecessors.clone() {
         //     dbg!(predecessor);
@@ -265,7 +264,7 @@ impl PerFunctionContext {
                         dbg!("have load_values_to_substitute");
                         address = *value;
                     }
-                    println!("about to insert address: {address}, value: {value}");
+                    println!("about to insert address: {address}, at block_id {block_id}, value: {value}");
                     self.last_stores_with_block.insert((address, block_id), *value);
                     self.last_stores.insert(address, *value);
                     self.store_ids.push(*instruction_id);
@@ -276,13 +275,14 @@ impl PerFunctionContext {
                         dbg!("have load_values_to_substitute");
                         address = *value;
                     }
+                    let mut predecessors = cfg.predecessors(block_id);
+                    dbg!(predecessors.len());
 
+                    // TODO: Check against the graph of predecessors
                     if predecessors.len() == 1 {
                         let predecessor = predecessors.next().expect("Already checked length of predecessors");
                         dbg!(predecessor);
-                        // TODO: move predecessors check back to Load instruction when done
-                        // drop(predecessors);
-
+                        println!("about to fetch address: {address}, at predecessor {predecessor}");
                         if let Some(last_value) = self.last_stores_with_block.get(&(address, predecessor)) {
                             println!("last_value: {last_value}");
                             let result_value = *dfg
@@ -291,29 +291,28 @@ impl PerFunctionContext {
                                 .expect("ICE: Load instructions should have single result");
 
                             println!("result_value: {result_value}");
-                            println!("last_value: {last_value}");
 
                             loads_to_substitute.insert(*instruction_id, *last_value);
                             load_values_to_substitute.insert(result_value, *last_value);
-                        } else {
-                            protected_allocations.insert(address);
-                        }
+                        } 
+
+                    }
+                    drop(predecessors);
+
+                    println!("about to fetch address: {address}, at block_id {block_id}");
+                    if let Some(last_value) = self.last_stores_with_block.get(&(address, block_id)) {
+                        println!("last_value: {last_value}");
+                        let result_value = *dfg
+                            .instruction_results(*instruction_id)
+                            .first()
+                            .expect("ICE: Load instructions should have single result");
+
+                        println!("result_value: {result_value}");
+
+                        loads_to_substitute.insert(*instruction_id, *last_value);
+                        load_values_to_substitute.insert(result_value, *last_value);
                     } else {
-                        if let Some(last_value) = self.last_stores_with_block.get(&(address, block_id)) {
-                            println!("last_value: {last_value}");
-                            let result_value = *dfg
-                                .instruction_results(*instruction_id)
-                                .first()
-                                .expect("ICE: Load instructions should have single result");
-
-                            println!("result_value: {result_value}");
-                            println!("last_value: {last_value}");
-
-                            loads_to_substitute.insert(*instruction_id, *last_value);
-                            load_values_to_substitute.insert(result_value, *last_value);
-                        } else {
-                            protected_allocations.insert(address);
-                        }
+                        protected_allocations.insert(address);
                     }
                 }
                 Instruction::Call { arguments, .. } => {
@@ -328,7 +327,6 @@ impl PerFunctionContext {
                 }
             }
         }
-        drop(predecessors);
 
         // Identify any arrays that are returned from this function
         if let TerminatorInstruction::Return { return_values } = block.unwrap_terminator() {

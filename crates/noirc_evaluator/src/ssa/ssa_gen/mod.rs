@@ -7,7 +7,7 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphization::ast::{self, Expression, Program};
+use noirc_frontend::monomorphization::ast::{self, Expression, Program, ArrayLiteral};
 
 use crate::ssa::ir::{value::Value, instruction::Intrinsic, types::NumericType};
 
@@ -119,10 +119,23 @@ impl<'a> FunctionContext<'a> {
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Values {
         match literal {
             ast::Literal::Array(array) => {
-                let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
-                dbg!(array.typ.clone());
                 let typ = Self::convert_non_tuple_type(&array.typ);
-                self.codegen_array(elements, typ)
+
+                let new_convert_type = Self::convert_type(&array.typ);
+                dbg!(new_convert_type.clone());
+                if new_convert_type.count_leaves() > 1 {
+                    let slice_length = ast::Literal::Integer(
+                        (array.contents.len() as u128).into(),
+                        ast::Type::Field,
+                    );
+                    let slice_length = self.codegen_literal(&slice_length);
+                    let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                    let slice_contents = self.codegen_array(elements, typ);
+                    Tree::Branch(vec![slice_length, slice_contents])
+                } else {
+                    let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                    self.codegen_array(elements, typ)
+                }
             }
             ast::Literal::Integer(value, typ) => {
                 let typ = Self::convert_non_tuple_type(typ);
@@ -164,21 +177,7 @@ impl<'a> FunctionContext<'a> {
     /// The value returned from this function is always that of the allocate instruction.
     fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
         let mut array = im::Vector::new();
-
-        // Slice sizes are stored as the first element of the array value
-        // Storing the size here enables runtime checks against slice sizes
-        // match typ {
-        //     Type::Array(..) => {
-        //         dbg!("codegen an array");
-        //         dbg!(elements.clone());
-        //     }
-        //     Type::Slice(_) => {
-        //         dbg!("codegen a slice");
-        //         let len = self.builder.field_constant(elements.len() as u128);
-        //         array.push_back(len);
-        //     }
-        //     _ => unreachable!("ICE: attempting to codegen {typ} during array codegen"),
-        // };
+        dbg!("about to codegen_array");
 
         for element in elements {
             element.for_each(|element| {
@@ -251,9 +250,36 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
-        let array = self.codegen_non_tuple_expression(&index.collection);
-        let index_value = self.codegen_non_tuple_expression(&index.index);
-        self.codegen_array_index(array, index_value, &index.element_type, index.location)
+        dbg!("codegen_index");
+        let array_or_slice = self.codegen_expression(&index.collection);
+        // dbg!(array_or_slice.clone());
+        if array_or_slice.count_leaves() > 1 {
+            let index_value = self.codegen_non_tuple_expression(&index.index);
+            match &array_or_slice {
+                Tree::Branch(values) => {
+                    // dbg!("about to insert bounds for slice accesses");
+                    // let array_len_func = self.builder.import_intrinsic_id(Intrinsic::ArrayLen);
+                    // let results = self.insert_call(array_len_func, vec![array], &ast::Type::Field, location).flatten();
+                    // let array_len = match results[0] {
+                    //     value::Value::Normal(id) => id,
+                    //     value::Value::Mutable(_, _) => panic!("ahhh"),
+                    // };
+                    // let array_len_int = self.builder.insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 }));
+                    // let is_offset_out_of_bounds = self.builder.insert_binary(offset, BinaryOp::Lt, array_len_int);
+                    // self.builder.insert_constrain(is_offset_out_of_bounds);
+
+                    let slice_length = values[0].clone().into_leaf().eval(self);
+                    let slice = values[1].clone().into_leaf().eval(self);
+                    self.codegen_array_index(slice, index_value, &index.element_type, index.location, Some(slice_length))
+                    // &values[1].into_leaf()
+                }
+                Tree::Leaf(_) => panic!("Nooo"),
+            }
+        } else {
+            let array = self.codegen_non_tuple_expression(&index.collection);
+            let index_value = self.codegen_non_tuple_expression(&index.index);
+            self.codegen_array_index(array, index_value, &index.element_type, index.location, None)
+        }
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -268,6 +294,7 @@ impl<'a> FunctionContext<'a> {
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
         location: Location,
+        max_length: Option<super::ir::value::ValueId>,
     ) -> Values {
         let array_value = &self.builder.current_function.dfg[array];
         
@@ -297,16 +324,25 @@ impl<'a> FunctionContext<'a> {
             let array_type = &self.builder.type_of_value(array);
             match array_type {
                 Type::Slice(_) => {
-                    dbg!("about to insert bounds for slice accesses");
-                    let array_len_func = self.builder.import_intrinsic_id(Intrinsic::ArrayLen);
-                    let results = self.insert_call(array_len_func, vec![array], &ast::Type::Field, location);
-                    let array_len = match results.into_leaf() {
-                        value::Value::Normal(id) => id,
-                        value::Value::Mutable(_, _) => panic!("ahhh"),
-                    };
+                    // dbg!("about to insert bounds for slice accesses");
+                    // let array_len_func = self.builder.import_intrinsic_id(Intrinsic::ArrayLen);
+                    // let results = self.insert_call(array_len_func, vec![array], &ast::Type::Field, location).flatten();
+                    // let array_len = match results[0] {
+                    //     value::Value::Normal(id) => id,
+                    //     value::Value::Mutable(_, _) => panic!("ahhh"),
+                    // };
+                    let array_len = max_length.expect("ICE: a length must be supplied for indexing slices");
                     let array_len_int = self.builder.insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 }));
-                    let is_offset_out_of_bounds = self.builder.insert_binary(offset, BinaryOp::Lt, array_len_int);
+                    // let field_index = self.builder.field_constant(field_index as u128);
+                    // let is_offset_out_of_bounds = if element_types.len() > 1 {
+                    //     let field_index = self.builder.field_constant(field_index as u128);
+                    //     self.builder.insert_binary(field_index, BinaryOp::Lt, array_len_int)
+                    // } else {
+                    //     self.builder.insert_binary(base_index, BinaryOp::Lt, array_len_int)
+                    // };
+                    let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len_int);
                     self.builder.insert_constrain(is_offset_out_of_bounds);
+
                     self.builder.insert_array_get(array, offset, typ).into()
                 }
                 Type::Array(..) => {
@@ -448,7 +484,7 @@ impl<'a> FunctionContext<'a> {
     /// and intrinsics are also represented by the function call instruction.
     fn codegen_call(&mut self, call: &ast::Call) -> Values {
         let function = self.codegen_non_tuple_expression(&call.func);
-        let arguments = call
+        let arguments: Vec<ValueId> = call
             .arguments
             .iter()
             .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
@@ -482,9 +518,13 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Values {
+        // dbg!("got a codegen_assign");
+        // dbg!(assign.lvalue.clone());
+
         let lhs = self.extract_current_value(&assign.lvalue);
         let rhs = self.codegen_expression(&assign.expression);
-        dbg!("got a codegen_assign");
+        // dbg!(lhs.clone()); 
+        // dbg!(rhs.clone());
         self.assign_new_value(lhs, rhs);
         Self::unit_value()
     }

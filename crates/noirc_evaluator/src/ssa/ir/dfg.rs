@@ -155,7 +155,6 @@ impl DataFlowGraph {
         match instruction.simplify(self, block) {
             SimplifyResult::SimplifiedTo(simplification) => SimplifiedTo(simplification),
             SimplifyResult::SimplifiedToMultiple(simplification) => {
-                dbg!(simplification.clone());
                 SimplifiedToMultiple(simplification)
             }
             SimplifyResult::Remove => InstructionRemoved,

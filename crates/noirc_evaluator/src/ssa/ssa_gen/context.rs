@@ -186,6 +186,10 @@ impl<'a> FunctionContext<'a> {
                 let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
+            ast::Type::Slice(elements) => {
+                let element_types = Self::convert_type(elements).flatten();
+                Tree::Branch(vec![Tree::Leaf(f(Type::field())), Tree::Leaf(f(Type::Slice(Rc::new(element_types))))])
+            }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
         }
     }
@@ -590,7 +594,7 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
-                let element = self.codegen_array_index(old_array, index, element_type, *location);
+                let element = self.codegen_array_index(old_array, index, element_type, *location, None);
                 (element, index_lvalue)
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
@@ -809,7 +813,7 @@ impl SharedContext {
 }
 
 /// Used to remember the results of each step of extracting a value from an ast::LValue
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) enum LValue {
     Ident(Values),
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },
