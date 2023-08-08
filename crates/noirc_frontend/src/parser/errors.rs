@@ -25,6 +25,8 @@ pub enum ParserErrorReason {
     EarlyReturn,
     #[error("Patterns aren't allowed in a trait's function declarations")]
     PatternInTraitFunctionParameter,
+    #[error("comptime keyword is deprecated")]
+    ComptimeDeprecated,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
 }
@@ -115,6 +117,11 @@ impl From<ParserError> for Diagnostic {
                     ParserErrorReason::ConstrainDeprecated => Diagnostic::simple_warning(
                         "Use of deprecated keyword 'constrain'".into(),
                         "The 'constrain' keyword has been deprecated. Please use the 'assert' function instead.".into(),
+                        error.span,
+                    ),
+                    ParserErrorReason::ComptimeDeprecated => Diagnostic::simple_warning(
+                        "Use of deprecated keyword 'comptime'".into(),
+                        "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
                         error.span,
                     ),
                     ParserErrorReason::ExperimentalFeature(_) => Diagnostic::simple_warning(

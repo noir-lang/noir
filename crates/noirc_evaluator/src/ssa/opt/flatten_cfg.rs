@@ -285,7 +285,7 @@ impl<'f> Context<'f> {
                 let end = self.branch_ends[&block];
                 self.inline_branch_end(end, then_branch, else_branch)
             }
-            TerminatorInstruction::Jmp { destination, arguments } => {
+            TerminatorInstruction::Jmp { destination, arguments, location: _ } => {
                 if let Some((end_block, _)) = self.conditions.last() {
                     if destination == end_block {
                         return block;

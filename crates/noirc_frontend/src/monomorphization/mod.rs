@@ -335,6 +335,8 @@ impl<'interner> Monomorphizer<'interner> {
                     index_type: Self::convert_type(&self.interner.id_type(for_expr.start_range)),
                     start_range: Box::new(start),
                     end_range: Box::new(end),
+                    start_range_location: self.interner.expr_location(&for_expr.start_range),
+                    end_range_location: self.interner.expr_location(&for_expr.end_range),
                     block,
                 })
             }
@@ -620,9 +622,9 @@ impl<'interner> Monomorphizer<'interner> {
     /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(typ: &HirType) -> ast::Type {
         match typ {
-            HirType::FieldElement(_) => ast::Type::Field,
-            HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
-            HirType::Bool(_) => ast::Type::Bool,
+            HirType::FieldElement => ast::Type::Field,
+            HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
+            HirType::Bool => ast::Type::Bool,
             HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
             HirType::FmtString(size, fields) => {
                 let size = size.evaluate_to_u64().unwrap_or(0);
@@ -653,7 +655,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // like automatic solving of traits. It should be fine since it is strictly
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
-                *binding.borrow_mut() = TypeBinding::Bound(HirType::field(None));
+                *binding.borrow_mut() = TypeBinding::Bound(HirType::default_int_type());
                 ast::Type::Field
             }
 
@@ -957,14 +959,9 @@ impl<'interner> Monomorphizer<'interner> {
         ast::Expression::Assign(ast::Assign { expression, lvalue })
     }
 
-    fn lvalue(
-        &mut self,
-        lvalue: HirLValue,
-    ) -> ast::LValue {
+    fn lvalue(&mut self, lvalue: HirLValue) -> ast::LValue {
         match lvalue {
-            HirLValue::Ident(ident, _) => {
-                ast::LValue::Ident(self.local_ident(&ident).unwrap())
-            }
+            HirLValue::Ident(ident, _) => ast::LValue::Ident(self.local_ident(&ident).unwrap()),
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let field_index = field_index.unwrap();
                 let object = Box::new(self.lvalue(*object));

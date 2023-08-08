@@ -18,7 +18,7 @@ fn main(x: Field, len3: [u8; 3], len4: [Field; 4]) {
     assert(add_lens(len3, len4) == 7);
     assert(nested_call(len4) == 5);
 
-    // std::array::len returns a comptime value
+    // std::array::len returns a compile-time known value
     assert(len4[len3.len()] == 4);
 
     // Regression for #1023, ensure .len still works after calling to_le_bytes on a witness.
