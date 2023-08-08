@@ -593,6 +593,13 @@ impl Binary {
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }
+                if let Type::Numeric(NumericType::Unsigned { .. }) = operand_type {
+                    if rhs_is_zero {
+                        // Unsigned values cannot be less than zero.
+                        let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                        return SimplifyResult::SimplifiedTo(zero);
+                    }
+                }
             }
             BinaryOp::And => {
                 if lhs_is_zero || rhs_is_zero {
