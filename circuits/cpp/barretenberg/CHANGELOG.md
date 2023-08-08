@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.6](https://github.com/AztecProtocol/barretenberg/compare/barretenberg-v0.3.5...barretenberg-v0.3.6) (2023-08-08)
+
+
+### Features
+
+* Update release-please.yml ([#651](https://github.com/AztecProtocol/barretenberg/issues/651)) ([2795df6](https://github.com/AztecProtocol/barretenberg/commit/2795df6b705175a32fe2a6f18b3c572e297e277e))
+
+## [0.3.5](https://github.com/AztecProtocol/barretenberg/compare/barretenberg-v0.3.4...barretenberg-v0.3.5) (2023-08-07)
+
+
+### Features
+
+* Celer benchmark ([#1369](https://github.com/AztecProtocol/barretenberg/issues/1369)) ([d4ade2a](https://github.com/AztecProtocol/barretenberg/commit/d4ade2a5f06a3abf3c9c2635946d7121cc2f64b4))
+* Goblin Honk Composer/Prover/Verifier ([#1220](https://github.com/AztecProtocol/barretenberg/issues/1220)) ([970bb07](https://github.com/AztecProtocol/barretenberg/commit/970bb073763cc59552cd05dccf7f8fc63f58cef9))
+* Goblin translator prototype ([#1249](https://github.com/AztecProtocol/barretenberg/issues/1249)) ([7738d74](https://github.com/AztecProtocol/barretenberg/commit/7738d74791acc0fa8b1b1d8bb2a77783ca900123))
+* Internal keyword + lending contract and tests ([#978](https://github.com/AztecProtocol/barretenberg/issues/978)) ([e58ca4b](https://github.com/AztecProtocol/barretenberg/commit/e58ca4b332272fc57b2a5358bb5003bac79a8f5a))
+* Minimal barretenberg .circleci ([#1352](https://github.com/AztecProtocol/barretenberg/issues/1352)) ([708e2e2](https://github.com/AztecProtocol/barretenberg/commit/708e2e2786de5dce5bfc770c54734e5862a436e5))
+
+
+### Bug Fixes
+
+* Bootstrap.sh git hook for monorepo ([#1256](https://github.com/AztecProtocol/barretenberg/issues/1256)) ([b22b8d5](https://github.com/AztecProtocol/barretenberg/commit/b22b8d5f42ddfae140068c3ce8b3053d4c8d1874))
+* Build-system spot request cancellation ([#1339](https://github.com/AztecProtocol/barretenberg/issues/1339)) ([fc1d96a](https://github.com/AztecProtocol/barretenberg/commit/fc1d96a744a8d5a6cae06c408546c3638408551d))
+* Fixing external benchmarks ([#1250](https://github.com/AztecProtocol/barretenberg/issues/1250)) ([0ea6a39](https://github.com/AztecProtocol/barretenberg/commit/0ea6a39950e8cd5ff7765031457c162d03ebae06))
+* Fixing fuzzing build after composer splitting ([#1317](https://github.com/AztecProtocol/barretenberg/issues/1317)) ([946c23c](https://github.com/AztecProtocol/barretenberg/commit/946c23c52d45ddce973e453c40c048734e7f6937))
+* Reinstate barretenberg-benchmark-aggregator ([#1330](https://github.com/AztecProtocol/barretenberg/issues/1330)) ([407a915](https://github.com/AztecProtocol/barretenberg/commit/407a915a94c7d83dec9e14a11ad0e3461fd2906d))
+* Retry git submodule fetch ([#1371](https://github.com/AztecProtocol/barretenberg/issues/1371)) ([037dda3](https://github.com/AztecProtocol/barretenberg/commit/037dda3d254d56a20292d2bed5a9582d36c08427))
+
 ## [0.3.4](https://github.com/AztecProtocol/barretenberg/compare/barretenberg-v0.3.3...barretenberg-v0.3.4) (2023-07-25)
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.6](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.5...barretenberg.js-v0.3.6) (2023-08-08)
+
+
+### Miscellaneous Chores
+
+* **barretenberg.js:** Synchronize barretenberg versions
+
+## [0.3.5](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.4...barretenberg.js-v0.3.5) (2023-08-07)
+
+
+### Miscellaneous Chores
+
+* **barretenberg.js:** Synchronize barretenberg versions
+
 ## [0.3.4](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.3...barretenberg.js-v0.3.4) (2023-07-25)
 
 
