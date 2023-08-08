@@ -2,17 +2,22 @@ name: Publish Nargo
 
 on:
   workflow_dispatch:
+    # Allow pushing a manual nightly release
     inputs:
       tag:
-        description: The tag to build Nargo from
+        description: The tag to build Nargo from (leave empty to build a nightly release from master)
         required: false
       publish:
         description: Whether to publish the build artifacts
         type: boolean
         default: false
-  # schedule:
-    # - cron: "0 2 * * *" # run at 2 AM UTC
+  schedule:
+    # Run a nightly release at 2 AM UTC
+    - cron: "0 2 * * *"
   push:
+    # release-please staging branch builds binaries as dry-run for release
+    branches:
+      - "release-please--branches--master--components--noir"
 
 jobs:
   build-barretenberg:
