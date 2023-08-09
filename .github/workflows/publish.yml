@@ -68,7 +68,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
-          path: ./noir
 
       - name: Setup for Apple Silicon
         if: matrix.target == 'aarch64-apple-darwin'
@@ -91,7 +90,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/libbarretenberg-wasm32
+          path: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
@@ -99,14 +98,12 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build environment and Compile
-        working-directory: ./noir
         env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
-        working-directory: ./noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
@@ -116,12 +113,11 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nargo-${{ matrix.target }}
-          path: ./noir/dist/*
+          path: ./dist/*
           retention-days: 3
 
       - name: Test built artifact
         if: matrix.target == 'x86_64-apple-darwin'
-        working-directory: ./noir
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
 
@@ -135,7 +131,7 @@ jobs:
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
-          file: ./noir/nargo-${{ matrix.target }}.tar.gz
+          file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
@@ -144,7 +140,7 @@ jobs:
     needs: [build-barretenberg]
     runs-on: ubuntu-22.04
     env:
-      CROSS_CONFIG: ${{ github.workspace }}/noir/.github/Cross.toml
+      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
     strategy:
       fail-fast: false
       matrix:
@@ -161,7 +157,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
-          path: ./noir
 
       - uses: actions/cache@v3
         with:
@@ -177,7 +172,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/libbarretenberg-wasm32
+          path: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
@@ -185,15 +180,13 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build Nargo
-        working-directory: ./noir
         env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32/bin
         run: |
           cargo install cross --force --git https://github.com/cross-rs/cross
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
-        working-directory: ./noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo ./dist/nargo
@@ -203,12 +196,11 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nargo-${{ matrix.target }}
-          path: ./noir/dist/*
+          path: ./dist/*
           retention-days: 3
 
       - name: Test built artifact
         if: startsWith(matrix.target, 'x86_64-unknown-linux')
-        working-directory: ./noir
         run: |
           cp ./target/${{ matrix.target }}/release/nargo ~/.cargo/bin/
 
@@ -222,7 +214,7 @@ jobs:
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
-          file: ./noir/nargo-${{ matrix.target }}.tar.gz
+          file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
@@ -241,7 +233,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
-          path: ./noir
 
       - uses: actions/cache@v3
         with:
@@ -257,7 +248,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/libbarretenberg-wasm32
+          path: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
@@ -265,14 +256,12 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build environment and Compile
-        working-directory: ./noir
         env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - name: Package artifacts
-        working-directory: ./noir
         run: |
           mkdir dist
           cp ./target/${{ matrix.target }}/release/nargo.exe ./dist/nargo.exe
@@ -282,11 +271,10 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: nargo-${{ matrix.target }}
-          path: ./noir/dist/*
+          path: ./dist/*
           retention-days: 3
 
       - name: Test built artifact
-        working-directory: ./noir
         shell: powershell
         run: |
           cp ./target/${{ matrix.target }}/release/nargo.exe ~/.cargo/bin/
@@ -301,7 +289,7 @@ jobs:
         with:
           repo_name: noir-lang/noir
           repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
-          file: ./noir/nargo-${{ matrix.target }}.zip
+          file: ./nargo-${{ matrix.target }}.zip
           asset_name: nargo-${{ matrix.target }}.zip
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
