@@ -182,6 +182,7 @@ impl DefCollector {
         resolve_type_aliases(context, def_collector.collected_type_aliases, crate_id, errors);
 
         // Must resolve structs before we resolve globals.
+        resolve_traits(context, def_collector.collected_traits, crate_id, errors);
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
         // We must wait to resolve non-integer globals until after we resolve structs since structs
@@ -380,6 +381,19 @@ fn resolve_structs(
     }
 }
 
+/// Create the mappings from TypeId -> TraitType
+/// so that expressions can access the elements of traits
+fn resolve_traits(
+    context: &mut Context,
+    traits: HashMap<TraitId, UnresolvedTrait>,
+    _crate_id: CrateId,
+    _errors: &mut [FileDiagnostic],
+) {
+    for (type_id, typ) in &traits {
+        context.def_interner.push_empty_trait(*type_id, typ);
+    }
+}
+
 fn resolve_struct_fields(
     context: &mut Context,
     krate: CrateId,
@@ -450,7 +464,6 @@ fn resolve_impls(
                 generics,
                 errors,
             );
-
             if self_type != Type::Error {
                 for (file_id, method_id) in &file_func_ids {
                     let method_name = interner.function_name(method_id).to_owned();
