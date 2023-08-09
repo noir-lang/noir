@@ -30,6 +30,19 @@ pub enum DefCollectorErrorKind {
     NonStructTypeInImpl { span: Span },
     #[error("Cannot `impl` a type defined outside the current crate")]
     ForeignImpl { span: Span, type_name: String },
+    #[error("Mismatch signature of trait")]
+    MismatchTraitSignature { primary_message: String, secondary_message: String, span: Span },
+    #[error("Method is not defined in trait")]
+    MethodNotInTrait {
+        trait_name: String,
+        trait_span: Span,
+        impl_method_name: String,
+        impl_method_span: Span,
+    },
+    #[error("Not a trait")]
+    NotATrait { primary_message: String, secondary_message: String, span: Span },
+    #[error("Trait {trait_name} not found")]
+    TraitNotFound { trait_name: String, span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -47,7 +60,6 @@ impl fmt::Display for DuplicateType {
             DuplicateType::TypeDefinition => write!(f, "type definition"),
             DuplicateType::Trait => write!(f, "trait definition"),
             DuplicateType::Import => write!(f, "import"),
-            DuplicateType::Trait => write!(f, "trait"),
         }
     }
 }
@@ -93,6 +105,28 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 format!("{type_name} was defined outside the current crate"),
                 span,
             ),
+            DefCollectorErrorKind::TraitNotFound { trait_name, span } => Diagnostic::simple_error(
+                format!("Trait {} not found", trait_name),
+                "".to_string(),
+                span,
+            ),
+            DefCollectorErrorKind::MismatchTraitSignature {
+                primary_message,
+                secondary_message,
+                span,
+            } => Diagnostic::simple_error(primary_message, secondary_message, span),
+            DefCollectorErrorKind::MethodNotInTrait {
+                trait_name,
+                trait_span: _,
+                impl_method_name,
+                impl_method_span,
+            } => {
+                let primary_message = format!("method with name {impl_method_name} is not part of trait {trait_name}, therefore it can't be implemented");
+                Diagnostic::simple_error(primary_message, "".to_owned(), impl_method_span)
+            }
+            DefCollectorErrorKind::NotATrait { primary_message, secondary_message, span } => {
+                Diagnostic::simple_error(primary_message, secondary_message, span)
+            }
         }
     }
 }
