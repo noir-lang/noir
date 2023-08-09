@@ -15,6 +15,7 @@ pub enum DuplicateType {
     Global,
     TypeDefinition,
     Import,
+    Trait,
 }
 
 #[derive(Error, Debug)]
@@ -44,7 +45,9 @@ impl fmt::Display for DuplicateType {
             DuplicateType::Module => write!(f, "module"),
             DuplicateType::Global => write!(f, "global"),
             DuplicateType::TypeDefinition => write!(f, "type definition"),
+            DuplicateType::Trait => write!(f, "trait definition"),
             DuplicateType::Import => write!(f, "import"),
+            DuplicateType::Trait => write!(f, "trait"),
         }
     }
 }
@@ -62,10 +65,10 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                     let second_span = second_def.0.span();
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
-                        format!("first {:?} found here", &typ),
+                        format!("first {} found here", &typ),
                         first_span,
                     );
-                    diag.add_secondary(format!("second {:?} found here", &typ), second_span);
+                    diag.add_secondary(format!("second {} found here", &typ), second_span);
                     diag
                 }
             }

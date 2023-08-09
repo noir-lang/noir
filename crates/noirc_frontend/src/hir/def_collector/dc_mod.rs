@@ -2,8 +2,11 @@ use fm::FileId;
 use noirc_errors::{FileDiagnostic, Location};
 
 use crate::{
-    graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule,
+    graph::CrateId,
+    hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
+    node_interner::{StructId, TraitId},
+    parser::SubModule,
+    Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias, ParsedModule,
     TypeImpl,
 };
 
@@ -53,6 +56,8 @@ pub fn collect_defs(
     }
 
     collector.collect_globals(context, ast.globals, errors);
+
+    collector.collect_traits(ast.traits, crate_id, errors);
 
     collector.collect_structs(ast.types, crate_id, errors);
 
@@ -232,6 +237,46 @@ impl<'a> ModCollector<'a> {
             }
 
             self.def_collector.collected_type_aliases.insert(type_alias_id, unresolved);
+        }
+    }
+
+    /// Collect any traits definitions declared within the ast.
+    /// Returns a vector of errors if any traits were already defined.
+    fn collect_traits(
+        &mut self,
+        traits: Vec<NoirTrait>,
+        krate: CrateId,
+        errors: &mut Vec<FileDiagnostic>,
+    ) {
+        for trait_definition in traits {
+            let name = trait_definition.name.clone();
+
+            // Create the corresponding module for the trait namespace
+            let id = match self.push_child_module(&name, self.file_id, false, false, errors) {
+                Some(local_id) => TraitId(ModuleId { krate, local_id }),
+                None => continue,
+            };
+
+            // Add the trait to scope so its path can be looked up later
+            let result =
+                self.def_collector.def_map.modules[self.module_id.0].declare_trait(name, id);
+
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Trait,
+                    first_def,
+                    second_def,
+                };
+                errors.push(err.into_file_diagnostic(self.file_id));
+            }
+
+            // And store the TraitId -> TraitType mapping somewhere it is reachable
+            let unresolved = UnresolvedTrait {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                trait_def: trait_definition,
+            };
+            self.def_collector.collected_traits.insert(id, unresolved);
         }
     }
 

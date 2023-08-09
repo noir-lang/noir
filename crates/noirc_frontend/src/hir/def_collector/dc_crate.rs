@@ -10,9 +10,9 @@ use crate::hir::resolution::{
 };
 use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TypeAliasId};
+use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 use crate::{
-    ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct,
+    ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
     NoirTypeAlias, ParsedModule, Shared, StructType, Type, TypeBinding, UnresolvedGenerics,
     UnresolvedType,
 };
@@ -41,6 +41,12 @@ pub struct UnresolvedStruct {
     pub struct_def: NoirStruct,
 }
 
+pub struct UnresolvedTrait {
+    pub file_id: FileId,
+    pub module_id: LocalModuleId,
+    pub trait_def: NoirTrait,
+}
+
 #[derive(Clone)]
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
@@ -63,6 +69,7 @@ pub struct DefCollector {
     pub(crate) collected_functions: Vec<UnresolvedFunctions>,
     pub(crate) collected_types: HashMap<StructId, UnresolvedStruct>,
     pub(crate) collected_type_aliases: HashMap<TypeAliasId, UnresolvedTypeAlias>,
+    pub(crate) collected_traits: HashMap<TraitId, UnresolvedTrait>,
     pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     pub(crate) collected_impls: ImplMap,
 }
@@ -81,6 +88,7 @@ impl DefCollector {
             collected_functions: vec![],
             collected_types: HashMap::new(),
             collected_type_aliases: HashMap::new(),
+            collected_traits: HashMap::new(),
             collected_impls: HashMap::new(),
             collected_globals: vec![],
         }
