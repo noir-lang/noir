@@ -106,9 +106,10 @@ fn regression_2218(x: Field, y: Field) {
     let q2 = *q;
 
     if x != y {
+        *q1 = 1;
         // Make sure that we correct load reference aliases through multiple blocks
         if x != 20 {
-            *q1 = 1;
+            *q1 = 10;
             *q2 = 2; // now we'd expect q1 == q2 == 2
             
             assert(*q1 == 2);  
