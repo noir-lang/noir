@@ -12,7 +12,7 @@ import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
 
-import { CheatCodes } from '../cheat_codes.js';
+import { CheatCodes } from './cheat_codes.js';
 import { deployAndInitializeNonNativeL2TokenContracts } from './utils.js';
 
 /**
