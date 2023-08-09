@@ -1,11 +1,8 @@
-use crate::{
-    errors::{CliError, CompileError},
-    prepare_package,
-};
+use crate::errors::{CliError, CompileError};
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
-use nargo::package::Package;
+use nargo::{package::Package, prepare_package};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
