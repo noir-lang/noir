@@ -12,7 +12,7 @@ use iter_extended::vecmap;
 use noirc_abi::AbiType;
 use noirc_errors::Span;
 
-use crate::{node_interner::StructId, Ident, Signedness};
+use crate::{node_interner::StructId, node_interner::TraitId, Ident, Signedness};
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
@@ -47,6 +47,11 @@ pub enum Type {
     /// the shared definition for each instance of this struct type. The `Vec<Type>`
     /// represents the generic arguments (if any) to this struct type.
     Struct(Shared<StructType>, Vec<Type>),
+
+    /// A user-defined trait type. The `Shared<TraitType>` field here refers to
+    /// the shared definition for each instance of this trait type. The `Vec<Type>`
+    /// represents the generic arguments (if any) to this trait type.
+    Trait(Shared<Trait>, Vec<Type>),
 
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
@@ -124,6 +129,39 @@ pub struct StructType {
     pub span: Span,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum TraitItemType {
+    /// A function declaration in a trait.
+    Function {
+        name: Ident,
+        generics: Generics,
+        arguments: Vec<Type>,
+        return_type: Type,
+        span: Span,
+    },
+
+    /// A constant declaration in a trait.
+    Constant { name: Ident, ty: Type, span: Span },
+
+    /// A type declaration in a trait.
+    Type { name: Ident, ty: Type, span: Span },
+}
+/// Represents a trait type in the type system. Each instance of this
+/// rust struct will be shared across all Type::Trait variants that represent
+/// the same trait type.
+#[derive(Debug, Eq)]
+pub struct Trait {
+    /// A unique id representing this trait type. Used to check if two
+    /// struct traits are equal.
+    pub id: TraitId,
+
+    pub items: Vec<TraitItemType>,
+
+    pub name: Ident,
+    pub generics: Generics,
+    pub span: Span,
+}
+
 /// Corresponds to generic lists such as `<T, U>` in the source
 /// program. The `TypeVariableId` portion is used to match two
 /// type variables to check for equality, while the `TypeVariable` is
@@ -139,6 +177,36 @@ impl std::hash::Hash for StructType {
 impl PartialEq for StructType {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl std::hash::Hash for Trait {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for Trait {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Trait {
+    pub fn new(
+        id: TraitId,
+        name: Ident,
+        span: Span,
+        items: Vec<TraitItemType>,
+        generics: Generics,
+    ) -> Trait {
+        Trait { id, name, span, items, generics }
+    }
+}
+
+impl std::fmt::Display for Trait {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 
@@ -476,6 +544,7 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
+            | Type::Trait(..)
             | Type::Forall(_, _) => false,
 
             Type::Array(length, elem) => {
@@ -546,6 +615,15 @@ impl std::fmt::Display for Type {
                 }
             }
             Type::Struct(s, args) => {
+                let args = vecmap(args, |arg| arg.to_string());
+                if args.is_empty() {
+                    write!(f, "{}", s.borrow())
+                } else {
+                    write!(f, "{}<{}>", s.borrow(), args.join(", "))
+                }
+            }
+            Type::Trait(s, args) => {
+                // TODO: Extract this into a shared helper for traits and structs
                 let args = vecmap(args, |arg| arg.to_string());
                 if args.is_empty() {
                     write!(f, "{}", s.borrow())
@@ -992,6 +1070,7 @@ impl Type {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
                 AbiType::Struct { fields, name: struct_type.name.to_string() }
             }
+            Type::Trait(_, _) => unreachable!("traits cannot be used in the abi"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
@@ -1098,6 +1177,12 @@ impl Type {
                 let args = vecmap(args, |arg| arg.substitute(type_bindings));
                 Type::Struct(fields.clone(), args)
             }
+            Type::Trait(items, args) => {
+                let args = vecmap(args, |arg| arg.substitute(type_bindings));
+                // TODO: Don't we need to substitute any reference to the generic parameters within the
+                //       items as well here? How does it work for structs?
+                Type::Trait(items.clone(), args)
+            }
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
@@ -1142,6 +1227,7 @@ impl Type {
                 len_occurs || field_occurs
             }
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
+            Type::Trait(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
                 match &*binding.borrow() {
@@ -1210,7 +1296,7 @@ impl Type {
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types
-            Forall(..) => unreachable!(),
+            Forall(..) | Trait(..) => unreachable!(),
 
             FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Error | NotConstant => {
                 self.clone()
