@@ -153,6 +153,7 @@ fn resolve_name_in_module(
             // TODO: If impls are ever implemented, types can be used in a path
             ModuleDefId::TypeId(id) => id.0,
             ModuleDefId::TypeAliasId(_) => panic!("type aliases cannot be used in type namespace"),
+            ModuleDefId::TraitId(id) => id.0,
             ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
         };
 
@@ -160,15 +161,14 @@ fn resolve_name_in_module(
 
         // Check if namespace
         let found_ns = current_mod.find_name(segment);
+
         if found_ns.is_none() {
             return Err(PathResolutionError::Unresolved(segment.clone()));
         }
-
         // Check if it is a contract and we're calling from a non-contract context
         if current_mod.is_contract && !allow_contracts {
             return Err(PathResolutionError::ExternalContractUsed(segment.clone()));
         }
-
         current_ns = found_ns;
     }
 
