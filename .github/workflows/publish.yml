@@ -132,7 +132,7 @@ jobs:
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
-          repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
@@ -215,7 +215,7 @@ jobs:
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
-          repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
@@ -290,7 +290,7 @@ jobs:
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
-          repo_token: ${{ secrets.NOIR_REPO_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./nargo-${{ matrix.target }}.zip
           asset_name: nargo-${{ matrix.target }}.zip
           overwrite: true
