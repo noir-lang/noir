@@ -11,6 +11,7 @@ export * from './kernel/private_kernel.js';
 export * from './kernel/public_kernel.js';
 export * from './kernel/combined_accumulated_data.js';
 export * from './kernel/combined_constant_data.js';
+export * from './kernel/constant_historic_block_data.js';
 export * from './kernel/previous_kernel_data.js';
 export * from './kernel/public_inputs.js';
 export * from './private_circuit_public_inputs.js';

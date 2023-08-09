@@ -44,6 +44,19 @@ export class HttpNode implements AztecNode {
   }
 
   /**
+   * Method to request a block at the provided block number.
+   * @param number - The block number to request.
+   * @returns The block requested. Or undefined if it does not exist.
+   */
+  async getBlock(number: number): Promise<L2Block | undefined> {
+    const url = new URL(`${this.baseUrl}/get-block`);
+    url.searchParams.append('number', number.toString());
+    const response = await (await fetch(url.toString())).json();
+    const { block } = response;
+    return Promise.resolve(block ? L2Block.decode(Buffer.from(block, 'hex')) : block);
+  }
+
+  /**
    * Method to request blocks. Will attempt to return all requested blocks but will return only those available.
    * @param from - The start of the range of blocks to return.
    * @param limit - Maximum number of blocks to obtain.
@@ -316,9 +329,6 @@ export class HttpNode implements AztecNode {
       [MerkleTreeId.NULLIFIER_TREE]: extractRoot(MerkleTreeId.NULLIFIER_TREE),
       [MerkleTreeId.PUBLIC_DATA_TREE]: extractRoot(MerkleTreeId.PUBLIC_DATA_TREE),
       [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: extractRoot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
-      [MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE]: extractRoot(MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE),
-      [MerkleTreeId.CONTRACT_TREE_ROOTS_TREE]: extractRoot(MerkleTreeId.CONTRACT_TREE_ROOTS_TREE),
-      [MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE]: extractRoot(MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE),
       [MerkleTreeId.BLOCKS_TREE]: extractRoot(MerkleTreeId.BLOCKS_TREE),
     };
   }

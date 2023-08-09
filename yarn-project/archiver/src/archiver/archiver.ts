@@ -268,6 +268,20 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
   }
 
   /**
+   * Gets an l2 block.
+   * @param number - The block number to return (inclusive).
+   * @returns The requested L2 block.
+   */
+  public async getL2Block(number: number): Promise<L2Block | undefined> {
+    // If the number provided is -ve, then return the latest block.
+    if (number < 0) {
+      number = this.store.getBlocksLength();
+    }
+    const blocks = await this.store.getL2Blocks(number, 1);
+    return blocks.length === 0 ? undefined : blocks[0];
+  }
+
+  /**
    * Lookup the L2 contract data for this contract.
    * Contains the contract's public function bytecode.
    * @param contractAddress - The contract data address.

@@ -99,8 +99,7 @@ void validate_contract_tree_root(DummyCircuitBuilder& builder, PrivateKernelInpu
     auto const& purported_contract_tree_root =
         private_inputs.private_call.call_stack_item.public_inputs.historic_contract_tree_root;
     auto const& previous_kernel_contract_tree_root =
-        private_inputs.previous_kernel.public_inputs.constants.historic_tree_roots.private_historic_tree_roots
-            .contract_tree_root;
+        private_inputs.previous_kernel.public_inputs.constants.block_data.contract_tree_root;
     builder.do_assert(
         purported_contract_tree_root == previous_kernel_contract_tree_root,
         "purported_contract_tree_root doesn't match previous_kernel_contract_tree_root",
@@ -158,7 +157,7 @@ KernelCircuitPublicInputs<NT> native_private_kernel_circuit_inner(DummyCircuitBu
 
     common_validate_read_requests(
         builder,
-        public_inputs.constants.historic_tree_roots.private_historic_tree_roots.private_data_tree_root,
+        public_inputs.constants.block_data.private_data_tree_root,
         private_inputs.private_call.call_stack_item.public_inputs.read_requests,  // read requests from private call
         private_inputs.private_call.read_request_membership_witnesses);
 

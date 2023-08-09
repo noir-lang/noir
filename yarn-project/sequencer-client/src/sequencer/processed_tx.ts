@@ -1,4 +1,4 @@
-import { CombinedHistoricTreeRoots, Fr, KernelCircuitPublicInputs, Proof, makeEmptyProof } from '@aztec/circuits.js';
+import { ConstantHistoricBlockData, Fr, KernelCircuitPublicInputs, Proof, makeEmptyProof } from '@aztec/circuits.js';
 import { Tx, TxHash, TxL2Logs } from '@aztec/types';
 
 /**
@@ -60,12 +60,12 @@ export async function makeProcessedTx(
  * @returns A processed empty tx.
  */
 export function makeEmptyProcessedTx(
-  historicTreeRoots: CombinedHistoricTreeRoots,
+  historicTreeRoots: ConstantHistoricBlockData,
   chainId: Fr,
   version: Fr,
 ): Promise<ProcessedTx> {
   const emptyKernelOutput = KernelCircuitPublicInputs.empty();
-  emptyKernelOutput.constants.historicTreeRoots = historicTreeRoots;
+  emptyKernelOutput.constants.blockData = historicTreeRoots;
   emptyKernelOutput.constants.txContext.chainId = chainId;
   emptyKernelOutput.constants.txContext.version = version;
   const emptyProof = makeEmptyProof();

@@ -141,12 +141,13 @@ export class Sequencer {
       this.state = SequencerState.CREATING_BLOCK;
 
       const blockNumber = (await this.l2BlockSource.getBlockHeight()) + 1;
-      const globalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
+      const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
+      const prevGlobalVariables = (await this.l2BlockSource.getL2Block(-1))?.globalVariables ?? GlobalVariables.empty();
 
       // Process txs and drop the ones that fail processing
       // We create a fresh processor each time to reset any cached state (eg storage writes)
-      const processor = this.publicProcessorFactory.create();
-      const [processedTxs, failedTxs] = await processor.process(validTxs, globalVariables);
+      const processor = await this.publicProcessorFactory.create(prevGlobalVariables, newGlobalVariables);
+      const [processedTxs, failedTxs] = await processor.process(validTxs);
       if (failedTxs.length > 0) {
         this.log(`Dropping failed txs ${(await Tx.getHashes(failedTxs)).join(', ')}`);
         await this.p2pClient.deleteTxs(await Tx.getHashes(failedTxs));
@@ -164,9 +165,9 @@ export class Sequencer {
 
       // Build the new block by running the rollup circuits
       this.log(`Assembling block with txs ${processedTxs.map(tx => tx.hash).join(', ')}`);
-      const emptyTx = await processor.makeEmptyProcessedTx(this.chainId, this.version);
 
-      const block = await this.buildBlock(processedTxs, l1ToL2Messages, emptyTx, globalVariables);
+      const emptyTx = await processor.makeEmptyProcessedTx();
+      const block = await this.buildBlock(processedTxs, l1ToL2Messages, emptyTx, newGlobalVariables);
       this.log(`Assembled block ${block.number}`);
 
       await this.publishContractPublicData(validTxs, block);

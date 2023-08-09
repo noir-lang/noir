@@ -6,13 +6,12 @@
 #include "aztec3/circuits/abis/call_stack_item.hpp"
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
 #include "aztec3/circuits/abis/combined_constant_data.hpp"
-#include "aztec3/circuits/abis/combined_historic_tree_roots.hpp"
+#include "aztec3/circuits/abis/constant_historic_block_data.hpp"
 #include "aztec3/circuits/abis/contract_deployment_data.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
-#include "aztec3/circuits/abis/private_historic_tree_roots.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_call_data.hpp"
 #include "aztec3/circuits/abis/public_kernel/public_kernel_inputs.hpp"
 #include "aztec3/circuits/abis/tx_context.hpp"
@@ -35,11 +34,10 @@ using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::CombinedAccumulatedData;
 using aztec3::circuits::abis::CombinedConstantData;
-using aztec3::circuits::abis::CombinedHistoricTreeRoots;
+using aztec3::circuits::abis::ConstantHistoricBlockData;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionallyRevealedData;
 using aztec3::circuits::abis::PreviousKernelData;
-using aztec3::circuits::abis::PrivateHistoricTreeRoots;
 using aztec3::circuits::abis::PublicCircuitPublicInputs;
 using aztec3::circuits::abis::PublicDataRead;
 using aztec3::circuits::abis::PublicTypes;
@@ -360,30 +358,25 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     };
 
     // TODO(914) Should this be unused?
-    [[maybe_unused]] CombinedHistoricTreeRoots<NT> const historic_tree_roots = { .private_historic_tree_roots = {
-                                                                                     .private_data_tree_root = 1000,
-                                                                                     .contract_tree_root = 2000,
-                                                                                     .l1_to_l2_messages_tree_root =
-                                                                                         3000,
-                                                                                     .private_kernel_vk_tree_root =
-                                                                                         4000,
-                                                                                 } };
-
-    CombinedConstantData<NT> const end_constants = {
-        .historic_tree_roots =
-            CombinedHistoricTreeRoots<NT>{ .private_historic_tree_roots =
-                                               PrivateHistoricTreeRoots<NT>{ .private_data_tree_root = ++seed,
-                                                                             .nullifier_tree_root = ++seed,
-                                                                             .contract_tree_root = ++seed,
-                                                                             .private_kernel_vk_tree_root = ++seed } },
-        .tx_context =
-            TxContext<NT>{
-                .is_fee_payment_tx = false,
-                .is_rebate_payment_tx = false,
-                .is_contract_deployment_tx = false,
-                .contract_deployment_data = {},
-            }
+    [[maybe_unused]] ConstantHistoricBlockData<NT> const historic_tree_roots = {
+        .private_data_tree_root = 1000,
+        .contract_tree_root = 2000,
+        .l1_to_l2_messages_tree_root = 3000,
+        .private_kernel_vk_tree_root = 4000,
     };
+
+    CombinedConstantData<NT> const end_constants = { .block_data =
+                                                         ConstantHistoricBlockData<NT>{
+                                                             .private_data_tree_root = ++seed,
+                                                             .nullifier_tree_root = ++seed,
+                                                             .contract_tree_root = ++seed,
+                                                             .private_kernel_vk_tree_root = ++seed },
+                                                     .tx_context = TxContext<NT>{
+                                                         .is_fee_payment_tx = false,
+                                                         .is_rebate_payment_tx = false,
+                                                         .is_contract_deployment_tx = false,
+                                                         .contract_deployment_data = {},
+                                                     } };
 
     std::array<NT::fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX> public_call_stack{};
     public_call_stack[0] = public_call_data.call_stack_item.hash();

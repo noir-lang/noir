@@ -4,6 +4,7 @@
 
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
+#include "aztec3/circuits/abis/global_variables.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/membership_witness.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
@@ -632,7 +633,7 @@ TEST_F(base_rollup_tests, native_calldata_hash)
     run_cbind(inputs, outputs);
 }
 
-TEST_F(base_rollup_tests, native_compute_membership_historic_private_data_negative)
+TEST_F(base_rollup_tests, native_compute_membership_historic_blocks_tree_negative)
 {
     // WRITE a negative test that will fail the inclusion proof
 
@@ -642,16 +643,16 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_private_data_negati
     std::array<PreviousKernelData<NT>, 2> const kernel_data = { get_empty_kernel(), get_empty_kernel() };
     BaseRollupInputs inputs = base_rollup_inputs_from_kernels(kernel_data);
 
-    MemoryStore private_data_store;
-    auto private_data_tree = MerkleTree(private_data_store, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
+    MemoryStore blocks_store;
+    auto blocks_tree = MerkleTree(blocks_store, HISTORIC_BLOCKS_TREE_HEIGHT);
 
     // Create an INCORRECT sibling path for the private data tree root in the historic tree roots.
-    auto hash_path = private_data_tree.get_sibling_path(0);
-    std::array<NT::fr, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT> sibling_path{};
-    for (size_t i = 0; i < PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT; ++i) {
+    auto hash_path = blocks_tree.get_sibling_path(0);
+    std::array<NT::fr, HISTORIC_BLOCKS_TREE_HEIGHT> sibling_path{};
+    for (size_t i = 0; i < HISTORIC_BLOCKS_TREE_HEIGHT; ++i) {
         sibling_path[i] = hash_path[i] + 1;
     }
-    inputs.historic_private_data_tree_root_membership_witnesses[0] = {
+    inputs.historic_blocks_tree_root_membership_witnesses[0] = {
         .leaf_index = 0,
         .sibling_path = sibling_path,
     };
@@ -660,44 +661,12 @@ TEST_F(base_rollup_tests, native_compute_membership_historic_private_data_negati
         aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
 
     ASSERT_TRUE(builder.failed());
-    ASSERT_EQ(
-        builder.get_first_failure().message,
-        "Membership check failed: base_rollup_circuit: historical root is in rollup constants but not in historic "
-        "private data tree roots at kernel input 0 to this base rollup circuit");
+    ASSERT_EQ(builder.get_first_failure().message,
+              "Membership check failed: base_rollup_circuit: historical root is in rollup constants but not in "
+              "historic block tree roots at kernel input 0 to this "
+              "base rollup circuit");
 }
 
-TEST_F(base_rollup_tests, native_compute_membership_historic_contract_tree_negative)
-{
-    // Test membership works for empty trees
-    DummyCircuitBuilder builder =
-        DummyCircuitBuilder("base_rollup_tests__native_compute_membership_historic_contract_tree_negative");
-    std::array<PreviousKernelData<NT>, 2> const kernel_data = { get_empty_kernel(), get_empty_kernel() };
-    BaseRollupInputs inputs = base_rollup_inputs_from_kernels(kernel_data);
-
-    MemoryStore contract_tree_store;
-    auto contract_tree = MerkleTree(contract_tree_store, CONTRACT_TREE_ROOTS_TREE_HEIGHT);
-
-
-    // Create an INCORRECT sibling path for contract tree root in the historic tree roots.
-    auto hash_path = contract_tree.get_sibling_path(0);
-    std::array<NT::fr, CONTRACT_TREE_ROOTS_TREE_HEIGHT> sibling_path{};
-    for (size_t i = 0; i < CONTRACT_TREE_ROOTS_TREE_HEIGHT; ++i) {
-        sibling_path[i] = hash_path[i] + 1;
-    }
-    inputs.historic_contract_tree_root_membership_witnesses[0] = {
-        .leaf_index = 0,
-        .sibling_path = sibling_path,
-    };
-
-    BaseOrMergeRollupPublicInputs const outputs =
-        aztec3::circuits::rollup::native_base_rollup::base_rollup_circuit(builder, inputs);
-
-    ASSERT_TRUE(builder.failed());
-    ASSERT_EQ(
-        builder.get_first_failure().message,
-        "Membership check failed: base_rollup_circuit: historical root is in rollup constants but not in historic "
-        "contract data tree roots at kernel input 0 to this base rollup circuit");
-}
 
 TEST_F(base_rollup_tests, native_constants_dont_change)
 {

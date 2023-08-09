@@ -143,6 +143,8 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
   const contractTreeRoot = witnessReader.readField();
   const l1Tol2TreeRoot = witnessReader.readField();
   const blocksTreeRoot = witnessReader.readField();
+  const prevGlobalVariablesHash = witnessReader.readField();
+  const publicDataTreeRoot = witnessReader.readField();
 
   const contractDeploymentData = new ContractDeploymentData(
     new Point(witnessReader.readField(), witnessReader.readField()),
@@ -175,6 +177,8 @@ export function extractPublicInputs(partialWitness: ACVMWitness, acir: Buffer): 
     contractTreeRoot,
     l1Tol2TreeRoot,
     blocksTreeRoot,
+    prevGlobalVariablesHash,
+    publicDataTreeRoot,
     contractDeploymentData,
     chainId,
     version,

@@ -22,6 +22,15 @@ export class MockBlockSource implements L2BlockSource {
   }
 
   /**
+   * Gets an l2 block.
+   * @param number - The block number to return (inclusive).
+   * @returns The requested L2 block.
+   */
+  public getL2Block(number: number) {
+    return Promise.resolve(this.l2Blocks[number]);
+  }
+
+  /**
    * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).
    * @param limit - The maximum number of blocks to return.

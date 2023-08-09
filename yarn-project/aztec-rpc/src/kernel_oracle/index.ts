@@ -1,4 +1,13 @@
-import { AztecAddress, Fr, MembershipWitness, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  CircuitsWasm,
+  ConstantHistoricBlockData,
+  Fr,
+  GlobalVariables,
+  MembershipWitness,
+  PRIVATE_DATA_TREE_HEIGHT,
+} from '@aztec/circuits.js';
+import { computeGlobalsHash } from '@aztec/circuits.js/abis';
 import { Tuple } from '@aztec/foundation/serialize';
 import { AztecNode, MerkleTreeId } from '@aztec/types';
 
@@ -35,5 +44,24 @@ export class KernelOracle implements ProvingDataOracle {
   async getPrivateDataRoot(): Promise<Fr> {
     const roots = await this.node.getTreeRoots();
     return roots[MerkleTreeId.PRIVATE_DATA_TREE];
+  }
+
+  async getconstantHistoricBlockData(): Promise<ConstantHistoricBlockData> {
+    const wasm = await CircuitsWasm.get();
+    const latestBlock = await this.node.getBlock(-1);
+    const latestGlobals = latestBlock?.globalVariables ?? GlobalVariables.empty();
+    const prevBlockGlobalVariablesHash = computeGlobalsHash(wasm, latestGlobals);
+    const treeRoots = await this.node.getTreeRoots();
+
+    return new ConstantHistoricBlockData(
+      treeRoots[MerkleTreeId.PRIVATE_DATA_TREE],
+      treeRoots[MerkleTreeId.NULLIFIER_TREE],
+      treeRoots[MerkleTreeId.CONTRACT_TREE],
+      treeRoots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      treeRoots[MerkleTreeId.BLOCKS_TREE],
+      Fr.ZERO,
+      treeRoots[MerkleTreeId.PUBLIC_DATA_TREE],
+      prevBlockGlobalVariablesHash,
+    );
   }
 }

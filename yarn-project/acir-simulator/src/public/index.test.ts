@@ -1,10 +1,10 @@
 import {
   CallContext,
   CircuitsWasm,
+  ConstantHistoricBlockData,
   FunctionData,
   GlobalVariables,
   L1_TO_L2_MSG_TREE_HEIGHT,
-  PrivateHistoricTreeRoots,
 } from '@aztec/circuits.js';
 import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { FunctionAbi, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
@@ -37,6 +37,7 @@ describe('ACIR public execution simulator', () => {
   let publicContracts: MockProxy<PublicContractsDB>;
   let commitmentsDb: MockProxy<CommitmentsDB>;
   let executor: PublicExecutor;
+  let blockData: ConstantHistoricBlockData;
 
   beforeAll(async () => {
     circuitsWasm = await CircuitsWasm.get();
@@ -47,8 +48,8 @@ describe('ACIR public execution simulator', () => {
     publicContracts = mock<PublicContractsDB>();
     commitmentsDb = mock<CommitmentsDB>();
 
-    commitmentsDb.getTreeRoots.mockReturnValue(PrivateHistoricTreeRoots.empty());
-    executor = new PublicExecutor(publicState, publicContracts, commitmentsDb);
+    blockData = ConstantHistoricBlockData.empty();
+    executor = new PublicExecutor(publicState, publicContracts, commitmentsDb, blockData);
   }, 10000);
 
   describe('PublicToken contract', () => {

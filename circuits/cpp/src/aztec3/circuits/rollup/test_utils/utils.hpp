@@ -47,7 +47,18 @@ using nullifier_tree_testing_values = std::tuple<BaseRollupInputs, AppendOnlyTre
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data);
 
 BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
+                                                 abis::GlobalVariables<NT> global_variables);
+
+BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
                                                  MerkleTree& private_data_tree,
+                                                 MerkleTree& contract_tree,
+                                                 MerkleTree& public_data_tree,
+                                                 MerkleTree& l1_to_l2_msg_tree);
+
+BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kernel_data,
+                                                 fr prev_global_variables_hash,
+                                                 MerkleTree& private_data_tree,
+                                                 MerkleTree& nullifier_tree,
                                                  MerkleTree& contract_tree,
                                                  MerkleTree& public_data_tree,
                                                  MerkleTree& l1_to_l2_msg_tree);
@@ -83,6 +94,7 @@ std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> get_empty_l1_to_l2_messages(
 nullifier_tree_testing_values generate_nullifier_tree_testing_values(
     BaseRollupInputs inputs, std::array<fr, MAX_NEW_NULLIFIERS_PER_TX * 2> new_nullifiers, size_t spacing);
 
+NullifierMemoryTreeTestingHarness get_initial_nullifier_tree_empty();
 NullifierMemoryTreeTestingHarness get_initial_nullifier_tree(const std::vector<fr>& initial_values);
 
 KernelData get_empty_kernel();

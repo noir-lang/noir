@@ -94,13 +94,21 @@ export class PrivateCircuitPublicInputs {
      */
     public historicContractTreeRoot: Fr,
     /**
-     * Root of the L2 to L1 messages tree roots tree.
+     * Root of the L2 to L1 messages tree.
      */
     public historicL1ToL2MessagesTreeRoot: Fr,
     /**
      * Root of the Blocks roots tree.
      */
     public historicBlocksTreeRoot: Fr,
+    /**
+     * Previous blocks global variables hash.
+     */
+    public historicGlobalVariablesHash: Fr,
+    /**
+     * Root of the Public Data tree.
+     */
+    public historicPublicDataTreeRoot: Fr,
     /**
      * Deployment data of contracts being deployed in this kernel iteration.
      */
@@ -163,6 +171,8 @@ export class PrivateCircuitPublicInputs {
       Fr.ZERO,
       Fr.ZERO,
       Fr.ZERO,
+      Fr.ZERO,
+      Fr.ZERO,
       ContractDeploymentData.empty(),
       Fr.ZERO,
       Fr.ZERO,
@@ -195,6 +205,8 @@ export class PrivateCircuitPublicInputs {
       fields.historicContractTreeRoot,
       fields.historicL1ToL2MessagesTreeRoot,
       fields.historicBlocksTreeRoot,
+      fields.historicGlobalVariablesHash,
+      fields.historicPublicDataTreeRoot,
       fields.contractDeploymentData,
       fields.chainId,
       fields.version,

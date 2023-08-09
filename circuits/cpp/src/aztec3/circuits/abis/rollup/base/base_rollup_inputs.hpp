@@ -14,37 +14,31 @@ namespace aztec3::circuits::abis {
 template <typename NCT> struct BaseRollupInputs {
     using fr = typename NCT::fr;
 
-    std::array<PreviousKernelData<NCT>, 2> kernel_data;
+    std::array<PreviousKernelData<NCT>, 2> kernel_data{};
 
-    AppendOnlyTreeSnapshot<NCT> start_private_data_tree_snapshot;
-    AppendOnlyTreeSnapshot<NCT> start_nullifier_tree_snapshot;
-    AppendOnlyTreeSnapshot<NCT> start_contract_tree_snapshot;
-    fr start_public_data_tree_root;
-    AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot;
+    AppendOnlyTreeSnapshot<NCT> start_private_data_tree_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_nullifier_tree_snapshot{};
+    AppendOnlyTreeSnapshot<NCT> start_contract_tree_snapshot{};
+    fr start_public_data_tree_root{};
+    AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot{};
 
-    std::array<NullifierLeafPreimage<NCT>, 2 * MAX_NEW_NULLIFIERS_PER_TX> low_nullifier_leaf_preimages;
+    std::array<NullifierLeafPreimage<NCT>, 2 * MAX_NEW_NULLIFIERS_PER_TX> low_nullifier_leaf_preimages{};
     std::array<MembershipWitness<NCT, NULLIFIER_TREE_HEIGHT>, 2 * MAX_NEW_NULLIFIERS_PER_TX>
-        low_nullifier_membership_witness;
+        low_nullifier_membership_witness{};
 
     // For inserting the new subtrees into their respective trees:
     // Note: the insertion leaf index can be derived from the above snapshots' `next_available_leaf_index` values.
-    std::array<fr, PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH> new_commitments_subtree_sibling_path;
-    std::array<fr, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH> new_nullifiers_subtree_sibling_path;
-    std::array<fr, CONTRACT_SUBTREE_SIBLING_PATH_LENGTH> new_contracts_subtree_sibling_path;
+    std::array<fr, PRIVATE_DATA_SUBTREE_SIBLING_PATH_LENGTH> new_commitments_subtree_sibling_path{};
+    std::array<fr, NULLIFIER_SUBTREE_SIBLING_PATH_LENGTH> new_nullifiers_subtree_sibling_path{};
+    std::array<fr, CONTRACT_SUBTREE_SIBLING_PATH_LENGTH> new_contracts_subtree_sibling_path{};
     std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX>
-        new_public_data_update_requests_sibling_paths;
+        new_public_data_update_requests_sibling_paths{};
     std::array<std::array<fr, PUBLIC_DATA_TREE_HEIGHT>, 2 * MAX_PUBLIC_DATA_READS_PER_TX>
-        new_public_data_reads_sibling_paths;
+        new_public_data_reads_sibling_paths{};
 
-    std::array<MembershipWitness<NCT, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>, 2>
-        historic_private_data_tree_root_membership_witnesses;
-    std::array<MembershipWitness<NCT, CONTRACT_TREE_ROOTS_TREE_HEIGHT>, 2>
-        historic_contract_tree_root_membership_witnesses;
-    std::array<MembershipWitness<NCT, L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>, 2>
-        historic_l1_to_l2_msg_tree_root_membership_witnesses;
-    std::array<MembershipWitness<NCT, HISTORIC_BLOCKS_TREE_HEIGHT>, 2> historic_blocks_tree_root_membership_witnesses;
+    std::array<MembershipWitness<NCT, HISTORIC_BLOCKS_TREE_HEIGHT>, 2> historic_blocks_tree_root_membership_witnesses{};
 
-    ConstantRollupData<NCT> constants;
+    ConstantRollupData<NCT> constants{};
 
     // for serialization, update with new fields
     MSGPACK_FIELDS(kernel_data,
@@ -60,9 +54,6 @@ template <typename NCT> struct BaseRollupInputs {
                    new_contracts_subtree_sibling_path,
                    new_public_data_update_requests_sibling_paths,
                    new_public_data_reads_sibling_paths,
-                   historic_private_data_tree_root_membership_witnesses,
-                   historic_contract_tree_root_membership_witnesses,
-                   historic_l1_to_l2_msg_tree_root_membership_witnesses,
                    historic_blocks_tree_root_membership_witnesses,
                    constants);
     bool operator==(BaseRollupInputs<NCT> const&) const = default;
@@ -96,12 +87,6 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupInp
               << obj.new_public_data_update_requests_sibling_paths << "\n"
               << "new_state_reads_sibling_paths:\n"
               << obj.new_public_data_reads_sibling_paths << "\n"
-              << "historic_private_data_tree_root_membership_witnesses:\n"
-              << obj.historic_private_data_tree_root_membership_witnesses << "\n"
-              << "historic_contract_tree_root_membership_witnesses:\n"
-              << obj.historic_contract_tree_root_membership_witnesses << "\n"
-              << "historic_l1_to_l2_msg_tree_root_membership_witnesses:\n"
-              << obj.historic_l1_to_l2_msg_tree_root_membership_witnesses << "\n"
               << "historic_blocks_tree_root_membership_witnesses:\n"
               << obj.historic_blocks_tree_root_membership_witnesses << "\n"
               << "constants:\n"

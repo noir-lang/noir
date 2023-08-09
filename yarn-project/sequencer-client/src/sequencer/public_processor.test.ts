@@ -4,6 +4,7 @@ import {
   AztecAddress,
   CallContext,
   CircuitsWasm,
+  ConstantHistoricBlockData,
   EthAddress,
   Fr,
   FunctionData,
@@ -82,14 +83,22 @@ describe('public_processor', () => {
 
     beforeEach(() => {
       publicKernel = mock<PublicKernelCircuitSimulator>();
-      processor = new PublicProcessor(db, publicExecutor, publicKernel, publicProver, contractDataSource);
+      processor = new PublicProcessor(
+        db,
+        publicExecutor,
+        publicKernel,
+        publicProver,
+        contractDataSource,
+        GlobalVariables.empty(),
+        ConstantHistoricBlockData.empty(),
+      );
     });
 
     it('skips txs without public execution requests', async function () {
       const tx = mockTx();
       tx.data.end.publicCallStack = makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Fr.zero);
       const hash = await tx.getTxHash();
-      const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
+      const [processed, failed] = await processor.process([tx]);
 
       expect(processed).toEqual([
         { isEmpty: false, hash, ...pick(tx, 'data', 'proof', 'encryptedLogs', 'unencryptedLogs') },
@@ -101,7 +110,7 @@ describe('public_processor', () => {
       publicExecutor.execute.mockRejectedValue(new Error(`Failed`));
 
       const tx = mockTx();
-      const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
+      const [processed, failed] = await processor.process([tx]);
 
       expect(processed).toEqual([]);
       expect(failed).toEqual([tx]);
@@ -120,7 +129,15 @@ describe('public_processor', () => {
       const path = times(PUBLIC_DATA_TREE_HEIGHT, i => Buffer.alloc(32, i));
       db.getSiblingPath.mockResolvedValue(new SiblingPath<number>(PUBLIC_DATA_TREE_HEIGHT, path));
       publicKernel = new WasmPublicKernelCircuitSimulator();
-      processor = new PublicProcessor(db, publicExecutor, publicKernel, publicProver, contractDataSource);
+      processor = new PublicProcessor(
+        db,
+        publicExecutor,
+        publicKernel,
+        publicProver,
+        contractDataSource,
+        GlobalVariables.empty(),
+        ConstantHistoricBlockData.empty(),
+      );
     });
 
     const expectedTxByHash = async (tx: Tx) =>
@@ -149,7 +166,7 @@ describe('public_processor', () => {
         throw new Error(`Unexpected execution request: ${execution}`);
       });
 
-      const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
+      const [processed, failed] = await processor.process([tx]);
 
       expect(processed).toHaveLength(1);
       expect(processed).toEqual([await expectedTxByHash(tx)]);
@@ -178,7 +195,7 @@ describe('public_processor', () => {
       ];
       publicExecutor.execute.mockResolvedValue(publicExecutionResult);
 
-      const [processed, failed] = await processor.process([tx], GlobalVariables.empty());
+      const [processed, failed] = await processor.process([tx]);
 
       expect(processed).toHaveLength(1);
       expect(processed).toEqual([await expectedTxByHash(tx)]);

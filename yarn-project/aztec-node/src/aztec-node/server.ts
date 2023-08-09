@@ -9,7 +9,7 @@ import {
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InMemoryTxPool, P2P, createP2PClient } from '@aztec/p2p';
-import { SequencerClient, getCombinedHistoricTreeRoots } from '@aztec/sequencer-client';
+import { SequencerClient } from '@aztec/sequencer-client';
 import {
   AztecNode,
   ContractData,
@@ -116,6 +116,15 @@ export class AztecNodeService implements AztecNode {
   }
 
   /**
+   * Get the a given block.
+   * @param number - The block number being requested.
+   * @returns The blocks requested.
+   */
+  public async getBlock(number: number): Promise<L2Block | undefined> {
+    return await this.blockSource.getL2Block(number);
+  }
+
+  /**
    * Method to request blocks. Will attempt to return all requested blocks but will return only those available.
    * @param from - The start of the range of blocks to return.
    * @param limit - The maximum number of blocks to obtain.
@@ -186,10 +195,6 @@ export class AztecNodeService implements AztecNode {
    * @param tx - The transaction to be submitted.
    */
   public async sendTx(tx: Tx) {
-    // TODO: Patch tx to inject historic tree roots until the private kernel circuit supplies this value
-    if (tx.data.constants.historicTreeRoots.privateHistoricTreeRoots.isEmpty()) {
-      tx.data.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(this.merkleTreeDB.asLatest());
-    }
     this.log.info(`Received tx ${await tx.getTxHash()}`);
     await this.p2pClient!.sendTx(tx);
   }
@@ -311,9 +316,6 @@ export class AztecNodeService implements AztecNode {
       [MerkleTreeId.NULLIFIER_TREE]: await getTreeRoot(MerkleTreeId.NULLIFIER_TREE),
       [MerkleTreeId.PUBLIC_DATA_TREE]: await getTreeRoot(MerkleTreeId.PUBLIC_DATA_TREE),
       [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: await getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
-      [MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE]: await getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE),
-      [MerkleTreeId.CONTRACT_TREE_ROOTS_TREE]: await getTreeRoot(MerkleTreeId.CONTRACT_TREE_ROOTS_TREE),
-      [MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE]: await getTreeRoot(MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE),
       [MerkleTreeId.BLOCKS_TREE]: await getTreeRoot(MerkleTreeId.BLOCKS_TREE),
     };
   }

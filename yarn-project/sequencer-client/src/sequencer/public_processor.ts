@@ -2,6 +2,7 @@ import { PublicExecution, PublicExecutionResult, PublicExecutor, isPublicExecuti
 import {
   AztecAddress,
   CircuitsWasm,
+  ConstantHistoricBlockData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
   Fr,
@@ -38,7 +39,7 @@ import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { getPublicExecutor } from '../simulator/public_executor.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
-import { getCombinedHistoricTreeRoots } from './utils.js';
+import { getConstantHistoricBlockData } from './utils.js';
 
 /**
  * Creates new instances of PublicProcessor given the provided merkle tree db and contract data source.
@@ -52,15 +53,23 @@ export class PublicProcessorFactory {
 
   /**
    * Creates a new instance of a PublicProcessor.
+   * @param prevGlobalVariables - The global variables for the previous block, used to calculate the prev global variables hash.
+   * @param globalVariables - The global variables for the block being processed.
    * @returns A new instance of a PublicProcessor.
    */
-  public create() {
+  public async create(
+    prevGlobalVariables: GlobalVariables,
+    globalVariables: GlobalVariables,
+  ): Promise<PublicProcessor> {
+    const blockData = await getConstantHistoricBlockData(this.merkleTree, prevGlobalVariables);
     return new PublicProcessor(
       this.merkleTree,
-      getPublicExecutor(this.merkleTree, this.contractDataSource, this.l1Tol2MessagesDataSource),
+      getPublicExecutor(this.merkleTree, this.contractDataSource, this.l1Tol2MessagesDataSource, blockData),
       new WasmPublicKernelCircuitSimulator(),
       new EmptyPublicProver(),
       this.contractDataSource,
+      globalVariables,
+      blockData,
     );
   }
 }
@@ -76,6 +85,8 @@ export class PublicProcessor {
     protected publicKernel: PublicKernelCircuitSimulator,
     protected publicProver: PublicProver,
     protected contractDataSource: ContractDataSource,
+    protected globalVariables: GlobalVariables,
+    protected blockData: ConstantHistoricBlockData,
 
     private log = createDebugLogger('aztec:sequencer:public-processor'),
   ) {}
@@ -83,17 +94,16 @@ export class PublicProcessor {
   /**
    * Run each tx through the public circuit and the public kernel circuit if needed.
    * @param txs - Txs to process.
-   * @param globalVariables - The global variables for the block.
    * @returns The list of processed txs with their circuit simulation outputs.
    */
-  public async process(txs: Tx[], globalVariables: GlobalVariables): Promise<[ProcessedTx[], Tx[]]> {
+  public async process(txs: Tx[]): Promise<[ProcessedTx[], Tx[]]> {
     const result: ProcessedTx[] = [];
     const failed: Tx[] = [];
 
     for (const tx of txs) {
       this.log(`Processing tx ${await tx.getTxHash()}`);
       try {
-        result.push(await this.processTx(tx, globalVariables));
+        result.push(await this.processTx(tx));
       } catch (err) {
         this.log(`Error processing tx ${await tx.getTxHash()}: ${err}`);
         failed.push(tx);
@@ -104,20 +114,17 @@ export class PublicProcessor {
 
   /**
    * Makes an empty processed tx. Useful for padding a block to a power of two number of txs.
-   * @param chainId - The chain id of the rollup.
-   * @param version - The version of the rollup.
    * @returns A processed tx with empty data.
    */
-  public async makeEmptyProcessedTx(chainId: Fr, version: Fr): Promise<ProcessedTx> {
-    const historicTreeRoots = await getCombinedHistoricTreeRoots(this.db);
-    return makeEmptyProcessedTx(historicTreeRoots, chainId, version);
+  public makeEmptyProcessedTx(): Promise<ProcessedTx> {
+    const { chainId, version } = this.globalVariables;
+    return makeEmptyProcessedTx(this.blockData, chainId, version);
   }
 
-  protected async processTx(tx: Tx, globalVariables: GlobalVariables): Promise<ProcessedTx> {
+  protected async processTx(tx: Tx): Promise<ProcessedTx> {
     if (!isArrayEmpty(tx.data.end.publicCallStack, item => item.isZero())) {
       const [publicKernelOutput, publicKernelProof, newUnencryptedFunctionLogs] = await this.processEnqueuedPublicCalls(
         tx,
-        globalVariables,
       );
       tx.unencryptedLogs.addFunctionLogs(newUnencryptedFunctionLogs);
 
@@ -127,10 +134,7 @@ export class PublicProcessor {
     }
   }
 
-  protected async processEnqueuedPublicCalls(
-    tx: Tx,
-    globalVariables: GlobalVariables,
-  ): Promise<[PublicKernelPublicInputs, Proof, FunctionL2Logs[]]> {
+  protected async processEnqueuedPublicCalls(tx: Tx): Promise<[PublicKernelPublicInputs, Proof, FunctionL2Logs[]]> {
     this.log(`Executing enqueued public calls for tx ${await tx.getTxHash()}`);
     if (!tx.enqueuedPublicFunctionCalls) throw new Error(`Missing preimages for enqueued public calls`);
 
@@ -144,7 +148,7 @@ export class PublicProcessor {
     while (executionStack.length) {
       const current = executionStack.pop()!;
       const isExecutionRequest = !isPublicExecutionResult(current);
-      const result = isExecutionRequest ? await this.publicExecutor.execute(current, globalVariables) : current;
+      const result = isExecutionRequest ? await this.publicExecutor.execute(current, this.globalVariables) : current;
       newUnencryptedFunctionLogs.push(result.unencryptedLogs);
       const functionSelector = result.execution.functionData.functionSelectorBuffer.toString('hex');
       this.log(`Running public kernel circuit for ${functionSelector}@${result.execution.contractAddress.toString()}`);

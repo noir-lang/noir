@@ -69,9 +69,6 @@ describe('rollup/rollup_wasm_wrapper', () => {
     expect(output.endPrivateDataTreeSnapshot).toEqual(
       input.previousRollupData[1].publicInputs.endPrivateDataTreeSnapshot,
     );
-    expect(output.constants.startTreeOfHistoricContractTreeRootsSnapshot).toEqual(
-      input.previousRollupData[0].publicInputs.constants.startTreeOfHistoricContractTreeRootsSnapshot,
-    );
   });
 
   it('calling merge_rollup__sim with different constants should fail', () => {

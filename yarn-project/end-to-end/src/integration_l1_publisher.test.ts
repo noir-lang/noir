@@ -25,7 +25,7 @@ import {
   L1Publisher,
   SoloBlockBuilder,
   WasmRollupCircuitSimulator,
-  getCombinedHistoricTreeRoots,
+  getConstantHistoricBlockData,
   getL1Publisher,
   getVerificationKeys,
   makeEmptyProcessedTx as makeEmptyProcessedTxFromHistoricTreeRoots,
@@ -87,6 +87,9 @@ describe('L1Publisher integration', () => {
   let builder: SoloBlockBuilder;
   let builderDb: MerkleTreeOperations;
 
+  // The global variables of the last rollup
+  let prevGlobals: GlobalVariables;
+
   beforeEach(async () => {
     deployerAccount = privateKeyToAccount(deployerPK);
     const {
@@ -147,10 +150,12 @@ describe('L1Publisher integration', () => {
       publisherPrivateKey: PrivateKey.fromString(sequencerPK),
       l1BlockPublishRetryIntervalMS: 100,
     });
+
+    prevGlobals = GlobalVariables.empty();
   }, 100_000);
 
   const makeEmptyProcessedTx = async () => {
-    const historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
+    const historicTreeRoots = await getConstantHistoricBlockData(builderDb, prevGlobals);
     const tx = await makeEmptyProcessedTxFromHistoricTreeRoots(
       historicTreeRoots,
       new Fr(config.chainId),
@@ -164,7 +169,7 @@ describe('L1Publisher integration', () => {
     const kernelOutput = KernelCircuitPublicInputs.empty();
     kernelOutput.constants.txContext.chainId = fr(config.chainId);
     kernelOutput.constants.txContext.version = fr(config.version);
-    kernelOutput.constants.historicTreeRoots = await getCombinedHistoricTreeRoots(builderDb);
+    kernelOutput.constants.blockData = await getConstantHistoricBlockData(builderDb, prevGlobals);
     kernelOutput.end.publicDataUpdateRequests = makeTuple(
       MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
       i => new PublicDataUpdateRequest(fr(i), fr(0), fr(i + 10)),
@@ -276,6 +281,7 @@ describe('L1Publisher integration', () => {
         new Fr(await rollup.read.lastBlockTs()),
       );
       const [block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
+      prevGlobals = globalVariables;
 
       // check that values are in the inbox
       for (let j = 0; j < l1ToL2Messages.length; j++) {
@@ -367,6 +373,7 @@ describe('L1Publisher integration', () => {
         new Fr(await rollup.read.lastBlockTs()),
       );
       const [block] = await builder.buildL2Block(globalVariables, txs, l1ToL2Messages);
+      prevGlobals = globalVariables;
 
       await publisher.processL2Block(block);
 

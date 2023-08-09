@@ -11,6 +11,13 @@ export interface L2BlockSource {
   getBlockHeight(): Promise<number>;
 
   /**
+   * Gets an l2 block. If a negative number is passed, the block returned is the most recent.
+   * @param number - The block number to return (inclusive).
+   * @returns The requested L2 block.
+   */
+  getL2Block(number: number): Promise<L2Block | undefined>;
+
+  /**
    * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).
    * @param limit - The maximum number of blocks to return.

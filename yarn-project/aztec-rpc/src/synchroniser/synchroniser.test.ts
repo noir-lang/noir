@@ -22,9 +22,6 @@ describe('Synchroniser', () => {
       [MerkleTreeId.NULLIFIER_TREE]: Fr.random(),
       [MerkleTreeId.PUBLIC_DATA_TREE]: Fr.random(),
       [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: Fr.random(),
-      [MerkleTreeId.L1_TO_L2_MESSAGES_ROOTS_TREE]: Fr.random(),
-      [MerkleTreeId.CONTRACT_TREE_ROOTS_TREE]: Fr.random(),
-      [MerkleTreeId.PRIVATE_DATA_TREE_ROOTS_TREE]: Fr.random(),
       [MerkleTreeId.BLOCKS_TREE]: Fr.random(),
     };
 

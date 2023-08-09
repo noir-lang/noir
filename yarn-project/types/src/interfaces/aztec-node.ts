@@ -27,6 +27,13 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
   isReady(): Promise<boolean>;
 
   /**
+   * Get the a given block.
+   * @param number - The block number being requested.
+   * @returns The blocks requested.
+   */
+  getBlock(number: number): Promise<L2Block | undefined>;
+
+  /**
    * Method to request blocks. Will attempt to return all requested blocks but will return only those available.
    * @param from - The start of the range of blocks to return.
    * @param limit - The maximum number of blocks to return.

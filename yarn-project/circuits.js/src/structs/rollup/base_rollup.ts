@@ -3,9 +3,7 @@ import { BufferReader } from '@aztec/foundation/serialize';
 
 import {
   CONTRACT_TREE_HEIGHT,
-  CONTRACT_TREE_ROOTS_TREE_HEIGHT,
   HISTORIC_BLOCKS_TREE_HEIGHT,
-  L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_TX,
   MAX_NEW_CONTRACTS_PER_TX,
   MAX_NEW_NULLIFIERS_PER_TX,
@@ -13,7 +11,6 @@ import {
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   NULLIFIER_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
-  PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT,
   PUBLIC_DATA_TREE_HEIGHT,
 } from '../../cbind/constants.gen.js';
 import { FieldsOf, assertItemsLength, assertMemberLength } from '../../utils/jsUtils.js';
@@ -59,18 +56,6 @@ export class NullifierLeafPreimage {
 export class ConstantBaseRollupData {
   constructor(
     /**
-     * Snapshot of the private data tree roots tree at the start of the rollup.
-     */
-    public startTreeOfHistoricPrivateDataTreeRootsSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the contract tree roots tree at the start of the rollup.
-     */
-    public startTreeOfHistoricContractTreeRootsSnapshot: AppendOnlyTreeSnapshot,
-    /**
-     * Snapshot of the L1-to-L2 message tree roots tree at the start of the rollup.
-     */
-    public startTreeOfHistoricL1ToL2MsgTreeRootsSnapshot: AppendOnlyTreeSnapshot,
-    /**
      * Snapshot of the historic blocks roots tree at the start of the rollup.
      */
     public startHistoricBlocksTreeRootsSnapshot: AppendOnlyTreeSnapshot,
@@ -105,9 +90,6 @@ export class ConstantBaseRollupData {
     const reader = BufferReader.asReader(buffer);
     return new ConstantBaseRollupData(
       reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
-      reader.readObject(AppendOnlyTreeSnapshot),
       reader.readFr(),
       reader.readFr(),
       reader.readFr(),
@@ -118,9 +100,6 @@ export class ConstantBaseRollupData {
 
   static getFields(fields: FieldsOf<ConstantBaseRollupData>) {
     return [
-      fields.startTreeOfHistoricPrivateDataTreeRootsSnapshot,
-      fields.startTreeOfHistoricContractTreeRootsSnapshot,
-      fields.startTreeOfHistoricL1ToL2MsgTreeRootsSnapshot,
       fields.startHistoricBlocksTreeRootsSnapshot,
       fields.privateKernelVkTreeRoot,
       fields.publicKernelVkTreeRoot,
@@ -213,29 +192,6 @@ export class BaseRollupInputs {
      * Each item in the array is the sibling path that corresponds to a read request.
      */
     public newPublicDataReadsSiblingPaths: Fr[][],
-
-    /**
-     * Membership witnesses of private data tree roots referred by each of the 2 kernels.
-     * Can be used to prove that the root is actually in the roots tree.
-     */
-    public historicPrivateDataTreeRootMembershipWitnesses: [
-      MembershipWitness<typeof PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>,
-      MembershipWitness<typeof PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT>,
-    ],
-    /**
-     * Membership witnesses of contract tree roots referred by each of the 2 kernels.
-     */
-    public historicContractsTreeRootMembershipWitnesses: [
-      MembershipWitness<typeof CONTRACT_TREE_ROOTS_TREE_HEIGHT>,
-      MembershipWitness<typeof CONTRACT_TREE_ROOTS_TREE_HEIGHT>,
-    ],
-    /**
-     * Membership witnesses of L1-to-L2 message tree roots referred by each of the 2 kernels.
-     */
-    public historicL1ToL2MsgTreeRootMembershipWitnesses: [
-      MembershipWitness<typeof L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>,
-      MembershipWitness<typeof L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT>,
-    ],
     /**
      * Membership witnesses of historic blocks referred by each of the 2 kernels.
      */
@@ -291,9 +247,6 @@ export class BaseRollupInputs {
       fields.newContractsSubtreeSiblingPath,
       fields.newPublicDataUpdateRequestsSiblingPaths,
       fields.newPublicDataReadsSiblingPaths,
-      fields.historicPrivateDataTreeRootMembershipWitnesses,
-      fields.historicContractsTreeRootMembershipWitnesses,
-      fields.historicL1ToL2MsgTreeRootMembershipWitnesses,
       fields.historicBlocksTreeRootMembershipWitnesses,
       fields.constants,
     ] as const;

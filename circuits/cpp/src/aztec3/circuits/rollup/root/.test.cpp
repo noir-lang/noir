@@ -4,13 +4,16 @@
 
 #include "aztec3/circuits/abis/append_only_tree_snapshot.hpp"
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
+#include "aztec3/circuits/abis/global_variables.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/rollup/merge/previous_rollup_data.hpp"
+#include "aztec3/circuits/hash.hpp"
 #include "aztec3/circuits/kernel/private/utils.hpp"
 #include "aztec3/circuits/rollup/base/init.hpp"
 #include "aztec3/circuits/rollup/components/components.hpp"
+#include "aztec3/circuits/rollup/test_utils/init.hpp"
 #include "aztec3/circuits/rollup/test_utils/utils.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/dummy_circuit_builder.hpp"
@@ -34,8 +37,8 @@ using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::rollup::test_utils::utils::compare_field_hash_to_expected;
 using aztec3::circuits::rollup::test_utils::utils::get_empty_kernel;
 using aztec3::circuits::rollup::test_utils::utils::get_empty_l1_to_l2_messages;
+using aztec3::circuits::rollup::test_utils::utils::get_initial_nullifier_tree_empty;
 using aztec3::circuits::rollup::test_utils::utils::get_root_rollup_inputs;
-// using aztec3::circuits::mock::mock_kernel_inputs;
 
 using aztec3::circuits::abis::AppendOnlyTreeSnapshot;
 
@@ -51,6 +54,7 @@ using aztec3::circuits::abis::NewContractData;
 
 using MemoryStore = stdlib::merkle_tree::MemoryStore;
 using MerkleTree = stdlib::merkle_tree::MerkleTree<MemoryStore>;
+
 using KernelData = aztec3::circuits::abis::PreviousKernelData<NT>;
 }  // namespace
 
@@ -166,37 +170,42 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
         utils::DummyCircuitBuilder("root_rollup_tests__native_root_missing_nullifier_logic");
 
     MemoryStore private_data_tree_store;
-    MerkleTree private_data_tree = MerkleTree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
+    MerkleTree private_data_tree(private_data_tree_store, PRIVATE_DATA_TREE_HEIGHT);
 
     MemoryStore contract_tree_store;
-    MerkleTree contract_tree = MerkleTree(contract_tree_store, CONTRACT_TREE_HEIGHT);
-
-    MemoryStore historic_private_data_tree_store;
-    MerkleTree historic_private_data_tree =
-        MerkleTree(historic_private_data_tree_store, PRIVATE_DATA_TREE_ROOTS_TREE_HEIGHT);
-
-    MemoryStore historic_contract_tree_store;
-    MerkleTree historic_contract_tree = MerkleTree(historic_contract_tree_store, CONTRACT_TREE_ROOTS_TREE_HEIGHT);
+    MerkleTree contract_tree(contract_tree_store, CONTRACT_TREE_HEIGHT);
 
     MemoryStore l1_to_l2_messages_tree_store;
-    MerkleTree l1_to_l2_messages_tree = MerkleTree(l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
+    MerkleTree l1_to_l2_messages_tree(l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_HEIGHT);
 
-    MemoryStore historic_l1_to_l2_messages_tree_store;
-    MerkleTree historic_l1_to_l2_tree =
-        MerkleTree(historic_l1_to_l2_messages_tree_store, L1_TO_L2_MSG_TREE_ROOTS_TREE_HEIGHT);
+    MemoryStore public_store;
+    MerkleTree public_data_tree(public_store, PUBLIC_DATA_TREE_HEIGHT);
 
-    // Historic trees are initialised with an empty root at position 0.
-    historic_private_data_tree.update_element(0, private_data_tree.root());
-    historic_contract_tree.update_element(0, contract_tree.root());
-    historic_l1_to_l2_tree.update_element(0, l1_to_l2_messages_tree.root());
+    // Create initial nullifier tree with 32 initial nullifiers
+    auto nullifier_tree = get_initial_nullifier_tree_empty();
+
+    MemoryStore blocks_tree_store;
+    MerkleTree blocks_tree(blocks_tree_store, HISTORIC_BLOCKS_TREE_HEIGHT);
 
     std::array<KernelData, 4> kernels = {
         get_empty_kernel(), get_empty_kernel(), get_empty_kernel(), get_empty_kernel()
     };
     std::array<fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP> l1_to_l2_messages = get_empty_l1_to_l2_messages();
 
+    // Calculate the start block hash
+    abis::GlobalVariables<NT> globals = abis::GlobalVariables<NT>::empty();
+    auto start_block_hash = compute_block_hash_with_globals(globals,
+                                                            private_data_tree.root(),
+                                                            nullifier_tree.root(),
+                                                            contract_tree.root(),
+                                                            l1_to_l2_messages_tree.root(),
+                                                            public_data_tree.root());
+    blocks_tree.update_element(0, start_block_hash);
+    AppendOnlyTreeSnapshot<NT> start_blocks_tree_snapshot = { .root = blocks_tree.root(),
+                                                              .next_available_leaf_index = 1 };
+
     // Create commitments
-    for (uint8_t kernel_j = 0; kernel_j < 4; kernel_j++) {
+    for (size_t kernel_j = 0; kernel_j < 4; kernel_j++) {
         std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments;
         for (uint8_t commitment_k = 0; commitment_k < MAX_NEW_COMMITMENTS_PER_TX; commitment_k++) {
             auto val = fr(kernel_j * MAX_NEW_COMMITMENTS_PER_TX + commitment_k + 1);
@@ -230,31 +239,23 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
     AppendOnlyTreeSnapshot<NT> const start_l1_to_l2_messages_tree_snapshot = { .root = l1_to_l2_messages_tree.root(),
                                                                                .next_available_leaf_index = 0 };
 
-    // The start historic data snapshots
-    AppendOnlyTreeSnapshot<NT> const start_historic_data_tree_snapshot = { .root = historic_private_data_tree.root(),
-                                                                           .next_available_leaf_index = 1 };
-    AppendOnlyTreeSnapshot<NT> const start_historic_contract_tree_snapshot = { .root = historic_contract_tree.root(),
-                                                                               .next_available_leaf_index = 1 };
-    AppendOnlyTreeSnapshot<NT> const start_historic_l1_to_l2_tree_snapshot = { .root = historic_l1_to_l2_tree.root(),
-                                                                               .next_available_leaf_index = 1 };
-
     // Create 16 empty l1 to l2 messages, and update the l1_to_l2 messages tree
     for (size_t i = 0; i < l1_to_l2_messages.size(); i++) {
         l1_to_l2_messages_tree.update_element(i, l1_to_l2_messages[i]);
     }
 
-    // Insert the newest data root into the historic tree
-    historic_private_data_tree.update_element(1, private_data_tree.root());
-    historic_contract_tree.update_element(1, contract_tree.root());
-    historic_l1_to_l2_tree.update_element(1, l1_to_l2_messages_tree.root());
+    // Get the block hash after.
+    auto end_block_hash = compute_block_hash_with_globals(globals,
+                                                          private_data_tree.root(),
+                                                          nullifier_tree.root(),
+                                                          contract_tree.root(),
+                                                          l1_to_l2_messages_tree.root(),
+                                                          public_data_tree.root());
+    blocks_tree.update_element(1, end_block_hash);
+    AppendOnlyTreeSnapshot<NT> end_blocks_tree_snapshot = { .root = blocks_tree.root(),
+                                                            .next_available_leaf_index = 2 };
 
     // Compute the end snapshot
-    AppendOnlyTreeSnapshot<NT> const end_historic_data_tree_snapshot = { .root = historic_private_data_tree.root(),
-                                                                         .next_available_leaf_index = 2 };
-    AppendOnlyTreeSnapshot<NT> const end_historic_contract_tree_snapshot = { .root = historic_contract_tree.root(),
-                                                                             .next_available_leaf_index = 2 };
-    AppendOnlyTreeSnapshot<NT> const end_historic_l1_to_l2_tree_snapshot = { .root = historic_l1_to_l2_tree.root(),
-                                                                             .next_available_leaf_index = 2 };
     AppendOnlyTreeSnapshot<NT> const end_l1_to_l2_messages_tree_snapshot = { .root = l1_to_l2_messages_tree.root(),
                                                                              .next_available_leaf_index =
                                                                                  NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP };
@@ -292,22 +293,16 @@ TEST_F(root_rollup_tests, native_root_missing_nullifier_logic)
 
     // @todo @LHerskind: Check nullifier trees
 
-    // Check historic data trees
-    ASSERT_EQ(outputs.start_tree_of_historic_private_data_tree_roots_snapshot, start_historic_data_tree_snapshot);
-    ASSERT_EQ(outputs.end_tree_of_historic_private_data_tree_roots_snapshot, end_historic_data_tree_snapshot);
-
-    // Check historic contract trees
-    ASSERT_EQ(outputs.start_tree_of_historic_contract_tree_roots_snapshot, start_historic_contract_tree_snapshot);
-    ASSERT_EQ(outputs.end_tree_of_historic_contract_tree_roots_snapshot, end_historic_contract_tree_snapshot);
-
-    // Check historic l1 to l2 messages trees
-    ASSERT_EQ(outputs.start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot,
-              start_historic_l1_to_l2_tree_snapshot);
-    ASSERT_EQ(outputs.end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot, end_historic_l1_to_l2_tree_snapshot);
-
     // Check l1 to l2 messages trees
     ASSERT_EQ(outputs.start_l1_to_l2_messages_tree_snapshot, start_l1_to_l2_messages_tree_snapshot);
+    ASSERT_EQ(outputs.start_contract_tree_snapshot,
+              rootRollupInputs.previous_rollup_data[0].base_or_merge_rollup_public_inputs.start_contract_tree_snapshot);
+    ASSERT_EQ(outputs.end_contract_tree_snapshot,
+              rootRollupInputs.previous_rollup_data[1].base_or_merge_rollup_public_inputs.end_contract_tree_snapshot);
     ASSERT_EQ(outputs.end_l1_to_l2_messages_tree_snapshot, end_l1_to_l2_messages_tree_snapshot);
+
+    ASSERT_EQ(outputs.start_historic_blocks_tree_snapshot, start_blocks_tree_snapshot);
+    ASSERT_EQ(outputs.end_historic_blocks_tree_snapshot, end_blocks_tree_snapshot);
 
     // Compute the expected calldata hash for the root rollup (including the l2 -> l1 messages)
     auto left = components::compute_kernels_calldata_hash({ kernels[0], kernels[1] });

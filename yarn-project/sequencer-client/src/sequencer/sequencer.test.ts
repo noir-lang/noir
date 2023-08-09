@@ -1,5 +1,5 @@
 import {
-  CombinedHistoricTreeRoots,
+  ConstantHistoricBlockData,
   Fr,
   GlobalVariables,
   NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP,
@@ -57,11 +57,11 @@ describe('sequencer', () => {
 
     publicProcessor = mock<PublicProcessor>({
       process: async txs => [await Promise.all(txs.map(tx => makeProcessedTx(tx))), []],
-      makeEmptyProcessedTx: () => makeEmptyProcessedTx(CombinedHistoricTreeRoots.empty(), chainId, version),
+      makeEmptyProcessedTx: () => makeEmptyProcessedTx(ConstantHistoricBlockData.empty(), chainId, version),
     });
 
     publicProcessorFactory = mock<PublicProcessorFactory>({
-      create: () => publicProcessor,
+      create: (_, __) => Promise.resolve(publicProcessor),
     });
 
     l2BlockSource = mock<L2BlockSource>({
