@@ -1,4 +1,6 @@
 fn main(mut x: Field) {
+    regression_2218(x, 10);
+
     add1(&mut x);
     assert(x == 3);
 
@@ -96,4 +98,20 @@ fn regression_2030() {
     let mut array = [ref, ref];
     let _ = *array[0];
     *array[0] = 1;
+}
+
+fn regression_2218(x: Field, y: Field) {
+    let q = &mut &mut 0;
+    let q1 = *q;
+    let q2 = *q;
+
+    if x != y {
+        // Make sure that we correct load reference aliases through multiple blocks
+        if x != 20 {
+            *q1 = 1;
+            *q2 = 2; // now we'd expect q1 == q2 == 2
+            
+            assert(*q1 == 2);  
+        }
+    }
 }

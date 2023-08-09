@@ -3,37 +3,57 @@
 //! mutable variables into values that are easier to manipulate.
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use iter_extended::vecmap;
-
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
         dfg::DataFlowGraph,
+        dom::DominatorTree,
+        function::Function,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
+        post_order::PostOrder,
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
 
+use super::unrolling::{find_all_loops, Loops};
+
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
-    /// scope, and attempts to remove store that are subsequently redundant, as long as they are
-    /// not stores on memory that will be passed into a function call or returned.
+    /// scope, and attempts to remove stores that are subsequently redundant.
+    /// As long as they are not stores on memory used inside of loops
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             let mut all_protected_allocations = HashSet::new();
-            let contexts = vecmap(function.reachable_blocks(), |block| {
-                let mut context = PerBlockContext::new(block);
-                let allocations_protected_by_block =
-                    context.analyze_allocations_and_eliminate_known_loads(&mut function.dfg);
+
+            let mut context = PerFunctionContext::new(function);
+
+            for block in function.reachable_blocks() {
+                let cfg: ControlFlowGraph = ControlFlowGraph::with_function(function);
+
+                // Maps Load instruction id -> value to replace the result of the load with
+                let mut loads_to_substitute_per_block = BTreeMap::new();
+
+                // Maps Load result id -> value to replace the result of the load with
+                let mut load_values_to_substitute = BTreeMap::new();
+
+                let allocations_protected_by_block = context
+                    .analyze_allocations_and_eliminate_known_loads(
+                        &mut function.dfg,
+                        &mut loads_to_substitute_per_block,
+                        &mut load_values_to_substitute,
+                        block,
+                        &cfg,
+                    );
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
-                context
-            });
+            }
+
             // Now that we have a comprehensive list of used allocations across all the
             // function's blocks, it is safe to remove any stores that do not touch such
             // allocations.
-            for context in contexts {
-                context.remove_unused_stores(&mut function.dfg, &all_protected_allocations);
+            for block in function.reachable_blocks() {
+                context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, block);
             }
         }
 
@@ -41,10 +61,27 @@ impl Ssa {
     }
 }
 
-struct PerBlockContext {
-    block_id: BasicBlockId,
-    last_stores: BTreeMap<AllocId, ValueId>,
+struct PerFunctionContext {
+    last_stores_with_block: BTreeMap<(AllocId, BasicBlockId), ValueId>,
+    // Maps Load result id -> (value, block_id)
+    // Used to replace the result of a load with the appropriate block
+    load_values_to_substitute_per_func: BTreeMap<ValueId, (ValueId, BasicBlockId)>,
     store_ids: Vec<InstructionId>,
+    cfg: ControlFlowGraph,
+    post_order: PostOrder,
+    loops: Loops,
+}
+impl PerFunctionContext {
+    fn new(function: &Function) -> Self {
+        PerFunctionContext {
+            last_stores_with_block: BTreeMap::new(),
+            load_values_to_substitute_per_func: BTreeMap::new(),
+            store_ids: Vec::new(),
+            cfg: ControlFlowGraph::with_function(function),
+            post_order: PostOrder::with_function(function),
+            loops: find_all_loops(function),
+        }
+    }
 }
 
 /// An AllocId is the ValueId returned from an allocate instruction. E.g. v0 in v0 = allocate.
@@ -52,50 +89,50 @@ struct PerBlockContext {
 /// an allocate instruction.
 type AllocId = ValueId;
 
-impl PerBlockContext {
-    fn new(block_id: BasicBlockId) -> Self {
-        PerBlockContext { block_id, last_stores: BTreeMap::new(), store_ids: Vec::new() }
-    }
-
+impl PerFunctionContext {
     // Attempts to remove load instructions for which the result is already known from previous
     // store instructions to the same address in the same block.
     fn analyze_allocations_and_eliminate_known_loads(
         &mut self,
         dfg: &mut DataFlowGraph,
+        loads_to_substitute: &mut BTreeMap<InstructionId, ValueId>,
+        load_values_to_substitute_per_block: &mut BTreeMap<ValueId, ValueId>,
+        block_id: BasicBlockId,
+        cfg: &ControlFlowGraph,
     ) -> HashSet<AllocId> {
         let mut protected_allocations = HashSet::new();
-        let block = &dfg[self.block_id];
-
-        // Maps Load instruction id -> value to replace the result of the load with
-        let mut loads_to_substitute = HashMap::new();
-
-        // Maps Load result id -> value to replace the result of the load with
-        let mut load_values_to_substitute = HashMap::new();
+        let block = &dfg[block_id];
 
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
-                    if let Some(value) = load_values_to_substitute.get(&address) {
-                        address = *value;
-                    }
+                    address = self.fetch_load_value_to_substitute_recursively(
+                        cfg,
+                        block_id,
+                        address,
+                        &mut HashSet::new(),
+                    );
 
-                    self.last_stores.insert(address, *value);
+                    self.last_stores_with_block.insert((address, block_id), *value);
                     self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { mut address } => {
-                    if let Some(value) = load_values_to_substitute.get(&address) {
-                        address = *value;
-                    }
+                    address = self.fetch_load_value_to_substitute_recursively(
+                        cfg,
+                        block_id,
+                        address,
+                        &mut HashSet::new(),
+                    );
 
-                    if let Some(last_value) = self.last_stores.get(&address) {
-                        let result_value = *dfg
-                            .instruction_results(*instruction_id)
-                            .first()
-                            .expect("ICE: Load instructions should have single result");
-
-                        loads_to_substitute.insert(*instruction_id, *last_value);
-                        load_values_to_substitute.insert(result_value, *last_value);
-                    } else {
+                    let found_last_value = self.find_load_to_substitute(
+                        block_id,
+                        dfg,
+                        address,
+                        instruction_id,
+                        loads_to_substitute,
+                        load_values_to_substitute_per_block,
+                    );
+                    if !found_last_value {
                         protected_allocations.insert(address);
                     }
                 }
@@ -122,19 +159,126 @@ impl PerBlockContext {
         }
 
         // Substitute load result values
-        for (result_value, new_value) in load_values_to_substitute {
-            let result_value = dfg.resolve(result_value);
-            dfg.set_value_from_id(result_value, new_value);
+        for (result_value, new_value) in load_values_to_substitute_per_block {
+            let result_value = dfg.resolve(*result_value);
+            dfg.set_value_from_id(result_value, *new_value);
         }
 
         // Delete load instructions
         // Even though we could let DIE handle this, doing it here makes the debug output easier
         // to read.
-        dfg[self.block_id]
+        dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !loads_to_substitute.contains_key(instruction));
 
         protected_allocations
+    }
+
+    fn fetch_load_value_to_substitute_recursively(
+        &self,
+        cfg: &ControlFlowGraph,
+        block_id: BasicBlockId,
+        address: ValueId,
+        checked_blocks: &mut HashSet<BasicBlockId>,
+    ) -> ValueId {
+        checked_blocks.insert(block_id);
+
+        if let Some((value, load_block_id)) = self.load_values_to_substitute_per_func.get(&address)
+        {
+            if *load_block_id == block_id {
+                return *value;
+            }
+        }
+
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(cfg, &self.post_order);
+
+        let predecessors = cfg.predecessors(block_id);
+        for predecessor in predecessors {
+            if dom_tree.is_reachable(predecessor) && dom_tree.dominates(predecessor, block_id) {
+                if let Some((value, load_block_id)) =
+                    self.load_values_to_substitute_per_func.get(&address)
+                {
+                    if *load_block_id == predecessor {
+                        return *value;
+                    }
+                }
+
+                if !checked_blocks.contains(&predecessor) {
+                    return self.fetch_load_value_to_substitute_recursively(
+                        cfg,
+                        predecessor,
+                        address,
+                        checked_blocks,
+                    );
+                }
+            }
+        }
+        address
+    }
+
+    fn find_load_to_substitute(
+        &mut self,
+        block_id: BasicBlockId,
+        dfg: &DataFlowGraph,
+        address: ValueId,
+        instruction_id: &InstructionId,
+        loads_to_substitute: &mut BTreeMap<InstructionId, ValueId>,
+        load_values_to_substitute_per_block: &mut BTreeMap<ValueId, ValueId>,
+    ) -> bool {
+        let mut stack = vec![block_id];
+        let mut visited = HashSet::new();
+
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
+        while let Some(block) = stack.pop() {
+            visited.insert(block);
+
+            for l in self.loops.yet_to_unroll.iter() {
+                // We do not want to substitute loads that take place within loops as this pass
+                // can occur before loop unrolling
+                if block == l.header {
+                    return false;
+                }
+            }
+
+            if let Some(last_value) = self.last_stores_with_block.get(&(address, block)) {
+                let result_value = *dfg
+                    .instruction_results(*instruction_id)
+                    .first()
+                    .expect("ICE: Load instructions should have single result");
+
+                loads_to_substitute.insert(*instruction_id, *last_value);
+                load_values_to_substitute_per_block.insert(result_value, *last_value);
+                self.load_values_to_substitute_per_func.insert(result_value, (*last_value, block));
+                return true;
+            }
+
+            let predecessors = self.cfg.predecessors(block);
+            for predecessor in predecessors {
+                // TODO: Do I need is_reachable here? We are looping over only the reachable blocks but does
+                // that include a reachable block's predecessors?
+                if dom_tree.is_reachable(predecessor) && dom_tree.dominates(predecessor, block) {
+                    if let Some(last_value) =
+                        self.last_stores_with_block.get(&(address, predecessor))
+                    {
+                        let result_value = *dfg
+                            .instruction_results(*instruction_id)
+                            .first()
+                            .expect("ICE: Load instructions should have single result");
+
+                        loads_to_substitute.insert(*instruction_id, *last_value);
+                        load_values_to_substitute_per_block.insert(result_value, *last_value);
+                        self.load_values_to_substitute_per_func
+                            .insert(result_value, (*last_value, block));
+                        return true;
+                    }
+                    // Only recurse further if the predecessor dominates the current block we are checking
+                    if !visited.contains(&predecessor) {
+                        stack.push(predecessor);
+                    }
+                }
+            }
+        }
+        false
     }
 
     /// Checks whether the given value id refers to an allocation.
@@ -150,9 +294,10 @@ impl PerBlockContext {
     /// Removes all store instructions identified during analysis that aren't present in the
     /// provided `protected_allocations` `HashSet`.
     fn remove_unused_stores(
-        self,
+        &self,
         dfg: &mut DataFlowGraph,
         protected_allocations: &HashSet<AllocId>,
+        block_id: BasicBlockId,
     ) {
         // Scan for unused stores
         let mut stores_to_remove = HashSet::new();
@@ -169,7 +314,7 @@ impl PerBlockContext {
         }
 
         // Delete unused stores
-        dfg[self.block_id]
+        dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !stores_to_remove.contains(instruction));
     }
@@ -320,7 +465,7 @@ mod tests {
             .count()
     }
 
-    // Test that loads across multiple blocks are not removed
+    // Test that loads across multiple blocks are removed
     #[test]
     fn multiple_blocks() {
         // fn main {
@@ -364,24 +509,22 @@ mod tests {
         // fn main {
         //   b0():
         //     v0 = allocate
-        //     store v0, Field 5
-        //     jmp b1(Field 5):  // Optimized to constant 5
-        //   b1(v2: Field):
-        //     v3 = load v0      // kept in program
-        //     store v0, Field 6
-        //     return v2, v3, Field 6 // Optimized to constant 6
+        //     jmp b1(Field 5)
+        //   b1(v3: Field):
+        //     return v3, Field 5, Field 6 // Optimized to constants 5 and 6
         // }
         let ssa = ssa.mem2reg();
+
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);
 
-        // Only the load from the entry block should be removed
+        // The loads should be removed
         assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
-        assert_eq!(count_loads(b1, &main.dfg), 1);
+        assert_eq!(count_loads(b1, &main.dfg), 0);
 
-        // All stores should be kept
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 1);
-        assert_eq!(count_stores(b1, &main.dfg), 1);
+        // All stores should be removed
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_stores(b1, &main.dfg), 0);
 
         // The jmp to b1 should also be a constant 5 now
         match main.dfg[main.entry_block()].terminator() {

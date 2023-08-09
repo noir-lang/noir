@@ -957,14 +957,9 @@ impl<'interner> Monomorphizer<'interner> {
         ast::Expression::Assign(ast::Assign { expression, lvalue })
     }
 
-    fn lvalue(
-        &mut self,
-        lvalue: HirLValue,
-    ) -> ast::LValue {
+    fn lvalue(&mut self, lvalue: HirLValue) -> ast::LValue {
         match lvalue {
-            HirLValue::Ident(ident, _) => {
-                ast::LValue::Ident(self.local_ident(&ident).unwrap())
-            }
+            HirLValue::Ident(ident, _) => ast::LValue::Ident(self.local_ident(&ident).unwrap()),
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let field_index = field_index.unwrap();
                 let object = Box::new(self.lvalue(*object));
