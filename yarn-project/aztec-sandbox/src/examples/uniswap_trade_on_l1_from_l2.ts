@@ -129,7 +129,6 @@ async function deployAllContracts(owner: AztecAddress) {
     wethTokenPortalAddress,
     uniswapL2Contract,
     uniswapPortal,
-    uniswapPortalAddress,
   };
 }
 
@@ -185,7 +184,6 @@ async function main() {
     wethTokenPortalAddress,
     uniswapL2Contract,
     uniswapPortal,
-    uniswapPortalAddress,
   } = result;
 
   // Give me some WETH so I can deposit to L2 and do the swap...
@@ -246,18 +244,15 @@ async function main() {
     .swap(
       selector,
       wethL2Contract.address.toField(),
-      wethTokenPortalAddress.toField(),
       wethAmountToBridge,
       new Fr(3000),
       daiL2Contract.address.toField(),
-      daiTokenPortalAddress.toField(),
       new Fr(minimumOutputAmount),
       owner,
       owner,
       secretHash,
       new Fr(2 ** 32 - 1),
       ethAccount.toField(),
-      uniswapPortalAddress,
       ethAccount.toField(),
     )
     .send({ origin: owner });

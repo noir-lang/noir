@@ -175,6 +175,11 @@ export class PrivateFunctionExecution {
 
         return Promise.resolve(ZERO_ACVM_FIELD);
       },
+      getPortalContractAddress: async ([aztecAddress]) => {
+        const contractAddress = AztecAddress.fromString(aztecAddress);
+        const portalContactAddress = await this.context.db.getPortalContractAddress(contractAddress);
+        return Promise.resolve(toACVMField(portalContactAddress));
+      },
     });
 
     const publicInputs = extractPublicInputs(partialWitness, acir);

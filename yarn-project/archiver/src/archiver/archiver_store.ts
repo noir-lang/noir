@@ -160,7 +160,12 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   /**
    * A sparse array containing all the contract data that have been fetched so far.
    */
-  private contractPublicData: (ContractPublicData[] | undefined)[] = [];
+  private contractPublicDataByBlock: (ContractPublicData[] | undefined)[] = [];
+
+  /**
+   * A mapping of contract address to contract data.
+   */
+  private contractPublicData: Map<string, ContractPublicData> = new Map();
 
   /**
    * Contains all the confirmed L1 to L2 messages (i.e. messages that were consumed in an L2 block)
@@ -241,10 +246,17 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @returns True if the operation is successful (always in this implementation).
    */
   public addL2ContractPublicData(data: ContractPublicData[], blockNum: number): Promise<boolean> {
-    if (this.contractPublicData[blockNum]?.length) {
-      this.contractPublicData[blockNum]?.push(...data);
+    // Add to the contracts mapping
+    for (const contractData of data) {
+      const key = contractData.contractData.contractAddress.toString();
+      this.contractPublicData.set(key, contractData);
+    }
+
+    // Add the index per block
+    if (this.contractPublicDataByBlock[blockNum]?.length) {
+      this.contractPublicDataByBlock[blockNum]?.push(...data);
     } else {
-      this.contractPublicData[blockNum] = [...data];
+      this.contractPublicDataByBlock[blockNum] = [...data];
     }
     return Promise.resolve(true);
   }
@@ -316,15 +328,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @returns The contract's public data.
    */
   public getL2ContractPublicData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined> {
-    let result;
-    for (let i = INITIAL_L2_BLOCK_NUM; i < this.contractPublicData.length; i++) {
-      const contracts = this.contractPublicData[i];
-      const contract = contracts?.find(c => c.contractData.contractAddress.equals(contractAddress));
-      if (contract) {
-        result = contract;
-        break;
-      }
-    }
+    const result = this.contractPublicData.get(contractAddress.toString());
     return Promise.resolve(result);
   }
 
@@ -337,7 +341,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     if (blockNum > this.l2Blocks.length) {
       return Promise.resolve([]);
     }
-    return Promise.resolve(this.contractPublicData[blockNum] || []);
+    return Promise.resolve(this.contractPublicDataByBlock[blockNum] || []);
   }
 
   /**

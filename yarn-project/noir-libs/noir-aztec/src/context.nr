@@ -47,6 +47,7 @@ use crate::oracle::{
     call_private_function::call_private_function_internal,
     public_call::call_public_function_internal,
     enqueue_public_function_call::enqueue_public_function_call_internal,
+    context::get_portal_address,
 };
 
 

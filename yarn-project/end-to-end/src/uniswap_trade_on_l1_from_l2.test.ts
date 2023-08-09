@@ -196,18 +196,15 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       .swap(
         selector,
         wethCrossChainHarness.l2Contract.address.toField(),
-        wethCrossChainHarness.tokenPortalAddress.toField(),
         wethAmountToBridge,
         new Fr(3000),
         daiCrossChainHarness.l2Contract.address.toField(),
-        daiCrossChainHarness.tokenPortalAddress.toField(),
         new Fr(minimumOutputAmount),
         ownerAddress,
         ownerAddress,
         secretHash,
         new Fr(2 ** 32 - 1),
         ethAccount.toField(),
-        uniswapPortalAddress,
         ethAccount.toField(),
       )
       .send({ origin: ownerAddress });

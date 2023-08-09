@@ -83,6 +83,11 @@ export class UnconstrainedFunctionExecution {
         }
         return values.map(v => toACVMField(v));
       },
+      getPortalContractAddress: async ([aztecAddress]) => {
+        const contractAddress = AztecAddress.fromString(aztecAddress);
+        const portalContactAddress = await this.context.db.getPortalContractAddress(contractAddress);
+        return Promise.resolve(toACVMField(portalContactAddress));
+      },
     });
 
     const returnValues: ACVMField[] = extractReturnWitness(acir, partialWitness);
