@@ -16,8 +16,8 @@ jobs:
   benchmark:
     name: Bench selected tests
     runs-on: ubuntu-latest
-    # Only run benchmarks in merge groups
-    if: github.event_name != 'pull_request'
+    # # Only run benchmarks in merge groups
+    # if: github.event_name != 'pull_request'
     steps:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
