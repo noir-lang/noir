@@ -54,10 +54,17 @@ jobs:
     name: Build binaries
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
-    uses: ./.github/workflows/publish.yml
-    with:
-      tag: ${{ needs.release-please.outputs.tag-name }}
-      publish: true
+    runs-on: ubuntu-latest
+    # TODO: Switch to use `workflow_call`?
+    steps:
+      - name: Dispatch to publish workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: publish.yml
+          repo: noir-lang/noir
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
   publish-wasm:
     name: Publish noir_wasm package
