@@ -12,14 +12,13 @@ use super::{
     },
 };
 use crate::errors::CliError;
-use crate::find_package_manifest;
-use crate::manifest::resolve_workspace_from_toml;
 
 use acvm::Backend;
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
 use nargo::ops::{preprocess_program, verify_proof};
 use nargo::{artifacts::program::PreprocessedProgram, package::Package};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;

@@ -14,13 +14,13 @@ use super::{
     },
 };
 use crate::errors::CliError;
-use crate::{find_package_manifest, manifest::resolve_workspace_from_toml};
 use acvm::Backend;
 use clap::Args;
 use nargo::{
     ops::{codegen_verifier, preprocess_program},
     package::Package,
 };
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 

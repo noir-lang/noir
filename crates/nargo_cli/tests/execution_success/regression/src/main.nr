@@ -1,4 +1,4 @@
-global NIBBLE_LENGTH: comptime Field = 16;
+global NIBBLE_LENGTH: Field = 16;
 
 fn compact_decode<N>(input: [u8; N], length: Field) -> ([u4; NIBBLE_LENGTH], Field)
 {

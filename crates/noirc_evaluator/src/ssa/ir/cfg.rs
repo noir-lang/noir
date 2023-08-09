@@ -220,6 +220,7 @@ mod tests {
         func.dfg[block2_id].set_terminator(TerminatorInstruction::Jmp {
             destination: ret_block_id,
             arguments: vec![],
+            location: None,
         });
         func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,

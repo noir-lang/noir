@@ -664,11 +664,11 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     use TypeMethodKey::*;
     let typ = typ.follow_bindings();
     match &typ {
-        Type::FieldElement(_) => Some(FieldOrInt),
+        Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
-        Type::Integer(_, _, _) => Some(FieldOrInt),
-        Type::TypeVariable(_, TypeVariableKind::IntegerOrField(_)) => Some(FieldOrInt),
-        Type::Bool(_) => Some(Bool),
+        Type::Integer(_, _) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
+        Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),

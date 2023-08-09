@@ -35,7 +35,7 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
      let mut y = 5;
      let mut x = M;
      for i in 0..N*N {
-          let M: comptime Field = 10;
+          let M: Field = 10;
           x = M;
           
           y = i;
@@ -87,8 +87,8 @@ mod mysubmodule {
         assert(x | y == 1);
     }
 
-    fn my_helper() -> comptime Field {
-        let N: comptime Field = 15; // Like in Rust, local variables override globals
+    fn my_helper() -> Field {
+        let N: Field = 15; // Like in Rust, local variables override globals
         let x = N;
         x
     }

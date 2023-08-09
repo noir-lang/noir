@@ -1,13 +1,11 @@
 use acvm::Backend;
 use clap::Args;
 use nargo::package::Package;
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 
-use crate::{
-    cli::compile_cmd::compile_package, errors::CliError, find_package_manifest,
-    manifest::resolve_workspace_from_toml,
-};
+use crate::{cli::compile_cmd::compile_package, errors::CliError};
 
 use super::NargoConfig;
 

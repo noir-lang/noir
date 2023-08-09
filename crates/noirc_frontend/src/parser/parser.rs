@@ -34,10 +34,10 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, CompTime, ConstrainStatement, FunctionDefinition,
-    Ident, IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl,
-    TraitImplItem, TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, FunctionDefinition, Ident,
+    IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
+    NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
+    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -125,7 +125,7 @@ fn global_declaration() -> impl NoirParser<TopLevelStatement> {
         keyword(Keyword::Global).labelled(ParsingRuleLabel::Global),
         ident().map(Pattern::Identifier),
     );
-    let p = then_commit(p, global_type_annotation());
+    let p = then_commit(p, optional_type_annotation());
     let p = then_commit_ignore(p, just(Token::Assign));
     let p = then_commit(p, literal_or_collection(expression()).map_with_span(Expression::new));
     p.map(LetStatement::new_let).map(TopLevelStatement::Global)
@@ -548,21 +548,7 @@ fn check_statements_require_semicolon(
     })
 }
 
-/// Parse an optional ': type' and implicitly add a 'comptime' to the type
-fn global_type_annotation() -> impl NoirParser<UnresolvedType> {
-    ignore_then_commit(just(Token::Colon), parse_type())
-        .map(|r#type| match r#type {
-            UnresolvedType::FieldElement(_) => UnresolvedType::FieldElement(CompTime::Yes(None)),
-            UnresolvedType::Bool(_) => UnresolvedType::Bool(CompTime::Yes(None)),
-            UnresolvedType::Integer(_, sign, size) => {
-                UnresolvedType::Integer(CompTime::Yes(None), sign, size)
-            }
-            other => other,
-        })
-        .or_not()
-        .map(|opt| opt.unwrap_or(UnresolvedType::Unspecified))
-}
-
+/// Parse an optional ': type'
 fn optional_type_annotation<'a>() -> impl NoirParser<UnresolvedType> + 'a {
     ignore_then_commit(just(Token::Colon), parse_type())
         .or_not()
@@ -834,19 +820,20 @@ fn optional_distinctness() -> impl NoirParser<AbiDistinctness> {
     })
 }
 
-fn maybe_comp_time() -> impl NoirParser<CompTime> {
-    keyword(Keyword::CompTime).or_not().map(|opt| match opt {
-        Some(_) => CompTime::Yes(None),
-        None => CompTime::No(None),
+fn maybe_comp_time() -> impl NoirParser<()> {
+    keyword(Keyword::CompTime).or_not().validate(|opt, span, emit| {
+        if opt.is_some() {
+            emit(ParserError::with_reason(ParserErrorReason::ComptimeDeprecated, span));
+        }
     })
 }
 
 fn field_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time().then_ignore(keyword(Keyword::Field)).map(UnresolvedType::FieldElement)
+    maybe_comp_time().then_ignore(keyword(Keyword::Field)).map(|_| UnresolvedType::FieldElement)
 }
 
 fn bool_type() -> impl NoirParser<UnresolvedType> {
-    maybe_comp_time().then_ignore(keyword(Keyword::Bool)).map(UnresolvedType::Bool)
+    maybe_comp_time().then_ignore(keyword(Keyword::Bool)).map(|_| UnresolvedType::Bool)
 }
 
 fn string_type() -> impl NoirParser<UnresolvedType> {
@@ -878,9 +865,9 @@ fn int_type() -> impl NoirParser<UnresolvedType> {
                 Err(ParserError::expected_label(ParsingRuleLabel::IntegerType, unexpected, span))
             }
         }))
-        .validate(|token, span, emit| {
+        .validate(|(_, token), span, emit| {
             let typ = UnresolvedType::from_int_token(token);
-            if let UnresolvedType::Integer(_, crate::Signedness::Signed, _) = &typ {
+            if let UnresolvedType::Integer(crate::Signedness::Signed, _) = &typ {
                 let reason = ParserErrorReason::ExperimentalFeature("Signed integer types");
                 emit(ParserError::with_reason(reason, span));
             }
@@ -1754,7 +1741,7 @@ mod test {
             vec![
                 "fn func_name() {}",
                 "fn f(foo: pub u8, y : pub Field) -> u8 { x + a }",
-                "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
+                "fn f(f: pub Field, y : Field, z : Field) -> u8 { x + a }",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) {}",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
                 "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",

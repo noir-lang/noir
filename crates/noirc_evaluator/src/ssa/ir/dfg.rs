@@ -408,11 +408,11 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_location(&self, id: &InstructionId) -> Option<Location> {
-        self.locations.get(id).cloned()
+        self.locations.get(id).copied()
     }
 
     pub(crate) fn get_value_location(&self, id: &ValueId) -> Option<Location> {
-        match &self.values[*id] {
+        match &self.values[self.resolve(*id)] {
             Value::Instruction { instruction, .. } => self.get_location(instruction),
             _ => None,
         }
