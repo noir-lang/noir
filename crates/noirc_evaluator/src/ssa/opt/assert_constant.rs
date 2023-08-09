@@ -55,10 +55,9 @@ fn check_instruction(
     let assert_constant_id = function.dfg.import_intrinsic(Intrinsic::AssertConstant);
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
-            if dbg!(*func) == assert_constant_id {
+            if *func == assert_constant_id {
                 evaluate_assert_constant(function, instruction, arguments)
             } else {
-                println!("Nope, some other call");
                 Ok(true)
             }
         }
@@ -75,8 +74,6 @@ fn evaluate_assert_constant(
     instruction: InstructionId,
     arguments: &[ValueId],
 ) -> Result<bool, RuntimeError> {
-    println!("Evaluating assert_constant");
-
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else {
