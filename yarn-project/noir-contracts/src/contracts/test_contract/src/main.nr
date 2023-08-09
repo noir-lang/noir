@@ -44,6 +44,26 @@ contract Test {
         context.finish()
     }
 
+    // Get the address of the l1 portal for this contract (taken from the input context)
+    fn getThisPortalAddress(
+        inputs: PrivateContextInputs,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        let mut context = Context::new(inputs, abi::hash_args([]));
+        let this_portal_address = context.this_portal_address();
+        context.return_values.push_array([this_portal_address]);
+        context.finish()
+    }
+
+    // Get the address of this contract (taken from the input context)
+    fn getThisAddress(
+        inputs: PrivateContextInputs,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        let mut context = Context::new(inputs, abi::hash_args([]));
+        let this_address = context.this_address();
+        context.return_values.push_array([this_address]);
+        context.finish()
+    }
+
     // Purely exists for testing
     open fn createL2ToL1MessagePublic(
         _inputs: PublicContextInputs,

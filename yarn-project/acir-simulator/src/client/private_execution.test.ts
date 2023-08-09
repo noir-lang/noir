@@ -999,5 +999,29 @@ describe('Private Execution test suite', () => {
       const result = await runSimulator({ origin: AztecAddress.random(), abi, args });
       expect(result.returnValues).toEqual([portalContractAddress.toField().value]);
     });
+
+    it('this_address should return the current context address', async () => {
+      const contractAddress = AztecAddress.random();
+
+      // Tweak the contract ABI so we can extract return values
+      const abi = TestContractAbi.functions.find(f => f.name === 'getThisAddress')!;
+      abi.returnTypes = [{ kind: 'field' }];
+
+      // Overwrite the oracle return value
+      const result = await runSimulator({ origin: AztecAddress.random(), abi, args: [], contractAddress });
+      expect(result.returnValues).toEqual([contractAddress.toField().value]);
+    });
+
+    it("this_portal_address should return the current context's portal address", async () => {
+      const portalContractAddress = EthAddress.random();
+
+      // Tweak the contract ABI so we can extract return values
+      const abi = TestContractAbi.functions.find(f => f.name === 'getThisPortalAddress')!;
+      abi.returnTypes = [{ kind: 'field' }];
+
+      // Overwrite the oracle return value
+      const result = await runSimulator({ origin: AztecAddress.random(), abi, args: [], portalContractAddress });
+      expect(result.returnValues).toEqual([portalContractAddress.toField().value]);
+    });
   });
 });
