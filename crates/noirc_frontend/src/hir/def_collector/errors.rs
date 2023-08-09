@@ -31,7 +31,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
         match error {
             DefCollectorErrorKind::Duplicate { typ, first_def, second_def } => {
                 let primary_message =
-                    format!("duplicate definitions of {} function found", &first_def.0.contents);
+                    format!("duplicate definitions of {} with name {} found", &typ, &first_def.0.contents);
                 {
                     let duplicate_type: &str = &typ;
                     let first_span = first_def.0.span();
