@@ -41,6 +41,10 @@ pub(crate) enum CliError<B: Backend> {
     #[error("Failed to verify proof {}", .0.display())]
     InvalidProof(PathBuf),
 
+    /// Error when folder can't be cleaned/removed.
+    #[error("Failed to remove folder")]
+    CleanError(#[from] std::io::Error),
+
     /// ABI encoding/decoding error
     #[error(transparent)]
     AbiError(#[from] AbiError),
