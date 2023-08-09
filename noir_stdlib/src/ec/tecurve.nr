@@ -64,7 +64,7 @@ mod affine {
 
         // Map into prime-order subgroup of equivalent Montgomery curve
         fn into_montcurve(self) -> MPoint {
-            if self.is_zero() == true {
+            if self.is_zero() {
                 MPoint::zero()
             } else {
                 let Self {x, y} = self;
@@ -83,7 +83,7 @@ mod affine {
             // Check curve coefficients
             assert(a*d*(a-d) != 0);
             
-	    let curve = Curve {a, d, gen};
+            let curve = Curve {a, d, gen};
 
             // gen should be on the curve
             assert(curve.contains(curve.gen));
@@ -145,7 +145,7 @@ mod affine {
         fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
-            for i in 0..n.len() {
+            for i in 0..N {
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 
@@ -227,34 +227,16 @@ mod curvegroup {
 
         // Check for equality
         fn eq(self, p: Point) -> bool {
-            if self.is_zero() == true {
-                p.is_zero()
-            } else if p.is_zero() == true {
-                false
-            } else {
-                let Self {x: x1, y: y1, t: _t1, z: z1} = self;
-                let Self {x: x2, y: y2, t: _t2, z:z2} = p;
-                
-                if x1*z2 == x2*z1 {
-                    y1*z2 == y2*z1
-                } else {
-                    false
-                }
-            }
+            let Self {x: x1, y: y1, t: _t1, z: z1} = self;
+            let Self {x: x2, y: y2, t: _t2, z:z2} = p;
+
+            (x1*z2 == x2*z1) & (y1*z2 == y2*z1)
         }
 
         // Check if zero
         fn is_zero(self) -> bool {
             let Self {x, y, t, z} = self;
-            if y == z {
-                if x == t {
-                    x == 0
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
+            (x == 0) & (y == z) & (y != 0) & (t == 0)
         }
 
         // Conversion to affine coordinates
@@ -288,7 +270,7 @@ mod curvegroup {
             // Check curve coefficients
             assert(a*d*(a-d) != 0);
             
-	    let curve = Curve { a, d, gen };
+            let curve = Curve { a, d, gen };
 
             // gen should be on the curve
             assert(curve.contains(curve.gen));
@@ -307,7 +289,7 @@ mod curvegroup {
         fn contains(self, p: Point) -> bool {
             let Point {x, y, t, z} = p;
 
-            (z != 0) & (z*t == x*y) & (z*z*(self.a*x*x + y*y) == z*z + self.d*x*x*y*y)
+            (z != 0) & (z*t == x*y) & (z*z*(self.a*x*x + y*y) == z*z*z*z + self.d*x*x*y*y)
         }
 
         // Point addition
@@ -357,12 +339,11 @@ mod curvegroup {
         // If k is the natural number represented by `bits`, then this computes p + ... + p k times.
         fn bit_mul<N>(self, bits: [u1; N], p: Point) -> Point {
             let mut out = Point::zero();
-            let n = bits.len();
             
-            for i in 0..n {
+            for i in 0..N {
                 out = self.add(
                     self.add(out, out),
-                    if(bits[n - i - 1] == 0) {Point::zero()} else {p});
+                    if(bits[N - i - 1] == 0) {Point::zero()} else {p});
             }
 
             out
@@ -386,7 +367,7 @@ mod curvegroup {
         fn msm<N>(self, n: [Field; N], p: [Point; N]) -> Point {
             let mut out = Point::zero();
 
-            for i in 0..n.len() {
+            for i in 0..N {
                 out = self.add(out, self.mul(n[i], p[i]));
             }
 
