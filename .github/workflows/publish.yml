@@ -92,7 +92,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32
+          path: ${{ github.workspace }}/libbarretenberg-wasm32
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
@@ -101,7 +101,7 @@ jobs:
 
       - name: Build environment and Compile
         env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32/bin
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
@@ -174,7 +174,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32
+          path: ${{ github.workspace }}/libbarretenberg-wasm32
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
@@ -183,7 +183,7 @@ jobs:
 
       - name: Build Nargo
         env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32/bin
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo install cross --force --git https://github.com/cross-rs/cross
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
@@ -250,7 +250,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: libbarretenberg-wasm32
-          path: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32
+          path: ${{ github.workspace }}/libbarretenberg-wasm32
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.66.0
@@ -259,7 +259,7 @@ jobs:
 
       - name: Build environment and Compile
         env:
-          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/.github/temp/libbarretenberg-wasm32/bin
+          BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
