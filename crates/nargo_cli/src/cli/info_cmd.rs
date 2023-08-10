@@ -75,8 +75,6 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
     let (mut context, crate_id) = prepare_package(package);
     let result = compile_contracts(&mut context, crate_id, compile_options);
     let contracts = report_errors(result, &context, compile_options.deny_warnings)?;
-    let mut total_num_opcodes_in_all_contracts = 0;
-    let mut total_num_circuit_size_in_all_contracts = 0;
 
     for contract in contracts {
         let mut total_num_opcodes = 0;
@@ -91,29 +89,12 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
             total_circuit_size += exact_circuit_size;
             function_info.push((function.name, num_opcodes, exact_circuit_size));
         }
-        total_num_opcodes_in_all_contracts += total_num_opcodes;
-        total_num_circuit_size_in_all_contracts += total_circuit_size;
-
-        println!(
-            "[{}] Total ACIR opcodes generated for language {:?}: {}",
-            contract.name,
-            backend.np_language(),
-            total_num_opcodes
-        );
-        println!("[{}] Backend circuit size: {total_circuit_size} \n", contract.name);
 
         for info in function_info {
             println!("[{}]({}) Total ACIR opcodes generated: {}", contract.name, info.0, info.1,);
             println!("[{}]({}) Backend circuit size: {}", contract.name, info.0, info.2);
         }
     }
-
-    println!(
-        "\n[All Contracts] Total ACIR opcodes generated for language {:?}: {}",
-        backend.np_language(),
-        total_num_opcodes_in_all_contracts
-    );
-    println!("[All Contracts] Backend circuit size: {total_num_circuit_size_in_all_contracts}");
 
     Ok(())
 }
