@@ -34,7 +34,9 @@ impl From<&PathBuf> for PathString {
 pub struct FileMap(SimpleFiles<PathString, String>);
 
 // XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
-#[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize)]
+#[derive(
+    Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize, PartialOrd, Ord,
+)]
 pub struct FileId(usize);
 
 impl FileId {
@@ -51,8 +53,12 @@ impl FileId {
 pub struct File<'input>(&'input SimpleFile<PathString, String>);
 
 impl<'input> File<'input> {
-    pub fn source(self) -> &'input str {
+    pub fn source(&self) -> &'input str {
         self.0.source()
+    }
+
+    pub fn path(&self) -> &'input PathString {
+        self.0.name()
     }
 }
 

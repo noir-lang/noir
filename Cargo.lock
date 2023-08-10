@@ -1979,6 +1979,7 @@ version = "0.9.0"
 dependencies = [
  "acvm",
  "base64",
+ "fm",
  "iter-extended",
  "noirc_abi",
  "noirc_driver",

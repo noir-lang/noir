@@ -1570,7 +1570,7 @@ mod test {
         let mut all_captures: Vec<Vec<String>> = Vec::new();
         for func in program.functions {
             let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(func.name().clone().to_string(), id);
+            interner.push_function_definition(func.name().to_owned().to_string(), id);
             path_resolver.insert_func(func.name().to_owned(), id);
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
