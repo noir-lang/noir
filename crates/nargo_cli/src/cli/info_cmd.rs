@@ -34,7 +34,7 @@ pub(crate) fn run<B: Backend>(
 
     for package in &workspace {
         if package.is_contract() {
-            count_opcodes_and_gates_in_contract(backend, package, &args.compile_options)?;
+            count_opcodes_and_gates_in_contracts(backend, package, &args.compile_options)?;
         } else {
             count_opcodes_and_gates_in_package(backend, package, &args.compile_options)?;
         }
@@ -67,13 +67,13 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
     Ok(())
 }
 
-fn count_opcodes_and_gates_in_contract<B: Backend>(
+fn count_opcodes_and_gates_in_contracts<B: Backend>(
     backend: &B,
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let (mut context, crate_id) = prepare_package(package);
-    let result = compile_contracts(&mut context, crate_id, &compile_options);
+    let result = compile_contracts(&mut context, crate_id, compile_options);
     let contracts = report_errors(result, &context, compile_options.deny_warnings)?;
     let mut total_num_opcodes_in_all_contracts = 0;
     let mut total_num_circuit_size_in_all_contracts = 0;
