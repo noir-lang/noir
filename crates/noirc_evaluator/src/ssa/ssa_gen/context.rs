@@ -566,7 +566,8 @@ impl<'a> FunctionContext<'a> {
         })
     }
 
-    /// Compile the given identifier as a reference - ie. avoid calling .eval()
+    /// Compile the given identifier as a reference - ie. avoid calling .eval().
+    /// Returns the variable's value and whether the variable is mutable.
     fn ident_lvalue(&self, ident: &ast::Ident) -> (Values, bool) {
         match &ident.definition {
             ast::Definition::Local(id) => (self.lookup(*id), ident.mutable),
