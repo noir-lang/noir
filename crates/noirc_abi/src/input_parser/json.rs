@@ -96,7 +96,7 @@ impl JsonTypes {
 
             (InputValue::String(s), AbiType::String { .. }) => JsonTypes::String(s.to_string()),
 
-            (InputValue::Struct(map), AbiType::Struct { fields }) => {
+            (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {
                 let map_with_json_types = try_btree_map(fields, |(key, field_type)| {
                     JsonTypes::try_from_input_value(&map[key], field_type)
                         .map(|json_value| (key.to_owned(), json_value))
@@ -155,7 +155,7 @@ impl InputValue {
                 InputValue::Vec(array_elements)
             }
 
-            (JsonTypes::Table(table), AbiType::Struct { fields }) => {
+            (JsonTypes::Table(table), AbiType::Struct { fields, .. }) => {
                 let native_table = try_btree_map(fields, |(field_name, abi_type)| {
                     // Check that json contains a value for each field of the struct.
                     let field_id = format!("{arg_name}.{field_name}");

@@ -88,7 +88,7 @@ fn create_input_toml_template(
                     .collect();
                 toml::Value::Array(default_value_vec)
             }
-            AbiType::Struct { fields } => {
+            AbiType::Struct { fields, .. } => {
                 let default_value_map = toml::map::Map::from_iter(
                     fields.into_iter().map(|(name, typ)| (name, default_value(typ))),
                 );
@@ -128,6 +128,7 @@ mod tests {
             typed_param(
                 "d",
                 AbiType::Struct {
+                    name: String::from("mystruct"),
                     fields: vec![
                         (String::from("d1"), AbiType::Field),
                         (
