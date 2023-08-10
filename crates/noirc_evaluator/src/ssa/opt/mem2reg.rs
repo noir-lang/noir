@@ -160,6 +160,10 @@ impl PerFunctionContext {
         protected_allocations
     }
 
+    // This method finds the load values to substitute for a given address
+    // The search starts at the block supplied as a parameter. If there is not a load to substitute
+    // the CFG is analyzed to determine whether a predecessor block has a load value to substitute.
+    // If there is no load value to substitute the original address is returned.
     fn fetch_load_value_to_substitute(&self, block_id: BasicBlockId, address: ValueId) -> ValueId {
         let mut stack = vec![block_id];
         let mut visited = HashSet::new();
@@ -168,6 +172,8 @@ impl PerFunctionContext {
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
+            // Check whether there is a load value to substitute in the current block.
+            // Return the value if found.
             if let Some((value, load_block_id)) =
                 self.load_values_to_substitute_per_func.get(&address)
             {
@@ -176,6 +182,7 @@ impl PerFunctionContext {
                 }
             }
 
+            // If no load values to substitute have been found in the current block, check the block's predecessors.
             let predecessors = self.cfg.predecessors(block);
             for predecessor in predecessors {
                 if dom_tree.is_reachable(predecessor)
@@ -189,6 +196,10 @@ impl PerFunctionContext {
         address
     }
 
+    // This method determines which loads should be substituted.
+    // Starting at the block supplied as a parameter, we check whether a store has occurred with the given address.
+    // If no store has occurred in the supplied block, the CFG is analyzed to determine whether
+    // a predecessor block has a store at the given address.
     fn find_load_to_substitute(
         &mut self,
         block_id: BasicBlockId,
@@ -213,6 +224,8 @@ impl PerFunctionContext {
                 }
             }
 
+            // Check whether there has been a store instruction in the current block
+            // If there has been a store, add a load to be substituted.
             if let Some(last_value) = self.last_stores_with_block.get(&(address, block)) {
                 let result_value = *dfg
                     .instruction_results(*instruction_id)
@@ -225,6 +238,7 @@ impl PerFunctionContext {
                 return true;
             }
 
+            // If no stores have been found in the current block, check the block's predecessors.
             let predecessors = self.cfg.predecessors(block);
             for predecessor in predecessors {
                 // TODO: Do I need is_reachable here? We are looping over only the reachable blocks but does
