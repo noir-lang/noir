@@ -30,8 +30,6 @@ impl Ssa {
             let mut context = PerFunctionContext::new(function);
 
             for block in function.reachable_blocks() {
-                let cfg: ControlFlowGraph = ControlFlowGraph::with_function(function);
-
                 // Maps Load instruction id -> value to replace the result of the load with
                 let mut loads_to_substitute_per_block = BTreeMap::new();
 
@@ -44,7 +42,6 @@ impl Ssa {
                         &mut loads_to_substitute_per_block,
                         &mut load_values_to_substitute,
                         block,
-                        &cfg,
                     );
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
             }
@@ -71,6 +68,7 @@ struct PerFunctionContext {
     post_order: PostOrder,
     loops: Loops,
 }
+
 impl PerFunctionContext {
     fn new(function: &Function) -> Self {
         PerFunctionContext {
@@ -98,7 +96,6 @@ impl PerFunctionContext {
         loads_to_substitute: &mut BTreeMap<InstructionId, ValueId>,
         load_values_to_substitute_per_block: &mut BTreeMap<ValueId, ValueId>,
         block_id: BasicBlockId,
-        cfg: &ControlFlowGraph,
     ) -> HashSet<AllocId> {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[block_id];
@@ -106,28 +103,18 @@ impl PerFunctionContext {
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
-                    address = self.fetch_load_value_to_substitute_recursively(
-                        cfg,
-                        block_id,
-                        address,
-                        &mut HashSet::new(),
-                    );
+                    address = self.fetch_load_value_to_substitute(block_id, address);
 
                     self.last_stores_with_block.insert((address, block_id), *value);
                     self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { mut address } => {
-                    address = self.fetch_load_value_to_substitute_recursively(
-                        cfg,
-                        block_id,
-                        address,
-                        &mut HashSet::new(),
-                    );
+                    address = self.fetch_load_value_to_substitute(block_id, address);
 
                     let found_last_value = self.find_load_to_substitute(
                         block_id,
-                        dfg,
                         address,
+                        dfg,
                         instruction_id,
                         loads_to_substitute,
                         load_values_to_substitute_per_block,
@@ -174,53 +161,51 @@ impl PerFunctionContext {
         protected_allocations
     }
 
-    fn fetch_load_value_to_substitute_recursively(
-        &self,
-        cfg: &ControlFlowGraph,
-        block_id: BasicBlockId,
-        address: ValueId,
-        checked_blocks: &mut HashSet<BasicBlockId>,
-    ) -> ValueId {
-        checked_blocks.insert(block_id);
+    // This method finds the load values to substitute for a given address
+    // The search starts at the block supplied as a parameter. If there is not a load to substitute
+    // the CFG is analyzed to determine whether a predecessor block has a load value to substitute.
+    // If there is no load value to substitute the original address is returned.
+    fn fetch_load_value_to_substitute(&self, block_id: BasicBlockId, address: ValueId) -> ValueId {
+        let mut stack = vec![block_id];
+        let mut visited = HashSet::new();
 
-        if let Some((value, load_block_id)) = self.load_values_to_substitute_per_func.get(&address)
-        {
-            if *load_block_id == block_id {
-                return *value;
-            }
-        }
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
+        while let Some(block) = stack.pop() {
+            visited.insert(block);
 
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(cfg, &self.post_order);
-
-        let predecessors = cfg.predecessors(block_id);
-        for predecessor in predecessors {
-            if dom_tree.is_reachable(predecessor) && dom_tree.dominates(predecessor, block_id) {
-                if let Some((value, load_block_id)) =
-                    self.load_values_to_substitute_per_func.get(&address)
-                {
-                    if *load_block_id == predecessor {
-                        return *value;
-                    }
+            // Check whether there is a load value to substitute in the current block.
+            // Return the value if found.
+            if let Some((value, load_block_id)) =
+                self.load_values_to_substitute_per_func.get(&address)
+            {
+                if *load_block_id == block {
+                    return *value;
                 }
+            }
 
-                if !checked_blocks.contains(&predecessor) {
-                    return self.fetch_load_value_to_substitute_recursively(
-                        cfg,
-                        predecessor,
-                        address,
-                        checked_blocks,
-                    );
+            // If no load values to substitute have been found in the current block, check the block's predecessors.
+            let predecessors = self.cfg.predecessors(block);
+            for predecessor in predecessors {
+                if dom_tree.is_reachable(predecessor)
+                    && dom_tree.dominates(predecessor, block)
+                    && !visited.contains(&predecessor)
+                {
+                    stack.push(predecessor);
                 }
             }
         }
         address
     }
 
+    // This method determines which loads should be substituted.
+    // Starting at the block supplied as a parameter, we check whether a store has occurred with the given address.
+    // If no store has occurred in the supplied block, the CFG is analyzed to determine whether
+    // a predecessor block has a store at the given address.
     fn find_load_to_substitute(
         &mut self,
         block_id: BasicBlockId,
-        dfg: &DataFlowGraph,
         address: ValueId,
+        dfg: &DataFlowGraph,
         instruction_id: &InstructionId,
         loads_to_substitute: &mut BTreeMap<InstructionId, ValueId>,
         load_values_to_substitute_per_block: &mut BTreeMap<ValueId, ValueId>,
@@ -240,6 +225,8 @@ impl PerFunctionContext {
                 }
             }
 
+            // Check whether there has been a store instruction in the current block
+            // If there has been a store, add a load to be substituted.
             if let Some(last_value) = self.last_stores_with_block.get(&(address, block)) {
                 let result_value = *dfg
                     .instruction_results(*instruction_id)
@@ -252,29 +239,16 @@ impl PerFunctionContext {
                 return true;
             }
 
+            // If no stores have been found in the current block, check the block's predecessors.
             let predecessors = self.cfg.predecessors(block);
             for predecessor in predecessors {
                 // TODO: Do I need is_reachable here? We are looping over only the reachable blocks but does
                 // that include a reachable block's predecessors?
-                if dom_tree.is_reachable(predecessor) && dom_tree.dominates(predecessor, block) {
-                    if let Some(last_value) =
-                        self.last_stores_with_block.get(&(address, predecessor))
-                    {
-                        let result_value = *dfg
-                            .instruction_results(*instruction_id)
-                            .first()
-                            .expect("ICE: Load instructions should have single result");
-
-                        loads_to_substitute.insert(*instruction_id, *last_value);
-                        load_values_to_substitute_per_block.insert(result_value, *last_value);
-                        self.load_values_to_substitute_per_func
-                            .insert(result_value, (*last_value, block));
-                        return true;
-                    }
-                    // Only recurse further if the predecessor dominates the current block we are checking
-                    if !visited.contains(&predecessor) {
-                        stack.push(predecessor);
-                    }
+                if dom_tree.is_reachable(predecessor)
+                    && dom_tree.dominates(predecessor, block)
+                    && !visited.contains(&predecessor)
+                {
+                    stack.push(predecessor);
                 }
             }
         }
@@ -332,7 +306,7 @@ mod tests {
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
             function::RuntimeType,
-            instruction::{Instruction, Intrinsic, TerminatorInstruction},
+            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
         },
@@ -536,5 +510,96 @@ mod tests {
             }
             _ => unreachable!(),
         };
+    }
+
+    // Test that a load in a predecessor block has been removed if the value
+    // is later stored in a successor block
+    #[test]
+    fn store_with_load_in_predecessor_block() {
+        // fn main {
+        //     b0():
+        //       v0 = allocate
+        //       store Field 0 at v0
+        //       v2 = allocate
+        //       store v0 at v2
+        //       v3 = load v2
+        //       v4 = load v2
+        //       jmp b1()
+        //     b1():
+        //       store Field 1 at v3
+        //       store Field 2 at v4
+        //       v8 = load v3
+        //       v9 = eq v8, Field 2
+        //       return
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        let v0 = builder.insert_allocate();
+
+        let zero = builder.field_constant(0u128);
+        builder.insert_store(v0, zero);
+
+        let v2 = builder.insert_allocate();
+        builder.insert_store(v2, v0);
+
+        let v3 = builder.insert_load(v2, Type::field());
+        let v4 = builder.insert_load(v2, Type::field());
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![]);
+
+        builder.switch_to_block(b1);
+
+        let one = builder.field_constant(1u128);
+        builder.insert_store(v3, one);
+
+        let two = builder.field_constant(2u128);
+        builder.insert_store(v4, two);
+
+        let v8 = builder.insert_load(v3, Type::field());
+        let _ = builder.insert_binary(v8, BinaryOp::Eq, two);
+
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish();
+        assert_eq!(ssa.main().reachable_blocks().len(), 2);
+
+        // Expected result:
+        // fn main {
+        //     b0():
+        //       v0 = allocate
+        //       v2 = allocate
+        //       jmp b1()
+        //     b1():
+        //       v8 = eq Field 2, Field 2
+        //       return
+        // }
+        let ssa = ssa.mem2reg();
+
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 2);
+
+        // All loads should be removed
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_loads(b1, &main.dfg), 0);
+
+        // All stores should be removed
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_stores(b1, &main.dfg), 0);
+
+        let b1_instructions = main.dfg[b1].instructions();
+        // The first instruction should be a binary operation
+        match &main.dfg[b1_instructions[0]] {
+            Instruction::Binary(binary) => {
+                let lhs =
+                    main.dfg.get_numeric_constant(binary.lhs).expect("Expected constant value");
+                let rhs =
+                    main.dfg.get_numeric_constant(binary.rhs).expect("Expected constant value");
+
+                assert_eq!(lhs, rhs);
+                assert_eq!(lhs, FieldElement::from(2u128));
+            }
+            _ => unreachable!(),
+        }
     }
 }

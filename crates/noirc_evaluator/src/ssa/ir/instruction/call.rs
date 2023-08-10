@@ -163,7 +163,6 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::SlicePopFront => {
-            dbg!(arguments[0]);
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((mut slice, typ)) = slice {
                 let element_count = typ.element_size();
