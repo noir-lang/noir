@@ -30,8 +30,6 @@ impl Ssa {
             let mut context = PerFunctionContext::new(function);
 
             for block in function.reachable_blocks() {
-                let cfg: ControlFlowGraph = ControlFlowGraph::with_function(function);
-
                 // Maps Load instruction id -> value to replace the result of the load with
                 let mut loads_to_substitute_per_block = BTreeMap::new();
 
@@ -44,7 +42,6 @@ impl Ssa {
                         &mut loads_to_substitute_per_block,
                         &mut load_values_to_substitute,
                         block,
-                        &cfg,
                     );
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
             }
@@ -98,7 +95,6 @@ impl PerFunctionContext {
         loads_to_substitute: &mut BTreeMap<InstructionId, ValueId>,
         load_values_to_substitute_per_block: &mut BTreeMap<ValueId, ValueId>,
         block_id: BasicBlockId,
-        cfg: &ControlFlowGraph,
     ) -> HashSet<AllocId> {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[block_id];
@@ -107,10 +103,8 @@ impl PerFunctionContext {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
                     address = self.fetch_load_value_to_substitute_recursively(
-                        cfg,
                         block_id,
                         address,
-                        &mut HashSet::new(),
                     );
 
                     self.last_stores_with_block.insert((address, block_id), *value);
@@ -118,10 +112,8 @@ impl PerFunctionContext {
                 }
                 Instruction::Load { mut address } => {
                     address = self.fetch_load_value_to_substitute_recursively(
-                        cfg,
                         block_id,
                         address,
-                        &mut HashSet::new(),
                     );
 
                     let found_last_value = self.find_load_to_substitute(
@@ -176,12 +168,11 @@ impl PerFunctionContext {
 
     fn fetch_load_value_to_substitute_recursively(
         &self,
-        cfg: &ControlFlowGraph,
         block_id: BasicBlockId,
         address: ValueId,
-        checked_blocks: &mut HashSet<BasicBlockId>,
     ) -> ValueId {
-        checked_blocks.insert(block_id);
+        let mut visited = HashSet::new();
+        visited.insert(block_id);
 
         if let Some((value, load_block_id)) = self.load_values_to_substitute_per_func.get(&address)
         {
@@ -190,9 +181,9 @@ impl PerFunctionContext {
             }
         }
 
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(cfg, &self.post_order);
+        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
 
-        let predecessors = cfg.predecessors(block_id);
+        let predecessors = self.cfg.predecessors(block_id);
         for predecessor in predecessors {
             if dom_tree.is_reachable(predecessor) && dom_tree.dominates(predecessor, block_id) {
                 if let Some((value, load_block_id)) =
@@ -203,12 +194,10 @@ impl PerFunctionContext {
                     }
                 }
 
-                if !checked_blocks.contains(&predecessor) {
+                if !visited.contains(&predecessor) {
                     return self.fetch_load_value_to_substitute_recursively(
-                        cfg,
                         predecessor,
                         address,
-                        checked_blocks,
                     );
                 }
             }
