@@ -1,5 +1,5 @@
 [package]
-name = "fail_dup_func"
+name = "duplicate_declaration"
 type = "bin"
 authors = [""]
 compiler_version = "0.1"

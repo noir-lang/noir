@@ -22,3 +22,7 @@ result
 **/target
 !crates/nargo_cli/tests/execution_success/*/target
 !crates/nargo_cli/tests/execution_success/*/target/witness.tr
+
+# Github Actions scratch space
+# This gives a location to download artifacts into the repository in CI without making git dirty.
+libbarretenberg-wasm32

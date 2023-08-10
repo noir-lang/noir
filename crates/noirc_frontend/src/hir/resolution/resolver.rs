@@ -919,7 +919,10 @@ impl<'a> Resolver<'a> {
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
         match lvalue {
             LValue::Ident(ident) => {
-                HirLValue::Ident(self.find_variable_or_default(&ident).0, Type::Error)
+                let ident = self.find_variable_or_default(&ident);
+                self.resolve_local_variable(ident.0, ident.1);
+
+                HirLValue::Ident(ident.0, Type::Error)
             }
             LValue::MemberAccess { object, field_name } => {
                 let object = Box::new(self.resolve_lvalue(*object));
@@ -1018,8 +1021,8 @@ impl<'a> Resolver<'a> {
                                 self.interner.push_definition_type(hir_ident.id, typ);
                             }
                         }
-                        // We ignore the above definition kinds because only local variables can be captured by closures.
                         DefinitionKind::Local(_) => {
+                            // only local variables can be captured by closures.
                             self.resolve_local_variable(hir_ident, var_scope_index);
                         }
                     }
@@ -1570,7 +1573,7 @@ mod test {
         let mut all_captures: Vec<Vec<String>> = Vec::new();
         for func in program.functions {
             let id = interner.push_fn(HirFunction::empty());
-            interner.push_function_definition(func.name().clone().to_string(), id);
+            interner.push_function_definition(func.name().to_string(), id);
             path_resolver.insert_func(func.name().to_owned(), id);
 
             let resolver = Resolver::new(&mut interner, &path_resolver, &def_maps, file);
@@ -1613,7 +1616,7 @@ mod test {
                 }
                 HirStatement::Error => panic!("Invalid HirStatement!"),
             }
-            get_lambda_captures(expr, &interner, result); // TODO: dyn filter function as parameter
+            get_lambda_captures(expr, interner, result); // TODO: dyn filter function as parameter
         }
     }
 
@@ -1632,7 +1635,7 @@ mod test {
 
             // Check for other captures recursively within the lambda body
             let hir_body_expr = interner.expression(&lambda_expr.body);
-            if let HirExpression::Block(block_expr) = hir_body_expr.clone() {
+            if let HirExpression::Block(block_expr) = hir_body_expr {
                 parse_statement_blocks(block_expr.statements(), interner, result);
             }
         }
@@ -1820,7 +1823,7 @@ mod test {
         let errors = resolve_src_code(src, vec!["main", "foo"]);
         if !errors.is_empty() {
             println!("Unexpected errors: {:?}", errors);
-            assert!(false); // there should be no errors
+            unreachable!("there should be no errors");
         }
     }
 
@@ -1857,8 +1860,7 @@ mod test {
 
           "#;
         let parsed_captures = get_program_captures(src);
-        let mut expected_captures = vec![];
-        expected_captures.push(vec!["y".to_string()]);
+        let expected_captures = vec![vec!["y".to_string()]];
         assert_eq!(expected_captures, parsed_captures);
     }
 
@@ -1893,7 +1895,7 @@ mod test {
         assert!(errors.is_empty());
         if !errors.is_empty() {
             println!("Unexpected errors: {:?}", errors);
-            assert!(false); // there should be no errors
+            unreachable!("there should be no errors");
         }
 
         let expected_captures = vec![

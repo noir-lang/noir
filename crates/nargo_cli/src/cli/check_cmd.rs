@@ -110,15 +110,9 @@ fn create_input_toml_template(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
-    use noirc_driver::CompileOptions;
 
     use super::create_input_toml_template;
-
-    const TEST_DATA_DIR: &str = "tests/target_tests_data";
 
     #[test]
     fn valid_toml_template() {
@@ -158,63 +152,6 @@ d1 = ""
 d2 = ["", "", ""]
 "#;
         assert_eq!(toml_str, expected_toml_str);
-    }
-
-    #[test]
-    fn pass() {
-        let pass_dir =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
-
-        let config = CompileOptions::default();
-        let paths = std::fs::read_dir(pass_dir).unwrap();
-        for path in paths.flatten() {
-            let path = path.path();
-            let toml_path = find_package_manifest(&path).unwrap();
-            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
-            for package in &workspace {
-                assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
-            }
-        }
-    }
-
-    #[test]
-    #[ignore = "This test fails because the reporter exits the process with 1"]
-    fn fail() {
-        let fail_dir =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
-
-        let config = CompileOptions::default();
-        let paths = std::fs::read_dir(fail_dir).unwrap();
-        for path in paths.flatten() {
-            let path = path.path();
-            let toml_path = find_package_manifest(&path).unwrap();
-            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
-            for package in &workspace {
-                assert!(
-                    super::check_package(package, &config).is_err(),
-                    "path: {}",
-                    path.display()
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn pass_with_warnings() {
-        let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
-
-        let config = CompileOptions { deny_warnings: false, ..Default::default() };
-
-        let paths = std::fs::read_dir(pass_dir).unwrap();
-        for path in paths.flatten() {
-            let path = path.path();
-            let toml_path = find_package_manifest(&path).unwrap();
-            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
-            for package in &workspace {
-                assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
-            }
-        }
     }
 }
 

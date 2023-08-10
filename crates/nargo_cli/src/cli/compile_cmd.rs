@@ -7,7 +7,8 @@ use nargo::prepare_package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{
-    compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
+    compile_contracts, compile_main, CompileOptions, CompiledContract, CompiledProgram,
+    ContractFunction, ErrorsAndWarnings, Warnings,
 };
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
@@ -62,31 +63,31 @@ pub(crate) fn run<B: Backend>(
         if package.is_contract() {
             let result = compile_contracts(&mut context, crate_id, &args.compile_options);
             let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
+            let optimized_contracts =
+                try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
 
             // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
             // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
             // are compiled via nargo-core and then the PreprocessedContract is constructed here.
             // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
             let preprocessed_contracts: Result<Vec<PreprocessedContract>, CliError<B>> =
-                try_vecmap(contracts, |contract| {
-                    let preprocessed_contract_functions =
-                        try_vecmap(contract.functions, |mut func| {
-                            func.bytecode = optimize_circuit(backend, func.bytecode)?.0;
-                            common_reference_string = update_common_reference_string(
-                                backend,
-                                &common_reference_string,
-                                &func.bytecode,
-                            )
-                            .map_err(CliError::CommonReferenceStringError)?;
+                try_vecmap(optimized_contracts, |contract| {
+                    let preprocessed_contract_functions = try_vecmap(contract.functions, |func| {
+                        common_reference_string = update_common_reference_string(
+                            backend,
+                            &common_reference_string,
+                            &func.bytecode,
+                        )
+                        .map_err(CliError::CommonReferenceStringError)?;
 
-                            preprocess_contract_function(
-                                backend,
-                                args.include_keys,
-                                &common_reference_string,
-                                func,
-                            )
-                            .map_err(CliError::ProofSystemCompilerError)
-                        })?;
+                        preprocess_contract_function(
+                            backend,
+                            args.include_keys,
+                            &common_reference_string,
+                            func,
+                        )
+                        .map_err(CliError::ProofSystemCompilerError)
+                    })?;
 
                     Ok(PreprocessedContract {
                         name: contract.name,
@@ -160,6 +161,18 @@ pub(super) fn optimize_circuit<B: Backend>(
     .map_err(|_| NargoError::CompilationError)?;
 
     Ok(result)
+}
+
+pub(super) fn optimize_contract<B: Backend>(
+    backend: &B,
+    contract: CompiledContract,
+) -> Result<CompiledContract, CliError<B>> {
+    let functions = try_vecmap(contract.functions, |func| {
+        let optimized_bytecode = optimize_circuit(backend, func.bytecode)?.0;
+        Ok::<_, CliError<B>>(ContractFunction { bytecode: optimized_bytecode, ..func })
+    })?;
+
+    Ok(CompiledContract { functions, ..contract })
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
