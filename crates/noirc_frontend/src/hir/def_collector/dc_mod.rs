@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTypeAlias},
-    errors::DefCollectorErrorKind,
+    errors::{DefCollectorErrorKind, DuplicateType},
 };
 use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
 use crate::hir::resolution::import::ImportDirective;
@@ -83,7 +83,7 @@ impl<'a> ModCollector<'a> {
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
-                    typ: "global".to_string(),
+                    typ: DuplicateType::Global,
                     first_def,
                     second_def,
                 };
@@ -147,7 +147,7 @@ impl<'a> ModCollector<'a> {
 
             if let Err((first_def, second_def)) = result {
                 let error = DefCollectorErrorKind::Duplicate {
-                    typ: "function".to_string(),
+                    typ: DuplicateType::Function,
                     first_def,
                     second_def,
                 };
@@ -181,7 +181,7 @@ impl<'a> ModCollector<'a> {
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
-                    typ: "type definition".to_string(),
+                    typ: DuplicateType::TypeDefinition,
                     first_def,
                     second_def,
                 };
@@ -224,7 +224,7 @@ impl<'a> ModCollector<'a> {
 
             if let Err((first_def, second_def)) = result {
                 let err = DefCollectorErrorKind::Duplicate {
-                    typ: "function".to_string(),
+                    typ: DuplicateType::Function,
                     first_def,
                     second_def,
                 };
@@ -340,7 +340,7 @@ impl<'a> ModCollector<'a> {
                 modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
             {
                 let err = DefCollectorErrorKind::Duplicate {
-                    typ: "module".to_string(),
+                    typ: DuplicateType::Module,
                     first_def,
                     second_def,
                 };

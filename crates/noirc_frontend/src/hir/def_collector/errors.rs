@@ -6,10 +6,20 @@ use noirc_errors::FileDiagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
 
+use std::fmt;
+
+pub enum DuplicateType {
+    Function,
+    Module,
+    Global,
+    TypeDefinition,
+    Import,
+}
+
 #[derive(Error, Debug)]
 pub enum DefCollectorErrorKind {
-    #[error("duplicate {typ} found in namespace")]
-    Duplicate { typ: String, first_def: Ident, second_def: Ident },
+    #[error("duplicate {typ:?} found in namespace")]
+    Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
     #[error("unresolved import")]
     UnresolvedModuleDecl { mod_name: Ident },
     #[error("path resolution error")]
@@ -26,25 +36,35 @@ impl DefCollectorErrorKind {
     }
 }
 
+impl fmt::Debug for DuplicateType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            DuplicateType::Function => write!(f, "function"),
+            DuplicateType::Module => write!(f, "module"),
+            DuplicateType::Global => write!(f, "global"),
+            DuplicateType::TypeDefinition => write!(f, "type definition"),
+            DuplicateType::Import => write!(f, "import"),
+        }
+    }
+}
+
 impl From<DefCollectorErrorKind> for Diagnostic {
     fn from(error: DefCollectorErrorKind) -> Diagnostic {
         match error {
             DefCollectorErrorKind::Duplicate { typ, first_def, second_def } => {
-                let primary_message =
-                    format!("duplicate definitions of {} with name {} found", &typ, &first_def.0.contents);
+                let primary_message = format!(
+                    "duplicate definitions of {:?} with name {} found",
+                    &typ, &first_def.0.contents
+                );
                 {
-                    let duplicate_type: &str = &typ;
                     let first_span = first_def.0.span();
                     let second_span = second_def.0.span();
                     let mut diag = Diagnostic::simple_error(
                         primary_message,
-                        format!("first {} found here", duplicate_type),
+                        format!("first {:?} found here", &typ),
                         first_span,
                     );
-                    diag.add_secondary(
-                        format!("second {} found here", duplicate_type),
-                        second_span,
-                    );
+                    diag.add_secondary(format!("second {:?} found here", &typ), second_span);
                     diag
                 }
             }

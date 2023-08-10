@@ -1,5 +1,5 @@
 use super::dc_mod::collect_defs;
-use super::errors::DefCollectorErrorKind;
+use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
@@ -152,7 +152,7 @@ impl DefCollector {
 
                 if let Err((first_def, second_def)) = result {
                     let err = DefCollectorErrorKind::Duplicate {
-                        typ: "import".to_string(),
+                        typ: DuplicateType::Import,
                         first_def,
                         second_def,
                     };
@@ -261,7 +261,7 @@ fn collect_impls(
 
                     if let Err((first_def, second_def)) = result {
                         let err = DefCollectorErrorKind::Duplicate {
-                            typ: "function".to_string(),
+                            typ: DuplicateType::Function,
                             first_def,
                             second_def,
                         };
