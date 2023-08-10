@@ -1,5 +1,5 @@
 [package]
-name = "pass_basic"
+name = "unused_variables"
 type = "bin"
 authors = [""]
 compiler_version = "0.1"
