@@ -29,6 +29,8 @@ pub enum ParserErrorReason {
     ComptimeDeprecated,
     #[error("{0} are experimental and aren't fully supported yet")]
     ExperimentalFeature(&'static str),
+    #[error("Where clauses are allowed only on functions with generic parameters")]
+    WhereClauseOnNonGenericFunction,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
