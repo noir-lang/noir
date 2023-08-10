@@ -2053,6 +2053,8 @@ dependencies = [
  "codespan-reporting",
  "fm",
  "lsp-types 0.94.0",
+ "nargo",
+ "nargo_toml",
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
