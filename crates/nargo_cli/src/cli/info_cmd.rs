@@ -1,13 +1,14 @@
 use acvm::Backend;
 use clap::Args;
-use nargo::package::Package;
+use iter_extended::try_vecmap;
+use nargo::{package::Package, prepare_package};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
-use noirc_driver::CompileOptions;
+use noirc_driver::{compile_contracts, CompileOptions};
 use noirc_frontend::graph::CrateName;
 
 use crate::{cli::compile_cmd::compile_package, errors::CliError};
 
-use super::NargoConfig;
+use super::{compile_cmd::report_errors, NargoConfig};
 
 /// Provides detailed information on a circuit
 ///
@@ -33,7 +34,11 @@ pub(crate) fn run<B: Backend>(
     let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
 
     for package in &workspace {
-        count_opcodes_and_gates_in_package(backend, package, &args.compile_options)?;
+        if package.is_contract() {
+            count_opcodes_and_gates_in_contracts(backend, package, &args.compile_options)?;
+        } else {
+            count_opcodes_and_gates_in_package(backend, package, &args.compile_options)?;
+        }
     }
 
     Ok(())
@@ -59,6 +64,33 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
         .get_exact_circuit_size(&compiled_program.circuit)
         .map_err(CliError::ProofSystemCompilerError)?;
     println!("[{}] Backend circuit size: {exact_circuit_size}", package.name);
+
+    Ok(())
+}
+
+fn count_opcodes_and_gates_in_contracts<B: Backend>(
+    backend: &B,
+    package: &Package,
+    compile_options: &CompileOptions,
+) -> Result<(), CliError<B>> {
+    let (mut context, crate_id) = prepare_package(package);
+    let result = compile_contracts(&mut context, crate_id, compile_options);
+    let contracts = report_errors(result, &context, compile_options.deny_warnings)?;
+
+    for contract in contracts {
+        let function_info: Vec<(String, usize, u32)> = try_vecmap(contract.functions, |function| {
+            let num_opcodes = function.bytecode.opcodes.len();
+            let exact_circuit_size = backend.get_exact_circuit_size(&function.bytecode)?;
+
+            Ok((function.name, num_opcodes, exact_circuit_size))
+        })
+        .map_err(CliError::ProofSystemCompilerError)?;
+
+        for info in function_info {
+            println!("[{}]({}) Total ACIR opcodes generated: {}", contract.name, info.0, info.1,);
+            println!("[{}]({}) Backend circuit size: {}", contract.name, info.0, info.2);
+        }
+    }
 
     Ok(())
 }
