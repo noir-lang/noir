@@ -2,7 +2,7 @@
   "name": "@noir-lang/release-tests",
   "version": "0.0.0",
   "main": "index.js",
-  "license": "MIT",
+  "license": "(MIT OR Apache-2.0)",
   "private": true,
   "type": "module",
   "scripts": {
