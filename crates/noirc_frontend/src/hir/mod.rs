@@ -69,7 +69,7 @@ impl Context {
 
         let name = self.def_interner.function_name(id);
 
-        let meta = self.def_interner.function_meta(&id);
+        let meta = self.def_interner.function_meta(id);
         let module = self.module(meta.module_id);
 
         let parent =
@@ -114,11 +114,7 @@ impl Context {
                 match &pattern {
                     FunctionNameMatch::Anything => Some((fully_qualified_name, id)),
                     FunctionNameMatch::Exact(pattern) => {
-                        if &fully_qualified_name == pattern {
-                            Some((fully_qualified_name, id))
-                        } else {
-                            None
-                        }
+                        (&fully_qualified_name == pattern).then_some((fully_qualified_name, id))
                     }
                     FunctionNameMatch::Contains(pattern) => {
                         fully_qualified_name.contains(pattern).then_some((fully_qualified_name, id))
