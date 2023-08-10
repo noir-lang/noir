@@ -22,6 +22,7 @@ use nargo::prepare_package;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::check_crate;
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
+use noirc_frontend::hir::FunctionNameMatch;
 use serde_json::Value as JsonValue;
 use tower::Service;
 
@@ -176,7 +177,8 @@ fn on_code_lens_request(
 
         let fm = &context.file_manager;
         let files = fm.as_simple_files();
-        let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
+        let tests = context
+            .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
 
         for (func_name, func_id) in tests {
             let location = context.function_meta(&func_id).name.location;
