@@ -83,8 +83,6 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
             let exact_circuit_size = backend
                 .get_exact_circuit_size(&function.bytecode)
                 .map_err(CliError::ProofSystemCompilerError)?;
-            total_num_opcodes += num_opcodes;
-            total_circuit_size += exact_circuit_size;
             function_info.push((function.name, num_opcodes, exact_circuit_size));
         }
 
