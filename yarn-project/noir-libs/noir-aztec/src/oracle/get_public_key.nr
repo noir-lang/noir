@@ -20,13 +20,3 @@ fn get_public_key(address: Field) -> Point {
   
   Point::new(pub_key_x, pub_key_y)
 }
-
-// Like get_public_key, but does not check the address.
-fn get_public_key_non_contract_account(address: Field) -> Point {
-  let result = get_public_key_internal(address);
-  let pub_key_x = result[0];
-  let pub_key_y = result[1];
-  let partial_address = result[2];
-  
-  Point::new(pub_key_x, pub_key_y)
-}

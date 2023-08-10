@@ -1,4 +1,12 @@
-import { AztecAddress, Fr, PartialContractAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  CircuitsWasm,
+  Fr,
+  PartialContractAddress,
+  PrivateKey,
+  PublicKey,
+  TxContext,
+} from '@aztec/circuits.js';
 import {
   AztecRPC,
   ContractData,
@@ -7,6 +15,7 @@ import {
   FunctionCall,
   L2BlockL2Logs,
   NodeInfo,
+  PackedArguments,
   SyncStatus,
   Tx,
   TxExecutionRequest,
@@ -122,5 +131,24 @@ export class AccountWallet extends EntrypointWallet {
   /** Returns the complete address of the account that implements this wallet. */
   public getCompleteAddress() {
     return this.address;
+  }
+}
+
+/**
+ * Wallet implementation which creates a transaction request directly to the requested contract without any signing.
+ */
+export class SignerlessWallet extends BaseWallet {
+  async createTxExecutionRequest(executions: FunctionCall[]): Promise<TxExecutionRequest> {
+    if (executions.length !== 1) {
+      throw new Error(`Unexpected number of executions. Expected 1, received ${executions.length})`);
+    }
+    const [execution] = executions;
+    const wasm = await CircuitsWasm.get();
+    const packedArguments = await PackedArguments.fromArgs(execution.args, wasm);
+    const { chainId, version } = await this.rpc.getNodeInfo();
+    const txContext = TxContext.empty(chainId, version);
+    return Promise.resolve(
+      new TxExecutionRequest(execution.to, execution.functionData, packedArguments.hash, txContext, [packedArguments]),
+    );
   }
 }

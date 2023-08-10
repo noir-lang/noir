@@ -1,4 +1,4 @@
-import { AztecAddress, CircuitsWasm, Fr, PrivateKey } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, Fr, Point, PrivateKey } from '@aztec/circuits.js';
 import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { ConstantKeyPair, TestKeyStore } from '@aztec/key-store';
@@ -38,13 +38,22 @@ describe('AztecRpcServer', function () {
     expect(await db.getPublicKeyAndPartialAddress(address)).toEqual([pubKey, partialAddress]);
   });
 
-  // TODO(#1007)
-  it.skip('refuses to add an account with incorrect address for given partial address and pubkey', async () => {
+  it('refuses to add an account with incorrect address for given partial address and privkey', async () => {
     const privateKey = PrivateKey.random();
     const partialAddress = Fr.random();
     const address = AztecAddress.random();
 
     await expect(rpcServer.addAccount(privateKey, address, partialAddress)).rejects.toThrowError(/cannot be derived/);
+  });
+
+  it('refuses to add an account with incorrect address for given partial address and pubkey', async () => {
+    const publicKey = Point.random();
+    const partialAddress = Fr.random();
+    const address = AztecAddress.random();
+
+    await expect(rpcServer.addPublicKeyAndPartialAddress(address, publicKey, partialAddress)).rejects.toThrowError(
+      /cannot be derived/,
+    );
   });
 
   it('cannot add the same account twice', async () => {

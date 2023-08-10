@@ -18,7 +18,6 @@ contract PokeableToken {
         utils as note_utils,
     };
     use dep::aztec::types::point::Point;
-    use dep::aztec::oracle::get_public_key::get_public_key_non_contract_account;
     use dep::aztec::log::emit_encrypted_log;
 
     use crate::storage::Storage;
@@ -32,38 +31,16 @@ contract PokeableToken {
         //*********************************/
         initial_supply: Field, 
         sender: Field,
-        recipient: Field,
-        poker: Field, // Recipient of the address notes.
+        recipient: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([initial_supply, sender, recipient, poker]));
+        let mut context = Context::new(inputs, abi::hash_args([initial_supply, sender, recipient]));
 
         let mut sender_note = AddressNote::new(sender);
         let mut recipient_note = AddressNote::new(recipient);
 
         storage.sender.initialise(&mut context, &mut sender_note);
         storage.recipient.initialise(&mut context, &mut recipient_note);
-
-        let pokerEncPubKey = get_public_key_non_contract_account(poker);
-
-        let this = inputs.call_context.storage_contract_address;
-        emit_encrypted_log(
-            &mut context,
-            this,
-            storage.sender.storage_slot,
-            poker,
-            pokerEncPubKey,
-            sender_note.serialise(),
-        );
-
-        emit_encrypted_log(
-            &mut context,
-            this,
-            storage.recipient.storage_slot,
-            poker,
-            pokerEncPubKey,
-            recipient_note.serialise(),
-        );
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let sender_balance = storage.balances.at(sender);
@@ -79,16 +56,20 @@ contract PokeableToken {
         // Should eventually be hidden:
         inputs: PrivateContextInputs,
         //*********************************/
+        sender: Field,
+        recipient: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, 0); // Since there are no arguments, we can just 0 as the args hash.
+        let mut context = Context::new(inputs, abi::hash_args([sender, recipient]));
         let storage = Storage::init();
 
-        let sender = storage.sender.get_note(&mut context);
-
-        let recipient = storage.recipient.get_note(&mut context);
-
+        // TODO: This check is not satisfying constraints
+        // let mut sender_note = AddressNote::new(sender);
+        // storage.sender.assert_contains(&mut context, &mut sender_note);
+        // let mut recipient_note = AddressNote::new(recipient);
+        // storage.recipient.assert_contains(&mut context, &mut recipient_note);
+        
         // Pick from the set of sender's notes.
-        let sender_balance = storage.balances.at(sender.address);
+        let sender_balance = storage.balances.at(sender);
 
         let options = NoteGetterOptions::with_filter(get_2_notes, 0);
         let maybe_notes = sender_balance.get_notes(&mut context, options);
@@ -100,17 +81,17 @@ contract PokeableToken {
 
         // Removes the 2 notes from the sender's set of notes.
         if maybe_notes[0].is_some() {
-          assert(sender.address == note0.owner);
+          assert(sender == note0.owner);
           sender_balance.remove(&mut context, note0);
         }
         if maybe_notes[1].is_some() {
-          assert(sender.address == note1.owner);
+          assert(sender == note1.owner);
           sender_balance.remove(&mut context, note1);
         }
 
         // Create new note for the recipient.
-        let recipient_balance = storage.balances.at(recipient.address);
-        send_note(&mut context, recipient_balance, note_sum, recipient.address);
+        let recipient_balance = storage.balances.at(recipient);
+        send_note(&mut context, recipient_balance, note_sum, recipient);
         
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
