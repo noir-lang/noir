@@ -198,7 +198,12 @@ fn on_code_lens_request(
             let command = Command {
                 title: TEST_CODELENS_TITLE.into(),
                 command: TEST_COMMAND.into(),
-                arguments: Some(vec![func_name.into()]),
+                arguments: Some(vec![
+                    "--package".into(),
+                    format!("{}", package.name).into(),
+                    "--exact".into(),
+                    func_name.into(),
+                ]),
             };
 
             let lens = CodeLens { range, command: command.into(), data: None };
