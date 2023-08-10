@@ -8,7 +8,10 @@ use noirc_frontend::graph::CrateName;
 
 use crate::{cli::compile_cmd::compile_package, errors::CliError};
 
-use super::{compile_cmd::report_errors, NargoConfig};
+use super::{
+    compile_cmd::{optimize_contract, report_errors},
+    NargoConfig,
+};
 
 /// Provides detailed information on a circuit
 ///
@@ -76,8 +79,10 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
     let (mut context, crate_id) = prepare_package(package);
     let result = compile_contracts(&mut context, crate_id, compile_options);
     let contracts = report_errors(result, &context, compile_options.deny_warnings)?;
+    let optimized_contracts =
+        try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
 
-    for contract in contracts {
+    for contract in optimized_contracts {
         let function_info: Vec<(String, usize, u32)> = try_vecmap(contract.functions, |function| {
             let num_opcodes = function.bytecode.opcodes.len();
             let exact_circuit_size = backend.get_exact_circuit_size(&function.bytecode)?;
