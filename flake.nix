@@ -323,8 +323,8 @@
           toml2json
         ];
 
-        postBuild = ''
-          bash crates/wasm/postBuild.sh
+        buildPhaseCargoCommand = ''
+          bash crates/wasm/buildPhaseCargoCommand.sh
         '';
 
         installPhase = ''

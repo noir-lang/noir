@@ -3,12 +3,13 @@ use noirc_errors::FileDiagnostic;
 
 use crate::{
     graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
-    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, ParsedModule, TypeImpl,
+    parser::SubModule, Ident, LetStatement, NoirFunction, NoirStruct, NoirTypeAlias, ParsedModule,
+    TypeImpl,
 };
 
 use super::{
-    dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal},
-    errors::DefCollectorErrorKind,
+    dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTypeAlias},
+    errors::{DefCollectorErrorKind, DuplicateType},
 };
 use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
 use crate::hir::resolution::import::ImportDirective;
@@ -55,6 +56,8 @@ pub fn collect_defs(
 
     collector.collect_structs(ast.types, crate_id, errors);
 
+    collector.collect_type_aliases(context, ast.type_aliases, errors);
+
     collector.collect_functions(context, ast.functions, errors);
 
     collector.collect_impls(context, ast.impls);
@@ -79,7 +82,11 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_global(name, stmt_id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateGlobal { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Global,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -139,7 +146,11 @@ impl<'a> ModCollector<'a> {
                 .declare_function(name, func_id);
 
             if let Err((first_def, second_def)) = result {
-                let error = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let error = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Function,
+                    first_def,
+                    second_def,
+                };
                 errors.push(error.into_file_diagnostic(self.file_id));
             }
         }
@@ -169,7 +180,11 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_struct(name, id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::TypeDefinition,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -180,6 +195,43 @@ impl<'a> ModCollector<'a> {
                 struct_def: struct_definition,
             };
             self.def_collector.collected_types.insert(id, unresolved);
+        }
+    }
+
+    /// Collect any type aliases definitions declared within the ast.
+    /// Returns a vector of errors if any type aliases were already defined.
+    fn collect_type_aliases(
+        &mut self,
+        context: &mut Context,
+        type_aliases: Vec<NoirTypeAlias>,
+        errors: &mut Vec<FileDiagnostic>,
+    ) {
+        for type_alias in type_aliases {
+            let name = type_alias.name.clone();
+
+            // And store the TypeId -> TypeAlias mapping somewhere it is reachable
+            let unresolved = UnresolvedTypeAlias {
+                file_id: self.file_id,
+                module_id: self.module_id,
+                type_alias_def: type_alias,
+            };
+
+            let type_alias_id = context.def_interner.push_type_alias(&unresolved);
+
+            // Add the type alias to scope so its path can be looked up later
+            let result = self.def_collector.def_map.modules[self.module_id.0]
+                .declare_type_alias(name, type_alias_id);
+
+            if let Err((first_def, second_def)) = result {
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Function,
+                    first_def,
+                    second_def,
+                };
+                errors.push(err.into_file_diagnostic(self.file_id));
+            }
+
+            self.def_collector.collected_type_aliases.insert(type_alias_id, unresolved);
         }
     }
 
@@ -223,7 +275,7 @@ impl<'a> ModCollector<'a> {
         errors: &mut Vec<FileDiagnostic>,
     ) {
         let child_file_id =
-            match context.file_manager.resolve_path(self.file_id, &mod_name.0.contents) {
+            match context.file_manager.find_module(self.file_id, &mod_name.0.contents) {
                 Ok(child_file_id) => child_file_id,
                 Err(_) => {
                     let err =
@@ -287,7 +339,11 @@ impl<'a> ModCollector<'a> {
             if let Err((first_def, second_def)) =
                 modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
             {
-                let err = DefCollectorErrorKind::DuplicateModuleDecl { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Module,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
                 return None;
             }

@@ -22,7 +22,7 @@ pub enum RuntimeError {
     InternalError(#[from] InternalError),
     #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
     IndexOutOfBounds { index: usize, array_size: usize, location: Option<Location> },
-    #[error("All Witnesses are by default u{num_bits:?} Applying this type does not apply any constraints.\n We also currently do not allow integers of size more than {num_bits:?}, this will be handled by BigIntegers.")]
+    #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, location: Option<Location> },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, location: Option<Location> },
@@ -30,6 +30,8 @@ pub enum RuntimeError {
     UnInitialized { name: String, location: Option<Location> },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, location: Option<Location> },
+    #[error("Could not determine loop bound at compile-time")]
+    UnknownLoopBound { location: Option<Location> },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -44,40 +46,39 @@ pub enum InternalError {
     MissingArg { name: String, arg: String, location: Option<Location> },
     #[error("ICE: {name:?} should be a constant")]
     NotAConstant { name: String, location: Option<Location> },
-    #[error("{name:?} is not implemented yet")]
-    NotImplemented { name: String, location: Option<Location> },
     #[error("ICE: Undeclared AcirVar")]
     UndeclaredAcirVar { location: Option<Location> },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
     UnExpected { expected: String, found: String, location: Option<Location> },
 }
 
-impl From<RuntimeError> for FileDiagnostic {
-    fn from(error: RuntimeError) -> Self {
-        match error {
-            RuntimeError::InternalError(ref ice_error) => match ice_error {
+impl RuntimeError {
+    fn location(&self) -> Option<Location> {
+        match self {
+            RuntimeError::InternalError(
                 InternalError::DegreeNotReduced { location }
                 | InternalError::EmptyArray { location }
                 | InternalError::General { location, .. }
                 | InternalError::MissingArg { location, .. }
                 | InternalError::NotAConstant { location, .. }
-                | InternalError::NotImplemented { location, .. }
                 | InternalError::UndeclaredAcirVar { location }
-                | InternalError::UnExpected { location, .. } => {
-                    let file_id = location.map(|loc| loc.file).unwrap();
-                    FileDiagnostic { file_id, diagnostic: error.into() }
-                }
-            },
-            RuntimeError::FailedConstraint { location, .. }
+                | InternalError::UnExpected { location, .. },
+            )
+            | RuntimeError::FailedConstraint { location, .. }
             | RuntimeError::IndexOutOfBounds { location, .. }
             | RuntimeError::InvalidRangeConstraint { location, .. }
             | RuntimeError::TypeConversion { location, .. }
             | RuntimeError::UnInitialized { location, .. }
-            | RuntimeError::UnsupportedIntegerSize { location, .. } => {
-                let file_id = location.map(|loc| loc.file).unwrap();
-                FileDiagnostic { file_id, diagnostic: error.into() }
-            }
+            | RuntimeError::UnknownLoopBound { location, .. }
+            | RuntimeError::UnsupportedIntegerSize { location, .. } => *location,
         }
+    }
+}
+
+impl From<RuntimeError> for FileDiagnostic {
+    fn from(error: RuntimeError) -> Self {
+        let file_id = error.location().map(|loc| loc.file).unwrap();
+        FileDiagnostic { file_id, diagnostic: error.into() }
     }
 }
 
@@ -90,13 +91,8 @@ impl From<RuntimeError> for Diagnostic {
                 "".to_string(),
                 noirc_errors::Span::new(0..0)
             ),
-            RuntimeError::FailedConstraint { location, .. }
-            | RuntimeError::IndexOutOfBounds { location, .. }
-            | RuntimeError::InvalidRangeConstraint { location, .. }
-            | RuntimeError::TypeConversion { location, .. }
-            | RuntimeError::UnInitialized { location, .. }
-            | RuntimeError::UnsupportedIntegerSize { location, .. }  => {
-                let span = if let Some(loc) = location { loc.span } else { noirc_errors::Span::new(0..0) };
+            _ => {
+                let span = if let Some(loc) = error.location() { loc.span } else { noirc_errors::Span::new(0..0) };
                 Diagnostic::simple_error("".to_owned(), error.to_string(), span)
             }
         }

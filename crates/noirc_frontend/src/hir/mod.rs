@@ -4,7 +4,7 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-use crate::graph::{CrateGraph, CrateId, CrateType};
+use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner};
 use def_map::{Contract, CrateDefMap};
@@ -67,17 +67,7 @@ impl Context {
         // Find the local crate, one should always be present
         let local_crate = self.def_map(crate_id).unwrap();
 
-        // Check the crate type
-        // We don't panic here to allow users to `evaluate` libraries which will do nothing
-        if matches!(
-            self.crate_graph[*crate_id].crate_type,
-            CrateType::Binary | CrateType::Workspace
-        ) {
-            // All Binaries should have a main function
-            local_crate.main_function()
-        } else {
-            None
-        }
+        local_crate.main_function()
     }
 
     /// Returns a list of all functions in the current crate marked with #[test]
@@ -110,19 +100,6 @@ impl Context {
                 path.contains(pattern).then_some((path, id))
             })
             .collect()
-    }
-
-    pub fn get_all_test_functions_in_workspace_matching(
-        &self,
-        pattern: &str,
-    ) -> Vec<(String, FuncId)> {
-        let mut tests = Vec::new();
-
-        for crate_id in self.crate_graph.iter_keys() {
-            tests.extend(self.get_all_test_functions_in_crate_matching(&crate_id, pattern));
-        }
-
-        tests
     }
 
     /// Return a Vec of all `contract` declarations in the source code and the functions they contain

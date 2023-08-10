@@ -548,24 +548,6 @@ impl BrilligContext {
         self.push_opcode(BrilligOpcode::Store { destination_pointer, source });
     }
 
-    pub(crate) fn length_of_variable_instruction(
-        &mut self,
-        variable: RegisterOrMemory,
-        result: RegisterIndex,
-    ) {
-        match variable {
-            RegisterOrMemory::RegisterIndex(_) => {
-                self.const_instruction(result, 1_u128.into());
-            }
-            RegisterOrMemory::HeapArray(HeapArray { size, .. }) => {
-                self.const_instruction(result, size.into());
-            }
-            RegisterOrMemory::HeapVector(HeapVector { size, .. }) => {
-                self.mov_instruction(result, size);
-            }
-        }
-    }
-
     /// Stores a variable by saving its registers to memory
     pub(crate) fn store_variable_instruction(
         &mut self,
@@ -950,6 +932,18 @@ impl BrilligContext {
         self.deallocate_register(start_value_register);
         self.deallocate_register(end_value_register);
         self.deallocate_register(index_at_end_of_array);
+    }
+
+    pub(crate) fn extract_heap_vector(&mut self, variable: RegisterOrMemory) -> HeapVector {
+        match variable {
+            RegisterOrMemory::HeapVector(vector) => vector,
+            RegisterOrMemory::HeapArray(array) => {
+                let size = self.allocate_register();
+                self.const_instruction(size, array.size.into());
+                HeapVector { pointer: array.pointer, size }
+            }
+            _ => unreachable!("ICE: Expected vector, got {variable:?}"),
+        }
     }
 }
 

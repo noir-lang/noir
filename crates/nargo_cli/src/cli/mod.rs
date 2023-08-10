@@ -1,10 +1,9 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
+use nargo_toml::find_package_root;
 use std::path::PathBuf;
 
 use color_eyre::eyre;
-
-use crate::find_package_root;
 
 mod fs;
 
@@ -61,7 +60,7 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
 }
 
-pub fn start_cli() -> eyre::Result<()> {
+pub(crate) fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.
@@ -92,12 +91,9 @@ pub fn start_cli() -> eyre::Result<()> {
 #[cfg(test)]
 mod tests {
     use fm::FileManager;
-    use noirc_driver::{check_crate, create_local_crate};
+    use noirc_driver::{check_crate, prepare_crate};
     use noirc_errors::reporter;
-    use noirc_frontend::{
-        graph::{CrateGraph, CrateType},
-        hir::Context,
-    };
+    use noirc_frontend::{graph::CrateGraph, hir::Context};
 
     use std::path::{Path, PathBuf};
 
@@ -110,7 +106,7 @@ mod tests {
         let fm = FileManager::new(root_dir);
         let graph = CrateGraph::default();
         let mut context = Context::new(fm, graph);
-        let crate_id = create_local_crate(&mut context, root_file, CrateType::Binary);
+        let crate_id = prepare_crate(&mut context, root_file);
 
         let result = check_crate(&mut context, crate_id, false);
         let success = result.is_ok();

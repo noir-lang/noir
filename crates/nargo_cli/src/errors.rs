@@ -4,12 +4,12 @@ use acvm::{
 };
 use hex::FromHexError;
 use nargo::NargoError;
+use nargo_toml::ManifestError;
 use noirc_abi::errors::{AbiError, InputParserError};
 use noirc_errors::reporter::ReportedErrors;
+use noirc_frontend::graph::CrateName;
 use std::path::PathBuf;
 use thiserror::Error;
-
-use crate::resolver::DependencyResolutionError;
 
 #[derive(Debug, Error)]
 pub(crate) enum FilesystemError {
@@ -41,14 +41,6 @@ pub(crate) enum CliError<B: Backend> {
     #[error("Failed to verify proof {}", .0.display())]
     InvalidProof(PathBuf),
 
-    #[error(transparent)]
-    ResolutionError(#[from] DependencyResolutionError),
-
-    /// Errors encountered while compiling the noir program.
-    /// These errors are already written to stderr.
-    #[error("Aborting due to {} previous error{}", .0.error_count, if .0.error_count == 1 { "" } else { "s" })]
-    ReportedErrors(ReportedErrors),
-
     /// ABI encoding/decoding error
     #[error(transparent)]
     AbiError(#[from] AbiError),
@@ -64,6 +56,14 @@ pub(crate) enum CliError<B: Backend> {
     #[error(transparent)]
     NargoError(#[from] NargoError),
 
+    /// Error from Manifest
+    #[error(transparent)]
+    ManifestError(#[from] ManifestError),
+
+    /// Error from the compilation pipeline
+    #[error(transparent)]
+    CompileError(#[from] CompileError),
+
     /// Backend error caused by a function on the SmartContract trait
     #[error(transparent)]
     SmartContractError(<B as SmartContract>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
@@ -77,7 +77,22 @@ pub(crate) enum CliError<B: Backend> {
     CommonReferenceStringError(<B as CommonReferenceString>::Error), // Unfortunately, Rust won't let us `impl From` over an Associated Type on a generic
 }
 
-impl<B: Backend> From<ReportedErrors> for CliError<B> {
+/// Errors covering situations where a package cannot be compiled.
+#[derive(Debug, Error)]
+pub(crate) enum CompileError {
+    #[error("Package `{0}` has type `lib` but only `bin` types can be compiled")]
+    LibraryCrate(CrateName),
+
+    #[error("Package `{0}` is expected to have a `main` function but it does not")]
+    MissingMainFunction(CrateName),
+
+    /// Errors encountered while compiling the Noir program.
+    /// These errors are already written to stderr.
+    #[error("Aborting due to {} previous error{}", .0.error_count, if .0.error_count == 1 { "" } else { "s" })]
+    ReportedErrors(ReportedErrors),
+}
+
+impl From<ReportedErrors> for CompileError {
     fn from(errors: ReportedErrors) -> Self {
         Self::ReportedErrors(errors)
     }

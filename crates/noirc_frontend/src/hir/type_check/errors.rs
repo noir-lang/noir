@@ -47,14 +47,6 @@ pub enum TypeCheckError {
     AccessUnknownMember { lhs_type: Type, field_name: String, span: Span },
     #[error("Function expects {expected} parameters but {found} given")]
     ParameterCountMismatch { expected: usize, found: usize, span: Span },
-    #[error("The value is non-comptime because of this expression, which uses another non-comptime value")]
-    NotCompTime { span: Span },
-    #[error(
-        "The value is comptime because of this expression, which forces the value to be comptime"
-    )]
-    CompTime { span: Span },
-    #[error("Cannot cast to a comptime type, argument to cast is not known at compile-time")]
-    CannotCastToComptimeType { span: Span },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { span: Span },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
@@ -71,6 +63,8 @@ pub enum TypeCheckError {
     IntegerBitWidth { bit_width_x: u32, bit_width_y: u32, span: Span },
     #[error("{kind} cannot be used in an infix operation")]
     InvalidInfixOp { kind: &'static str, span: Span },
+    #[error("{kind} cannot be used in a unary operation")]
+    InvalidUnaryOp { kind: String, span: Span },
     #[error("Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first.")]
     InvalidBitwiseOperationOnField { span: Span },
     #[error("Integer cannot be used with type {typ}")]
@@ -163,9 +157,6 @@ impl From<TypeCheckError> for Diagnostic {
             TypeCheckError::InvalidCast { span, .. }
             | TypeCheckError::ExpectedFunction { span, .. }
             | TypeCheckError::AccessUnknownMember { span, .. }
-            | TypeCheckError::CompTime { span }
-            | TypeCheckError::NotCompTime { span }
-            | TypeCheckError::CannotCastToComptimeType { span }
             | TypeCheckError::UnsupportedCast { span }
             | TypeCheckError::TupleIndexOutOfBounds { span, .. }
             | TypeCheckError::VariableMustBeMutable { span, .. }
@@ -174,6 +165,7 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::IntegerSignedness { span, .. }
             | TypeCheckError::IntegerBitWidth { span, .. }
             | TypeCheckError::InvalidInfixOp { span, .. }
+            | TypeCheckError::InvalidUnaryOp { span, .. }
             | TypeCheckError::InvalidBitwiseOperationOnField { span, .. }
             | TypeCheckError::IntegerTypeMismatch { span, .. }
             | TypeCheckError::FieldComparison { span, .. }

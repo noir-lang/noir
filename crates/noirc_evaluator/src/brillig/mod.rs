@@ -5,7 +5,7 @@ use self::{
     brillig_gen::{brillig_fn::FunctionContext, convert_ssa_function},
     brillig_ir::artifact::{BrilligArtifact, Label},
 };
-use crate::ssa_refactor::{
+use crate::ssa::{
     ir::{
         function::{Function, FunctionId, RuntimeType},
         value::Value,
