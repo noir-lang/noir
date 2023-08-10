@@ -1,52 +1,17 @@
----
-title: Aztec Sandbox
----
+# Aztec Sandbox
 
-# The Aztec Sandbox
+## What is the Aztec Sandbox?
 
-Please use the [TUTORIAL-TEMPLATE](../../TUTORIAL_TEMPLATE.md) for standalone guides / tutorials.
+The Aztec Sandbox is local development system against which you can build and test Noir contracts in a fast, safe, and free environment.
 
+To learn more and to download to for yourself you can visit the [website](https://up.aztec.network).
 
-# GETTING STARTED:
+## Requirements
 
-Very quick, and to the point one-pager: https://github.com/AztecProtocol/aztec-packages/issues/1406
+The Sandbox runs on Docker, so any x86 Docker environment should be able to host it.
 
-# Questions to answer:
+The following command will download and execute a script that uses docker compose to launch an instance of Anvil and the Sandbox side by side. This will get you up and running in just a few seconds.
 
-- What is the sandbox?
-  - High level, pithy outline.
-- What can you do with the sandbox?
-  - Deploy contracts
-  - Simulate function execution
-  - Execute private and public contracts
+`/bin/bash -c "$(curl -fsSL 'https://up.aztec.network')"`
 
-- How do you download and install the sandbox?
-  - How do you do it:
-    - From up.aztec.network?
-    - From docker?
-    - From source?
-
-- How do you interact with the sandbox?
-  - @aztec/cli
-    - What is the cli?
-    - When would someone prefer using the cli over aztec.js?
-    - We should also have a detailed aztec-cli section (see below)
-  - aztec.js
-    - What is aztec.js?
-    - When would someone prefer using aztec.js over the cli?
-    - We should also have a detailed aztec.js section (see [here](../dapps/main.md))
-  - RPC calls directly?
-    - How would an advanced user make rpc calls directly to the sandbox? Can they, even?
-
-- aztec/cli
-  - Refer directly to the npm package's explanations?
-
-
-FOR INSTRUCTIONS FOR BUILDING A WALLET, WE SHOULD WRITE DOCS [HERE](../wallets/building_a_wallet.md)
-
-ERRORS:
-- Add any error explanations to [errors.md](./common_errors.md) (and break that file into multiple files if it's too unwieldy).
-
-
-- RPC calls directly
-  - Lower priority, but eventually we should answer all of the aztec.js questions here as well.
+For a complete walk-through deploying and using a private contract, see our [getting started guide](../getting_started/sandbox.md).
