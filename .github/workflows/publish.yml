@@ -15,6 +15,7 @@ on:
     # Run a nightly release at 2 AM UTC
     - cron: "0 2 * * *"
   merge_group:
+  push:
 
 permissions:
   # Necessary to upload new release artifacts
