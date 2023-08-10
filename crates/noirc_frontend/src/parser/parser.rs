@@ -422,13 +422,6 @@ fn validate_where_clause(
     if !where_clause.is_empty() && generics.is_empty() {
         emit(ParserError::with_reason(ParserErrorReason::WhereClauseOnNonGenericFunction, span));
     }
-
-    // TODO(GenericParameterNotFoundInFunction):
-    // Even though Rust supports where clauses that don't mention any of the generic
-    // parameters, these are of dubious value and can be accidentally produced by
-    // typos in the code, so we can consider producing compile-time errors for them.
-    //
-    // https://doc.rust-lang.org/reference/items/generics.html#where-clauses
 }
 
 /// Function declaration parameters differ from other parameters in that parameter
