@@ -1468,16 +1468,6 @@ mod test {
     {
         vecmap(programs, move |program| {
             let message = format!("Failed to parse:\n{}", program);
-            parse_with(&parser, program).expect(&message)
-        })
-    }
-
-    fn parse_all_ignore_warnings<P, T>(parser: P, programs: Vec<&str>) -> Vec<T>
-    where
-        P: NoirParser<T>,
-    {
-        vecmap(programs, move |program| {
-            let message = format!("Failed to parse:\n{}", program);
             let (op_t, errors) = parse_recover(&parser, program);
             for e in errors {
                 if !e.is_warrning() {
@@ -1791,12 +1781,6 @@ mod test {
                 "fn f<T>(f: pub Field, y : T, z : Field) -> u8 { x + a }",
                 "fn func_name(x: [Field], y : [Field;2],y : pub [Field;2], z : pub [u8;5])  {}",
                 "fn main(x: pub u8, y: pub u8) -> distinct pub [u8; 2] { [x, y] }",
-            ],
-        );
-
-        parse_all_ignore_warnings(
-            function_definition(false),
-            vec![
                 "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn f<T>(f: pub Field, y : T, z : comptime Field) -> u8 { x + a }",
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait {}",
@@ -1823,7 +1807,7 @@ mod test {
 
     #[test]
     fn parse_trait() {
-        parse_all_ignore_warnings(
+        parse_all(
             trait_definition(),
             vec![
                 // Empty traits are legal in Rust and sometimes used as a way to whitelist certain types
