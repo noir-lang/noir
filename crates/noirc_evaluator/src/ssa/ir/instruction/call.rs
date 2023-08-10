@@ -34,7 +34,15 @@ pub(super) fn simplify_call(
             if let Some(constant_args) = constant_args {
                 let field = constant_args[0];
                 let limb_count = constant_args[1].to_u128() as u32;
-                SimplifyResult::SimplifiedTo(constant_to_radix(endian, field, 2, limb_count, dfg))
+
+                let result_slice = constant_to_radix(endian, field, 2, limb_count, dfg);
+
+                let length = dfg.try_get_array_length(result_slice).expect("ICE: a constant array should have an associated length");
+                let len_value = dfg.make_constant(FieldElement::from(length as u128), Type::field());
+
+                // `Intrinsic::ToBits` returns slices which are represented 
+                // by tuples with the structure (length, slice contents)
+                SimplifyResult::SimplifiedToMultiple(vec![len_value, result_slice])
             } else {
                 SimplifyResult::None
             }
@@ -44,9 +52,17 @@ pub(super) fn simplify_call(
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
                 let limb_count = constant_args[2].to_u128() as u32;
-                SimplifyResult::SimplifiedTo(constant_to_radix(
+
+                let result_slice = constant_to_radix(
                     endian, field, radix, limb_count, dfg,
-                ))
+                );
+
+                let length = dfg.try_get_array_length(result_slice).expect("ICE: a constant array should have an associated length");
+                let len_value = dfg.make_constant(FieldElement::from(length as u128), Type::field());
+
+                // `Intrinsic::ToRadix` returns slices which are represented 
+                // by tuples with the structure (length, slice contents)
+                SimplifyResult::SimplifiedToMultiple(vec![len_value, result_slice])
             } else {
                 SimplifyResult::None
             }

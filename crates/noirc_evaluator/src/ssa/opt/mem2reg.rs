@@ -24,6 +24,7 @@ impl Ssa {
     /// scope, and attempts to remove stores that are subsequently redundant.
     /// As long as they are not stores on memory used inside of loops
     pub(crate) fn mem2reg(mut self) -> Ssa {
+        dbg!("started mem2reg");
         for function in self.functions.values_mut() {
             let mut all_protected_allocations = HashSet::new();
 
@@ -53,7 +54,7 @@ impl Ssa {
                 context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, block);
             }
         }
-
+        dbg!("done mem2reg");
         self
     }
 }

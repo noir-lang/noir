@@ -601,6 +601,7 @@ impl Context {
         // Use the SSA ID to get or create its block ID
         let block_id = self.block_id(&array);
 
+        dbg!(dfg.type_of_value(array));
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
         let len = match dfg.type_of_value(array) {
@@ -982,14 +983,15 @@ impl Context {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let radix = self.convert_value(arguments[1], dfg).into_var()?;
                 let limb_size = self.convert_value(arguments[2], dfg).into_var()?;
-                let result_type = Self::array_element_type(dfg, result_ids[0]);
 
+                let result_type = Self::array_element_type(dfg, result_ids[1]);
+                dbg!(result_type.clone());
                 self.acir_context.radix_decompose(endian, field, radix, limb_size, result_type)
             }
             Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let bit_size = self.convert_value(arguments[1], dfg).into_var()?;
-                dbg!(result_ids.clone());
+
                 let result_type = Self::array_element_type(dfg, result_ids[1]);
 
                 self.acir_context.bit_decompose(endian, field, bit_size, result_type)

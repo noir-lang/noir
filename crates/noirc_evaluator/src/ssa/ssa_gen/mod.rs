@@ -67,7 +67,11 @@ impl<'a> FunctionContext<'a> {
             Expression::Block(block) => self.codegen_block(block),
             Expression::Unary(unary) => self.codegen_unary(unary),
             Expression::Binary(binary) => self.codegen_binary(binary),
-            Expression::Index(index) => self.codegen_index(index),
+            Expression::Index(index) => {
+                let values = self.codegen_index(index);
+                dbg!(values.clone());
+                values
+            }
             Expression::Cast(cast) => self.codegen_cast(cast),
             Expression::For(for_expr) => self.codegen_for(for_expr),
             Expression::If(if_expr) => self.codegen_if(if_expr),
@@ -98,6 +102,7 @@ impl<'a> FunctionContext<'a> {
     /// to reassign to it. Note that mutable references `let x = &mut ...;` do not require this
     /// since they are not automatically loaded from and must be explicitly dereferenced.
     fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
+        dbg!(ident.definition.clone());
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
@@ -315,6 +320,7 @@ impl<'a> FunctionContext<'a> {
                     let array_len = max_length.expect("ICE: a length must be supplied for indexing slices");
                     // If the index and the array_len are both Fields we will not be able to perform a less than comparison on them
                     // Thus, we cast the array len to a u64 before performing the less than comparison
+                    dbg!(array_len);
                     let array_len_int = self.builder.insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 }));
  
                     let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len_int);
@@ -326,6 +332,7 @@ impl<'a> FunctionContext<'a> {
                 _ => unreachable!("must have array or slice but got {array_type}"),
 
             }
+            dbg!("about to insert array get");
             self.builder.insert_array_get(array, offset, typ).into()
         })
     }
