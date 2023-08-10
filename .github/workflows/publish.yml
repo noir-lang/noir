@@ -15,11 +15,12 @@ on:
     # Run a nightly release at 2 AM UTC
     - cron: "0 2 * * *"
   merge_group:
+  pull_request:
 
 permissions:
   # Necessary to upload new release artifacts
   contents: write
-    
+
 jobs:
   build-barretenberg:
     runs-on: ubuntu-latest
