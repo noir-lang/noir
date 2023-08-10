@@ -160,6 +160,8 @@ impl PerFunctionContext {
         protected_allocations
     }
 
+    // TODO: switch to while-loop based search so I am not recomputing the dom tree or pass it directly outside of the function
+    // I would rather have this func match `find_load_to_substitute`
     fn fetch_load_value_to_substitute_recursively(
         &self,
         block_id: BasicBlockId,
@@ -168,6 +170,7 @@ impl PerFunctionContext {
         let mut visited = HashSet::new();
         visited.insert(block_id);
 
+        // If the load value to substitute is in the current block we substitute it
         if let Some((value, load_block_id)) = self.load_values_to_substitute_per_func.get(&address)
         {
             if *load_block_id == block_id {
@@ -179,18 +182,11 @@ impl PerFunctionContext {
 
         let predecessors = self.cfg.predecessors(block_id);
         for predecessor in predecessors {
-            if dom_tree.is_reachable(predecessor) && dom_tree.dominates(predecessor, block_id) {
-                if let Some((value, load_block_id)) =
-                    self.load_values_to_substitute_per_func.get(&address)
-                {
-                    if *load_block_id == predecessor {
-                        return *value;
-                    }
-                }
-
-                if !visited.contains(&predecessor) {
-                    return self.fetch_load_value_to_substitute_recursively(predecessor, address);
-                }
+            if dom_tree.is_reachable(predecessor)
+                && dom_tree.dominates(predecessor, block_id)
+                && !visited.contains(&predecessor)
+            {
+                return self.fetch_load_value_to_substitute_recursively(predecessor, address);
             }
         }
         address
@@ -236,25 +232,11 @@ impl PerFunctionContext {
             for predecessor in predecessors {
                 // TODO: Do I need is_reachable here? We are looping over only the reachable blocks but does
                 // that include a reachable block's predecessors?
-                if dom_tree.is_reachable(predecessor) && dom_tree.dominates(predecessor, block) {
-                    if let Some(last_value) =
-                        self.last_stores_with_block.get(&(address, predecessor))
-                    {
-                        let result_value = *dfg
-                            .instruction_results(*instruction_id)
-                            .first()
-                            .expect("ICE: Load instructions should have single result");
-
-                        loads_to_substitute.insert(*instruction_id, *last_value);
-                        load_values_to_substitute_per_block.insert(result_value, *last_value);
-                        self.load_values_to_substitute_per_func
-                            .insert(result_value, (*last_value, block));
-                        return true;
-                    }
-                    // Only recurse further if the predecessor dominates the current block we are checking
-                    if !visited.contains(&predecessor) {
-                        stack.push(predecessor);
-                    }
+                if dom_tree.is_reachable(predecessor)
+                    && dom_tree.dominates(predecessor, block)
+                    && !visited.contains(&predecessor)
+                {
+                    stack.push(predecessor);
                 }
             }
         }
