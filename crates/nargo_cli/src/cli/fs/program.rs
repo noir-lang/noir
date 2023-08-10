@@ -31,7 +31,7 @@ pub(crate) fn save_debug_artifact_to_file<P: AsRef<Path>>(
     circuit_name: &str,
     circuit_dir: P,
 ) -> PathBuf {
-    let artifact_name = format!("debug-{}", circuit_name);
+    let artifact_name = format!("debug_{}", circuit_name);
     save_build_artifact_to_file(debug_artifact, &artifact_name, circuit_dir)
 }
 
