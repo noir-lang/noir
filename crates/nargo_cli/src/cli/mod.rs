@@ -1,10 +1,9 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
+use nargo_toml::find_package_root;
 use std::path::PathBuf;
 
 use color_eyre::eyre;
-
-use crate::find_package_root;
 
 mod fs;
 
@@ -61,7 +60,7 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
 }
 
-pub fn start_cli() -> eyre::Result<()> {
+pub(crate) fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.

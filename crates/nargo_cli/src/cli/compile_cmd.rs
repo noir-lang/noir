@@ -4,7 +4,9 @@ use iter_extended::try_vecmap;
 use iter_extended::vecmap;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::package::Package;
+use nargo::prepare_package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{
     compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
 };
@@ -17,8 +19,6 @@ use clap::Args;
 use nargo::ops::{preprocess_contract_function, preprocess_program};
 
 use crate::errors::{CliError, CompileError};
-use crate::manifest::resolve_workspace_from_toml;
-use crate::{find_package_manifest, prepare_package};
 
 use super::fs::program::save_debug_artifact_to_file;
 use super::fs::{

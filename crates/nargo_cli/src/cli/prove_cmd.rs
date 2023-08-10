@@ -6,6 +6,7 @@ use nargo::artifacts::program::PreprocessedProgram;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::ops::{preprocess_program, prove_execution, verify_proof};
 use nargo::package::Package;
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
@@ -21,8 +22,6 @@ use super::fs::{
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
-use crate::find_package_manifest;
-use crate::manifest::resolve_workspace_from_toml;
 use crate::{cli::execute_cmd::execute_program, errors::CliError};
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
