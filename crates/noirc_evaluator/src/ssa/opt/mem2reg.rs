@@ -68,6 +68,7 @@ struct PerFunctionContext {
     post_order: PostOrder,
     loops: Loops,
 }
+
 impl PerFunctionContext {
     fn new(function: &Function) -> Self {
         PerFunctionContext {
