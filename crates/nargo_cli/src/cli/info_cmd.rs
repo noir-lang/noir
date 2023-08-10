@@ -77,8 +77,6 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
     let contracts = report_errors(result, &context, compile_options.deny_warnings)?;
 
     for contract in contracts {
-        let mut total_num_opcodes = 0;
-        let mut total_circuit_size = 0;
         let mut function_info = Vec::new();
         for function in contract.functions {
             let num_opcodes = function.bytecode.opcodes.len();
