@@ -55,7 +55,6 @@ jobs:
     needs: [release-please]
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
-    # TODO: Switch to use `workflow_call`?
     steps:
       - name: Dispatch to publish workflow
         uses: benc-uk/workflow-dispatch@v1
