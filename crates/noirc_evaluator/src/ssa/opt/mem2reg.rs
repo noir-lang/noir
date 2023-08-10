@@ -167,7 +167,12 @@ impl PerFunctionContext {
     // The search starts at the block supplied as a parameter. If there is not a load to substitute
     // the CFG is analyzed to determine whether a predecessor block has a load value to substitute.
     // If there is no load value to substitute the original address is returned.
-    fn fetch_load_value_to_substitute(&self, block_id: BasicBlockId, address: ValueId, dom_tree: &mut DominatorTree) -> ValueId {
+    fn fetch_load_value_to_substitute(
+        &self,
+        block_id: BasicBlockId,
+        address: ValueId,
+        dom_tree: &mut DominatorTree,
+    ) -> ValueId {
         let mut stack = vec![block_id];
         let mut visited = HashSet::new();
 
