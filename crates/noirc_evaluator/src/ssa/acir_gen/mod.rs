@@ -321,6 +321,7 @@ impl Context {
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_location(dfg.get_location(&instruction_id));
+        dbg!(instruction.clone());
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
@@ -988,7 +989,8 @@ impl Context {
             Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let bit_size = self.convert_value(arguments[1], dfg).into_var()?;
-                let result_type = Self::array_element_type(dfg, result_ids[0]);
+                dbg!(result_ids.clone());
+                let result_type = Self::array_element_type(dfg, result_ids[1]);
 
                 self.acir_context.bit_decompose(endian, field, bit_size, result_type)
             }
@@ -1036,6 +1038,7 @@ impl Context {
     /// Given an array value, return the numerical type of its element.
     /// Panics if the given value is not an array or has a non-numeric element type.
     fn array_element_type(dfg: &DataFlowGraph, value: ValueId) -> AcirType {
+        dbg!(dfg.type_of_value(value));
         match dfg.type_of_value(value) {
             Type::Array(elements, _) => {
                 assert_eq!(elements.len(), 1);

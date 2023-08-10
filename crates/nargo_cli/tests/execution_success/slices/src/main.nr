@@ -1,35 +1,13 @@
 use dep::std::slice;
 use dep::std;
 fn main(x : Field, y : pub Field) {
-    let slice = [0; 2];
-    let slice = if x != y {
-        if x != 20 {
-            std::println(slice.len());
-            slice.push_back(y)
-        } else {
-            slice
-        }
-    } else {
-        slice
-    };
-    assert(slice[2] == 10);
-    assert(slice.len() == 3);
+    regression_merge_slices(x, y);
 
     let mut slice = [0; 2];
-    if x != y {
-        slice = slice.push_back(y);
-        slice = slice.push_back(x);
-    } else {
-        slice = slice.push_back(x);
-    }
-    assert(slice[3] == 5);
-    assert(slice.len() == 4);
-
-    let mut slice = [0; 2];
-    // assert(slice[0] == 0);
-    // assert(slice[0] != 1);
-    // slice[0] = x;
-    // assert(slice[0] == x);
+    assert(slice[0] == 0);
+    assert(slice[0] != 1);
+    slice[0] = x;
+    assert(slice[0] == x);
 
     let slice_plus_10 = slice.push_back(y);
     assert(slice_plus_10[2] == 10);
@@ -64,10 +42,10 @@ fn main(x : Field, y : pub Field) {
     assert(remove_slice[3] == 3);
     assert(remove_slice.len() == 4);
 
-    // let append = [1, 2].append([3, 4, 5]);
-    // assert(append.len() == 5);
-    // assert(append[0] == 1);
-    // assert(append[4] == 5);
+    let append = [1, 2].append([3, 4, 5]);
+    assert(append.len() == 5);
+    assert(append[0] == 1);
+    assert(append[4] == 5);
 
     regression_2083();
 }
@@ -103,4 +81,44 @@ fn regression_2083() {
     assert(y.len() == 3);
     assert(x.0 == 5);
     assert(x.1 == 6);
+}
+
+// The parameters to this function must come from witness values (inputs to main)
+fn regression_merge_slices(x: Field, y: Field) {
+    // Test returning a merged slice without a mutation
+    let slice = [0; 2];
+    let slice = if x != y {
+        if x != 20 {
+            slice.push_back(y)
+        } else {
+            slice
+        }
+    } else {
+        slice
+    };
+    assert(slice[2] == 10);
+    assert(slice.len() == 3);
+
+    // Test mutating a slice inside of an if statement
+    let mut slice = [0; 2];
+    if x != y {
+        slice = slice.push_back(y);
+        slice = slice.push_back(x);
+    } else {
+        slice = slice.push_back(x);
+    }
+    assert(slice[3] == 5);
+    assert(slice.len() == 4);
+
+    // Test mutating a slice inside of a loop in an if statement
+    let mut slice = [0; 2];
+    if x != y {
+        for i in 0..5 {
+            slice = slice.push_back(i);
+        }
+    } else {
+        slice = slice.push_back(x);
+    }
+    assert(slice[6] == 4);
+    assert(slice.len() == 7);
 }

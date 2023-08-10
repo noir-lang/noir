@@ -572,26 +572,31 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref) where the lvalue_ref records the
+    /// This will return a triple of (array, index, lvalue_ref, Option<max_length>) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
+    /// The optional max length is for the case where we are indexing a slice rather than an array as slices
+    /// are representing as the following tuple: (length, slice contents). 
     fn index_lvalue(
         &mut self,
         array: &ast::LValue,
         index: &ast::Expression,
-    ) -> (ValueId, ValueId, LValue) {
+    ) -> (ValueId, ValueId, LValue, Option<ValueId>) {
+        dbg!(array.clone());
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
-        // TODO: handle slices here
-        let old_array = if old_array.count_leaves() > 1 {
-            let x = old_array.into_value_list(self);
-            dbg!(x.clone());
-            x[1]
-        } else {
-            old_array.into_leaf().eval(self)
-        };
-        // let old_array = old_array.into_leaf().eval(self);
-        let array_lvalue = Box::new(array_lvalue);
+        dbg!(array_lvalue.clone());
         let index = self.codegen_non_tuple_expression(index);
-        (old_array, index, LValue::Index { old_array, index, array_lvalue })
+        let array_lvalue = Box::new(array_lvalue);
+        // A slice is represented as a tuple (length, slice contents)
+        // We need to fetch the second 
+        if old_array.count_leaves() > 1 {
+            let slice_values = old_array.clone().into_value_list(self);
+            let slice_lvalue = LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue };
+            (slice_values[1], index, slice_lvalue, Some(slice_values[0]))
+
+        } else {
+            let old_array = old_array.into_leaf().eval(self);
+            (old_array, index, LValue::Index { old_array, index, array_lvalue }, None)
+        }
     }
 
     fn extract_current_value_recursive(&mut self, lvalue: &ast::LValue) -> (Values, LValue) {
@@ -601,9 +606,8 @@ impl<'a> FunctionContext<'a> {
                 (variable.clone(), LValue::Ident(variable))
             }
             ast::LValue::Index { array, index, element_type, location } => {
-                let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
-                dbg!("in LValue::Index");
-                let element = self.codegen_array_index(old_array, index, element_type, *location, None);
+                let (old_array, index, index_lvalue, max_length) = self.index_lvalue(array, index);
+                let element = self.codegen_array_index(old_array, index, element_type, *location, max_length);
                 (element, index_lvalue)
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
@@ -640,8 +644,25 @@ impl<'a> FunctionContext<'a> {
                     array = self.builder.insert_array_set(array, index, value);
                     index = self.builder.insert_binary(index, BinaryOp::Add, one);
                 });
-
                 self.assign_new_value(*array_lvalue, array.into());
+            }
+            LValue::SliceIndex { old_slice: slice, index, slice_lvalue } => {
+                let mut slice_values = slice.into_value_list(self);
+
+                let element_size = self.builder.field_constant(self.element_size(slice_values[1]));
+
+                // The actual base index is the user's index * the array element type's size
+                let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
+                let one = self.builder.field_constant(FieldElement::one());
+
+                new_value.for_each(|value| {
+                    let value = value.eval(self);
+                    slice_values[1] = self.builder.insert_array_set(slice_values[1], index, value);
+                    index = self.builder.insert_binary(index, BinaryOp::Add, one);
+                });
+                // The size of the slice does not change in an assign so we can reuse the same length value
+                let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
+                self.assign_new_value(*slice_lvalue, new_slice);
             }
             LValue::MemberAccess { old_object, index, object_lvalue } => {
                 let new_object = Self::replace_field(old_object, index, new_value);
@@ -822,10 +843,11 @@ impl SharedContext {
 }
 
 /// Used to remember the results of each step of extracting a value from an ast::LValue
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) enum LValue {
     Ident(Values),
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },
+    SliceIndex { old_slice: Values, index: ValueId, slice_lvalue: Box<LValue> },
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
     Dereference { reference: Values },
 }

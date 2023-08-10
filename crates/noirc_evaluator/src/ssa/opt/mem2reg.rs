@@ -1,7 +1,7 @@
 //! mem2reg implements a pass for promoting values stored in memory to values in registers where
 //! possible. This is particularly important for converting our memory-based representation of
 //! mutable variables into values that are easier to manipulate.
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use crate::ssa::{
     ir::{
