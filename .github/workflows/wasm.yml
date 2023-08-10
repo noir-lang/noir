@@ -120,7 +120,7 @@ jobs:
 
   test:
     needs: [build-wasm, build-nargo]
-    name: Test wasm
+    name: Test noir_wasm
     runs-on: ubuntu-latest
     steps:
       - name: Checkout noir-lang/noir
