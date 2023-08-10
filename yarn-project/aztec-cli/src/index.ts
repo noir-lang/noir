@@ -9,6 +9,7 @@ import {
   createAztecRpcClient,
   generatePublicKey,
   getAccountWallet,
+  isContractDeployed,
 } from '@aztec/aztec.js';
 import { StructType } from '@aztec/foundation/abi';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
@@ -123,9 +124,13 @@ async function main() {
         1,
       );
       const accounts = await wallet.getAccounts();
-      const pubKeys = await Promise.all(accounts.map(acc => wallet.getPublicKey(acc)));
+      const pubKeysAndPartialAddresses = await Promise.all(
+        accounts.map(acc => wallet.getPublicKeyAndPartialAddress(acc)),
+      );
       log(`\nCreated account(s).`);
-      accounts.map((acc, i) => log(`\nAddress: ${acc.toString()}\nPublic Key: ${pubKeys[i].toString()}\n`));
+      accounts.map((acc, i) =>
+        log(`\nAddress: ${acc.toString()}\nPublic Key: ${pubKeysAndPartialAddresses[i][0].toString()}\n`),
+      );
     });
 
   program
@@ -156,7 +161,7 @@ async function main() {
         if (!accounts) {
           throw new Error('No public key provided or found in Aztec RPC.');
         }
-        publicKey = await client.getPublicKey(accounts[0]);
+        publicKey = (await client.getPublicKeyAndPartialAddress(accounts[0]))[0];
       }
 
       log(`Using Public Key: ${publicKey.toString()}`);
@@ -184,7 +189,7 @@ async function main() {
     .action(async options => {
       const client = createAztecRpcClient(options.rpcUrl);
       const address = AztecAddress.fromString(options.contractAddress);
-      const isDeployed = await client.isContractDeployed(address);
+      const isDeployed = await isContractDeployed(client, address);
       log(`\n${isDeployed.toString()}\n`);
     });
 
@@ -213,25 +218,25 @@ async function main() {
     .action(async (contractAddress, options) => {
       const client = createAztecRpcClient(options.rpcUrl);
       const address = AztecAddress.fromString(contractAddress);
-      const contractDataOrInfo = options.includeBytecode
-        ? await client.getContractData(address)
-        : await client.getContractInfo(address);
+      const contractDataWithOrWithoutBytecode = options.includeBytecode
+        ? await client.getContractDataAndBytecode(address)
+        : await client.getContractData(address);
 
-      if (!contractDataOrInfo) {
+      if (!contractDataWithOrWithoutBytecode) {
         log(`No contract data found at ${contractAddress}`);
         return;
       }
       let contractData: ContractData;
 
-      if ('contractData' in contractDataOrInfo) {
-        contractData = contractDataOrInfo.contractData;
+      if ('contractData' in contractDataWithOrWithoutBytecode) {
+        contractData = contractDataWithOrWithoutBytecode.contractData;
       } else {
-        contractData = contractDataOrInfo;
+        contractData = contractDataWithOrWithoutBytecode;
       }
       log(`\nContract Data: \nAddress: ${contractData.contractAddress.toString()}`);
       log(`Portal: ${contractData.portalContractAddress.toString()}`);
-      if ('bytecode' in contractDataOrInfo) {
-        log(`Bytecode: ${contractDataOrInfo.bytecode}`);
+      if ('bytecode' in contractDataWithOrWithoutBytecode) {
+        log(`Bytecode: ${contractDataWithOrWithoutBytecode.bytecode}`);
       }
       log('\n');
     });
@@ -292,9 +297,7 @@ async function main() {
         log(`Accounts found: \n`);
         for (const address of accounts) {
           const [pk, partialAddress] = await client.getPublicKeyAndPartialAddress(address);
-          log(
-            `Address: ${address}\nPublic Key: ${pk.toString()}\nPartial Contract Address: ${partialAddress.toString()}\n`,
-          );
+          log(`Address: ${address}\nPublic Key: ${pk.toString()}\nPartial Address: ${partialAddress.toString()}\n`);
         }
       }
     });
@@ -310,9 +313,9 @@ async function main() {
       const [pk, partialAddress] = await client.getPublicKeyAndPartialAddress(address);
 
       if (!pk) {
-        log(`Unkown account ${_address}`);
+        log(`Unknown account ${_address}`);
       } else {
-        log(`Public Key: \n ${pk.toString()}\nPartial Contract Address: ${partialAddress.toString()}\n`);
+        log(`Public Key: \n ${pk.toString()}\nPartial Address: ${partialAddress.toString()}\n`);
       }
     });
 

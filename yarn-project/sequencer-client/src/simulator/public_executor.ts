@@ -43,7 +43,7 @@ class ContractsDataSourcePublicDB implements PublicContractsDB {
     return (await this.db.getPublicFunction(address, functionSelector))?.isInternal;
   }
   async getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined> {
-    return (await this.db.getL2ContractInfo(address))?.portalContractAddress;
+    return (await this.db.getContractData(address))?.portalContractAddress;
   }
 }
 

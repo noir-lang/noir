@@ -26,8 +26,8 @@ import {
 } from '@aztec/circuits.js/factories';
 import { padArrayEnd } from '@aztec/foundation/collection';
 import {
+  ContractDataAndBytecode,
   ContractDataSource,
-  ContractPublicData,
   EncodedContractFunction,
   FunctionCall,
   FunctionL2Logs,
@@ -54,7 +54,7 @@ describe('public_processor', () => {
   let contractDataSource: MockProxy<ContractDataSource>;
 
   let publicFunction: EncodedContractFunction;
-  let contractData: ContractPublicData;
+  let contractData: ContractDataAndBytecode;
   let proof: Proof;
   let root: Buffer;
 
@@ -66,7 +66,7 @@ describe('public_processor', () => {
     publicProver = mock<PublicProver>();
     contractDataSource = mock<ContractDataSource>();
 
-    contractData = ContractPublicData.random();
+    contractData = ContractDataAndBytecode.random();
     publicFunction = EncodedContractFunction.random();
     proof = makeEmptyProof();
     root = Buffer.alloc(32, 5);
@@ -74,7 +74,7 @@ describe('public_processor', () => {
     publicProver.getPublicCircuitProof.mockResolvedValue(proof);
     publicProver.getPublicKernelCircuitProof.mockResolvedValue(proof);
     db.getTreeInfo.mockResolvedValue({ root } as TreeInfo);
-    contractDataSource.getL2ContractPublicData.mockResolvedValue(contractData);
+    contractDataSource.getContractDataAndBytecode.mockResolvedValue(contractData);
     contractDataSource.getPublicFunction.mockResolvedValue(publicFunction);
   });
 

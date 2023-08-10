@@ -1,7 +1,7 @@
 import {
   computeContractAddress,
   computeFunctionTreeRoot,
-  computePartialContractAddress,
+  computePartialAddress,
   computeVarArgsHash,
   hashConstructor,
 } from '@aztec/circuits.js/abis';
@@ -46,7 +46,7 @@ export async function getContractDeploymentInfo(
   const argsHash = await computeVarArgsHash(wasm, flatArgs);
   const constructorHash = hashConstructor(wasm, functionData, argsHash, constructorVkHash.toBuffer());
 
-  const partialAddress = computePartialContractAddress(wasm, contractAddressSalt, functionTreeRoot, constructorHash);
+  const partialAddress = computePartialAddress(wasm, contractAddressSalt, functionTreeRoot, constructorHash);
   const contractAddress = computeContractAddress(
     wasm,
     publicKey,

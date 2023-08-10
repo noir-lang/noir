@@ -2,6 +2,7 @@ import { ContractAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 
 import { Wallet } from '../aztec_rpc_client/wallet.js';
+import { isContractDeployed } from '../index.js';
 import { ContractBase } from './contract_base.js';
 
 /**
@@ -20,7 +21,7 @@ export class Contract extends ContractBase {
    * @returns A promise that resolves to a new Contract instance.
    */
   public static async create(address: AztecAddress, abi: ContractAbi, wallet: Wallet): Promise<Contract> {
-    if (!(await wallet.isContractDeployed(address))) {
+    if (!(await isContractDeployed(wallet, address))) {
       throw new Error('Contract ' + address.toString() + ' is not deployed');
     }
     return new Contract(address, abi, wallet);

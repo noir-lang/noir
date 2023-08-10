@@ -14,8 +14,8 @@ import { SequencerClient } from '@aztec/sequencer-client';
 import {
   AztecNode,
   ContractData,
+  ContractDataAndBytecode,
   ContractDataSource,
-  ContractPublicData,
   L1ToL2MessageAndIndex,
   L1ToL2MessageSource,
   L2Block,
@@ -173,18 +173,18 @@ export class AztecNodeService implements AztecNode {
    * @param contractAddress - The contract data address.
    * @returns The complete contract data including portal address & bytecode (if we didn't throw an error).
    */
-  public async getContractData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined> {
-    return await this.contractDataSource.getL2ContractPublicData(contractAddress);
+  public async getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined> {
+    return await this.contractDataSource.getContractDataAndBytecode(contractAddress);
   }
 
   /**
-   * Lookup the L2 contract info for this contract.
+   * Lookup the contract data for this contract.
    * Contains the ethereum portal address .
    * @param contractAddress - The contract data address.
    * @returns The contract's address & portal address.
    */
-  public async getContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined> {
-    return await this.contractDataSource.getL2ContractInfo(contractAddress);
+  public async getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+    return await this.contractDataSource.getContractData(contractAddress);
   }
 
   /**

@@ -206,14 +206,14 @@ export function computeContractAddress(
 }
 
 /**
- * Computes a partial contract address. Consists of all contract address components except the deployer public key.
+ * Computes a partial address. Consists of all contract address components except the deployer public key.
  * @param wasm - A module providing low-level wasm access.
  * @param contractAddrSalt - The salt used as 1 one of the inputs of the contract address computation.
  * @param fnTreeRoot - The function tree root of the contract being deployed.
  * @param constructorHash - The hash of the constructor.
  * @returns The partially constructed contract address.
  */
-export function computePartialContractAddress(
+export function computePartialAddress(
   wasm: IWasmModule,
   contractAddrSalt: Fr,
   fnTreeRoot: Fr,
@@ -222,7 +222,7 @@ export function computePartialContractAddress(
   wasm.call('pedersen__init');
   const result = inputBuffersToOutputBuffer(
     wasm,
-    'abis__compute_partial_contract_address',
+    'abis__compute_partial_address',
     [contractAddrSalt.toBuffer(), fnTreeRoot.toBuffer(), constructorHash.toBuffer()],
     32,
   );

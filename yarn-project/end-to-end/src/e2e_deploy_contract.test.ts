@@ -1,6 +1,6 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, ContractDeployer, Fr } from '@aztec/aztec.js';
+import { AztecAddress, ContractDeployer, Fr, isContractDeployed } from '@aztec/aztec.js';
 import { getContractDeploymentInfo } from '@aztec/circuits.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { TestContractAbi } from '@aztec/noir-contracts/artifacts';
@@ -30,7 +30,7 @@ describe('e2e_deploy_contract', () => {
    * https://hackmd.io/ouVCnacHQRq2o1oRc5ksNA#Interfaces-and-Responsibilities
    */
   it('should deploy a contract', async () => {
-    const publicKey = await aztecRpcServer.getPublicKey(accounts[0]);
+    const publicKey = (await aztecRpcServer.getPublicKeyAndPartialAddress(accounts[0]))[0];
     const salt = Fr.random();
     const deploymentData = await getContractDeploymentInfo(TestContractAbi, [], salt, publicKey);
     const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer, publicKey);
@@ -52,8 +52,8 @@ describe('e2e_deploy_contract', () => {
     expect(isMined).toBe(true);
     expect(receiptAfterMined.status).toBe(TxStatus.MINED);
     const contractAddress = receipt.contractAddress!;
-    expect(await aztecRpcServer.isContractDeployed(contractAddress)).toBe(true);
-    expect(await aztecRpcServer.isContractDeployed(AztecAddress.random())).toBe(false);
+    expect(await isContractDeployed(aztecRpcServer, contractAddress)).toBe(true);
+    expect(await isContractDeployed(aztecRpcServer, AztecAddress.random())).toBe(false);
   }, 30_000);
 
   /**

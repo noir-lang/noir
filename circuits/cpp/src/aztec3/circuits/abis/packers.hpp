@@ -125,7 +125,7 @@ struct GeneratorIndexPacker {
         int PUBLIC_DATA_LEAF = GeneratorIndex::PUBLIC_DATA_LEAF;
         int SIGNED_TX_REQUEST = GeneratorIndex::SIGNED_TX_REQUEST;
         int GLOBAL_VARIABLES = GeneratorIndex::GLOBAL_VARIABLES;
-        int PARTIAL_CONTRACT_ADDRESS = GeneratorIndex::PARTIAL_CONTRACT_ADDRESS;
+        int PARTIAL_ADDRESS = GeneratorIndex::PARTIAL_ADDRESS;
         int TX_REQUEST = GeneratorIndex::TX_REQUEST;
         int SIGNATURE_PAYLOAD = GeneratorIndex::SIGNATURE_PAYLOAD;
         int VK = GeneratorIndex::VK;
@@ -162,7 +162,7 @@ struct GeneratorIndexPacker {
                  PUBLIC_DATA_LEAF,
                  SIGNED_TX_REQUEST,
                  GLOBAL_VARIABLES,
-                 PARTIAL_CONTRACT_ADDRESS,
+                 PARTIAL_ADDRESS,
                  TX_REQUEST,
                  SIGNATURE_PAYLOAD,
                  VK,

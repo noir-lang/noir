@@ -2,7 +2,7 @@ import { Fr, NUMBER_OF_L1_L2_MESSAGES_PER_ROLLUP } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import {
   ContractData,
-  ContractPublicData,
+  ContractDataAndBytecode,
   INITIAL_L2_BLOCK_NUM,
   L1ToL2Message,
   L2Block,
@@ -14,7 +14,7 @@ import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_messag
 
 /**
  * Interface describing a data store to be used by the archiver to store all its relevant data
- * (blocks, encrypted logs, aztec contract public data).
+ * (blocks, encrypted logs, aztec contract data and bytecode).
  */
 export interface ArchiverDataStore {
   /**
@@ -86,26 +86,26 @@ export interface ArchiverDataStore {
   getLogs(from: number, limit: number, logType: LogType): Promise<L2BlockL2Logs[]>;
 
   /**
-   * Store new Contract Public Data from an L2 block to the store's list.
+   * Store new Contract data and bytecode from an L2 block to the store's list.
    * @param data - List of contracts' data to be added.
    * @param blockNum - Number of the L2 block the contract data was deployed in.
    * @returns True if the operation is successful.
    */
-  addL2ContractPublicData(data: ContractPublicData[], blockNum: number): Promise<boolean>;
+  addContractDataAndBytecode(data: ContractDataAndBytecode[], blockNum: number): Promise<boolean>;
 
   /**
    * Lookup the L2 contract data for a contract address.
    * @param contractAddress - The contract data address.
    * @returns The contract's public data.
    */
-  getL2ContractPublicData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined>;
+  getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined>;
 
   /**
-   * Lookup all contract data in an L2 block.
+   * Lookup all contract data and bytecode in an L2 block.
    * @param blockNum - The block number to get all contract data from.
-   * @returns All contract public data in the block (if found).
+   * @returns All contract data and bytecode in the block (if found).
    */
-  getL2ContractPublicDataInBlock(blockNum: number): Promise<ContractPublicData[]>;
+  getContractDataAndBytecodeInBlock(blockNum: number): Promise<ContractDataAndBytecode[]>;
 
   /**
    * Get basic info for an L2 contract.
@@ -113,7 +113,7 @@ export interface ArchiverDataStore {
    * @param contractAddress - The contract data address.
    * @returns ContractData with the portal address (if we didn't throw an error).
    */
-  getL2ContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined>;
+  getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined>;
 
   /**
    * Get basic info for an all L2 contracts deployed in a block.
@@ -121,7 +121,7 @@ export interface ArchiverDataStore {
    * @param l2BlockNum - Number of the L2 block where contracts were deployed.
    * @returns ContractData with the portal address (if we didn't throw an error).
    */
-  getL2ContractInfoInBlock(l2BlockNum: number): Promise<ContractData[] | undefined>;
+  getContractDataInBlock(l2BlockNum: number): Promise<ContractData[] | undefined>;
 
   /**
    * Gets the number of the latest L2 block processed.
@@ -158,14 +158,14 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   private unencryptedLogs: L2BlockL2Logs[] = [];
 
   /**
-   * A sparse array containing all the contract data that have been fetched so far.
+   * A sparse array containing all the contract data and bytecode that have been fetched so far.
    */
-  private contractPublicDataByBlock: (ContractPublicData[] | undefined)[] = [];
+  private contractDataAndBytecodeByBlock: (ContractDataAndBytecode[] | undefined)[] = [];
 
   /**
-   * A mapping of contract address to contract data.
+   * A mapping of contract address to contract data and bytecode.
    */
-  private contractPublicData: Map<string, ContractPublicData> = new Map();
+  private contractDataAndBytecode: Map<string, ContractDataAndBytecode> = new Map();
 
   /**
    * Contains all the confirmed L1 to L2 messages (i.e. messages that were consumed in an L2 block)
@@ -240,23 +240,23 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   }
 
   /**
-   * Store new Contract Public Data from an L2 block to the store's list.
+   * Store new Contract data and bytecode from an L2 block to the store's list.
    * @param data - List of contracts' data to be added.
    * @param blockNum - Number of the L2 block the contract data was deployed in.
    * @returns True if the operation is successful (always in this implementation).
    */
-  public addL2ContractPublicData(data: ContractPublicData[], blockNum: number): Promise<boolean> {
+  public addContractDataAndBytecode(data: ContractDataAndBytecode[], blockNum: number): Promise<boolean> {
     // Add to the contracts mapping
     for (const contractData of data) {
       const key = contractData.contractData.contractAddress.toString();
-      this.contractPublicData.set(key, contractData);
+      this.contractDataAndBytecode.set(key, contractData);
     }
 
     // Add the index per block
-    if (this.contractPublicDataByBlock[blockNum]?.length) {
-      this.contractPublicDataByBlock[blockNum]?.push(...data);
+    if (this.contractDataAndBytecodeByBlock[blockNum]?.length) {
+      this.contractDataAndBytecodeByBlock[blockNum]?.push(...data);
     } else {
-      this.contractPublicDataByBlock[blockNum] = [...data];
+      this.contractDataAndBytecodeByBlock[blockNum] = [...data];
     }
     return Promise.resolve(true);
   }
@@ -327,21 +327,21 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @param contractAddress - The contract data address.
    * @returns The contract's public data.
    */
-  public getL2ContractPublicData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined> {
-    const result = this.contractPublicData.get(contractAddress.toString());
+  public getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined> {
+    const result = this.contractDataAndBytecode.get(contractAddress.toString());
     return Promise.resolve(result);
   }
 
   /**
    * Lookup all contract data in an L2 block.
    * @param blockNum - The block number to get all contract data from.
-   * @returns All contract public data in the block (if found).
+   * @returns All contract data and bytecode in the block (if found).
    */
-  public getL2ContractPublicDataInBlock(blockNum: number): Promise<ContractPublicData[]> {
+  public getContractDataAndBytecodeInBlock(blockNum: number): Promise<ContractDataAndBytecode[]> {
     if (blockNum > this.l2Blocks.length) {
       return Promise.resolve([]);
     }
-    return Promise.resolve(this.contractPublicDataByBlock[blockNum] || []);
+    return Promise.resolve(this.contractDataAndBytecodeByBlock[blockNum] || []);
   }
 
   /**
@@ -350,7 +350,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @param contractAddress - The contract data address.
    * @returns ContractData with the portal address (if we didn't throw an error).
    */
-  public getL2ContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+  public getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
     if (contractAddress.isZero()) {
       return Promise.resolve(undefined);
     }
@@ -370,7 +370,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * @param l2BlockNum - Number of the L2 block where contracts were deployed.
    * @returns ContractData with the portal address (if we didn't throw an error).
    */
-  public getL2ContractInfoInBlock(l2BlockNum: number): Promise<ContractData[] | undefined> {
+  public getContractDataInBlock(l2BlockNum: number): Promise<ContractData[] | undefined> {
     if (l2BlockNum > this.l2Blocks.length) {
       return Promise.resolve([]);
     }

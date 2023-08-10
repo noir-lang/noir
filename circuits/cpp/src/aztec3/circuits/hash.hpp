@@ -48,15 +48,15 @@ template <typename NCT> typename NCT::fr compute_constructor_hash(FunctionData<N
     return NCT::compress(inputs, aztec3::GeneratorIndex::CONSTRUCTOR);
 }
 
-template <typename NCT> typename NCT::fr compute_partial_contract_address(typename NCT::fr contract_address_salt,
-                                                                          typename NCT::fr function_tree_root,
-                                                                          typename NCT::fr constructor_hash)
+template <typename NCT> typename NCT::fr compute_partial_address(typename NCT::fr contract_address_salt,
+                                                                 typename NCT::fr function_tree_root,
+                                                                 typename NCT::fr constructor_hash)
 {
     using fr = typename NCT::fr;
     std::vector<fr> const inputs = {
         fr(0), fr(0), contract_address_salt, function_tree_root, constructor_hash,
     };
-    return NCT::hash(inputs, aztec3::GeneratorIndex::PARTIAL_CONTRACT_ADDRESS);
+    return NCT::hash(inputs, aztec3::GeneratorIndex::PARTIAL_ADDRESS);
 }
 
 template <typename NCT>
@@ -81,7 +81,7 @@ template <typename NCT> typename NCT::address compute_contract_address(Point<NCT
     using fr = typename NCT::fr;
 
     const fr partial_address =
-        compute_partial_contract_address<NCT>(contract_address_salt, function_tree_root, constructor_hash);
+        compute_partial_address<NCT>(contract_address_salt, function_tree_root, constructor_hash);
 
     return compute_contract_address_from_partial(point, partial_address);
 }

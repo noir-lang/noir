@@ -1,11 +1,4 @@
-import {
-  AztecAddress,
-  CircuitsWasm,
-  FunctionData,
-  PartialContractAddress,
-  PrivateKey,
-  TxContext,
-} from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, FunctionData, PartialAddress, PrivateKey, TxContext } from '@aztec/circuits.js';
 import { Signer } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, encodeArguments } from '@aztec/foundation/abi';
 import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types';
@@ -26,7 +19,7 @@ import { CreateTxRequestOpts, Entrypoint } from './index.js';
 export class SingleKeyAccountEntrypoint implements Entrypoint {
   constructor(
     private address: AztecAddress,
-    private partialContractAddress: PartialContractAddress,
+    private partialAddress: PartialAddress,
     private privateKey: PrivateKey,
     private signer: Signer,
     private chainId: number = DEFAULT_CHAIN_ID,
@@ -48,7 +41,7 @@ export class SingleKeyAccountEntrypoint implements Entrypoint {
 
     const signature = this.signer.constructSignature(message, this.privateKey).toBuffer();
     const publicKey = await generatePublicKey(this.privateKey);
-    const args = [payload, publicKey.toBuffer(), signature, this.partialContractAddress];
+    const args = [payload, publicKey.toBuffer(), signature, this.partialAddress];
     const abi = this.getEntrypointAbi();
     const packedArgs = await PackedArguments.fromArgs(encodeArguments(abi, args), wasm);
     const txRequest = TxExecutionRequest.from({

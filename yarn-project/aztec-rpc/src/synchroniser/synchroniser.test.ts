@@ -96,10 +96,10 @@ describe('Synchroniser', () => {
     // Sync the synchroniser so that note processor has something to catch up to
     await synchroniser.work();
 
-    // Used in synchroniser.isAccountSynchronised
+    // Used in synchroniser.isAccountStateSynchronised
     aztecNode.getBlockHeight.mockResolvedValueOnce(1);
 
-    // Manually adding account to database so that we can call synchroniser.isAccountSynchronised
+    // Manually adding account to database so that we can call synchroniser.isAccountStateSynchronised
     const keyStore = new TestKeyStore(await Grumpkin.new());
     keyStore.addAccount(PrivateKey.random());
     const pubKey = (await keyStore.getAccounts())[0];
@@ -111,7 +111,7 @@ describe('Synchroniser', () => {
 
     await synchroniser.workNoteProcessorCatchUp();
 
-    expect(await synchroniser.isAccountSynchronised(address)).toBe(true);
+    expect(await synchroniser.isAccountStateSynchronised(address)).toBe(true);
   });
 });
 

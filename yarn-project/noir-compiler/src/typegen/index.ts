@@ -70,7 +70,7 @@ function generateConstructor(name: string) {
  * Generates the create method for this contract.
  * @param name - Name of the contract to derive the ABI name from.
  * @returns A create method.
- * @remarks We don't use constructor directly because of the async `wallet.isContractDeployed` check.
+ * @remarks We don't use constructor directly because of the async `wallet.getContractData` call.
  */
 function generateCreate(name: string) {
   return `
@@ -86,7 +86,7 @@ function generateCreate(name: string) {
     /** The wallet. */
     wallet: Wallet,
   ) {
-    if (!(await wallet.isContractDeployed(address))) {
+    if ((await wallet.getContractData(address)) === undefined) {
       throw new Error('Contract ' + address.toString() + ' is not deployed');
     }
     return new ${name}Contract(address, wallet);

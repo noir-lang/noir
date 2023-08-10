@@ -131,6 +131,7 @@
       "^l1-contracts/",
       "^yarn-project/l1-artifacts/",
       "^yarn-project/noir-contracts/",
+      "^yarn-project/noir-compiler/",
       "^yarn-project/yarn-project-base/",
       "^yarn-project/yarn.lock"
     ],

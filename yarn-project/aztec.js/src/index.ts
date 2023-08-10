@@ -10,7 +10,7 @@ export {
   AztecRPC,
   ContractData,
   ContractDeploymentTx,
-  ContractPublicData,
+  ContractDataAndBytecode,
   DeployedContract,
   FunctionCall,
   L2BlockL2Logs,

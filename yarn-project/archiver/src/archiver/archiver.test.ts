@@ -5,7 +5,7 @@ import { sleep } from '@aztec/foundation/sleep';
 import { ContractDeploymentEmitterAbi, InboxAbi, RollupAbi } from '@aztec/l1-artifacts';
 import {
   ContractData,
-  ContractPublicData,
+  ContractDataAndBytecode,
   EncodedContractFunction,
   L2Block,
   L2BlockL2Logs,
@@ -158,7 +158,7 @@ function makeContractDeploymentEvent(l1BlockNum: bigint, l2Block: L2Block) {
   // const contractData = ContractData.random();
   const aztecAddress = AztecAddress.random();
   const portalAddress = EthAddress.random();
-  const contractData = new ContractPublicData(new ContractData(aztecAddress, portalAddress), [
+  const contractData = new ContractDataAndBytecode(new ContractData(aztecAddress, portalAddress), [
     EncodedContractFunction.random(),
     EncodedContractFunction.random(),
   ]);

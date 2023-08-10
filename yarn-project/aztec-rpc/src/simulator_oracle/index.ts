@@ -1,13 +1,5 @@
 import { CommitmentDataOracleInputs, DBOracle, MessageLoadOracleInputs } from '@aztec/acir-simulator';
-import {
-  AztecAddress,
-  CircuitsWasm,
-  EthAddress,
-  Fr,
-  PartialContractAddress,
-  PrivateKey,
-  PublicKey,
-} from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, EthAddress, Fr, PartialAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
 import { siloCommitment } from '@aztec/circuits.js/abis';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { DataCommitmentProvider, KeyStore, L1ToL2MessageProvider } from '@aztec/types';
@@ -31,7 +23,7 @@ export class SimulatorOracle implements DBOracle {
     return this.keyStore.getAccountPrivateKey(pubKey);
   }
 
-  async getPublicKey(address: AztecAddress): Promise<[PublicKey, PartialContractAddress]> {
+  async getPublicKey(address: AztecAddress): Promise<[PublicKey, PartialAddress]> {
     const result = await this.db.getPublicKeyAndPartialAddress(address);
     if (!result)
       throw new Error(

@@ -3,8 +3,8 @@ import { createJsonRpcClient, defaultFetch } from '@aztec/foundation/json-rpc/cl
 import {
   AztecRPC,
   ContractData,
+  ContractDataAndBytecode,
   ContractDeploymentTx,
-  ContractPublicData,
   L2BlockL2Logs,
   Tx,
   TxExecutionRequest,
@@ -21,7 +21,7 @@ export const createAztecRpcClient = (url: string, fetch = defaultFetch): AztecRP
       AztecAddress,
       TxExecutionRequest,
       ContractData,
-      ContractPublicData,
+      ContractDataAndBytecode,
       TxHash,
       EthAddress,
       Point,

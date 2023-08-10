@@ -1,7 +1,7 @@
 import {
   ContractDeploymentData,
   FunctionData,
-  PartialContractAddress,
+  PartialAddress,
   TxContext,
   getContractDeploymentInfo,
 } from '@aztec/circuits.js';
@@ -36,7 +36,7 @@ export interface DeployOptions extends SendMethodOptions {
  */
 export class DeployMethod<TContract extends ContractBase = Contract> extends BaseContractInteraction {
   /** The partially computed contract address. Known after creation of the deployment transaction. */
-  public partialContractAddress?: PartialContractAddress = undefined;
+  public partialAddress?: PartialAddress = undefined;
 
   /** The complete contract address. */
   public completeContractAddress?: AztecAddress = undefined;
@@ -96,7 +96,7 @@ export class DeployMethod<TContract extends ContractBase = Contract> extends Bas
     });
 
     this.txRequest = txRequest;
-    this.partialContractAddress = partialAddress;
+    this.partialAddress = partialAddress;
     this.completeContractAddress = address;
 
     // TODO: Should we add the contracts to the DB here, or once the tx has been sent or mined?

@@ -55,7 +55,7 @@ describe('e2e_2_rpc_servers', () => {
 
   const awaitUserSynchronised = async (wallet: Wallet, owner: AztecAddress) => {
     const isUserSynchronised = async () => {
-      return await wallet.isAccountSynchronised(owner);
+      return await wallet.isAccountStateSynchronised(owner);
     };
     await retryUntil(isUserSynchronised, `synch of user ${owner.toString()}`, 10);
   };
@@ -162,7 +162,7 @@ describe('e2e_2_rpc_servers', () => {
 
   const awaitServerSynchronised = async (server: AztecRPC) => {
     const isServerSynchronised = async () => {
-      return await server.isSynchronised();
+      return await server.isGlobalStateSynchronised();
     };
     await retryUntil(isServerSynchronised, 'server sync', 10);
   };

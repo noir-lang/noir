@@ -1,7 +1,7 @@
 import { createEthereumChain } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { ContractDeploymentEmitterAbi, RollupAbi } from '@aztec/l1-artifacts';
-import { ContractPublicData } from '@aztec/types';
+import { ContractDataAndBytecode } from '@aztec/types';
 
 import {
   GetContractReturnType,
@@ -120,22 +120,22 @@ export class ViemTxSender implements L1PublisherTxSender {
    * Sends a tx to the contract deployment emitter contract with contract deployment data such as bytecode. Returns once the tx has been mined.
    * @param l2BlockNum - Number of the L2 block that owns this encrypted logs.
    * @param l2BlockHash - The hash of the block corresponding to this data.
-   * @param newContractData - Data to publish.
+   * @param newContractDataAndBytecode - Data to publish.
    * @returns The hash of the mined tx.
    */
   async sendEmitContractDeploymentTx(
     l2BlockNum: number,
     l2BlockHash: Buffer,
-    newContractData: ContractPublicData[],
+    newContractDataAndBytecode: ContractDataAndBytecode[],
   ): Promise<(string | undefined)[]> {
     const hashes: string[] = [];
-    for (const contractPublicData of newContractData) {
+    for (const contractDataAndBytecode of newContractDataAndBytecode) {
       const args = [
         BigInt(l2BlockNum),
-        contractPublicData.contractData.contractAddress.toString() as Hex,
-        contractPublicData.contractData.portalContractAddress.toString() as Hex,
+        contractDataAndBytecode.contractData.contractAddress.toString() as Hex,
+        contractDataAndBytecode.contractData.portalContractAddress.toString() as Hex,
         `0x${l2BlockHash.toString('hex')}`,
-        `0x${contractPublicData.bytecode.toString('hex')}`,
+        `0x${contractDataAndBytecode.bytecode.toString('hex')}`,
       ] as const;
 
       const gas = await this.contractDeploymentEmitterContract.estimateGas.emitContractDeployment(args, {

@@ -68,7 +68,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
     [ownerAddress, receiver] = accounts;
-    const ownerPubPoint = await aztecRpcServer.getPublicKey(ownerAddress);
+    const ownerPublicKey = (await aztecRpcServer.getPublicKeyAndPartialAddress(ownerAddress))[0];
 
     logger('Deploying DAI Portal, initializing and deploying l2 contract...');
     const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(
@@ -96,7 +96,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       walletClient,
       ownerAddress,
       receiver,
-      ownerPubPoint,
+      ownerPublicKey,
     );
 
     logger('Deploying WETH Portal, initializing and deploying l2 contract...');
@@ -125,7 +125,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       walletClient,
       ownerAddress,
       receiver,
-      ownerPubPoint,
+      ownerPublicKey,
     );
 
     logger('Deploy Uniswap portal on L1 and L2...');

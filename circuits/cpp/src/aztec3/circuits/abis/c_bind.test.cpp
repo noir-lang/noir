@@ -49,13 +49,12 @@ template <size_t NUM_BYTES> std::string bytes_to_hex_str(std::array<uint8_t, NUM
 
 namespace aztec3::circuits::abis {
 
-TEST(abi_tests, compute_partial_contract_address)
+TEST(abi_tests, compute_partial_address)
 {
     auto const contract_address_salt = NT::fr(3);
     auto const function_tree_root = NT::fr(4);
     auto const constructor_hash = NT::fr(5);
-    NT::fr const expected =
-        compute_partial_contract_address<NT>(contract_address_salt, function_tree_root, constructor_hash);
+    NT::fr const expected = compute_partial_address<NT>(contract_address_salt, function_tree_root, constructor_hash);
 
     std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
     std::vector<uint8_t> salt_buf;
@@ -64,7 +63,7 @@ TEST(abi_tests, compute_partial_contract_address)
     write(salt_buf, contract_address_salt);
     write(function_tree_root_buf, function_tree_root);
     write(constructor_hash_buf, constructor_hash);
-    abis__compute_partial_contract_address(
+    abis__compute_partial_address(
         salt_buf.data(), function_tree_root_buf.data(), constructor_hash_buf.data(), output.data());
 
     // Convert buffer to `fr` for comparison to in-test calculated hash

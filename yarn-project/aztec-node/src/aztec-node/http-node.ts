@@ -10,7 +10,7 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import {
   AztecNode,
   ContractData,
-  ContractPublicData,
+  ContractDataAndBytecode,
   L1ToL2Message,
   L1ToL2MessageAndIndex,
   L2Block,
@@ -118,20 +118,20 @@ export class HttpNode implements AztecNode {
   }
 
   /**
-   * Lookup the L2 contract data for this contract.
+   * Lookup the contract data for this contract.
    * Contains the ethereum portal address and bytecode.
    * @param contractAddress - The contract data address.
    * @returns The complete contract data including portal address & bytecode (if we didn't throw an error).
    */
-  async getContractData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined> {
-    const url = new URL(`${this.baseUrl}/contract-data`);
+  async getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined> {
+    const url = new URL(`${this.baseUrl}/contract-data-and-bytecode`);
     url.searchParams.append('address', contractAddress.toString());
     const response = await (await fetch(url.toString())).json();
     if (!response || !response.contractData) {
       return undefined;
     }
     const contract = response.contractData as string;
-    return Promise.resolve(ContractPublicData.fromBuffer(Buffer.from(contract, 'hex')));
+    return Promise.resolve(ContractDataAndBytecode.fromBuffer(Buffer.from(contract, 'hex')));
   }
 
   /**
@@ -158,19 +158,19 @@ export class HttpNode implements AztecNode {
   }
 
   /**
-   * Lookup the L2 contract info for this contract.
+   * Lookup the contract data for this contract.
    * Contains the ethereum portal address.
    * @param contractAddress - The contract data address.
    * @returns The contract's address & portal address.
    */
-  async getContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined> {
-    const url = new URL(`${this.baseUrl}/contract-info`);
+  async getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+    const url = new URL(`${this.baseUrl}/contract-data`);
     url.searchParams.append('address', contractAddress.toString());
     const response = await (await fetch(url.toString())).json();
-    if (!response || !response.contractInfo) {
+    if (!response || !response.contractData) {
       return undefined;
     }
-    const contract = response.contractInfo as string;
+    const contract = response.contractData as string;
     return Promise.resolve(ContractData.fromBuffer(Buffer.from(contract, 'hex')));
   }
 

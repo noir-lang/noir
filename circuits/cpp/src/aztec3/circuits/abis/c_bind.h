@@ -29,10 +29,10 @@ WASM_EXPORT void abis__compute_contract_address(uint8_t const* point_data_buf,
                                                 uint8_t const* constructor_hash_buf,
                                                 uint8_t* output);
 
-WASM_EXPORT void abis__compute_partial_contract_address(uint8_t const* contract_address_salt_buf,
-                                                        uint8_t const* function_tree_root_buf,
-                                                        uint8_t const* constructor_hash_buf,
-                                                        uint8_t* output);
+WASM_EXPORT void abis__compute_partial_address(uint8_t const* contract_address_salt_buf,
+                                               uint8_t const* function_tree_root_buf,
+                                               uint8_t const* constructor_hash_buf,
+                                               uint8_t* output);
 
 CBIND_DECL(abis__compute_commitment_nonce);
 CBIND_DECL(abis__compute_unique_commitment);

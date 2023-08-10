@@ -1,4 +1,4 @@
-import { PartialContractAddress } from '@aztec/circuits.js';
+import { PartialAddress } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { ContractDatabase, MerkleTreeId, PublicKey, TxHash } from '@aztec/types';
@@ -122,17 +122,19 @@ export interface Database extends ContractDatabase {
   addPublicKeyAndPartialAddress(
     address: AztecAddress,
     publicKey: PublicKey,
-    partialAddress: PartialContractAddress,
+    partialAddress: PartialAddress,
   ): Promise<void>;
 
   /**
-   * Retrieve the public key and partial contract address associated with an address.
+   * Retrieve the public key and partial address associated with an address.
    * Throws an error if the account is not found in the key store.
    *
    * @param address - The AztecAddress instance representing the account to get public key and partial address for.
    * @returns A Promise resolving to the PublicKey instance representing the public key.
+   * @remarks The public key and partial address form a preimage of a contract address. See
+   * https://github.com/AztecProtocol/aztec-packages/blob/janb/rpc-interface-cleanup/docs/docs/concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys
    */
-  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialContractAddress] | undefined>;
+  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialAddress] | undefined>;
 
   /**
    * Retrieves the list of Aztec addresses added to this database

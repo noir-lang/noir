@@ -5,7 +5,7 @@ import { Fr } from '@aztec/foundation/fields';
 import {
   ContractCommitmentProvider,
   ContractData,
-  ContractPublicData,
+  ContractDataAndBytecode,
   DataCommitmentProvider,
   L1ToL2MessageProvider,
   L2Block,
@@ -72,15 +72,15 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
    * @param contractAddress - The contract data address.
    * @returns The complete contract data including portal address & bytecode (if we didn't throw an error).
    */
-  getContractData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined>;
+  getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined>;
 
   /**
-   * Lookup the L2 contract info for this contract.
+   * Lookup the contract data for this contract.
    * Contains the ethereum portal address .
    * @param contractAddress - The contract data address.
    * @returns The contract's address & portal address.
    */
-  getContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined>;
+  getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined>;
 
   /**
    * Gets up to `limit` amount of logs starting from `from`.

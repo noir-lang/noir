@@ -116,7 +116,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         const { DeployMethod, createAztecRpcClient, mustSucceedFetch } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
         const owner = (await client.getAccounts())[0];
-        const publicKey = await client.getPublicKey(owner);
+        const publicKey = (await client.getPublicKeyAndPartialAddress(owner))[0];
         const tx = new DeployMethod(publicKey, client, PrivateTokenContractAbi, [initialBalance, owner]).send();
         await tx.wait();
         const receipt = await tx.getReceipt();

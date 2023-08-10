@@ -238,11 +238,13 @@ export class Synchroniser {
   }
 
   /**
-   * Returns true if the account specified by the given address is synched to the latest block
-   * @param account - The aztec address for which to query the sync status
-   * @returns True if the account is fully synched, false otherwise
+   * Checks if the specified account is synchronised.
+   * @param account - The aztec address for which to query the sync status.
+   * @returns True if the account is fully synched, false otherwise.
+   * @remarks Checks whether all the notes from all the blocks have been processed. If it is not the case, the
+   *          retrieved information from contracts might be old/stale (e.g. old token balance).
    */
-  public async isAccountSynchronised(account: AztecAddress) {
+  public async isAccountStateSynchronised(account: AztecAddress) {
     const result = await this.db.getPublicKeyAndPartialAddress(account);
     if (!result) {
       return false;
@@ -256,11 +258,12 @@ export class Synchroniser {
   }
 
   /**
-   * Return true if the top level block synchronisation is up to date
-   * This indicates that blocks and transactions are synched even if notes are not
-   * @returns True if there are no outstanding blocks to be synched
+   * Checks whether all the blocks were processed (tree roots updated, txs updated with block info, etc.).
+   * @returns True if there are no outstanding blocks to be synched.
+   * @remarks This indicates that blocks and transactions are synched even if notes are not.
+   * @remarks Compares local block height with the block height from aztec node.
    */
-  public async isSynchronised() {
+  public async isGlobalStateSynchronised() {
     const latest = await this.node.getBlockHeight();
     return latest <= this.synchedToBlock;
   }

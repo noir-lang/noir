@@ -6,8 +6,8 @@ import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { RunningPromise } from '@aztec/foundation/running-promise';
 import {
   ContractData,
+  ContractDataAndBytecode,
   ContractDataSource,
-  ContractPublicData,
   EncodedContractFunction,
   INITIAL_L2_BLOCK_NUM,
   L1ToL2Message,
@@ -221,9 +221,9 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     // store contracts for which we have retrieved L2 blocks
     const lastKnownL2BlockNum = retrievedBlocks.retrievedData[retrievedBlocks.retrievedData.length - 1].number;
     retrievedContracts.retrievedData.forEach(async ([contracts, l2BlockNum], index) => {
-      this.log(`Retrieved contract public data for l2 block number: ${index}`);
+      this.log(`Retrieved contract data and bytecode for l2 block number: ${index}`);
       if (l2BlockNum <= lastKnownL2BlockNum) {
-        await this.store.addL2ContractPublicData(contracts, l2BlockNum);
+        await this.store.addContractDataAndBytecode(contracts, l2BlockNum);
       }
     });
 
@@ -291,8 +291,8 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
    * @param contractAddress - The contract data address.
    * @returns The contract data.
    */
-  public getL2ContractPublicData(contractAddress: AztecAddress): Promise<ContractPublicData | undefined> {
-    return this.store.getL2ContractPublicData(contractAddress);
+  public getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined> {
+    return this.store.getContractDataAndBytecode(contractAddress);
   }
 
   /**
@@ -300,28 +300,28 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
    * @param blockNum - The block number to get all contract data from.
    * @returns All new contract data in the block (if found).
    */
-  public getL2ContractPublicDataInBlock(blockNum: number): Promise<ContractPublicData[]> {
-    return this.store.getL2ContractPublicDataInBlock(blockNum);
+  public getContractDataAndBytecodeInBlock(blockNum: number): Promise<ContractDataAndBytecode[]> {
+    return this.store.getContractDataAndBytecodeInBlock(blockNum);
   }
 
   /**
-   * Lookup the L2 contract info for this contract.
+   * Lookup the contract data for this contract.
    * Contains contract address & the ethereum portal address.
    * @param contractAddress - The contract data address.
    * @returns ContractData with the portal address (if we didn't throw an error).
    */
-  public getL2ContractInfo(contractAddress: AztecAddress): Promise<ContractData | undefined> {
-    return this.store.getL2ContractInfo(contractAddress);
+  public getContractData(contractAddress: AztecAddress): Promise<ContractData | undefined> {
+    return this.store.getContractData(contractAddress);
   }
 
   /**
-   * Lookup the L2 contract info inside a block.
+   * Lookup the L2 contract data inside a block.
    * Contains contract address & the ethereum portal address.
    * @param l2BlockNum - The L2 block number to get the contract data from.
    * @returns ContractData with the portal address (if we didn't throw an error).
    */
-  public getL2ContractInfoInBlock(l2BlockNum: number): Promise<ContractData[] | undefined> {
-    return this.store.getL2ContractInfoInBlock(l2BlockNum);
+  public getContractDataInBlock(l2BlockNum: number): Promise<ContractData[] | undefined> {
+    return this.store.getContractDataInBlock(l2BlockNum);
   }
 
   /**
@@ -334,9 +334,8 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     contractAddress: AztecAddress,
     functionSelector: Buffer,
   ): Promise<EncodedContractFunction | undefined> {
-    const contractData = await this.getL2ContractPublicData(contractAddress);
-    const result = contractData?.publicFunctions?.find(fn => fn.functionSelector.equals(functionSelector));
-    return result;
+    const contractData = await this.getContractDataAndBytecode(contractAddress);
+    return contractData?.getPublicFunction(functionSelector);
   }
 
   /**

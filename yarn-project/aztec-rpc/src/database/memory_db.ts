@@ -1,4 +1,4 @@
-import { PartialContractAddress } from '@aztec/circuits.js';
+import { PartialAddress } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -19,7 +19,7 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   private txTable: TxDao[] = [];
   private noteSpendingInfoTable: NoteSpendingInfoDao[] = [];
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
-  private publicKeys: Map<bigint, [PublicKey, PartialContractAddress]> = new Map();
+  private publicKeysAndPartialAddresses: Map<bigint, [PublicKey, PartialAddress]> = new Map();
 
   constructor(logSuffix?: string) {
     super(createDebugLogger(logSuffix ? 'aztec:memory_db_' + logSuffix : 'aztec:memory_db'));
@@ -100,21 +100,21 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   addPublicKeyAndPartialAddress(
     address: AztecAddress,
     publicKey: PublicKey,
-    partialAddress: PartialContractAddress,
+    partialAddress: PartialAddress,
   ): Promise<void> {
-    if (this.publicKeys.has(address.toBigInt())) {
+    if (this.publicKeysAndPartialAddresses.has(address.toBigInt())) {
       throw new Error(`Account ${address} already exists`);
     }
-    this.publicKeys.set(address.toBigInt(), [publicKey, partialAddress]);
+    this.publicKeysAndPartialAddresses.set(address.toBigInt(), [publicKey, partialAddress]);
     return Promise.resolve();
   }
 
   getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, Fr] | undefined> {
-    return Promise.resolve(this.publicKeys.get(address.toBigInt()));
+    return Promise.resolve(this.publicKeysAndPartialAddresses.get(address.toBigInt()));
   }
 
   getAccounts(): Promise<AztecAddress[]> {
-    const addresses = Array.from(this.publicKeys.keys());
+    const addresses = Array.from(this.publicKeysAndPartialAddresses.keys());
     return Promise.resolve(addresses.map(AztecAddress.fromBigInt));
   }
 }

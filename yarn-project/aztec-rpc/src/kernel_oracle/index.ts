@@ -46,7 +46,7 @@ export class KernelOracle implements ProvingDataOracle {
     return roots[MerkleTreeId.PRIVATE_DATA_TREE];
   }
 
-  async getconstantHistoricBlockData(): Promise<ConstantHistoricBlockData> {
+  async getConstantHistoricBlockData(): Promise<ConstantHistoricBlockData> {
     const wasm = await CircuitsWasm.get();
     const latestBlock = await this.node.getBlock(-1);
     const latestGlobals = latestBlock?.globalVariables ?? GlobalVariables.empty();

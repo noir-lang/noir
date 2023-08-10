@@ -1,7 +1,7 @@
 import { AztecAddress, EthAddress } from '@aztec/circuits.js';
 import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/foundation/abi';
 import { randomBytes } from '@aztec/foundation/crypto';
-import { DeployedContract, NodeInfo, Tx, TxExecutionRequest, TxHash, TxReceipt } from '@aztec/types';
+import { ContractData, DeployedContract, NodeInfo, Tx, TxExecutionRequest, TxHash, TxReceipt } from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
@@ -94,7 +94,7 @@ describe('Contract Class', () => {
   beforeEach(() => {
     wallet = mock<Wallet>();
     wallet.createTxExecutionRequest.mockResolvedValue(mockTxRequest);
-    wallet.isContractDeployed.mockResolvedValue(true);
+    wallet.getContractData.mockResolvedValue(ContractData.random());
     wallet.sendTx.mockResolvedValue(mockTxHash);
     wallet.viewTx.mockResolvedValue(mockViewResultValue);
     wallet.getTxReceipt.mockResolvedValue(mockTxReceipt);

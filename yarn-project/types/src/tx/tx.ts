@@ -3,7 +3,7 @@ import {
   Fr,
   KernelCircuitPublicInputs,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
-  PartialContractAddress,
+  PartialAddress,
   Proof,
   PublicCallRequest,
 } from '@aztec/circuits.js';
@@ -195,7 +195,7 @@ export class ContractDeploymentTx {
     /**
      * The partially conputed contract address.
      */
-    public readonly partialContractAddress: PartialContractAddress,
+    public readonly partialAddress: PartialAddress,
 
     /**
      * The complete contract address.
@@ -206,7 +206,7 @@ export class ContractDeploymentTx {
   toJSON() {
     return {
       tx: this.tx.toJSON(),
-      partialContractAddress: this.partialContractAddress.toBuffer().toString(),
+      partialAddress: this.partialAddress.toBuffer().toString(),
       contractAddress: this.contractAddress.toBuffer().toString(),
     };
   }
@@ -214,7 +214,7 @@ export class ContractDeploymentTx {
   static fromJSON(obj: any) {
     return new ContractDeploymentTx(
       Tx.fromJSON(obj.tx),
-      Fr.fromBuffer(Buffer.from(obj.partialContractAddress, 'hex')),
+      Fr.fromBuffer(Buffer.from(obj.partialAddress, 'hex')),
       AztecAddress.fromBuffer(Buffer.from(obj.contractAddress, 'hex')),
     );
   }
