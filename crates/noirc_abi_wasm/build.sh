@@ -6,10 +6,19 @@ function require_command {
         exit 1
     fi
 }
-function test_directory_exists() {
-  if [ ! -d "$1" ]; then
-    echo "Error: Directory '$1' does not exist. Run this script from Workspace Root."
-    exit 1
+function check_installed {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "$1 is not installed. Please install it." >&2
+    return 1
+  fi
+  return 0
+}
+function run_or_fail {
+  "$@"
+  local status=$?
+  if [ $status -ne 0 ]; then
+    echo "Command '$*' failed with exit code $status" >&2
+    exit $status
   fi
 }
 
@@ -18,14 +27,22 @@ require_command jq
 require_command cargo
 require_command wasm-bindgen
 require_command wasm-opt
-test_directory_exists crates/noirc_abi_wasm
 
-export pname=$(toml2json < crates/noirc_abi_wasm/Cargo.toml | jq -r .package.name)
+self_path=$(dirname "$(readlink -f "$0")")
+export pname=$(toml2json < ${self_path}/Cargo.toml | jq -r .package.name)
+export CARGO_TARGET_DIR=$self_path/target
 
-echo Building package \"$pname\"
+rm -rf $self_path/outputs >/dev/null 2>&1
+rm -rf $self_path/result >/dev/null 2>&1
 
-crates/noirc_abi_wasm/preBuild.sh
-cargo build --lib --release --package $pname --target wasm32-unknown-unknown
-crates/noirc_abi_wasm/postBuild.sh
-crates/noirc_abi_wasm/installPhase.sh
+if [ -v out ]; then
+  echo "Will install package to $out (defined outside installPhase.sh script)"
+else
+  out="$self_path/outputs/out"
+  echo "Will install package to $out"
+fi
 
+run_or_fail ${self_path}/buildPhaseCargoCommand.sh
+run_or_fail ${self_path}/installPhase.sh
+
+ln -s $out $self_path/result

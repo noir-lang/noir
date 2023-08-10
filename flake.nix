@@ -88,7 +88,7 @@
         BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
       };
 
-      testEnvironment = sharedEnvironment // {};
+      testEnvironment = sharedEnvironment // { };
 
       # The `self.rev` property is only available when the working tree is not dirty
       GIT_COMMIT = if (self ? rev) then self.rev else "unknown";
@@ -345,7 +345,7 @@
 
         COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
         VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
-        PKG_PATH = "./crates/noirc_abi_wasm/pkg";
+        PKG_PATH = "./pkg";
 
         nativeBuildInputs = with pkgs; [
           which
@@ -357,8 +357,8 @@
           toml2json
         ];
 
-        postBuild = ''
-          bash crates/noirc_abi_wasm/postBuild.sh
+        buildPhaseCargoCommand = ''
+          bash crates/noirc_abi_wasm/buildPhaseCargoCommand.sh
         '';
 
         installPhase = ''
