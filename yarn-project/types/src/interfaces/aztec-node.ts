@@ -1,3 +1,4 @@
+import { EthAddress } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
@@ -58,6 +59,12 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
    * @returns The chain id.
    */
   getChainId(): Promise<number>;
+
+  /**
+   * Method to fetch the rollup contract address at the base-layer.
+   * @returns The rollup address.
+   */
+  getRollupAddress(): Promise<EthAddress>;
 
   /**
    * Lookup the L2 contract data for this contract.

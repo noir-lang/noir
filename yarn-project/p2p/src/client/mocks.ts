@@ -1,3 +1,4 @@
+import { EthAddress } from '@aztec/circuits.js';
 import { L2Block, L2BlockSource } from '@aztec/types';
 
 /**
@@ -11,6 +12,14 @@ export class MockBlockSource implements L2BlockSource {
     for (let i = 0; i < this.numBlocks; i++) {
       this.l2Blocks.push(L2Block.random(i));
     }
+  }
+
+  /**
+   * Method to fetch the rollup contract address at the base-layer.
+   * @returns The rollup address.
+   */
+  getRollupAddress(): Promise<EthAddress> {
+    return Promise.resolve(EthAddress.random());
   }
 
   /**

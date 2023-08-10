@@ -2,6 +2,7 @@ import { Archiver } from '@aztec/archiver';
 import {
   CONTRACT_TREE_HEIGHT,
   CircuitsWasm,
+  EthAddress,
   Fr,
   L1_TO_L2_MSG_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
@@ -156,6 +157,14 @@ export class AztecNodeService implements AztecNode {
    */
   public getChainId(): Promise<number> {
     return Promise.resolve(this.chainId);
+  }
+
+  /**
+   * Method to fetch the rollup contract address at the base-layer.
+   * @returns The rollup address.
+   */
+  public getRollupAddress(): Promise<EthAddress> {
+    return this.blockSource.getRollupAddress();
   }
 
   /**

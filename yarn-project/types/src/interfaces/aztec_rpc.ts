@@ -41,6 +41,10 @@ export type NodeInfo = {
    * The network's chain id.
    */
   chainId: number;
+  /**
+   * The rollup contract address
+   */
+  rollupAddress: EthAddress;
 };
 
 /** Provides up to which block has been synced by different components. */

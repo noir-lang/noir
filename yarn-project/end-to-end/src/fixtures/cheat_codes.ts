@@ -257,6 +257,19 @@ export class L2CheatCodes {
   }
 
   /**
+   * Set time of the next execution on L2.
+   * It also modifies time on L1 for next execution and stores this time as the last rollup block on the rollup contract.
+   * @param to - The timestamp to set the next block to (must be greater than current time)
+   */
+  public async warp(to: number): Promise<void> {
+    const rollupContract = (await this.aztecRpc.getNodeInfo()).rollupAddress;
+    await this.l1.setNextBlockTimestamp(to);
+    // also store this time on the rollup contract (slot 1 tracks `lastBlockTs`).
+    // This is because when the sequencer executes public functions, it uses the timestamp stored in the rollup contract.
+    await this.l1.store(rollupContract, 1n, BigInt(to));
+  }
+
+  /**
    * Loads the value stored at the given slot in the public storage of the given contract.
    * @param who - The address of the contract
    * @param slot - The storage slot to lookup

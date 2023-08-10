@@ -257,6 +257,10 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
     return Promise.resolve();
   }
 
+  public getRollupAddress(): Promise<EthAddress> {
+    return Promise.resolve(this.rollupAddress);
+  }
+
   /**
    * Gets up to `limit` amount of L2 blocks starting from `from`.
    * @param from - Number of the first block to return (inclusive).

@@ -1,6 +1,7 @@
 import {
   AztecAddress,
   CONTRACT_TREE_HEIGHT,
+  EthAddress,
   Fr,
   L1_TO_L2_MSG_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
@@ -96,6 +97,13 @@ export class HttpNode implements AztecNode {
     const response = await fetch(url.toString());
     const respJson = await response.json();
     return respJson.version;
+  }
+
+  public async getRollupAddress(): Promise<EthAddress> {
+    const url = new URL(`${this.baseUrl}/get-rollup-address`);
+    const response = await fetch(url.toString());
+    const respJson = await response.json();
+    return EthAddress.fromString(respJson.rollupAddress);
   }
 
   /**
