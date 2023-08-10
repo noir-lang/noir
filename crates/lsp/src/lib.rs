@@ -6,8 +6,8 @@ use std::{
 };
 
 use async_lsp::{
-    router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LanguageClient,
-    LspService, ResponseError,
+    router::Router, AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, ErrorCode,
+    LanguageClient, LspService, ResponseError,
 };
 use codespan_reporting::files;
 use fm::FILE_EXTENSION;
@@ -15,8 +15,8 @@ use lsp_types::{
     notification, request, CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic,
     DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    InitializeParams, InitializeResult, InitializedParams, Position, PublishDiagnosticsParams,
-    Range, ServerCapabilities, TextDocumentSyncOptions,
+    InitializeParams, InitializeResult, InitializedParams, LogMessageParams, MessageType, Position,
+    PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncOptions,
 };
 use nargo::prepare_package;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
@@ -130,14 +130,41 @@ fn on_shutdown(
 }
 
 fn on_code_lens_request(
-    _state: &mut LspState,
+    state: &mut LspState,
     params: CodeLensParams,
 ) -> impl Future<Output = Result<Option<Vec<CodeLens>>, ResponseError>> {
-    let file_path = params.text_document.uri.to_file_path().unwrap();
-    let program_dir = file_path.parent().unwrap();
+    let file_path = match params.text_document.uri.to_file_path() {
+        Ok(file_path) => file_path,
+        Err(()) => {
+            return future::ready(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "URI is not a valid file path",
+            )))
+        }
+    };
 
-    let toml_path = find_package_manifest(program_dir).unwrap();
-    let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
+    let toml_path = match find_package_manifest(&file_path) {
+        Ok(toml_path) => toml_path,
+        Err(err) => {
+            // If we cannot find a manifest, we log a warning but return no code lenses
+            // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
+            let _ = state.client.log_message(LogMessageParams {
+                typ: MessageType::WARNING,
+                message: format!("{}", err),
+            });
+            return future::ready(Ok(None));
+        }
+    };
+    let workspace = match resolve_workspace_from_toml(&toml_path, None) {
+        Ok(workspace) => workspace,
+        Err(err) => {
+            // If we found a manifest, but the workspace is invalid, we raise an error about it
+            return future::ready(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                format!("{}", err),
+            )));
+        }
+    };
 
     let mut lenses: Vec<CodeLens> = vec![];
 
@@ -222,11 +249,40 @@ fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let file_path = params.text_document.uri.to_file_path().unwrap();
-    let program_dir = file_path.parent().unwrap();
+    let file_path = match params.text_document.uri.to_file_path() {
+        Ok(file_path) => file_path,
+        Err(()) => {
+            return ControlFlow::Break(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "URI is not a valid file path",
+            )
+            .into()))
+        }
+    };
 
-    let toml_path = find_package_manifest(program_dir).unwrap();
-    let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
+    let toml_path = match find_package_manifest(&file_path) {
+        Ok(toml_path) => toml_path,
+        Err(err) => {
+            // If we cannot find a manifest, we log a warning but return no diagnostics
+            // We can reconsider this when we can build a file without the need for a Nargo.toml file to resolve deps
+            let _ = state.client.log_message(LogMessageParams {
+                typ: MessageType::WARNING,
+                message: format!("{}", err),
+            });
+            return ControlFlow::Continue(());
+        }
+    };
+    let workspace = match resolve_workspace_from_toml(&toml_path, None) {
+        Ok(workspace) => workspace,
+        Err(err) => {
+            // If we found a manifest, but the workspace is invalid, we raise an error about it
+            return ControlFlow::Break(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                format!("{}", err),
+            )
+            .into()));
+        }
+    };
 
     let mut diagnostics = Vec::new();
 
