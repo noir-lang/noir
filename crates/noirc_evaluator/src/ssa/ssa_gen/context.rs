@@ -537,7 +537,14 @@ impl<'a> FunctionContext<'a> {
     /// version, as it is only needed for recursion.
     pub(super) fn extract_current_value(&mut self, lvalue: &ast::LValue) -> LValue {
         match lvalue {
-            ast::LValue::Ident(ident) => LValue::Ident(self.ident_lvalue(ident)),
+            ast::LValue::Ident(ident) => {
+                let (reference, should_auto_deref) = self.ident_lvalue(ident);
+                if should_auto_deref {
+                    LValue::Dereference { reference }
+                } else {
+                    LValue::Ident
+                }
+            }
             ast::LValue::Index { array, index, .. } => self.index_lvalue(array, index).2,
             ast::LValue::MemberAccess { object, field_index } => {
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
@@ -551,18 +558,18 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    pub(super) fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+    fn dereference_lvalue(&mut self, values: &Values, element_type: &ast::Type) -> Values {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
-            let reference = value.eval(self);
+            let reference = value.eval_reference();
             self.builder.insert_load(reference, element_type).into()
         })
     }
 
     /// Compile the given identifier as a reference - ie. avoid calling .eval()
-    fn ident_lvalue(&self, ident: &ast::Ident) -> Values {
+    fn ident_lvalue(&self, ident: &ast::Ident) -> (Values, bool) {
         match &ident.definition {
-            ast::Definition::Local(id) => self.lookup(*id),
+            ast::Definition::Local(id) => (self.lookup(*id), ident.mutable),
             other => panic!("Unexpected definition found for mutable value: {other}"),
         }
     }
@@ -585,8 +592,13 @@ impl<'a> FunctionContext<'a> {
     fn extract_current_value_recursive(&mut self, lvalue: &ast::LValue) -> (Values, LValue) {
         match lvalue {
             ast::LValue::Ident(ident) => {
-                let variable = self.ident_lvalue(ident);
-                (variable.clone(), LValue::Ident(variable))
+                let (variable, should_auto_deref) = self.ident_lvalue(ident);
+                if should_auto_deref {
+                    let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
+                    (dereferenced, LValue::Dereference { reference: variable })
+                } else {
+                    (variable.clone(), LValue::Ident)
+                }
             }
             ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
@@ -601,7 +613,7 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::Dereference { reference, element_type } => {
                 let (reference, _) = self.extract_current_value_recursive(reference);
-                let dereferenced = self.dereference(&reference, element_type);
+                let dereferenced = self.dereference_lvalue(&reference, element_type);
                 (dereferenced, LValue::Dereference { reference })
             }
         }
@@ -614,7 +626,7 @@ impl<'a> FunctionContext<'a> {
     /// `extract_current_value` for more details.
     pub(super) fn assign_new_value(&mut self, lvalue: LValue, new_value: Values) {
         match lvalue {
-            LValue::Ident(references) => self.assign(references, new_value),
+            LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue } => {
                 let element_size = self.builder.field_constant(self.element_size(array));
 
@@ -811,7 +823,7 @@ impl SharedContext {
 /// Used to remember the results of each step of extracting a value from an ast::LValue
 #[derive(Debug)]
 pub(super) enum LValue {
-    Ident(Values),
+    Ident,
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },
     MemberAccess { old_object: Values, index: usize, object_lvalue: Box<LValue> },
     Dereference { reference: Values },
