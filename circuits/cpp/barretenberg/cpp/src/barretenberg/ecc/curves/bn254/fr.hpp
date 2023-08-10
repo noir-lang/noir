@@ -62,6 +62,7 @@ class Bn254FrParams {
         0x1d9598e8a7e39857ULL, 0x2ba010aa41eb7786ULL, 0x39aa886bdbf356b5ULL, 0x47b5002d75fb35e5ULL,
     };
     static constexpr char schema_name[] = "fr";
+    static constexpr bool has_high_2adicity = true;
 };
 
 typedef field<Bn254FrParams> fr;

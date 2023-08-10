@@ -8,9 +8,7 @@
 #include <cstddef>
 #include <fstream>
 #include <span>
-
 namespace barretenberg {
-
 template <typename Fr> class Polynomial {
   public:
     /**
@@ -107,27 +105,35 @@ template <typename Fr> class Polynomial {
 
     Fr evaluate(const Fr& z, const size_t target_size) const;
     Fr evaluate(const Fr& z) const;
-    Fr compute_barycentric_evaluation(const Fr& z, const EvaluationDomain<Fr>& domain);
 
+    Fr compute_barycentric_evaluation(const Fr& z, const EvaluationDomain<Fr>& domain)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
     Fr evaluate_from_fft(const EvaluationDomain<Fr>& large_domain,
                          const Fr& z,
-                         const EvaluationDomain<Fr>& small_domain);
-
-    void fft(const EvaluationDomain<Fr>& domain);
-    void partial_fft(const EvaluationDomain<Fr>& domain, Fr constant = 1, bool is_coset = false);
-    void coset_fft(const EvaluationDomain<Fr>& domain);
+                         const EvaluationDomain<Fr>& small_domain)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
+    void fft(const EvaluationDomain<Fr>& domain)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
+    void partial_fft(const EvaluationDomain<Fr>& domain, Fr constant = 1, bool is_coset = false)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
+    void coset_fft(const EvaluationDomain<Fr>& domain)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
     void coset_fft(const EvaluationDomain<Fr>& domain,
                    const EvaluationDomain<Fr>& large_domain,
-                   const size_t domain_extension);
-
-    void coset_fft_with_constant(const EvaluationDomain<Fr>& domain, const Fr& costant);
-    void coset_fft_with_generator_shift(const EvaluationDomain<Fr>& domain, const Fr& constant);
-
-    void ifft(const EvaluationDomain<Fr>& domain);
-    void ifft_with_constant(const EvaluationDomain<Fr>& domain, const Fr& constant);
-    void coset_ifft(const EvaluationDomain<Fr>& domain);
-
-    Fr compute_kate_opening_coefficients(const Fr& z);
+                   const size_t domain_extension)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
+    void coset_fft_with_constant(const EvaluationDomain<Fr>& domain, const Fr& costant)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
+    void coset_fft_with_generator_shift(const EvaluationDomain<Fr>& domain, const Fr& constant)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
+    void ifft(const EvaluationDomain<Fr>& domain)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
+    void ifft_with_constant(const EvaluationDomain<Fr>& domain, const Fr& constant)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
+    void coset_ifft(const EvaluationDomain<Fr>& domain)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
+    Fr compute_kate_opening_coefficients(const Fr& z)
+        requires polynomial_arithmetic::SupportsFFT<Fr>;
 
     bool is_empty() const { return (coefficients_ == nullptr) || (size_ == 0); }
 
@@ -252,6 +258,7 @@ template <typename Fr> inline std::ostream& operator<<(std::ostream& os, Polynom
               << "]";
 }
 
+// Done
 // N.B. grumpkin polynomials don't support fast fourier transforms using roots of unity!
 // TODO: use template junk to disable fft methods if Fr::SUPPORTS_FFTS == false
 // extern template class Polynomial<grumpkin::fr>;

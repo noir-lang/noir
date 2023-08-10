@@ -22,8 +22,9 @@
 #endif
 
 namespace barretenberg {
-template <class Params> struct alignas(32) field {
+template <class Params_> struct alignas(32) field {
   public:
+    using Params = Params_;
     typedef uint8_t const* in_buf;
     typedef uint8_t const* vec_in_buf;
     typedef uint8_t* out_buf;

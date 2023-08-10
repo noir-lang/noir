@@ -57,6 +57,7 @@ class Bn254FqParams {
         0x180a96573d3d9f8ULL,  0xf8b21270ddbb927ULL,  0x1d9598e8a7e39857ULL, 0x2ba010aa41eb7786ULL,
     };
     static constexpr char schema_name[] = "fq";
+    static constexpr bool has_high_2adicity = false;
 };
 
 typedef field<Bn254FqParams> fq;
