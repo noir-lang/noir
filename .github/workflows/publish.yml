@@ -15,11 +15,12 @@ on:
     # Run a nightly release at 2 AM UTC
     - cron: "0 2 * * *"
   merge_group:
+  pull_request:
 
 permissions:
   # Necessary to upload new release artifacts
   contents: write
-    
+
 jobs:
   build-barretenberg:
     runs-on: ubuntu-latest
@@ -86,7 +87,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
         uses: actions/download-artifact@v3
@@ -168,7 +169,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
         uses: actions/download-artifact@v3
@@ -244,7 +245,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
         uses: actions/download-artifact@v3
