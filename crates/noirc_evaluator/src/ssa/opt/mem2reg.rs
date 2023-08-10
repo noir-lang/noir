@@ -102,18 +102,18 @@ impl PerFunctionContext {
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
-                    address = self.fetch_load_value_to_substitute_recursively(block_id, address);
+                    address = self.fetch_load_value_to_substitute(block_id, address);
 
                     self.last_stores_with_block.insert((address, block_id), *value);
                     self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { mut address } => {
-                    address = self.fetch_load_value_to_substitute_recursively(block_id, address);
+                    address = self.fetch_load_value_to_substitute(block_id, address);
 
                     let found_last_value = self.find_load_to_substitute(
                         block_id,
-                        dfg,
                         address,
+                        dfg,
                         instruction_id,
                         loads_to_substitute,
                         load_values_to_substitute_per_block,
@@ -160,33 +160,30 @@ impl PerFunctionContext {
         protected_allocations
     }
 
-    // TODO: switch to while-loop based search so I am not recomputing the dom tree or pass it directly outside of the function
-    // I would rather have this func match `find_load_to_substitute`
-    fn fetch_load_value_to_substitute_recursively(
-        &self,
-        block_id: BasicBlockId,
-        address: ValueId,
-    ) -> ValueId {
+    fn fetch_load_value_to_substitute(&self, block_id: BasicBlockId, address: ValueId) -> ValueId {
+        let mut stack = vec![block_id];
         let mut visited = HashSet::new();
-        visited.insert(block_id);
-
-        // If the load value to substitute is in the current block we substitute it
-        if let Some((value, load_block_id)) = self.load_values_to_substitute_per_func.get(&address)
-        {
-            if *load_block_id == block_id {
-                return *value;
-            }
-        }
 
         let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
+        while let Some(block) = stack.pop() {
+            visited.insert(block);
 
-        let predecessors = self.cfg.predecessors(block_id);
-        for predecessor in predecessors {
-            if dom_tree.is_reachable(predecessor)
-                && dom_tree.dominates(predecessor, block_id)
-                && !visited.contains(&predecessor)
+            if let Some((value, load_block_id)) =
+                self.load_values_to_substitute_per_func.get(&address)
             {
-                return self.fetch_load_value_to_substitute_recursively(predecessor, address);
+                if *load_block_id == block {
+                    return *value;
+                }
+            }
+
+            let predecessors = self.cfg.predecessors(block);
+            for predecessor in predecessors {
+                if dom_tree.is_reachable(predecessor)
+                    && dom_tree.dominates(predecessor, block)
+                    && !visited.contains(&predecessor)
+                {
+                    stack.push(predecessor);
+                }
             }
         }
         address
@@ -195,8 +192,8 @@ impl PerFunctionContext {
     fn find_load_to_substitute(
         &mut self,
         block_id: BasicBlockId,
-        dfg: &DataFlowGraph,
         address: ValueId,
+        dfg: &DataFlowGraph,
         instruction_id: &InstructionId,
         loads_to_substitute: &mut BTreeMap<InstructionId, ValueId>,
         load_values_to_substitute_per_block: &mut BTreeMap<ValueId, ValueId>,
