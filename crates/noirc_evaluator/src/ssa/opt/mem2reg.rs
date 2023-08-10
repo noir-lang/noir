@@ -102,19 +102,13 @@ impl PerFunctionContext {
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
-                    address = self.fetch_load_value_to_substitute_recursively(
-                        block_id,
-                        address,
-                    );
+                    address = self.fetch_load_value_to_substitute_recursively(block_id, address);
 
                     self.last_stores_with_block.insert((address, block_id), *value);
                     self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { mut address } => {
-                    address = self.fetch_load_value_to_substitute_recursively(
-                        block_id,
-                        address,
-                    );
+                    address = self.fetch_load_value_to_substitute_recursively(block_id, address);
 
                     let found_last_value = self.find_load_to_substitute(
                         block_id,
@@ -195,10 +189,7 @@ impl PerFunctionContext {
                 }
 
                 if !visited.contains(&predecessor) {
-                    return self.fetch_load_value_to_substitute_recursively(
-                        predecessor,
-                        address,
-                    );
+                    return self.fetch_load_value_to_substitute_recursively(predecessor, address);
                 }
             }
         }
@@ -321,7 +312,7 @@ mod tests {
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
             function::RuntimeType,
-            instruction::{Instruction, Intrinsic, TerminatorInstruction},
+            instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
             map::Id,
             types::Type,
         },
@@ -525,5 +516,96 @@ mod tests {
             }
             _ => unreachable!(),
         };
+    }
+
+    // Test that a load in a predecessor block has been removed if the value
+    // is later stored in a successor block
+    #[test]
+    fn store_with_load_in_predecessor_block() {
+        // fn main {
+        //     b0():
+        //       v0 = allocate
+        //       store Field 0 at v0
+        //       v2 = allocate
+        //       store v0 at v2
+        //       v3 = load v2
+        //       v4 = load v2
+        //       jmp b1()
+        //     b1():
+        //       store Field 1 at v3
+        //       store Field 2 at v4
+        //       v8 = load v3
+        //       v9 = eq v8, Field 2
+        //       return
+        // }
+        let main_id = Id::test_new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
+
+        let v0 = builder.insert_allocate();
+
+        let zero = builder.field_constant(0u128);
+        builder.insert_store(v0, zero);
+
+        let v2 = builder.insert_allocate();
+        builder.insert_store(v2, v0);
+
+        let v3 = builder.insert_load(v2, Type::field());
+        let v4 = builder.insert_load(v2, Type::field());
+        let b1 = builder.insert_block();
+        builder.terminate_with_jmp(b1, vec![]);
+
+        builder.switch_to_block(b1);
+
+        let one = builder.field_constant(1u128);
+        builder.insert_store(v3, one);
+
+        let two = builder.field_constant(2u128);
+        builder.insert_store(v4, two);
+
+        let v8 = builder.insert_load(v3, Type::field());
+        let _ = builder.insert_binary(v8, BinaryOp::Eq, two);
+
+        builder.terminate_with_return(vec![]);
+
+        let ssa = builder.finish();
+        assert_eq!(ssa.main().reachable_blocks().len(), 2);
+
+        // Expected result:
+        // fn main {
+        //     b0():
+        //       v0 = allocate
+        //       v2 = allocate
+        //       jmp b1()
+        //     b1():
+        //       v8 = eq Field 2, Field 2
+        //       return
+        // }
+        let ssa = ssa.mem2reg();
+
+        let main = ssa.main();
+        assert_eq!(main.reachable_blocks().len(), 2);
+
+        // All loads should be removed
+        assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_loads(b1, &main.dfg), 0);
+
+        // All stores should be removed
+        assert_eq!(count_stores(main.entry_block(), &main.dfg), 0);
+        assert_eq!(count_stores(b1, &main.dfg), 0);
+
+        let b1_instructions = main.dfg[b1].instructions();
+        // The first instruction should be a binary operation
+        match &main.dfg[b1_instructions[0]] {
+            Instruction::Binary(binary) => {
+                let lhs =
+                    main.dfg.get_numeric_constant(binary.lhs).expect("Expected constant value");
+                let rhs =
+                    main.dfg.get_numeric_constant(binary.rhs).expect("Expected constant value");
+
+                assert_eq!(lhs, rhs);
+                assert_eq!(lhs, FieldElement::from(2u128));
+            }
+            _ => unreachable!(),
+        }
     }
 }
