@@ -24,6 +24,7 @@ impl Ssa {
     /// scope, and attempts to remove stores that are subsequently redundant.
     /// As long as they are not stores on memory used inside of loops
     pub(crate) fn mem2reg(mut self) -> Ssa {
+        dbg!("start mem2reg");
         for function in self.functions.values_mut() {
             let mut all_protected_allocations = HashSet::new();
 
@@ -53,6 +54,7 @@ impl Ssa {
                 context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, block);
             }
         }
+        dbg!("ended mem2reg");
         self
     }
 }
@@ -175,7 +177,6 @@ impl PerFunctionContext {
         let mut stack = vec![block_id];
         let mut visited = HashSet::new();
 
-        // let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
