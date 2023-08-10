@@ -68,6 +68,27 @@ impl std::fmt::Display for Intrinsic {
 }
 
 impl Intrinsic {
+    /// Returns whether the `Intrinsic` has side effects.
+    ///
+    /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
+    pub(crate) fn has_side_effects(&self) -> bool {
+        match self {
+            Intrinsic::Println => true,
+
+            Intrinsic::Sort
+            | Intrinsic::ArrayLen
+            | Intrinsic::SlicePushBack
+            | Intrinsic::SlicePushFront
+            | Intrinsic::SlicePopBack
+            | Intrinsic::SlicePopFront
+            | Intrinsic::SliceInsert
+            | Intrinsic::SliceRemove
+            | Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_)
+            | Intrinsic::BlackBox(_) => false,
+        }
+    }
+
     /// Lookup an Intrinsic by name and return it if found.
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {

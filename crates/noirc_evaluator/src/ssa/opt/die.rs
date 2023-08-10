@@ -92,12 +92,26 @@ impl Context {
 
         let instruction = &function.dfg[instruction_id];
 
-        // These instruction types cannot be removed
-        if matches!(
-            instruction,
-            Constrain(_) | Call { .. } | Store { .. } | EnableSideEffects { .. }
-        ) {
-            return false;
+        match instruction {
+            // These instruction types can be safely removed
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | Allocate
+            | Load { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => (),
+
+            // These instruction types cannot be removed
+            Constrain(_) | Store { .. } | EnableSideEffects { .. } => return false,
+
+            Call { func, .. } => match function.dfg[*func] {
+                Value::Intrinsic(intrinsic) if !intrinsic.has_side_effects() => {
+                    // Intrinsics without side-effects can be safely removed.
+                }
+                _ => return false,
+            },
         }
 
         let results = function.dfg.instruction_results(instruction_id);
