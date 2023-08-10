@@ -580,7 +580,15 @@ impl<'a> FunctionContext<'a> {
         index: &ast::Expression,
     ) -> (ValueId, ValueId, LValue) {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
-        let old_array = old_array.into_leaf().eval(self);
+        // TODO: handle slices here
+        let old_array = if old_array.count_leaves() > 1 {
+            let x = old_array.into_value_list(self);
+            dbg!(x.clone());
+            x[1]
+        } else {
+            old_array.into_leaf().eval(self)
+        };
+        // let old_array = old_array.into_leaf().eval(self);
         let array_lvalue = Box::new(array_lvalue);
         let index = self.codegen_non_tuple_expression(index);
         (old_array, index, LValue::Index { old_array, index, array_lvalue })
@@ -594,6 +602,7 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
+                dbg!("in LValue::Index");
                 let element = self.codegen_array_index(old_array, index, element_type, *location, None);
                 (element, index_lvalue)
             }
