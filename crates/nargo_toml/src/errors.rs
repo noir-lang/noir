@@ -8,7 +8,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum ManifestError {
     /// Package doesn't have a manifest file
-    #[error("cannot find a Nargo.toml in {}", .0.display())]
+    #[error("cannot find a Nargo.toml for {0}")]
     MissingFile(PathBuf),
 
     #[error("Cannot read file {0} - does it exist?")]

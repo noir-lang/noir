@@ -56,13 +56,13 @@ jobs:
     if: ${{ needs.release-please.outputs.tag-name }}
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch to build-nargo
+      - name: Dispatch to publish workflow
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: publish.yml
-          repo: noir-lang/build-nargo
+          repo: noir-lang/noir
           ref: master
-          token: ${{ secrets.NOIR_REPO_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
   publish-wasm:
