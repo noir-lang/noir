@@ -59,25 +59,29 @@ function processHighlighting(codeSnippet, identifier) {
   return result.trim();
 }
 
+/**
+ * Parse a code file, looking for identifiers of the form:
+ * `docs:start:${identifier}` and `docs:end:{identifier}`.
+ * Extract that section of code.
+ *
+ * It's complicated if code snippet identifiers overlap (i.e. the 'start' of one code snippet is in the
+ * middle of another code snippet). The extra logic in this function searches for all identifiers, and
+ * removes any which fall within the bounds of the code snippet for this particular `identifier` param.
+ * @param {string} filePath
+ * @param {string} identifier
+ * @returns the code snippet, and start and end line numbers which can later be used for creating a link to github source code.
+ */
 function extractCodeSnippet(filePath, identifier) {
   let fileContent = fs.readFileSync(filePath, "utf-8");
   let lineRemovalCount = 0;
   let linesToRemove = [];
 
-  // const startCommonRegexStr = "docs:start:([a-zA-Z0-9-:]+)";
-  // const startRegexStr = `\/\/\s+${startCommonRegexStr}|#s+${startCommonRegexStr}`; // Allow for languages with `//` and `#` comment symbols.
-  // const startRegex = new RegExp(startRegexStr, "g");
-
-  // const endCommonRegexStr = "docs:end:([a-zA-Z0-9-:]+)";
-  // const endRegexStr = `\/\/\s+${endCommonRegexStr}|#s+${endCommonRegexStr}`; // Allow for languages with `//` and `#` comment symbols.
-  // const endRegex = new RegExp(endRegexStr, "g");
-
   const startRegex = /(?:\/\/|#)\s+docs:start:([a-zA-Z0-9-._:]+)/g; // `g` will iterate through the regex.exec loop
   const endRegex = /(?:\/\/|#)\s+docs:end:([a-zA-Z0-9-._:]+)/g;
 
-  // const startRegex = /\/\/\s+docs:start:([a-zA-Z0-9-:]+)/g; // `g` will iterate through the regex.exec loop
-  // const endRegex = /\/\/\s+docs:end:([a-zA-Z0-9-:]+)/g;
-
+  /**
+   * Search for one of the regex statements in the code file. If it's found, return the line as a string and the line number.
+   */
   const lookForMatch = (regex) => {
     let match;
     let matchFound = false;
@@ -90,11 +94,11 @@ function extractCodeSnippet(filePath, identifier) {
         let tempMatch = identifiers.includes(identifier) ? match : null;
 
         if (tempMatch === null) {
-          // If it's not a match, we'll make a note that we should remove the matched text, because it's from some other identifier and should appear in the snippet for this identifier.
+          // If it's not a match, we'll make a note that we should remove the matched text, because it's from some other identifier and should not appear in the snippet for this identifier.
           for (let i = 0; i < lines.length; i++) {
             let line = lines[i];
             if (line.trim() == match[0].trim()) {
-              linesToRemove.push(i);
+              linesToRemove.push(i + 1); // lines are indexed from 1
               ++lineRemovalCount;
             }
           }
@@ -114,9 +118,10 @@ function extractCodeSnippet(filePath, identifier) {
     return [actualMatch, matchedLineNum];
   };
 
-  let [startMatch, lineNum1] = lookForMatch(startRegex);
-  let [endMatch, lineNum2] = lookForMatch(endRegex);
+  let [startMatch, startLineNum] = lookForMatch(startRegex);
+  let [endMatch, endLineNum] = lookForMatch(endRegex);
 
+  // Double-check that the extracted line actually contains the required start and end identifier.
   if (startMatch !== null) {
     const startIdentifiers = startMatch[1].split(":");
     startMatch = startIdentifiers.includes(identifier) ? startMatch : null;
@@ -142,27 +147,37 @@ function extractCodeSnippet(filePath, identifier) {
     }
   }
 
-  let startIndex = startMatch.index;
-  let endIndex = endMatch.index;
-
   let lines = fileContent.split("\n");
 
-  lines = lines.filter((l, i) => {
-    return !linesToRemove.includes(i);
+  // We only want to remove lines which actually fall within the bounds of our code snippet, so narrow down the list of lines that we actually want to remove.
+  linesToRemove = linesToRemove.filter((lineNum) => {
+    const removal_in_bounds = lineNum >= startLineNum && lineNum <= endLineNum;
+    return removal_in_bounds;
   });
 
+  // Remove lines which contain `docs:` comments for unrelated identifiers:
   lines = lines.filter((l, i) => {
-    return i + 1 > lineNum1 && i + 1 < lineNum2 - lineRemovalCount;
+    return !linesToRemove.includes(i + 1); // lines are indexed from 1
   });
 
-  fileContent = lines.join("\n");
+  // Remove lines from the snippet which fall outside the `docs:start` and `docs:end` values.
+  lines = lines.filter((l, i) => {
+    return i + 1 > startLineNum && i + 1 < endLineNum - linesToRemove.length; // lines are indexed from 1
+  });
 
+  // We have our code snippet!
   let codeSnippet = lines.join("\n");
 
-  const startLine = getLineNumberFromIndex(fileContent, startIndex) + 1;
-  const endLine =
-    getLineNumberFromIndex(fileContent, endIndex) - 1 - lineRemovalCount;
+  let startCharIndex = startMatch.index;
+  let endCharIndex = endMatch.index;
 
+  const startLine = getLineNumberFromIndex(codeSnippet, startCharIndex) + 1;
+  const endLine =
+    getLineNumberFromIndex(codeSnippet, endCharIndex) -
+    1 -
+    linesToRemove.length;
+
+  // The code snippet might contain some docusaurus highlighting comments for other identifiers. We should remove those.
   codeSnippet = processHighlighting(codeSnippet, identifier);
 
   return [codeSnippet, startLine, endLine];
@@ -243,8 +258,6 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
 
 async function writeProcessedFiles(docsDir, destDir, cachedDestDir, content) {
   let writePromises = [];
-
-  // if (!Array.isArray(content)) throw new Error("NOT AN ARRAY!!!!");
 
   if (Array.isArray(content)) {
     // It's a dir
