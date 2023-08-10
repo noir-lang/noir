@@ -24,7 +24,6 @@ impl Ssa {
     /// scope, and attempts to remove stores that are subsequently redundant.
     /// As long as they are not stores on memory used inside of loops
     pub(crate) fn mem2reg(mut self) -> Ssa {
-        dbg!("started mem2reg");
         for function in self.functions.values_mut() {
             let mut all_protected_allocations = HashSet::new();
 
@@ -54,7 +53,6 @@ impl Ssa {
                 context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, block);
             }
         }
-        dbg!("done mem2reg");
         self
     }
 }
@@ -66,18 +64,21 @@ struct PerFunctionContext {
     load_values_to_substitute_per_func: BTreeMap<ValueId, (ValueId, BasicBlockId)>,
     store_ids: Vec<InstructionId>,
     cfg: ControlFlowGraph,
-    post_order: PostOrder,
+    dom_tree: DominatorTree,
     loops: Loops,
 }
 
 impl PerFunctionContext {
     fn new(function: &Function) -> Self {
+        let cfg = ControlFlowGraph::with_function(function);
+        let post_order = PostOrder::with_function(function);
+        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         PerFunctionContext {
             last_stores_with_block: BTreeMap::new(),
             load_values_to_substitute_per_func: BTreeMap::new(),
             store_ids: Vec::new(),
-            cfg: ControlFlowGraph::with_function(function),
-            post_order: PostOrder::with_function(function),
+            cfg,
+            dom_tree,
             loops: find_all_loops(function),
         }
     }
@@ -166,11 +167,15 @@ impl PerFunctionContext {
     // The search starts at the block supplied as a parameter. If there is not a load to substitute
     // the CFG is analyzed to determine whether a predecessor block has a load value to substitute.
     // If there is no load value to substitute the original address is returned.
-    fn fetch_load_value_to_substitute(&self, block_id: BasicBlockId, address: ValueId) -> ValueId {
+    fn fetch_load_value_to_substitute(
+        &mut self,
+        block_id: BasicBlockId,
+        address: ValueId,
+    ) -> ValueId {
         let mut stack = vec![block_id];
         let mut visited = HashSet::new();
 
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
+        // let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
@@ -187,8 +192,8 @@ impl PerFunctionContext {
             // If no load values to substitute have been found in the current block, check the block's predecessors.
             let predecessors = self.cfg.predecessors(block);
             for predecessor in predecessors {
-                if dom_tree.is_reachable(predecessor)
-                    && dom_tree.dominates(predecessor, block)
+                if self.dom_tree.is_reachable(predecessor)
+                    && self.dom_tree.dominates(predecessor, block)
                     && !visited.contains(&predecessor)
                 {
                     stack.push(predecessor);
@@ -214,7 +219,6 @@ impl PerFunctionContext {
         let mut stack = vec![block_id];
         let mut visited = HashSet::new();
 
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
@@ -245,8 +249,8 @@ impl PerFunctionContext {
             for predecessor in predecessors {
                 // TODO: Do I need is_reachable here? We are looping over only the reachable blocks but does
                 // that include a reachable block's predecessors?
-                if dom_tree.is_reachable(predecessor)
-                    && dom_tree.dominates(predecessor, block)
+                if self.dom_tree.is_reachable(predecessor)
+                    && self.dom_tree.dominates(predecessor, block)
                     && !visited.contains(&predecessor)
                 {
                     stack.push(predecessor);
