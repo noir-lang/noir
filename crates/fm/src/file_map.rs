@@ -53,12 +53,8 @@ impl FileId {
 pub struct File<'input>(&'input SimpleFile<PathString, String>);
 
 impl<'input> File<'input> {
-    pub fn source(&self) -> &'input str {
+    pub fn source(self) -> &'input str {
         self.0.source()
-    }
-
-    pub fn path(&self) -> &'input PathString {
-        self.0.name()
     }
 }
 
