@@ -9,6 +9,8 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
+use crate::ssa::ir::types::NumericType;
+
 use self::{
     context::FunctionContext,
     value::{Tree, Values},
@@ -117,9 +119,25 @@ impl<'a> FunctionContext<'a> {
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Values {
         match literal {
             ast::Literal::Array(array) => {
-                let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                // let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
                 let typ = Self::convert_non_tuple_type(&array.typ);
-                self.codegen_array(elements, typ)
+
+                let new_convert_type = Self::convert_type(&array.typ);
+                dbg!(new_convert_type.clone());
+                if new_convert_type.count_leaves() > 1 {
+                    let slice_length = ast::Literal::Integer(
+                        (array.contents.len() as u128).into(),
+                        ast::Type::Field,
+                    );
+                    dbg!(slice_length);
+                    let slice_length = self.codegen_literal(&slice_length);
+                    let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                    let slice_contents = self.codegen_array(elements, typ);
+                    Tree::Branch(vec![slice_length, slice_contents])
+                } else {
+                    let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                    self.codegen_array(elements, typ)
+                }
             }
             ast::Literal::Integer(value, typ) => {
                 let typ = Self::convert_non_tuple_type(typ);
@@ -233,9 +251,27 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
-        let array = self.codegen_non_tuple_expression(&index.collection);
-        let index_value = self.codegen_non_tuple_expression(&index.index);
-        self.codegen_array_index(array, index_value, &index.element_type, index.location)
+        // let array = self.codegen_non_tuple_expression(&index.collection);
+        // let index_value = self.codegen_non_tuple_expression(&index.index);
+        // self.codegen_array_index(array, index_value, &index.element_type, index.location)
+        dbg!("codegen_index");
+        let array_or_slice = self.codegen_expression(&index.collection);
+        // dbg!(array_or_slice.clone());
+        if array_or_slice.count_leaves() > 1 {
+            let index_value = self.codegen_non_tuple_expression(&index.index);
+            match &array_or_slice {
+                Tree::Branch(values) => {
+                    let slice_length = values[0].clone().into_leaf().eval(self);
+                    let slice = values[1].clone().into_leaf().eval(self);
+                    self.codegen_array_index(slice, index_value, &index.element_type, index.location, Some(slice_length))
+                }
+                Tree::Leaf(_) => panic!("Nooo"),
+            }
+        } else {
+            let array = self.codegen_non_tuple_expression(&index.collection);
+            let index_value = self.codegen_non_tuple_expression(&index.index);
+            self.codegen_array_index(array, index_value, &index.element_type, index.location, None)
+        }
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -250,7 +286,14 @@ impl<'a> FunctionContext<'a> {
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
         location: Location,
+        max_length: Option<super::ir::value::ValueId>,
     ) -> Values {
+        let array_value = &self.builder.current_function.dfg[array];
+
+        dbg!(array_value.clone());
+        let len = &self.builder.current_function.dfg.try_get_array_length(array);
+        dbg!(len);
+
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size = self.builder.field_constant(type_size as u128);
@@ -261,6 +304,23 @@ impl<'a> FunctionContext<'a> {
         Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
+            let array_type = &self.builder.type_of_value(array);
+            match array_type {
+                Type::Slice(_) => {
+                    let array_len = max_length.expect("ICE: a length must be supplied for indexing slices");
+                    // If the index and the array_len are both Fields we will not be able to perform a less than comparison on them
+                    // Thus, we cast the array len to a u64 before performing the less than comparison
+                    let array_len_int = self.builder.insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 }));
+ 
+                    let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len_int);
+                    self.builder.insert_constrain(is_offset_out_of_bounds);
+                }
+                Type::Array(..) => {
+                    // Nothing needs to done to prepare an array get on an array
+                }
+                _ => unreachable!("must have array or slice but got {array_type}"),
+
+            }
             self.builder.insert_array_get(array, offset, typ).into()
         })
     }

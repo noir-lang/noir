@@ -146,7 +146,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
-        value::ValueId,
+        value::{ValueId, Value},
     },
     ssa_gen::Ssa,
 };
@@ -397,10 +397,83 @@ impl<'f> Context<'f> {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
             // TODO(#1889)
-            Type::Slice(_) => panic!("Cannot return slices from an if expression"),
+            typ @ Type::Slice(_) => {
+                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
+                // panic!("Cannot return slices from an if expression")
+            }
             Type::Reference => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
         }
+    }
+
+    fn merge_slice_values(
+        &mut self,
+        typ: Type,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value_id: ValueId,
+        else_value_id: ValueId,
+    ) -> ValueId {
+        let mut merged = im::Vector::new();
+
+        let element_types = match &typ {
+            Type::Slice(elements) => elements,
+            _ => panic!("Expected slice type"),
+        };
+
+        // TODO: Handle when these are instructions for SlicePushBack rather than
+        // already converted to slices
+        let then_value = self.inserter.function.dfg[then_value_id].clone();
+        let else_value = self.inserter.function.dfg[else_value_id].clone();
+        dbg!(then_value.clone());
+        dbg!(else_value.clone());
+
+        let len = match then_value {
+            Value::Array { array, .. } => {
+                array.len()
+            }
+            _ => panic!("Expected array value"),
+        };
+
+        let else_len = match else_value {
+            Value::Array { array, .. } => {
+                array.len()
+            }
+            _ => panic!("Expected array value"),
+        };
+
+        let len = if len > else_len { len } else { else_len };
+
+        for i in 0..len {
+            for (element_index, element_type) in element_types.iter().enumerate() {
+                let index_value = ((i * element_types.len() + element_index) as u128).into();
+                let index = self.inserter.function.dfg.make_constant(index_value, Type::field());
+
+                let typevars = Some(vec![element_type.clone()]);
+
+                // Works but leads to slices with more values at the end
+                let mut get_element = |array, typevars, len| {
+                    if (len - 1) < index_value.to_u128() as usize {
+                        self.inserter.function.dfg.make_constant(FieldElement::zero(), Type::field())
+                    } else {
+                        let get = Instruction::ArrayGet { array, index };
+                        self.insert_instruction_with_typevars(get, typevars).first()
+                    }
+                };
+
+                let then_element = get_element(then_value_id, typevars.clone(), len);
+                let else_element = get_element(else_value_id, typevars, else_len);
+
+                merged.push_back(self.merge_values(
+                    then_condition,
+                    else_condition,
+                    then_element,
+                    else_element,
+                ));
+            }
+        }  
+        dbg!(merged.clone());
+        self.inserter.function.dfg.make_array(merged, typ)
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
