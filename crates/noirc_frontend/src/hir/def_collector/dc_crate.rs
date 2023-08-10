@@ -1,5 +1,5 @@
 use super::dc_mod::collect_defs;
-use super::errors::DefCollectorErrorKind;
+use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
@@ -151,7 +151,11 @@ impl DefCollector {
                     .import(name.clone(), ns);
 
                 if let Err((first_def, second_def)) = result {
-                    let err = DefCollectorErrorKind::DuplicateImport { first_def, second_def };
+                    let err = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::Import,
+                        first_def,
+                        second_def,
+                    };
                     errors.push(err.into_file_diagnostic(root_file_id));
                 }
             }
@@ -256,8 +260,11 @@ fn collect_impls(
                     let result = module.declare_function(method.name_ident().clone(), *method_id);
 
                     if let Err((first_def, second_def)) = result {
-                        let err =
-                            DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                        let err = DefCollectorErrorKind::Duplicate {
+                            typ: DuplicateType::Function,
+                            first_def,
+                            second_def,
+                        };
                         errors.push(err.into_file_diagnostic(unresolved.file_id));
                     }
                 }

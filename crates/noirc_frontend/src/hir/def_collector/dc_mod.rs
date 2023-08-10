@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTypeAlias},
-    errors::DefCollectorErrorKind,
+    errors::{DefCollectorErrorKind, DuplicateType},
 };
 use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
 use crate::hir::resolution::import::ImportDirective;
@@ -82,7 +82,11 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_global(name, stmt_id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateGlobal { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Global,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -142,7 +146,11 @@ impl<'a> ModCollector<'a> {
                 .declare_function(name, func_id);
 
             if let Err((first_def, second_def)) = result {
-                let error = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let error = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Function,
+                    first_def,
+                    second_def,
+                };
                 errors.push(error.into_file_diagnostic(self.file_id));
             }
         }
@@ -172,7 +180,11 @@ impl<'a> ModCollector<'a> {
                 self.def_collector.def_map.modules[self.module_id.0].declare_struct(name, id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::TypeDefinition,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -211,7 +223,11 @@ impl<'a> ModCollector<'a> {
                 .declare_type_alias(name, type_alias_id);
 
             if let Err((first_def, second_def)) = result {
-                let err = DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Function,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
             }
 
@@ -323,7 +339,11 @@ impl<'a> ModCollector<'a> {
             if let Err((first_def, second_def)) =
                 modules[self.module_id.0].declare_child_module(mod_name.to_owned(), mod_id)
             {
-                let err = DefCollectorErrorKind::DuplicateModuleDecl { first_def, second_def };
+                let err = DefCollectorErrorKind::Duplicate {
+                    typ: DuplicateType::Module,
+                    first_def,
+                    second_def,
+                };
                 errors.push(err.into_file_diagnostic(self.file_id));
                 return None;
             }
