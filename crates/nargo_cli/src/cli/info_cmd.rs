@@ -1,5 +1,6 @@
 use acvm::Backend;
 use clap::Args;
+use iter_extended::try_vecmap;
 use nargo::{package::Package, prepare_package};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{compile_contracts, CompileOptions};
@@ -77,14 +78,13 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
     let contracts = report_errors(result, &context, compile_options.deny_warnings)?;
 
     for contract in contracts {
-        let mut function_info = Vec::new();
-        for function in contract.functions {
+        let function_info: Vec<(String, usize, u32)> = try_vecmap(contract.functions, |function| {
             let num_opcodes = function.bytecode.opcodes.len();
-            let exact_circuit_size = backend
-                .get_exact_circuit_size(&function.bytecode)
-                .map_err(CliError::ProofSystemCompilerError)?;
-            function_info.push((function.name, num_opcodes, exact_circuit_size));
-        }
+            let exact_circuit_size = backend.get_exact_circuit_size(&function.bytecode)?;
+
+            Ok((function.name, num_opcodes, exact_circuit_size))
+        })
+        .map_err(CliError::ProofSystemCompilerError)?;
 
         for info in function_info {
             println!("[{}]({}) Total ACIR opcodes generated: {}", contract.name, info.0, info.1,);
