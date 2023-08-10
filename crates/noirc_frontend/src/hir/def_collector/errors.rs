@@ -8,6 +8,7 @@ use thiserror::Error;
 
 use std::fmt;
 
+#[derive(Debug)]
 pub enum DuplicateType {
     Function,
     Module,
@@ -18,7 +19,7 @@ pub enum DuplicateType {
 
 #[derive(Error, Debug)]
 pub enum DefCollectorErrorKind {
-    #[error("duplicate {typ:?} found in namespace")]
+    #[error("duplicate {typ} found in namespace")]
     Duplicate { typ: DuplicateType, first_def: Ident, second_def: Ident },
     #[error("unresolved import")]
     UnresolvedModuleDecl { mod_name: Ident },
@@ -36,7 +37,7 @@ impl DefCollectorErrorKind {
     }
 }
 
-impl fmt::Debug for DuplicateType {
+impl fmt::Display for DuplicateType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             DuplicateType::Function => write!(f, "function"),
@@ -53,7 +54,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
         match error {
             DefCollectorErrorKind::Duplicate { typ, first_def, second_def } => {
                 let primary_message = format!(
-                    "duplicate definitions of {:?} with name {} found",
+                    "duplicate definitions of {} with name {} found",
                     &typ, &first_def.0.contents
                 );
                 {
