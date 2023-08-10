@@ -44,8 +44,8 @@ fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<
     let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 
-    if package.is_library() {
-        // Libraries do not have ABIs.
+    if package.is_library() || package.is_contract() {
+        // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
         Ok(())
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
