@@ -296,4 +296,3 @@ jobs:
           asset_name: nargo-${{ matrix.target }}.zip
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
-
