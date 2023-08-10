@@ -28,6 +28,8 @@ impl Ssa {
             let mut all_protected_allocations = HashSet::new();
 
             let mut context = PerFunctionContext::new(function);
+            let post_order = PostOrder::with_function(function);
+            let mut dom_tree = DominatorTree::with_cfg_and_post_order(&context.cfg, &post_order);
 
             for block in function.reachable_blocks() {
                 // Maps Load instruction id -> value to replace the result of the load with
@@ -42,6 +44,7 @@ impl Ssa {
                         &mut loads_to_substitute_per_block,
                         &mut load_values_to_substitute,
                         block,
+                        &mut dom_tree,
                     );
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
             }
@@ -53,7 +56,6 @@ impl Ssa {
                 context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, block);
             }
         }
-
         self
     }
 }
@@ -65,7 +67,6 @@ struct PerFunctionContext {
     load_values_to_substitute_per_func: BTreeMap<ValueId, (ValueId, BasicBlockId)>,
     store_ids: Vec<InstructionId>,
     cfg: ControlFlowGraph,
-    post_order: PostOrder,
     loops: Loops,
 }
 
@@ -76,7 +77,6 @@ impl PerFunctionContext {
             load_values_to_substitute_per_func: BTreeMap::new(),
             store_ids: Vec::new(),
             cfg: ControlFlowGraph::with_function(function),
-            post_order: PostOrder::with_function(function),
             loops: find_all_loops(function),
         }
     }
@@ -96,6 +96,7 @@ impl PerFunctionContext {
         loads_to_substitute: &mut BTreeMap<InstructionId, ValueId>,
         load_values_to_substitute_per_block: &mut BTreeMap<ValueId, ValueId>,
         block_id: BasicBlockId,
+        dom_tree: &mut DominatorTree,
     ) -> HashSet<AllocId> {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[block_id];
@@ -103,13 +104,13 @@ impl PerFunctionContext {
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
-                    address = self.fetch_load_value_to_substitute(block_id, address);
+                    address = self.fetch_load_value_to_substitute(block_id, address, dom_tree);
 
                     self.last_stores_with_block.insert((address, block_id), *value);
                     self.store_ids.push(*instruction_id);
                 }
                 Instruction::Load { mut address } => {
-                    address = self.fetch_load_value_to_substitute(block_id, address);
+                    address = self.fetch_load_value_to_substitute(block_id, address, dom_tree);
 
                     let found_last_value = self.find_load_to_substitute(
                         block_id,
@@ -118,6 +119,7 @@ impl PerFunctionContext {
                         instruction_id,
                         loads_to_substitute,
                         load_values_to_substitute_per_block,
+                        dom_tree,
                     );
                     if !found_last_value {
                         protected_allocations.insert(address);
@@ -165,11 +167,11 @@ impl PerFunctionContext {
     // The search starts at the block supplied as a parameter. If there is not a load to substitute
     // the CFG is analyzed to determine whether a predecessor block has a load value to substitute.
     // If there is no load value to substitute the original address is returned.
-    fn fetch_load_value_to_substitute(&self, block_id: BasicBlockId, address: ValueId) -> ValueId {
+    fn fetch_load_value_to_substitute(&self, block_id: BasicBlockId, address: ValueId, dom_tree: &mut DominatorTree) -> ValueId {
         let mut stack = vec![block_id];
         let mut visited = HashSet::new();
 
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
+        // let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
@@ -209,11 +211,11 @@ impl PerFunctionContext {
         instruction_id: &InstructionId,
         loads_to_substitute: &mut BTreeMap<InstructionId, ValueId>,
         load_values_to_substitute_per_block: &mut BTreeMap<ValueId, ValueId>,
+        dom_tree: &mut DominatorTree,
     ) -> bool {
         let mut stack = vec![block_id];
         let mut visited = HashSet::new();
 
-        let mut dom_tree = DominatorTree::with_cfg_and_post_order(&self.cfg, &self.post_order);
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
