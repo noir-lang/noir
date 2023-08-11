@@ -469,6 +469,7 @@ interface MsgpackCombinedAccumulatedData {
   read_request_membership_witnesses: Tuple<MsgpackReadRequestMembershipWitness, 16>;
   new_commitments: Tuple<Buffer, 16>;
   new_nullifiers: Tuple<Buffer, 16>;
+  nullified_commitments: Tuple<Buffer, 16>;
   private_call_stack: Tuple<Buffer, 8>;
   public_call_stack: Tuple<Buffer, 8>;
   new_l2_to_l1_msgs: Tuple<Buffer, 2>;
@@ -497,6 +498,9 @@ export function toCombinedAccumulatedData(o: MsgpackCombinedAccumulatedData): Co
   }
   if (o.new_nullifiers === undefined) {
     throw new Error('Expected new_nullifiers in CombinedAccumulatedData deserialization');
+  }
+  if (o.nullified_commitments === undefined) {
+    throw new Error('Expected nullified_commitments in CombinedAccumulatedData deserialization');
   }
   if (o.private_call_stack === undefined) {
     throw new Error('Expected private_call_stack in CombinedAccumulatedData deserialization');
@@ -539,6 +543,7 @@ export function toCombinedAccumulatedData(o: MsgpackCombinedAccumulatedData): Co
     ),
     mapTuple(o.new_commitments, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.new_nullifiers, (v: Buffer) => Fr.fromBuffer(v)),
+    mapTuple(o.nullified_commitments, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.private_call_stack, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.public_call_stack, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.new_l2_to_l1_msgs, (v: Buffer) => Fr.fromBuffer(v)),
@@ -568,6 +573,9 @@ export function fromCombinedAccumulatedData(o: CombinedAccumulatedData): Msgpack
   }
   if (o.newNullifiers === undefined) {
     throw new Error('Expected newNullifiers in CombinedAccumulatedData serialization');
+  }
+  if (o.nullifiedCommitments === undefined) {
+    throw new Error('Expected nullifiedCommitments in CombinedAccumulatedData serialization');
   }
   if (o.privateCallStack === undefined) {
     throw new Error('Expected privateCallStack in CombinedAccumulatedData serialization');
@@ -610,6 +618,7 @@ export function fromCombinedAccumulatedData(o: CombinedAccumulatedData): Msgpack
     ),
     new_commitments: mapTuple(o.newCommitments, (v: Fr) => toBuffer(v)),
     new_nullifiers: mapTuple(o.newNullifiers, (v: Fr) => toBuffer(v)),
+    nullified_commitments: mapTuple(o.nullifiedCommitments, (v: Fr) => toBuffer(v)),
     private_call_stack: mapTuple(o.privateCallStack, (v: Fr) => toBuffer(v)),
     public_call_stack: mapTuple(o.publicCallStack, (v: Fr) => toBuffer(v)),
     new_l2_to_l1_msgs: mapTuple(o.newL2ToL1Msgs, (v: Fr) => toBuffer(v)),

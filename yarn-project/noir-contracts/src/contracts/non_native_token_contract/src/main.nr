@@ -277,6 +277,13 @@ contract NonNativeToken {
         // The above call to `assert_contains()` also returns a modified note with
         // the header which is necessary for the next step (remove).
 
+        // Set the nonce to nonzero so that the nullifier is treated as persistable
+        // (non-transient) and so the private kernel does not attempt to match it to
+        // a pending noteHash/commitment and squash them.
+        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): remove
+        // this hack once public kernel injects nonces.
+        public_note.header.nonce = 1;
+
         // Consume note in secret!
         pending_shields.remove(&mut context, public_note);
 

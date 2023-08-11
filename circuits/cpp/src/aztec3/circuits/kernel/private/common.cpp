@@ -6,6 +6,7 @@
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
+#include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_call_data.hpp"
 #include "aztec3/circuits/abis/read_request_membership_witness.hpp"
 #include "aztec3/circuits/hash.hpp"
@@ -20,6 +21,7 @@ using aztec3::circuits::abis::ContractLeafPreimage;
 using aztec3::circuits::abis::FunctionData;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::NewContractData;
+using aztec3::circuits::abis::PreviousKernelData;
 using aztec3::circuits::abis::ReadRequestMembershipWitness;
 
 using aztec3::utils::array_length;
@@ -168,6 +170,7 @@ void common_update_end_values(DummyBuilder& builder,
 
     const auto& new_commitments = private_call_public_inputs.new_commitments;
     const auto& new_nullifiers = private_call_public_inputs.new_nullifiers;
+    const auto& nullified_commitments = private_call_public_inputs.nullified_commitments;
 
     const auto& is_static_call = private_call_public_inputs.call_context.is_static_call;
 
@@ -210,7 +213,7 @@ void common_update_end_values(DummyBuilder& builder,
     {
         // nullifiers
         std::array<NT::fr, MAX_NEW_NULLIFIERS_PER_CALL> siloed_new_nullifiers{};
-        for (size_t i = 0; i < new_nullifiers.size(); ++i) {
+        for (size_t i = 0; i < MAX_NEW_NULLIFIERS_PER_CALL; ++i) {
             siloed_new_nullifiers[i] =
                 new_nullifiers[i] == 0 ? 0 : silo_nullifier<NT>(storage_contract_address, new_nullifiers[i]);
         }
@@ -231,6 +234,28 @@ void common_update_end_values(DummyBuilder& builder,
             siloed_new_commitments,
             public_inputs.end.new_commitments,
             format(PRIVATE_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING, "too many new commitments in one tx"));
+
+        // nullified commitments (for matching transient nullifiers to transient commitments)
+        // Since every new_nullifiers entry is paired with a nullified_commitment, EMPTY
+        // is used here for nullified_commitments of persistable nullifiers. EMPTY will still
+        // take up a slot in the nullified_commitments array so that the array lines up properly
+        // with new_nullifiers. This is necessary since the constant-size circuit-array functions
+        // we use assume that the first 0-valued array entry designates the end of the array.
+        std::array<NT::fr, MAX_NEW_NULLIFIERS_PER_CALL> siloed_nullified_commitments{};
+        for (size_t i = 0; i < MAX_NEW_NULLIFIERS_PER_CALL; ++i) {
+            siloed_nullified_commitments[i] =
+                nullified_commitments[i] == fr(0)
+                    ? fr(0)  // don't silo when empty
+                    : nullified_commitments[i] == fr(EMPTY_NULLIFIED_COMMITMENT)
+                          ? fr(EMPTY_NULLIFIED_COMMITMENT)  // don't silo when empty
+                          : silo_commitment<NT>(storage_contract_address, nullified_commitments[i]);
+        }
+
+        push_array_to_array(
+            builder,
+            siloed_nullified_commitments,
+            public_inputs.end.nullified_commitments,
+            format(PRIVATE_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING, "too many new nullified commitments in one tx"));
     }
 
     {  // call stacks
@@ -396,6 +421,33 @@ void common_contract_logic(DummyBuilder& builder,
             "computed_contract_tree_root doesn't match purported_contract_tree_root",
             CircuitErrorCode::PRIVATE_KERNEL__COMPUTED_CONTRACT_TREE_ROOT_AND_PURPORTED_CONTRACT_TREE_ROOT_MISMATCH);
     }
+}
+
+void common_initialise_end_values(PreviousKernelData<NT> const& previous_kernel,
+                                  KernelCircuitPublicInputs<NT>& public_inputs)
+{
+    public_inputs.constants = previous_kernel.public_inputs.constants;
+
+    // Ensure the arrays are the same as previously, before we start pushing more data onto them in other
+    // functions within this circuit:
+    auto& end = public_inputs.end;
+    const auto& start = previous_kernel.public_inputs.end;
+
+    end.new_commitments = start.new_commitments;
+    end.new_nullifiers = start.new_nullifiers;
+    end.nullified_commitments = start.nullified_commitments;
+
+    end.private_call_stack = start.private_call_stack;
+    end.public_call_stack = start.public_call_stack;
+    end.new_l2_to_l1_msgs = start.new_l2_to_l1_msgs;
+
+    end.encrypted_logs_hash = start.encrypted_logs_hash;
+    end.unencrypted_logs_hash = start.unencrypted_logs_hash;
+
+    end.encrypted_log_preimages_length = start.encrypted_log_preimages_length;
+    end.unencrypted_log_preimages_length = start.unencrypted_log_preimages_length;
+
+    end.optionally_revealed_data = start.optionally_revealed_data;
 }
 
 }  // namespace aztec3::circuits::kernel::private_kernel

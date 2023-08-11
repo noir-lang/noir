@@ -291,13 +291,18 @@ export class CombinedAccumulatedData {
      */
     public readRequestMembershipWitnesses: Tuple<ReadRequestMembershipWitness, typeof MAX_READ_REQUESTS_PER_TX>,
     /**
-     * The number of new commitments made in this transaction.
+     * The new commitments made in this transaction.
      */
     public newCommitments: Tuple<Fr, typeof MAX_NEW_COMMITMENTS_PER_TX>,
     /**
-     * The number of new nullifiers made in this transaction.
+     * The new nullifiers made in this transaction.
      */
     public newNullifiers: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
+    /**
+     * The commitments which are nullified by a nullifier in the above list. For pending nullifiers, we have:
+     * nullifiedCommitments[j] != 0 if and only if newNullifiers[j] nullifies nullifiedCommitments[j]
+     */
+    public nullifiedCommitments: Tuple<Fr, typeof MAX_NEW_NULLIFIERS_PER_TX>,
     /**
      * Current private call stack.
      */
@@ -349,6 +354,7 @@ export class CombinedAccumulatedData {
     assertMemberLength(this, 'readRequestMembershipWitnesses', MAX_READ_REQUESTS_PER_TX);
     assertMemberLength(this, 'newCommitments', MAX_NEW_COMMITMENTS_PER_TX);
     assertMemberLength(this, 'newNullifiers', MAX_NEW_NULLIFIERS_PER_TX);
+    assertMemberLength(this, 'nullifiedCommitments', MAX_NEW_NULLIFIERS_PER_TX);
     assertMemberLength(this, 'privateCallStack', MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX);
     assertMemberLength(this, 'publicCallStack', MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX);
     assertMemberLength(this, 'newL2ToL1Msgs', MAX_NEW_L2_TO_L1_MSGS_PER_TX);
@@ -367,6 +373,7 @@ export class CombinedAccumulatedData {
       this.readRequestMembershipWitnesses,
       this.newCommitments,
       this.newNullifiers,
+      this.nullifiedCommitments,
       this.privateCallStack,
       this.publicCallStack,
       this.newL2ToL1Msgs,
@@ -398,6 +405,7 @@ export class CombinedAccumulatedData {
       reader.readArray(MAX_READ_REQUESTS_PER_TX, ReadRequestMembershipWitness),
       reader.readArray(MAX_NEW_COMMITMENTS_PER_TX, Fr),
       reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
+      reader.readArray(MAX_NEW_NULLIFIERS_PER_TX, Fr),
       reader.readArray(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, Fr),
       reader.readArray(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Fr),
       reader.readArray(MAX_NEW_L2_TO_L1_MSGS_PER_TX, Fr),
@@ -427,6 +435,7 @@ export class CombinedAccumulatedData {
       makeTuple(MAX_READ_REQUESTS_PER_TX, Fr.zero),
       makeTuple(MAX_READ_REQUESTS_PER_TX, () => ReadRequestMembershipWitness.empty(BigInt(0))),
       makeTuple(MAX_NEW_COMMITMENTS_PER_TX, Fr.zero),
+      makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
       makeTuple(MAX_NEW_NULLIFIERS_PER_TX, Fr.zero),
       makeTuple(MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX, Fr.zero),
       makeTuple(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Fr.zero),

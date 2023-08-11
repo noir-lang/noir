@@ -4,6 +4,7 @@
 #include "aztec3/circuits/abis/combined_constant_data.hpp"
 #include "aztec3/circuits/abis/constant_historic_block_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_init.hpp"
+#include "aztec3/constants.hpp"
 #include "aztec3/utils/array.hpp"
 
 
@@ -134,8 +135,14 @@ void update_end_values(DummyCircuitBuilder& builder,
 {
     // We only initialized constants member of public_inputs so far. Therefore, there must not be any
     // new nullifiers or logs as part of public_inputs.
+    builder.do_assert(is_array_empty(public_inputs.end.new_commitments),
+                      "public_inputs.end.new_commitments must start as empty in initial kernel iteration",
+                      CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
     builder.do_assert(is_array_empty(public_inputs.end.new_nullifiers),
                       "public_inputs.end.new_nullifiers must start as empty in initial kernel iteration",
+                      CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
+    builder.do_assert(is_array_empty(public_inputs.end.nullified_commitments),
+                      "public_inputs.end.nullified_commitments must start as empty in initial kernel iteration",
                       CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
     builder.do_assert(is_array_empty(public_inputs.end.encrypted_logs_hash),
                       "public_inputs.end.encrypted_logs_hash must start as empty in initial kernel iteration",
@@ -150,10 +157,10 @@ void update_end_values(DummyCircuitBuilder& builder,
         is_array_empty(public_inputs.end.read_request_membership_witnesses),
         "public_inputs.end.read_request_membership_witnesses must start as empty in initial kernel iteration",
         CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
-    builder.do_assert(public_inputs.end.encrypted_log_preimages_length == fr(0),
+    builder.do_assert(public_inputs.end.encrypted_log_preimages_length == NT::fr(0),
                       "public_inputs.end.encrypted_log_preimages_length must start as 0 in initial kernel iteration",
                       CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
-    builder.do_assert(public_inputs.end.unencrypted_log_preimages_length == fr(0),
+    builder.do_assert(public_inputs.end.unencrypted_log_preimages_length == NT::fr(0),
                       "public_inputs.end.unencrypted_log_preimages_length must start as 0 in initial kernel iteration",
                       CircuitErrorCode::PRIVATE_KERNEL__UNSUPPORTED_OP);
 
@@ -161,6 +168,13 @@ void update_end_values(DummyCircuitBuilder& builder,
     array_push(builder,
                public_inputs.end.new_nullifiers,
                private_inputs.tx_request.hash(),
+               format(PRIVATE_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING,
+                      "could not push tx hash nullifier into new_nullifiers array. Too many new nullifiers in one tx"));
+    // Push an empty nullified commitment too since each nullifier must
+    // be paired with a nonzero (real or "empty") nullified commitment
+    array_push(builder,
+               public_inputs.end.nullified_commitments,
+               NT::fr(EMPTY_NULLIFIED_COMMITMENT),
                format(PRIVATE_KERNEL_CIRCUIT_ERROR_MESSAGE_BEGINNING,
                       "could not push tx hash nullifier into new_nullifiers array. Too many new nullifiers in one tx"));
 

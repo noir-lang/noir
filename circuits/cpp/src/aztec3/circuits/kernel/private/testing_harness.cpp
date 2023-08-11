@@ -287,9 +287,9 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
             .call_context = call_context,
             .args_hash = args_hash,
             .return_values = {},
-            .new_commitments = { NT::fr::random_element() },        // One random commitment
-            .new_nullifiers = { NT::fr::random_element() },         // One random nullifier
-            .nullified_commitments = { NT::fr::random_element() },  // One random commitment that was nullified
+            .new_commitments = { NT::fr::random_element() },  // One random commitment
+            .new_nullifiers = { NT::fr::random_element() },   // One random nullifier
+            .nullified_commitments = {},
             .private_call_stack = {},
             .new_l2_to_l1_msgs = {},
             .encrypted_logs_hash = encrypted_logs_hash,

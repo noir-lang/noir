@@ -126,7 +126,7 @@ constexpr size_t NUM_FIELDS_PER_SHA256 = 2;
  * |-----------+-------------------------------+----------------------|
  * | LOW       | n ≤ 8                         | 0 < hash_index ≤ 32  |
  * | MID       | 8 < n ≤ 16                    | 32 < hash_index ≤ 40 |
- * | HIGH      | 16 < n ≤ 44                   | 40 < hash_index ≤ 44 |
+ * | HIGH      | 16 < n ≤ 48                   | 40 < hash_index ≤ 48 |
  * +-----------+-------------------------------+----------------------+
  *
  * Note: When modifying, modify `GeneratorIndexPacker` in packer.hpp accordingly.
@@ -172,7 +172,7 @@ enum GeneratorIndex {
      * Indices with size ≤ 44
      */
     VK = 41,                        // Size = 35
-    PRIVATE_CIRCUIT_PUBLIC_INPUTS,  // Size = 39
+    PRIVATE_CIRCUIT_PUBLIC_INPUTS,  // Size = 45
     PUBLIC_CIRCUIT_PUBLIC_INPUTS,   // Size = 32 (unused)
     FUNCTION_ARGS,                  // Size ≤ 40
 };

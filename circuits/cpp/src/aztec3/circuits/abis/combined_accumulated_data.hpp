@@ -36,6 +36,9 @@ template <typename NCT> struct CombinedAccumulatedData {
 
     std::array<fr, MAX_NEW_COMMITMENTS_PER_TX> new_commitments{};
     std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> new_nullifiers{};
+    std::array<fr, MAX_NEW_NULLIFIERS_PER_TX> nullified_commitments{};
+    // For pending nullifiers, we have:
+    // nullifiedCommitments[j] != 0 <==> newNullifiers[j] nullifies nullifiedCommitments[j]
 
     std::array<fr, MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX> private_call_stack{};
     std::array<fr, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX> public_call_stack{};
@@ -62,6 +65,7 @@ template <typename NCT> struct CombinedAccumulatedData {
                    read_request_membership_witnesses,
                    new_commitments,
                    new_nullifiers,
+                   nullified_commitments,
                    private_call_stack,
                    public_call_stack,
                    new_l2_to_l1_msgs,
@@ -78,8 +82,9 @@ template <typename NCT> struct CombinedAccumulatedData {
         return aggregation_object == other.aggregation_object && read_requests == other.read_requests &&
                read_request_membership_witnesses == other.read_request_membership_witnesses &&
                new_commitments == other.new_commitments && new_nullifiers == other.new_nullifiers &&
-               private_call_stack == other.private_call_stack && public_call_stack == other.public_call_stack &&
-               new_l2_to_l1_msgs == other.new_l2_to_l1_msgs && encrypted_logs_hash == other.encrypted_logs_hash &&
+               nullified_commitments == other.nullified_commitments && private_call_stack == other.private_call_stack &&
+               public_call_stack == other.public_call_stack && new_l2_to_l1_msgs == other.new_l2_to_l1_msgs &&
+               encrypted_logs_hash == other.encrypted_logs_hash &&
                unencrypted_logs_hash == other.unencrypted_logs_hash &&
                encrypted_log_preimages_length == other.encrypted_log_preimages_length &&
                unencrypted_log_preimages_length == other.unencrypted_log_preimages_length &&
@@ -111,6 +116,7 @@ template <typename NCT> struct CombinedAccumulatedData {
 
             to_ct(new_commitments),
             to_ct(new_nullifiers),
+            to_ct(nullified_commitments),
 
             to_ct(private_call_stack),
             to_ct(public_call_stack),
@@ -151,6 +157,7 @@ template <typename NCT> struct CombinedAccumulatedData {
 
             to_nt(new_commitments),
             to_nt(new_nullifiers),
+            to_nt(nullified_commitments),
 
             to_nt(private_call_stack),
             to_nt(public_call_stack),
@@ -181,6 +188,7 @@ template <typename NCT> struct CombinedAccumulatedData {
 
         set_array_public(new_commitments);
         set_array_public(new_nullifiers);
+        set_array_public(nullified_commitments);
 
         set_array_public(private_call_stack);
         set_array_public(public_call_stack);
@@ -257,6 +265,8 @@ template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedAccum
               << accum_data.new_commitments << "\n"
               << "new_nullifiers:\n"
               << accum_data.new_nullifiers << "\n"
+              << "nullified_commitments:\n"
+              << accum_data.nullified_commitments << "\n"
               << "private_call_stack:\n"
               << accum_data.private_call_stack << "\n"
               << "public_call_stack:\n"
