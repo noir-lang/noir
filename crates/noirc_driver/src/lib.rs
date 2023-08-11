@@ -179,6 +179,7 @@ pub fn compile_contracts(
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
     let warnings = check_crate(context, crate_id, options.deny_warnings)?;
 
+    // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
     let mut compiled_contracts = vec![];
     let mut errors = warnings;

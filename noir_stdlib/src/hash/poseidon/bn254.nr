@@ -68,8 +68,8 @@ fn permute<M,N,O>(
 fn absorb<M,N,O,P>(
     pos_conf: PoseidonConfig<M, N>,
     mut state: [Field; O], // Initial state; usually [0; O]
-    rate: comptime Field, // Rate
-    capacity: comptime Field, // Capacity; usually 1
+    rate: Field, // Rate
+    capacity: Field, // Capacity; usually 1
     msg: [Field; P] // Arbitrary length message
 ) -> [Field; O] {
 

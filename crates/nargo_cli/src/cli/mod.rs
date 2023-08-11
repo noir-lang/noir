@@ -1,10 +1,9 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
+use nargo_toml::find_package_root;
 use std::path::PathBuf;
 
 use color_eyre::eyre;
-
-use crate::find_package_root;
 
 mod fs;
 
@@ -61,7 +60,7 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
 }
 
-pub fn start_cli() -> eyre::Result<()> {
+pub(crate) fn start_cli() -> eyre::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.
@@ -86,62 +85,4 @@ pub fn start_cli() -> eyre::Result<()> {
     }?;
 
     Ok(())
-}
-
-// FIXME: I not sure that this is the right place for this tests.
-#[cfg(test)]
-mod tests {
-    use fm::FileManager;
-    use noirc_driver::{check_crate, prepare_crate};
-    use noirc_errors::reporter;
-    use noirc_frontend::{graph::CrateGraph, hir::Context};
-
-    use std::path::{Path, PathBuf};
-
-    const TEST_DATA_DIR: &str = "tests/compile_tests_data";
-
-    /// Compiles a file and returns true if compilation was successful
-    ///
-    /// This is used for tests.
-    fn file_compiles(root_dir: &Path, root_file: &Path) -> bool {
-        let fm = FileManager::new(root_dir);
-        let graph = CrateGraph::default();
-        let mut context = Context::new(fm, graph);
-        let crate_id = prepare_crate(&mut context, root_file);
-
-        let result = check_crate(&mut context, crate_id, false);
-        let success = result.is_ok();
-
-        let errors = match result {
-            Ok(warnings) => warnings,
-            Err(errors) => errors,
-        };
-
-        reporter::report_all(&context.file_manager, &errors, false);
-        success
-    }
-
-    #[test]
-    fn compilation_pass() {
-        let pass_dir =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
-
-        let paths = std::fs::read_dir(&pass_dir).unwrap();
-        for path in paths.flatten() {
-            let path = path.path();
-            assert!(file_compiles(&pass_dir, &path), "path: {}", path.display());
-        }
-    }
-
-    #[test]
-    fn compilation_fail() {
-        let fail_dir =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
-
-        let paths = std::fs::read_dir(&fail_dir).unwrap();
-        for path in paths.flatten() {
-            let path = path.path();
-            assert!(!file_compiles(&fail_dir, &path), "path: {}", path.display());
-        }
-    }
 }

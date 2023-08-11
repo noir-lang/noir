@@ -7,6 +7,7 @@ members = [
     "crates/noirc_driver",
     "crates/nargo",
     "crates/nargo_cli",
+    "crates/nargo_toml",
     "crates/fm",
     "crates/arena",
     "crates/noirc_abi",
@@ -30,6 +31,7 @@ fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
 nargo = { path = "crates/nargo" }
 nargo_cli = { path = "crates/nargo_cli" }
+nargo_toml = { path = "crates/nargo_toml" }
 noir_lsp = { path = "crates/lsp" }
 noirc_abi = { path = "crates/noirc_abi" }
 noirc_driver = { path = "crates/noirc_driver" }
@@ -55,6 +57,3 @@ url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
-
-[patch.crates-io]
-async-lsp = { git = "https://github.com/oxalica/async-lsp", rev = "09dbcc11046f7a188a80137f8d36484d86c78c78" }

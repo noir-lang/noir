@@ -215,6 +215,14 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+        let element_types = Self::convert_type(element_type);
+        values.map_both(element_types, |value, element_type| {
+            let reference = value.eval(self);
+            self.builder.insert_load(reference, element_type).into()
+        })
+    }
+
     fn codegen_reference(&mut self, expr: &Expression) -> Values {
         match expr {
             Expression::Ident(ident) => self.codegen_ident_reference(ident),
@@ -298,13 +306,24 @@ impl<'a> FunctionContext<'a> {
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
         let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
 
+        self.builder.set_location(for_expr.start_range_location);
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range);
+
+        self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range);
 
-        self.builder.terminate_with_jmp(loop_entry, vec![start_index]);
+        // Set the location of the initial jmp instruction to the start range. This is the location
+        // used to issue an error if the start range cannot be determined at compile-time.
+        let jmp_location = Some(for_expr.start_range_location);
+        self.builder.terminate_with_jmp_with_location(loop_entry, vec![start_index], jmp_location);
 
         // Compile the loop entry block
         self.builder.switch_to_block(loop_entry);
+
+        // Set the location of the ending Lt instruction and the jmpif back-edge of the loop to the
+        // end range. These are the instructions used to issue an error if the end of the range
+        // cannot be determined at compile-time.
+        self.builder.set_location(for_expr.end_range_location);
         let jump_condition = self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
         self.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
 

@@ -399,7 +399,7 @@ impl DataFlowGraph {
     /// source block.
     pub(crate) fn inline_block(&mut self, source: BasicBlockId, destination: BasicBlockId) {
         let source = &mut self.blocks[source];
-        let mut instructions = std::mem::take(source.instructions_mut());
+        let mut instructions = source.take_instructions();
         let terminator = source.take_terminator();
 
         let destination = &mut self.blocks[destination];
@@ -408,14 +408,19 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_location(&self, id: &InstructionId) -> Option<Location> {
-        self.locations.get(id).cloned()
+        self.locations.get(id).copied()
     }
 
     pub(crate) fn get_value_location(&self, id: &ValueId) -> Option<Location> {
-        match &self.values[*id] {
+        match &self.values[self.resolve(*id)] {
             Value::Instruction { instruction, .. } => self.get_location(instruction),
             _ => None,
         }
+    }
+
+    /// True if the given ValueId refers to a constant value
+    pub(crate) fn is_constant(&self, argument: ValueId) -> bool {
+        !matches!(&self[self.resolve(argument)], Value::Instruction { .. } | Value::Param { .. })
     }
 }
 
@@ -483,9 +488,7 @@ impl<'dfg> InsertInstructionResult<'dfg> {
             InsertInstructionResult::Results(results) => Cow::Borrowed(results),
             InsertInstructionResult::SimplifiedTo(result) => Cow::Owned(vec![result]),
             InsertInstructionResult::SimplifiedToMultiple(results) => Cow::Owned(results),
-            InsertInstructionResult::InstructionRemoved => {
-                panic!("InsertInstructionResult::results called on a removed instruction")
-            }
+            InsertInstructionResult::InstructionRemoved => Cow::Owned(vec![]),
         }
     }
 

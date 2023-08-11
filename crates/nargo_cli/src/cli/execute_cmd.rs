@@ -5,6 +5,7 @@ use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
 use nargo::NargoError;
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
@@ -16,8 +17,6 @@ use super::compile_cmd::compile_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::errors::CliError;
-use crate::find_package_manifest;
-use crate::manifest::resolve_workspace_from_toml;
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]

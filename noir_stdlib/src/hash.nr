@@ -11,7 +11,7 @@ fn pedersen<N>(input : [Field; N]) -> [Field; 2] {
 }
 
 #[foreign(pedersen)]
-fn pedersen_with_separator<N>(_input : [Field; N], _separator : comptime u32) -> [Field; 2] {}
+fn pedersen_with_separator<N>(_input : [Field; N], _separator : u32) -> [Field; 2] {}
 
 #[foreign(hash_to_field_128_security)]
 fn hash_to_field<N>(_input : [Field; N]) -> Field {}

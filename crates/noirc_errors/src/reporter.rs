@@ -74,6 +74,10 @@ impl CustomDiagnostic {
     pub fn is_error(&self) -> bool {
         matches!(self.kind, DiagnosticKind::Error)
     }
+
+    pub fn is_warrning(&self) -> bool {
+        matches!(self.kind, DiagnosticKind::Warning)
+    }
 }
 
 impl std::fmt::Display for CustomDiagnostic {
