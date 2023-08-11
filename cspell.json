@@ -50,6 +50,7 @@
         "pedersen",
         "peekable",
         "preprocess",
+        "prettytable",
         "pseudocode",
         "schnorr",
         "sdiv",
