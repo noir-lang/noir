@@ -919,7 +919,10 @@ impl<'a> Resolver<'a> {
     fn resolve_lvalue(&mut self, lvalue: LValue) -> HirLValue {
         match lvalue {
             LValue::Ident(ident) => {
-                HirLValue::Ident(self.find_variable_or_default(&ident).0, Type::Error)
+                let ident = self.find_variable_or_default(&ident);
+                self.resolve_local_variable(ident.0, ident.1);
+
+                HirLValue::Ident(ident.0, Type::Error)
             }
             LValue::MemberAccess { object, field_name } => {
                 let object = Box::new(self.resolve_lvalue(*object));
@@ -1018,8 +1021,8 @@ impl<'a> Resolver<'a> {
                                 self.interner.push_definition_type(hir_ident.id, typ);
                             }
                         }
-                        // We ignore the above definition kinds because only local variables can be captured by closures.
                         DefinitionKind::Local(_) => {
+                            // only local variables can be captured by closures.
                             self.resolve_local_variable(hir_ident, var_scope_index);
                         }
                     }

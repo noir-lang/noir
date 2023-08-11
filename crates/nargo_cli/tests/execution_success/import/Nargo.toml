@@ -1,5 +1,5 @@
 [package]
-name = "pass_import"
+name = "import"
 type = "bin"
 authors = [""]
 compiler_version = "0.1"

@@ -8,7 +8,8 @@ use nargo::prepare_package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{
-    compile_contracts, compile_main, CompileOptions, CompiledProgram, ErrorsAndWarnings, Warnings,
+    compile_contracts, compile_main, CompileOptions, CompiledContract, CompiledProgram,
+    ErrorsAndWarnings, Warnings,
 };
 use noirc_errors::debug_info::DebugInfo;
 use noirc_frontend::graph::CrateName;
@@ -69,6 +70,8 @@ pub(crate) fn run<B: Backend>(
         if package.is_contract() {
             let result = compile_contracts(&mut context, crate_id, &args.compile_options);
             let contracts = report_errors(result, &context, args.compile_options.deny_warnings)?;
+            let optimized_contracts =
+                try_vecmap(contracts, |contract| optimize_contract(backend, contract))?;
 
             // TODO(#1389): I wonder if it is incorrect for nargo-core to know anything about contracts.
             // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
@@ -77,21 +80,8 @@ pub(crate) fn run<B: Backend>(
             let preprocessed_contracts: Result<
                 Vec<(PreprocessedContract, Vec<DebugInfo>)>,
                 CliError<B>,
-            > = try_vecmap(contracts, |contract| {
-                let preprocess_result = try_vecmap(contract.functions, |mut func| {
-                    let (optimized_bytecode, opcode_labels) =
-                        optimize_circuit(backend, func.bytecode)?;
-
-                    let opcode_ids = vecmap(opcode_labels, |label| match label {
-                        OpcodeLabel::Unresolved => {
-                            unreachable!("Compiled circuit opcodes must resolve to some index")
-                        }
-                        OpcodeLabel::Resolved(index) => index as usize,
-                    });
-
-                    func.debug.update_acir(opcode_ids);
-                    func.bytecode = optimized_bytecode;
-
+            > = try_vecmap(optimized_contracts, |contract| {
+                let preprocess_result = try_vecmap(contract.functions, |func| {
                     common_reference_string = update_common_reference_string(
                         backend,
                         &common_reference_string,
@@ -201,6 +191,27 @@ pub(super) fn optimize_circuit<B: Backend>(
     .map_err(|_| NargoError::CompilationError)?;
 
     Ok(result)
+}
+
+pub(super) fn optimize_contract<B: Backend>(
+    backend: &B,
+    contract: CompiledContract,
+) -> Result<CompiledContract, CliError<B>> {
+    let functions = try_vecmap(contract.functions, |mut func| {
+        let (optimized_bytecode, opcode_labels) = optimize_circuit(backend, func.bytecode)?;
+        let opcode_ids = vecmap(opcode_labels, |label| match label {
+            OpcodeLabel::Unresolved => {
+                unreachable!("Compiled circuit opcodes must resolve to some index")
+            }
+            OpcodeLabel::Resolved(index) => index as usize,
+        });
+
+        func.bytecode = optimized_bytecode;
+        func.debug.update_acir(opcode_ids);
+        Ok::<_, CliError<B>>(func)
+    })?;
+
+    Ok(CompiledContract { functions, ..contract })
 }
 
 /// Helper function for reporting any errors in a Result<(T, Warnings), ErrorsAndWarnings>
