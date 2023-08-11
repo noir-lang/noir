@@ -1,18 +1,20 @@
 use crate::errors::CliError;
 
 use super::fs::{create_named_dir, write_to_file};
-use super::{crate_name_parser, NargoConfig, CARGO_PKG_VERSION};
+use super::{NargoConfig, CARGO_PKG_VERSION};
 use acvm::Backend;
 use clap::Args;
 use nargo::constants::{PKG_FILE, SRC_DIR};
 use nargo::package::PackageType;
+use noirc_frontend::graph::CrateName;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 /// Create a Noir project in the current directory.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {
     /// Name of the package [default: current directory name]
-    #[clap(long, value_parser = crate_name_parser)]
+    #[clap(long, value_parser = CrateName::from_str)]
     name: Option<String>,
 
     /// Use a library template

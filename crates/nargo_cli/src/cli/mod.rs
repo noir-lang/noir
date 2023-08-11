@@ -86,13 +86,3 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 
     Ok(())
 }
-
-fn crate_name_parser(name: &str) -> Result<String, String> {
-    use noirc_frontend::graph::CrateName;
-
-    if CrateName::is_valid_name(name) {
-        Ok(name.into())
-    } else {
-        Err("Package names must be non-empty and cannot contain hyphens".into())
-    }
-}

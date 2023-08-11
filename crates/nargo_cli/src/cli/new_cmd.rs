@@ -1,10 +1,11 @@
 use crate::errors::CliError;
 
-use super::{crate_name_parser, init_cmd::initialize_project, NargoConfig};
+use super::{init_cmd::initialize_project, NargoConfig};
 use acvm::Backend;
 use clap::Args;
 use nargo::package::PackageType;
-use std::path::PathBuf;
+use noirc_frontend::graph::CrateName;
+use std::{path::PathBuf, str::FromStr};
 
 /// Create a Noir project in a new directory.
 #[derive(Debug, Clone, Args)]
@@ -13,7 +14,7 @@ pub(crate) struct NewCommand {
     path: PathBuf,
 
     /// Name of the package [default: package directory name]
-    #[clap(long, value_parser = crate_name_parser)]
+    #[clap(long, value_parser = CrateName::from_str)]
     name: Option<String>,
 
     /// Use a library template

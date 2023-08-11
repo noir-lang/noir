@@ -63,7 +63,7 @@ impl FromStr for CrateName {
         if Self::is_valid_name(name) {
             Ok(Self(SmolStr::new(name)))
         } else {
-            Err(name.into())
+            Err("Package names must be non-empty and cannot contain hyphens".into())
         }
     }
 }
