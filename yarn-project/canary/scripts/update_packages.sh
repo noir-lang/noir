@@ -19,3 +19,5 @@ TMP=$(mktemp)
 for PKG in $(jq --raw-output ".dependencies | keys[] | select(contains(\"@aztec/\"))" package.json); do
   jq --arg v $VERSION ".dependencies[\"$PKG\"] = \$v" package.json > $TMP && mv $TMP package.json
 done
+
+jq ".references = []" tsconfig.json > $TMP && mv $TMP tsconfig.json

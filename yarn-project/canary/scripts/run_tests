@@ -4,12 +4,8 @@
 set -e
 
 export TEST=$1
-export COMPOSE_FILE=${2:-docker-compose.yml}
-
-if [ -z "$COMMIT_TAG" ]; then
-  echo "Will only run the canary on tagged builds. Skipping."
-  exit 0
-fi
+export IMAGE=${2:-canary}
+export COMPOSE_FILE=${3:-docker-compose.yml}
 
 if [ "$TEST" = "uniswap_trade_on_l1_from_l2.test.ts" ]; then
   export FORK_URL=https://mainnet.infura.io/v3/9928b52099854248b3a096be07a6b23c
@@ -19,8 +15,8 @@ fi
 if [ -n "$COMMIT_HASH" ]; then
   $(aws ecr get-login --region us-east-2 --no-include-email) 2> /dev/null
 
-  docker pull 278380418400.dkr.ecr.us-east-2.amazonaws.com/canary:cache-$COMMIT_HASH
-  docker tag 278380418400.dkr.ecr.us-east-2.amazonaws.com/canary:cache-$COMMIT_HASH aztecprotocol/canary:latest
+  docker pull 278380418400.dkr.ecr.us-east-2.amazonaws.com/$IMAGE:cache-$COMMIT_HASH
+  docker tag 278380418400.dkr.ecr.us-east-2.amazonaws.com/$IMAGE:cache-$COMMIT_HASH aztecprotocol/canary:latest
 fi
 
 docker-compose rm -f

@@ -18,6 +18,16 @@
     "composite": true,
     "skipLibCheck": true
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../aztec.js"
+    },
+    {
+      "path": "../l1-artifacts"
+    },
+    {
+      "path": "../noir-contracts"
+    }
+  ],
   "include": ["src"]
 }

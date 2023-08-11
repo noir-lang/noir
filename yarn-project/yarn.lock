@@ -257,6 +257,26 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aztec/canary@workspace:canary":
+  version: 0.0.0-use.local
+  resolution: "@aztec/canary@workspace:canary"
+  dependencies:
+    "@aztec/aztec.js": "workspace:^"
+    "@aztec/l1-artifacts": "workspace:^"
+    "@aztec/noir-contracts": "workspace:^"
+    "@jest/globals": ^29.5.0
+    "@rushstack/eslint-patch": ^1.1.4
+    "@types/jest": ^29.5.0
+    "@types/node": ^18.7.23
+    jest: ^29.5.0
+    ts-jest: ^29.1.0
+    ts-node: ^10.9.1
+    tslib: ^2.4.0
+    typescript: ^5.0.4
+    viem: ^1.2.5
+  languageName: unknown
+  linkType: soft
+
 "@aztec/circuits.js@workspace:^, @aztec/circuits.js@workspace:circuits.js":
   version: 0.0.0-use.local
   resolution: "@aztec/circuits.js@workspace:circuits.js"

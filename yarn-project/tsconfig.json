@@ -25,6 +25,7 @@
     { "path": "aztec-node/tsconfig.json" },
     { "path": "aztec-rpc/tsconfig.json" },
     { "path": "aztec-sandbox/tsconfig.json" },
+    { "path": "canary/tsconfig.json" },
     { "path": "circuits.js/tsconfig.json" },
     { "path": "end-to-end/tsconfig.json" },
     { "path": "foundation/tsconfig.json" },

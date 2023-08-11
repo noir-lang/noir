@@ -622,6 +622,17 @@ jobs:
           name: "Build and test"
           command: build sequencer-client
 
+  canary:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Build"
+          command: cond_spot_run_build canary-build 32
+
   end-to-end:
     machine:
       image: ubuntu-2004:202010-01
@@ -881,18 +892,6 @@ jobs:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_p2p_network.test.ts
 
-  # TODO(AD): Reenable after #1367
-  # e2e-uniswap-sandbox:
-  #   docker:
-  #     - image: aztecprotocol/alpine-build-image
-  #   resource_class: small
-  #   steps:
-  #     - *checkout
-  #     - *setup_env
-  #     - run:
-  #         name: "Test"
-  #         command: cond_spot_run_tests end-to-end uniswap_trade_on_l1_from_l2.test.ts docker-compose-e2e-sandbox.yml
-
   e2e-browser-sandbox:
     docker:
       - image: aztecprotocol/alpine-build-image
@@ -903,6 +902,17 @@ jobs:
       - run:
           name: "Test"
           command: cond_spot_run_tests end-to-end e2e_aztec_js_browser.test.ts docker-compose-e2e-sandbox.yml
+
+  e2e-canary-test:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_test_script ./scripts/run_tests canary-build uniswap_trade_on_l1_from_l2.test.ts canary-build docker-compose-e2e-sandbox.yml
 
   e2e-join:
     docker:
@@ -1006,7 +1016,7 @@ jobs:
           name: "Noop"
           command: echo Noop
 
-  build-canary:
+  build-deployment-canary:
     machine:
       image: ubuntu-2004:202010-01
     resource_class: large
@@ -1017,7 +1027,7 @@ jobs:
           name: "Build and test"
           command: build canary true
 
-  run-canary:
+  run-deployment-canary:
     docker:
       - image: aztecprotocol/alpine-build-image
     resource_class: small
@@ -1026,7 +1036,7 @@ jobs:
       - *setup_env
       - run:
           name: "Test"
-          command: spot_run_tests canary uniswap_trade_on_l1_from_l2.test.ts docker-compose.yml
+          command: spot_run_test_script ./scripts/run_tests canary uniswap_trade_on_l1_from_l2.test.ts canary docker-compose.yml
 
 # Repeatable config for defining the workflow below.
 tag_regex: &tag_regex /^v.*/
@@ -1043,12 +1053,10 @@ defaults: &defaults
         branch_pattern: "master"
 deploy_defaults: &deploy_defaults
   filters:
-    branches:
-      only:
-        - master
-        - stage
     tags:
       only: *tag_regex
+    branches:
+      ignore: /.*/
   context:
     - build
     - slack
@@ -1173,6 +1181,7 @@ workflows:
       - circuits-js: *yarn_project
       - rollup-provider: *yarn_project
       - aztec-sandbox: *yarn_project
+      - canary: *yarn_project
 
       - e2e-join:
           requires:
@@ -1198,6 +1207,7 @@ workflows:
             - circuits-js
             - rollup-provider
             - aztec-sandbox
+            - canary
           <<: *defaults
 
       - e2e-2-rpc-servers: *e2e_test
@@ -1219,8 +1229,7 @@ workflows:
       - integration-l1-publisher: *e2e_test
       - integration-archiver-l1-to-l2: *e2e_test
       - e2e-p2p: *e2e_test
-      # TODO(AD): Reenable after #1367
-      # - e2e-uniswap-sandbox: *e2e_test
+      - e2e-canary-test: *e2e_test
       - e2e-browser-sandbox: *e2e_test
 
       - e2e-end:
@@ -1244,9 +1253,8 @@ workflows:
             - integration-l1-publisher
             - integration-archiver-l1-to-l2
             - e2e-p2p
-            # TODO(AD): Reenable after #1367
-            # - e2e-uniswap-sandbox
             - e2e-browser-sandbox
+            - e2e-canary-test
           <<: *defaults
 
       - deploy-dockerhub:
@@ -1265,12 +1273,12 @@ workflows:
             - deploy-npm
           <<: *deploy_defaults
 
-      - build-canary:
+      - build-deployment-canary:
           requires:
             - deploy-end
           <<: *deploy_defaults
 
-      - run-canary:
+      - run-deployment-canary:
           requires:
-            - build-canary
+            - build-deployment-canary
           <<: *deploy_defaults

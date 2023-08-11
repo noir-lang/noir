@@ -21,9 +21,9 @@
     "rootDir": "./src"
   },
   "dependencies": {
-    "@aztec/aztec.js": "latest",
-    "@aztec/l1-artifacts": "latest",
-    "@aztec/noir-contracts": "latest",
+    "@aztec/aztec.js": "workspace:^",
+    "@aztec/l1-artifacts": "workspace:^",
+    "@aztec/noir-contracts": "workspace:^",
     "@jest/globals": "^29.5.0",
     "@types/jest": "^29.5.0",
     "@types/node": "^18.7.23",
