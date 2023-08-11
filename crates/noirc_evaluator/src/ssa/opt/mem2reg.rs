@@ -67,7 +67,6 @@ struct PerFunctionContext {
     store_ids: Vec<InstructionId>,
     cfg: ControlFlowGraph,
     dom_tree: DominatorTree,
-    loops: Loops,
 }
 
 impl PerFunctionContext {
@@ -81,7 +80,6 @@ impl PerFunctionContext {
             store_ids: Vec::new(),
             cfg,
             dom_tree,
-            loops: find_all_loops(function),
         }
     }
 }
@@ -190,15 +188,8 @@ impl PerFunctionContext {
                 }
             }
 
-            // If no load values to substitute have been found in the current block, check the block's predecessors.
-            let predecessors = self.cfg.predecessors(block);
-            for predecessor in predecessors {
-                if self.dom_tree.is_reachable(predecessor)
-                    && self.dom_tree.dominates(predecessor, block)
-                    && !visited.contains(&predecessor)
-                {
-                    stack.push(predecessor);
-                }
+            if let Some(predecessor) = self.block_has_predecessor(block, &visited) {
+                stack.push(predecessor);
             }
         }
         address
@@ -223,14 +214,6 @@ impl PerFunctionContext {
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
-            for l in self.loops.yet_to_unroll.iter() {
-                // We do not want to substitute loads that take place within loops as this pass
-                // can occur before loop unrolling
-                if block == l.header {
-                    return false;
-                }
-            }
-
             // Check whether there has been a store instruction in the current block
             // If there has been a store, add a load to be substituted.
             if let Some(last_value) = self.last_stores_with_block.get(&(address, block)) {
@@ -245,20 +228,33 @@ impl PerFunctionContext {
                 return true;
             }
 
-            // If no stores have been found in the current block, check the block's predecessors.
-            let predecessors = self.cfg.predecessors(block);
-            for predecessor in predecessors {
-                // TODO: Do I need is_reachable here? We are looping over only the reachable blocks but does
-                // that include a reachable block's predecessors?
-                if self.dom_tree.is_reachable(predecessor)
-                    && self.dom_tree.dominates(predecessor, block)
-                    && !visited.contains(&predecessor)
-                {
-                    stack.push(predecessor);
-                }
+            if let Some(predecessor) = self.block_has_predecessor(block, &visited) {
+                stack.push(predecessor);
             }
         }
         false
+    }
+
+    // If no loads or stores have been found in the current block, check the block's predecessors.
+    // Only check blocks with one predecessor as otherwise a constant value could be propogated
+    // through successor blocks with multiple branches that rely on other simplification passes
+    // such as loop unrolling or flattening of the CFG.
+    fn block_has_predecessor(
+        &mut self,
+        block_id: BasicBlockId,
+        visited: &HashSet<BasicBlockId>,
+    ) -> Option<BasicBlockId> {
+        let mut predecessors = self.cfg.predecessors(block_id);
+        if predecessors.len() == 1 {
+            let predecessor = predecessors.next().unwrap();
+            if self.dom_tree.is_reachable(predecessor)
+                && self.dom_tree.dominates(predecessor, block_id)
+                && !visited.contains(&predecessor)
+            {
+                return Some(predecessor);
+            }
+        }
+        None
     }
 
     /// Checks whether the given value id refers to an allocation.
