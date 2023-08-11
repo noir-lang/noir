@@ -39,7 +39,7 @@ struct NargoCli {
 #[non_exhaustive]
 #[derive(Args, Clone, Debug)]
 pub(crate) struct NargoConfig {
-    #[arg(short, long, hide=true, default_value_os_t = std::env::current_dir().unwrap())]
+    #[arg(short, long, hide=true, global=true, default_value_os_t = std::env::current_dir().unwrap())]
     program_dir: PathBuf,
 }
 
