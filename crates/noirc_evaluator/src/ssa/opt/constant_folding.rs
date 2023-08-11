@@ -50,7 +50,7 @@ struct Context {
 
 impl Context {
     fn fold_constants_in_block(&mut self, function: &mut Function, block: BasicBlockId) {
-        let instructions = std::mem::take(function.dfg[block].instructions_mut());
+        let instructions = function.dfg[block].take_instructions();
 
         for instruction in instructions {
             self.push_instruction(function, block, instruction);
