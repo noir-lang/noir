@@ -631,7 +631,7 @@ jobs:
       - *setup_env
       - run:
           name: "Build"
-          command: cond_spot_run_build canary-build 32
+          command: build canary-build
 
   end-to-end:
     machine:
