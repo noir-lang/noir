@@ -40,7 +40,7 @@ impl Field {
 }
 
 #[builtin(modulus_num_bits)]
-fn modulus_num_bits() -> comptime Field {}
+fn modulus_num_bits() -> Field {}
 
 #[builtin(modulus_be_bits)]
 fn modulus_be_bits() -> [u1] {}

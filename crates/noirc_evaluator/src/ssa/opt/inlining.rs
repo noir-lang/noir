@@ -433,10 +433,14 @@ impl<'function> PerFunctionContext<'function> {
         block_queue: &mut Vec<BasicBlockId>,
     ) -> Option<(BasicBlockId, Vec<ValueId>)> {
         match self.source_function.dfg[block_id].unwrap_terminator() {
-            TerminatorInstruction::Jmp { destination, arguments } => {
+            TerminatorInstruction::Jmp { destination, arguments, location } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
-                self.context.builder.terminate_with_jmp(destination, arguments);
+                self.context.builder.terminate_with_jmp_with_location(
+                    destination,
+                    arguments,
+                    *location,
+                );
                 None
             }
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {

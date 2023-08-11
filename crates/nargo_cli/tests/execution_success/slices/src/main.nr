@@ -43,6 +43,11 @@ fn main(x : Field, y : pub Field) {
     assert(remove_slice[3] == 3);
     assert(remove_slice.len() == 4);
 
+    let append = [1, 2].append([3, 4, 5]);
+    assert(append.len() == 5);
+    assert(append[0] == 1);
+    assert(append[4] == 5);
+
     regression_2083();
 }
 

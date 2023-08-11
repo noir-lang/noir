@@ -3,19 +3,19 @@ mod bn254; // Instantiations of Poseidon for prime field of the same order as BN
 use crate::field::modulus_num_bits;
 
 struct PoseidonConfig<M,N> {
-    t: comptime Field, // Width, i.e. state size
-    rf: comptime u8, // Number of full rounds; should be even
-    rp: comptime u8, // Number of partial rounds
-    alpha: comptime Field, // S-box power; depends on the underlying field
+    t: Field, // Width, i.e. state size
+    rf: u8, // Number of full rounds; should be even
+    rp: u8, // Number of partial rounds
+    alpha: Field, // S-box power; depends on the underlying field
     ark: [Field; M], // Additive round keys
     mds: [Field; N] // MDS Matrix in row-major order
 }
 
 fn config<M,N>(
-    t: comptime Field,
-    rf: comptime u8,
-    rp: comptime u8,
-    alpha: comptime Field,
+    t: Field,
+    rf: u8,
+    rp: u8,
+    alpha: Field,
     ark: [Field; M],
     mds: [Field; N])
     -> PoseidonConfig<M,N> {
@@ -64,8 +64,8 @@ fn permute<M,N,O>(
 fn absorb<M,N,O,P>(
     pos_conf: PoseidonConfig<M, N>,
     mut state: [Field; O], // Initial state; usually [0; O]
-    rate: comptime Field, // Rate
-    capacity: comptime Field, // Capacity; usually 1
+    rate: Field, // Rate
+    capacity: Field, // Capacity; usually 1
     msg: [Field; P]) // Arbitrary length message
     -> [Field; O] {
     assert(pos_conf.t == rate + capacity);

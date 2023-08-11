@@ -11,7 +11,6 @@
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
 use noirc_abi::FunctionSignature;
-use noirc_errors::Location;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
@@ -32,7 +31,7 @@ pub mod ast;
 pub mod printer;
 
 struct LambdaContext {
-    env_ident: Box<ast::Expression>,
+    env_ident: ast::Ident,
     captures: Vec<HirCapturedVar>,
 }
 
@@ -336,6 +335,8 @@ impl<'interner> Monomorphizer<'interner> {
                     index_type: Self::convert_type(&self.interner.id_type(for_expr.start_range)),
                     start_range: Box::new(start),
                     end_range: Box::new(end),
+                    start_range_location: self.interner.expr_location(&for_expr.start_range),
+                    end_range_location: self.interner.expr_location(&for_expr.end_range),
                     block,
                 })
             }
@@ -551,13 +552,26 @@ impl<'interner> Monomorphizer<'interner> {
         ast::Expression::Block(definitions)
     }
 
-    /// Find a captured variable in the innermost closure
-    fn lookup_captured(&mut self, id: node_interner::DefinitionId) -> Option<ast::Expression> {
+    /// Find a captured variable in the innermost closure, and construct an expression
+    fn lookup_captured_expr(&mut self, id: node_interner::DefinitionId) -> Option<ast::Expression> {
         let ctx = self.lambda_envs_stack.last()?;
-        ctx.captures
-            .iter()
-            .position(|capture| capture.ident.id == id)
-            .map(|index| ast::Expression::ExtractTupleField(ctx.env_ident.clone(), index))
+        ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
+            ast::Expression::ExtractTupleField(
+                Box::new(ast::Expression::Ident(ctx.env_ident.clone())),
+                index,
+            )
+        })
+    }
+
+    /// Find a captured variable in the innermost closure construct a LValue
+    fn lookup_captured_lvalue(&mut self, id: node_interner::DefinitionId) -> Option<ast::LValue> {
+        let ctx = self.lambda_envs_stack.last()?;
+        ctx.captures.iter().position(|capture| capture.ident.id == id).map(|index| {
+            ast::LValue::MemberAccess {
+                object: Box::new(ast::LValue::Ident(ctx.env_ident.clone())),
+                field_index: index,
+            }
+        })
     }
 
     /// A local (ie non-global) ident only
@@ -598,7 +612,7 @@ impl<'interner> Monomorphizer<'interner> {
                 }
             }
             DefinitionKind::Global(expr_id) => self.expr(*expr_id),
-            DefinitionKind::Local(_) => self.lookup_captured(ident.id).unwrap_or_else(|| {
+            DefinitionKind::Local(_) => self.lookup_captured_expr(ident.id).unwrap_or_else(|| {
                 let ident = self.local_ident(&ident).unwrap();
                 ast::Expression::Ident(ident)
             }),
@@ -621,9 +635,9 @@ impl<'interner> Monomorphizer<'interner> {
     /// Convert a non-tuple/struct type to a monomorphized type
     fn convert_type(typ: &HirType) -> ast::Type {
         match typ {
-            HirType::FieldElement(_) => ast::Type::Field,
-            HirType::Integer(_, sign, bits) => ast::Type::Integer(*sign, *bits),
-            HirType::Bool(_) => ast::Type::Bool,
+            HirType::FieldElement => ast::Type::Field,
+            HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
+            HirType::Bool => ast::Type::Bool,
             HirType::String(size) => ast::Type::String(size.evaluate_to_u64().unwrap_or(0)),
             HirType::FmtString(size, fields) => {
                 let size = size.evaluate_to_u64().unwrap_or(0);
@@ -654,7 +668,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // like automatic solving of traits. It should be fine since it is strictly
                 // after type checking, but care should be taken that it doesn't change which
                 // impls are chosen.
-                *binding.borrow_mut() = TypeBinding::Bound(HirType::field(None));
+                *binding.borrow_mut() = TypeBinding::Bound(HirType::default_int_type());
                 ast::Type::Field
             }
 
@@ -954,56 +968,31 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn assign(&mut self, assign: HirAssignStatement) -> ast::Expression {
         let expression = Box::new(self.expr(assign.expression));
-        let (lvalue, index_lvalue) = self.lvalue(assign.lvalue);
-
-        match index_lvalue {
-            Some((index, element_type, location)) => {
-                let lvalue =
-                    ast::LValue::Index { array: Box::new(lvalue), index, element_type, location };
-                ast::Expression::Assign(ast::Assign { lvalue, expression })
-            }
-            None => ast::Expression::Assign(ast::Assign { expression, lvalue }),
-        }
+        let lvalue = self.lvalue(assign.lvalue);
+        ast::Expression::Assign(ast::Assign { expression, lvalue })
     }
 
-    /// Returns the lvalue along with an optional LValue::Index to add to the end, if needed.
-    /// This is added to the end separately as part of converting arrays of structs to structs
-    /// of arrays.
-    fn lvalue(
-        &mut self,
-        lvalue: HirLValue,
-    ) -> (ast::LValue, Option<(Box<ast::Expression>, ast::Type, Location)>) {
+    fn lvalue(&mut self, lvalue: HirLValue) -> ast::LValue {
         match lvalue {
-            HirLValue::Ident(ident, _) => {
-                let lvalue = ast::LValue::Ident(self.local_ident(&ident).unwrap());
-                (lvalue, None)
-            }
+            HirLValue::Ident(ident, _) => self
+                .lookup_captured_lvalue(ident.id)
+                .unwrap_or_else(|| ast::LValue::Ident(self.local_ident(&ident).unwrap())),
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let field_index = field_index.unwrap();
-                let (object, index) = self.lvalue(*object);
-                let object = Box::new(object);
-                let lvalue = ast::LValue::MemberAccess { object, field_index };
-                (lvalue, index)
+                let object = Box::new(self.lvalue(*object));
+                ast::LValue::MemberAccess { object, field_index }
             }
             HirLValue::Index { array, index, typ } => {
                 let location = self.interner.expr_location(&index);
-
-                let (array, prev_index) = self.lvalue(*array);
-                assert!(
-                    prev_index.is_none(),
-                    "Nested arrays are currently unsupported in noir: location is {location:?}"
-                );
-
+                let array = Box::new(self.lvalue(*array));
                 let index = Box::new(self.expr(index));
                 let element_type = Self::convert_type(&typ);
-                (array, Some((index, element_type, location)))
+                ast::LValue::Index { array, index, element_type, location }
             }
             HirLValue::Dereference { lvalue, element_type } => {
-                let (reference, index) = self.lvalue(*lvalue);
-                let reference = Box::new(reference);
+                let reference = Box::new(self.lvalue(*lvalue));
                 let element_type = Self::convert_type(&element_type);
-                let lvalue = ast::LValue::Dereference { reference, element_type };
-                (lvalue, index)
+                ast::LValue::Dereference { reference, element_type }
             }
         }
     }
@@ -1091,7 +1080,7 @@ impl<'interner> Monomorphizer<'interner> {
             match capture.transitive_capture_index {
                 Some(field_index) => match self.lambda_envs_stack.last() {
                     Some(lambda_ctx) => ast::Expression::ExtractTupleField(
-                        lambda_ctx.env_ident.clone(),
+                        Box::new(ast::Expression::Ident(lambda_ctx.env_ident.clone())),
                         field_index,
                     ),
                     None => unreachable!(
@@ -1122,18 +1111,16 @@ impl<'interner> Monomorphizer<'interner> {
         let mutable = false;
         let definition = Definition::Local(env_local_id);
 
-        let env_ident = ast::Expression::Ident(ast::Ident {
+        let env_ident = ast::Ident {
             location,
             mutable,
             definition,
             name: env_name.to_string(),
             typ: env_typ.clone(),
-        });
+        };
 
-        self.lambda_envs_stack.push(LambdaContext {
-            env_ident: Box::new(env_ident.clone()),
-            captures: lambda.captures,
-        });
+        self.lambda_envs_stack
+            .push(LambdaContext { env_ident: env_ident.clone(), captures: lambda.captures });
         let body = self.expr(lambda.body);
         self.lambda_envs_stack.pop();
 
@@ -1155,7 +1142,8 @@ impl<'interner> Monomorphizer<'interner> {
         let function = ast::Function { id, name, parameters, body, return_type, unconstrained };
         self.push_function(id, function);
 
-        let lambda_value = ast::Expression::Tuple(vec![env_ident, lambda_fn]);
+        let lambda_value =
+            ast::Expression::Tuple(vec![ast::Expression::Ident(env_ident), lambda_fn]);
         let block_local_id = self.next_local_id();
         let block_ident_name = "closure_variable";
         let block_let_stmt = ast::Expression::Let(ast::Let {

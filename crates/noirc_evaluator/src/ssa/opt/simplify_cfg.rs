@@ -86,7 +86,8 @@ fn check_for_constant_jmpif(
             let destination =
                 if constant.is_zero() { *else_destination } else { *then_destination };
 
-            let jmp = TerminatorInstruction::Jmp { destination, arguments: Vec::new() };
+            let arguments = Vec::new();
+            let jmp = TerminatorInstruction::Jmp { destination, arguments, location: None };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
         }

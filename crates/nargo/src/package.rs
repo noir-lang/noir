@@ -8,6 +8,7 @@ use crate::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 pub enum PackageType {
     Library,
     Binary,
+    Contract,
 }
 
 impl Display for PackageType {
@@ -15,6 +16,7 @@ impl Display for PackageType {
         match self {
             Self::Library => write!(f, "lib"),
             Self::Binary => write!(f, "bin"),
+            Self::Contract => write!(f, "contract"),
         }
     }
 }
@@ -62,6 +64,10 @@ impl Package {
 
     pub fn is_binary(&self) -> bool {
         self.package_type == PackageType::Binary
+    }
+
+    pub fn is_contract(&self) -> bool {
+        self.package_type == PackageType::Contract
     }
 
     pub fn is_library(&self) -> bool {

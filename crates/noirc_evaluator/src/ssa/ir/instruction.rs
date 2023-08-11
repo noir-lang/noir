@@ -1,5 +1,6 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
+use noirc_errors::Location;
 use num_bigint::BigUint;
 
 use super::{
@@ -419,8 +420,10 @@ pub(crate) enum TerminatorInstruction {
 
     /// Unconditional Jump
     ///
-    /// Jumps to specified `destination` with `arguments`
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId> },
+    /// Jumps to specified `destination` with `arguments`.
+    /// The optional Location here is expected to be used to issue an error when the start range of
+    /// a for loop cannot be deduced at compile-time.
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, location: Option<Location> },
 
     /// Return from the current function with the given return values.
     ///
@@ -445,9 +448,11 @@ impl TerminatorInstruction {
                 then_destination: *then_destination,
                 else_destination: *else_destination,
             },
-            Jmp { destination, arguments } => {
-                Jmp { destination: *destination, arguments: vecmap(arguments, |value| f(*value)) }
-            }
+            Jmp { destination, arguments, location } => Jmp {
+                destination: *destination,
+                arguments: vecmap(arguments, |value| f(*value)),
+                location: *location,
+            },
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }
             }
@@ -590,6 +595,11 @@ impl Binary {
             }
             BinaryOp::Lt => {
                 if dfg.resolve(self.lhs) == dfg.resolve(self.rhs) {
+                    let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
+                    return SimplifyResult::SimplifiedTo(zero);
+                }
+                if operand_type.is_unsigned() && rhs_is_zero {
+                    // Unsigned values cannot be less than zero.
                     let zero = dfg.make_constant(FieldElement::zero(), Type::bool());
                     return SimplifyResult::SimplifiedTo(zero);
                 }

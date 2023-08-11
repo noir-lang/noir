@@ -74,6 +74,9 @@ pub struct For {
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
+
+    pub start_range_location: Location,
+    pub end_range_location: Location,
 }
 
 #[derive(Debug, Clone)]
@@ -205,7 +208,6 @@ pub struct Function {
 /// - All type variables and generics removed
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
-/// - No CompTime
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {

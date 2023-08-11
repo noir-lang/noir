@@ -1,6 +1,6 @@
 [package]
 name = "contracts"
-type = "bin"
+type = "contract"
 authors = [""]
 compiler_version = "0.1"
 
