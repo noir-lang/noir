@@ -28,5 +28,5 @@ unconstrained fn storage_write<N>(
     storage_slot: Field,
     fields: [Field; N]
 ) {
-    let hash = storage_write_oracle(storage_slot, fields);
+    let _hash = storage_write_oracle(storage_slot, fields);
 }

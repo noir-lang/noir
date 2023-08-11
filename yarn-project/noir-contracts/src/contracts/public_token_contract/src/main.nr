@@ -26,7 +26,7 @@ contract PublicToken {
         let recipient_balance = storage.balances.at(recipient);
         let new_amount = recipient_balance.read() + amount;
         // TODO: Remove return value.
-        let hash = emit_unencrypted_log("Coins minted");
+        let _hash = emit_unencrypted_log("Coins minted");
         recipient_balance.write(new_amount);
         new_amount
     }
@@ -50,7 +50,7 @@ contract PublicToken {
         if (current_sender_balance as u126 > amount as u126) {
             sender_balance.write(current_sender_balance - amount);
             // TODO: Compiler complains if we don't assign the result of the write to anything
-            let hash = emit_unencrypted_log("Coins transferred");
+            let _hash = emit_unencrypted_log("Coins transferred");
             let amount = current_recipient_balance + amount;
             recipient_balance.write(amount);
             amount
