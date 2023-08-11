@@ -51,6 +51,7 @@
         "peekable",
         "preprocess",
         "prettytable",
+        "printstd",
         "pseudocode",
         "schnorr",
         "sdiv",
