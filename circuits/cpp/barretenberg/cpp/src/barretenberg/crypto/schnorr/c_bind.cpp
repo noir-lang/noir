@@ -3,10 +3,6 @@
 
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 
-#define WASM_EXPORT __attribute__((visibility("default")))
-
-extern "C" {
-
 WASM_EXPORT void compute_public_key(uint8_t const* private_key, uint8_t* public_key_buf)
 {
     auto priv_key = from_buffer<grumpkin::fr>(private_key);
@@ -136,5 +132,4 @@ WASM_EXPORT bool multisig_combine_signatures(uint8_t const* message,
     } else {
         return false;
     }
-}
 }

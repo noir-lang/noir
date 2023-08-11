@@ -5,9 +5,6 @@
 #include "barretenberg/common/timer.hpp"
 #include "pedersen.hpp"
 #include "pedersen_lookup.hpp"
-#define WASM_EXPORT __attribute__((visibility("default")))
-
-extern "C" {
 
 WASM_EXPORT void pedersen__init()
 {
@@ -99,5 +96,4 @@ WASM_EXPORT void pedersen__buffer_to_field(uint8_t const* data, size_t length, u
     std::vector<uint8_t> to_compress(data, data + length);
     auto output = crypto::pedersen_commitment::compress_native(to_compress);
     write(r, output);
-}
 }

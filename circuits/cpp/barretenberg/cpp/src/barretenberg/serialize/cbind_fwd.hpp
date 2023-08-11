@@ -1,9 +1,9 @@
 #pragma once
 #include <string>
 #include <utility>
+#include "barretenberg/common/wasm_export.hpp"
 // CBIND forward declarations for msgback default bind format (encode as tuple of args and return value as msgpack
 // string)
-#define WASM_EXPORT extern "C" __attribute__((visibility("default")))
 
 #define CBIND_DECL(cname)                                                                                              \
     WASM_EXPORT void cname(                                                                                            \

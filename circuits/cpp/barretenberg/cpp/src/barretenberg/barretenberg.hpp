@@ -3,6 +3,7 @@
 // External Barretenberg C++ API
 #include "common/container.hpp"
 #include "common/map.hpp"
+#include "common/mem.hpp"
 #include "common/serialize.hpp"
 #include "common/streams.hpp"
 #include "common/throw_or_abort.hpp"

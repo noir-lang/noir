@@ -16,10 +16,6 @@
 using namespace barretenberg;
 using namespace join_split_example::proofs::join_split;
 
-#define WASM_EXPORT __attribute__((visibility("default")))
-
-extern "C" {
-
 WASM_EXPORT void join_split__init_proving_key(bool mock)
 {
     init_proving_key(barretenberg::srs::get_crs_factory(), mock);
@@ -99,5 +95,4 @@ WASM_EXPORT bool join_split__verify_proof(uint8_t* proof, uint32_t length)
 {
     plonk::proof pp = { std::vector<uint8_t>(proof, proof + length) };
     return verify_proof(pp);
-}
 }

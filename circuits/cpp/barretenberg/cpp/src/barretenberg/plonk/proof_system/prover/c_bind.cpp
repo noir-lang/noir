@@ -1,7 +1,5 @@
 #include "prover.hpp"
 
-#define WASM_EXPORT extern "C" __attribute__((visibility("default")))
-
 using namespace barretenberg;
 
 /**

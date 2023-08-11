@@ -77,14 +77,6 @@ template <size_t TREE_HEIGHT> void rightfill_with_zeroleaves(std::vector<NT::fr>
 
 }  // namespace
 
-// Note: We don't have a simple way of calling the barretenberg c-bind.
-// Mimic bbmalloc behaviour.
-static void* bbmalloc(size_t size)
-{
-    auto* ptr = aligned_alloc(64, size);
-    return ptr;
-}
-
 /** Copy this string to a bbmalloc'd buffer */
 static const char* bbmalloc_copy_string(const char* data, size_t len)
 {

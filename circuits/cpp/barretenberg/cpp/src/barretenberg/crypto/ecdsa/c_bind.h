@@ -1,8 +1,5 @@
 #include <ecc/curves/secp256k1/secp256k1.hpp>
-
-#define WASM_EXPORT __attribute__((visibility("default")))
-
-extern "C" {
+#include "barretenberg/common/wasm_export.hpp"
 
 WASM_EXPORT void ecdsa__compute_public_key(uint8_t const* private_key, uint8_t* public_key_buf);
 
@@ -26,4 +23,3 @@ WASM_EXPORT bool ecdsa__verify_signature(uint8_t const* message,
                                          uint8_t const* sig_r,
                                          uint8_t const* sig_s,
                                          uint8_t const* sig_v);
-}

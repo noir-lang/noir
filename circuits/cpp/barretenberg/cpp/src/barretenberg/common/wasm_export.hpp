@@ -1,3 +1,4 @@
+#pragma once
 #ifdef __clang__
 #define WASM_EXPORT extern "C" __attribute__((visibility("default"))) __attribute__((annotate("wasm_export")))
 #define ASYNC_WASM_EXPORT                                                                                              \

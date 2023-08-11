@@ -1,10 +1,6 @@
 #include "ecdsa.hpp"
 #include <barretenberg/ecc/curves/secp256k1/secp256k1.hpp>
 
-#define WASM_EXPORT __attribute__((visibility("default")))
-
-extern "C" {
-
 WASM_EXPORT void ecdsa__compute_public_key(uint8_t const* private_key, uint8_t* public_key_buf)
 {
     auto priv_key = from_buffer<secp256k1::fr>(private_key);
@@ -66,5 +62,4 @@ WASM_EXPORT bool ecdsa__verify_signature(uint8_t const* message,
     crypto::ecdsa::signature sig = { r, s, v };
     return crypto::ecdsa::verify_signature<Sha256Hasher, secp256k1::fq, secp256k1::fr, secp256k1::g1>(
         std::string((char*)message, msg_len), pubk, sig);
-}
 }
