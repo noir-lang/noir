@@ -35,16 +35,19 @@ pub struct FileMap(SimpleFiles<PathString, String>);
 
 // XXX: Note that we derive Default here due to ModuleOrigin requiring us to set a FileId
 #[derive(Default, Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize)]
-pub struct FileId(usize);
+pub enum FileId {
+    Valid(usize),
+    #[default]
+    Dummy,
+}
 
 impl FileId {
     //XXX: find a way to remove the need for this. Errors do not need to attach their FileIds immediately!
-    pub fn as_usize(&self) -> usize {
-        self.0
-    }
-
-    pub fn dummy() -> FileId {
-        FileId(0)
+    pub fn as_usize(self) -> usize {
+        match self {
+            Self::Valid(id) => id,
+            Self::Dummy => panic!("Tried to access a dummy field"),
+        }
     }
 }
 
@@ -59,10 +62,13 @@ impl<'input> File<'input> {
 impl FileMap {
     pub fn add_file(&mut self, file_name: PathString, code: String) -> FileId {
         let file_id = self.0.add(file_name, code);
-        FileId(file_id)
+        FileId::Valid(file_id)
     }
     pub fn get_file(&self, file_id: FileId) -> Option<File> {
-        self.0.get(file_id.0).map(File).ok()
+        match file_id {
+            FileId::Valid(id) => self.0.get(id).map(File).ok(),
+            FileId::Dummy => panic!("Tried to load a dummy FileId"),
+        }
     }
 }
 
