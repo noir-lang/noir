@@ -868,6 +868,7 @@ impl AcirContext {
         })?;
 
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
+        // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
         if let Some(brillig_outputs) = self.execute_brillig(code.clone(), &b_inputs, &outputs) {
             return Ok(brillig_outputs);
         }
