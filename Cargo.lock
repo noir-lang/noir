@@ -1983,7 +1983,6 @@ dependencies = [
  "iter-extended",
  "noirc_abi",
  "noirc_driver",
- "noirc_errors",
  "noirc_frontend",
  "regex",
  "rustc_version",
