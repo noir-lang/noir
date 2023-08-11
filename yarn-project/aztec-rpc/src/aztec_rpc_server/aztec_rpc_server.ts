@@ -143,11 +143,6 @@ export class AztecRPCServer implements AztecRPC {
     return Promise.resolve(result);
   }
 
-  public async getPreimagesAt(contract: AztecAddress, storageSlot: Fr) {
-    const noteSpendingInfo = await this.db.getNoteSpendingInfo(contract, storageSlot);
-    return noteSpendingInfo.map(d => d.notePreimage.items.map(item => item.value));
-  }
-
   public async getPublicStorageAt(contract: AztecAddress, storageSlot: Fr) {
     if ((await this.getContractData(contract)) === undefined) {
       throw new Error(`Contract ${contract.toString()} is not deployed`);

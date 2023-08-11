@@ -56,9 +56,6 @@ export abstract class BaseWallet implements Wallet {
   getTxReceipt(txHash: TxHash): Promise<TxReceipt> {
     return this.rpc.getTxReceipt(txHash);
   }
-  getPreimagesAt(contract: AztecAddress, storageSlot: Fr): Promise<any> {
-    return this.rpc.getPreimagesAt(contract, storageSlot);
-  }
   getPublicStorageAt(contract: AztecAddress, storageSlot: Fr): Promise<any> {
     return this.rpc.getPublicStorageAt(contract, storageSlot);
   }
