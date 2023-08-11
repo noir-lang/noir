@@ -42,10 +42,13 @@ pub(crate) fn run<B: Backend>(
         return Err(CliError::DestinationAlreadyExists(package_dir));
     }
 
-    let package_name = args
-        .name
-        .map(|name| name.to_string())
-        .unwrap_or_else(|| args.path.file_name().unwrap().to_str().unwrap().to_owned());
+    let package_name = match args.name {
+        Some(name) => name,
+        None => {
+            let name = args.path.file_name().unwrap().to_str().unwrap();
+            name.parse().map_err(|_| CliError::InvalidPackageName(name.into()))?
+        }
+    };
     let package_type = if args.lib {
         PackageType::Library
     } else if args.contract {
@@ -53,6 +56,6 @@ pub(crate) fn run<B: Backend>(
     } else {
         PackageType::Binary
     };
-    initialize_project(package_dir, &package_name, package_type);
+    initialize_project(package_dir, package_name, package_type);
     Ok(())
 }

@@ -68,10 +68,13 @@ pub(crate) fn run<B: Backend>(
     args: InitCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let package_name = args
-        .name
-        .map(|name| name.to_string())
-        .unwrap_or_else(|| config.program_dir.file_name().unwrap().to_str().unwrap().to_owned());
+    let package_name = match args.name {
+        Some(name) => name,
+        None => {
+            let name = config.program_dir.file_name().unwrap().to_str().unwrap();
+            name.parse().map_err(|_| CliError::InvalidPackageName(name.into()))?
+        }
+    };
 
     let package_type = if args.lib {
         PackageType::Library
@@ -80,14 +83,14 @@ pub(crate) fn run<B: Backend>(
     } else {
         PackageType::Binary
     };
-    initialize_project(config.program_dir, &package_name, package_type);
+    initialize_project(config.program_dir, package_name, package_type);
     Ok(())
 }
 
 /// Initializes a new Noir project in `package_dir`.
 pub(crate) fn initialize_project(
     package_dir: PathBuf,
-    package_name: &str,
+    package_name: CrateName,
     package_type: PackageType,
 ) {
     let src_dir = package_dir.join(SRC_DIR);

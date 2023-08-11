@@ -41,6 +41,9 @@ pub(crate) enum CliError<B: Backend> {
     #[error("Failed to verify proof {}", .0.display())]
     InvalidProof(PathBuf),
 
+    #[error("Invalid package name {0}. Did you mean to use `--name`?")]
+    InvalidPackageName(String),
+
     /// ABI encoding/decoding error
     #[error(transparent)]
     AbiError(#[from] AbiError),
