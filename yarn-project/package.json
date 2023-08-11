@@ -6,14 +6,14 @@
     "prepare": "node ./yarn-project-base/scripts/update_package_jsons.mjs && yarn workspaces foreach run prepare && workspaces-to-typescript-project-references --tsconfigPath tsconfig.json && prettier -w */tsconfig.json",
     "prepare:check": "node ./yarn-project-base/scripts/update_package_jsons.mjs --check && yarn workspaces foreach run prepare:check && workspaces-to-typescript-project-references --check --tsconfigPath tsconfig.json",
     "docs": "typedoc --out docs/dist && cd docs && yarn serve",
-    "formatting": "yarn workspaces foreach -v run formatting",
-    "formatting:fix": "yarn workspaces foreach -v run formatting:fix",
+    "formatting": "yarn workspaces foreach -p -v run formatting",
+    "formatting:fix": "yarn workspaces foreach -p -v run formatting:fix",
     "lint": "yarn eslint --cache --ignore-pattern l1-artifacts .",
     "format": "yarn prettier --cache -w .",
     "test": "yarn build && yarn workspaces foreach -v run test",
     "build": "yarn workspace @aztec/l1-artifacts build && tsc -b tsconfig.json",
     "build:dev": "yarn workspace @aztec/l1-artifacts build && tsc -b tsconfig.json --watch",
-    "clean": "yarn workspaces foreach -v run clean"
+    "clean": "yarn workspaces foreach -p -v run clean"
   },
   "workspaces": [
     "acir-simulator",
