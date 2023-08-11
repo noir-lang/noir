@@ -5,6 +5,7 @@ use nargo::{package::Package, prepare_package};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{compile_contracts, CompileOptions};
 use noirc_frontend::graph::CrateName;
+use prettytable::{row, Table};
 
 use crate::{cli::compile_cmd::compile_package, errors::CliError};
 
@@ -55,18 +56,19 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
     let (_, compiled_program) = compile_package(backend, package, compile_options)?;
 
     let num_opcodes = compiled_program.circuit.opcodes.len();
-
-    println!(
-        "[{}] Total ACIR opcodes generated for language {:?}: {}",
-        package.name,
-        backend.np_language(),
-        num_opcodes
-    );
-
     let exact_circuit_size = backend
         .get_exact_circuit_size(&compiled_program.circuit)
         .map_err(CliError::ProofSystemCompilerError)?;
-    println!("[{}] Backend circuit size: {exact_circuit_size}", package.name);
+
+    let mut table = Table::new();
+    table.add_row(row!["Package", "Language", "ACIR Opcodes", "Backend Circuit Size"]);
+    table.add_row(row![
+        format!("{}", package.name),
+        format!("{:?}", backend.np_language()),
+        format!("{}", num_opcodes),
+        format!("{}", exact_circuit_size),
+    ]);
+    table.printstd();
 
     Ok(())
 }
@@ -91,10 +93,24 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
         })
         .map_err(CliError::ProofSystemCompilerError)?;
 
+        let mut table = Table::new();
+        table.add_row(row![
+            "Contract",
+            "Function",
+            "Language",
+            "ACIR Opcodes",
+            "Backend Circuit Size"
+        ]);
         for info in function_info {
-            println!("[{}]({}) Total ACIR opcodes generated: {}", contract.name, info.0, info.1,);
-            println!("[{}]({}) Backend circuit size: {}", contract.name, info.0, info.2);
+            table.add_row(row![
+                format!("{}", contract.name),
+                format!("{}", info.0),
+                format!("{:?}", backend.np_language()),
+                format!("{}", info.1),
+                format!("{}", info.2),
+            ]);
         }
+        table.printstd();
     }
 
     Ok(())
