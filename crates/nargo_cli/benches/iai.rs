@@ -22,5 +22,4 @@ macro_rules! iai_command {
     };
 }
 iai_command!(execution, "execute");
-
 iai::main!(iai_selected_tests_execution);

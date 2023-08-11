@@ -1,5 +1,4 @@
 //! Select representative tests to bench with criterion
-
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{criterion_group, criterion_main, Criterion};
 use paste::paste;
@@ -26,7 +25,6 @@ macro_rules! criterion_command {
     };
 }
 criterion_command!(execution, "execute");
-
 criterion_group! {
     name = benches;
     config = Criterion::default().sample_size(20).with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)));
