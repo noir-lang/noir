@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::NargoConfig;
 use super::{
-    compile_cmd::compile_package,
+    compile_cmd::compile_package_and_save,
     fs::{
         common_reference_string::{
             read_cached_common_reference_string, update_common_reference_string,
@@ -16,14 +16,10 @@ use super::{
 use crate::errors::CliError;
 use acvm::Backend;
 use clap::Args;
-use nargo::artifacts::program::PreprocessedProgram;
 use nargo::{ops::codegen_verifier, package::Package};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
-
-// TODO(#1388): pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Generates a Solidity verifier smart contract for the program
 #[derive(Debug, Clone, Args)]
@@ -81,13 +77,9 @@ fn smart_contract_for_package<B: Backend>(
     let preprocessed_program = if circuit_build_path.exists() {
         read_program_from_file(circuit_build_path)?
     } else {
-        let (_, program) = compile_package(backend, package, compile_options)?;
-
-        PreprocessedProgram {
-            backend: String::from(BACKEND_IDENTIFIER),
-            abi: program.abi,
-            bytecode: program.circuit,
-        }
+        let (_, preprocessed_program) =
+            compile_package_and_save(backend, package, compile_options, false)?;
+        preprocessed_program
     };
 
     let common_reference_string = read_cached_common_reference_string();

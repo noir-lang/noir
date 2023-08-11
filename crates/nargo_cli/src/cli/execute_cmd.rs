@@ -2,18 +2,19 @@ use acvm::acir::circuit::OpcodeLabel;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
 use acvm::Backend;
 use clap::Args;
+use nargo::artifacts::program::PreprocessedProgram;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
 use nargo::NargoError;
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
-use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_driver::CompileOptions;
 use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic};
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
 
-use super::compile_cmd::compile_package;
+use super::compile_cmd::compile_package_and_save;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::errors::CliError;
@@ -75,15 +76,16 @@ fn execute_package<B: Backend>(
     prover_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
-    let (context, compiled_program) = compile_package(backend, package, compile_options)?;
-    let CompiledProgram { abi, circuit, debug } = compiled_program;
+    let (debug_and_context, compiled_program) =
+        compile_package_and_save(backend, package, compile_options, false)?;
+    let PreprocessedProgram { abi, bytecode, .. } = compiled_program;
 
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
 
     let solved_witness =
-        execute_program(backend, circuit, &abi, &inputs_map, Some((debug, context)))?;
+        execute_program(backend, bytecode, &abi, &inputs_map, Some(debug_and_context))?;
     let public_abi = abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 

@@ -7,7 +7,7 @@ use noirc_driver::{compile_contracts, CompileOptions};
 use noirc_frontend::graph::CrateName;
 use prettytable::{row, Table};
 
-use crate::{cli::compile_cmd::compile_package, errors::CliError};
+use crate::{cli::compile_cmd::compile_package_and_save, errors::CliError};
 
 use super::{
     compile_cmd::{optimize_contract, report_errors},
@@ -91,11 +91,12 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
     compile_options: &CompileOptions,
     table: &mut Table,
 ) -> Result<(), CliError<B>> {
-    let (_, compiled_program) = compile_package(backend, package, compile_options)?;
+    let (_, preprocessed_program) =
+        compile_package_and_save(backend, package, compile_options, false)?;
 
-    let num_opcodes = compiled_program.circuit.opcodes.len();
+    let num_opcodes = preprocessed_program.bytecode.opcodes.len();
     let exact_circuit_size = backend
-        .get_exact_circuit_size(&compiled_program.circuit)
+        .get_exact_circuit_size(&preprocessed_program.bytecode)
         .map_err(CliError::ProofSystemCompilerError)?;
 
     table.add_row(row![

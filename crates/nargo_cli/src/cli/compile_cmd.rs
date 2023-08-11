@@ -67,7 +67,6 @@ pub(crate) fn run<B: Backend>(
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
-    let circuit_dir = workspace.target_directory_path();
 
     let mut common_reference_string = read_cached_common_reference_string();
 
@@ -122,41 +121,15 @@ pub(crate) fn run<B: Backend>(
                 ))
             });
             for (contract, debug_infos) in preprocessed_contracts? {
-                save_contract_to_file(
-                    &contract,
-                    &format!("{}-{}", package.name, contract.name),
-                    &circuit_dir,
-                );
+                save_contract_to_file(&contract, package);
 
                 if args.output_debug {
                     let debug_artifact = DebugArtifact::new(debug_infos, &context);
-                    save_debug_artifact_to_file(
-                        &debug_artifact,
-                        &format!("{}-{}", package.name, contract.name),
-                        &circuit_dir,
-                    );
+                    save_debug_artifact_to_file(&debug_artifact, package);
                 }
             }
         } else {
-            let (context, program) = compile_package(backend, package, &args.compile_options)?;
-
-            common_reference_string =
-                update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                    .map_err(CliError::CommonReferenceStringError)?;
-
-            let preprocessed_program = PreprocessedProgram {
-                backend: String::from(BACKEND_IDENTIFIER),
-                abi: program.abi,
-                bytecode: program.circuit,
-            };
-
-            save_program_to_file(&preprocessed_program, &package.name, &circuit_dir);
-
-            if args.output_debug {
-                let debug_artifact = DebugArtifact::new(vec![program.debug], &context);
-                let circuit_name: String = (&package.name).into();
-                save_debug_artifact_to_file(&debug_artifact, &circuit_name, &circuit_dir);
-            }
+            compile_package_and_save(backend, package, &args.compile_options, args.output_debug)?;
         }
     }
 
@@ -165,7 +138,30 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-pub(crate) fn compile_package<B: Backend>(
+pub(crate) fn compile_package_and_save<B: Backend>(
+    backend: &B,
+    package: &Package,
+    compile_options: &CompileOptions,
+    output_debug: bool,
+) -> Result<((DebugInfo, Context), PreprocessedProgram), CliError<B>> {
+    let (context, program) = compile_package(backend, package, compile_options)?;
+
+    let preprocessed_program = PreprocessedProgram {
+        backend: String::from(BACKEND_IDENTIFIER),
+        abi: program.abi,
+        bytecode: program.circuit,
+    };
+
+    if output_debug {
+        let debug_artifact = DebugArtifact::new(vec![program.debug.clone()], &context);
+        save_debug_artifact_to_file(&debug_artifact, package);
+    }
+
+    save_program_to_file(&preprocessed_program, package);
+    Ok(((program.debug, context), preprocessed_program))
+}
+
+fn compile_package<B: Backend>(
     backend: &B,
     package: &Package,
     compile_options: &CompileOptions,

@@ -56,10 +56,17 @@ impl Package {
         // For now it is hard-coded to be toml.
         self.root_dir.join(format!("{PROVER_INPUT_FILE}.toml"))
     }
+
     pub fn verifier_input_path(&self) -> PathBuf {
         // TODO: This should be configurable, such as if we are looking for .json or .toml or custom paths
         // For now it is hard-coded to be toml.
         self.root_dir.join(format!("{VERIFIER_INPUT_FILE}.toml"))
+    }
+
+    pub fn target_directory(&self) -> PathBuf {
+        // TODO: This should be configurable, such as if we are looking for .json or .toml or custom paths
+        // For now it is hard-coded to be toml.
+        self.root_dir.join("target")
     }
 
     pub fn is_binary(&self) -> bool {

@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use acvm::Backend;
 use clap::Args;
@@ -11,19 +11,15 @@ use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 
-use super::compile_cmd::compile_package;
+use super::compile_cmd::compile_package_and_save;
 use super::fs::common_reference_string::update_common_reference_string;
 use super::fs::{
     common_reference_string::read_cached_common_reference_string,
     inputs::{read_inputs_from_file, write_inputs_to_file},
-    program::read_program_from_file,
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
 use crate::{cli::execute_cmd::execute_program, errors::CliError};
-
-// TODO(#1388): pull this from backend.
-const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
@@ -65,15 +61,12 @@ pub(crate) fn run<B: Backend>(
     let proof_dir = workspace.proofs_directory_path();
 
     for package in &workspace {
-        let circuit_build_path = workspace.package_build_path(package);
-
         prove_package(
             backend,
             package,
             &args.prover_name,
             &args.verifier_name,
             &proof_dir,
-            circuit_build_path,
             args.verify,
             &args.compile_options,
         )?;
@@ -89,23 +82,11 @@ pub(crate) fn prove_package<B: Backend>(
     prover_name: &str,
     verifier_name: &str,
     proof_dir: &Path,
-    circuit_build_path: PathBuf,
     check_proof: bool,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let (preprocessed_program, debug_data) = if circuit_build_path.exists() {
-        let program = read_program_from_file(circuit_build_path)?;
-
-        (program, None)
-    } else {
-        let (context, program) = compile_package(backend, package, compile_options)?;
-        let preprocessed_program = PreprocessedProgram {
-            backend: String::from(BACKEND_IDENTIFIER),
-            abi: program.abi,
-            bytecode: program.circuit,
-        };
-        (preprocessed_program, Some((program.debug, context)))
-    };
+    let (debug_and_context, preprocessed_program) =
+        compile_package_and_save(backend, package, compile_options, false)?;
 
     let common_reference_string = read_cached_common_reference_string();
     let common_reference_string = update_common_reference_string(
@@ -125,7 +106,8 @@ pub(crate) fn prove_package<B: Backend>(
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
 
-    let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map, debug_data)?;
+    let solved_witness =
+        execute_program(backend, bytecode.clone(), &abi, &inputs_map, Some(debug_and_context))?;
 
     // Write public inputs into Verifier.toml
     let public_abi = abi.public_abi();

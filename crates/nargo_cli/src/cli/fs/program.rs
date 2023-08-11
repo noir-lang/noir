@@ -1,38 +1,43 @@
 use std::path::{Path, PathBuf};
 
-use nargo::artifacts::{
-    contract::PreprocessedContract, debug::DebugArtifact, program::PreprocessedProgram,
+use nargo::{
+    artifacts::{
+        contract::PreprocessedContract, debug::DebugArtifact, program::PreprocessedProgram,
+    },
+    package::Package,
 };
-use noirc_frontend::graph::CrateName;
 
 use crate::errors::FilesystemError;
 
 use super::{create_named_dir, write_to_file};
 
-pub(crate) fn save_program_to_file<P: AsRef<Path>>(
+pub(crate) fn save_program_to_file(
     compiled_program: &PreprocessedProgram,
-    crate_name: &CrateName,
-    circuit_dir: P,
+    package: &Package,
 ) -> PathBuf {
-    let circuit_name: String = crate_name.into();
-    save_build_artifact_to_file(compiled_program, &circuit_name, circuit_dir)
+    save_build_artifact_to_file(
+        compiled_program,
+        &package.name.to_string(),
+        package.target_directory(),
+    )
 }
-
-pub(crate) fn save_contract_to_file<P: AsRef<Path>>(
+pub(crate) fn save_contract_to_file(
     compiled_contract: &PreprocessedContract,
-    circuit_name: &str,
-    circuit_dir: P,
+    package: &Package,
 ) -> PathBuf {
-    save_build_artifact_to_file(compiled_contract, circuit_name, circuit_dir)
+    save_build_artifact_to_file(
+        compiled_contract,
+        &package.name.to_string(),
+        package.target_directory(),
+    )
 }
 
-pub(crate) fn save_debug_artifact_to_file<P: AsRef<Path>>(
+pub(crate) fn save_debug_artifact_to_file(
     debug_artifact: &DebugArtifact,
-    circuit_name: &str,
-    circuit_dir: P,
+    package: &Package,
 ) -> PathBuf {
-    let artifact_name = format!("debug_{}", circuit_name);
-    save_build_artifact_to_file(debug_artifact, &artifact_name, circuit_dir)
+    let artifact_name = format!("debug_{}", &package.name.to_string());
+    save_build_artifact_to_file(debug_artifact, &artifact_name, package.target_directory())
 }
 
 fn save_build_artifact_to_file<P: AsRef<Path>, T: ?Sized + serde::Serialize>(
