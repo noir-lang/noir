@@ -5,6 +5,7 @@
 use std::collections::{HashMap, HashSet};
 
 use iter_extended::vecmap;
+use noirc_errors::Location;
 
 use crate::ssa::{
     ir::{
@@ -48,6 +49,8 @@ impl Ssa {
 struct InlineContext {
     recursion_level: u32,
     builder: FunctionBuilder,
+
+    call_locations: Vec<Location>,
 
     /// True if we failed to inline at least one call. If this is still false when finishing
     /// inlining we can remove all other functions from the resulting Ssa struct and keep only
@@ -98,7 +101,12 @@ impl InlineContext {
     fn new(ssa: &Ssa) -> InlineContext {
         let main_name = ssa.main().name().to_owned();
         let builder = FunctionBuilder::new(main_name, ssa.next_id.next(), RuntimeType::Acir);
-        Self { builder, recursion_level: 0, failed_to_inline_a_call: false }
+        Self {
+            builder,
+            recursion_level: 0,
+            call_locations: Vec::new(),
+            failed_to_inline_a_call: false,
+        }
     }
 
     /// Start inlining the main function and all functions reachable from it.
@@ -370,7 +378,15 @@ impl<'function> PerFunctionContext<'function> {
     ) {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
+
+        let mut location = self.source_function.dfg.get_location(call_id);
+        assert_eq!(location.len(), 1);
+        let location = location.pop().expect("the assert_eq above verifies this will not fail");
+
+        self.context.call_locations.push(location);
         let new_results = self.context.inline_function(ssa, function, &arguments);
+        self.context.call_locations.pop();
+
         let new_results = InsertInstructionResult::Results(&new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
     }
@@ -379,7 +395,10 @@ impl<'function> PerFunctionContext<'function> {
     /// function being inlined into.
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
-        let location = self.source_function.dfg.get_location(&id);
+
+        let mut location = self.context.call_locations.clone();
+        location.append(&mut self.source_function.dfg.get_location(id));
+
         let results = self.source_function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
 
@@ -387,9 +406,8 @@ impl<'function> PerFunctionContext<'function> {
             .requires_ctrl_typevars()
             .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
 
-        if let Some(location) = location {
-            self.context.builder.set_location(location);
-        }
+        self.context.builder.set_call_stack(location);
+
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
@@ -436,11 +454,14 @@ impl<'function> PerFunctionContext<'function> {
             TerminatorInstruction::Jmp { destination, arguments, location } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
-                self.context.builder.terminate_with_jmp_with_location(
-                    destination,
-                    arguments,
-                    *location,
-                );
+
+                let mut call_stack = self.context.call_locations.clone();
+                call_stack.extend_from_slice(location);
+
+                self.context
+                    .builder
+                    .set_call_stack(call_stack)
+                    .terminate_with_jmp(destination, arguments);
                 None
             }
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {

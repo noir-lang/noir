@@ -151,11 +151,11 @@ impl AcirContext {
         self.add_data(var_data)
     }
 
-    pub(crate) fn get_location(&self) -> Option<Location> {
-        self.acir_ir.current_location
+    pub(crate) fn get_location(&self) -> Vec<Location> {
+        self.acir_ir.current_location.clone()
     }
 
-    pub(crate) fn set_location(&mut self, location: Option<Location>) {
+    pub(crate) fn set_location(&mut self, location: Vec<Location>) {
         self.acir_ir.current_location = location;
     }
 

@@ -56,10 +56,10 @@ impl<'f> FunctionInserter<'f> {
         self.values.insert(key, value);
     }
 
-    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, Option<Location>) {
+    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, Vec<Location>) {
         (
             self.function.dfg[id].clone().map_values(|id| self.resolve(id)),
-            self.function.dfg.get_location(&id),
+            self.function.dfg.get_location(id),
         )
     }
 
@@ -73,7 +73,7 @@ impl<'f> FunctionInserter<'f> {
         instruction: Instruction,
         id: InstructionId,
         block: BasicBlockId,
-        location: Option<Location>,
+        location: Vec<Location>,
     ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));

@@ -50,6 +50,7 @@ pub(crate) fn optimize_into_acir(
             .inline_functions()
             .print(print_ssa_passes, "After Inlining:")
             .evaluate_assert_constant()?
+            .print(print_ssa_passes, "After asert cons:")
             .unroll_loops()?
             .print(print_ssa_passes, "After Unrolling:")
             .simplify_cfg()

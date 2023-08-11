@@ -93,7 +93,7 @@ impl AcirValue {
             AcirValue::Var(var, _) => Ok(var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
                 message: "Called AcirValue::into_var on an array".to_string(),
-                location: None,
+                location: Vec::new(),
             }),
         }
     }
@@ -320,7 +320,7 @@ impl Context {
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
-        self.acir_context.set_location(dfg.get_location(&instruction_id));
+        self.acir_context.set_location(dfg.get_location(instruction_id));
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
@@ -426,7 +426,7 @@ impl Context {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
         }
-        self.acir_context.set_location(None);
+        self.acir_context.set_location(Vec::new());
         Ok(())
     }
 
@@ -449,7 +449,7 @@ impl Context {
                 None => {
                     return Err(InternalError::General {
                         message: format!("Cannot find linked fn {unresolved_fn_label}"),
-                        location: None,
+                        location: Vec::new(),
                     })
                 }
             };

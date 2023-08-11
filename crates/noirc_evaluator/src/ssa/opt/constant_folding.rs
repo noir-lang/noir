@@ -71,7 +71,7 @@ impl Context {
             .requires_ctrl_typevars()
             .then(|| vecmap(&old_results, |result| function.dfg.type_of_value(*result)));
 
-        let location = function.dfg.get_location(&id);
+        let location = function.dfg.get_location(id);
         let new_results = match function.dfg.insert_instruction_and_results(
             instruction,
             block,

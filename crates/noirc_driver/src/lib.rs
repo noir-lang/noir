@@ -226,13 +226,13 @@ fn compile_contract(
     options: &CompileOptions,
 ) -> Result<CompiledContract, Vec<FileDiagnostic>> {
     let mut functions = Vec::new();
-    let mut errs = Vec::new();
+    let mut errors = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
         let function = match compile_no_check(context, options, *function_id) {
             Ok(function) => function,
-            Err(err) => {
-                errs.push(err);
+            Err(mut new_errors) => {
+                errors.append(&mut new_errors);
                 continue;
             }
         };
@@ -252,10 +252,10 @@ fn compile_contract(
         });
     }
 
-    if errs.is_empty() {
+    if errors.is_empty() {
         Ok(CompiledContract { name: contract.name, functions })
     } else {
-        Err(errs)
+        Err(errors)
     }
 }
 
@@ -268,7 +268,7 @@ pub fn compile_no_check(
     context: &Context,
     options: &CompileOptions,
     main_function: FuncId,
-) -> Result<CompiledProgram, FileDiagnostic> {
+) -> Result<CompiledProgram, Vec<FileDiagnostic>> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let (circuit, debug, abi) = create_circuit(program, options.show_ssa, options.show_brillig)?;

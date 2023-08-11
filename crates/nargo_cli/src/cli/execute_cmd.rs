@@ -9,6 +9,7 @@ use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
+use noirc_errors::FileDiagnostic;
 use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic};
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
@@ -101,23 +102,41 @@ fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Op
         _ => None,
     }
 }
+
 fn report_unsatisfied_constraint_error(
     opcode_idx: Option<usize>,
     debug: &DebugInfo,
     context: &Context,
 ) {
     if let Some(opcode_index) = opcode_idx {
-        if let Some(loc) = debug.opcode_location(opcode_index) {
-            noirc_errors::reporter::report(
-                &context.file_manager,
-                &CustomDiagnostic::simple_error(
-                    "Unsatisfied constraint".to_string(),
-                    "Constraint failed".to_string(),
-                    loc.span,
-                ),
-                Some(loc.file),
-                false,
-            );
+        if let Some(mut locations) = debug.opcode_location(opcode_index) {
+            let message = "Failed constraint".into();
+            let mut errors = Vec::new();
+
+            if let Some(location) = locations.pop() {
+                errors.push(FileDiagnostic {
+                    file_id: location.file,
+                    diagnostic: CustomDiagnostic::simple_error(
+                        message,
+                        String::new(),
+                        location.span,
+                    ),
+                });
+            }
+
+            for location in locations.into_iter().rev() {
+                let message = "Called from here".into();
+                errors.push(FileDiagnostic {
+                    file_id: location.file,
+                    diagnostic: CustomDiagnostic::simple_error(
+                        message,
+                        String::new(),
+                        location.span,
+                    ),
+                });
+            }
+
+            noirc_errors::reporter::report_all(&context.file_manager, &errors, false);
         }
     }
 }
