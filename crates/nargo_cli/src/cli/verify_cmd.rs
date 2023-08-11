@@ -1,28 +1,26 @@
+use super::fs::common_reference_string::{
+    read_cached_common_reference_string, update_common_reference_string,
+};
 use super::NargoConfig;
 use super::{
     compile_cmd::compile_package,
-    fs::{
-        common_reference_string::{
-            read_cached_common_reference_string, update_common_reference_string,
-            write_cached_common_reference_string,
-        },
-        inputs::read_inputs_from_file,
-        load_hex_data,
-        program::read_program_from_file,
-    },
+    fs::{inputs::read_inputs_from_file, load_hex_data, program::read_program_from_file},
 };
 use crate::errors::CliError;
 
 use acvm::Backend;
 use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
-use nargo::ops::{preprocess_program, verify_proof};
+use nargo::ops::verify_proof;
 use nargo::{artifacts::program::PreprocessedProgram, package::Package};
 use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 use std::path::{Path, PathBuf};
+
+// TODO(#1388): pull this from backend.
+const BACKEND_IDENTIFIER: &str = "acvm-backend-barretenberg";
 
 /// Given a proof and a program, verify whether the proof is valid
 #[derive(Debug, Clone, Args)]
@@ -74,27 +72,31 @@ fn verify_package<B: Backend>(
     verifier_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {
-    let common_reference_string = read_cached_common_reference_string();
-
-    let (common_reference_string, preprocessed_program) = if circuit_build_path.exists() {
-        let program = read_program_from_file(circuit_build_path)?;
-        let common_reference_string =
-            update_common_reference_string(backend, &common_reference_string, &program.bytecode)
-                .map_err(CliError::CommonReferenceStringError)?;
-        (common_reference_string, program)
+    let preprocessed_program = if circuit_build_path.exists() {
+        read_program_from_file(circuit_build_path)?
     } else {
         let (_, program) = compile_package(backend, package, compile_options)?;
-        let common_reference_string =
-            update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                .map_err(CliError::CommonReferenceStringError)?;
-        let (program, _) = preprocess_program(backend, true, &common_reference_string, program)
-            .map_err(CliError::ProofSystemCompilerError)?;
-        (common_reference_string, program)
+
+        PreprocessedProgram {
+            backend: String::from(BACKEND_IDENTIFIER),
+            abi: program.abi,
+            bytecode: program.circuit,
+        }
     };
 
-    write_cached_common_reference_string(&common_reference_string);
+    let common_reference_string = read_cached_common_reference_string();
+    let common_reference_string = update_common_reference_string(
+        backend,
+        &common_reference_string,
+        &preprocessed_program.bytecode,
+    )
+    .map_err(CliError::CommonReferenceStringError)?;
 
-    let PreprocessedProgram { abi, bytecode, verification_key, .. } = preprocessed_program;
+    let (_, verification_key) = backend
+        .preprocess(&common_reference_string, &preprocessed_program.bytecode)
+        .map_err(CliError::ProofSystemCompilerError)?;
+
+    let PreprocessedProgram { abi, bytecode, .. } = preprocessed_program;
 
     // Load public inputs (if any) from `verifier_name`.
     let public_abi = abi.public_abi();
@@ -104,8 +106,6 @@ fn verify_package<B: Backend>(
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
     let proof = load_hex_data(proof_path)?;
 
-    let verification_key = verification_key
-        .expect("Verification key should exist as `true` is passed to `preprocess_program`");
     let valid_proof = verify_proof(
         backend,
         &common_reference_string,

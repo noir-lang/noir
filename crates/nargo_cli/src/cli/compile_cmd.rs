@@ -2,6 +2,8 @@ use acvm::acir::circuit::OpcodeLabel;
 use acvm::{acir::circuit::Circuit, Backend};
 use iter_extended::try_vecmap;
 use iter_extended::vecmap;
+use nargo::artifacts::contract::PreprocessedContractFunction;
+use nargo::artifacts::program::PreprocessedProgram;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
@@ -14,8 +16,6 @@ use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
 
 use clap::Args;
-
-use nargo::ops::{preprocess_contract_function, preprocess_program};
 
 use crate::errors::{CliError, CompileError};
 
@@ -80,13 +80,14 @@ pub(crate) fn run<B: Backend>(
                         )
                         .map_err(CliError::CommonReferenceStringError)?;
 
-                        preprocess_contract_function(
-                            backend,
-                            args.include_keys,
-                            &common_reference_string,
-                            func,
-                        )
-                        .map_err(CliError::ProofSystemCompilerError)
+                        Ok::<_, CliError<B>>(PreprocessedContractFunction {
+                            name: func.name,
+                            function_type: func.function_type,
+                            is_internal: func.is_internal,
+                            abi: func.abi,
+
+                            bytecode: func.bytecode,
+                        })
                     })?;
 
                     Ok(PreprocessedContract {
@@ -109,9 +110,12 @@ pub(crate) fn run<B: Backend>(
                 update_common_reference_string(backend, &common_reference_string, &program.circuit)
                     .map_err(CliError::CommonReferenceStringError)?;
 
-            let (preprocessed_program, _) =
-                preprocess_program(backend, args.include_keys, &common_reference_string, program)
-                    .map_err(CliError::ProofSystemCompilerError)?;
+            let preprocessed_program = PreprocessedProgram {
+                backend: String::from(BACKEND_IDENTIFIER),
+                abi: program.abi,
+                bytecode: program.circuit,
+            };
+
             save_program_to_file(&preprocessed_program, &package.name, &circuit_dir);
         }
     }
