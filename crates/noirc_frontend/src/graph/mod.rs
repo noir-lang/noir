@@ -29,6 +29,12 @@ impl CrateId {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct CrateName(SmolStr);
 
+impl CrateName {
+    pub fn is_valid_name(name: &str) -> bool {
+        !name.is_empty() && name.chars().all(|n| !CHARACTER_BLACK_LIST.contains(&n))
+    }
+}
+
 impl Display for CrateName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
@@ -54,11 +60,28 @@ impl FromStr for CrateName {
     type Err = String;
 
     fn from_str(name: &str) -> Result<Self, Self::Err> {
-        let is_invalid = name.chars().any(|n| CHARACTER_BLACK_LIST.contains(&n));
-        if is_invalid {
-            Err(name.into())
-        } else {
+        if Self::is_valid_name(name) {
             Ok(Self(SmolStr::new(name)))
+        } else {
+            Err(name.into())
+        }
+    }
+}
+
+#[cfg(test)]
+mod crate_name {
+    use super::{CrateName, CHARACTER_BLACK_LIST};
+
+    #[test]
+    fn it_rejects_empty_string() {
+        assert!(!CrateName::is_valid_name(""));
+    }
+
+    #[test]
+    fn it_rejects_blacklisted_chars() {
+        for bad_char in CHARACTER_BLACK_LIST {
+            let bad_char_string = bad_char.to_string();
+            assert!(!CrateName::is_valid_name(&bad_char_string));
         }
     }
 }

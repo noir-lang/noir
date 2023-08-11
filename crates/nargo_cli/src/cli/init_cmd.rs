@@ -1,7 +1,7 @@
 use crate::errors::CliError;
 
 use super::fs::{create_named_dir, write_to_file};
-use super::{NargoConfig, CARGO_PKG_VERSION};
+use super::{crate_name_parser, NargoConfig, CARGO_PKG_VERSION};
 use acvm::Backend;
 use clap::Args;
 use nargo::constants::{PKG_FILE, SRC_DIR};
@@ -12,7 +12,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {
     /// Name of the package [default: current directory name]
-    #[clap(long)]
+    #[clap(long, value_parser = crate_name_parser)]
     name: Option<String>,
 
     /// Use a library template

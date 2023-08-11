@@ -1,6 +1,6 @@
 use crate::errors::CliError;
 
-use super::{init_cmd::initialize_project, NargoConfig};
+use super::{crate_name_parser, init_cmd::initialize_project, NargoConfig};
 use acvm::Backend;
 use clap::Args;
 use nargo::package::PackageType;
@@ -13,7 +13,7 @@ pub(crate) struct NewCommand {
     path: PathBuf,
 
     /// Name of the package [default: package directory name]
-    #[clap(long)]
+    #[clap(long, value_parser = crate_name_parser)]
     name: Option<String>,
 
     /// Use a library template
