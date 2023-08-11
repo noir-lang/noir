@@ -42,7 +42,7 @@ pub(crate) struct CompileCommand {
     include_keys: bool,
 
     /// Output debug files
-    #[arg(long)]
+    #[arg(long, hide = true)]
     output_debug: bool,
 
     /// The name of the package to compile
