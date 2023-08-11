@@ -92,7 +92,7 @@ mod tests {
             \"name\":\"thing3\",
             \"type\": {
                 \"kind\":\"struct\",
-                \"name\": \"mystruct\",
+                \"name\": \"MyStruct\",
                 \"fields\": [
                     {
                         \"name\": \"field1\",
@@ -120,7 +120,7 @@ mod tests {
         let expected_struct = AbiParameter {
             name: "thing3".to_string(),
             typ: AbiType::Struct {
-                name: "mystruct".to_string(),
+                name: "MyStruct".to_string(),
                 fields: vec![
                     ("field1".to_string(), AbiType::Integer { sign: Sign::Unsigned, width: 3 }),
                     (
