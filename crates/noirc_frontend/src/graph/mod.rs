@@ -30,7 +30,7 @@ impl CrateId {
 pub struct CrateName(SmolStr);
 
 impl CrateName {
-    pub fn is_valid_name(name: &str) -> bool {
+   fn is_valid_name(name: &str) -> bool {
         !name.is_empty() && name.chars().all(|n| !CHARACTER_BLACK_LIST.contains(&n))
     }
 }
