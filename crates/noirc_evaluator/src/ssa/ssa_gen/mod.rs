@@ -67,11 +67,7 @@ impl<'a> FunctionContext<'a> {
             Expression::Block(block) => self.codegen_block(block),
             Expression::Unary(unary) => self.codegen_unary(unary),
             Expression::Binary(binary) => self.codegen_binary(binary),
-            Expression::Index(index) => {
-                let values = self.codegen_index(index);
-                dbg!(values.clone());
-                values
-            }
+            Expression::Index(index) => self.codegen_index(index),
             Expression::Cast(cast) => self.codegen_cast(cast),
             Expression::For(for_expr) => self.codegen_for(for_expr),
             Expression::If(if_expr) => self.codegen_if(if_expr),
@@ -102,7 +98,7 @@ impl<'a> FunctionContext<'a> {
     /// to reassign to it. Note that mutable references `let x = &mut ...;` do not require this
     /// since they are not automatically loaded from and must be explicitly dereferenced.
     fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
-        dbg!(ident.definition.clone());
+        // dbg!(ident.definition.clone());
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
@@ -128,18 +124,20 @@ impl<'a> FunctionContext<'a> {
                 let typ = Self::convert_non_tuple_type(&array.typ);
 
                 let new_convert_type = Self::convert_type(&array.typ);
-                dbg!(new_convert_type.clone());
+                // dbg!(new_convert_type.clone());
                 if new_convert_type.count_leaves() > 1 {
                     let slice_length = ast::Literal::Integer(
                         (array.contents.len() as u128).into(),
                         ast::Type::Field,
                     );
                     let slice_length = self.codegen_literal(&slice_length);
-                    let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                    let elements =
+                        vecmap(&array.contents, |element| self.codegen_expression(element));
                     let slice_contents = self.codegen_array(elements, typ);
                     Tree::Branch(vec![slice_length, slice_contents])
                 } else {
-                    let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                    let elements =
+                        vecmap(&array.contents, |element| self.codegen_expression(element));
                     self.codegen_array(elements, typ)
                 }
             }
@@ -258,21 +256,27 @@ impl<'a> FunctionContext<'a> {
         // let array = self.codegen_non_tuple_expression(&index.collection);
         // let index_value = self.codegen_non_tuple_expression(&index.index);
         // self.codegen_array_index(array, index_value, &index.element_type, index.location)
-        dbg!("codegen_index");
+        // dbg!("codegen_index");
         let array_or_slice = self.codegen_expression(&index.collection);
         // dbg!(array_or_slice.clone());
         if array_or_slice.count_leaves() > 1 {
             let index_value = self.codegen_non_tuple_expression(&index.index);
             match &array_or_slice {
                 Tree::Branch(values) => {
-                    dbg!(values.clone());
-                    for value in values {
-                        let x = value.clone().into_leaf().eval(self);
-                        dbg!(&self.builder.current_function.dfg[x]);
-                    }
+                    // dbg!(values.clone());
+                    // for value in values {
+                        // let x = value.clone().into_leaf().eval(self);
+                        // dbg!(&self.builder.current_function.dfg[x]);
+                    // }
                     let slice_length = values[0].clone().into_leaf().eval(self);
                     let slice = values[1].clone().into_leaf().eval(self);
-                    self.codegen_array_index(slice, index_value, &index.element_type, index.location, Some(slice_length))
+                    self.codegen_array_index(
+                        slice,
+                        index_value,
+                        &index.element_type,
+                        index.location,
+                        Some(slice_length),
+                    )
                 }
                 Tree::Leaf(_) => panic!("Nooo"),
             }
@@ -297,11 +301,11 @@ impl<'a> FunctionContext<'a> {
         location: Location,
         max_length: Option<super::ir::value::ValueId>,
     ) -> Values {
-        let array_value = &self.builder.current_function.dfg[array];
+        // let array_value = &self.builder.current_function.dfg[array];
 
-        dbg!(array_value.clone());
-        let len = &self.builder.current_function.dfg.try_get_array_length(array);
-        dbg!(len);
+        // dbg!(array_value.clone());
+        // let len = &self.builder.current_function.dfg.try_get_array_length(array);
+        // dbg!(len);
 
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
@@ -317,22 +321,26 @@ impl<'a> FunctionContext<'a> {
             match array_type {
                 Type::Slice(_) => {
                     dbg!("got slice");
-                    let array_len = max_length.expect("ICE: a length must be supplied for indexing slices");
+                    let array_len =
+                        max_length.expect("ICE: a length must be supplied for indexing slices");
                     // If the index and the array_len are both Fields we will not be able to perform a less than comparison on them
                     // Thus, we cast the array len to a u64 before performing the less than comparison
                     dbg!(array_len);
-                    let array_len_int = self.builder.insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 }));
- 
-                    let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len_int);
+                    let array_len_int = self.builder.insert_cast(
+                        array_len,
+                        Type::Numeric(NumericType::Unsigned { bit_size: 64 }),
+                    );
+
+                    let is_offset_out_of_bounds =
+                        self.builder.insert_binary(index, BinaryOp::Lt, array_len_int);
                     self.builder.insert_constrain(is_offset_out_of_bounds);
                 }
                 Type::Array(..) => {
                     // Nothing needs to done to prepare an array get on an array
                 }
                 _ => unreachable!("must have array or slice but got {array_type}"),
-
             }
-            dbg!("about to insert array get");
+            // dbg!("about to insert array get");
             self.builder.insert_array_get(array, offset, typ).into()
         })
     }

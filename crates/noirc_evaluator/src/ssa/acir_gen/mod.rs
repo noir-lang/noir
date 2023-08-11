@@ -321,7 +321,7 @@ impl Context {
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_location(dfg.get_location(&instruction_id));
-        dbg!(instruction.clone());
+        // dbg!(instruction.clone());
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
@@ -941,18 +941,23 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         let mut var = self.convert_numeric_value(value_id, dfg)?;
-        let truncation_target = match &dfg[value_id] {
-            Value::Instruction { instruction, .. } => &dfg[*instruction],
-            _ => unreachable!("ICE: Truncates are only ever applied to the result of a binary op"),
+        match &dfg[value_id] {
+            Value::Instruction { instruction, .. } => {
+                if matches!(&dfg[*instruction], Instruction::Binary(Binary { operator: BinaryOp::Sub, .. }))
+                {
+                    // Subtractions must first have the integer modulus added before truncation can be
+                    // applied. This is done in order to prevent underflow.
+                    let integer_modulus =
+                        self.acir_context.add_constant(FieldElement::from(2_u128.pow(bit_size)));
+                    var = self.acir_context.add_var(var, integer_modulus)?;
+                }
+            }
+            Value::Param { .. } => {
+                // Binary operations on params may have been entirely simplified if the operation
+                // give back the identity of the param
+            }
+            _ => unreachable!("ICE: Truncates are only ever applied to the result of a binary op or a param"),
         };
-        if matches!(truncation_target, Instruction::Binary(Binary { operator: BinaryOp::Sub, .. }))
-        {
-            // Subtractions must first have the integer modulus added before truncation can be
-            // applied. This is done in order to prevent underflow.
-            let integer_modulus =
-                self.acir_context.add_constant(FieldElement::from(2_u128.pow(bit_size)));
-            var = self.acir_context.add_var(var, integer_modulus)?;
-        }
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }

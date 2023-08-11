@@ -146,7 +146,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
-        value::{ValueId, Value},
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -425,20 +425,16 @@ impl<'f> Context<'f> {
         // already converted to slices
         let then_value = self.inserter.function.dfg[then_value_id].clone();
         let else_value = self.inserter.function.dfg[else_value_id].clone();
-        dbg!(then_value.clone());
-        dbg!(else_value.clone());
+        // dbg!(then_value.clone());
+        // dbg!(else_value.clone());
 
         let len = match then_value {
-            Value::Array { array, .. } => {
-                array.len()
-            }
+            Value::Array { array, .. } => array.len(),
             _ => panic!("Expected array value"),
         };
 
         let else_len = match else_value {
-            Value::Array { array, .. } => {
-                array.len()
-            }
+            Value::Array { array, .. } => array.len(),
             _ => panic!("Expected array value"),
         };
 
@@ -454,7 +450,10 @@ impl<'f> Context<'f> {
                 // Works but leads to slices with more values at the end
                 let mut get_element = |array, typevars, len| {
                     if (len - 1) < index_value.to_u128() as usize {
-                        self.inserter.function.dfg.make_constant(FieldElement::zero(), Type::field())
+                        self.inserter
+                            .function
+                            .dfg
+                            .make_constant(FieldElement::zero(), Type::field())
                     } else {
                         let get = Instruction::ArrayGet { array, index };
                         self.insert_instruction_with_typevars(get, typevars).first()
@@ -471,8 +470,8 @@ impl<'f> Context<'f> {
                     else_element,
                 ));
             }
-        }  
-        dbg!(merged.clone());
+        }
+        // dbg!(merged.clone());
         self.inserter.function.dfg.make_array(merged, typ)
     }
 

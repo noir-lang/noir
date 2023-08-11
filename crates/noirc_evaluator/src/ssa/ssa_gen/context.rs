@@ -188,7 +188,10 @@ impl<'a> FunctionContext<'a> {
             }
             ast::Type::Slice(elements) => {
                 let element_types = Self::convert_type(elements).flatten();
-                Tree::Branch(vec![Tree::Leaf(f(Type::field())), Tree::Leaf(f(Type::Slice(Rc::new(element_types))))])
+                Tree::Branch(vec![
+                    Tree::Leaf(f(Type::field())),
+                    Tree::Leaf(f(Type::Slice(Rc::new(element_types)))),
+                ])
             }
             other => Tree::Leaf(f(Self::convert_non_tuple_type(other))),
         }
@@ -575,24 +578,24 @@ impl<'a> FunctionContext<'a> {
     /// This will return a triple of (array, index, lvalue_ref, Option<max_length>) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
     /// The optional max length is for the case where we are indexing a slice rather than an array as slices
-    /// are representing as the following tuple: (length, slice contents). 
+    /// are representing as the following tuple: (length, slice contents).
     fn index_lvalue(
         &mut self,
         array: &ast::LValue,
         index: &ast::Expression,
     ) -> (ValueId, ValueId, LValue, Option<ValueId>) {
-        dbg!(array.clone());
+        // dbg!(array.clone());
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
-        dbg!(array_lvalue.clone());
+        // dbg!(array_lvalue.clone());
         let index = self.codegen_non_tuple_expression(index);
         let array_lvalue = Box::new(array_lvalue);
         // A slice is represented as a tuple (length, slice contents)
-        // We need to fetch the second 
+        // We need to fetch the second
         if old_array.count_leaves() > 1 {
             let slice_values = old_array.clone().into_value_list(self);
-            let slice_lvalue = LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue };
+            let slice_lvalue =
+                LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue };
             (slice_values[1], index, slice_lvalue, Some(slice_values[0]))
-
         } else {
             let old_array = old_array.into_leaf().eval(self);
             (old_array, index, LValue::Index { old_array, index, array_lvalue }, None)
@@ -607,7 +610,8 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue, max_length) = self.index_lvalue(array, index);
-                let element = self.codegen_array_index(old_array, index, element_type, *location, max_length);
+                let element =
+                    self.codegen_array_index(old_array, index, element_type, *location, max_length);
                 (element, index_lvalue)
             }
             ast::LValue::MemberAccess { object, field_index: index } => {

@@ -77,6 +77,7 @@ impl RuntimeError {
 
 impl From<RuntimeError> for FileDiagnostic {
     fn from(error: RuntimeError) -> Self {
+        dbg!(error.clone());
         let file_id = error.location().map(|loc| loc.file).unwrap();
         FileDiagnostic { file_id, diagnostic: error.into() }
     }

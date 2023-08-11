@@ -180,6 +180,12 @@ impl PerFunctionContext {
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
+            // for l in self.loops.yet_to_unroll.iter() {
+            //     if block == l.header {
+            //         return address;
+            //     }
+            // }
+
             // Check whether there is a load value to substitute in the current block.
             // Return the value if found.
             if let Some((value, load_block_id)) =
@@ -191,8 +197,18 @@ impl PerFunctionContext {
             }
 
             // If no load values to substitute have been found in the current block, check the block's predecessors.
-            let predecessors = self.cfg.predecessors(block);
-            for predecessor in predecessors {
+            // let predecessors = self.cfg.predecessors(block);
+            // for predecessor in predecessors {
+            //     if self.dom_tree.is_reachable(predecessor)
+            //         && self.dom_tree.dominates(predecessor, block)
+            //         && !visited.contains(&predecessor)
+            //     {
+            //         stack.push(predecessor);
+            //     }
+            // }
+            let mut predecessors = self.cfg.predecessors(block);
+            if predecessors.len() == 1 {
+                let predecessor = predecessors.next().unwrap();
                 if self.dom_tree.is_reachable(predecessor)
                     && self.dom_tree.dominates(predecessor, block)
                     && !visited.contains(&predecessor)
@@ -223,14 +239,6 @@ impl PerFunctionContext {
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
-            for l in self.loops.yet_to_unroll.iter() {
-                // We do not want to substitute loads that take place within loops as this pass
-                // can occur before loop unrolling
-                if block == l.header {
-                    return false;
-                }
-            }
-
             // Check whether there has been a store instruction in the current block
             // If there has been a store, add a load to be substituted.
             if let Some(last_value) = self.last_stores_with_block.get(&(address, block)) {
@@ -245,11 +253,21 @@ impl PerFunctionContext {
                 return true;
             }
 
-            // If no stores have been found in the current block, check the block's predecessors.
-            let predecessors = self.cfg.predecessors(block);
-            for predecessor in predecessors {
-                // TODO: Do I need is_reachable here? We are looping over only the reachable blocks but does
-                // that include a reachable block's predecessors?
+
+            // If no stores have been found in the current block, check the block's predecessor
+            // let predecessors = self.cfg.predecessors(block);
+            // for predecessor in predecessors {
+            //     if self.dom_tree.is_reachable(predecessor)
+            //         && self.dom_tree.dominates(predecessor, block)
+            //         && !visited.contains(&predecessor)
+            //     {
+            //         stack.push(predecessor);
+            //     }
+            // }
+
+            let mut predecessors = self.cfg.predecessors(block);
+            if predecessors.len() == 1 {
+                let predecessor = predecessors.next().unwrap();
                 if self.dom_tree.is_reachable(predecessor)
                     && self.dom_tree.dominates(predecessor, block)
                     && !visited.contains(&predecessor)

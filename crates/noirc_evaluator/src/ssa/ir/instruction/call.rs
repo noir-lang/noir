@@ -12,7 +12,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
-use super::{Endian, SimplifyResult, Binary, Instruction, BinaryOp};
+use super::{Binary, BinaryOp, Endian, Instruction, SimplifyResult};
 
 /// Try to simplify this call instruction. If the instruction can be simplified to a known value,
 /// that value is returned. Otherwise None is returned.
@@ -37,10 +37,13 @@ pub(super) fn simplify_call(
 
                 let result_slice = constant_to_radix(endian, field, 2, limb_count, dfg);
 
-                let length = dfg.try_get_array_length(result_slice).expect("ICE: a constant array should have an associated length");
-                let len_value = dfg.make_constant(FieldElement::from(length as u128), Type::field());
+                let length = dfg
+                    .try_get_array_length(result_slice)
+                    .expect("ICE: a constant array should have an associated length");
+                let len_value =
+                    dfg.make_constant(FieldElement::from(length as u128), Type::field());
 
-                // `Intrinsic::ToBits` returns slices which are represented 
+                // `Intrinsic::ToBits` returns slices which are represented
                 // by tuples with the structure (length, slice contents)
                 SimplifyResult::SimplifiedToMultiple(vec![len_value, result_slice])
             } else {
@@ -53,14 +56,15 @@ pub(super) fn simplify_call(
                 let radix = constant_args[1].to_u128() as u32;
                 let limb_count = constant_args[2].to_u128() as u32;
 
-                let result_slice = constant_to_radix(
-                    endian, field, radix, limb_count, dfg,
-                );
+                let result_slice = constant_to_radix(endian, field, radix, limb_count, dfg);
 
-                let length = dfg.try_get_array_length(result_slice).expect("ICE: a constant array should have an associated length");
-                let len_value = dfg.make_constant(FieldElement::from(length as u128), Type::field());
+                let length = dfg
+                    .try_get_array_length(result_slice)
+                    .expect("ICE: a constant array should have an associated length");
+                let len_value =
+                    dfg.make_constant(FieldElement::from(length as u128), Type::field());
 
-                // `Intrinsic::ToRadix` returns slices which are represented 
+                // `Intrinsic::ToRadix` returns slices which are represented
                 // by tuples with the structure (length, slice contents)
                 SimplifyResult::SimplifiedToMultiple(vec![len_value, result_slice])
             } else {
@@ -70,49 +74,72 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             dbg!("ARRAYLEN");
             // let slice = dfg.get_array_constant(arguments[0]);
+            // if let Some((slice, typ)) = slice {
+            //     let length = FieldElement::from((slice.len() / typ.element_size()) as u128);
+            //     SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
+            // }
             dbg!(arguments.len());
-            let slice = match dfg.type_of_value(arguments[1]) {
-                Type::Slice(_) => {
-                    dfg.get_array_constant(arguments[1])
-                }
-                _ => None,
-            };
-            if let (Some((_, _)), length) = (slice, dfg.get_numeric_constant(arguments[0])) {
-                dbg!(length);
-                // let length = FieldElement::from((slice.len() / typ.element_size()) as u128);
-                if let Some(length) = length {
-                    // let length = length / FieldElement::from(typ.element_size() as u128);
-                    SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
-                } else {
-                    // TODO: divide by the typ.element_size()
-                    SimplifyResult::SimplifiedTo(arguments[0])
-                    // SimplifyResult::None
-                }
-            } else if let Some(length) = dfg.try_get_array_length(arguments[0]) {
+            // Probably need to check this
+            // arguments.len() > 1 && 
+            if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
+                // let length = length / FieldElement::from(typ.element_size() as u128);
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
+            } else if let Some(length) = dfg.get_numeric_constant(arguments[0]) {
+                SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
+            } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
+                SimplifyResult::SimplifiedTo(arguments[0])
             } else {
                 SimplifyResult::None
             }
+
+            // if let Some(length) = dfg.get_numeric_constant(arguments[0]) {
+            //     dbg!(length);
+            //     match dfg.type_of_value(arguments[1]) {
+            //         Type::Slice(_) => (),
+            //         _ => unreachable!("ICE: a numeric constant must be followed by a slice for inputs to Intrinsic::ArrayLen"),
+            //     };
+            //     SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
+            //     let length = FieldElement::from((slice.len() / typ.element_size()) as u128);
+            //     if let Some(length) = length {
+            //         // let length = length / FieldElement::from(typ.element_size() as u128);
+            //         SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
+            //     } else {
+            //         // TODO: divide by the typ.element_size()
+            //         SimplifyResult::SimplifiedTo(arguments[0])
+            //         // SimplifyResult::None
+            //     }
+            // } else if let Some(length) = dfg.try_get_array_length(arguments[0]) {
+            //     let length = FieldElement::from(length as u128);
+            //     SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
+            // } else {
+            //     SimplifyResult::None
+            // }
         }
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[1]);
-            dbg!(slice.clone());
+            // dbg!(slice.clone());
             if let Some((mut slice, element_type)) = slice {
                 for elem in &arguments[2..] {
                     slice.push_back(*elem);
                 }
-                dbg!(slice.clone());
-                // We must codegen the slice length here in-case it has been generated by 
+                // dbg!(slice.clone());
+                // We must codegen the slice length here in-case it has been generated by
                 // a merger of slices based upon witness values
                 let one = dfg.make_constant(FieldElement::one(), Type::field());
                 let block = dfg.make_block();
-                let new_slice_length = dfg.insert_instruction_and_results(
-                    Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Add, rhs: one }), 
-                    block,
-                    None, 
-                    None,
-                ).first();
+                let new_slice_length = dfg
+                    .insert_instruction_and_results(
+                        Instruction::Binary(Binary {
+                            lhs: arguments[0],
+                            operator: BinaryOp::Add,
+                            rhs: one,
+                        }),
+                        block,
+                        None,
+                        None,
+                    )
+                    .first();
 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -127,16 +154,22 @@ pub(super) fn simplify_call(
                     slice.push_front(*elem);
                 }
 
-                // We must codegen the slice length here in-case it has been generated by 
+                // We must codegen the slice length here in-case it has been generated by
                 // a merger of slices based upon witness values
                 let one = dfg.make_constant(FieldElement::one(), Type::field());
                 let block = dfg.make_block();
-                let new_slice_length = dfg.insert_instruction_and_results(
-                    Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Add, rhs: one }), 
-                    block,
-                    None, 
-                    None,
-                ).first();
+                let new_slice_length = dfg
+                    .insert_instruction_and_results(
+                        Instruction::Binary(Binary {
+                            lhs: arguments[0],
+                            operator: BinaryOp::Add,
+                            rhs: one,
+                        }),
+                        block,
+                        None,
+                        None,
+                    )
+                    .first();
 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -161,16 +194,22 @@ pub(super) fn simplify_call(
                 let new_slice = dfg.make_array(slice, typ);
                 results.push_front(new_slice);
 
-                // We must codegen the slice length here in-case it has been generated by 
+                // We must codegen the slice length here in-case it has been generated by
                 // a merger of slices based upon witness values
                 let one = dfg.make_constant(FieldElement::one(), Type::field());
                 let block = dfg.make_block();
-                let new_slice_length = dfg.insert_instruction_and_results(
-                    Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Sub, rhs: one }), 
-                    block,
-                    None, 
-                    None,
-                ).first();
+                let new_slice_length = dfg
+                    .insert_instruction_and_results(
+                        Instruction::Binary(Binary {
+                            lhs: arguments[0],
+                            operator: BinaryOp::Sub,
+                            rhs: one,
+                        }),
+                        block,
+                        None,
+                        None,
+                    )
+                    .first();
 
                 results.push_front(new_slice_length);
                 SimplifyResult::SimplifiedToMultiple(results.into())
@@ -188,16 +227,22 @@ pub(super) fn simplify_call(
                     slice.pop_front().expect("There are no elements in this slice to be removed")
                 });
 
-                // We must codegen the slice length here in-case it has been generated by 
+                // We must codegen the slice length here in-case it has been generated by
                 // a merger of slices based upon witness values
                 let one = dfg.make_constant(FieldElement::one(), Type::field());
                 let block = dfg.make_block();
-                let new_slice_length = dfg.insert_instruction_and_results(
-                    Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Sub, rhs: one }), 
-                    block,
-                    None, 
-                    None,
-                ).first();
+                let new_slice_length = dfg
+                    .insert_instruction_and_results(
+                        Instruction::Binary(Binary {
+                            lhs: arguments[0],
+                            operator: BinaryOp::Sub,
+                            rhs: one,
+                        }),
+                        block,
+                        None,
+                        None,
+                    )
+                    .first();
                 results.push(new_slice_length);
 
                 let new_slice = dfg.make_array(slice, typ);
@@ -221,16 +266,22 @@ pub(super) fn simplify_call(
                     index += 1;
                 }
 
-                // We must codegen the slice length here in-case it has been generated by 
+                // We must codegen the slice length here in-case it has been generated by
                 // a merger of slices based upon witness values
                 let one = dfg.make_constant(FieldElement::one(), Type::field());
                 let block = dfg.make_block();
-                let new_slice_length = dfg.insert_instruction_and_results(
-                    Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Add, rhs: one }), 
-                    block,
-                    None, 
-                    None,
-                ).first();
+                let new_slice_length = dfg
+                    .insert_instruction_and_results(
+                        Instruction::Binary(Binary {
+                            lhs: arguments[0],
+                            operator: BinaryOp::Add,
+                            rhs: one,
+                        }),
+                        block,
+                        None,
+                        None,
+                    )
+                    .first();
 
                 let new_slice = dfg.make_array(slice, typ);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -253,16 +304,22 @@ pub(super) fn simplify_call(
                 let new_slice = dfg.make_array(slice, typ);
                 results.insert(0, new_slice);
 
-                // We must codegen the slice length here in-case it has been generated by 
+                // We must codegen the slice length here in-case it has been generated by
                 // a merger of slices based upon witness values
                 let one = dfg.make_constant(FieldElement::one(), Type::field());
                 let block = dfg.make_block();
-                let new_slice_length = dfg.insert_instruction_and_results(
-                    Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Sub, rhs: one }), 
-                    block,
-                    None, 
-                    None,
-                ).first();
+                let new_slice_length = dfg
+                    .insert_instruction_and_results(
+                        Instruction::Binary(Binary {
+                            lhs: arguments[0],
+                            operator: BinaryOp::Sub,
+                            rhs: one,
+                        }),
+                        block,
+                        None,
+                        None,
+                    )
+                    .first();
                 results.insert(0, new_slice_length);
 
                 SimplifyResult::SimplifiedToMultiple(results)
@@ -287,8 +344,10 @@ fn simplify_black_box_func(
         BlackBoxFunc::SHA256 => simplify_hash(dfg, arguments, acvm::blackbox_solver::sha256),
         BlackBoxFunc::Blake2s => simplify_hash(dfg, arguments, acvm::blackbox_solver::blake2s),
         BlackBoxFunc::Keccak256 => {
+            dbg!("got to simplify keccak");
             match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
                 (Some((input, _)), Some(num_bytes)) if array_is_constant(dfg, &input) => {
+                    dbg!("simplifying keccak");
                     let input_bytes: Vec<u8> = to_u8_vec(dfg, input);
 
                     let num_bytes = num_bytes.to_u128() as usize;

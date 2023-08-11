@@ -46,6 +46,7 @@ impl Ssa {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
@@ -56,16 +57,16 @@ pub(crate) struct Loop {
     back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    blocks: HashSet<BasicBlockId>,
+    pub(crate) blocks: HashSet<BasicBlockId>,
 }
 
 pub(crate) struct Loops {
     /// The loops that failed to be unrolled so that we do not try to unroll them again.
     /// Each loop is identified by its header block id.
-    failed_to_unroll: HashSet<BasicBlockId>,
+    pub(crate) failed_to_unroll: HashSet<BasicBlockId>,
 
     pub(crate) yet_to_unroll: Vec<Loop>,
-    modified_blocks: HashSet<BasicBlockId>,
+    pub(crate) modified_blocks: HashSet<BasicBlockId>,
     cfg: ControlFlowGraph,
     dom_tree: DominatorTree,
 }
