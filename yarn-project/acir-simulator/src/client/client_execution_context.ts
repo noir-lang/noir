@@ -42,8 +42,9 @@ export class ClientTxExecutionContext {
      *  If a nullifier for a note in this list is emitted, the note will be REMOVED. */
     private pendingNotes: PendingNoteData[] = [],
     /** The list of nullifiers created in this transaction. The commitment/note which is nullified
-     *  might be pending or not (i.e., was generated in a previous transaction) */
-    private pendingNullifiers: Set<Fr> = new Set<Fr>(),
+     *  might be pending or not (i.e., was generated in a previous transaction)
+     *  Note that their value (bigint representation) is used because Frs cannot be looked up in Sets. */
+    private pendingNullifiers: Set<bigint> = new Set<bigint>(),
 
     private log = createDebugLogger('aztec:simulator:client_execution_context'),
   ) {}
@@ -131,8 +132,7 @@ export class ClientTxExecutionContext {
 
     const dbNotes = await this.db.getNotes(contractAddress, storageSlotField);
 
-    // Remove notes which were already nullified during this transaction.
-    const dbNotesFiltered = dbNotes.filter(n => !this.pendingNullifiers.has(n.siloedNullifier as Fr));
+    const dbNotesFiltered = dbNotes.filter(n => !this.pendingNullifiers.has((n.siloedNullifier as Fr).value));
 
     // Nullified pending notes are already removed from the list.
     const notes = pickNotes([...dbNotesFiltered, ...pendingNotes], {
@@ -245,7 +245,7 @@ export class ClientTxExecutionContext {
   public async pushNewNullifier(innerNullifier: Fr, contractAddress: AztecAddress) {
     const wasm = await CircuitsWasm.get();
     const siloedNullifier = siloNullifier(wasm, contractAddress, innerNullifier);
-    this.pendingNullifiers.add(siloedNullifier);
+    this.pendingNullifiers.add(siloedNullifier.value);
   }
 
   /**
