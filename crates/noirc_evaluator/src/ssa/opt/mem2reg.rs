@@ -52,7 +52,6 @@ impl Ssa {
                 context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, block);
             }
         }
-        dbg!("ended mem2reg");
         self
     }
 }
