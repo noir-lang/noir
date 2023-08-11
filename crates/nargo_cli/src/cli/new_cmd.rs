@@ -5,7 +5,7 @@ use acvm::Backend;
 use clap::Args;
 use nargo::package::PackageType;
 use noirc_frontend::graph::CrateName;
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 /// Create a Noir project in a new directory.
 #[derive(Debug, Clone, Args)]
@@ -14,8 +14,8 @@ pub(crate) struct NewCommand {
     path: PathBuf,
 
     /// Name of the package [default: package directory name]
-    #[clap(long, value_parser = CrateName::from_str)]
-    name: Option<String>,
+    #[clap(long)]
+    name: Option<CrateName>,
 
     /// Use a library template
     #[arg(long, conflicts_with = "bin", conflicts_with = "contract")]
@@ -42,8 +42,10 @@ pub(crate) fn run<B: Backend>(
         return Err(CliError::DestinationAlreadyExists(package_dir));
     }
 
-    let package_name =
-        args.name.unwrap_or_else(|| args.path.file_name().unwrap().to_str().unwrap().to_owned());
+    let package_name = args
+        .name
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| args.path.file_name().unwrap().to_str().unwrap().to_owned());
     let package_type = if args.lib {
         PackageType::Library
     } else if args.contract {
