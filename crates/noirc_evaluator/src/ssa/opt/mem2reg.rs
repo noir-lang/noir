@@ -17,8 +17,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-use super::unrolling::{find_all_loops, Loops};
-
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove stores that are subsequently redundant.
