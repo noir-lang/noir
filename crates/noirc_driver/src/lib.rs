@@ -52,15 +52,19 @@ pub fn compile_file(
     context: &mut Context,
     root_file: &Path,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let crate_id = prepare_crate(context, root_file);
+    let crate_id = prepare_crate(context, root_file, None);
     compile_main(context, crate_id, &CompileOptions::default())
 }
 
 /// Adds the file from the file system at `Path` to the crate graph
-pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
+pub fn prepare_crate(
+    context: &mut Context,
+    file_name: &Path,
+    package_name: Option<CrateName>,
+) -> CrateId {
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
-    context.crate_graph.add_crate_root(root_file_id)
+    context.crate_graph.add_crate_root(root_file_id, package_name)
 }
 
 /// Adds a edge in the crate graph for two crates
@@ -132,7 +136,7 @@ pub fn compute_function_signature(
     let main_function = context.get_main_function(crate_id)?;
 
     let func_meta = context.def_interner.function_meta(&main_function);
-
+    println!("In compute_function_signature");
     Some(func_meta.into_function_signature(&context.def_interner))
 }
 

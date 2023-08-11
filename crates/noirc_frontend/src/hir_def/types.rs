@@ -122,6 +122,8 @@ pub struct StructType {
 
     pub generics: Generics,
     pub span: Span,
+
+    pub module_path: String,
 }
 
 /// Corresponds to generic lists such as `<T, U>` in the source
@@ -149,8 +151,9 @@ impl StructType {
         span: Span,
         fields: Vec<(Ident, Type)>,
         generics: Generics,
+        module_path: String,
     ) -> StructType {
-        StructType { id, fields, name, span, generics }
+        StructType { id, fields, name, span, generics, module_path }
     }
 
     /// To account for cyclic references between structs, a struct's
@@ -986,7 +989,7 @@ impl Type {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
                 let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
-                AbiType::Struct { fields, name: struct_type.name.to_string() }
+                AbiType::Struct { fields, name: struct_type.module_path.to_string() }
             }
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_, _) => unreachable!(),

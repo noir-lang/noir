@@ -34,7 +34,8 @@ pub fn prepare_dependencies(
     for (dep_name, dep) in dependencies.iter() {
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
-                let crate_id = prepare_crate(context, &package.entry_path);
+                let crate_id =
+                    prepare_crate(context, &package.entry_path, Some(package.name.to_owned()));
                 add_dep(context, parent_crate, crate_id, dep_name.clone());
                 prepare_dependencies(context, crate_id, &package.dependencies);
             }
@@ -48,7 +49,7 @@ pub fn prepare_package(package: &Package) -> (Context, CrateId) {
     let graph = CrateGraph::default();
     let mut context = Context::new(fm, graph);
 
-    let crate_id = prepare_crate(&mut context, &package.entry_path);
+    let crate_id = prepare_crate(&mut context, &package.entry_path, Some(package.name.to_owned()));
 
     prepare_dependencies(&mut context, crate_id, &package.dependencies);
 

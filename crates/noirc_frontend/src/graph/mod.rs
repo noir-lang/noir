@@ -4,7 +4,7 @@
 // This version is also simpler due to not having macro_defs or proc_macros
 // XXX: Edition may be reintroduced or some sort of versioning
 
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, option::Option, str::FromStr};
 
 use fm::FileId;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -76,6 +76,7 @@ pub const CHARACTER_BLACK_LIST: [char; 1] = ['-'];
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateData {
     pub root_file_id: FileId,
+    pub name: Option<CrateName>,
     pub dependencies: Vec<Dependency>,
 }
 
@@ -94,7 +95,11 @@ impl Dependency {
 }
 
 impl CrateGraph {
-    pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
+    pub fn get_crate(&self, crate_id: CrateId) -> Option<&CrateData> {
+        self.arena.get(&crate_id)
+    }
+
+    pub fn add_crate_root(&mut self, file_id: FileId, package_name: Option<CrateName>) -> CrateId {
         let mut roots_with_file_id =
             self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
 
@@ -103,7 +108,8 @@ impl CrateGraph {
             return *file_id.0;
         }
 
-        let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
+        let data =
+            CrateData { name: package_name, root_file_id: file_id, dependencies: Vec::new() };
         let crate_id = CrateId::Crate(self.arena.len());
         let prev = self.arena.insert(crate_id, data);
         assert!(prev.is_none());
@@ -119,7 +125,11 @@ impl CrateGraph {
             return *file_id.0;
         }
 
-        let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
+        let data = CrateData {
+            name: Some(CrateName::from_str("std").unwrap()),
+            root_file_id: file_id,
+            dependencies: Vec::new(),
+        };
         let crate_id = CrateId::Stdlib(self.arena.len());
         let prev = self.arena.insert(crate_id, data);
         assert!(prev.is_none());
@@ -239,9 +249,9 @@ mod tests {
         let file_ids = dummy_file_ids(3);
 
         let mut graph = CrateGraph::default();
-        let crate1 = graph.add_crate_root(file_ids[0]);
-        let crate2 = graph.add_crate_root(file_ids[1]);
-        let crate3 = graph.add_crate_root(file_ids[2]);
+        let crate1 = graph.add_crate_root(file_ids[0], None);
+        let crate2 = graph.add_crate_root(file_ids[1], None);
+        let crate3 = graph.add_crate_root(file_ids[2], None);
 
         assert!(graph.add_dep(crate1, "crate2".parse().unwrap(), crate2).is_ok());
         assert!(graph.add_dep(crate2, "crate3".parse().unwrap(), crate3).is_ok());
@@ -255,9 +265,9 @@ mod tests {
         let file_id_1 = file_ids[1];
         let file_id_2 = file_ids[2];
         let mut graph = CrateGraph::default();
-        let crate1 = graph.add_crate_root(file_id_0);
-        let crate2 = graph.add_crate_root(file_id_1);
-        let crate3 = graph.add_crate_root(file_id_2);
+        let crate1 = graph.add_crate_root(file_id_0, None);
+        let crate2 = graph.add_crate_root(file_id_1, None);
+        let crate3 = graph.add_crate_root(file_id_2, None);
         assert!(graph.add_dep(crate1, "crate2".parse().unwrap(), crate2).is_ok());
         assert!(graph.add_dep(crate2, "crate3".parse().unwrap(), crate3).is_ok());
     }
@@ -268,12 +278,12 @@ mod tests {
         let file_id_1 = file_ids[1];
         let file_id_2 = file_ids[2];
         let mut graph = CrateGraph::default();
-        let _crate1 = graph.add_crate_root(file_id_0);
-        let _crate2 = graph.add_crate_root(file_id_1);
+        let _crate1 = graph.add_crate_root(file_id_0, None);
+        let _crate2 = graph.add_crate_root(file_id_1, None);
 
         // Adding the same file, so the crate should be the same.
-        let crate3 = graph.add_crate_root(file_id_2);
-        let crate3_2 = graph.add_crate_root(file_id_2);
+        let crate3 = graph.add_crate_root(file_id_2, None);
+        let crate3_2 = graph.add_crate_root(file_id_2, None);
         assert_eq!(crate3, crate3_2);
     }
 }

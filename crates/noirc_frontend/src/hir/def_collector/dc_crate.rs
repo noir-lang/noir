@@ -360,7 +360,19 @@ fn resolve_structs(
     // without resolve_struct_fields non-deterministically unwrapping a value
     // that isn't in the HashMap.
     for (type_id, typ) in &structs {
-        context.def_interner.push_empty_struct(*type_id, typ);
+        let type_index = type_id.0.local_id.0;
+        let module_path = context.def_map(&crate_id).unwrap().get_module_path_with_separator(
+            type_index,
+            Some(typ.module_id),
+            "::",
+        );
+        let crate_name = context
+            .crate_graph
+            .get_crate(crate_id)
+            .and_then(|c| c.name.to_owned())
+            .map_or(String::new(), |n| n.to_string());
+        let full_path = format!("{crate_name}::{module_path}");
+        context.def_interner.push_empty_struct(*type_id, full_path, typ);
     }
 
     for (type_id, typ) in structs {

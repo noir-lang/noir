@@ -304,7 +304,12 @@ impl NodeInterner {
         self.id_to_type.insert(expr_id.into(), typ);
     }
 
-    pub fn push_empty_struct(&mut self, type_id: StructId, typ: &UnresolvedStruct) {
+    pub fn push_empty_struct(
+        &mut self,
+        type_id: StructId,
+        module_path: String,
+        typ: &UnresolvedStruct,
+    ) {
         self.structs.insert(
             type_id,
             Shared::new(StructType::new(
@@ -320,6 +325,7 @@ impl NodeInterner {
                     let id = TypeVariableId(0);
                     (id, Shared::new(TypeBinding::Unbound(id)))
                 }),
+                module_path,
             )),
         );
     }
