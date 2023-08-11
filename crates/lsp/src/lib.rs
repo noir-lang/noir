@@ -199,6 +199,8 @@ fn on_code_lens_request(
                 title: TEST_CODELENS_TITLE.into(),
                 command: TEST_COMMAND.into(),
                 arguments: Some(vec![
+                    "--program-dir".into(),
+                    format!("{}", workspace.root_dir.display()).into(),
                     "--package".into(),
                     format!("{}", package.name).into(),
                     "--exact".into(),
