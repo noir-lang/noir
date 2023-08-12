@@ -49,14 +49,14 @@ impl Ssa {
 pub(crate) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
-    pub(crate) header: BasicBlockId,
+    header: BasicBlockId,
 
     /// The start of the back_edge n -> d is the block n at the end of
     /// the loop that jumps back to the header block d which restarts the loop.
     back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    blocks: HashSet<BasicBlockId>,
+    pub(crate) blocks: HashSet<BasicBlockId>,
 }
 
 pub(crate) struct Loops {

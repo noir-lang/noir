@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, BTreeSet};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
@@ -10,13 +10,14 @@ use super::{
 struct CfgNode {
     /// Set of blocks that containing jumps that target this block.
     /// The predecessor set has no meaningful order.
-    pub(crate) predecessors: HashSet<BasicBlockId>,
+    pub(crate) predecessors: BTreeSet<BasicBlockId>,
 
     /// Set of blocks that are the targets of jumps in this block.
     /// The successors set has no meaningful order.
-    pub(crate) successors: HashSet<BasicBlockId>,
+    pub(crate) successors: BTreeSet<BasicBlockId>,
 }
 
+#[derive(Clone)]
 /// The Control Flow Graph maintains a mapping of blocks to their predecessors
 /// and successors where predecessors are basic blocks and successors are
 /// basic blocks.
@@ -31,7 +32,7 @@ impl ControlFlowGraph {
         // therefore we must ensure that a node exists for the entry block, regardless of whether
         // it later comes to describe any edges after calling compute.
         let entry_block = func.entry_block();
-        let empty_node = CfgNode { predecessors: HashSet::new(), successors: HashSet::new() };
+        let empty_node = CfgNode { predecessors: BTreeSet::new(), successors: BTreeSet::new() };
         let data = HashMap::from([(entry_block, empty_node)]);
 
         let mut cfg = ControlFlowGraph { data };

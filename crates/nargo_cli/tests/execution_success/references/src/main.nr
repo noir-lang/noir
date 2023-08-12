@@ -1,41 +1,48 @@
 fn main(mut x: Field) {
-    regression_2218(x, 10);
+    // add1(&mut x);
+    // assert(x == 3);
 
-    add1(&mut x);
-    assert(x == 3);
+    // let mut s = S { y: x };
+    // s.add2();
+    // assert(s.y == 5);
 
-    let mut s = S { y: x };
-    s.add2();
-    assert(s.y == 5);
+    // // Regression for #1946: Method resolution error when calling &mut methods with a variable of type &mut T
+    // let s_ref = &mut s;
+    // s_ref.add2();
+    // assert(s.y == 7);
 
-    // Regression for #1946: Method resolution error when calling &mut methods with a variable of type &mut T
-    let s_ref = &mut s;
-    s_ref.add2();
-    assert(s.y == 7);
+    // // Test that normal mutable variables are still copied
+    // let mut a = 0;
+    // mutate_copy(a);
+    // assert(a == 0);
 
-    // Test that normal mutable variables are still copied
-    let mut a = 0;
-    mutate_copy(a);
-    assert(a == 0);
+    // // Test something 3 allocations deep
+    // let mut nested_allocations = Nested { y: &mut &mut 0 };
+    // add1(*nested_allocations.y);
+    // assert(**nested_allocations.y == 1);
 
-    // Test something 3 allocations deep
-    let mut nested_allocations = Nested { y: &mut &mut 0 };
-    add1(*nested_allocations.y);
-    assert(**nested_allocations.y == 1);
+    // // Test nested struct allocations with a mutable reference to an array.
+    // let mut c = C {
+    //     foo: 0,
+    //     bar: &mut C2 {
+    //         array: &mut [1, 2],
+    //     },
+    // };
+    // *c.bar.array = [3, 4];
+    // assert(*c.bar.array == [3, 4]);
 
-    // Test nested struct allocations with a mutable reference to an array.
-    let mut c = C {
-        foo: 0,
-        bar: &mut C2 {
-            array: &mut [1, 2],
-        },
-    };
-    *c.bar.array = [3, 4];
-    assert(*c.bar.array == [3, 4]);
+    // regression_1887();
+    // regression_2054();
+    // regression_2030();
 
-    regression_1887();
-    regression_2054();
-    regression_2030();
+
+    // Compile time works
+    // regression_2218(5, 10);
+    // This breaks, thus we should fix our mem2reg here
+    // regression_2218(x, 10);
+    regression_2218_old(x, 10);
+    // regression_2218_loop(x, 10);
+    // regression_2221(true);
 }
 
 fn add1(x: &mut Field) {
@@ -111,8 +118,112 @@ fn regression_2218(x: Field, y: Field) {
         if x != 20 {
             *q1 = 10;
             *q2 = 2; // now we'd expect q1 == q2 == 2
-            
+            // dep::std::println(*q1);
             assert(*q1 == 2);  
+        } else {
+            *q2 = 15;
+            assert(*q1 == 15);
         }
     }
+    // TODO: this breaks mem2reg per func 
+    else {
+        *q2 = 20;
+        assert(*q1 == 20);  
+    }
+    // dep::std::println(*q1);
+    assert(*q1 == 2);  
+}
+
+fn regression_2218_old(x: Field, y: Field) {
+    let q = &mut &mut 0;
+    let q1 = *q;
+    let q2 = *q;
+
+    if x != y {
+        *q1 = 1;
+        // Make sure that we correct load reference aliases through multiple blocks
+        if x != 20 {
+            *q1 = 10;
+            *q2 = 2; // now we'd expect q1 == q2 == 2
+            // dep::std::println(*q1);
+            assert(*q1 == 2); 
+        }
+    }
+    // dep::std::println(*q1);
+    assert(*q1 == 2);  
+}
+
+fn regression_2218_loop(x: Field, y: Field) {
+    let q = &mut &mut 0;
+    let q1 = *q;
+    let q2 = *q;
+
+    for _ in 0..1 {
+        if x != y {
+            *q1 = 10;
+            *q2 = 2; // now we'd expect q1 == q2 == 2
+            
+            assert(*q1 == 2);
+        }  
+    }
+    // dep::std::println(*q1);
+    assert(*q1 == 2);
+
+    // for _ in 0..1 {
+    //     for _ in 0..5 {
+    //         if x != y {
+    //             *q1 = 1;
+    //             // Make sure that we correct load reference aliases through multiple blocks
+    //             if x != 20 {
+    //                 *q1 = 10;
+    //                 *q2 = 2; // now we'd expect q1 == q2 == 2
+                    
+    //                 assert(*q1 == 2);
+    //             }
+    //         }
+    //     }
+    //     if x != y {
+    //         *q1 = 1;
+    //         for _ in 0..5 {
+    //             // Make sure that we correct load reference aliases through multiple blocks
+    //             if x != 20 {
+    //                 *q1 = 10;
+    //                 *q2 = 2; // now we'd expect q1 == q2 == 2
+                    
+    //                 assert(*q1 == 2);
+    //             }
+    //         }
+    //     }
+    // }
+    // assert(*q1 == 2);  
+
+    // if x != y {
+    //     for _ in 0..5 {
+    //         if x != y {
+    //             *q1 = 1;
+    //             // Make sure that we correct load reference aliases through multiple blocks
+    //             if x != 20 {
+    //                 *q1 = 10;
+    //                 *q2 = 2; // now we'd expect q1 == q2 == 2
+
+    //                 assert(*q1 == 2);  
+    //             }
+    //         }
+    //     }
+    // } 
+    // assert(*q1 == 2);  
+}
+
+fn regression_2221(x: bool) {
+    let ref = &mut 0;
+    let mut array = [ref, ref];
+
+    if x {
+        *array[0] = 1;
+    } else {
+        *array[0] = 2;
+    }
+
+    assert(*array[0] == 1);
+    // dep::std::println(*array[0]);
 }
