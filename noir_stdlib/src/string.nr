@@ -1,5 +1,11 @@
+use crate::collections::vec::Vec;
 impl<N> str<N> {
-    /// return a byte slice of string
+    /// return a byte slice of the str content
     #[builtin(str_as_bytes)]
     fn as_bytes(_self: Self) -> [u8] { }
+
+    /// return a byte vector of the str content
+    fn into_bytes(self: Self) -> Vec<u8> {
+        Vec::from_slice(self.as_bytes())
+    }
 } 
