@@ -1487,9 +1487,9 @@ mod test {
             .into_iter()
             .flat_map(|program| {
                 let (_expr, diagnostics) = parse_recover(&parser, program);
-                if diagnostics.iter().any(|diagnostic| diagnostic.is_error()) {
+                diagnostics.iter().for_each(|diagnostic| if diagnostic.is_error() {
                     unreachable!("Expected this input to pass with warning:\n{program}\nYet it failed with error:\n{diagnostic}")
-                };
+                });
                 diagnostics
             })
             .collect()
