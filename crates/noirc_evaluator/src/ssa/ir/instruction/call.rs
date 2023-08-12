@@ -165,6 +165,15 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::StrAsBytes => {
+            let str = dfg.get_array_constant(arguments[0]);
+            if let Some((str, typ)) = str {
+                let result = dfg.make_array(str, typ);
+                SimplifyResult::SimplifiedTo(result)
+            } else {
+                SimplifyResult::None
+            }
+        }
         Intrinsic::AssertConstant => {
             if arguments.iter().all(|argument| dfg.is_constant(*argument)) {
                 SimplifyResult::Remove
