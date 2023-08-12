@@ -4,6 +4,7 @@ use noirc_errors::{Location, Span};
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
 use super::stmt::HirPattern;
 use crate::hir::def_map::ModuleId;
+use crate::monomorphization::ast::Function;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attribute, FunctionKind};
 use crate::{ContractFunctionType, Distinctness, FunctionReturnType, Type, Visibility};
@@ -140,7 +141,8 @@ impl FuncMeta {
     pub fn can_ignore_return_type(&self) -> bool {
         match self.kind {
             FunctionKind::LowLevel | FunctionKind::Builtin | FunctionKind::Oracle => true,
-            FunctionKind::Normal => false,
+            // TODO: double check
+            FunctionKind::Normal | FunctionKind::Aztec => false,
         }
     }
 

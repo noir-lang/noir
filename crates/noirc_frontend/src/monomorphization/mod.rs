@@ -157,6 +157,19 @@ impl<'interner> Monomorphizer<'interner> {
                         );
                         Definition::Builtin(opcode)
                     }
+                    // TODO: This does not fit my mental model, i would expect that we can carry on the normal here and do some funky stuff elsewhere
+                    FunctionKind::Aztec => {
+                        let attribute = meta.attributes.expect("all aztec functions must contain an attribute saying if the function is private or public");
+                        let opcode = attribute.aztec().expect(
+                            "ice: function marked as aztec, but attribute kind does not match this",
+                        );
+                        // Not entirely sure what to do with this value when finished
+                        dbg!(opcode);
+                        // NOTE: ive copied the code from a mix of the two definitions here, queuing the function as normal,
+                        // but using the attribute stuff from above. Not sure what this will look like in the finished product.
+                        let id = self.queue_function(id, expr_id, typ);
+                        Definition::Function(id)
+                    }
                     FunctionKind::Normal => {
                         let id = self.queue_function(id, expr_id, typ);
                         Definition::Function(id)

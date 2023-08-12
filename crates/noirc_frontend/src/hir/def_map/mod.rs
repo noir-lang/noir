@@ -3,7 +3,8 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::parser::{parse_program, ParsedModule};
-use crate::token::Attribute;
+use crate::token::{Attribute, AztecAttribute};
+use crate::FunctionKind;
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::{FileDiagnostic, Location};
@@ -17,6 +18,10 @@ mod module_data;
 pub use module_data::*;
 mod namespace;
 pub use namespace::*;
+
+// TODO: transient
+mod aztec_helper;
+pub use aztec_helper::*;
 
 /// The name that is used for a non-contract program's entry-point function.
 pub const MAIN_FUNCTION: &str = "main";
@@ -83,7 +88,9 @@ impl CrateDefMap {
 
         // First parse the root file.
         let root_file_id = context.crate_graph[crate_id].root_file_id;
-        let ast = parse_file(&mut context.file_manager, root_file_id, errors);
+        let mut ast = parse_file(&mut context.file_manager, root_file_id, errors);
+
+        aztec_contracts_macros(&mut ast);
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();

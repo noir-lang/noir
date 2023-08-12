@@ -1,0 +1,9 @@
+[package]
+name = "t"
+type = "bin"
+authors = [""]
+compiler_version = "0.9.0"
+
+[dependencies]
+aztec = { path =  "../../../aztec3-packages/yarn-project/noir-libs/noir-aztec/" }
+value_note = { path = "../../../aztec3-packages/yarn-project/noir-libs/value-note/" }
