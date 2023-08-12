@@ -526,10 +526,9 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
         .then_ignore(just(Token::Colon))
         .then(ident())
         .then(generic_type_args(parse_type()))
-        .validate(|((typ, trait_name), trait_generics), _span, _emit| TraitConstraint {
-            typ,
-            trait_name,
-            trait_generics,
+        .validate(|((typ, trait_name), trait_generics), span, emit| {
+            emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
+            TraitConstraint { typ, trait_name, trait_generics }
         });
 
     keyword(Keyword::Where)
@@ -1489,23 +1488,12 @@ mod test {
             .flat_map(|program| match parse_recover(&parser, program) {
                 (None, errors) => errors,
                 (Some(expr), errors) => {
-                    let mut has_errors = false;
-                    for e in &errors {
-                        if e.is_error() {
-                            has_errors = true;
-                        }
-                    }
-                    match has_errors {
-                        true => {
-                            unreachable!(
-                                "Expected this input to pass with warning:\n{}\nYet it successfully failed with error:\n{}",
-                                program, expr
-                            )
-                        }
-                        false => {}
-                    }
+                    if errors.iter().any(|error| error.is_error()) {
+                        unreachable!(
+                            "Expected this input to pass with warning:\n{program}\nYet it successfully failed with error:\n{expr}",
+                        )
+                    };
                     errors
-
                 }
             })
             .collect()
@@ -1518,26 +1506,21 @@ mod test {
     {
         programs
             .into_iter()
-            .flat_map(|program| match parse_recover(&parser, program) {
-                (None, errors) => errors,
-                (Some(expr), errors) => {
-                    let mut has_errors = false;
-                    for e in &errors {
-                        if e.is_error() {
-                            has_errors = true;
-                        }
-                    }
-                    match has_errors {
-                        false => {
-                            unreachable!(
-                                "Expected this input to fail:\n{}\nYet it successfully parsed as:\n{}",
-                                program, expr
-                            )
-                        }
-                        true => {}
-                    }
+            .flat_map(|program| match parse_with(&parser, program) {
+                Ok(expr) => {
+                    unreachable!(
+                        "Expected this input to fail:\n{}\nYet it successfully parsed as:\n{}",
+                        program, expr
+                    )
+                }
+                Err(errors) => {
+                    if errors.iter().all(|error| error.is_warning()) {
+                        unreachable!(
+                            "Expected at least one error when parsing:\n{}\nYet it successfully parsed wiithout errors:\n",
+                            program
+                        )
+                    };
                     errors
-
                 }
             })
             .collect()
@@ -1738,7 +1721,9 @@ mod test {
             ],
         );
         assert_eq!(errors.len(), 5);
-        assert!(errors.iter().all(|err| { err.is_warning() && format!("{}", err).contains("deprecated") }))
+        assert!(errors
+            .iter()
+            .all(|err| { err.is_warning() && format!("{}", err).contains("deprecated") }))
     }
 
     /// This is the standard way to declare an assert statement
@@ -1832,8 +1817,8 @@ mod test {
                 "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn f<T>(f: pub Field, y : T, z : comptime Field) -> u8 { x + a }",
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait {}",
-                // The following should produce compile error on later stage. From the parser prespective it's fine
-                "fn func_name<A>(f: Field, y : pub Field, z : pub [u8;5]) where T: SomeTrait {}",
+                // The following should produce compile error on later stage. From the parser's perspective it's fine
+                "fn func_name<A>(f: Field, y : Field, z : Field) where T: SomeTrait {}",
             ],
         );
 
