@@ -1468,12 +1468,12 @@ mod test {
     {
         vecmap(programs, move |program| {
             let message = format!("Failed to parse:\n{}", program);
-            let (op_t, errors) = parse_recover(&parser, program);
-            for e in errors {
-                if !e.is_warning() {
-                    panic!("{} with error {}", &message, e);
+            let (op_t, diagnostics) = parse_recover(&parser, program);
+            diagnostics.iter().for_each(|diagnostic| {
+                if diagnostic.is_error() {
+                    panic!("{} with error {}", &message, diagnostic);
                 }
-            }
+            });
             op_t.expect(&message)
         })
     }
@@ -1485,16 +1485,12 @@ mod test {
     {
         programs
             .into_iter()
-            .flat_map(|program| match parse_recover(&parser, program) {
-                (None, errors) => errors,
-                (Some(expr), errors) => {
-                    if errors.iter().any(|error| error.is_error()) {
-                        unreachable!(
-                            "Expected this input to pass with warning:\n{program}\nYet it successfully failed with error:\n{expr}",
-                        )
-                    };
-                    errors
-                }
+            .flat_map(|program| {
+                let (_expr, diagnostics) = parse_recover(&parser, program);
+                if diagnostics.iter().any(|diagnostic| diagnostic.is_error()) {
+                    unreachable!("Expected this input to pass with warning:\n{program}\nYet it failed with error:\n{diagnostic}")
+                };
+                diagnostics
             })
             .collect()
     }
@@ -1513,14 +1509,14 @@ mod test {
                         program, expr
                     )
                 }
-                Err(errors) => {
-                    if errors.iter().all(|error| error.is_warning()) {
+                Err(diagnostics) => {
+                    if diagnostics.iter().all(|diagnostic: &CustomDiagnostic| diagnostic.is_warning()) {
                         unreachable!(
-                            "Expected at least one error when parsing:\n{}\nYet it successfully parsed wiithout errors:\n",
+                            "Expected at least one error when parsing:\n{}\nYet it successfully parsed without errors:\n",
                             program
                         )
                     };
-                    errors
+                    diagnostics
                 }
             })
             .collect()
