@@ -7,7 +7,7 @@ fn main() {
     assert(b[2]==108);
     assert(b[3]==108);
     assert(b[4]==111);
-    let mut c = a.into_bytes();
+    let mut c = a.as_bytes_vec();
     assert(c.get(0)==104);
     assert(c.get(1)==101);
     assert(c.get(2)==108);
