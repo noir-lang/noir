@@ -37,12 +37,40 @@ pub(crate) fn run<B: Backend>(
     let toml_path = find_package_manifest(&config.program_dir)?;
     let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
 
+    let mut package_table = Table::new();
+    package_table.add_row(row!["Package", "Language", "ACIR Opcodes", "Backend Circuit Size"]);
+    let mut contract_table = Table::new();
+    contract_table.add_row(row![
+        "Contract",
+        "Function",
+        "Language",
+        "ACIR Opcodes",
+        "Backend Circuit Size"
+    ]);
+
     for package in &workspace {
         if package.is_contract() {
-            count_opcodes_and_gates_in_contracts(backend, package, &args.compile_options)?;
+            count_opcodes_and_gates_in_contracts(
+                backend,
+                package,
+                &args.compile_options,
+                &mut contract_table,
+            )?;
         } else {
-            count_opcodes_and_gates_in_package(backend, package, &args.compile_options)?;
+            count_opcodes_and_gates_in_package(
+                backend,
+                package,
+                &args.compile_options,
+                &mut package_table,
+            )?;
         }
+    }
+
+    if package_table.len() > 1 {
+        package_table.printstd();
+    }
+    if contract_table.len() > 1 {
+        contract_table.printstd();
     }
 
     Ok(())
@@ -52,6 +80,7 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
     backend: &B,
     package: &Package,
     compile_options: &CompileOptions,
+    table: &mut Table,
 ) -> Result<(), CliError<B>> {
     let (_, compiled_program) = compile_package(backend, package, compile_options)?;
 
@@ -60,15 +89,12 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
         .get_exact_circuit_size(&compiled_program.circuit)
         .map_err(CliError::ProofSystemCompilerError)?;
 
-    let mut table = Table::new();
-    table.add_row(row!["Package", "Language", "ACIR Opcodes", "Backend Circuit Size"]);
     table.add_row(row![
         format!("{}", package.name),
         format!("{:?}", backend.np_language()),
         format!("{}", num_opcodes),
         format!("{}", exact_circuit_size),
     ]);
-    table.printstd();
 
     Ok(())
 }
@@ -77,6 +103,7 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
     backend: &B,
     package: &Package,
     compile_options: &CompileOptions,
+    table: &mut Table,
 ) -> Result<(), CliError<B>> {
     let (mut context, crate_id) = prepare_package(package);
     let result = compile_contracts(&mut context, crate_id, compile_options);
@@ -93,14 +120,6 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
         })
         .map_err(CliError::ProofSystemCompilerError)?;
 
-        let mut table = Table::new();
-        table.add_row(row![
-            "Contract",
-            "Function",
-            "Language",
-            "ACIR Opcodes",
-            "Backend Circuit Size"
-        ]);
         for info in function_info {
             table.add_row(row![
                 format!("{}", contract.name),
@@ -110,7 +129,6 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
                 format!("{}", info.2),
             ]);
         }
-        table.printstd();
     }
 
     Ok(())
