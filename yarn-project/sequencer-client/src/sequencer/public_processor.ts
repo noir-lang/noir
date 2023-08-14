@@ -2,11 +2,11 @@ import { PublicExecution, PublicExecutionResult, PublicExecutor, isPublicExecuti
 import {
   AztecAddress,
   CircuitsWasm,
-  ConstantHistoricBlockData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
   Fr,
   GlobalVariables,
+  HistoricBlockData,
   KernelCircuitPublicInputs,
   MAX_NEW_COMMITMENTS_PER_CALL,
   MAX_NEW_L2_TO_L1_MSGS_PER_CALL,
@@ -39,7 +39,7 @@ import { PublicKernelCircuitSimulator } from '../simulator/index.js';
 import { getPublicExecutor } from '../simulator/public_executor.js';
 import { WasmPublicKernelCircuitSimulator } from '../simulator/public_kernel.js';
 import { ProcessedTx, makeEmptyProcessedTx, makeProcessedTx } from './processed_tx.js';
-import { getConstantHistoricBlockData } from './utils.js';
+import { getHistoricBlockData } from './utils.js';
 
 /**
  * Creates new instances of PublicProcessor given the provided merkle tree db and contract data source.
@@ -61,7 +61,7 @@ export class PublicProcessorFactory {
     prevGlobalVariables: GlobalVariables,
     globalVariables: GlobalVariables,
   ): Promise<PublicProcessor> {
-    const blockData = await getConstantHistoricBlockData(this.merkleTree, prevGlobalVariables);
+    const blockData = await getHistoricBlockData(this.merkleTree, prevGlobalVariables);
     return new PublicProcessor(
       this.merkleTree,
       getPublicExecutor(this.merkleTree, this.contractDataSource, this.l1Tol2MessagesDataSource, blockData),
@@ -86,7 +86,7 @@ export class PublicProcessor {
     protected publicProver: PublicProver,
     protected contractDataSource: ContractDataSource,
     protected globalVariables: GlobalVariables,
-    protected blockData: ConstantHistoricBlockData,
+    protected blockData: HistoricBlockData,
 
     private log = createDebugLogger('aztec:sequencer:public-processor'),
   ) {}

@@ -4,6 +4,7 @@ import {
   CircuitsWasm,
   EthAddress,
   Fr,
+  HistoricBlockData,
   L1_TO_L2_MSG_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
@@ -327,5 +328,27 @@ export class AztecNodeService implements AztecNode {
       [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: await getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
       [MerkleTreeId.BLOCKS_TREE]: await getTreeRoot(MerkleTreeId.BLOCKS_TREE),
     };
+  }
+
+  /**
+   * Returns the currently committed historic block data.
+   * @returns The current committed block data.
+   */
+  public async getHistoricBlockData(): Promise<HistoricBlockData> {
+    const getTreeRoot = async (id: MerkleTreeId) =>
+      Fr.fromBuffer((await this.merkleTreeDB.getTreeInfo(id, false)).root);
+
+    const globalsHash = this.worldStateSynchroniser.latestGlobalVariablesHash;
+
+    return new HistoricBlockData(
+      await getTreeRoot(MerkleTreeId.PRIVATE_DATA_TREE),
+      await getTreeRoot(MerkleTreeId.NULLIFIER_TREE),
+      await getTreeRoot(MerkleTreeId.CONTRACT_TREE),
+      await getTreeRoot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
+      await getTreeRoot(MerkleTreeId.BLOCKS_TREE),
+      Fr.ZERO,
+      await getTreeRoot(MerkleTreeId.PUBLIC_DATA_TREE),
+      globalsHash,
+    );
   }
 }

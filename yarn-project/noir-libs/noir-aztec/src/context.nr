@@ -21,7 +21,7 @@ use crate::abi::{
     hash_args,
     CallContext,
     ContractDeploymentData,
-    ConstantHistoricBlockData,
+    HistoricBlockData,
     FunctionData,
     PrivateCircuitPublicInputs,
     PublicCircuitPublicInputs,
@@ -247,7 +247,7 @@ impl Context {
                 unencrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 44),
                 encrypted_log_preimages_length: fields[46],
                 unencrypted_log_preimages_length: fields[47],
-                block_data: ConstantHistoricBlockData {
+                block_data: HistoricBlockData {
                     // Must match order in `private_circuit_public_inputs.hpp`
                     private_data_tree_root : fields[48],
                     nullifier_tree_root : fields[49],

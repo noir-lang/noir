@@ -6,9 +6,9 @@
 #include "aztec3/circuits/abis/call_stack_item.hpp"
 #include "aztec3/circuits/abis/combined_accumulated_data.hpp"
 #include "aztec3/circuits/abis/combined_constant_data.hpp"
-#include "aztec3/circuits/abis/constant_historic_block_data.hpp"
 #include "aztec3/circuits/abis/contract_deployment_data.hpp"
 #include "aztec3/circuits/abis/function_data.hpp"
+#include "aztec3/circuits/abis/historic_block_data.hpp"
 #include "aztec3/circuits/abis/kernel_circuit_public_inputs.hpp"
 #include "aztec3/circuits/abis/previous_kernel_data.hpp"
 #include "aztec3/circuits/abis/private_circuit_public_inputs.hpp"
@@ -34,7 +34,7 @@ using aztec3::circuits::abis::CallContext;
 using aztec3::circuits::abis::CallStackItem;
 using aztec3::circuits::abis::CombinedAccumulatedData;
 using aztec3::circuits::abis::CombinedConstantData;
-using aztec3::circuits::abis::ConstantHistoricBlockData;
+using aztec3::circuits::abis::HistoricBlockData;
 using aztec3::circuits::abis::NewContractData;
 using aztec3::circuits::abis::OptionallyRevealedData;
 using aztec3::circuits::abis::PreviousKernelData;
@@ -358,7 +358,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     };
 
     // TODO(914) Should this be unused?
-    [[maybe_unused]] ConstantHistoricBlockData<NT> const historic_tree_roots = {
+    [[maybe_unused]] HistoricBlockData<NT> const historic_tree_roots = {
         .private_data_tree_root = 1000,
         .contract_tree_root = 2000,
         .l1_to_l2_messages_tree_root = 3000,
@@ -366,11 +366,10 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     };
 
     CombinedConstantData<NT> const end_constants = { .block_data =
-                                                         ConstantHistoricBlockData<NT>{
-                                                             .private_data_tree_root = ++seed,
-                                                             .nullifier_tree_root = ++seed,
-                                                             .contract_tree_root = ++seed,
-                                                             .private_kernel_vk_tree_root = ++seed },
+                                                         HistoricBlockData<NT>{ .private_data_tree_root = ++seed,
+                                                                                .nullifier_tree_root = ++seed,
+                                                                                .contract_tree_root = ++seed,
+                                                                                .private_kernel_vk_tree_root = ++seed },
                                                      .tx_context = TxContext<NT>{
                                                          .is_fee_payment_tx = false,
                                                          .is_rebate_payment_tx = false,

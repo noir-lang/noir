@@ -1,4 +1,4 @@
-import { EthAddress } from '@aztec/circuits.js';
+import { EthAddress, HistoricBlockData } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 
@@ -124,4 +124,10 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
    * @returns The current committed roots for the data trees.
    */
   getTreeRoots(): Promise<Record<MerkleTreeId, Fr>>;
+
+  /**
+   * Returns the currently committed historic block data.
+   * @returns The current committed block data.
+   */
+  getHistoricBlockData(): Promise<HistoricBlockData>;
 }

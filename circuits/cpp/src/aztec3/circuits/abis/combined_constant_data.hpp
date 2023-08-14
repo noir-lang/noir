@@ -2,7 +2,7 @@
 
 #include "tx_context.hpp"
 
-#include "aztec3/circuits/abis/constant_historic_block_data.hpp"
+#include "aztec3/circuits/abis/historic_block_data.hpp"
 #include "aztec3/utils/types/circuit_types.hpp"
 #include "aztec3/utils/types/convert.hpp"
 #include "aztec3/utils/types/native_types.hpp"
@@ -11,7 +11,7 @@
 
 namespace aztec3::circuits::abis {
 
-using aztec3::circuits::abis::ConstantHistoricBlockData;
+using aztec3::circuits::abis::HistoricBlockData;
 using aztec3::utils::types::CircuitTypes;
 using aztec3::utils::types::NativeTypes;
 using std::is_same;
@@ -20,7 +20,7 @@ template <typename NCT> struct CombinedConstantData {
     using fr = typename NCT::fr;
     using boolean = typename NCT::boolean;
 
-    ConstantHistoricBlockData<NCT> block_data{};
+    HistoricBlockData<NCT> block_data{};
     TxContext<NCT> tx_context{};
 
     // for serialization: update up with new fields

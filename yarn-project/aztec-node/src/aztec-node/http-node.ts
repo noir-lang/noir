@@ -3,6 +3,7 @@ import {
   CONTRACT_TREE_HEIGHT,
   EthAddress,
   Fr,
+  HistoricBlockData,
   L1_TO_L2_MSG_TREE_HEIGHT,
   PRIVATE_DATA_TREE_HEIGHT,
 } from '@aztec/circuits.js';
@@ -339,5 +340,15 @@ export class HttpNode implements AztecNode {
       [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: extractRoot(MerkleTreeId.L1_TO_L2_MESSAGES_TREE),
       [MerkleTreeId.BLOCKS_TREE]: extractRoot(MerkleTreeId.BLOCKS_TREE),
     };
+  }
+
+  /**
+   * Returns the currently committed historic block data.
+   * @returns The current committed block data.
+   */
+  public async getHistoricBlockData(): Promise<HistoricBlockData> {
+    const url = new URL(`${this.baseUrl}/historic-block-data`);
+    const response = await (await fetch(url.toString())).json();
+    return response.blockData;
   }
 }

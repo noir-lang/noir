@@ -1,7 +1,8 @@
-import { AztecAddress, Fr, PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, Fr, HistoricBlockData, PublicKey } from '@aztec/circuits.js';
+import { computeGlobalsHash } from '@aztec/circuits.js/abis';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { InterruptableSleep } from '@aztec/foundation/sleep';
-import { AztecNode, INITIAL_L2_BLOCK_NUM, KeyStore, L2BlockContext, LogType, MerkleTreeId } from '@aztec/types';
+import { AztecNode, INITIAL_L2_BLOCK_NUM, KeyStore, L2BlockContext, LogType } from '@aztec/types';
 
 import { Database, TxDao } from '../database/index.js';
 import { NoteProcessor } from '../note_processor/index.js';
@@ -66,13 +67,13 @@ export class Synchroniser {
   }
 
   protected async initialSync() {
-    const [blockNumber, treeRoots] = await Promise.all([
+    const [blockNumber, historicBlockData] = await Promise.all([
       this.node.getBlockHeight(),
-      Promise.resolve(this.node.getTreeRoots()),
+      Promise.resolve(this.node.getHistoricBlockData()),
     ]);
     this.initialSyncBlockHeight = blockNumber;
     this.synchedToBlock = this.initialSyncBlockHeight;
-    await this.db.setTreeRoots(treeRoots);
+    await this.db.setHistoricBlockData(historicBlockData);
   }
 
   protected async work(limit = 1, retryInterval = 1000): Promise<void> {
@@ -118,7 +119,7 @@ export class Synchroniser {
 
       // Update latest tree roots from the most recent block
       const latestBlock = blockContexts[blockContexts.length - 1];
-      await this.setTreeRootsFromBlock(latestBlock);
+      await this.setBlockDataFromBlock(latestBlock);
 
       this.log(
         `Forwarding ${encryptedLogs.length} encrypted logs and blocks to ${this.noteProcessors.length} note processors`,
@@ -190,19 +191,24 @@ export class Synchroniser {
     }
   }
 
-  private async setTreeRootsFromBlock(latestBlock: L2BlockContext) {
+  private async setBlockDataFromBlock(latestBlock: L2BlockContext) {
     const { block } = latestBlock;
     if (block.number < this.initialSyncBlockHeight) return;
 
-    const roots: Record<MerkleTreeId, Fr> = {
-      [MerkleTreeId.CONTRACT_TREE]: block.endContractTreeSnapshot.root,
-      [MerkleTreeId.PRIVATE_DATA_TREE]: block.endPrivateDataTreeSnapshot.root,
-      [MerkleTreeId.NULLIFIER_TREE]: block.endNullifierTreeSnapshot.root,
-      [MerkleTreeId.PUBLIC_DATA_TREE]: block.endPublicDataTreeRoot,
-      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: block.endL1ToL2MessageTreeSnapshot.root,
-      [MerkleTreeId.BLOCKS_TREE]: block.endHistoricBlocksTreeSnapshot.root,
-    };
-    await this.db.setTreeRoots(roots);
+    const wasm = await CircuitsWasm.get();
+    const globalsHash = computeGlobalsHash(wasm, latestBlock.block.globalVariables);
+    const blockData = new HistoricBlockData(
+      block.endPrivateDataTreeSnapshot.root,
+      block.endNullifierTreeSnapshot.root,
+      block.endContractTreeSnapshot.root,
+      block.endL1ToL2MessageTreeSnapshot.root,
+      block.endHistoricBlocksTreeSnapshot.root,
+      Fr.ZERO, // todo: private kernel vk tree root
+      block.endPublicDataTreeRoot,
+      globalsHash,
+    );
+
+    await this.db.setHistoricBlockData(blockData);
   }
 
   /**

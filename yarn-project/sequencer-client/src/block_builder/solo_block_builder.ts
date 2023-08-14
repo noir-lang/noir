@@ -515,7 +515,7 @@ export class SoloBlockBuilder implements BlockBuilder {
     const { privateDataTreeRoot, nullifierTreeRoot, contractTreeRoot, l1ToL2MessagesTreeRoot } = blockData;
     const blockHash = computeBlockHash(
       wasm,
-      blockData.prevGlobalVariablesHash,
+      blockData.globalVariablesHash,
       privateDataTreeRoot,
       nullifierTreeRoot,
       contractTreeRoot,

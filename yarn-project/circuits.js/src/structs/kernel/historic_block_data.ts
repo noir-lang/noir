@@ -7,7 +7,7 @@ import { serializeToBuffer } from '../../utils/serialize.js';
 /**
  * Information about the tree roots used for both public and private kernels.
  */
-export class ConstantHistoricBlockData {
+export class HistoricBlockData {
   constructor(
     /**
      * Root of the private data tree at the time of when this information was assembled.
@@ -40,14 +40,27 @@ export class ConstantHistoricBlockData {
     /**
      * Previous globals hash, this value is used to recalculate the block hash.
      */
-    public readonly prevGlobalVariablesHash: Fr,
+    public readonly globalVariablesHash: Fr,
   ) {}
 
-  static from(fields: FieldsOf<ConstantHistoricBlockData>) {
-    return new ConstantHistoricBlockData(...ConstantHistoricBlockData.getFields(fields));
+  static from(fields: FieldsOf<HistoricBlockData>) {
+    return new HistoricBlockData(...HistoricBlockData.getFields(fields));
   }
 
-  static getFields(fields: FieldsOf<ConstantHistoricBlockData>) {
+  static random() {
+    return new HistoricBlockData(
+      Fr.random(),
+      Fr.random(),
+      Fr.random(),
+      Fr.random(),
+      Fr.random(),
+      Fr.random(),
+      Fr.random(),
+      Fr.random(),
+    );
+  }
+
+  static getFields(fields: FieldsOf<HistoricBlockData>) {
     return [
       fields.privateDataTreeRoot,
       fields.nullifierTreeRoot,
@@ -56,12 +69,12 @@ export class ConstantHistoricBlockData {
       fields.blocksTreeRoot,
       fields.privateKernelVkTreeRoot,
       fields.publicDataTreeRoot,
-      fields.prevGlobalVariablesHash,
+      fields.globalVariablesHash,
     ] as const;
   }
 
   toBuffer() {
-    return serializeToBuffer(...ConstantHistoricBlockData.getFields(this));
+    return serializeToBuffer(...HistoricBlockData.getFields(this));
   }
 
   toString() {
@@ -70,7 +83,7 @@ export class ConstantHistoricBlockData {
 
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
-    return new ConstantHistoricBlockData(
+    return new HistoricBlockData(
       reader.readFr(),
       reader.readFr(),
       reader.readFr(),
@@ -91,11 +104,11 @@ export class ConstantHistoricBlockData {
       this.blocksTreeRoot.isZero() &&
       this.privateKernelVkTreeRoot.isZero() &&
       this.publicDataTreeRoot.isZero() &&
-      this.prevGlobalVariablesHash.isZero()
+      this.globalVariablesHash.isZero()
     );
   }
 
   static empty() {
-    return new ConstantHistoricBlockData(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO);
+    return new HistoricBlockData(Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO, Fr.ZERO);
   }
 }

@@ -1,4 +1,4 @@
-import { PartialAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
+import { HistoricBlockData, PartialAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -119,4 +119,12 @@ export interface DBOracle extends CommitmentsDB {
    * @returns A Promise that resolves to an EthAddress instance, representing the portal contract address.
    */
   getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress>;
+
+  /**
+   * Retrieve the databases view of the Historic Block Data object.
+   * This structure is fed into the circuits simulator and is used to prove against certain historic roots.
+   *
+   * @returns A Promise that resolves to a HistoricBlockData object.
+   */
+  getHistoricBlockData(): Promise<HistoricBlockData>;
 }

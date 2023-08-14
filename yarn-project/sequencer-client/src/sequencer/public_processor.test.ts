@@ -4,11 +4,11 @@ import {
   AztecAddress,
   CallContext,
   CircuitsWasm,
-  ConstantHistoricBlockData,
   EthAddress,
   Fr,
   FunctionData,
   GlobalVariables,
+  HistoricBlockData,
   MAX_PRIVATE_CALL_STACK_LENGTH_PER_TX,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
   PUBLIC_DATA_TREE_HEIGHT,
@@ -90,7 +90,7 @@ describe('public_processor', () => {
         publicProver,
         contractDataSource,
         GlobalVariables.empty(),
-        ConstantHistoricBlockData.empty(),
+        HistoricBlockData.empty(),
       );
     });
 
@@ -136,7 +136,7 @@ describe('public_processor', () => {
         publicProver,
         contractDataSource,
         GlobalVariables.empty(),
-        ConstantHistoricBlockData.empty(),
+        HistoricBlockData.empty(),
       );
     });
 

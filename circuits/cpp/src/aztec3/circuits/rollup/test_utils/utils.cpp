@@ -178,7 +178,7 @@ BaseRollupInputs base_rollup_inputs_from_kernels(std::array<KernelData, 2> kerne
         kernel_data[i].public_inputs.constants.block_data.l1_to_l2_messages_tree_root = l1_to_l2_msg_tree.root();
         kernel_data[i].public_inputs.constants.block_data.blocks_tree_root = historic_blocks_tree.root();
         kernel_data[i].public_inputs.constants.block_data.public_data_tree_root = public_data_tree.root();
-        kernel_data[i].public_inputs.constants.block_data.prev_global_variables_hash = prev_global_variables_hash;
+        kernel_data[i].public_inputs.constants.block_data.global_variables_hash = prev_global_variables_hash;
     }
 
     // Then we collect all sibling paths for the reads in the left tx, and then apply the update requests while

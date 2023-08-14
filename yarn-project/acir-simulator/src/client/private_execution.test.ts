@@ -1,10 +1,10 @@
 import {
   CallContext,
   CircuitsWasm,
-  ConstantHistoricBlockData,
   ContractDeploymentData,
   FieldsOf,
   FunctionData,
+  HistoricBlockData,
   L1_TO_L2_MSG_TREE_HEIGHT,
   MAX_NEW_COMMITMENTS_PER_CALL,
   PRIVATE_DATA_TREE_HEIGHT,
@@ -61,7 +61,8 @@ describe('Private Execution test suite', () => {
   let circuitsWasm: CircuitsWasm;
   let oracle: MockProxy<DBOracle>;
   let acirSimulator: AcirSimulator;
-  let blockData = ConstantHistoricBlockData.empty();
+
+  let blockData = HistoricBlockData.empty();
   let logger: DebugLogger;
 
   const defaultContractAddress = AztecAddress.random();
@@ -112,7 +113,6 @@ describe('Private Execution test suite', () => {
       abi,
       functionData.isConstructor ? AztecAddress.ZERO : contractAddress,
       portalContractAddress,
-      blockData,
     );
   };
 
@@ -132,7 +132,7 @@ describe('Private Execution test suite', () => {
     const prevRoots = blockData.toBuffer();
     const rootIndex = name === 'privateData' ? 0 : 32 * 3;
     const newRoots = Buffer.concat([prevRoots.subarray(0, rootIndex), newRoot, prevRoots.subarray(rootIndex + 32)]);
-    blockData = ConstantHistoricBlockData.fromBuffer(newRoots);
+    blockData = HistoricBlockData.fromBuffer(newRoots);
 
     return trees[name];
   };
@@ -147,6 +147,7 @@ describe('Private Execution test suite', () => {
   beforeEach(() => {
     oracle = mock<DBOracle>();
     oracle.getSecretKey.mockResolvedValue(ownerPk);
+    oracle.getHistoricBlockData.mockResolvedValue(blockData);
 
     acirSimulator = new AcirSimulator(oracle);
   });

@@ -33,7 +33,7 @@ export {
   PublicDataUpdateRequest,
   ReadRequestMembershipWitness,
   CombinedAccumulatedData,
-  ConstantHistoricBlockData,
+  HistoricBlockData,
   ContractDeploymentData,
   TxContext,
   CombinedConstantData,

@@ -2,7 +2,7 @@
 #include "init.hpp"
 
 #include "aztec3/circuits/abis/combined_constant_data.hpp"
-#include "aztec3/circuits/abis/constant_historic_block_data.hpp"
+#include "aztec3/circuits/abis/historic_block_data.hpp"
 #include "aztec3/circuits/abis/private_kernel/private_kernel_inputs_init.hpp"
 #include "aztec3/constants.hpp"
 #include "aztec3/utils/array.hpp"
@@ -12,7 +12,7 @@ namespace {
 using NT = aztec3::utils::types::NativeTypes;
 
 using aztec3::circuits::abis::CombinedConstantData;
-using aztec3::circuits::abis::ConstantHistoricBlockData;
+using aztec3::circuits::abis::HistoricBlockData;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInit;
 using aztec3::utils::array_push;
@@ -28,7 +28,7 @@ void initialise_end_values(PrivateKernelInputsInit<NT> const& private_inputs,
     auto const& private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
     auto const constants = CombinedConstantData<NT>{
         .block_data =
-            ConstantHistoricBlockData<NT>{
+            HistoricBlockData<NT>{
                 // TODO(dbanks12): remove historic root from app circuit public inputs and
                 // add it to PrivateCallData: https://github.com/AztecProtocol/aztec-packages/issues/778
                 // Then use this:
@@ -38,7 +38,7 @@ void initialise_end_values(PrivateKernelInputsInit<NT> const& private_inputs,
                 .contract_tree_root = private_call_public_inputs.historic_contract_tree_root,
                 .l1_to_l2_messages_tree_root = private_call_public_inputs.historic_l1_to_l2_messages_tree_root,
                 .public_data_tree_root = private_call_public_inputs.historic_public_data_tree_root,
-                .prev_global_variables_hash = private_call_public_inputs.historic_global_variables_hash,
+                .global_variables_hash = private_call_public_inputs.historic_global_variables_hash,
             },
         .tx_context = private_inputs.tx_request.tx_context,
     };

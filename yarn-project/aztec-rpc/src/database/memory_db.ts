@@ -1,4 +1,4 @@
-import { PartialAddress } from '@aztec/circuits.js';
+import { HistoricBlockData, PartialAddress } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -19,6 +19,7 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   private txTable: TxDao[] = [];
   private noteSpendingInfoTable: NoteSpendingInfoDao[] = [];
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
+  private globalVariablesHash: Fr | undefined;
   private publicKeysAndPartialAddresses: Map<bigint, [PublicKey, PartialAddress]> = new Map();
 
   constructor(logSuffix?: string) {
@@ -91,6 +92,33 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   public setTreeRoots(roots: Record<MerkleTreeId, Fr>) {
     this.treeRoots = roots;
     return Promise.resolve();
+  }
+
+  public getHistoricBlockData(): HistoricBlockData {
+    const roots = this.getTreeRoots();
+    if (!this.globalVariablesHash) throw new Error(`Global variables hash not set in memory database`);
+    return new HistoricBlockData(
+      roots[MerkleTreeId.PRIVATE_DATA_TREE],
+      roots[MerkleTreeId.NULLIFIER_TREE],
+      roots[MerkleTreeId.CONTRACT_TREE],
+      roots[MerkleTreeId.L1_TO_L2_MESSAGES_TREE],
+      roots[MerkleTreeId.BLOCKS_TREE],
+      Fr.ZERO, // todo: private kernel vk tree root
+      roots[MerkleTreeId.PUBLIC_DATA_TREE],
+      this.globalVariablesHash,
+    );
+  }
+
+  public async setHistoricBlockData(historicBlockData: HistoricBlockData): Promise<void> {
+    this.globalVariablesHash = historicBlockData.globalVariablesHash;
+    await this.setTreeRoots({
+      [MerkleTreeId.PRIVATE_DATA_TREE]: historicBlockData.privateDataTreeRoot,
+      [MerkleTreeId.NULLIFIER_TREE]: historicBlockData.nullifierTreeRoot,
+      [MerkleTreeId.CONTRACT_TREE]: historicBlockData.contractTreeRoot,
+      [MerkleTreeId.L1_TO_L2_MESSAGES_TREE]: historicBlockData.l1ToL2MessagesTreeRoot,
+      [MerkleTreeId.BLOCKS_TREE]: historicBlockData.blocksTreeRoot,
+      [MerkleTreeId.PUBLIC_DATA_TREE]: historicBlockData.publicDataTreeRoot,
+    });
   }
 
   addPublicKeyAndPartialAddress(

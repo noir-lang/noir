@@ -1,4 +1,5 @@
-import { GeneratorIndex } from '@aztec/circuits.js';
+import { CircuitsWasm, GeneratorIndex, GlobalVariables } from '@aztec/circuits.js';
+import { computeGlobalsHash } from '@aztec/circuits.js/abis';
 import { pedersenCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -20,4 +21,15 @@ export function computePublicDataTreeLeafIndex(contract: AztecAddress, slot: Fr,
       GeneratorIndex.PUBLIC_LEAF_INDEX,
     ),
   );
+}
+
+/**
+ * Computes the hash of the global variables.
+ * @returns The hash of the global variables.
+ */
+export async function computeGlobalVariablesHash(
+  globalVariables: GlobalVariables = GlobalVariables.empty(),
+): Promise<Fr> {
+  const wasm = await CircuitsWasm.get();
+  return computeGlobalsHash(wasm, globalVariables);
 }

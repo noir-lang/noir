@@ -1,4 +1,4 @@
-import { AztecAddress, CircuitsWasm, EthAddress, Fr } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, EthAddress, Fr, HistoricBlockData } from '@aztec/circuits.js';
 import { randomBytes } from '@aztec/foundation/crypto';
 import { Pedersen } from '@aztec/merkle-tree';
 import {
@@ -464,6 +464,22 @@ describe('HttpNode', () => {
       const url = `${TEST_URL}tree-roots`;
       expect(fetch).toHaveBeenCalledWith(url);
       expect(result).toEqual(roots);
+    });
+  });
+
+  describe('getHistoricBlockData', () => {
+    it('should fetch and return the current committed roots for the data trees', async () => {
+      const blockData = HistoricBlockData.random();
+
+      const response = { blockData };
+
+      setFetchMock(response);
+
+      const result = await httpNode.getHistoricBlockData();
+
+      const url = `${TEST_URL}historic-block-data`;
+      expect(fetch).toHaveBeenCalledWith(url);
+      expect(result).toEqual(blockData);
     });
   });
 });

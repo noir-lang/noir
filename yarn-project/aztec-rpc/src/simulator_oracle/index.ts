@@ -1,5 +1,14 @@
 import { CommitmentDataOracleInputs, DBOracle, MessageLoadOracleInputs } from '@aztec/acir-simulator';
-import { AztecAddress, CircuitsWasm, EthAddress, Fr, PartialAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  CircuitsWasm,
+  EthAddress,
+  Fr,
+  HistoricBlockData,
+  PartialAddress,
+  PrivateKey,
+  PublicKey,
+} from '@aztec/circuits.js';
 import { siloCommitment } from '@aztec/circuits.js/abis';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { DataCommitmentProvider, KeyStore, L1ToL2MessageProvider } from '@aztec/types';
@@ -91,5 +100,15 @@ export class SimulatorOracle implements DBOracle {
       siblingPath: siblingPath.toFieldArray(),
       index,
     });
+  }
+
+  /**
+   * Retrieve the databases view of the Historic Block Data object.
+   * This structure is fed into the circuits simulator and is used to prove against certain historic roots.
+   *
+   * @returns A Promise that resolves to a HistoricBlockData object.
+   */
+  getHistoricBlockData(): Promise<HistoricBlockData> {
+    return Promise.resolve(this.db.getHistoricBlockData());
   }
 }

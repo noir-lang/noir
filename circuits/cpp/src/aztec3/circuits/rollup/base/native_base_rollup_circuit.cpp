@@ -147,7 +147,7 @@ void perform_historical_blocks_tree_membership_checks(DummyBuilder& builder, Bas
         auto l1_to_l2_data_tree_root = historic_block.l1_to_l2_messages_tree_root;
         auto public_data_tree_root = historic_block.public_data_tree_root;
 
-        auto previous_block_hash = compute_block_hash<NT>(historic_block.prev_global_variables_hash,
+        auto previous_block_hash = compute_block_hash<NT>(historic_block.global_variables_hash,
                                                           private_data_tree_root,
                                                           nullifier_tree_root,
                                                           contract_tree_root,

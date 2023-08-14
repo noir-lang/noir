@@ -1,4 +1,4 @@
-import { CircuitsWasm, ConstantHistoricBlockData, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
+import { CircuitsWasm, HistoricBlockData, ReadRequestMembershipWitness, TxContext } from '@aztec/circuits.js';
 import { siloNullifier } from '@aztec/circuits.js/abis';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
@@ -35,7 +35,7 @@ export class ClientTxExecutionContext {
     /** The tx context. */
     public txContext: TxContext,
     /** Data required to reconstruct the block hash, it contains historic roots. */
-    public constantHistoricBlockData: ConstantHistoricBlockData,
+    public historicBlockData: HistoricBlockData,
     /** The cache of packed arguments */
     public packedArgsCache: PackedArgsCache,
     /** Pending notes created (and not nullified) up to current point in execution.
@@ -58,7 +58,7 @@ export class ClientTxExecutionContext {
       this.db,
       this.txNullifier,
       this.txContext,
-      this.constantHistoricBlockData,
+      this.historicBlockData,
       this.packedArgsCache,
       this.pendingNotes,
       this.pendingNullifiers,
@@ -199,7 +199,7 @@ export class ClientTxExecutionContext {
    */
   public async getL1ToL2Message(msgKey: Fr): Promise<ACVMField[]> {
     const messageInputs = await this.db.getL1ToL2Message(msgKey);
-    return toAcvmL1ToL2MessageLoadOracleInputs(messageInputs, this.constantHistoricBlockData.l1ToL2MessagesTreeRoot);
+    return toAcvmL1ToL2MessageLoadOracleInputs(messageInputs, this.historicBlockData.l1ToL2MessagesTreeRoot);
   }
 
   /**
@@ -216,7 +216,7 @@ export class ClientTxExecutionContext {
     const commitmentInputs = await this.db.getCommitmentOracle(contractAddress, fromACVMField(commitment));
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1029): support pending commitments here
     this.readRequestPartialWitnesses.push(ReadRequestMembershipWitness.empty(commitmentInputs.index));
-    return toAcvmCommitmentLoadOracleInputs(commitmentInputs, this.constantHistoricBlockData.privateDataTreeRoot);
+    return toAcvmCommitmentLoadOracleInputs(commitmentInputs, this.historicBlockData.privateDataTreeRoot);
   }
 
   /**

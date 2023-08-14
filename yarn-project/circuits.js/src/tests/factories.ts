@@ -17,7 +17,6 @@ import {
   CombinedAccumulatedData,
   CombinedConstantData,
   ConstantBaseRollupData,
-  ConstantHistoricBlockData,
   ContractDeploymentData,
   ContractStorageRead,
   ContractStorageUpdateRequest,
@@ -27,6 +26,7 @@ import {
   FunctionData,
   G1AffineElement,
   HISTORIC_BLOCKS_TREE_HEIGHT,
+  HistoricBlockData,
   KernelCircuitPublicInputs,
   L1_TO_L2_MSG_SUBTREE_SIBLING_PATH_LENGTH,
   MAX_NEW_COMMITMENTS_PER_CALL,
@@ -108,8 +108,8 @@ export function makeTxContext(seed: number): TxContext {
  * @param seed - The seed to use for generating the combined historic tree roots.
  * @returns A combined historic tree roots object.
  */
-export function makeConstantHistoricBlockData(seed: number): ConstantHistoricBlockData {
-  return new ConstantHistoricBlockData(
+export function makeHistoricBlockData(seed: number): HistoricBlockData {
+  return new HistoricBlockData(
     fr(seed),
     fr(seed + 1),
     fr(seed + 2),
@@ -127,7 +127,7 @@ export function makeConstantHistoricBlockData(seed: number): ConstantHistoricBlo
  * @returns A constant data object.
  */
 export function makeConstantData(seed = 1): CombinedConstantData {
-  return new CombinedConstantData(makeConstantHistoricBlockData(seed), makeTxContext(seed + 4));
+  return new CombinedConstantData(makeHistoricBlockData(seed), makeTxContext(seed + 4));
 }
 
 /**
