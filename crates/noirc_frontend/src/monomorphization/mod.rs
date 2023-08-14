@@ -1303,13 +1303,12 @@ mod tests {
 
     use fm::FileId;
     use iter_extended::vecmap;
+    use noirc_errors::Location;
 
     use crate::{
         graph::CrateId,
         hir::{
-            def_map::{
-                CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, ModuleOrigin,
-            },
+            def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId},
             resolution::{
                 import::PathResolutionError, path_resolver::PathResolver, resolver::Resolver,
             },
@@ -1349,7 +1348,8 @@ mod tests {
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
-        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+        let location = Location::new(Default::default(), file);
+        modules.insert(ModuleData::new(None, location, false));
 
         def_maps.insert(
             CrateId::dummy_id(),
