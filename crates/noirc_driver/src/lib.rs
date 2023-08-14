@@ -136,7 +136,6 @@ pub fn compute_function_signature(
     let main_function = context.get_main_function(crate_id)?;
 
     let func_meta = context.def_interner.function_meta(&main_function);
-    println!("In compute_function_signature");
     Some(func_meta.into_function_signature(&context.def_interner))
 }
 
