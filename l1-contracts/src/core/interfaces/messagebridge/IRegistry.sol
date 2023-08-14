@@ -23,4 +23,6 @@ interface IRegistry {
     returns (DataStructures.RegistrySnapshot memory);
 
   function getCurrentSnapshot() external view returns (DataStructures.RegistrySnapshot memory);
+
+  function numberOfVersions() external view returns (uint256);
 }

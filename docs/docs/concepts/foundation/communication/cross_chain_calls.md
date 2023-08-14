@@ -98,45 +98,43 @@ For the sake of cross-chain messages, this means inserting and nullifying L1 $\r
 While a message could theoretically be arbitrary long, we want to limit the cost of the insertion on L1 as much as possible. Therefore, we allow the users to send 32 bytes of "content" between L1 and L2. If 32 suffices, no packing required. If the 32 is too "small" for the message directly, the sender should simply pass along a `sha256(content)` instead of the content directly. The content can then either be emitted as an event on L2 or kept by the sender, who should then be the only entity that can "unpack" the message.
 In this manner, there is some way to "unpack" the content on the receiving domain.
 
-The message that is passed along, require the `sender/recipient` pair to be communicated as well (we need to know who should receive the message and be able to check). By having the pending messages be a contract on L1, we can ensure that the `sender = msg.sender` and let only `content` and `recipient` be provided by the caller. Summing up, we can use the structs seen below, and only store the commitment (`sha256(LxLyCrossMsg)`) on chain or in the trees, this way, we need only update a single storage slot per message.
+The message that is passed along, require the `sender/recipient` pair to be communicated as well (we need to know who should receive the message and be able to check). By having the pending messages be a contract on L1, we can ensure that the `sender = msg.sender` and let only `content` and `recipient` be provided by the caller. Summing up, we can use the struct's seen below, and only store the commitment (`sha256(LxToLyMsg)`) on chain or in the trees, this way, we need only update a single storage slot per message.
 
 ```solidity
 struct L1Actor {
-	address: actorAddress,
-	uint256: chainid,
+	address: actor,
+	uint256: chainId,
 }
 
 struct L2Actor {
-	bytes32: actorAddress,
+	bytes32: actor,
 	uint256: version,
 }
 
-struct L1L2CrossMsg {
+struct L1ToL2Msg {
 	L1Actor: sender,
 	L2Actor: recipient,
 	bytes32: content,
 	bytes32: secretHash,
+	uint32 deadline,
+	uint64 fee,
 }
 
-struct L2L1CrossMsg {
+struct L2ToL1Msg {
 	L2Actor: sender,
 	L1Actor: recipient,
 	bytes32: content,
 }
 ```
 :::info
-The 32 bytes might practically need to be a field element. 
-```solidity
-uint256 p = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
-bytes32 content = bytes32(uint256(sha256(message)) % p); 
-```
+The `bytes32` elements for `content` and `secretHash` hold values that must fit in a field element (~ 254 bits). 
 :::
 
 
 :::info
 The nullifier computation should include the index of the message in the message tree to ensure that it is possible to send duplicate messages (e.g., 2 x deposit of 500 dai to the same account).
 
-To make it possible to hide when a specific message is consumed, the `L1L2CrossMsg` can be extended with a `secretHash` field, where the `secretPreimage` is used as part of the nullifier computation. This way, it is not possible for someone just seeing the `L1L2CrossMsg` on L1 to know when it is consumed on L2.
+To make it possible to hide when a specific message is consumed, the `L1ToL2Msg` is extended with a `secretHash` field, where the `secretPreimage` is used as part of the nullifier computation. This way, it is not possible for someone just seeing the `L1ToL2Msg` on L1 to know when it is consumed on L2. Also, we include the `deadline` and `fee` values to have a fee-market for message inclusion and to ensure that messages are not stuck in the pending set forever.
 :::
 
 ## Combined Architecture
@@ -171,140 +169,6 @@ When the L1 contract can itself handle where messages are coming from (it could 
 
 With many L2's reading from the same L1, we can also more easily setup generic bridges (with many assets) living in a single L1 contract but minting multiple L2 assets, as the L1 contract can handle the access control and the L2's simply point to it as the portal. This reduces complexity of the L2 contracts as all access control is handled by the L1 contract.
 
-
-
-## Standards
-
-### Structure of messages
-The application developer should consider creating messages that follow a structure like function calls, e.g., using a function signature and arguments. This will make it easier for the developer to ensure that they are not making messages that could be misinterpreted by the recipient. Example could be using `amount, token_address, recipient_address` as the message for a withdraw function and `amount, token_address, on_behalf_of_address` for a deposit function. Any deposit could then also be mapped to a withdraw or vice versa. This is not a requirement, but just good practice.
-
-```solidity 
-// Do this!
-bytes memory message abi.encodeWithSignature(
-  "withdraw(uint256,address,address)", 
-  _amount, 
-  _token, 
-  _to
-);
-
-// Don't to this!
-bytes memory message = abi.encode(
-  _amount, 
-  _token, 
-  _to
-);
-```
-
-### Error Handling
-
-Handling error when moving cross chain can quickly get tricky. Since the L1 and L2 calls are practically async and independent of each other, the L2 part of a withdraw might execute just fine, with the L1 part failing. If not handling this well, the funds might be lost forever! The contract builder should therefore consider in what ways his application can fail cross chain, and handle those cases explicitly.
-
-First, entries in the outboxes SHOULD only be consumed if the execution is successful. For an L2 -> L1 call, the L1 execution can revert the transaction completely if anything fails. As the tx can be atomic, the failure also reverts the consumption of the entry.
-
-If it is possible to enter a state where the second part of the execution fails forever, the application builder should consider including additional failure mechanisms (for token withdraws this could be depositing them again etc).
-
-For L1 -> L2 calls, a badly priced L1 deposit, could lead to funds being locked in the bridge, but the message never leaving the L1 inbox because it is never profitable to include in a rollup. The inbox must support cancelling after some specific deadline is reached, but it is the job of the application builder to setup their contract such that the user can perform these cancellations.
-
-Generally it is good practice to keep cross-chain calls simple to avoid too many edge cases and state reversions.
-
-:::info
-Error handling for cross chain messages is handled by the application contract and not the protocol. The protocol only delivers the messages, it does not ensure that they are executed successfully.
-:::
-
-
-### Designated caller
-A designated caller is the ability to specify who should be able to call a function that consumes a message. This is useful for ordering of batched messages, as we will see in a second.  
-
-When doing multiple cross-chain calls as one action it is important to consider the order of the calls. Say for example, that you want to do a uniswap trade on L1 because you are a whale and slippage on L2 is too damn high. 
-
-You would practically, withdraw funds from the rollup, swap them on L1, and then deposit the swapped funds back into the rollup. This is a fairly simple process, but it requires that the calls are done in the correct order. For one, if the swap is called before the funds are withdrawn, the swap will fail. And if the deposit is called before the swap, the funds might get lost! 
-
-As the message boxes only will allow the recipient portal to consume the message, we can use this to our advantage to ensure that the calls are done in the correct order. Say that we include a designated "caller" in the messages, and that the portal contract checks that the caller matches the designated caller or designated is address(0) (anyone can call). When the message are to be consumed on L1, it can compute the message as seen below:
-
-```solidity
-bytes memory message = abi.encodeWithSignature(
-  "withdraw(uint256,address,address)", 
-  _amount, 
-  _to, 
-  _withCaller ? msg.sender : address(0)
-);
-```
-
-This way, the message can be consumed by the portal contract, but only if the caller is the designated caller. By being a bit clever when specifying the designated caller, we can ensure that the calls are done in the correct order. For the uniswap example, say that we have a portal contracts implementing the designated caller:
-
-```solidity
-contract TokenPortal {
-  function deposit(
-    uint256 _amount,
-    bytes32 _to,
-    bytes32 _caller,
-  ) external returns (bytes32) {
-    bytes memory message = abi.encodeWithSignature(
-      "deposit(uint256,bytes32,bytes32)", 
-      _amount, 
-      _to, 
-      _caller
-    );
-    ASSET.safeTransferFrom(msg.sender, address(this), _amount);
-    return INBOX.sendL2Message(message);
-  }
-
-  function withdraw(uint256 _amount, address _to, bool _withCaller) external {
-    // Including selector as message separator
-    bytes memory message = abi.encodeWithSignature(
-      "withdraw(uint256,address,address)", 
-      _amount, 
-      _to, 
-      _withCaller ? msg.sender : address(0)
-    );
-    OUTBOX.consume(message);
-    ASSET.safeTransfer(_to, _amount);
-  }
-}
-
-contract UniswapPortal {
-  function swapAndDeposit(
-    address _inputTokenPortal,
-    uint256 _inAmount,
-    uint24 _fee,
-    address _outputTokenPortal,
-    bytes32 _aztecRecipient,
-    bool _withCaller
-  ) public (bytes32) {
-    // Withdraw funds from the rollup, using designated caller
-    TokenPortal(_inputTokenPortal).withdraw(_inAmount, address(this), true);
-
-    // Consume the message to swap on uniswap
-    OUTBOX.consume(
-      abi.encodeWithSignature(
-        "swap(address,uint256,uint24,address,bytes32,address)",
-        _inputTokenPortal,
-        _inAmount,
-        _fee,
-        _outputTokenPortal,
-        _aztecRecipient,
-        _withCaller ? msg.sender : address(0)
-      )
-    );
-
-    // Perform swap on uniswap
-    uint256 amountOut = ...;
-
-    // Approve token to _outputTokenPortal
-
-    // Deposit token into rollup again
-    return TokenPortal(_outputTokenPortal).deposit(
-      amountOut, _aztecRecipient, bytes32(0)
-    );
-  }
-}
-```
-
-We could then have withdraw transactions (on L2) where we are specifying the `UniswapPortal` as the caller. Because the order of the calls are specified in the contract, and that it reverts if any of them fail, we can be sure that it will execute the withdraw first, then the swap and then the deposit. Since only the `UniswapPortal` is able to execute the withdraw, we can be sure that the ordering is ensured. However, note that this means that if it for some reason is impossible to execute the batch (say prices moved greatly), the user will be stuck with the funds on L1 unless the `UniswapPortal` implements proper error handling!
-
-:::caution
-Designated callers are enforced at the contract level for contracts that are not the rollup itself, and should not be trusted to implement the standard correctly. The user should always be aware that it is possible for the developer to implement something that looks like designated caller without providing the abilities to the user.
-:::
 
 
 ## Open Questions

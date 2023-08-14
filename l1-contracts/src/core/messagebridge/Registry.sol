@@ -20,7 +20,8 @@ import {Errors} from "@aztec/core/libraries/Errors.sol";
  * for L1<->L2 communication.
  */
 contract Registry is IRegistry {
-  uint256 public numberOfVersions;
+  uint256 public override(IRegistry) numberOfVersions;
+
   DataStructures.RegistrySnapshot internal currentSnapshot;
   mapping(uint256 version => DataStructures.RegistrySnapshot snapshot) internal snapshots;
   mapping(address rollup => uint256 version) internal rollupToVersion;

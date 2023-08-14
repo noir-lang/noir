@@ -220,6 +220,20 @@ const sidebars = {
         "dev_docs/contracts/compiling",
         "dev_docs/contracts/deploying",
         {
+          label: "Portals",
+          type: "category",
+          link: {
+            type: "doc",
+            id: "dev_docs/contracts/portals/main",
+          },
+          items: [
+            "dev_docs/contracts/portals/data_structures",
+            "dev_docs/contracts/portals/registry",
+            "dev_docs/contracts/portals/inbox",
+            "dev_docs/contracts/portals/outbox",
+          ],
+        },
+        {
           label: "Resources",
           type: "category",
           items: [
