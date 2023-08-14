@@ -835,11 +835,13 @@ impl<'interner> TypeChecker<'interner> {
         }
 
         for (param, (arg, _, arg_span)) in fn_params.iter().zip(callsite_args) {
-            self.unify(arg, param, || TypeCheckError::TypeMismatch {
-                expected_typ: param.to_string(),
-                expr_typ: arg.to_string(),
-                expr_span: *arg_span,
-            });
+            if arg.try_unify_allow_incompat_lambdas(param).is_err() {
+                self.errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: param.to_string(),
+                    expr_typ: arg.to_string(),
+                    expr_span: *arg_span,
+                });
+            }
         }
 
         fn_ret.clone()
