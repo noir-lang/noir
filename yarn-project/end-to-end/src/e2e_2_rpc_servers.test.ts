@@ -71,7 +71,7 @@ describe('e2e_2_rpc_servers', () => {
 
     // Then check the balance
     const contractWithWallet = await PrivateTokenContract.create(tokenAddress, wallet);
-    const [balance] = await contractWithWallet.methods.getBalance(owner).view({ from: owner });
+    const balance = await contractWithWallet.methods.getBalance(owner).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };

@@ -71,7 +71,7 @@ describe('archiver integration with l1 to l2 messages', () => {
   }, 30_000);
 
   const expectBalance = async (owner: AztecAddress, expectedBalance: bigint) => {
-    const [balance] = await l2Contract.methods.getBalance(owner).view({ from: owner });
+    const balance = await l2Contract.methods.getBalance(owner).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };

@@ -133,8 +133,7 @@ async function deployAllContracts(owner: AztecAddress) {
 }
 
 const getL2BalanceOf = async (aztecRpcClient: AztecRPC, owner: AztecAddress, l2Contract: NonNativeTokenContract) => {
-  const [balance] = await l2Contract.methods.getBalance(owner).view({ from: owner });
-  return balance;
+  return await l2Contract.methods.getBalance(owner).view({ from: owner });
 };
 
 const logExpectedBalanceOnL2 = async (

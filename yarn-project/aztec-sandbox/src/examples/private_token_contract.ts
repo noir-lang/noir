@@ -37,8 +37,7 @@ async function deployZKContract(owner: AztecAddress) {
  * @returns The owner's current balance of the token.
  */
 async function getBalance(contract: Contract, ownerAddress: AztecAddress) {
-  const [balance] = await contract.methods.getBalance(ownerAddress).view({ from: ownerAddress });
-  return balance;
+  return await contract.methods.getBalance(ownerAddress).view({ from: ownerAddress });
 }
 
 /**

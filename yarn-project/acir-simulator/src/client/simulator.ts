@@ -160,13 +160,13 @@ export class AcirSimulator {
         args: encodeArguments(abi, [contractAddress, nonce, storageSlot, extendedPreimage]),
       };
 
-      const [[innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier]] = await this.runUnconstrained(
+      const [innerNoteHash, siloedNoteHash, uniqueSiloedNoteHash, innerNullifier] = (await this.runUnconstrained(
         execRequest,
         AztecAddress.ZERO,
         abi,
         AztecAddress.ZERO,
         EthAddress.ZERO,
-      );
+      )) as bigint[];
 
       return {
         innerNoteHash: new Fr(innerNoteHash),

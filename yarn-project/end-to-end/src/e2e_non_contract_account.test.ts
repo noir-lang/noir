@@ -46,7 +46,7 @@ describe('e2e_non_contract_account', () => {
   });
 
   const expectBalance = async (owner: AztecAddress, expectedBalance: bigint) => {
-    const [balance] = await contract.methods.getBalance(owner).view({ from: owner });
+    const balance = await contract.methods.getBalance(owner).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
   };

@@ -37,7 +37,7 @@ console.log(`Transferred ${amount} to ${recipientAddress}!`);
 import { Contract } from '@aztec/aztec.js';
 
 const contract = await Contract.create(contractAddress, contractAbi, aztecRpcServer);
-const [balance] = contract.methods
+const balance = contract.methods
     .getBalance(accountPublicKey))
     .view({ from: accountAddress });
 console.log(`Account balance: ${balance}.`);

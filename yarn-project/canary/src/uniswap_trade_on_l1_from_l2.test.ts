@@ -136,9 +136,11 @@ async function deployAllContracts(
   };
 }
 
-const getL2BalanceOf = async (owner: AztecAddress, l2Contract: NonNativeTokenContract) => {
-  const [balance] = await l2Contract.methods.getBalance(owner).view({ from: owner });
-  return balance;
+const getL2BalanceOf = async (
+  owner: AztecAddress,
+  l2Contract: NonNativeTokenContract
+) => {
+  return await l2Contract.methods.getBalance(owner).view({ from: owner });
 };
 
 const expectBalanceOnL2 = async (owner: AztecAddress, expectedBalance: bigint, l2Contract: NonNativeTokenContract) => {

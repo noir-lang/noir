@@ -87,7 +87,7 @@ describe('Unconstrained Execution test suite', () => {
         EthAddress.ZERO,
       );
 
-      expect(result).toEqual([9n]);
+      expect(result).toEqual(9n);
     }, 30_000);
   });
 });

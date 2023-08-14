@@ -1,5 +1,6 @@
 mod storage;
 
+// Single asset lending contract. Just for show.
 contract Lending {
     use dep::aztec::{
         abi,
@@ -17,6 +18,11 @@ contract Lending {
         call_public_function_no_args,
     };
     use crate::storage::{Storage, Tot, Account};
+
+    struct Pos {
+        collateral: Field,
+        static_debt: Field,
+    }
 
     // Constructs the contract.
     fn constructor(
@@ -309,19 +315,17 @@ contract Lending {
 
     unconstrained fn getTot(
         assetId: Field,
-    ) -> [Field; 2]{
+    ) -> Tot {
         let storage = Storage::init();
-        let asset = storage.assets.at(assetId);
-        let tot = asset.read();
-        [tot.interest_accumulator as Field, tot.last_updated_ts as Field]
+        storage.assets.at(assetId).read()
     }
 
     unconstrained fn getPosition(
         owner: Field,
-    ) -> [Field; 2] {
+    ) -> Pos {
         let storage = Storage::init();
         let collateral = storage.collateral.at(owner).read();
-        let debt = storage.static_debt.at(owner).read();
-        [collateral, debt] 
+        let static_debt = storage.static_debt.at(owner).read();
+        Pos {collateral, static_debt}
     }
 }

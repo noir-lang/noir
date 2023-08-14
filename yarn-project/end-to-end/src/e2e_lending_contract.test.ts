@@ -46,19 +46,17 @@ describe('e2e_lending_contract', () => {
   const getStorageSnapshot = async (contract: LendingContract, aztecNode: AztecRPC, account: Account) => {
     const storageValues: { [key: string]: Fr } = {};
     const accountKey = await account.key();
-    const toFields = (res: any[]) => res[0].map((v: number | bigint | Fr) => new Fr(v));
 
-    [storageValues['interestAccumulator'], storageValues['last_updated_ts']] = toFields(
-      await contract.methods.getTot(0).view(),
-    );
+    const tot = await contract.methods.getTot(0).view();
+    const privatePos = await contract.methods.getPosition(accountKey).view();
+    const publicPos = await contract.methods.getPosition(account.address.toField()).view();
 
-    [storageValues['private_collateral'], storageValues['private_debt']] = toFields(
-      await contract.methods.getPosition(accountKey).view(),
-    );
-
-    [storageValues['public_collateral'], storageValues['public_debt']] = toFields(
-      await contract.methods.getPosition(account.address.toField()).view(),
-    );
+    storageValues['interest_accumulator'] = new Fr(tot['interest_accumulator']);
+    storageValues['last_updated_ts'] = new Fr(tot['last_updated_ts']);
+    storageValues['private_collateral'] = new Fr(privatePos['collateral']);
+    storageValues['private_debt'] = new Fr(privatePos['static_debt']);
+    storageValues['public_collateral'] = new Fr(publicPos['collateral']);
+    storageValues['public_debt'] = new Fr(publicPos['static_debt']);
 
     return storageValues;
   };
@@ -103,7 +101,7 @@ describe('e2e_lending_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['initial'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
-      expect(storageSnapshots['initial']['interestAccumulator']).toEqual(new Fr(1000000000n));
+      expect(storageSnapshots['initial']['interest_accumulator']).toEqual(new Fr(1000000000n));
       expect(storageSnapshots['initial']['last_updated_ts'].value).toBeGreaterThan(0n);
     }
 
@@ -121,8 +119,8 @@ describe('e2e_lending_contract', () => {
       storageSnapshots['private_deposit'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
       // @todo The accumulator should not increase when there are no debt. But we don't have reads/writes enough right now to handle that.
-      expect(storageSnapshots['private_deposit']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['initial']['interestAccumulator'].value,
+      expect(storageSnapshots['private_deposit']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['initial']['interest_accumulator'].value,
       );
       expect(storageSnapshots['private_deposit']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['initial']['last_updated_ts'].value,
@@ -147,8 +145,8 @@ describe('e2e_lending_contract', () => {
         account,
       );
 
-      expect(storageSnapshots['private_deposit_on_behalf']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['private_deposit']['interestAccumulator'].value,
+      expect(storageSnapshots['private_deposit_on_behalf']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['private_deposit']['interest_accumulator'].value,
       );
       expect(storageSnapshots['private_deposit_on_behalf']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['private_deposit']['last_updated_ts'].value,
@@ -173,8 +171,8 @@ describe('e2e_lending_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_deposit'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
-      expect(storageSnapshots['public_deposit']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['private_deposit_on_behalf']['interestAccumulator'].value,
+      expect(storageSnapshots['public_deposit']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['private_deposit_on_behalf']['interest_accumulator'].value,
       );
       expect(storageSnapshots['public_deposit']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['private_deposit_on_behalf']['last_updated_ts'].value,
@@ -201,8 +199,8 @@ describe('e2e_lending_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_borrow'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
-      expect(storageSnapshots['private_borrow']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['public_deposit']['interestAccumulator'].value,
+      expect(storageSnapshots['private_borrow']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['public_deposit']['interest_accumulator'].value,
       );
       expect(storageSnapshots['private_borrow']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['public_deposit']['last_updated_ts'].value,
@@ -230,8 +228,8 @@ describe('e2e_lending_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_borrow'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
-      expect(storageSnapshots['public_borrow']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['private_borrow']['interestAccumulator'].value,
+      expect(storageSnapshots['public_borrow']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['private_borrow']['interest_accumulator'].value,
       );
       expect(storageSnapshots['public_borrow']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['private_borrow']['last_updated_ts'].value,
@@ -262,8 +260,8 @@ describe('e2e_lending_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_repay'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
-      expect(storageSnapshots['private_repay']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['public_borrow']['interestAccumulator'].value,
+      expect(storageSnapshots['private_repay']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['public_borrow']['interest_accumulator'].value,
       );
       expect(storageSnapshots['private_repay']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['public_borrow']['last_updated_ts'].value,
@@ -296,8 +294,8 @@ describe('e2e_lending_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_repay_on_behalf'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
-      expect(storageSnapshots['private_repay_on_behalf']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['private_repay']['interestAccumulator'].value,
+      expect(storageSnapshots['private_repay_on_behalf']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['private_repay']['interest_accumulator'].value,
       );
       expect(storageSnapshots['private_repay_on_behalf']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['private_repay']['last_updated_ts'].value,
@@ -330,8 +328,8 @@ describe('e2e_lending_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_repay'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
-      expect(storageSnapshots['public_repay']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['private_repay_on_behalf']['interestAccumulator'].value,
+      expect(storageSnapshots['public_repay']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['private_repay_on_behalf']['interest_accumulator'].value,
       );
       expect(storageSnapshots['public_repay']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['private_repay_on_behalf']['last_updated_ts'].value,
@@ -364,8 +362,8 @@ describe('e2e_lending_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['public_withdraw'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
-      expect(storageSnapshots['public_withdraw']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['public_repay']['interestAccumulator'].value,
+      expect(storageSnapshots['public_withdraw']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['public_repay']['interest_accumulator'].value,
       );
       expect(storageSnapshots['public_withdraw']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['public_repay']['last_updated_ts'].value,
@@ -398,8 +396,8 @@ describe('e2e_lending_contract', () => {
       expect(receipt.status).toBe(TxStatus.MINED);
       storageSnapshots['private_withdraw'] = await getStorageSnapshot(deployedContract, aztecRpcServer, account);
 
-      expect(storageSnapshots['private_withdraw']['interestAccumulator'].value).toBeGreaterThan(
-        storageSnapshots['public_withdraw']['interestAccumulator'].value,
+      expect(storageSnapshots['private_withdraw']['interest_accumulator'].value).toBeGreaterThan(
+        storageSnapshots['public_withdraw']['interest_accumulator'].value,
       );
       expect(storageSnapshots['private_withdraw']['last_updated_ts'].value).toBeGreaterThan(
         storageSnapshots['public_withdraw']['last_updated_ts'].value,

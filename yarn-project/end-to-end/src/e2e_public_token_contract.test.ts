@@ -66,7 +66,7 @@ describe('e2e_public_token_contract', () => {
 
     expect(receipt.status).toBe(TxStatus.MINED);
 
-    const balance = (await contract.methods.publicBalanceOf(recipient.toField()).view({ from: recipient }))[0];
+    const balance = await contract.methods.publicBalanceOf(recipient.toField()).view({ from: recipient });
     expect(balance).toBe(mintAmount);
 
     await expectLogsFromLastBlockToBe(['Coins minted']);
@@ -91,7 +91,7 @@ describe('e2e_public_token_contract', () => {
     expect(receipts.map(r => r.status)).toEqual(times(3, () => TxStatus.MINED));
     expect(receipts.map(r => r.blockNumber)).toEqual(times(3, () => receipts[0].blockNumber));
 
-    const balance = (await contract.methods.publicBalanceOf(recipient.toField()).view({ from: recipient }))[0];
+    const balance = await contract.methods.publicBalanceOf(recipient.toField()).view({ from: recipient });
     expect(balance).toBe(mintAmount * 3n);
 
     await expectLogsFromLastBlockToBe(['Coins minted', 'Coins minted', 'Coins minted']);

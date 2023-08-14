@@ -1,4 +1,5 @@
 import { PrivateCallStackItem, PublicCallRequest, ReadRequestMembershipWitness } from '@aztec/circuits.js';
+import { DecodedReturn } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { FunctionL2Logs } from '@aztec/types';
 
@@ -56,7 +57,7 @@ export interface ExecutionResult {
   /** The preimages of the executed function. */
   preimages: ExecutionPreimages;
   /** The decoded return values of the executed function. */
-  returnValues: any[];
+  returnValues: DecodedReturn;
   /** The nested executions. */
   nestedExecutions: this[];
   /** Enqueued public function execution requests to be picked up by the sequencer. */
