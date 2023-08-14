@@ -5,7 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.21.0"
-source = "git+https://github.com/noir-lang/acvm?rev=61266056a0be5c7397ed64ee68b781a21c382cd3#61266056a0be5c7397ed64ee68b781a21c382cd3"
+source = "git+https://github.com/noir-lang/acvm?rev=766d76e1419ba90a2c0e76e8da3c02db10497e35#766d76e1419ba90a2c0e76e8da3c02db10497e35"
 dependencies = [
  "acir_field",
  "bincode",
@@ -18,7 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.21.0"
-source = "git+https://github.com/noir-lang/acvm?rev=61266056a0be5c7397ed64ee68b781a21c382cd3#61266056a0be5c7397ed64ee68b781a21c382cd3"
+source = "git+https://github.com/noir-lang/acvm?rev=766d76e1419ba90a2c0e76e8da3c02db10497e35#766d76e1419ba90a2c0e76e8da3c02db10497e35"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -31,7 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.21.0"
-source = "git+https://github.com/noir-lang/acvm?rev=61266056a0be5c7397ed64ee68b781a21c382cd3#61266056a0be5c7397ed64ee68b781a21c382cd3"
+source = "git+https://github.com/noir-lang/acvm?rev=766d76e1419ba90a2c0e76e8da3c02db10497e35#766d76e1419ba90a2c0e76e8da3c02db10497e35"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -47,7 +47,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.10.0"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=279287850befd45f33bf17230b82d8bf7f942114#279287850befd45f33bf17230b82d8bf7f942114"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=c4af91dd14d704f3f17c93459d1686360e771ea4#c4af91dd14d704f3f17c93459d1686360e771ea4"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -66,7 +66,7 @@ dependencies = [
 [[package]]
 name = "acvm_blackbox_solver"
 version = "0.21.0"
-source = "git+https://github.com/noir-lang/acvm?rev=61266056a0be5c7397ed64ee68b781a21c382cd3#61266056a0be5c7397ed64ee68b781a21c382cd3"
+source = "git+https://github.com/noir-lang/acvm?rev=766d76e1419ba90a2c0e76e8da3c02db10497e35#766d76e1419ba90a2c0e76e8da3c02db10497e35"
 dependencies = [
  "acir",
  "blake2",
@@ -86,7 +86,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.21.0"
-source = "git+https://github.com/noir-lang/acvm?rev=61266056a0be5c7397ed64ee68b781a21c382cd3#61266056a0be5c7397ed64ee68b781a21c382cd3"
+source = "git+https://github.com/noir-lang/acvm?rev=766d76e1419ba90a2c0e76e8da3c02db10497e35#766d76e1419ba90a2c0e76e8da3c02db10497e35"
 dependencies = [
  "acir",
 ]
@@ -537,7 +537,7 @@ dependencies = [
 [[package]]
 name = "brillig"
 version = "0.21.0"
-source = "git+https://github.com/noir-lang/acvm?rev=61266056a0be5c7397ed64ee68b781a21c382cd3#61266056a0be5c7397ed64ee68b781a21c382cd3"
+source = "git+https://github.com/noir-lang/acvm?rev=766d76e1419ba90a2c0e76e8da3c02db10497e35#766d76e1419ba90a2c0e76e8da3c02db10497e35"
 dependencies = [
  "acir_field",
  "serde",
@@ -546,7 +546,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.21.0"
-source = "git+https://github.com/noir-lang/acvm?rev=61266056a0be5c7397ed64ee68b781a21c382cd3#61266056a0be5c7397ed64ee68b781a21c382cd3"
+source = "git+https://github.com/noir-lang/acvm?rev=766d76e1419ba90a2c0e76e8da3c02db10497e35#766d76e1419ba90a2c0e76e8da3c02db10497e35"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
