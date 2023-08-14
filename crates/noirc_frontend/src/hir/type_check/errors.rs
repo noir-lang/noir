@@ -5,6 +5,7 @@ use thiserror::Error;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
+use crate::FunctionReturnType;
 use crate::Signedness;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -24,7 +25,7 @@ pub enum Source {
     #[error("BinOp")]
     BinOp,
     #[error("Return")]
-    Return,
+    Return(FunctionReturnType, Option<Span>),
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -197,7 +198,24 @@ impl From<TypeCheckError> for Diagnostic {
                     Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {lhs}, and RHS is {rhs}"),
                     Source::Comparison => format!("Unsupported types for comparison: {lhs} and {rhs}"),
                     Source::BinOp => format!("Unsupported types for binary operation: {lhs} and {rhs}"),
-                    Source::Return => format!("Expected return type {lhs}, but a value of type {rhs} was actually returned"),
+                    Source::Return(ret_ty, return_expr) => {
+                        let ret_ty_span = match ret_ty {
+                            FunctionReturnType::Default(span) | FunctionReturnType::Ty(_, span) => span
+                        };
+
+                        let message = format!("expected type {lhs}, found type {rhs}");
+                        let mut diagnostic = Diagnostic::simple_error(message.clone(), format!("expected {lhs} because of return type"), ret_ty_span);
+
+                        if let FunctionReturnType::Default(_) = ret_ty {
+                            diagnostic.add_note(format!("help: try adding a return type: `-> {rhs}`"));
+                        }
+
+                        if let Some(expr_span) = return_expr {
+                            diagnostic.add_secondary(message, expr_span);
+                        }
+
+                        return diagnostic
+                    },
                 };
 
                 Diagnostic::simple_error(message, String::new(), span)

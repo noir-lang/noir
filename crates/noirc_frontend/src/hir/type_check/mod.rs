@@ -14,10 +14,12 @@ mod stmt;
 pub use errors::TypeCheckError;
 
 use crate::{
-    hir_def::expr::HirExpression,
+    hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{ExprId, FuncId, NodeInterner, StmtId},
     Type,
 };
+
+use self::errors::Source;
 
 type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
 
@@ -56,12 +58,21 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         }
     }
 
-    let empty_function = if let HirExpression::Block(block) = interner.expression(function_body_id)
-    {
-        block.statements().is_empty()
-    } else {
-        false
-    };
+    let (expr_span, empty_function) =
+        if let HirExpression::Block(block) = interner.expression(function_body_id) {
+            let last_stmt = block.statements().last();
+            let span = last_stmt.and_then(|last| {
+                if let HirStatement::Expression(expr) = interner.statement(last) {
+                    interner.expr_span(&expr).into()
+                } else {
+                    None
+                }
+            });
+
+            (span, last_stmt.is_none())
+        } else {
+            (None, false)
+        };
 
     // Check declared return type and actual return type
     if !can_ignore_ret {
@@ -76,7 +87,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
                     lhs: declared_return_type.clone(),
                     rhs: function_last_type.clone(),
                     span: func_span,
-                    source: errors::Source::Return,
+                    source: Source::Return(meta.return_span, expr_span),
                 };
 
                 if empty_function {
@@ -168,7 +179,6 @@ mod test {
         stmt::HirStatement,
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
-    use crate::BinaryOpKind;
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -176,6 +186,7 @@ mod test {
         },
         parse_program, FunctionKind, Path,
     };
+    use crate::{BinaryOpKind, FunctionReturnType};
 
     #[test]
     fn basic_let() {
@@ -256,6 +267,7 @@ mod test {
             return_visibility: noirc_abi::AbiVisibility::Private,
             return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
             has_body: true,
+            return_span: FunctionReturnType::Default(Span::default()),
         };
         interner.push_fn_meta(func_meta, func_id);
 
