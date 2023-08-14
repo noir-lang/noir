@@ -5,12 +5,11 @@
 use std::collections::{HashMap, HashSet};
 
 use iter_extended::vecmap;
-use noirc_errors::Location;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        dfg::InsertInstructionResult,
+        dfg::{CallStack, InsertInstructionResult},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
@@ -50,7 +49,7 @@ struct InlineContext {
     recursion_level: u32,
     builder: FunctionBuilder,
 
-    call_locations: Vec<Location>,
+    call_stack: CallStack,
 
     /// True if we failed to inline at least one call. If this is still false when finishing
     /// inlining we can remove all other functions from the resulting Ssa struct and keep only
@@ -104,7 +103,7 @@ impl InlineContext {
         Self {
             builder,
             recursion_level: 0,
-            call_locations: Vec::new(),
+            call_stack: CallStack::new(),
             failed_to_inline_a_call: false,
         }
     }
@@ -379,13 +378,14 @@ impl<'function> PerFunctionContext<'function> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
-        let mut location = self.source_function.dfg.get_location(call_id);
+        let mut location = self.source_function.dfg.get_call_stack(call_id);
         assert_eq!(location.len(), 1);
-        let location = location.pop().expect("the assert_eq above verifies this will not fail");
+        let location =
+            location.pop_back().expect("the assert_eq above verifies this will not fail");
 
-        self.context.call_locations.push(location);
+        self.context.call_stack.push_back(location);
         let new_results = self.context.inline_function(ssa, function, &arguments);
-        self.context.call_locations.pop();
+        self.context.call_stack.pop_back();
 
         let new_results = InsertInstructionResult::Results(&new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
@@ -396,8 +396,8 @@ impl<'function> PerFunctionContext<'function> {
     fn push_instruction(&mut self, id: InstructionId) {
         let instruction = self.source_function.dfg[id].map_values(|id| self.translate_value(id));
 
-        let mut location = self.context.call_locations.clone();
-        location.append(&mut self.source_function.dfg.get_location(id));
+        let mut call_stack = self.context.call_stack.clone();
+        call_stack.append(self.source_function.dfg.get_call_stack(id));
 
         let results = self.source_function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.source_function.dfg.resolve(*id));
@@ -406,7 +406,7 @@ impl<'function> PerFunctionContext<'function> {
             .requires_ctrl_typevars()
             .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
 
-        self.context.builder.set_call_stack(location);
+        self.context.builder.set_call_stack(call_stack);
 
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
@@ -451,16 +451,16 @@ impl<'function> PerFunctionContext<'function> {
         block_queue: &mut Vec<BasicBlockId>,
     ) -> Option<(BasicBlockId, Vec<ValueId>)> {
         match self.source_function.dfg[block_id].unwrap_terminator() {
-            TerminatorInstruction::Jmp { destination, arguments, location } => {
+            TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
-                let mut call_stack = self.context.call_locations.clone();
-                call_stack.extend_from_slice(location);
+                let mut new_call_stack = self.context.call_stack.clone();
+                new_call_stack.append(call_stack.clone());
 
                 self.context
                     .builder
-                    .set_call_stack(call_stack)
+                    .set_call_stack(new_call_stack)
                     .terminate_with_jmp(destination, arguments);
                 None
             }

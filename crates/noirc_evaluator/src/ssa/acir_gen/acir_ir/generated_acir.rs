@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use crate::{
     brillig::brillig_gen::brillig_directive,
     errors::{InternalError, RuntimeError},
+    ssa::ir::dfg::CallStack,
 };
 
 use acvm::acir::{
@@ -22,7 +23,6 @@ use acvm::{
     FieldElement,
 };
 use iter_extended::vecmap;
-use noirc_errors::Location;
 use num_bigint::BigUint;
 
 #[derive(Debug, Default)]
@@ -46,11 +46,11 @@ pub(crate) struct GeneratedAcir {
     pub(crate) input_witnesses: Vec<Witness>,
 
     /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
-    pub(crate) locations: HashMap<usize, Vec<Location>>,
+    pub(crate) locations: HashMap<usize, CallStack>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
-    pub(crate) current_location: Vec<Location>,
+    pub(crate) call_stack: CallStack,
 }
 
 impl GeneratedAcir {
@@ -62,8 +62,8 @@ impl GeneratedAcir {
     /// Adds a new opcode into ACIR.
     fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
-        if !self.current_location.is_empty() {
-            self.locations.insert(self.opcodes.len() - 1, self.current_location.clone());
+        if !self.call_stack.is_empty() {
+            self.locations.insert(self.opcodes.len() - 1, self.call_stack.clone());
         }
     }
 
@@ -195,7 +195,7 @@ impl GeneratedAcir {
                         return Err(InternalError::MissingArg {
                             name: "".to_string(),
                             arg: "message_size".to_string(),
-                            location: self.current_location.clone(),
+                            call_stack: self.call_stack.clone(),
                         });
                     }
                 };
@@ -706,7 +706,7 @@ impl GeneratedAcir {
         if num_bits >= FieldElement::max_num_bits() {
             return Err(RuntimeError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
-                location: self.current_location.clone(),
+                call_stack: self.call_stack.clone(),
             });
         };
 

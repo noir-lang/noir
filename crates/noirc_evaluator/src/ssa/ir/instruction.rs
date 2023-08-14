@@ -1,11 +1,10 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::Location;
 use num_bigint::BigUint;
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::DataFlowGraph,
+    dfg::{CallStack, DataFlowGraph},
     map::Id,
     types::{NumericType, Type},
     value::{Value, ValueId},
@@ -426,7 +425,7 @@ pub(crate) enum TerminatorInstruction {
     /// Jumps to specified `destination` with `arguments`.
     /// The optional Location here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, location: Vec<Location> },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
 
     /// Return from the current function with the given return values.
     ///
@@ -451,10 +450,10 @@ impl TerminatorInstruction {
                 then_destination: *then_destination,
                 else_destination: *else_destination,
             },
-            Jmp { destination, arguments, location } => Jmp {
+            Jmp { destination, arguments, call_stack: location } => Jmp {
                 destination: *destination,
                 arguments: vecmap(arguments, |value| f(*value)),
-                location: location.clone(),
+                call_stack: location.clone(),
             },
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }

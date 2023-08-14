@@ -105,6 +105,9 @@ pub fn create_circuit(
         public_parameters,
         return_values,
     };
+
+    let locations = locations.into_iter().map(|(k, v)| (k, v.into_iter().collect())).collect();
+
     let debug_info = DebugInfo::new(locations);
 
     Ok((circuit, debug_info, abi))

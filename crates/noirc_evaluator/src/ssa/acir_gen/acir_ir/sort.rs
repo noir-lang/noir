@@ -51,9 +51,7 @@ impl GeneratedAcir {
             in_sub2.push(match in_expr.last() {
                 Some(in_expr) => in_expr.clone(),
                 None => {
-                    return Err(InternalError::EmptyArray {
-                        location: self.current_location.clone(),
-                    })
+                    return Err(InternalError::EmptyArray { call_stack: self.call_stack.clone() })
                 }
             });
         }
@@ -75,17 +73,13 @@ impl GeneratedAcir {
             out_expr.push(match b1.last() {
                 Some(b1) => b1.clone(),
                 None => {
-                    return Err(InternalError::EmptyArray {
-                        location: self.current_location.clone(),
-                    })
+                    return Err(InternalError::EmptyArray { call_stack: self.call_stack.clone() })
                 }
             });
         }
         out_expr.push(match b2.last() {
             Some(b2) => b2.clone(),
-            None => {
-                return Err(InternalError::EmptyArray { location: self.current_location.clone() })
-            }
+            None => return Err(InternalError::EmptyArray { call_stack: self.call_stack.clone() }),
         });
         conf.extend(w1);
         conf.extend(w2);

@@ -80,8 +80,10 @@ pub(crate) struct DataFlowGraph {
     ///
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
-    locations: HashMap<InstructionId, Vec<Location>>,
+    locations: HashMap<InstructionId, CallStack>,
 }
+
+pub(crate) type CallStack = im::Vector<Location>;
 
 impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
@@ -154,7 +156,7 @@ impl DataFlowGraph {
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
-        location: Vec<Location>,
+        call_stack: CallStack,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
         match instruction.simplify(self, block) {
@@ -167,7 +169,7 @@ impl DataFlowGraph {
                 let instruction = result.instruction().unwrap_or(instruction);
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
-                self.locations.insert(id, location);
+                self.locations.insert(id, call_stack);
                 InsertInstructionResult::Results(self.instruction_results(id))
             }
         }
@@ -410,18 +412,18 @@ impl DataFlowGraph {
         destination.set_terminator(terminator);
     }
 
-    pub(crate) fn get_location(&self, instruction: InstructionId) -> Vec<Location> {
+    pub(crate) fn get_call_stack(&self, instruction: InstructionId) -> CallStack {
         self.locations.get(&instruction).cloned().unwrap_or_default()
     }
 
     pub(crate) fn add_location(&mut self, instruction: InstructionId, location: Location) {
-        self.locations.entry(instruction).or_default().push(location);
+        self.locations.entry(instruction).or_default().push_back(location);
     }
 
-    pub(crate) fn get_value_location(&self, value: ValueId) -> Vec<Location> {
+    pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
         match &self.values[self.resolve(value)] {
-            Value::Instruction { instruction, .. } => self.get_location(*instruction),
-            _ => Vec::new(),
+            Value::Instruction { instruction, .. } => self.get_call_stack(*instruction),
+            _ => im::Vector::new(),
         }
     }
 

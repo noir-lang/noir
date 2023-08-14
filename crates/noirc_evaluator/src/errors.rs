@@ -9,8 +9,10 @@
 //! An Error of the latter is an error in the implementation of the compiler
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
+
+use crate::ssa::ir::dfg::CallStack;
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
@@ -18,92 +20,70 @@ pub enum RuntimeError {
     // and 1 respectively. This would confuse users if a constraint such as
     // assert(foo < bar) fails with "failed constraint: 0 = 1."
     #[error("Failed constraint")]
-    FailedConstraint { lhs: FieldElement, rhs: FieldElement, location: Vec<Location> },
+    FailedConstraint { lhs: FieldElement, rhs: FieldElement, call_stack: CallStack },
     #[error(transparent)]
     InternalError(#[from] InternalError),
     #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
-    IndexOutOfBounds { index: usize, array_size: usize, location: Vec<Location> },
+    IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
-    InvalidRangeConstraint { num_bits: u32, location: Vec<Location> },
+    InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
     #[error("Expected array index to fit into a u64")]
-    TypeConversion { from: String, into: String, location: Vec<Location> },
+    TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error("{name:?} is not initialized")]
-    UnInitialized { name: String, location: Vec<Location> },
+    UnInitialized { name: String, call_stack: CallStack },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
-    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, location: Vec<Location> },
+    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
     #[error("Could not determine loop bound at compile-time")]
-    UnknownLoopBound { location: Vec<Location> },
+    UnknownLoopBound { call_stack: CallStack },
     #[error("Argument is not constant")]
-    AssertConstantFailed { location: Vec<Location> },
+    AssertConstantFailed { call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum InternalError {
     #[error("ICE: Both expressions should have degree<=1")]
-    DegreeNotReduced { location: Vec<Location> },
+    DegreeNotReduced { call_stack: CallStack },
     #[error("Try to get element from empty array")]
-    EmptyArray { location: Vec<Location> },
+    EmptyArray { call_stack: CallStack },
     #[error("ICE: {message:?}")]
-    General { message: String, location: Vec<Location> },
+    General { message: String, call_stack: CallStack },
     #[error("ICE: {name:?} missing {arg:?} arg")]
-    MissingArg { name: String, arg: String, location: Vec<Location> },
+    MissingArg { name: String, arg: String, call_stack: CallStack },
     #[error("ICE: {name:?} should be a constant")]
-    NotAConstant { name: String, location: Vec<Location> },
+    NotAConstant { name: String, call_stack: CallStack },
     #[error("ICE: Undeclared AcirVar")]
-    UndeclaredAcirVar { location: Vec<Location> },
+    UndeclaredAcirVar { call_stack: CallStack },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
-    UnExpected { expected: String, found: String, location: Vec<Location> },
+    UnExpected { expected: String, found: String, call_stack: CallStack },
 }
 
 impl RuntimeError {
-    fn into_location(self) -> Vec<Location> {
+    fn call_stack(&self) -> &CallStack {
         match self {
             RuntimeError::InternalError(
-                InternalError::DegreeNotReduced { location }
-                | InternalError::EmptyArray { location }
-                | InternalError::General { location, .. }
-                | InternalError::MissingArg { location, .. }
-                | InternalError::NotAConstant { location, .. }
-                | InternalError::UndeclaredAcirVar { location }
-                | InternalError::UnExpected { location, .. },
+                InternalError::DegreeNotReduced { call_stack }
+                | InternalError::EmptyArray { call_stack }
+                | InternalError::General { call_stack, .. }
+                | InternalError::MissingArg { call_stack, .. }
+                | InternalError::NotAConstant { call_stack, .. }
+                | InternalError::UndeclaredAcirVar { call_stack }
+                | InternalError::UnExpected { call_stack, .. },
             )
-            | RuntimeError::FailedConstraint { location, .. }
-            | RuntimeError::IndexOutOfBounds { location, .. }
-            | RuntimeError::InvalidRangeConstraint { location, .. }
-            | RuntimeError::TypeConversion { location, .. }
-            | RuntimeError::UnInitialized { location, .. }
-            | RuntimeError::UnknownLoopBound { location }
-            | RuntimeError::AssertConstantFailed { location }
-            | RuntimeError::UnsupportedIntegerSize { location, .. } => location,
-        }
-    }
-
-    fn location(&self) -> &[Location] {
-        match self {
-            RuntimeError::InternalError(
-                InternalError::DegreeNotReduced { location }
-                | InternalError::EmptyArray { location }
-                | InternalError::General { location, .. }
-                | InternalError::MissingArg { location, .. }
-                | InternalError::NotAConstant { location, .. }
-                | InternalError::UndeclaredAcirVar { location }
-                | InternalError::UnExpected { location, .. },
-            )
-            | RuntimeError::FailedConstraint { location, .. }
-            | RuntimeError::IndexOutOfBounds { location, .. }
-            | RuntimeError::InvalidRangeConstraint { location, .. }
-            | RuntimeError::TypeConversion { location, .. }
-            | RuntimeError::UnInitialized { location, .. }
-            | RuntimeError::UnknownLoopBound { location }
-            | RuntimeError::AssertConstantFailed { location }
-            | RuntimeError::UnsupportedIntegerSize { location, .. } => location,
+            | RuntimeError::FailedConstraint { call_stack, .. }
+            | RuntimeError::IndexOutOfBounds { call_stack, .. }
+            | RuntimeError::InvalidRangeConstraint { call_stack, .. }
+            | RuntimeError::TypeConversion { call_stack, .. }
+            | RuntimeError::UnInitialized { call_stack, .. }
+            | RuntimeError::UnknownLoopBound { call_stack }
+            | RuntimeError::AssertConstantFailed { call_stack }
+            | RuntimeError::UnsupportedIntegerSize { call_stack, .. } => call_stack,
         }
     }
 }
 
 impl From<RuntimeError> for Vec<FileDiagnostic> {
     fn from(error: RuntimeError) -> Vec<FileDiagnostic> {
-        let file_ids = vecmap(error.location(), |loc| loc.file);
+        let file_ids = vecmap(error.call_stack(), |loc| loc.file);
         vecmap(error.as_diagnostics().into_iter().zip(file_ids), |(diagnostic, file_id)| {
             FileDiagnostic { file_id, diagnostic }
         })
@@ -123,10 +103,10 @@ impl RuntimeError {
             }
             _ => {
                 let message = self.to_string();
-                let mut locations = self.into_location();
+                let mut locations = self.call_stack().clone();
                 let mut errors = Vec::new();
 
-                if let Some(location) = locations.pop() {
+                if let Some(location) = locations.pop_back() {
                     errors.push(Diagnostic::simple_error(message, String::new(), location.span));
                 }
 

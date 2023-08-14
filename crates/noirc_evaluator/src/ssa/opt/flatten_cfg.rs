@@ -135,13 +135,12 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::Location;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::InsertInstructionResult,
+        dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
@@ -260,7 +259,7 @@ impl<'f> Context<'f> {
                     self.inline_branch(block, then_block, old_condition, then_condition, one);
 
                 let else_condition =
-                    self.insert_instruction(Instruction::Not(then_condition), Vec::new());
+                    self.insert_instruction(Instruction::Not(then_condition), CallStack::new());
                 let zero = FieldElement::zero();
 
                 // Make sure the else branch sees the previous values of each store
@@ -285,7 +284,7 @@ impl<'f> Context<'f> {
                 let end = self.branch_ends[&block];
                 self.inline_branch_end(end, then_branch, else_branch)
             }
-            TerminatorInstruction::Jmp { destination, arguments, location: _ } => {
+            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if let Some((end_block, _)) = self.conditions.last() {
                     if destination == end_block {
                         return block;
@@ -317,7 +316,7 @@ impl<'f> Context<'f> {
 
         if let Some((_, previous_condition)) = self.conditions.last() {
             let and = Instruction::binary(BinaryOp::And, *previous_condition, condition);
-            let new_condition = self.insert_instruction(and, Vec::new());
+            let new_condition = self.insert_instruction(and, CallStack::new());
             self.conditions.push((end_block, new_condition));
         } else {
             self.conditions.push((end_block, condition));
@@ -327,12 +326,12 @@ impl<'f> Context<'f> {
     /// Insert a new instruction into the function's entry block.
     /// Unlike push_instruction, this function will not map any ValueIds.
     /// within the given instruction, nor will it modify self.values in any way.
-    fn insert_instruction(&mut self, instruction: Instruction, location: Vec<Location>) -> ValueId {
+    fn insert_instruction(&mut self, instruction: Instruction, call_stack: CallStack) -> ValueId {
         let block = self.inserter.function.entry_block();
         self.inserter
             .function
             .dfg
-            .insert_instruction_and_results(instruction, block, None, location)
+            .insert_instruction_and_results(instruction, block, None, call_stack)
             .first()
     }
 
@@ -350,7 +349,7 @@ impl<'f> Context<'f> {
             instruction,
             block,
             ctrl_typevars,
-            Vec::new(),
+            CallStack::new(),
         )
     }
 
@@ -461,8 +460,8 @@ impl<'f> Context<'f> {
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
 
-        let then_location = self.inserter.function.dfg.get_value_location(then_value);
-        let else_location = self.inserter.function.dfg.get_value_location(else_value);
+        let then_location = self.inserter.function.dfg.get_value_call_stack(then_value);
+        let else_location = self.inserter.function.dfg.get_value_call_stack(else_value);
 
         let location =
             if then_location.is_empty() { else_location.clone() } else { then_location.clone() };
@@ -698,18 +697,18 @@ impl<'f> Context<'f> {
     fn handle_instruction_side_effects(
         &mut self,
         instruction: Instruction,
-        location: Vec<Location>,
+        call_stack: CallStack,
     ) -> Instruction {
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
                 Instruction::Constrain(value) => {
                     let mul = self.insert_instruction(
                         Instruction::binary(BinaryOp::Mul, value, condition),
-                        location.clone(),
+                        call_stack.clone(),
                     );
                     let eq = self.insert_instruction(
                         Instruction::binary(BinaryOp::Eq, mul, condition),
-                        location,
+                        call_stack,
                     );
                     Instruction::Constrain(eq)
                 }
