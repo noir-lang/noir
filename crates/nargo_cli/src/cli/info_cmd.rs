@@ -38,14 +38,16 @@ pub(crate) fn run<B: Backend>(
     let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
 
     let mut package_table = Table::new();
-    package_table.add_row(row!["Package", "Language", "ACIR Opcodes", "Backend Circuit Size"]);
+    package_table.add_row(
+        row![Fm->"Package", Fm->"Language", Fm->"ACIR Opcodes", Fm->"Backend Circuit Size"],
+    );
     let mut contract_table = Table::new();
     contract_table.add_row(row![
-        "Contract",
-        "Function",
-        "Language",
-        "ACIR Opcodes",
-        "Backend Circuit Size"
+        Fm->"Contract",
+        Fm->"Function",
+        Fm->"Language",
+        Fm->"ACIR Opcodes",
+        Fm->"Backend Circuit Size"
     ]);
 
     for package in &workspace {
@@ -90,10 +92,10 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
         .map_err(CliError::ProofSystemCompilerError)?;
 
     table.add_row(row![
-        format!("{}", package.name),
+        Fm->format!("{}", package.name),
         format!("{:?}", backend.np_language()),
-        format!("{}", num_opcodes),
-        format!("{}", exact_circuit_size),
+        Fc->format!("{}", num_opcodes),
+        Fc->format!("{}", exact_circuit_size),
     ]);
 
     Ok(())
@@ -122,11 +124,11 @@ fn count_opcodes_and_gates_in_contracts<B: Backend>(
 
         for info in function_info {
             table.add_row(row![
-                format!("{}", contract.name),
-                format!("{}", info.0),
+                Fm->format!("{}", contract.name),
+                Fc->format!("{}", info.0),
                 format!("{:?}", backend.np_language()),
-                format!("{}", info.1),
-                format!("{}", info.2),
+                Fc->format!("{}", info.1),
+                Fc->format!("{}", info.2),
             ]);
         }
     }
