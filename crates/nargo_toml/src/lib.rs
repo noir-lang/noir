@@ -249,19 +249,20 @@ impl DependencyConfig {
 
 fn toml_to_workspace(
     nargo_toml: NargoToml,
-    selected_package: Option<CrateName>,
+    package_selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
             let member = package_config.resolve_to_package(&nargo_toml.root_dir)?;
-            if selected_package.is_none() || Some(&member.name) == selected_package.as_ref() {
-                Workspace {
+            match &package_selection {
+                PackageSelection::Selected(selected_name) if selected_name != &member.name => {
+                    return Err(ManifestError::MissingSelectedPackage(member.name))
+                }
+                _ => Workspace {
                     root_dir: nargo_toml.root_dir,
                     selected_package_index: Some(0),
                     members: vec![member],
-                }
-            } else {
-                return Err(ManifestError::MissingSelectedPackage(member.name));
+                },
             }
         }
         Config::Workspace { workspace_config } => {
@@ -272,17 +273,18 @@ fn toml_to_workspace(
                 let package_toml_path = package_root_dir.join("Nargo.toml");
                 let member = resolve_package_from_toml(&package_toml_path)?;
 
-                match selected_package.as_ref() {
-                    Some(selected_name) => {
+                match &package_selection {
+                    PackageSelection::Selected(selected_name) => {
                         if &member.name == selected_name {
                             selected_package_index = Some(index);
                         }
                     }
-                    None => {
+                    PackageSelection::DefaultOrAll => {
                         if Some(&member_path) == workspace_config.default_member.as_ref() {
                             selected_package_index = Some(index);
                         }
                     }
+                    PackageSelection::All => selected_package_index = None,
                 }
 
                 members.push(member);
@@ -290,13 +292,21 @@ fn toml_to_workspace(
 
             // If the selected_package_index is still `None` but we have see a default_member or selected package,
             // we want to present an error to users
-            if selected_package_index.is_none() {
-                if let Some(selected_name) = selected_package {
-                    return Err(ManifestError::MissingSelectedPackage(selected_name));
+            match package_selection {
+                PackageSelection::Selected(selected_name) => {
+                    if selected_package_index.is_none() {
+                        return Err(ManifestError::MissingSelectedPackage(selected_name));
+                    }
                 }
-                if let Some(default_path) = workspace_config.default_member {
-                    return Err(ManifestError::MissingDefaultPackage(default_path));
-                }
+                PackageSelection::DefaultOrAll => match workspace_config.default_member {
+                    // If `default-member` is specified but we don't have a selected_package_index, we need to fail
+                    Some(default_path) if selected_package_index.is_none() => {
+                        return Err(ManifestError::MissingDefaultPackage(default_path));
+                    }
+                    // However, if there wasn't a `default-member`, we select All, so no error is needed
+                    _ => (),
+                },
+                PackageSelection::All => (),
             }
 
             Workspace { root_dir: nargo_toml.root_dir, members, selected_package_index }
@@ -331,14 +341,21 @@ fn resolve_package_from_toml(toml_path: &Path) -> Result<Package, ManifestError>
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum PackageSelection {
+    Selected(CrateName),
+    DefaultOrAll,
+    All,
+}
+
 /// Resolves a Nargo.toml file into a `Workspace` struct as defined by our `nargo` core.
 pub fn resolve_workspace_from_toml(
     toml_path: &Path,
-    selected_package: Option<CrateName>,
+    package_selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
 
-    toml_to_workspace(nargo_toml, selected_package)
+    toml_to_workspace(nargo_toml, package_selection)
 }
 
 #[test]
