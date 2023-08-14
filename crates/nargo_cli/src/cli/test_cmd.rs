@@ -12,7 +12,9 @@ use noirc_frontend::{
 };
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
+use crate::{
+    backends::get_black_box_solver, cli::check_cmd::check_crate_and_report_errors, errors::CliError,
+};
 
 use super::{compile_cmd::optimize_circuit, NargoConfig};
 
@@ -131,7 +133,7 @@ fn run_test<B: Backend>(
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    match execute_circuit(program.circuit, WitnessMap::new(), show_output) {
+    match execute_circuit(get_black_box_solver(), program.circuit, WitnessMap::new(), show_output) {
         Ok(_) => Ok(()),
         Err(error) => {
             let writer = StandardStream::stderr(ColorChoice::Always);

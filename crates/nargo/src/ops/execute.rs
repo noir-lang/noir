@@ -1,4 +1,5 @@
 use acvm::pwg::{ACVMStatus, ACVM};
+use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 use crate::NargoError;
@@ -6,12 +7,11 @@ use crate::NargoError;
 use super::foreign_calls::ForeignCall;
 
 pub fn execute_circuit(
+    black_box_function_solver: impl BlackBoxFunctionSolver,
     circuit: Circuit,
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<WitnessMap, NargoError> {
-    #[allow(deprecated)]
-    let black_box_function_solver = acvm::blackbox_solver::BarretenbergSolver::new();
     let mut acvm = ACVM::new(black_box_function_solver, circuit.opcodes, initial_witness);
 
     loop {
