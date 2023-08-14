@@ -82,7 +82,7 @@ class root_rollup_tests : public ::testing::Test {
         // info("Verification key size: ", vk_size);
 
         std::vector<uint8_t> root_rollup_inputs_vec;
-        write(root_rollup_inputs_vec, root_rollup_inputs);
+        serialize::write(root_rollup_inputs_vec, root_rollup_inputs);
 
         // uint8_t const* proof_data;
         // size_t proof_data_size;
@@ -98,14 +98,14 @@ class root_rollup_tests : public ::testing::Test {
         if (compare_pubins) {
             RootRollupPublicInputs public_inputs;
             uint8_t const* public_inputs_buf_tmp = public_inputs_buf;
-            read(public_inputs_buf_tmp, public_inputs);
+            serialize::read(public_inputs_buf_tmp, public_inputs);
             ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
             for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
                 ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
             }
 
             std::vector<uint8_t> expected_public_inputs_vec;
-            write(expected_public_inputs_vec, expected_public_inputs);
+            serialize::write(expected_public_inputs_vec, expected_public_inputs);
 
             ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
             // Just compare the first 10 bytes of the serialized public outputs

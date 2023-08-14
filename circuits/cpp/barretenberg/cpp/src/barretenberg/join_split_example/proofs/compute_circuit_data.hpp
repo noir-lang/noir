@@ -165,7 +165,7 @@ circuit_data get_circuit_data(std::string const& name,
             info(name, ": Loading verification key from: ", vk_path);
             auto vk_stream = std::ifstream(vk_path);
             plonk::verification_key_data vk_data;
-            read(vk_stream, vk_data);
+            serialize::read(vk_stream, vk_data);
             data.verification_key =
                 std::make_shared<plonk::verification_key>(std::move(vk_data), data.srs->get_verifier_crs());
             info(name, ": Verification key hash: ", data.verification_key->sha256_hash());

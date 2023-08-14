@@ -95,13 +95,6 @@ template <typename NCT> struct NewContractData {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, NewContractData<NCT> const& new_contract_data)
-{
-    return os << "contract_address: " << new_contract_data.contract_address << "\n"
-              << "portal_contract_address: " << new_contract_data.portal_contract_address << "\n"
-              << "function_tree_root: " << new_contract_data.function_tree_root << "\n";
-}
-
 template <typename NCT> using ContractLeafPreimage = NewContractData<NCT>;
 
 }  // namespace aztec3::circuits::abis

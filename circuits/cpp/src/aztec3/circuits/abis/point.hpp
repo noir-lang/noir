@@ -63,10 +63,4 @@ template <typename NCT> struct Point {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, Point<NCT> const& point)
-{
-    return os << "x: " << point.x << "\n"
-              << "y: " << point.y << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

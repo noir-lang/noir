@@ -102,17 +102,4 @@ template <typename NCT> struct OptionallyRevealedData {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, OptionallyRevealedData<NCT> const& data)
-{
-    return os << "call_stack_item_hash: " << data.call_stack_item_hash << "\n"
-              << "function_data:\n"
-              << data.function_data << "\n"
-              << "vk_hash: " << data.vk_hash << "\n"
-              << "portal_contract_address: " << data.portal_contract_address << "\n"
-              << "pay_fee_from_l1: " << data.pay_fee_from_l1 << "\n"
-              << "pay_fee_from_public_l2: " << data.pay_fee_from_public_l2 << "\n"
-              << "called_from_l1: " << data.called_from_l1 << "\n"
-              << "called_from_public_l2: " << data.called_from_public_l2 << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

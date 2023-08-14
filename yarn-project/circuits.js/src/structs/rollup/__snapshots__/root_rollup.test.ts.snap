@@ -1,12 +1,10 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`structs/root_rollup serializes a RootRollupInput and prints it 1`] = `
-"previous_rollup_data: [ base_or_merge_rollup_public_inputs: rollup_type:
-0
-rollup_subtree_height:
-0x0
-end_aggregation_object:
-P0: { 0x100, 0x101 }
+"previous_rollup_data: [ base_or_merge_rollup_public_inputs:
+rollup_type: 0
+rollup_subtree_height: 0x0
+end_aggregation_object: P0: { 0x100, 0x101 }
 P1: { 0x200, 0x201 }
 public_inputs: [
  0x102
@@ -17,8 +15,7 @@ public_inputs: [
 proof_witness_indices: [ 106 107 108 109 10a 10b ]
 has_data: 0
 
-constants:
-start_historic_blocks_tree_roots_snapshot:
+constants: start_historic_blocks_tree_roots_snapshot:
 root: 0x500
 next_available_leaf_index: 500
 
@@ -32,34 +29,26 @@ block_number: 0x607
 timestamp: 0x608
 
 
-start_private_data_tree_snapshot:
-root: 0x300
+start_private_data_tree_snapshot: root: 0x300
 next_available_leaf_index: 300
 
-end_private_data_tree_snapshot:
-root: 0x300
-next_available_leaf_index: 300
+end_private_data_tree_snapshot: root: 0x400
+next_available_leaf_index: 400
 
-start_nullifier_tree_snapshot:
-root: 0x500
+start_nullifier_tree_snapshot: root: 0x500
 next_available_leaf_index: 500
 
-end_nullifier_tree_snapshot:
-root: 0x600
+end_nullifier_tree_snapshot: root: 0x600
 next_available_leaf_index: 600
 
-start_contract_tree_snapshot:
-root: 0x700
+start_contract_tree_snapshot: root: 0x700
 next_available_leaf_index: 700
 
-end_contract_tree_snapshot:
-root: 0x800
+end_contract_tree_snapshot: root: 0x800
 next_available_leaf_index: 800
 
-start_public_data_tree_root:
-0x900
-end_public_data_tree_root:
-0x1000
+start_public_data_tree_root: 0x900
+end_public_data_tree_root: 0x1000
 calldata_hash: [ 0x901 0x902 ]
 
 proof: [ 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 ]
@@ -76,12 +65,10 @@ vk_index: 110
 vk_sibling_path: leaf_index: 0x120
 sibling_path: [ 0x120 0x121 0x122 0x123 0x124 0x125 0x126 0x127 ]
 
- base_or_merge_rollup_public_inputs: rollup_type:
-0
-rollup_subtree_height:
-0x0
-end_aggregation_object:
-P0: { 0x1100, 0x1101 }
+ base_or_merge_rollup_public_inputs:
+rollup_type: 0
+rollup_subtree_height: 0x0
+end_aggregation_object: P0: { 0x1100, 0x1101 }
 P1: { 0x1200, 0x1201 }
 public_inputs: [
  0x1102
@@ -92,8 +79,7 @@ public_inputs: [
 proof_witness_indices: [ 1106 1107 1108 1109 110a 110b ]
 has_data: 0
 
-constants:
-start_historic_blocks_tree_roots_snapshot:
+constants: start_historic_blocks_tree_roots_snapshot:
 root: 0x1500
 next_available_leaf_index: 1500
 
@@ -107,34 +93,26 @@ block_number: 0x1607
 timestamp: 0x1608
 
 
-start_private_data_tree_snapshot:
-root: 0x1300
+start_private_data_tree_snapshot: root: 0x1300
 next_available_leaf_index: 1300
 
-end_private_data_tree_snapshot:
-root: 0x1300
-next_available_leaf_index: 1300
+end_private_data_tree_snapshot: root: 0x1400
+next_available_leaf_index: 1400
 
-start_nullifier_tree_snapshot:
-root: 0x1500
+start_nullifier_tree_snapshot: root: 0x1500
 next_available_leaf_index: 1500
 
-end_nullifier_tree_snapshot:
-root: 0x1600
+end_nullifier_tree_snapshot: root: 0x1600
 next_available_leaf_index: 1600
 
-start_contract_tree_snapshot:
-root: 0x1700
+start_contract_tree_snapshot: root: 0x1700
 next_available_leaf_index: 1700
 
-end_contract_tree_snapshot:
-root: 0x1800
+end_contract_tree_snapshot: root: 0x1800
 next_available_leaf_index: 1800
 
-start_public_data_tree_root:
-0x1900
-end_public_data_tree_root:
-0x2000
+start_public_data_tree_root: 0x1900
+end_public_data_tree_root: 0x2000
 calldata_hash: [ 0x1901 0x1902 ]
 
 proof: [ 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 ]
@@ -152,7 +130,8 @@ vk_sibling_path: leaf_index: 0x1120
 sibling_path: [ 0x1120 0x1121 0x1122 0x1123 0x1124 0x1125 0x1126 0x1127 ]
 
  ]
-new_l1_to_l2_messages: [ 0x2100 0x2101 0x2102 0x2103 0x2104 0x2105 0x2106 0x2107 0x2108 0x2109 0x210a 0x210b 0x210c 0x210d 0x210e 0x210f ]
+l1_to_l2_messages: [ 0x2100 0x2101 0x2102 0x2103 0x2104 0x2105 0x2106 0x2107 0x2108 0x2109 0x210a 0x210b 0x210c 0x210d 0x210e 0x210f ]
+new_l1_to_l2_message_tree_root_sibling_path: [ 0x2100 0x2101 0x2102 0x2103 0x2104 0x2105 0x2106 0x2107 0x2108 0x2109 0x210a 0x210b ]
 start_l1_to_l2_message_tree_snapshot: root: 0x2200
 next_available_leaf_index: 8704
 
@@ -164,7 +143,8 @@ new_historic_blocks_tree_sibling_path: [ 0x2400 0x2401 0x2402 0x2403 0x2404 0x24
 `;
 
 exports[`structs/root_rollup serializes a RootRollupPublicInputs and prints it 1`] = `
-"end_aggregation_object: P0: { 0x0, 0x1 }
+"end_aggregation_object:
+P0: { 0x0, 0x1 }
 P1: { 0x100, 0x101 }
 public_inputs: [
  0x2
@@ -175,27 +155,34 @@ public_inputs: [
 proof_witness_indices: [ 6 7 8 9 10 11 ]
 has_data: 0
 
-global_variables: chain_id: 0x100
+global_variables:
+chain_id: 0x100
 version: 0x101
 block_number: 0x102
 timestamp: 0x103
 
-start_private_data_tree_snapshot: root: 0x200
+start_private_data_tree_snapshot:
+root: 0x200
 next_available_leaf_index: 512
 
-end_private_data_tree_snapshot: root: 0x300
+end_private_data_tree_snapshot:
+root: 0x300
 next_available_leaf_index: 768
 
-start_nullifier_tree_snapshot: root: 0x400
+start_nullifier_tree_snapshot:
+root: 0x400
 next_available_leaf_index: 1024
 
-end_nullifier_tree_snapshot: root: 0x500
+end_nullifier_tree_snapshot:
+root: 0x500
 next_available_leaf_index: 1280
 
-start_contract_tree_snapshot: root: 0x600
+start_contract_tree_snapshot:
+root: 0x600
 next_available_leaf_index: 1536
 
-end_contract_tree_snapshot: root: 0x700
+end_contract_tree_snapshot:
+root: 0x700
 next_available_leaf_index: 1792
 
 start_public_data_tree_root: 0x800
@@ -215,13 +202,13 @@ next_available_leaf_index: 3328
 start_l1_to_l2_messages_tree_snapshot: root: 0xe00
 next_available_leaf_index: 3584
 
-end_l1_tol2_messages_tree_snapshot: root: 0xf00
+end_l1_to_l2_messages_tree_snapshot: root: 0xf00
 next_available_leaf_index: 3840
 
 start_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: root: 0x1000
 next_available_leaf_index: 4096
 
-end_tree_of_historic_l1_tol2_messages_tree_roots_snapshot: root: 0x1100
+end_tree_of_historic_l1_to_l2_messages_tree_roots_snapshot: root: 0x1100
 next_available_leaf_index: 4352
 
 start_historic_blocks_tree_snapshot: root: 0x1200

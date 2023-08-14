@@ -70,14 +70,4 @@ template <typename B> inline void read(B& buf, verification_key& key)
     key = verification_key{ std::move(data), barretenberg::srs::get_crs_factory()->get_verifier_crs() };
 }
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PreviousKernelData<NCT> const& kernel_data)
-{
-    return os << "public_inputs: " << kernel_data.public_inputs << "\n"
-              << "proof: " << kernel_data.proof << "\n"
-              << "vk:\n"
-              << *(kernel_data.vk) << "\n"
-              << "vk_index: " << kernel_data.vk_index << "\n"
-              << "vk_path: " << kernel_data.vk_path << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

@@ -70,10 +70,10 @@ WASM_EXPORT uint8_t* private_kernel__sim_init(uint8_t const* tx_request_buf,
     DummyCircuitBuilder builder = DummyCircuitBuilder("private_kernel__sim_init");
 
     PrivateCallData<NT> private_call_data;
-    read(private_call_buf, private_call_data);
+    serialize::read(private_call_buf, private_call_data);
 
     TxRequest<NT> tx_request;
-    read(tx_request_buf, tx_request);
+    serialize::read(tx_request_buf, tx_request);
 
     PrivateKernelInputsInit<NT> const private_inputs = PrivateKernelInputsInit<NT>{
         .tx_request = tx_request,
@@ -100,7 +100,7 @@ WASM_EXPORT uint8_t* private_kernel__sim_inner(uint8_t const* previous_kernel_bu
 {
     DummyCircuitBuilder builder = DummyCircuitBuilder("private_kernel__sim_inner");
     PrivateCallData<NT> private_call_data;
-    read(private_call_buf, private_call_data);
+    serialize::read(private_call_buf, private_call_data);
 
     PreviousKernelData<NT> previous_kernel;
     serialize::read(previous_kernel_buf, previous_kernel);

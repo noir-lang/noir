@@ -120,9 +120,4 @@ template <typename T> struct CircuitResult {
     void msgpack_schema(auto& packer) const { packer.pack_schema(result); }
 };
 
-inline std::ostream& operator<<(std::ostream& os, CircuitError const& obj)
-{
-    return os << "code: " << obj.code << "\n"
-              << "message: " << obj.message << "\n";
-}
 }  // namespace aztec3::utils

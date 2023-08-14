@@ -9,6 +9,7 @@
 #include "barretenberg/crypto/hashers/hashers.hpp"
 
 #include "barretenberg/common/serialize.hpp"
+#include "barretenberg/serialize/msgpack.hpp"
 #include "barretenberg/common/streams.hpp"
 
 namespace crypto {
@@ -31,6 +32,7 @@ struct signature {
     // `e` represents the verifier's challenge in the protocol. It is encoded as the 32-byte
     // output of a hash function modeling a random oracle in the Fiat-Shamir transform.
     std::array<uint8_t, 32> e;
+    MSGPACK_FIELDS(s, e);
 };
 
 template <typename Hash, typename Fq, typename Fr, typename G1>
@@ -48,18 +50,6 @@ inline std::ostream& operator<<(std::ostream& os, signature const& sig)
 {
     os << "{ " << sig.s << ", " << sig.e << " }";
     return os;
-}
-
-template <typename B> inline void read(B& it, signature& sig)
-{
-    read(it, sig.s);
-    read(it, sig.e);
-}
-
-template <typename B> inline void write(B& buf, signature const& sig)
-{
-    write(buf, sig.s);
-    write(buf, sig.e);
 }
 
 template <typename B> inline void read(B& it, key_pair<grumpkin::fr, grumpkin::g1>& keypair)

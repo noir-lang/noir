@@ -104,10 +104,4 @@ template <typename NCT> struct CallContext {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, CallContext<NCT> const& call_context)
-{
-    utils::msgpack_derived_output(os, call_context);
-    return os;
-}
-
 }  // namespace aztec3::circuits::abis

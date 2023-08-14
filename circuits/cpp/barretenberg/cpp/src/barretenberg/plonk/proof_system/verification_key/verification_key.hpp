@@ -29,28 +29,6 @@ struct verification_key_data {
     barretenberg::fr compress_native(size_t const hash_index = 0) const;
 };
 
-template <typename B> inline void read(B& buf, verification_key_data& key)
-{
-    using serialize::read;
-    read(buf, key.circuit_type);
-    read(buf, key.circuit_size);
-    read(buf, key.num_public_inputs);
-    read(buf, key.commitments);
-    read(buf, key.contains_recursive_proof);
-    read(buf, key.recursive_proof_public_input_indices);
-}
-
-template <typename B> inline void write(B& buf, verification_key_data const& key)
-{
-    using serialize::write;
-    write(buf, key.circuit_type);
-    write(buf, key.circuit_size);
-    write(buf, key.num_public_inputs);
-    write(buf, key.commitments);
-    write(buf, key.contains_recursive_proof);
-    write(buf, key.recursive_proof_public_input_indices);
-}
-
 inline std::ostream& operator<<(std::ostream& os, verification_key_data const& key)
 {
     return os << "key.circuit_type: " << static_cast<uint32_t>(key.circuit_type) << "\n"

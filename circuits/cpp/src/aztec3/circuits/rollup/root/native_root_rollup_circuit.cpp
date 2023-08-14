@@ -129,7 +129,7 @@ RootRollupPublicInputs root_rollup_circuit(DummyBuilder& builder, RootRollupInpu
 
     RootRollupPublicInputs public_inputs = {
         .end_aggregation_object = aggregation_object,
-        .globalVariables = left.constants.global_variables,
+        .global_variables = left.constants.global_variables,
         .start_private_data_tree_snapshot = left.start_private_data_tree_snapshot,
         .end_private_data_tree_snapshot = right.end_private_data_tree_snapshot,
         .start_nullifier_tree_snapshot = left.start_nullifier_tree_snapshot,

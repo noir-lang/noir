@@ -37,6 +37,9 @@ template <typename NCT> struct FunctionLeafPreimage {
     fr vk_hash = 0;
     fr acir_hash = 0;
 
+    // For serialization, update with new fields
+    MSGPACK_FIELDS(function_selector, is_internal, is_private, vk_hash, acir_hash);
+
     boolean operator==(FunctionLeafPreimage<NCT> const& other) const
     {
         return function_selector == other.function_selector && is_internal == other.is_internal &&
@@ -88,36 +91,5 @@ template <typename NCT> struct FunctionLeafPreimage {
         return NCT::compress(inputs, GeneratorIndex::FUNCTION_LEAF);
     }
 };
-
-template <typename NCT> void read(uint8_t const*& it, FunctionLeafPreimage<NCT>& preimage)
-{
-    using serialize::read;
-
-    read(it, preimage.function_selector);
-    read(it, preimage.is_internal);
-    read(it, preimage.is_private);
-    read(it, preimage.vk_hash);
-    read(it, preimage.acir_hash);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, FunctionLeafPreimage<NCT> const& preimage)
-{
-    using serialize::write;
-
-    write(buf, preimage.function_selector);
-    write(buf, preimage.is_internal);
-    write(buf, preimage.is_private);
-    write(buf, preimage.vk_hash);
-    write(buf, preimage.acir_hash);
-};
-
-template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionLeafPreimage<NCT> const& preimage)
-{
-    return os << "function_selector: " << preimage.function_selector << "\n"
-              << "is_internal: " << preimage.is_internal << "\n"
-              << "is_private: " << preimage.is_private << "\n"
-              << "vk_hash: " << preimage.vk_hash << "\n"
-              << "acir_hash: " << preimage.acir_hash << "\n";
-}
 
 }  // namespace aztec3::circuits::abis

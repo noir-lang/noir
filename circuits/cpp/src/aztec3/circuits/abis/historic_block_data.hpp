@@ -108,16 +108,4 @@ template <typename NCT> struct HistoricBlockData {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, HistoricBlockData<NCT> const& historic_tree_roots)
-{
-    return os << "private_data_tree_root: " << historic_tree_roots.private_data_tree_root << "\n"
-              << "nullifier_tree_root: " << historic_tree_roots.nullifier_tree_root << "\n"
-              << "contract_tree_root: " << historic_tree_roots.contract_tree_root << "\n"
-              << "l1_to_l2_messages_tree_root: " << historic_tree_roots.l1_to_l2_messages_tree_root << "\n"
-              << "blocks_tree_root: " << historic_tree_roots.blocks_tree_root << "\n"
-              << "private_kernel_vk_tree_root: " << historic_tree_roots.private_kernel_vk_tree_root << "\n"
-              << "public_data_tree_root: " << historic_tree_roots.public_data_tree_root << "\n"
-              << "prev_global_variables_hash: " << historic_tree_roots.global_variables_hash << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

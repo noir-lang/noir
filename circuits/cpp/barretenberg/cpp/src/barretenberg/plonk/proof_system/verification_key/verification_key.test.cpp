@@ -74,10 +74,10 @@ TEST(verification_key, stream_serialization)
     verification_key_data vk_data = rand_vk_data();
 
     std::stringstream s;
-    write(s, vk_data);
+    serialize::write(s, vk_data);
 
     verification_key_data result;
-    read(static_cast<std::istream&>(s), result);
+    serialize::read(static_cast<std::istream&>(s), result);
 
     EXPECT_EQ(vk_data, result);
 }

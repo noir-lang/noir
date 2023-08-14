@@ -15,10 +15,4 @@ template <typename NCT> struct AppendOnlyTreeSnapshot {
     bool operator==(AppendOnlyTreeSnapshot<NCT> const&) const = default;
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, AppendOnlyTreeSnapshot<NCT> const& obj)
-{
-    return os << "root: " << obj.root << "\n"
-              << "next_available_leaf_index: " << obj.next_available_leaf_index << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

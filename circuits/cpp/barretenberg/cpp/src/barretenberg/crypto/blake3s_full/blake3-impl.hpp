@@ -1,3 +1,4 @@
+#pragma once
 /*
     BLAKE3 reference source code package - C implementations
 

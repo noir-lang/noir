@@ -86,12 +86,4 @@ template <typename NCT> struct FunctionData {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, FunctionData<NCT> const& function_data)
-{
-    return os << "function_selector: " << function_data.function_selector << "\n"
-              << "is_internal: " << function_data.is_internal << "\n"
-              << "is_private: " << function_data.is_private << "\n"
-              << "is_constructor: " << function_data.is_constructor << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

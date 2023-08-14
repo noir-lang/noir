@@ -31,15 +31,4 @@ template <typename NCT> struct ConstantRollupData {
     bool operator==(ConstantRollupData<NCT> const&) const = default;
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, ConstantRollupData<NCT> const& obj)
-{
-    return os << "start_historic_blocks_tree_roots_snapshot:\n"
-              << obj.start_historic_blocks_tree_roots_snapshot << "\n"
-              << "private_kernel_vk_tree_root: " << obj.private_kernel_vk_tree_root << "\n"
-              << "public_kernel_vk_tree_root: " << obj.public_kernel_vk_tree_root << "\n"
-              << "base_rollup_vk_hash: " << obj.base_rollup_vk_hash << "\n"
-              << "merge_rollup_vk_hash: " << obj.merge_rollup_vk_hash << "\n"
-              << "global_variables: " << obj.global_variables << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

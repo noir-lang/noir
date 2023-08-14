@@ -19,38 +19,10 @@ template <typename NCT> struct PreviousRollupData {
     NativeTypes::uint32 vk_index = 0;
     MembershipWitness<NCT, ROLLUP_VK_TREE_HEIGHT> vk_sibling_path;
 
+    // For serialization, update with new fields
+    MSGPACK_FIELDS(base_or_merge_rollup_public_inputs, proof, vk, vk_index, vk_sibling_path);
+
     bool operator==(PreviousRollupData<NCT> const&) const = default;
-};
-
-template <typename NCT> void read(uint8_t const*& it, PreviousRollupData<NCT>& obj)
-{
-    using serialize::read;
-
-    read(it, obj.base_or_merge_rollup_public_inputs);
-    read(it, obj.proof);
-    read(it, obj.vk);
-    read(it, obj.vk_index);
-    read(it, obj.vk_sibling_path);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, PreviousRollupData<NCT> const& obj)
-{
-    using serialize::write;
-
-    write(buf, obj.base_or_merge_rollup_public_inputs);
-    write(buf, obj.proof);
-    write(buf, *obj.vk);
-    write(buf, obj.vk_index);
-    write(buf, obj.vk_sibling_path);
-};
-
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PreviousRollupData<NCT> const& obj)
-{
-    return os << "base_or_merge_rollup_public_inputs: " << obj.base_or_merge_rollup_public_inputs << "\n"
-              << "proof: " << obj.proof << "\n"
-              << "vk: " << *(obj.vk) << "\n"
-              << "vk_index: " << obj.vk_index << "\n"
-              << "vk_sibling_path: " << obj.vk_sibling_path << "\n";
 };
 
 }  // namespace aztec3::circuits::abis

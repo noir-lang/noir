@@ -19,6 +19,8 @@ template <typename NCT> struct PrivateKernelInputsInit {
     TxRequest<NCT> tx_request{};
     PrivateCallData<NCT> private_call{};
 
+    // For serialization, update with new fields
+    MSGPACK_FIELDS(tx_request, private_call);
     boolean operator==(PrivateKernelInputsInit<NCT> const& other) const
     {
         return tx_request == other.tx_request && private_call == other.private_call;
@@ -37,29 +39,5 @@ template <typename NCT> struct PrivateKernelInputsInit {
         return private_inputs;
     };
 };
-
-template <typename NCT> void read(uint8_t const*& it, PrivateKernelInputsInit<NCT>& private_inputs)
-{
-    using serialize::read;
-
-    read(it, private_inputs.tx_request);
-    read(it, private_inputs.private_call);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, PrivateKernelInputsInit<NCT> const& private_inputs)
-{
-    using serialize::write;
-
-    write(buf, private_inputs.tx_request);
-    write(buf, private_inputs.private_call);
-};
-
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PrivateKernelInputsInit<NCT> const& private_inputs)
-{
-    return os << "tx_request:\n"
-              << private_inputs.tx_request << "\n"
-              << "private_call:\n"
-              << private_inputs.private_call << "\n";
-}
 
 }  // namespace aztec3::circuits::abis::private_kernel

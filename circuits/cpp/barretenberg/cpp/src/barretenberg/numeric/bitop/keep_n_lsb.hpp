@@ -1,3 +1,4 @@
+#pragma once
 #include <stddef.h>
 
 namespace numeric {

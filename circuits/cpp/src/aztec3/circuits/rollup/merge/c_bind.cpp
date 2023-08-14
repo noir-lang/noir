@@ -23,13 +23,13 @@ WASM_EXPORT uint8_t* merge_rollup__sim(uint8_t const* merge_rollup_inputs_buf,
 {
     DummyCircuitBuilder builder = DummyCircuitBuilder("merge_rollup__sim");
     MergeRollupInputs<NT> merge_rollup_inputs;
-    read(merge_rollup_inputs_buf, merge_rollup_inputs);
+    serialize::read(merge_rollup_inputs_buf, merge_rollup_inputs);
 
     BaseOrMergeRollupPublicInputs const public_inputs = merge_rollup_circuit(builder, merge_rollup_inputs);
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;
-    write(public_inputs_vec, public_inputs);
+    serialize::write(public_inputs_vec, public_inputs);
     // copy public inputs to output buffer
     auto* raw_public_inputs_buf = (uint8_t*)malloc(public_inputs_vec.size());
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());

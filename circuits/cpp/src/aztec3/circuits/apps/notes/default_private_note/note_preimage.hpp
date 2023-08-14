@@ -28,6 +28,8 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
     std::optional<fr> nonce;
 
     boolean is_dummy = false;
+    // For serialization, update with new fields
+    MSGPACK_FIELDS(value, owner, creator_address, memo, salt, nonce, is_dummy);
 
     bool operator==(DefaultPrivateNotePreimage<NCT, V> const&) const = default;
 
@@ -45,8 +47,7 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
 
         // To avoid messy template arguments in the calling code, we use a lambda function with `auto` return type to
         // avoid explicitly having to state the circuit type for `V`.
-        auto circuit_value = [&]() -> auto
-        {
+        auto circuit_value = [&]() -> auto {
             if constexpr (has_to_circuit_type) {
                 return value.to_circuit_type();
             } else if (has_to_ct) {
@@ -54,8 +55,7 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
             } else {
                 throw_or_abort("Can't convert Value to circuit type");
             }
-        }
-        ();
+        }();
 
         // When this method is called, this class must be templated over native types. We can avoid templating over the
         // circuit types (for the return values) (in order to make the calling syntax cleaner) with the below `decltype`
@@ -78,8 +78,7 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
         const bool has_to_native_type = requires(V v) { v.to_native_type(); };
         const bool has_to_nt = requires(V v) { to_nt(v); };
 
-        auto native_value = [&]() -> auto
-        {
+        auto native_value = [&]() -> auto {
             if constexpr (has_to_native_type) {
                 return value.to_native_type();
             } else if (has_to_nt) {
@@ -87,8 +86,7 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
             } else {
                 throw_or_abort("Can't convert Value to native type");
             }
-        }
-        ();
+        }();
 
         DefaultPrivateNotePreimage<NativeTypes, typename decltype(native_value)::value_type> preimage = {
             native_value, to_nt(owner), to_nt(creator_address), to_nt(memo), to_nt(salt), to_nt(nonce), to_nt(is_dummy),
@@ -97,44 +95,5 @@ template <typename NCT, typename V> struct DefaultPrivateNotePreimage {
         return preimage;
     };
 };
-
-template <typename NCT, typename V> void read(uint8_t const*& it, DefaultPrivateNotePreimage<NCT, V>& preimage)
-{
-    using serialize::read;
-
-    read(it, preimage.value);
-    read(it, preimage.owner);
-    read(it, preimage.creator_address);
-    read(it, preimage.memo);
-    read(it, preimage.salt);
-    read(it, preimage.nonce);
-    read(it, preimage.is_dummy);
-};
-
-template <typename NCT, typename V>
-void write(std::vector<uint8_t>& buf, DefaultPrivateNotePreimage<NCT, V> const& preimage)
-{
-    using serialize::write;
-
-    write(buf, preimage.value);
-    write(buf, preimage.owner);
-    write(buf, preimage.creator_address);
-    write(buf, preimage.memo);
-    write(buf, preimage.salt);
-    write(buf, preimage.nonce);
-    write(buf, preimage.is_dummy);
-};
-
-template <typename NCT, typename V>
-std::ostream& operator<<(std::ostream& os, DefaultPrivateNotePreimage<NCT, V> const& preimage)
-{
-    return os << "value: " << preimage.value << "\n"
-              << "owner: " << preimage.owner << "\n"
-              << "creator_address: " << preimage.creator_address << "\n"
-              << "memo: " << preimage.memo << "\n"
-              << "salt: " << preimage.salt << "\n"
-              << "nonce: " << preimage.nonce << "\n"
-              << "is_dummy: " << preimage.is_dummy << "\n";
-}
 
 }  // namespace aztec3::circuits::apps::notes

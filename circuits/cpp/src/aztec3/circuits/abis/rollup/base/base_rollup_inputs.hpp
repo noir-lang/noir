@@ -59,38 +59,4 @@ template <typename NCT> struct BaseRollupInputs {
     bool operator==(BaseRollupInputs<NCT> const&) const = default;
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, BaseRollupInputs<NCT> const& obj)
-{
-    return os << "kernel_data:\n"
-              << obj.kernel_data << "\n"
-              << "start_private_data_tree_snapshot:\n"
-              << obj.start_private_data_tree_snapshot << "\n"
-              << "start_nullifier_tree_snapshot:\n"
-              << obj.start_nullifier_tree_snapshot << "\n"
-              << "start_contract_tree_snapshot:\n"
-              << obj.start_contract_tree_snapshot << "\n"
-              << "start_public_data_tree_root:\n"
-              << obj.start_public_data_tree_root << "\n"
-              << "start_historic_blocks_tree_snapshot:\n"
-              << obj.start_historic_blocks_tree_snapshot << "\n"
-              << "low_nullifier_leaf_preimages:\n"
-              << obj.low_nullifier_leaf_preimages << "\n"
-              << "low_nullifier_membership_witness:\n"
-              << obj.low_nullifier_membership_witness << "\n"
-              << "new_commitments_subtree_sibling_path:\n"
-              << obj.new_commitments_subtree_sibling_path << "\n"
-              << "new_nullifiers_subtree_sibling_path:\n"
-              << obj.new_nullifiers_subtree_sibling_path << "\n"
-              << "new_contracts_subtree_sibling_path:\n"
-              << obj.new_contracts_subtree_sibling_path << "\n"
-              << "new_public_data_update_requests_sibling_paths:\n"
-              << obj.new_public_data_update_requests_sibling_paths << "\n"
-              << "new_state_reads_sibling_paths:\n"
-              << obj.new_public_data_reads_sibling_paths << "\n"
-              << "historic_blocks_tree_root_membership_witnesses:\n"
-              << obj.historic_blocks_tree_root_membership_witnesses << "\n"
-              << "constants:\n"
-              << obj.constants << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

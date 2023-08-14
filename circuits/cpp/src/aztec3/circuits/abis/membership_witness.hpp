@@ -68,10 +68,4 @@ template <typename NCT, unsigned int N> struct MembershipWitness {
     boolean is_empty() const { return aztec3::utils::is_empty(leaf_index) && is_array_empty(sibling_path); }
 };
 
-template <typename NCT, unsigned int N> std::ostream& operator<<(std::ostream& os, MembershipWitness<NCT, N> const& obj)
-{
-    return os << "leaf_index: " << obj.leaf_index << "\n"
-              << "sibling_path: " << obj.sibling_path << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

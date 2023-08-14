@@ -73,11 +73,4 @@ template <typename NCT> struct ContractStorageRead {
     boolean is_empty() const { return storage_slot == 0; }
 };
 
-template <typename NCT>
-std::ostream& operator<<(std::ostream& os, ContractStorageRead<NCT> const& contract_storage_read)
-{
-    utils::msgpack_derived_output(os, contract_storage_read);
-    return os;
-}
-
 }  // namespace aztec3::circuits::abis

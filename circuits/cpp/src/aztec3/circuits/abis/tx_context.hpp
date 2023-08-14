@@ -105,16 +105,4 @@ template <typename NCT> struct TxContext {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, TxContext<NCT> const& tx_context)
-{
-    return os << "is_fee_payment_tx: " << tx_context.is_fee_payment_tx << "\n"
-              << "is_rebate_payment_tx: " << tx_context.is_rebate_payment_tx << "\n"
-              << "is_contract_deployment_tx: " << tx_context.is_contract_deployment_tx << "\n"
-              << "contract_deployment_data: "
-              << "\n"
-              << tx_context.contract_deployment_data << "\n"
-              << "chain_id: " << tx_context.chain_id << "\n"
-              << "version: " << tx_context.version << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

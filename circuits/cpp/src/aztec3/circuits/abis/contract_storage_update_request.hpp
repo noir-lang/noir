@@ -78,11 +78,4 @@ template <typename NCT> struct ContractStorageUpdateRequest {
     boolean is_empty() const { return storage_slot == 0; }
 };
 
-template <typename NCT>
-std::ostream& operator<<(std::ostream& os, ContractStorageUpdateRequest<NCT> const& update_request)
-{
-    utils::msgpack_derived_output(os, update_request);
-    return os;
-}
-
 }  // namespace aztec3::circuits::abis

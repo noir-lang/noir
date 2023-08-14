@@ -105,9 +105,9 @@ template <typename T> static const char* as_serialized_output(uint8_t const* inp
 {
     using serialize::read;
     T obj;
-    read(input_buf, obj);
+    serialize::read(input_buf, obj);
     std::vector<uint8_t> stream;
-    write(stream, obj);
+    serialize::write(stream, obj);
     *size = static_cast<uint32_t>(stream.size());
     return bbmalloc_copy_string(reinterpret_cast<char*>(stream.data()), *size);
 }
@@ -120,14 +120,14 @@ template <typename T> static const char* as_serialized_output(uint8_t const* inp
  * read it into a `TxRequest` object, hash it to a `fr`,
  * and serialize it to a `uint8_t*` output buffer
  *
- * @param tx_request_buf buffer of bytes containing all data needed to construct a TX request via `read()`
+ * @param tx_request_buf buffer of bytes containing all data needed to construct a TX request via `serialize::read()`
  * @param output buffer that will contain the output which will be the hashed `TxRequest`
  */
 WASM_EXPORT void abis__hash_tx_request(uint8_t const* tx_request_buf, uint8_t* output)
 {
     TxRequest<NT> tx_request;
-    read(tx_request_buf, tx_request);
-    // TODO(dbanks12) consider using write() and read() instead of
+    serialize::read(tx_request_buf, tx_request);
+    // TODO(dbanks12) consider using write() and serialize::read() instead of
     // serialize to/from everywhere here and in test
     NT::fr::serialize_to_buffer(tx_request.hash(), output);
 }
@@ -174,7 +174,7 @@ WASM_EXPORT void abis__compute_function_selector(char const* func_sig_cstr, uint
 WASM_EXPORT void abis__hash_vk(uint8_t const* vk_data_buf, uint8_t* output)
 {
     NT::VKData vk_data;
-    read(vk_data_buf, vk_data);
+    serialize::read(vk_data_buf, vk_data);
 
     NT::fr::serialize_to_buffer(vk_data.compress_native(aztec3::GeneratorIndex::VK), output);
 }
@@ -194,7 +194,7 @@ WASM_EXPORT void abis__hash_vk(uint8_t const* vk_data_buf, uint8_t* output)
 WASM_EXPORT void abis__compute_function_leaf(uint8_t const* function_leaf_preimage_buf, uint8_t* output)
 {
     FunctionLeafPreimage<NT> leaf_preimage;
-    read(function_leaf_preimage_buf, leaf_preimage);
+    serialize::read(function_leaf_preimage_buf, leaf_preimage);
     leaf_preimage.hash();
     NT::fr::serialize_to_buffer(leaf_preimage.hash(), output);
 }
@@ -466,7 +466,7 @@ CBIND(abis__compute_globals_hash, aztec3::circuits::compute_globals_hash<NT>);
 WASM_EXPORT void abis__compute_transaction_hash(uint8_t const* tx_request_buf, uint8_t* output)
 {
     TxRequest<NT> tx_request_preimage;
-    read(tx_request_buf, tx_request_preimage);
+    serialize::read(tx_request_buf, tx_request_preimage);
     auto to_write = tx_request_preimage.hash();
     NT::fr::serialize_to_buffer(to_write, output);
 }

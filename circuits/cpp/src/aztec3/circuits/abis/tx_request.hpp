@@ -24,6 +24,8 @@ template <typename NCT> struct TxRequest {
     fr args_hash = 0;
     TxContext<NCT> tx_context{};
 
+    // For serialization, update with new fields
+    MSGPACK_FIELDS(origin, function_data, args_hash, tx_context);
     boolean operator==(TxContext<NCT> const& other) const
     {
         return origin == other.origin && function_data == other.function_data && args_hash == other.args &&
@@ -59,33 +61,5 @@ template <typename NCT> struct TxRequest {
         return NCT::compress(inputs, GeneratorIndex::TX_REQUEST);
     }
 };
-
-template <typename NCT> void read(uint8_t const*& it, TxRequest<NCT>& tx_request)
-{
-    using serialize::read;
-
-    read(it, tx_request.origin);
-    read(it, tx_request.function_data);
-    read(it, tx_request.args_hash);
-    read(it, tx_request.tx_context);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, TxRequest<NCT> const& tx_request)
-{
-    using serialize::write;
-
-    write(buf, tx_request.origin);
-    write(buf, tx_request.function_data);
-    write(buf, tx_request.args_hash);
-    write(buf, tx_request.tx_context);
-};
-
-template <typename NCT> std::ostream& operator<<(std::ostream& os, TxRequest<NCT> const& tx_request)
-{
-    return os << "origin: " << tx_request.origin << "\n"
-              << "function_data: " << tx_request.function_data << "\n"
-              << "args_hash: " << tx_request.args_hash << "\n"
-              << "tx_context: " << tx_request.tx_context << "\n";
-}
 
 }  // namespace aztec3::circuits::abis

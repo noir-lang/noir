@@ -75,13 +75,4 @@ template <typename NCT> struct KernelCircuitPublicInputs {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, KernelCircuitPublicInputs<NCT> const& public_inputs)
-{
-    return os << "end:\n"
-              << public_inputs.end << "\n"
-              << "constants:\n"
-              << public_inputs.constants << "\n"
-              << "is_private: " << public_inputs.is_private << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

@@ -1,3 +1,4 @@
+#pragma once
 #include "../uint128/uint128.hpp"
 #include "../uint256/uint256.hpp"
 #include <cstdint>

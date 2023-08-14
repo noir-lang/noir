@@ -34,7 +34,7 @@ class merge_rollup_tests : public ::testing::Test {
     {
         info("Retesting via cbinds....");
         std::vector<uint8_t> merge_rollup_inputs_vec;
-        write(merge_rollup_inputs_vec, merge_rollup_inputs);
+        serialize::write(merge_rollup_inputs_vec, merge_rollup_inputs);
 
         uint8_t const* public_inputs_buf = nullptr;
         // info("simulating circuit via cbind");
@@ -48,14 +48,14 @@ class merge_rollup_tests : public ::testing::Test {
         if (compare_pubins) {
             BaseOrMergeRollupPublicInputs public_inputs;
             uint8_t const* public_inputs_buf_tmp = public_inputs_buf;
-            read(public_inputs_buf_tmp, public_inputs);
+            serialize::read(public_inputs_buf_tmp, public_inputs);
             ASSERT_EQ(public_inputs.calldata_hash.size(), expected_public_inputs.calldata_hash.size());
             for (size_t i = 0; i < public_inputs.calldata_hash.size(); i++) {
                 ASSERT_EQ(public_inputs.calldata_hash[i], expected_public_inputs.calldata_hash[i]);
             }
 
             std::vector<uint8_t> expected_public_inputs_vec;
-            write(expected_public_inputs_vec, expected_public_inputs);
+            serialize::write(expected_public_inputs_vec, expected_public_inputs);
 
             ASSERT_EQ(public_inputs_size, expected_public_inputs_vec.size());
             // Just compare the first 10 bytes of the serialized public outputs

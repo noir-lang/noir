@@ -253,42 +253,4 @@ template <typename NCT> struct CombinedAccumulatedData {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedAccumulatedData<NCT> const& accum_data)
-{
-    return os << "aggregation_object:\n"
-              << accum_data.aggregation_object << "\n"
-              << "read_requests:\n"
-              << accum_data.read_requests << "\n"
-              << "read_request_membership_witnesses:\n"
-              << accum_data.read_request_membership_witnesses << "\n"
-              << "new_commitments:\n"
-              << accum_data.new_commitments << "\n"
-              << "new_nullifiers:\n"
-              << accum_data.new_nullifiers << "\n"
-              << "nullified_commitments:\n"
-              << accum_data.nullified_commitments << "\n"
-              << "private_call_stack:\n"
-              << accum_data.private_call_stack << "\n"
-              << "public_call_stack:\n"
-              << accum_data.public_call_stack << "\n"
-              << "new_l2_to_l1_msgs:\n"
-              << accum_data.new_l2_to_l1_msgs << "\n"
-              << "encrypted_logs_hash:\n"
-              << accum_data.encrypted_logs_hash << "\n"
-              << "unencrypted_logs_hash:\n"
-              << accum_data.unencrypted_logs_hash << "\n"
-              << "encrypted_log_preimages_length:\n"
-              << accum_data.encrypted_log_preimages_length << "\n"
-              << "unencrypted_log_preimages_length:\n"
-              << accum_data.unencrypted_log_preimages_length << "\n"
-              << "new_contracts:\n"
-              << accum_data.new_contracts << "\n"
-              << "optionally_revealed_data:\n"
-              << accum_data.optionally_revealed_data << "\n"
-              << "public_data_update_requests:\n"
-              << accum_data.public_data_update_requests << "\n"
-              << "public_data_reads:\n"
-              << accum_data.public_data_reads << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

@@ -1,3 +1,4 @@
+#pragma once
 #include "barretenberg/common/thread.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include <span>

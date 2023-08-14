@@ -1,3 +1,4 @@
+#pragma once
 #include "barretenberg/ecc/curves/bn254/fq12.hpp"
 #include "barretenberg/ecc/curves/bn254/pairing.hpp"
 #include "barretenberg/plonk/proof_system/proving_key/serialize.hpp"

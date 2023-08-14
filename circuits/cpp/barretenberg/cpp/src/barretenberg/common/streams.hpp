@@ -1,11 +1,86 @@
 #pragma once
 #include <iomanip>
 #include <map>
+#include <memory>
 #include <optional>
 #include <ostream>
 #include <vector>
+#include "barretenberg/serialize/msgpack.hpp"
+#include "barretenberg/serialize/msgpack_apply.hpp"
+
+namespace serialize {
+/**
+ * @brief Helper method for streaming msgpack values, specialized for shared_ptr
+ */
+template<typename T>
+void _msgpack_stream_write(std::ostream& os, const std::shared_ptr<T>& field)
+{
+    using namespace serialize;
+    os << *field;
+}
+/**
+ * @brief Helper method for streaming msgpack values, normal case
+ */
+inline void _msgpack_stream_write(std::ostream& os, const auto& field)
+{
+    using namespace serialize;
+    os << field;
+}
+/**
+ * @brief Recursive helper method for streaming msgpack key value pairs, base case
+ */
+inline void _msgpack_stream_write_key_value_pairs(std::ostream& os)
+{
+    // base case
+    (void)os;  // unused
+}
+/**
+ * @brief Recursive helper method for streaming msgpack key value pairs, default arg case
+ */
+inline void _msgpack_stream_write_key_value_pairs(std::ostream& os,
+                                                  const std::string& key,
+                                                  const auto& value,
+                                                  const auto&... rest)
+{
+    os << key << ": ";
+    _msgpack_stream_write(os, value);
+    os << '\n';
+    _msgpack_stream_write_key_value_pairs(os, rest...);  // NOLINT
+}
+/**
+ * @brief Recursive helper method for streaming msgpack key value pairs, msgpack arg case
+ * We add a new line as this was the previous output captured in snapshot tests.
+ * TODO(AD): Ideally some tab indenting?
+ */
+inline void _msgpack_stream_write_key_value_pairs(std::ostream& os,
+                                                  const std::string& key,
+                                                  const msgpack_concepts::HasMsgPack auto& value,
+                                                  const auto&... rest)
+{
+    os << key << ":\n";
+    _msgpack_stream_write(os, value);
+    os << '\n';
+    _msgpack_stream_write_key_value_pairs(os, rest...);  // NOLINT
+}
+} // namespace serialize
 
 namespace std {
+/**
+ * @brief Automatically derived stream operator for any object that defines .msgpack() (implicitly defined by MSGPACK_FIELDS).
+ * Note this is duplicated as it must be seen in both std and global namespaces.
+ * @param os The stream to write to.
+ * @param obj The object to write.
+ */
+template <msgpack_concepts::HasMsgPack T>
+std::ostream& operator<<(std::ostream& os, const T& obj)
+{
+    // We must use const_cast as our method is meant to be polymorphic over const, but there's no such concept in C++
+    const_cast<T&>(obj).msgpack([&](auto&... key_value_pairs) {
+        // apply 'operator<<' to each object field
+        serialize::_msgpack_stream_write_key_value_pairs(os, key_value_pairs...);
+    });
+    return os;
+}
 
 inline std::ostream& operator<<(std::ostream& os, std::vector<uint8_t> const& arr)
 {
@@ -84,5 +159,5 @@ template <typename T, typename U> inline std::ostream& operator<<(std::ostream& 
     os << "]";
     return os;
 }
-
 } // namespace std
+

@@ -30,11 +30,4 @@ template <typename NCT> struct NullifierLeafPreimage {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, NullifierLeafPreimage<NCT> const& obj)
-{
-    return os << "leaf_value: " << obj.leaf_value << "\n"
-              << "next_value: " << obj.next_value << "\n"
-              << "next_index: " << obj.next_index << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

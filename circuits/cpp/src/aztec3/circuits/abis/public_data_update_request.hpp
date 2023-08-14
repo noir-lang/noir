@@ -78,11 +78,4 @@ template <typename NCT> struct PublicDataUpdateRequest {
     boolean is_empty() const { return leaf_index == 0; }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicDataUpdateRequest<NCT> const& update_request)
-{
-    return os << "leaf_index: " << update_request.leaf_index << "\n"
-              << "old_value: " << update_request.old_value << "\n"
-              << "new_value: " << update_request.new_value << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

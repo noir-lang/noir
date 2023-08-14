@@ -41,12 +41,4 @@ template <typename NCT> struct PublicKernelInputs {
     };
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicKernelInputs<NCT> const& public_kernel_inputs)
-{
-    return os << "previous_kernel:\n"
-              << public_kernel_inputs.previous_kernel << "\n"
-              << "public_call:\n"
-              << public_kernel_inputs.public_call << "\n";
-}
-
 }  // namespace aztec3::circuits::abis::public_kernel

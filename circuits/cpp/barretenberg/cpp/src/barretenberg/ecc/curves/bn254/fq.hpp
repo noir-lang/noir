@@ -56,6 +56,7 @@ class Bn254FqParams {
         0x2a1f6744ce179d8eULL, 0x3829df06681f7cbdULL, 0x463456c802275bedULL, 0x543ece899c2f3b1cULL,
         0x180a96573d3d9f8ULL,  0xf8b21270ddbb927ULL,  0x1d9598e8a7e39857ULL, 0x2ba010aa41eb7786ULL,
     };
+    // used in msgpack schema serialization
     static constexpr char schema_name[] = "fq";
     static constexpr bool has_high_2adicity = false;
 };

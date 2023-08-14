@@ -484,14 +484,13 @@ inline void _write_msgpack_field(auto& it, const auto& field)
 /**
  * @brief Automatically derived write for any object that defines .msgpack() (implicitly defined by MSGPACK_FIELDS).
  * @param buf The buffer to write to.
- * @param func The function to call with each field as an argument.
+ * @param obj The object to write.
  */
 inline void write(auto& buf, const msgpack_concepts::HasMsgPack auto& obj)
 {
-    using namespace serialize;
     msgpack::msgpack_apply(obj, [&](auto&... obj_fields) {
         // apply 'write' to each object field
         (_write_msgpack_field(buf, obj_fields), ...);
     });
-};
+}
 } // namespace serialize

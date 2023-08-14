@@ -64,7 +64,7 @@ WASM_EXPORT uint8_t* base_rollup__sim(uint8_t const* base_rollup_inputs_buf,
 
     // serialize public inputs to bytes vec
     std::vector<uint8_t> public_inputs_vec;
-    write(public_inputs_vec, public_inputs);
+    serialize::write(public_inputs_vec, public_inputs);
     // copy public inputs to output buffer
     auto* raw_public_inputs_buf = (uint8_t*)malloc(public_inputs_vec.size());
     memcpy(raw_public_inputs_buf, (void*)public_inputs_vec.data(), public_inputs_vec.size());

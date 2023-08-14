@@ -1,3 +1,4 @@
+#pragma once
 #include "barretenberg/ecc/curves/bn254/fq.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
 #include "barretenberg/numeric/uint256/uint256.hpp"

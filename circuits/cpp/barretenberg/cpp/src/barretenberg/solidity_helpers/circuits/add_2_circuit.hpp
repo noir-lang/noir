@@ -1,3 +1,4 @@
+#pragma once
 #include "barretenberg/stdlib/primitives/field/field.hpp"
 #include "barretenberg/stdlib/primitives/witness/witness.hpp"
 

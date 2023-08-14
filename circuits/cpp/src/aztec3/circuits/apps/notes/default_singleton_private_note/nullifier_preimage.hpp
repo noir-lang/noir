@@ -19,6 +19,9 @@ template <typename NCT> struct DefaultSingletonPrivateNoteNullifierPreimage {
     fr owner_private_key;
     boolean is_dummy = false;
 
+    // For serialization, update with new fields
+    MSGPACK_FIELDS(commitment, owner_private_key, is_dummy);
+
     bool operator==(DefaultSingletonPrivateNoteNullifierPreimage<NCT> const&) const = default;
 
     template <typename Builder>
@@ -38,32 +41,5 @@ template <typename NCT> struct DefaultSingletonPrivateNoteNullifierPreimage {
         return preimage;
     };
 };
-
-template <typename NCT> void read(uint8_t const*& it, DefaultSingletonPrivateNoteNullifierPreimage<NCT>& preimage)
-{
-    using serialize::read;
-
-    read(it, preimage.commitment);
-    read(it, preimage.owner_private_key);
-    read(it, preimage.is_dummy);
-};
-
-template <typename NCT>
-void write(std::vector<uint8_t>& buf, DefaultSingletonPrivateNoteNullifierPreimage<NCT> const& preimage)
-{
-    using serialize::write;
-
-    write(buf, preimage.commitment);
-    write(buf, preimage.owner_private_key);
-    write(buf, preimage.is_dummy);
-};
-
-template <typename NCT>
-std::ostream& operator<<(std::ostream& os, DefaultSingletonPrivateNoteNullifierPreimage<NCT> const& preimage)
-{
-    return os << "commitment: " << preimage.commitment << "\n"
-              << "owner_private_key: " << preimage.owner_private_key << "\n"
-              << "is_dummy: " << preimage.is_dummy << "\n";
-}
 
 }  // namespace aztec3::circuits::apps::notes

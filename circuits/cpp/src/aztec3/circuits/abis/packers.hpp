@@ -15,7 +15,7 @@ struct ConstantsPacker {
             msgpack::type::define_map<decltype(args)...>{ args... }.msgpack_pack(packer);
         };
 
-        // Note: NVP macro can handle up to 20 arguments so we call it multiple times here. If adding a new constant
+        // Note: NVP macro can handle up to 30 arguments so we call it multiple times here. If adding a new constant
         // add it to the last call or introduce a new one if the last call is already "full".
         pack(NVP(ARGS_LENGTH,
                  RETURN_VALUES_LENGTH,

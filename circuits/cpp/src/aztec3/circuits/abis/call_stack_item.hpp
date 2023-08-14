@@ -82,13 +82,6 @@ template <typename NCT, template <class> typename PrivatePublic> struct CallStac
     }
 };
 
-template <typename NCT, template <class> typename PrivatePublic>
-std::ostream& operator<<(std::ostream& os, CallStackItem<NCT, PrivatePublic> const& call_stack_item)
-{
-    utils::msgpack_derived_output(os, call_stack_item);
-    return os;
-}
-
 // Returns a copy of this call stack item where all result-related fields are zeroed out.
 inline CallStackItem<NativeTypes, PublicTypes> as_execution_request(
     CallStackItem<NativeTypes, PublicTypes> const& call_stack_item)

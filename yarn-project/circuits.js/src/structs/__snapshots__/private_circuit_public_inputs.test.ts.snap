@@ -1,7 +1,8 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`basic PrivateCircuitPublicInputs serialization serializes a trivial PrivateCircuitPublicInputs and prints it 1`] = `
-"call_context: msg_sender: 0x1
+"call_context:
+msg_sender: 0x1
 storage_contract_address: 0x2
 portal_contract_address: 0x3
 is_delegate_call: 1
@@ -28,7 +29,8 @@ historic_l1_to_l2_messages_tree_root: 0x1000
 historic_blocks_tree_root: 0x1100
 historic_global_variables_hash: 0x1200
 historic_public_data_tree_root: 0x1300
-contract_deployment_data: deployer_public_key: x: 0x1
+contract_deployment_data: deployer_public_key:
+x: 0x1
 y: 0x2
 
 constructor_vk_hash: 0x2

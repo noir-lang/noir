@@ -102,13 +102,4 @@ template <typename NCT> struct ContractDeploymentData {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, ContractDeploymentData<NCT> const& data)
-{
-    return os << "deployer_public_key: " << data.deployer_public_key << "\n"
-              << "constructor_vk_hash: " << data.constructor_vk_hash << "\n"
-              << "function_tree_root: " << data.function_tree_root << "\n"
-              << "contract_address_salt: " << data.contract_address_salt << "\n"
-              << "portal_contract_address: " << data.portal_contract_address << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

@@ -1,3 +1,4 @@
+#pragma once
 /**
  * Write a solidity file containing the instance importing vk params to the given stream.
  **/

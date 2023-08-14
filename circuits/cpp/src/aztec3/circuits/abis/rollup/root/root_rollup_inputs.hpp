@@ -28,40 +28,14 @@ template <typename NCT> struct RootRollupInputs {
     AppendOnlyTreeSnapshot<NCT> start_historic_blocks_tree_snapshot{};
     std::array<fr, HISTORIC_BLOCKS_TREE_HEIGHT> new_historic_blocks_tree_sibling_path{};
 
+    // For serialization, update with new fields
+    MSGPACK_FIELDS(previous_rollup_data,
+                   l1_to_l2_messages,
+                   new_l1_to_l2_message_tree_root_sibling_path,
+                   start_l1_to_l2_message_tree_snapshot,
+                   start_historic_blocks_tree_snapshot,
+                   new_historic_blocks_tree_sibling_path);
     bool operator==(RootRollupInputs<NCT> const&) const = default;
 };
-
-template <typename NCT> void read(uint8_t const*& it, RootRollupInputs<NCT>& obj)
-{
-    using serialize::read;
-
-    read(it, obj.previous_rollup_data);
-    read(it, obj.l1_to_l2_messages);
-    read(it, obj.new_l1_to_l2_message_tree_root_sibling_path);
-    read(it, obj.start_l1_to_l2_message_tree_snapshot);
-    read(it, obj.start_historic_blocks_tree_snapshot);
-    read(it, obj.new_historic_blocks_tree_sibling_path);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, RootRollupInputs<NCT> const& obj)
-{
-    using serialize::write;
-
-    write(buf, obj.previous_rollup_data);
-    write(buf, obj.l1_to_l2_messages);
-    write(buf, obj.new_l1_to_l2_message_tree_root_sibling_path);
-    write(buf, obj.start_l1_to_l2_message_tree_snapshot);
-    write(buf, obj.start_historic_blocks_tree_snapshot);
-    write(buf, obj.new_historic_blocks_tree_sibling_path);
-};
-
-template <typename NCT> std::ostream& operator<<(std::ostream& os, RootRollupInputs<NCT> const& obj)
-{
-    return os << "previous_rollup_data: " << obj.previous_rollup_data << "\n"
-              << "new_l1_to_l2_messages: " << obj.l1_to_l2_messages << "\n"
-              << "start_l1_to_l2_message_tree_snapshot: " << obj.start_l1_to_l2_message_tree_snapshot << "\n"
-              << "start_historic_blocks_tree_snapshot: " << obj.start_historic_blocks_tree_snapshot << "\n"
-              << "new_historic_blocks_tree_sibling_path: " << obj.new_historic_blocks_tree_sibling_path << "\n";
-}
 
 }  // namespace aztec3::circuits::abis

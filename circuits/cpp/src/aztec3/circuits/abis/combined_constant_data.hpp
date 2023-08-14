@@ -65,10 +65,4 @@ template <typename NCT> struct CombinedConstantData {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, CombinedConstantData<NCT> const& constant_data)
-{
-    return os << "block_data: " << constant_data.block_data << "\n"
-              << "tx_context: " << constant_data.tx_context << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

@@ -66,9 +66,4 @@ template <typename NCT> struct Coordinate {
     }
 };
 
-template <typename NCT> std::ostream& operator<<(std::ostream& os, Coordinate<NCT> const& coordinate)
-{
-    return os << "coordinate: " << coordinate.fields << "\n";
-}
-
 }  // namespace aztec3::circuits::abis

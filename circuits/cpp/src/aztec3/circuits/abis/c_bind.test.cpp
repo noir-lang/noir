@@ -1,4 +1,5 @@
 #include "c_bind.h"
+
 #include "function_leaf_preimage.hpp"
 #include "tx_request.hpp"
 
@@ -111,7 +112,7 @@ TEST(abi_tests, hash_tx_request)
 
     // Write the tx request to a buffer and
     std::vector<uint8_t> buf;
-    write(buf, tx_request);
+    serialize::write(buf, tx_request);
 
     // create an output buffer for cbind hash results
     std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
@@ -169,7 +170,7 @@ TEST(abi_tests, hash_vk)
     vk_data.commitments["foo2"] = g1::element::random_element();
     // Write the vk data to a bytes vector
     std::vector<uint8_t> vk_data_vec;
-    write(vk_data_vec, vk_data);
+    serialize::write(vk_data_vec, vk_data);
 
     // create an output buffer for cbind hash results
     std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
@@ -199,7 +200,7 @@ TEST(abi_tests, compute_function_leaf)
 
     // Write the leaf preimage to a buffer
     std::vector<uint8_t> preimage_buf;
-    write(preimage_buf, preimage);
+    serialize::write(preimage_buf, preimage);
 
     std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
     abis__compute_function_leaf(preimage_buf.data(), output.data());
@@ -366,7 +367,7 @@ TEST(abi_tests, compute_transaction_hash)
 
     // Write the leaf preimage to a buffer
     std::vector<uint8_t> preimage_buf;
-    write(preimage_buf, tx_request);
+    serialize::write(preimage_buf, tx_request);
 
     std::array<uint8_t, sizeof(NT::fr)> output = { 0 };
     abis__compute_transaction_hash(preimage_buf.data(), output.data());

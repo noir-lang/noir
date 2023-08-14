@@ -73,26 +73,4 @@ template <typename NCT> struct PublicDataRead {
     boolean is_empty() const { return leaf_index == 0; }
 };
 
-template <typename NCT> void read(uint8_t const*& it, PublicDataRead<NCT>& publicDataRead)
-{
-    using serialize::read;
-
-    read(it, publicDataRead.leaf_index);
-    read(it, publicDataRead.value);
-};
-
-template <typename NCT> void write(std::vector<uint8_t>& buf, PublicDataRead<NCT> const& publicDataRead)
-{
-    using serialize::write;
-
-    write(buf, publicDataRead.leaf_index);
-    write(buf, publicDataRead.value);
-};
-
-template <typename NCT> std::ostream& operator<<(std::ostream& os, PublicDataRead<NCT> const& publicDataRead)
-{
-    return os << "leaf_index: " << publicDataRead.leaf_index << "\n"
-              << "value: " << publicDataRead.value << "\n";
-}
-
 }  // namespace aztec3::circuits::abis
