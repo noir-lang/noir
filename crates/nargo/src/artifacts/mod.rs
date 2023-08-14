@@ -8,6 +8,7 @@ use base64::Engine;
 use serde::{Deserializer, Serializer};
 
 pub mod contract;
+pub mod debug;
 pub mod program;
 
 // TODO: move these down into ACVM.
