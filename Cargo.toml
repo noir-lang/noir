@@ -15,6 +15,7 @@ members = [
     "crates/wasm",
 ]
 default-members = ["crates/nargo_cli"]
+resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
@@ -57,3 +58,7 @@ url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
+
+[patch.crates-io]
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "279287850befd45f33bf17230b82d8bf7f942114" }
+acvm = { git = "https://github.com/noir-lang/acvm", rev = "61266056a0be5c7397ed64ee68b781a21c382cd3" }

@@ -75,8 +75,7 @@ fn execute_package<B: Backend>(
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
 
-    let solved_witness =
-        execute_program(backend, circuit, &abi, &inputs_map, Some((debug, context)))?;
+    let solved_witness = execute_program(circuit, &abi, &inputs_map, Some((debug, context)))?;
     let public_abi = abi.public_abi();
     let (_, return_value) = public_abi.decode(&solved_witness)?;
 
@@ -123,14 +122,13 @@ fn report_unsatisfied_constraint_error(
 }
 
 pub(crate) fn execute_program<B: Backend>(
-    backend: &B,
     circuit: Circuit,
     abi: &Abi,
     inputs_map: &InputMap,
     debug_data: Option<(DebugInfo, Context)>,
 ) -> Result<WitnessMap, CliError<B>> {
     let initial_witness = abi.encode(inputs_map, None)?;
-    let solved_witness_err = nargo::ops::execute_circuit(backend, circuit, initial_witness, true);
+    let solved_witness_err = nargo::ops::execute_circuit(circuit, initial_witness, true);
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {

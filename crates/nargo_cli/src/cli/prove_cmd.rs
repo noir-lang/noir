@@ -113,7 +113,7 @@ pub(crate) fn prove_package<B: Backend>(
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &abi)?;
 
-    let solved_witness = execute_program(backend, bytecode.clone(), &abi, &inputs_map, debug_data)?;
+    let solved_witness = execute_program(bytecode.clone(), &abi, &inputs_map, debug_data)?;
 
     // Write public inputs into Verifier.toml
     let public_abi = abi.public_abi();

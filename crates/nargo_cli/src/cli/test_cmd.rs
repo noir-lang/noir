@@ -131,7 +131,7 @@ fn run_test<B: Backend>(
 
     // Run the backend to ensure the PWG evaluates functions like std::hash::pedersen,
     // otherwise constraints involving these expressions will not error.
-    match execute_circuit(backend, program.circuit, WitnessMap::new(), show_output) {
+    match execute_circuit(program.circuit, WitnessMap::new(), show_output) {
         Ok(_) => Ok(()),
         Err(error) => {
             let writer = StandardStream::stderr(ColorChoice::Always);

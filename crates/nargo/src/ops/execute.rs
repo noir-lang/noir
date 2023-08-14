@@ -1,18 +1,18 @@
 use acvm::pwg::{ACVMStatus, ACVM};
-use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
 use crate::NargoError;
 
 use super::foreign_calls::ForeignCall;
 
-pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
-    _backend: &B,
+pub fn execute_circuit(
     circuit: Circuit,
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<WitnessMap, NargoError> {
-    let mut acvm = ACVM::new(B::default(), circuit.opcodes, initial_witness);
+    #[allow(deprecated)]
+    let black_box_function_solver = acvm::blackbox_solver::BarretenbergSolver::new();
+    let mut acvm = ACVM::new(black_box_function_solver, circuit.opcodes, initial_witness);
 
     loop {
         let solver_status = acvm.solve();
