@@ -28,8 +28,7 @@ impl LocationStack {
 
 impl IntoIterator for LocationStack {
     type Item = Location;
-    type IntoIter = <Vec<Location> as IntoIterator>::IntoIter; // so that you don't have to write std::vec::IntoIter, which nobody remembers anyway
-
+    type IntoIter = <Vec<Location> as IntoIterator>::IntoIter;
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
