@@ -3,7 +3,7 @@ use std::io::Write;
 use acvm::{acir::native_types::WitnessMap, Backend};
 use clap::Args;
 use nargo::{ops::execute_circuit, package::Package, prepare_package};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{compile_no_check, CompileOptions};
 use noirc_frontend::{
     graph::CrateName,
@@ -31,8 +31,12 @@ pub(crate) struct TestCommand {
     exact: bool,
 
     /// The name of the package to test
-    #[clap(long)]
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Test all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -44,7 +48,10 @@ pub(crate) fn run<B: Backend>(
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
     let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
     let pattern = match &args.test_name {
         Some(name) => {

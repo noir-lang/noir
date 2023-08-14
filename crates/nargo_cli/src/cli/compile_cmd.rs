@@ -6,7 +6,7 @@ use nargo::artifacts::debug::DebugArtifact;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::{artifacts::contract::PreprocessedContract, NargoError};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{
     compile_contracts, compile_main, CompileOptions, CompiledContract, CompiledProgram,
     ErrorsAndWarnings, Warnings,
@@ -46,8 +46,12 @@ pub(crate) struct CompileCommand {
     output_debug: bool,
 
     /// The name of the package to compile
-    #[clap(long)]
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Compile all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -59,7 +63,10 @@ pub(crate) fn run<B: Backend>(
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
     let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let circuit_dir = workspace.target_directory_path();
 
     let mut common_reference_string = read_cached_common_reference_string();

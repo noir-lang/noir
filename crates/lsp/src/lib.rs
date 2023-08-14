@@ -19,7 +19,7 @@ use lsp_types::{
     PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncOptions,
 };
 use nargo::prepare_package;
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::check_crate;
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
 use noirc_frontend::hir::FunctionNameMatch;
@@ -156,7 +156,7 @@ fn on_code_lens_request(
             return future::ready(Ok(None));
         }
     };
-    let workspace = match resolve_workspace_from_toml(&toml_path, None) {
+    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
@@ -281,7 +281,7 @@ fn on_did_save_text_document(
             return ControlFlow::Continue(());
         }
     };
-    let workspace = match resolve_workspace_from_toml(&toml_path, None) {
+    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
