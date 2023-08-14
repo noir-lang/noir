@@ -18,7 +18,7 @@ template <typename Composer> class stdlib_pedersen : public testing::Test {
     typedef stdlib::bn254<Composer> curve;
 
     typedef typename curve::byte_array_ct byte_array_ct;
-    typedef typename curve::fr_ct fr_ct;
+    typedef typename curve::ScalarField fr_ct;
     typedef typename curve::witness_ct witness_ct;
     typedef typename curve::public_witness_ct public_witness_ct;
     typedef typename stdlib::pedersen_commitment<Composer> pedersen_commitment;

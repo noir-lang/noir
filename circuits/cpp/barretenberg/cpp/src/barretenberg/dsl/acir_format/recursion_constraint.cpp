@@ -84,10 +84,10 @@ void create_recursion_constraints(Builder& builder,
     }
 
     if (!inner_aggregation_indices_all_zero) {
-        std::array<bn254::fq_ct, 4> aggregation_elements;
+        std::array<bn254::BaseField, 4> aggregation_elements;
         for (size_t i = 0; i < 4; ++i) {
             aggregation_elements[i] =
-                bn254::fq_ct(field_ct::from_witness_index(&builder, aggregation_input[4 * i]),
+                bn254::BaseField(field_ct::from_witness_index(&builder, aggregation_input[4 * i]),
                              field_ct::from_witness_index(&builder, aggregation_input[4 * i + 1]),
                              field_ct::from_witness_index(&builder, aggregation_input[4 * i + 2]),
                              field_ct::from_witness_index(&builder, aggregation_input[4 * i + 3]));
@@ -95,8 +95,8 @@ void create_recursion_constraints(Builder& builder,
         }
         // If we have a previous aggregation object, assign it to `previous_aggregation` so that it is included
         // in stdlib::recursion::verify_proof
-        previous_aggregation.P0 = bn254::g1_ct(aggregation_elements[0], aggregation_elements[1]);
-        previous_aggregation.P1 = bn254::g1_ct(aggregation_elements[2], aggregation_elements[3]);
+        previous_aggregation.P0 = bn254::Group(aggregation_elements[0], aggregation_elements[1]);
+        previous_aggregation.P1 = bn254::Group(aggregation_elements[2], aggregation_elements[3]);
         previous_aggregation.has_data = true;
     } else {
         previous_aggregation.has_data = false;

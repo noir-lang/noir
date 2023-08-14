@@ -10,27 +10,31 @@ namespace stdlib {
 template <typename CircuitBuilder> struct bn254 {
     static constexpr proof_system::CurveType type = proof_system::CurveType::BN254;
 
-    // NOTE: Naming in flux here; maybe name should reflect "native" somehow?
-    using BaseField = curve::BN254::BaseField;
-    using fq = BaseField;
-    using ScalarField = curve::BN254::ScalarField;
-    using fr = ScalarField;
-    using Group = curve::BN254::Group;
-    using g1 = Group;
+    // Corresponding native types (used exclusively for testing)
+    using ScalarFieldNative = curve::BN254::ScalarField;
+    using BaseFieldNative = curve::BN254::BaseField;
+    using GroupNative = curve::BN254::Group;
 
+    // Stdlib types corresponding to those defined in the native description of the curve.
+    // Note: its useful to have these type names match the native analog exactly so that components that digest a Curve
+    // (e.g. Gemini) can be agnostic as to whether they're operating on native or stdlib types.
+    using ScalarField = field_t<CircuitBuilder>;
+    using BaseField = bigfield<CircuitBuilder, barretenberg::Bn254FqParams>;
+    using Group = element<CircuitBuilder, BaseField, ScalarField, GroupNative>;
+    using Element = Group;
+    using AffineElement = Group;
+
+    // Additional types with no analog in the native description of the curve
     using Builder = CircuitBuilder;
     using Composer = CircuitBuilder;
-    typedef witness_t<CircuitBuilder> witness_ct;
-    typedef public_witness_t<CircuitBuilder> public_witness_ct;
-    typedef field_t<CircuitBuilder> fr_ct;
-    typedef byte_array<CircuitBuilder> byte_array_ct;
-    typedef bool_t<CircuitBuilder> bool_ct;
-    typedef stdlib::uint32<CircuitBuilder> uint32_ct;
+    using witness_ct = witness_t<CircuitBuilder>;
+    using public_witness_ct = public_witness_t<CircuitBuilder>;
+    using byte_array_ct = byte_array<CircuitBuilder>;
+    using bool_ct = bool_t<CircuitBuilder>;
+    using uint32_ct = stdlib::uint32<CircuitBuilder>;
 
-    typedef bigfield<CircuitBuilder, barretenberg::Bn254FqParams> fq_ct;
-    typedef bigfield<CircuitBuilder, barretenberg::Bn254FrParams> bigfr_ct;
-    typedef element<CircuitBuilder, fq_ct, fr_ct, Group> g1_ct;
-    typedef element<CircuitBuilder, fq_ct, bigfr_ct, Group> g1_bigfr_ct;
+    using bigfr_ct = bigfield<CircuitBuilder, barretenberg::Bn254FrParams>;
+    using g1_bigfr_ct = element<CircuitBuilder, BaseField, bigfr_ct, GroupNative>;
 
 }; // namespace bn254
 } // namespace stdlib

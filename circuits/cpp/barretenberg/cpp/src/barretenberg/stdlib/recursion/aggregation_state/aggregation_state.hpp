@@ -13,11 +13,11 @@ namespace recursion {
  *   has_data: indicates if this aggregation state contain past (P0, P1)
  */
 template <typename Curve> struct aggregation_state {
-    typename Curve::g1_ct P0;
-    typename Curve::g1_ct P1;
+    typename Curve::Group P0;
+    typename Curve::Group P1;
 
     // The public inputs of the inner ciruit are now private inputs of the outer circuit!
-    std::vector<typename Curve::fr_ct> public_inputs;
+    std::vector<typename Curve::ScalarField> public_inputs;
     std::vector<uint32_t> proof_witness_indices;
     bool has_data = false;
 

@@ -28,9 +28,9 @@ template <typename _Curve, bool _use_bigfield = false> struct TestType {
     using Curve = _Curve;
     static const bool use_bigfield = _use_bigfield;
     using element_ct =
-        typename std::conditional<_use_bigfield, typename Curve::g1_bigfr_ct, typename Curve::g1_ct>::type;
+        typename std::conditional<_use_bigfield, typename Curve::g1_bigfr_ct, typename Curve::Group>::type;
     // the field of scalars acting on element_ct
-    using scalar_ct = typename std::conditional<_use_bigfield, typename Curve::bigfr_ct, typename Curve::fr_ct>::type;
+    using scalar_ct = typename std::conditional<_use_bigfield, typename Curve::bigfr_ct, typename Curve::ScalarField>::type;
 };
 
 template <typename TestType> class stdlib_biggroup : public testing::Test {
@@ -38,9 +38,9 @@ template <typename TestType> class stdlib_biggroup : public testing::Test {
     using element_ct = typename TestType::element_ct;
     using scalar_ct = typename TestType::scalar_ct;
 
-    using fq = typename Curve::fq;
-    using fr = typename Curve::fr;
-    using g1 = typename Curve::g1;
+    using fq = typename Curve::BaseFieldNative;
+    using fr = typename Curve::ScalarFieldNative;
+    using g1 = typename Curve::GroupNative;
     using affine_element = typename g1::affine_element;
     using element = typename g1::element;
 

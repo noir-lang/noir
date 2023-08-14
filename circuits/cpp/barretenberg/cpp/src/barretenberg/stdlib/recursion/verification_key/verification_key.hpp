@@ -262,9 +262,9 @@ template <typename Curve> struct verification_key {
                 const auto x_hi = fields[count++];
                 const auto y_lo = fields[count++];
                 const auto y_hi = fields[count++];
-                const typename Curve::fq_ct x(x_lo, x_hi);
-                const typename Curve::fq_ct y(y_lo, y_hi);
-                const typename Curve::g1_ct element(x, y);
+                const typename Curve::BaseField x(x_lo, x_hi);
+                const typename Curve::BaseField y(y_lo, y_hi);
+                const typename Curve::Group element(x, y);
 
                 key->commitments.insert({ std::string(descriptor.commitment_label), element });
             }
@@ -294,14 +294,14 @@ template <typename Curve> struct verification_key {
         key->contains_recursive_proof = input_key->contains_recursive_proof;
         key->recursive_proof_public_input_indices = input_key->recursive_proof_public_input_indices;
         for (const auto& [tag, value] : input_key->commitments) {
-            // We do not perform on_curve() circuit checks when constructing the Curve::g1_ct element.
+            // We do not perform on_curve() circuit checks when constructing the Curve::Group element.
             // The assumption is that the circuit creator is honest and that the verification key hash (or some other
             // method) will be used to ensure the provided key matches the key produced by the circuit creator.
             // If the circuit creator is not honest, the entire set of circuit constraints being proved over cannot be
             // trusted!
-            const typename Curve::fq_ct x = Curve::fq_ct::from_witness(ctx, value.x);
-            const typename Curve::fq_ct y = Curve::fq_ct::from_witness(ctx, value.y);
-            key->commitments.insert({ tag, typename Curve::g1_ct(x, y) });
+            const typename Curve::BaseField x = Curve::BaseField::from_witness(ctx, value.x);
+            const typename Curve::BaseField y = Curve::BaseField::from_witness(ctx, value.y);
+            key->commitments.insert({ tag, typename Curve::Group(x, y) });
         }
 
         return key;
@@ -320,7 +320,7 @@ template <typename Curve> struct verification_key {
         key->domain = evaluation_domain<Composer>::from_constants(ctx, input_key->domain);
 
         for (const auto& [tag, value] : input_key->commitments) {
-            key->commitments.insert({ tag, typename Curve::g1_ct(value) });
+            key->commitments.insert({ tag, typename Curve::Group(value) });
         }
 
         key->reference_string = input_key->reference_string;
@@ -378,7 +378,7 @@ template <typename Curve> struct verification_key {
         preimage_buffer.add_element_with_existing_range_constraint(domain.generator, 16); // coset generator is small
         preimage_buffer.add_element_with_existing_range_constraint(domain.domain, 32);
         preimage_buffer.add_element_with_existing_range_constraint(num_public_inputs, 32);
-        constexpr size_t limb_bits = Curve::fq_ct::NUM_LIMB_BITS;
+        constexpr size_t limb_bits = Curve::BaseField::NUM_LIMB_BITS;
         constexpr size_t last_limb_bits = 256 - (limb_bits * 3);
         for (const auto& [tag, selector] : commitments) {
             const auto& x = selector.x;
@@ -440,7 +440,7 @@ template <typename Curve> struct verification_key {
 
     evaluation_domain<Composer> domain;
 
-    std::map<std::string, typename Curve::g1_ct> commitments;
+    std::map<std::string, typename Curve::Group> commitments;
 
     // Native data:
 

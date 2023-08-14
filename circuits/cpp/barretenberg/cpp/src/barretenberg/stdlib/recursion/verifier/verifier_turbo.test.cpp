@@ -27,14 +27,14 @@ template <typename OuterComposer> class stdlib_verifier_turbo : public testing::
     using verification_key_pt = recursion::verification_key<outer_curve>;
     using recursive_settings = recursion::recursive_turbo_verifier_settings<outer_curve>;
 
-    using inner_scalar_field_ct = inner_curve::fr_ct;
-    using inner_ground_field_ct = inner_curve::fq_ct;
+    using inner_scalar_field_ct = inner_curve::ScalarField;
+    using inner_ground_field_ct = inner_curve::BaseField;
     using public_witness_ct = inner_curve::public_witness_ct;
     using witness_ct = inner_curve::witness_ct;
     using byte_array_ct = inner_curve::byte_array_ct;
 
-    using inner_scalar_field = typename inner_curve::ScalarField;
-    using outer_scalar_field = typename outer_curve::BaseField;
+    using inner_scalar_field = typename inner_curve::ScalarFieldNative;
+    using outer_scalar_field = typename outer_curve::BaseFieldNative;
     using pairing_target_field = barretenberg::fq12;
 
     using ProverOfInnerCircuit = plonk::TurboProver;

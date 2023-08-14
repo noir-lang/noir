@@ -26,7 +26,7 @@ using namespace proof_system::plonk;
    stdlib_bigfield_plookup tests were present when this file was standardized
    to be more proving system-agnostic. Those tests are commented out  below, but modified
    in the following ways:
-     - pbigfield_t was replaced by bn254::fq_ct;
+     - pbigfield_t was replaced by bn254::BaseField;
      - pwitness_t  was replaced by bn254::witness_ct.
 */
 
@@ -38,8 +38,8 @@ template <typename Composer> class stdlib_bigfield : public testing::Test {
 
     typedef stdlib::bn254<Composer> bn254;
 
-    typedef typename bn254::fr_ct fr_ct;
-    typedef typename bn254::fq_ct fq_ct;
+    typedef typename bn254::ScalarField fr_ct;
+    typedef typename bn254::BaseField fq_ct;
     typedef typename bn254::public_witness_ct public_witness_ct;
     typedef typename bn254::witness_ct witness_ct;
 

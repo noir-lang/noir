@@ -10,8 +10,8 @@ namespace recursion {
 
 template <typename Curve> class recursive_ultra_verifier_settings : public plonk::ultra_verifier_settings {
   public:
-    typedef typename Curve::fr_ct fr_ct;
-    typedef typename Curve::g1::affine_element g1;
+    typedef typename Curve::ScalarField fr_ct;
+    typedef typename Curve::GroupNative::affine_element g1;
     typedef typename Curve::Composer Composer;
     typedef proof_system::plonk::stdlib::recursion::Transcript<Composer> Transcript_pt;
     typedef proof_system::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
@@ -88,8 +88,8 @@ template <typename Curve> class recursive_ultra_verifier_settings : public plonk
 template <typename Curve>
 class recursive_ultra_to_standard_verifier_settings : public recursive_ultra_verifier_settings<Curve> {
   public:
-    typedef typename Curve::fr_ct fr_ct;
-    typedef typename Curve::g1::affine_element g1;
+    typedef typename Curve::ScalarField fr_ct;
+    typedef typename Curve::GroupNative::affine_element g1;
     typedef typename Curve::Composer Composer;
     typedef proof_system::plonk::stdlib::recursion::Transcript<Composer> Transcript_pt;
     typedef proof_system::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;
@@ -110,8 +110,8 @@ class recursive_ultra_to_standard_verifier_settings : public recursive_ultra_ver
 
 template <typename Curve> class recursive_turbo_verifier_settings : public plonk::turbo_settings {
   public:
-    typedef typename Curve::fr_ct fr_ct;
-    typedef typename Curve::g1::affine_element g1;
+    typedef typename Curve::ScalarField fr_ct;
+    typedef typename Curve::GroupNative::affine_element g1;
     typedef typename Curve::Composer Composer;
     typedef Transcript<Composer> Transcript_pt;
     typedef proof_system::plonk::VerifierPermutationWidget<fr_ct, g1, Transcript_pt> PermutationWidget;

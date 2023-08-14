@@ -28,13 +28,13 @@ template <typename Curve, typename Transcript, typename program_settings>
 void populate_kate_element_map(typename Curve::Builder* ctx,
                                typename Transcript::Key* key,
                                const Transcript& transcript,
-                               std::map<std::string, typename Curve::g1_ct>& kate_g1_elements,
-                               std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta,
-                               std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta_large,
-                               std::map<std::string, typename Curve::fr_ct>& kate_fr_elements_at_zeta_omega,
-                               typename Curve::fr_ct& batch_opening_scalar)
+                               std::map<std::string, typename Curve::Group>& kate_g1_elements,
+                               std::map<std::string, typename Curve::ScalarField>& kate_fr_elements_at_zeta,
+                               std::map<std::string, typename Curve::ScalarField>& kate_fr_elements_at_zeta_large,
+                               std::map<std::string, typename Curve::ScalarField>& kate_fr_elements_at_zeta_omega,
+                               typename Curve::ScalarField& batch_opening_scalar)
 {
-    using fr_ct = typename Curve::fr_ct;
+    using fr_ct = typename Curve::ScalarField;
     const auto& polynomial_manifest = key->polynomial_manifest;
     for (size_t i = 0; i < key->polynomial_manifest.size(); ++i) {
         const auto& item = polynomial_manifest[i];
@@ -111,7 +111,7 @@ void populate_kate_element_map(typename Curve::Builder* ctx,
 
 template <typename Curve>
 lagrange_evaluations<typename Curve::Builder> get_lagrange_evaluations(
-    const typename Curve::fr_ct& z,
+    const typename Curve::ScalarField& z,
     const evaluation_domain<typename Curve::Builder>& domain,
     const size_t num_roots_cut_out_of_vanishing_polynomial = 4)
 {
@@ -124,7 +124,7 @@ lagrange_evaluations<typename Curve::Builder> get_lagrange_evaluations(
     // NOTE: If in future, there arises a need to cut off more zeros, this method will not require any changes.
     //
 
-    typedef typename Curve::fr_ct fr_ct;
+    typedef typename Curve::ScalarField fr_ct;
     typedef typename Curve::Builder Builder;
 
     fr_ct z_pow = z.pow(field_t<Builder>(domain.size));
@@ -199,9 +199,9 @@ aggregation_state<Curve> verify_proof_(typename Curve::Builder* context,
                                        Transcript<typename Curve::Builder>& transcript,
                                        const aggregation_state<Curve> previous_output = aggregation_state<Curve>())
 {
-    using fr_ct = typename Curve::fr_ct;
-    using fq_ct = typename Curve::fq_ct;
-    using g1_ct = typename Curve::g1_ct;
+    using fr_ct = typename Curve::ScalarField;
+    using fq_ct = typename Curve::BaseField;
+    using g1_ct = typename Curve::Group;
     using Builder = typename Curve::Builder;
 
     key->program_width = program_settings::program_width;

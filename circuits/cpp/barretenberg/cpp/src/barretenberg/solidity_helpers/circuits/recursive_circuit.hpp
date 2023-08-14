@@ -22,7 +22,7 @@ template <typename OuterComposer> class RecursiveCircuit {
     typedef stdlib::recursion::recursive_ultra_verifier_settings<outer_curve> recursive_settings;
     typedef stdlib::recursion::recursive_ultra_to_standard_verifier_settings<outer_curve>
         ultra_to_standard_recursive_settings;
-    typedef inner_curve::fr_ct fr_ct;
+    typedef inner_curve::ScalarField fr_ct;
     typedef inner_curve::public_witness_ct public_witness_ct;
     typedef inner_curve::witness_ct witness_ct;
 
