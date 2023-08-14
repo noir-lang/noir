@@ -55,6 +55,7 @@ pub enum AbiType {
     },
     Boolean,
     Struct {
+        name: String,
         #[serde(
             serialize_with = "serialization::serialize_struct_fields",
             deserialize_with = "serialization::deserialize_struct_fields"
@@ -308,7 +309,7 @@ impl Abi {
                 encoded_value.extend(str_as_fields);
             }
 
-            (InputValue::Struct(object), AbiType::Struct { fields }) => {
+            (InputValue::Struct(object), AbiType::Struct { fields, .. }) => {
                 for (field, typ) in fields {
                     encoded_value.extend(Self::encode_value(object[field].clone(), typ)?);
                 }

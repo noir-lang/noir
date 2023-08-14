@@ -1,6 +1,6 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::{
     brillig::brillig_gen::brillig_directive,
@@ -46,7 +46,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) input_witnesses: Vec<Witness>,
 
     /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
-    pub(crate) locations: HashMap<usize, CallStack>,
+    pub(crate) locations: BTreeMap<usize, CallStack>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location

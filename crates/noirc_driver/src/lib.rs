@@ -249,6 +249,7 @@ fn compile_contract(
             is_internal: func_meta.is_internal.unwrap_or(false),
             abi: function.abi,
             bytecode: function.circuit,
+            debug: function.debug,
         });
     }
 
