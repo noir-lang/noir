@@ -32,13 +32,14 @@ acvm.workspace = true
 toml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+prettytable-rs = "0.10"
 thiserror.workspace = true
 tower.workspace = true
 async-lsp = { version = "0.0.5", default-features = false, features = [
     "client-monitor",
     "stdio",
     "tracing",
-    "tokio"
+    "tokio",
 ] }
 const_format = "0.2.30"
 hex = "0.4.2"
