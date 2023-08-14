@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct DebugInfo {
     /// Map opcode index of an ACIR circuit into the source code location
-    pub locations: BTreeMap<usize, LocationStack>>,
+    pub locations: BTreeMap<usize, LocationStack>,
 }
 
 impl DebugInfo {

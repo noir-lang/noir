@@ -1,6 +1,5 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
-use std::collections::BTreeMap;
 use crate::{
     brillig::brillig_gen::brillig_directive,
     errors::{InternalError, RuntimeError},
@@ -22,7 +21,7 @@ use acvm::{
 use iter_extended::vecmap;
 use noirc_errors::location_stack::LocationStack;
 use num_bigint::BigUint;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass
