@@ -72,14 +72,20 @@ struct PackageConfig {
 impl PackageConfig {
     fn resolve_to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
         let name = if let Some(name) = &self.package.name {
-            name.parse().map_err(|_| ManifestError::InvalidPackageName)?
+            name.parse().map_err(|_| ManifestError::InvalidPackageName {
+                toml: root_dir.join("Nargo.toml"),
+                name: name.into(),
+            })?
         } else {
             return Err(ManifestError::MissingNameField { toml: root_dir.join("Nargo.toml") });
         };
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in self.dependencies.iter() {
-            let name = name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
+            let name = name.parse().map_err(|_| ManifestError::InvalidDependencyName {
+                toml: root_dir.join("Nargo.toml"),
+                name: name.into(),
+            })?;
             let resolved_dep = dep_config.resolve_to_dependency(root_dir)?;
 
             dependencies.insert(name, resolved_dep);

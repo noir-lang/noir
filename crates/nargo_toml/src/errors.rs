@@ -38,9 +38,11 @@ pub enum ManifestError {
     )]
     MissingDefaultEntryFile { toml: PathBuf, entry: PathBuf, package_type: PackageType },
 
-    /// Invalid character `-` in package name
-    #[error("invalid character `-` in package name")]
-    InvalidPackageName,
+    #[error("{} found in {toml}", if name.is_empty() { "Empty package name".into() } else { format!("Invalid package name `{name}`") })]
+    InvalidPackageName { toml: PathBuf, name: String },
+
+    #[error("{} found in {toml}", if name.is_empty() { "Empty dependency name".into() } else { format!("Invalid dependency name `{name}`") })]
+    InvalidDependencyName { toml: PathBuf, name: String },
 
     /// Encountered error while downloading git repository.
     #[error("{0}")]
