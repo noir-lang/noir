@@ -22,14 +22,6 @@ export interface Database extends ContractDatabase {
   getTx(txHash: TxHash): Promise<TxDao | undefined>;
 
   /**
-   * Retrieve all transactions associated with a given AztecAddress.
-   *
-   * @param origin - The sender's address.
-   * @returns A Promise resolving to an array of TxDao objects associated with the sender.
-   */
-  getTxsByAddress(origin: AztecAddress): Promise<TxDao[]>;
-
-  /**
    * Adds a TxDao instance to the transaction table.
    * If a transaction with the same hash already exists in the table, it replaces the existing one.
    * Otherwise, it pushes the new transaction to the table.

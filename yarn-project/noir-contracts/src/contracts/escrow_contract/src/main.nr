@@ -40,7 +40,6 @@ contract Escrow {
             &mut context,
             this,
             storage.owners.storage_slot,
-            this,
             get_public_key(this),
             note.serialise(),
         );

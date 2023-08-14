@@ -22,10 +22,6 @@ export class NoteSpendingInfo {
      */
     public contractAddress: AztecAddress,
     /**
-     * Address of the owner of the note.
-     */
-    public ownerAddress: AztecAddress,
-    /**
      * Storage slot of the contract this tx is interacting with.
      */
     public storageSlot: Fr,
@@ -38,12 +34,7 @@ export class NoteSpendingInfo {
    */
   static fromBuffer(buffer: Buffer | BufferReader): NoteSpendingInfo {
     const reader = BufferReader.asReader(buffer);
-    return new NoteSpendingInfo(
-      reader.readObject(NotePreimage),
-      reader.readObject(AztecAddress),
-      reader.readObject(AztecAddress),
-      reader.readFr(),
-    );
+    return new NoteSpendingInfo(reader.readObject(NotePreimage), reader.readObject(AztecAddress), reader.readFr());
   }
 
   /**
@@ -51,7 +42,7 @@ export class NoteSpendingInfo {
    * @returns Buffer representation of the NoteSpendingInfo object.
    */
   toBuffer() {
-    return serializeToBuffer([this.notePreimage, this.contractAddress, this.ownerAddress, this.storageSlot]);
+    return serializeToBuffer([this.notePreimage, this.contractAddress, this.storageSlot]);
   }
 
   /**
@@ -85,6 +76,6 @@ export class NoteSpendingInfo {
    * @returns A random NoteSpendingInfo object.
    */
   static random() {
-    return new NoteSpendingInfo(NotePreimage.random(), AztecAddress.random(), AztecAddress.random(), Fr.random());
+    return new NoteSpendingInfo(NotePreimage.random(), AztecAddress.random(), Fr.random());
   }
 }

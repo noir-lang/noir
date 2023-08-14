@@ -77,7 +77,6 @@ contract SchnorrAccount {
             &mut context,
             this,
             storage.signing_public_key.storage_slot,
-            this,
             get_public_key(this),
             pub_key_note.serialise(),
         );

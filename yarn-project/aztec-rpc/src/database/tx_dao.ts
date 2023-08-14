@@ -21,7 +21,7 @@ export class TxDao {
     /**
      * The sender's Aztec address.
      */
-    public readonly origin: AztecAddress,
+    public readonly origin: AztecAddress | undefined,
     /**
      * The address of the contract deployed by the transaction. Undefined if the transaction does not deploy a new contract.
      */

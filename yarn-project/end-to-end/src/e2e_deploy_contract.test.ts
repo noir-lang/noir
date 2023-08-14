@@ -39,7 +39,6 @@ describe('e2e_deploy_contract', () => {
     const receipt = await tx.getReceipt();
     expect(receipt).toEqual(
       expect.objectContaining({
-        origin: deploymentData.address,
         status: TxStatus.PENDING,
         error: '',
         contractAddress: deploymentData.address,

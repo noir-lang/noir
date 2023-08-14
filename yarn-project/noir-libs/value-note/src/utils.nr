@@ -52,7 +52,6 @@ fn spend_notes(
         context,
         context.inputs.call_context.storage_contract_address,
         balance.storage_slot,
-        owner,
         encryption_pub_key,
         encrypted_data,
     );
@@ -76,7 +75,6 @@ fn send_note(
         context,
         context.inputs.call_context.storage_contract_address,
         balance.storage_slot,
-        recipient,
         encryption_pub_key,
         note.serialise(),
     );

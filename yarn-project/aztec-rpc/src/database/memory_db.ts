@@ -29,10 +29,6 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     return Promise.resolve(this.txTable.find(tx => tx.txHash.equals(txHash)));
   }
 
-  public getTxsByAddress(origin: AztecAddress) {
-    return Promise.resolve(this.txTable.filter(tx => tx.origin.equals(origin)));
-  }
-
   public addTx(tx: TxDao) {
     const index = this.txTable.findIndex(t => t.txHash.equals(tx.txHash));
     if (index === -1) {

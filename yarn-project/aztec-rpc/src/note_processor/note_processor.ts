@@ -248,7 +248,7 @@ export class NoteProcessor {
           txHash,
           blockHash: blockContext.getBlockHash(),
           blockNumber: blockContext.block.number,
-          origin: noteSpendingInfo.ownerAddress,
+          origin: undefined,
           contractAddress,
           error: '',
         });

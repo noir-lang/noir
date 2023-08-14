@@ -142,7 +142,6 @@ describe('e2e_p2p_network', () => {
       const receipt = await tx.getReceipt();
       expect(receipt).toEqual(
         expect.objectContaining({
-          origin: deploymentInfo.address,
           status: TxStatus.PENDING,
           error: '',
           contractAddress: deploymentInfo.address,

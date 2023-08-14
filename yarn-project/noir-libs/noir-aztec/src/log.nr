@@ -6,11 +6,10 @@ fn emit_encrypted_log<N>(
     context: &mut Context,
     contract_address: Field,
     storage_slot: Field,
-    owner: Field,
     encryption_pub_key: Point,
     log: [Field; N],
 ) {
-    let _ = oracle::logs::emit_encrypted_log(contract_address, storage_slot, owner, encryption_pub_key, log);
+    let _ = oracle::logs::emit_encrypted_log(contract_address, storage_slot, encryption_pub_key, log);
     context.accumulate_encrypted_logs(log);
 }
 

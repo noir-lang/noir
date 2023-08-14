@@ -93,7 +93,6 @@ context = emit_encrypted_log(
     context,
     application_contract_address,
     storage_slot,
-    recipient,
     encryption_public_key,
     note.serialise(),
 );

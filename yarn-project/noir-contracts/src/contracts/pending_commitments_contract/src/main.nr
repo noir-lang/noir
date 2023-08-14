@@ -62,7 +62,6 @@ contract PendingCommitments {
             &mut context,
             context.inputs.call_context.storage_contract_address,
             owner_balance.storage_slot,
-            owner,
             get_public_key(owner),
             note.serialise(),
         );
@@ -112,7 +111,6 @@ contract PendingCommitments {
             &mut context,
             context.inputs.call_context.storage_contract_address,
             owner_balance.storage_slot,
-            owner,
             get_public_key(owner),
             note.serialise(),
         );
@@ -141,7 +139,6 @@ contract PendingCommitments {
             &mut context,
             context.inputs.call_context.storage_contract_address,
             owner_balance.storage_slot,
-            owner,
             get_public_key(owner),
             note.serialise(),
         );

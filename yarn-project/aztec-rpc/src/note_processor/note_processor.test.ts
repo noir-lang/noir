@@ -1,5 +1,5 @@
 import { AcirSimulator } from '@aztec/acir-simulator';
-import { AztecAddress, CircuitsWasm, Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
+import { CircuitsWasm, Fr, MAX_NEW_COMMITMENTS_PER_TX } from '@aztec/circuits.js';
 import { Grumpkin, pedersenCompressInputs } from '@aztec/circuits.js/barretenberg';
 import { Point } from '@aztec/foundation/fields';
 import { ConstantKeyPair } from '@aztec/key-store';
@@ -31,7 +31,6 @@ describe('Note Processor', () => {
   let addNoteSpendingInfoBatchSpy: any;
   let noteProcessor: NoteProcessor;
   let owner: KeyPair;
-  let ownerAddress: AztecAddress;
   let keyStore: MockProxy<KeyStore>;
   let simulator: MockProxy<AcirSimulator>;
   const firstBlockNum = 123;
@@ -89,8 +88,6 @@ describe('Note Processor', () => {
       block.startPrivateDataTreeSnapshot.nextAvailableLeafIndex = firstBlockDataStartIndex + i * numCommitmentsPerBlock;
 
       const newNotes = Array(numCommitmentsPerBlock).fill(0).map(NoteSpendingInfo.random);
-      // Set the note owners to ownerAddress.
-      newNotes.forEach(n => (n.ownerAddress = ownerAddress));
 
       block.newCommitments = newNotes.map(n => computeMockNoteHash(n.notePreimage.items));
 
@@ -118,7 +115,6 @@ describe('Note Processor', () => {
     database = new MemoryDB();
     addNoteSpendingInfoBatchSpy = jest.spyOn(database, 'addNoteSpendingInfoBatch');
 
-    ownerAddress = AztecAddress.random();
     aztecNode = mock<AztecNode>();
     keyStore = mock<KeyStore>();
     simulator = mock<AcirSimulator>();
@@ -139,17 +135,10 @@ describe('Note Processor', () => {
     addNoteSpendingInfoBatchSpy.mockReset();
   });
 
-  it('should store a tx that belong to us', async () => {
+  it('should store a note that belongs to us', async () => {
     const { blockContexts, encryptedLogsArr, ownedNoteSpendingInfos } = mockData([[2]]);
     await noteProcessor.process(blockContexts, encryptedLogsArr);
 
-    const txs = await database.getTxsByAddress(ownerAddress);
-    expect(txs).toEqual([
-      expect.objectContaining({
-        blockNumber: firstBlockNum,
-        origin: ownerAddress,
-      }),
-    ]);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledTimes(1);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledWith([
       expect.objectContaining({
@@ -159,9 +148,8 @@ describe('Note Processor', () => {
     ]);
   });
 
-  it('should store multiple txs that belong to us', async () => {
+  it('should store multiple notes that belong to us', async () => {
     const prependedBlocks = 3;
-    const thisBlockNumber = firstBlockNum + prependedBlocks;
     const thisBlockDataStartIndex = firstBlockDataStartIndex + prependedBlocks * numCommitmentsPerBlock;
 
     const { blockContexts, encryptedLogsArr, ownedNoteSpendingInfos } = mockData(
@@ -170,17 +158,6 @@ describe('Note Processor', () => {
     );
     await noteProcessor.process(blockContexts, encryptedLogsArr);
 
-    const txs = await database.getTxsByAddress(ownerAddress);
-    expect(txs).toEqual([
-      expect.objectContaining({
-        blockNumber: thisBlockNumber,
-        origin: ownerAddress,
-      }),
-      expect.objectContaining({
-        blockNumber: thisBlockNumber,
-        origin: ownerAddress,
-      }),
-    ]);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledTimes(1);
     expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledWith([
       expect.objectContaining({
@@ -201,12 +178,8 @@ describe('Note Processor', () => {
     ]);
   });
 
-  it('should not store txs that do not belong to us', async () => {
+  it('should not store notes that do not belong to us', async () => {
     const { blockContexts, encryptedLogsArr } = mockData([]);
     await noteProcessor.process(blockContexts, encryptedLogsArr);
-
-    const txs = await database.getTxsByAddress(ownerAddress);
-    expect(txs).toEqual([]);
-    expect(addNoteSpendingInfoBatchSpy).toHaveBeenCalledTimes(0);
   });
 });

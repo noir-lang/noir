@@ -17,10 +17,6 @@ export interface NoteSpendingInfoDao {
    */
   nonce: Fr;
   /**
-   * The owner of the note.
-   */
-  ownerAddress: AztecAddress;
-  /**
    * The specific storage location of the note on the contract.
    */
   storageSlot: Fr;
@@ -45,7 +41,6 @@ export interface NoteSpendingInfoDao {
 export const createRandomNoteSpendingInfoDao = ({
   contractAddress = AztecAddress.random(),
   nonce = Fr.random(),
-  ownerAddress = AztecAddress.random(),
   storageSlot = Fr.random(),
   notePreimage = NotePreimage.random(),
   siloedNullifier = Fr.random(),
@@ -54,7 +49,6 @@ export const createRandomNoteSpendingInfoDao = ({
 }: Partial<NoteSpendingInfoDao> = {}): NoteSpendingInfoDao => ({
   contractAddress,
   nonce,
-  ownerAddress,
   storageSlot,
   notePreimage,
   siloedNullifier,
