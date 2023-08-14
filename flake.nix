@@ -76,6 +76,8 @@
       sharedEnvironment = {
         # We enable backtraces on any failure for help with debugging
         RUST_BACKTRACE = "1";
+        # We set the environment variable because barretenberg must be compiled in a special way for wasm
+        BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
       };
 
       nativeEnvironment = sharedEnvironment // {
@@ -83,12 +85,9 @@
         LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
       };
 
-      wasmEnvironment = sharedEnvironment // {
-        # We set the environment variable because barretenberg must be compiled in a special way for wasm
-        BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
-      };
+      wasmEnvironment = sharedEnvironment // { };
 
-      testEnvironment = sharedEnvironment // {};
+      testEnvironment = sharedEnvironment // { };
 
       # The `self.rev` property is only available when the working tree is not dirty
       GIT_COMMIT = if (self ? rev) then self.rev else "unknown";
