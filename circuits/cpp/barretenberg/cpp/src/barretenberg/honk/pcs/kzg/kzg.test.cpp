@@ -5,7 +5,6 @@
 
 #include "../commitment_key.test.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
@@ -15,11 +14,11 @@
 
 namespace proof_system::honk::pcs::kzg {
 
-template <class Params> class KZGTest : public CommitmentTest<Params> {
+template <class Curve> class KZGTest : public CommitmentTest<Curve> {
   public:
-    using Fr = typename Params::Fr;
-    using Commitment = typename Params::Commitment;
-    using GroupElement = typename Params::GroupElement;
+    using Fr = typename Curve::ScalarField;
+    using Commitment = typename Curve::AffineElement;
+    using GroupElement = typename Curve::Element;
     using Polynomial = barretenberg::Polynomial<Fr>;
 };
 
@@ -30,7 +29,7 @@ TYPED_TEST(KZGTest, single)
     const size_t n = 16;
 
     using KZG = KZG<TypeParam>;
-    using Fr = typename TypeParam::Fr;
+    using Fr = typename TypeParam::ScalarField;
 
     auto witness = this->random_polynomial(n);
     barretenberg::g1::element commitment = this->commit(witness);
@@ -60,11 +59,11 @@ TYPED_TEST(KZGTest, GeminiShplonkKzgWithShift)
 {
     using ShplonkProver = shplonk::ShplonkProver_<TypeParam>;
     using ShplonkVerifier = shplonk::ShplonkVerifier_<TypeParam>;
-    using GeminiProver = gemini::GeminiProver_<Params>;
-    using GeminiVerifier = gemini::GeminiVerifier_<Params>;
+    using GeminiProver = gemini::GeminiProver_<TypeParam>;
+    using GeminiVerifier = gemini::GeminiVerifier_<TypeParam>;
     using KZG = KZG<TypeParam>;
-    using Fr = typename TypeParam::Fr;
-    using GroupElement = typename TypeParam::GroupElement;
+    using Fr = typename TypeParam::ScalarField;
+    using GroupElement = typename TypeParam::Element;
     using Polynomial = typename barretenberg::Polynomial<Fr>;
 
     const size_t n = 16;

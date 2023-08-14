@@ -17,10 +17,9 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     using CircuitBuilder = typename Flavor::CircuitBuilder;
     using ProvingKey = typename Flavor::ProvingKey;
     using VerificationKey = typename Flavor::VerificationKey;
-    using PCSParams = typename Flavor::PCSParams;
     using PCS = typename Flavor::PCS;
-    using PCSCommitmentKey = typename PCSParams::CommitmentKey;
-    using PCSVerificationKey = typename PCSParams::VerificationKey;
+    using CommitmentKey = typename Flavor::CommitmentKey;
+    using VerifierCommitmentKey = typename Flavor::VerifierCommitmentKey;
 
     // offset due to placing zero wires at the start of execution trace
     static constexpr size_t num_zero_rows = Flavor::has_zero_row ? 1 : 0;
@@ -34,7 +33,7 @@ template <UltraFlavor Flavor> class UltraComposer_ {
     std::shared_ptr<srs::factories::CrsFactory<typename Flavor::Curve>> crs_factory_;
 
     // The commitment key is passed to the prover but also used herein to compute the verfication key commitments
-    std::shared_ptr<PCSCommitmentKey> commitment_key;
+    std::shared_ptr<CommitmentKey> commitment_key;
 
     std::vector<uint32_t> recursive_proof_public_input_indices;
     bool contains_recursive_proof = false;
@@ -79,7 +78,7 @@ template <UltraFlavor Flavor> class UltraComposer_ {
 
     void compute_commitment_key(size_t circuit_size)
     {
-        commitment_key = std::make_shared<typename PCSParams::CommitmentKey>(circuit_size, crs_factory_);
+        commitment_key = std::make_shared<CommitmentKey>(circuit_size, crs_factory_);
     };
 };
 extern template class UltraComposer_<honk::flavor::Ultra>;

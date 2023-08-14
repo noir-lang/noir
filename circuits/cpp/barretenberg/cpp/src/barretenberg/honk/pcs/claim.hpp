@@ -1,6 +1,7 @@
 #pragma once
 
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/honk/pcs/commitment_key.hpp"
 
 namespace proof_system::honk::pcs {
 /**
@@ -8,8 +9,8 @@ namespace proof_system::honk::pcs {
  *
  * @tparam Params for the given commitment scheme
  */
-template <typename Params> class OpeningPair {
-    using Fr = typename Params::Fr;
+template <typename Curve> class OpeningPair {
+    using Fr = typename Curve::ScalarField;
 
   public:
     Fr challenge;  // r
@@ -25,14 +26,14 @@ template <typename Params> class OpeningPair {
  *
  * @tparam Params for the given commitment scheme
  */
-template <typename Params> class OpeningClaim {
-    using CK = typename Params::CommitmentKey;
-    using Commitment = typename Params::Commitment;
-    using Fr = typename Params::Fr;
+template <typename Curve> class OpeningClaim {
+    using CK = CommitmentKey<Curve>;
+    using Commitment = typename Curve::AffineElement;
+    using Fr = typename Curve::ScalarField;
 
   public:
     // (challenge r, evaluation v = p(r))
-    OpeningPair<Params> opening_pair;
+    OpeningPair<Curve> opening_pair;
     // commitment to univariate polynomial p(X)
     Commitment commitment;
 
@@ -56,38 +57,5 @@ template <typename Params> class OpeningClaim {
     };
 
     bool operator==(const OpeningClaim& other) const = default;
-};
-
-/**
- * @brief stores a claim of the form (C, v) for u=(u₀,…,uₘ₋₁)
- * where C is a univariate commitment to a polynomial
- *
- * f(X) = a₀ + a₁⋅X + … + aₙ₋₁⋅Xⁿ⁻¹
- *
- * and v is a multi-linear evaluation of f(X₀,…,Xₘ₋₁)
- * which has the same coefficients as f.
- * v = ∑ᵢ aᵢ⋅Lᵢ(u)
- *
- * If the evaluations is shift, we assume that a₀ = 0 and
- * take g(X) = f↺(X), so that
- * g(X) = a₁ + … + aₙ₋₁⋅Xⁿ⁻² = f(X)/X
- * The evaluation will be
- * v↺ = a₁⋅L₀(u) + … + aₙ₋₁⋅Lₙ₋₂(u)
- * The commitment C is [f].
- *
- * @tparam CommitmentKey
- */
-template <typename Params> class MLEOpeningClaim {
-    using Commitment = typename Params::Commitment;
-    using Fr = typename Params::Fr;
-
-  public:
-    // commitment to a univariate polynomial
-    // whose coefficients are the multi-linear evaluations
-    // of C = [f]
-    Commitment commitment;
-    // v  = f(u) = ∑ᵢ aᵢ⋅Lᵢ(u)
-    // v↺ = g(u) = a₁⋅L₀(u) + … + aₙ₋₁⋅Lₙ₋₂(u)
-    Fr evaluation;
 };
 } // namespace proof_system::honk::pcs

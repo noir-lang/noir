@@ -9,11 +9,11 @@
 
 namespace proof_system::honk::pcs::gemini {
 
-template <class Params> class GeminiTest : public CommitmentTest<Params> {
-    using GeminiProver = GeminiProver_<Params>;
-    using GeminiVerifier = GeminiVerifier_<Params>;
-    using Fr = typename Params::Fr;
-    using GroupElement = typename Params::GroupElement;
+template <class Curve> class GeminiTest : public CommitmentTest<Curve> {
+    using GeminiProver = GeminiProver_<Curve>;
+    using GeminiVerifier = GeminiVerifier_<Curve>;
+    using Fr = typename Curve::ScalarField;
+    using GroupElement = typename Curve::Element;
     using Polynomial = typename barretenberg::Polynomial<Fr>;
 
   public:
@@ -101,13 +101,13 @@ template <class Params> class GeminiTest : public CommitmentTest<Params> {
     }
 };
 
-using ParamsTypes = ::testing::Types<kzg::Params, ipa::Params>;
+using ParamsTypes = ::testing::Types<curve::BN254, curve::Grumpkin>;
 TYPED_TEST_SUITE(GeminiTest, ParamsTypes);
 
 TYPED_TEST(GeminiTest, Single)
 {
-    using Fr = typename TypeParam::Fr;
-    using GroupElement = typename TypeParam::GroupElement;
+    using Fr = typename TypeParam::ScalarField;
+    using GroupElement = typename TypeParam::Element;
 
     const size_t n = 16;
     const size_t log_n = 4;
@@ -135,8 +135,8 @@ TYPED_TEST(GeminiTest, Single)
 
 TYPED_TEST(GeminiTest, SingleShift)
 {
-    using Fr = typename TypeParam::Fr;
-    using GroupElement = typename TypeParam::GroupElement;
+    using Fr = typename TypeParam::ScalarField;
+    using GroupElement = typename TypeParam::Element;
 
     const size_t n = 16;
     const size_t log_n = 4;
@@ -168,8 +168,8 @@ TYPED_TEST(GeminiTest, SingleShift)
 
 TYPED_TEST(GeminiTest, Double)
 {
-    using Fr = typename TypeParam::Fr;
-    using GroupElement = typename TypeParam::GroupElement;
+    using Fr = typename TypeParam::ScalarField;
+    using GroupElement = typename TypeParam::Element;
 
     const size_t n = 16;
     const size_t log_n = 4;
@@ -203,8 +203,8 @@ TYPED_TEST(GeminiTest, Double)
 
 TYPED_TEST(GeminiTest, DoubleWithShift)
 {
-    using Fr = typename TypeParam::Fr;
-    using GroupElement = typename TypeParam::GroupElement;
+    using Fr = typename TypeParam::ScalarField;
+    using GroupElement = typename TypeParam::Element;
 
     const size_t n = 16;
     const size_t log_n = 4;

@@ -10,14 +10,11 @@ namespace proof_system::honk {
 // Currently only one type of work queue operation but there will likely be others related to Sumcheck
 enum WorkType { SCALAR_MULTIPLICATION };
 
-// TODO(luke): This Params template parameter is the same type expected by e.g. components of the PCS. Eventually it
-// should be replaced by some sort of Flavor concept that contains info about the Field etc. This should be resolved
-// at the same time as the similar patterns in Gemini etc.
-template <typename Params> class work_queue {
+template <typename Curve> class work_queue {
 
-    using CommitmentKey = typename Params::CommitmentKey;
-    using FF = typename Params::Fr;
-    using Commitment = typename Params::Commitment;
+    using CommitmentKey = pcs::CommitmentKey<Curve>;
+    using FF = typename Curve::ScalarField;
+    using Commitment = typename Curve::AffineElement;
 
     struct work_item_info {
         uint32_t num_scalar_multiplications;

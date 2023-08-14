@@ -1,7 +1,8 @@
 #pragma once
 #include "barretenberg/honk/pcs/claim.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/honk/pcs/verification_key.hpp"
 
 /**
  * @brief Reduces multiple claims about commitments, each opened at a single point
@@ -22,28 +23,28 @@ namespace proof_system::honk::pcs::shplonk {
 /**
  * @brief Polynomial G(X) = Q(X) - ∑ₖ ẑₖ(r)⋅( Bₖ(X) − Tₖ(z) ), where Q(X) = ∑ₖ ( Bₖ(X) − Tₖ(X) ) / zₖ(X)
  *
- * @tparam Params CommitmentScheme parameters
+ * @tparam Curve EC parameters
  */
-template <typename Params> using OutputWitness = barretenberg::Polynomial<typename Params::Fr>;
+template <typename Curve> using OutputWitness = barretenberg::Polynomial<typename Curve::ScalarField>;
 
 /**
  * @brief Prover output (claim=([G], r, 0), witness = G(X), proof = [Q])
  * that can be passed on to a univariate opening protocol.
  *
- * @tparam Params CommitmentScheme parameters
+ * @tparam Curve EC parameters
  */
-template <typename Params> struct ProverOutput {
-    OpeningPair<Params> opening_pair; // single opening pair (challenge, evaluation)
-    OutputWitness<Params> witness;    // single polynomial G(X)
+template <typename Curve> struct ProverOutput {
+    OpeningPair<Curve> opening_pair; // single opening pair (challenge, evaluation)
+    OutputWitness<Curve> witness;    // single polynomial G(X)
 };
 
 /**
  * @brief Shplonk Prover
  *
- * @tparam Params for the given commitment scheme
+ * @tparam Curve EC parameters
  */
-template <typename Params> class ShplonkProver_ {
-    using Fr = typename Params::Fr;
+template <typename Curve> class ShplonkProver_ {
+    using Fr = typename Curve::ScalarField;
     using Polynomial = barretenberg::Polynomial<Fr>;
 
   public:
@@ -55,7 +56,7 @@ template <typename Params> class ShplonkProver_ {
      * @param nu
      * @return Polynomial Q(X)
      */
-    static Polynomial compute_batched_quotient(std::span<const OpeningPair<Params>> opening_pairs,
+    static Polynomial compute_batched_quotient(std::span<const OpeningPair<Curve>> opening_pairs,
                                                std::span<const Polynomial> witness_polynomials,
                                                const Fr& nu)
     {
@@ -96,8 +97,8 @@ template <typename Params> class ShplonkProver_ {
      * @param z_challenge
      * @return Output{OpeningPair, Polynomial}
      */
-    static ProverOutput<Params> compute_partially_evaluated_batched_quotient(
-        std::span<const OpeningPair<Params>> opening_pairs,
+    static ProverOutput<Curve> compute_partially_evaluated_batched_quotient(
+        std::span<const OpeningPair<Curve>> opening_pairs,
         std::span<const Polynomial> witness_polynomials,
         Polynomial&& batched_quotient_Q,
         const Fr& nu_challenge,
@@ -144,11 +145,11 @@ template <typename Params> class ShplonkProver_ {
  * @brief Shplonk Verifier
  *
  */
-template <typename Params> class ShplonkVerifier_ {
-    using Fr = typename Params::Fr;
-    using GroupElement = typename Params::GroupElement;
-    using Commitment = typename Params::Commitment;
-    using VK = typename Params::VerificationKey;
+template <typename Curve> class ShplonkVerifier_ {
+    using Fr = typename Curve::ScalarField;
+    using GroupElement = typename Curve::Element;
+    using Commitment = typename Curve::AffineElement;
+    using VK = VerifierCommitmentKey<Curve>;
 
   public:
     /**
@@ -160,8 +161,8 @@ template <typename Params> class ShplonkVerifier_ {
      * @param transcript
      * @return OpeningClaim
      */
-    static OpeningClaim<Params> reduce_verification(std::shared_ptr<VK> vk,
-                                              std::span<const OpeningClaim<Params>> claims,
+    static OpeningClaim<Curve> reduce_verification(std::shared_ptr<VK> vk,
+                                              std::span<const OpeningClaim<Curve>> claims,
                                               VerifierTranscript<Fr>& transcript)
     {
         const size_t num_claims = claims.size();

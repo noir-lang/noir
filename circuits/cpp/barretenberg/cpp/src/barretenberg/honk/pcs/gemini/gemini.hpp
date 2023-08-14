@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../claim.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 
@@ -56,11 +55,11 @@ namespace proof_system::honk::pcs::gemini {
  *   ...
  *   Aₘ₋₁(X) = (1-uₘ₋₂)⋅even(Aₘ₋₂)(X) + uₘ₋₂⋅odd(Aₘ₋₂)(X)
  * ]
- * @tparam Params CommitmentScheme parameters
+ * @tparam Curve CommitmentScheme parameters
  */
-template <typename Params> struct ProverOutput {
-    std::vector<OpeningPair<Params>> opening_pairs;
-    std::vector<barretenberg::Polynomial<typename Params::Fr>> witnesses;
+template <typename Curve> struct ProverOutput {
+    std::vector<OpeningPair<Curve>> opening_pairs;
+    std::vector<barretenberg::Polynomial<typename Curve::ScalarField>> witnesses;
 };
 
 /**
@@ -84,10 +83,9 @@ template <class Fr> inline std::vector<Fr> powers_of_rho(const Fr rho, const siz
 /**
  * @brief Compute squares of folding challenge r
  *
- * @tparam Params
  * @param r
  * @param num_squares The number of foldings
- * @return std::vector<typename Params::Fr>
+ * @return std::vector<typename Curve::ScalarField>
  */
 template <class Fr> inline std::vector<Fr> squares_of_r(const Fr r, const size_t num_squares)
 {
@@ -99,8 +97,8 @@ template <class Fr> inline std::vector<Fr> squares_of_r(const Fr r, const size_t
     return squares;
 };
 
-template <typename Params> class GeminiProver_ {
-    using Fr = typename Params::Fr;
+template <typename Curve> class GeminiProver_ {
+    using Fr = typename Curve::ScalarField;
     using Polynomial = barretenberg::Polynomial<Fr>;
 
   public:
@@ -108,18 +106,18 @@ template <typename Params> class GeminiProver_ {
                                                             Polynomial&& batched_unshifted,
                                                             Polynomial&& batched_to_be_shifted);
 
-    static ProverOutput<Params> compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
+    static ProverOutput<Curve> compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
                                                                     std::vector<Polynomial>&& fold_polynomials,
                                                                     const Fr& r_challenge);
 }; // namespace proof_system::honk::pcs::gemini
 
-template <typename Params> class GeminiVerifier_ {
-    using Fr = typename Params::Fr;
-    using GroupElement = typename Params::GroupElement;
-    using Commitment = typename Params::Commitment;
+template <typename Curve> class GeminiVerifier_ {
+    using Fr = typename Curve::ScalarField;
+    using GroupElement = typename Curve::Element;
+    using Commitment = typename Curve::AffineElement;
 
   public:
-    static std::vector<OpeningClaim<Params>> reduce_verification(std::span<const Fr> mle_opening_point, /* u */
+    static std::vector<OpeningClaim<Curve>> reduce_verification(std::span<const Fr> mle_opening_point, /* u */
                                                            const Fr batched_evaluation,           /* all */
                                                            GroupElement& batched_f,               /* unshifted */
                                                            GroupElement& batched_g,               /* to-be-shifted */
@@ -136,9 +134,9 @@ template <typename Params> class GeminiVerifier_ {
                                                                                Fr r);
 }; // namespace proof_system::honk::pcs::gemini
 
-extern template class GeminiProver_<kzg::Params>;
-extern template class GeminiProver_<ipa::Params>;
-extern template class GeminiVerifier_<kzg::Params>;
-extern template class GeminiVerifier_<ipa::Params>;
+extern template class GeminiProver_<curve::BN254>;
+extern template class GeminiProver_<curve::Grumpkin>;
+extern template class GeminiVerifier_<curve::BN254>;
+extern template class GeminiVerifier_<curve::Grumpkin>;
 
 } // namespace proof_system::honk::pcs::gemini

@@ -17,7 +17,7 @@ namespace proof_system::honk {
  * */
 template <StandardFlavor Flavor>
 StandardProver_<Flavor>::StandardProver_(const std::shared_ptr<ProvingKey> input_key,
-                                         const std::shared_ptr<PCSCommitmentKey> commitment_key)
+                                         const std::shared_ptr<CommitmentKey> commitment_key)
     : key(input_key)
     , queue(commitment_key, transcript)
     , pcs_commitment_key(commitment_key)

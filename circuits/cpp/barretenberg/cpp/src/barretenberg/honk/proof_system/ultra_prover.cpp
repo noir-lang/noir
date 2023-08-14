@@ -2,7 +2,6 @@
 #include "barretenberg/ecc/curves/bn254/fr.hpp"
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/proof_system/grand_product_library.hpp"
 #include "barretenberg/honk/proof_system/prover_library.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp" // will go away
@@ -33,7 +32,7 @@ namespace proof_system::honk {
  * */
 template <UltraFlavor Flavor>
 UltraProver_<Flavor>::UltraProver_(std::shared_ptr<typename Flavor::ProvingKey> input_key,
-                                   std::shared_ptr<PCSCommitmentKey> commitment_key)
+                                   std::shared_ptr<CommitmentKey> commitment_key)
     : key(input_key)
     , queue(commitment_key, transcript)
     , pcs_commitment_key(commitment_key)

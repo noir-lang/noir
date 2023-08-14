@@ -1,5 +1,4 @@
 #include "standard_composer.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/srs/factories/crs_factory.hpp"
@@ -105,7 +104,7 @@ StandardVerifier_<Flavor> StandardComposer_<Flavor>::create_verifier(const Circu
     StandardVerifier_<Flavor> output_state(verification_key);
 
     auto pcs_verification_key =
-        std::make_unique<typename PCSParams::VerificationKey>(verification_key->circuit_size, crs_factory_);
+        std::make_unique<typename Flavor::VerifierCommitmentKey>(verification_key->circuit_size, crs_factory_);
 
     output_state.pcs_verification_key = std::move(pcs_verification_key);
 

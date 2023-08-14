@@ -68,6 +68,8 @@
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
 #include "barretenberg/polynomials/evaluation_domain.hpp"
 #include "barretenberg/proof_system/types/circuit_type.hpp"
+#include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/honk/pcs/verification_key.hpp"
 #include <array>
 #include <concepts>
 #include <vector>

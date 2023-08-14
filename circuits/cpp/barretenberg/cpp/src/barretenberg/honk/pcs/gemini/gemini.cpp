@@ -52,14 +52,10 @@ namespace proof_system::honk::pcs::gemini {
  * @param batched_to_be_shifted G(X) = ∑ⱼ ρᵏ⁺ʲ gⱼ(X)
  * @return std::vector<Polynomial>
  */
-template <typename Params>
-std::vector<typename barretenberg::Polynomial<typename Params::Fr>> GeminiProver_<Params>::compute_fold_polynomials(
+template <typename Curve>
+std::vector<typename barretenberg::Polynomial<typename Curve::ScalarField>> GeminiProver_<Curve>::compute_fold_polynomials(
     std::span<const Fr> mle_opening_point, Polynomial&& batched_unshifted, Polynomial&& batched_to_be_shifted)
 {
-
-    using Fr = typename Params::Fr;
-    using Polynomial = barretenberg::Polynomial<Fr>;
-
     const size_t num_variables = mle_opening_point.size(); // m
 
     const size_t num_threads = get_num_cpus_pow2();
@@ -144,15 +140,11 @@ std::vector<typename barretenberg::Polynomial<typename Params::Fr>> GeminiProver
  * and G(X) = ∑ⱼ ρᵏ⁺ʲ gⱼ(X), and the next d-1 elements are Fold_i, i = 1, ..., d-1.
  * @param r_challenge univariate opening challenge
  */
-template <typename Params>
-ProverOutput<Params> GeminiProver_<Params>::compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
+template <typename Curve>
+ProverOutput<Curve> GeminiProver_<Curve>::compute_fold_polynomial_evaluations(std::span<const Fr> mle_opening_point,
                                                                          std::vector<Polynomial>&& fold_polynomials,
                                                                          const Fr& r_challenge)
 {
-
-    using Fr = typename Params::Fr;
-    using Polynomial = barretenberg::Polynomial<Fr>;
-
     const size_t num_variables = mle_opening_point.size(); // m
 
     Polynomial& batched_F = fold_polynomials[0]; // F(X) = ∑ⱼ ρʲ   fⱼ(X)
@@ -179,16 +171,16 @@ ProverOutput<Params> GeminiProver_<Params>::compute_fold_polynomial_evaluations(
     // A₀₋(X) = F(X) - G(X)/r, s.t. A₀₋(-r) = A₀(-r)
     A_0_neg -= tmp;
 
-    std::vector<OpeningPair<Params>> fold_poly_opening_pairs;
+    std::vector<OpeningPair<Curve>> fold_poly_opening_pairs;
     fold_poly_opening_pairs.reserve(num_variables + 1);
 
     // Compute first opening pair {r, A₀(r)}
-    fold_poly_opening_pairs.emplace_back(OpeningPair<Params>{ r_challenge, fold_polynomials[0].evaluate(r_challenge) });
+    fold_poly_opening_pairs.emplace_back(OpeningPair<Curve>{ r_challenge, fold_polynomials[0].evaluate(r_challenge) });
 
     // Compute the remaining m opening pairs {−r^{2ˡ}, Aₗ(−r^{2ˡ})}, l = 0, ..., m-1.
     for (size_t l = 0; l < num_variables; ++l) {
         fold_poly_opening_pairs.emplace_back(
-            OpeningPair<Params>{ -r_squares[l], fold_polynomials[l + 1].evaluate(-r_squares[l]) });
+            OpeningPair<Curve>{ -r_squares[l], fold_polynomials[l + 1].evaluate(-r_squares[l]) });
     }
 
     return { fold_poly_opening_pairs, std::move(fold_polynomials) };
@@ -207,16 +199,13 @@ ProverOutput<Params> GeminiProver_<Params>::compute_fold_polynomial_evaluations(
  * (Cⱼ, Aⱼ(-r^{2ʲ}), -r^{2}), j = [1, ..., m-1]
  */
 
-template <typename Params>
-std::vector<OpeningClaim<Params>> GeminiVerifier_<Params>::reduce_verification(std::span<const Fr> mle_opening_point, /* u */
+template <typename Curve>
+std::vector<OpeningClaim<Curve>> GeminiVerifier_<Curve>::reduce_verification(std::span<const Fr> mle_opening_point, /* u */
                                                                 const Fr batched_evaluation,           /* all */
                                                                 GroupElement& batched_f,               /* unshifted */
                                                                 GroupElement& batched_g, /* to-be-shifted */
                                                                 VerifierTranscript<Fr>& transcript)
 {
-
-    using Fr = typename Params::Fr;
-    using Commitment = typename Params::Commitment;
     const size_t num_variables = mle_opening_point.size();
 
     // Get polynomials Fold_i, i = 1,...,m-1 from transcript
@@ -246,17 +235,17 @@ std::vector<OpeningClaim<Params>> GeminiVerifier_<Params>::reduce_verification(s
     // C₀_r_pos = ∑ⱼ ρʲ⋅[fⱼ] - r⁻¹⋅∑ⱼ ρᵏ⁺ʲ [gⱼ]
     auto [c0_r_pos, c0_r_neg] = compute_simulated_commitments(batched_f, batched_g, r);
 
-    std::vector<OpeningClaim<Params>> fold_polynomial_opening_claims;
+    std::vector<OpeningClaim<Curve>> fold_polynomial_opening_claims;
     fold_polynomial_opening_claims.reserve(num_variables + 1);
 
     // ( [A₀₊], r, A₀(r) )
-    fold_polynomial_opening_claims.emplace_back(OpeningClaim<Params>{ { r, a_0_pos }, c0_r_pos });
+    fold_polynomial_opening_claims.emplace_back(OpeningClaim<Curve>{ { r, a_0_pos }, c0_r_pos });
     // ( [A₀₋], -r, A₀(-r) )
-    fold_polynomial_opening_claims.emplace_back(OpeningClaim<Params>{ { -r, evaluations[0] }, c0_r_neg });
+    fold_polynomial_opening_claims.emplace_back(OpeningClaim<Curve>{ { -r, evaluations[0] }, c0_r_neg });
     for (size_t l = 0; l < num_variables - 1; ++l) {
         // ([A₀₋], −r^{2ˡ}, Aₗ(−r^{2ˡ}) )
         fold_polynomial_opening_claims.emplace_back(
-            OpeningClaim<Params>{ { -r_squares[l + 1], evaluations[l + 1] }, commitments[l] });
+            OpeningClaim<Curve>{ { -r_squares[l + 1], evaluations[l + 1] }, commitments[l] });
     }
 
     return fold_polynomial_opening_claims;
@@ -271,13 +260,12 @@ std::vector<OpeningClaim<Params>> GeminiVerifier_<Params>::reduce_verification(s
  * @param fold_polynomial_evals series of Aᵢ₋₁(−r^{2ⁱ⁻¹})
  * @return evaluation A₀(r)
  */
-template <typename Params>
-typename Params::Fr GeminiVerifier_<Params>::compute_eval_pos(const Fr batched_mle_eval,
+template <typename Curve>
+typename Curve::ScalarField GeminiVerifier_<Curve>::compute_eval_pos(const Fr batched_mle_eval,
                                                      std::span<const Fr> mle_vars,
                                                      std::span<const Fr> r_squares,
                                                      std::span<const Fr> fold_polynomial_evals)
 {
-    using Fr = typename Params::Fr;
     const size_t num_variables = mle_vars.size();
 
     const auto& evals = fold_polynomial_evals;
@@ -309,8 +297,8 @@ typename Params::Fr GeminiVerifier_<Params>::compute_eval_pos(const Fr batched_m
  * @param r evaluation point at which we have partially evaluated A₀ at r and -r.
  * @return std::pair<Commitment, Commitment>  c0_r_pos, c0_r_neg
  */
-template <typename Params>
-std::pair<typename Params::GroupElement, typename Params::GroupElement> GeminiVerifier_<Params>::compute_simulated_commitments(
+template <typename Curve>
+std::pair<typename Curve::Element, typename Curve::Element> GeminiVerifier_<Curve>::compute_simulated_commitments(
     GroupElement& batched_f, GroupElement& batched_g, Fr r)
 {
     // C₀ᵣ₊ = [F] + r⁻¹⋅[G]
@@ -326,8 +314,8 @@ std::pair<typename Params::GroupElement, typename Params::GroupElement> GeminiVe
     return { C0_r_pos, C0_r_neg };
 };
 
-template class GeminiProver_<proof_system::honk::pcs::kzg::Params>;
-template class GeminiProver_<proof_system::honk::pcs::ipa::Params>;
-template class GeminiVerifier_<proof_system::honk::pcs::kzg::Params>;
-template class GeminiVerifier_<proof_system::honk::pcs::ipa::Params>;
+template class GeminiProver_<curve::BN254>;
+template class GeminiProver_<curve::Grumpkin>;
+template class GeminiVerifier_<curve::BN254>;
+template class GeminiVerifier_<curve::Grumpkin>;
 }; // namespace proof_system::honk::pcs::gemini

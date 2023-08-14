@@ -1,6 +1,5 @@
 #pragma once
 
-#include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/plonk/composer/composer_lib.hpp"
 #include "barretenberg/plonk/flavor/flavor.hpp"
 #include "barretenberg/plonk/proof_system/prover/prover.hpp"

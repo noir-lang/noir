@@ -24,7 +24,7 @@ std::shared_ptr<typename Flavor::VerificationKey> compute_verification_key_commo
     auto verification_key = std::make_shared<typename Flavor::VerificationKey>(
         proving_key->circuit_size, proving_key->num_public_inputs, vrs);
 
-    auto commitment_key = typename Flavor::PCSParams::CommitmentKey(proving_key->circuit_size, proving_key->crs);
+    auto commitment_key = typename Flavor::CommitmentKey(proving_key->circuit_size, proving_key->crs);
 
     size_t poly_idx = 0; // TODO(#391) zip
     for (auto& polynomial : proving_key) {

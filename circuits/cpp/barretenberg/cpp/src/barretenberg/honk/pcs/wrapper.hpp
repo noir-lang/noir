@@ -1,7 +1,6 @@
 #pragma once
 
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include "commitment_key.hpp"
 #include "gemini/gemini.hpp"
 
 namespace proof_system::honk {

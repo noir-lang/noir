@@ -1,21 +1,22 @@
 #pragma once
 
 #include "../claim.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/polynomials/polynomial.hpp"
+#include "barretenberg/honk/pcs/commitment_key.hpp"
+#include "barretenberg/honk/pcs/verification_key.hpp"
 
 #include <memory>
 #include <utility>
 
 namespace proof_system::honk::pcs::kzg {
 
-template <typename Params> class KZG {
-    using CK = typename Params::CommitmentKey;
-    using VK = typename Params::VerificationKey;
-    using Fr = typename Params::Fr;
-    using Commitment = typename Params::Commitment;
-    using GroupElement = typename Params::GroupElement;
+template <typename Curve> class KZG {
+    using CK = CommitmentKey<Curve>;
+    using VK = VerifierCommitmentKey<Curve>;
+    using Fr = typename Curve::ScalarField;
+    using Commitment = typename Curve::AffineElement;
+    using GroupElement = typename Curve::Element;
     using Polynomial = barretenberg::Polynomial<Fr>;
 
     /**
@@ -28,7 +29,7 @@ template <typename Params> class KZG {
      */
   public:
     static void compute_opening_proof(std::shared_ptr<CK> ck,
-                                      const OpeningPair<Params>& opening_pair,
+                                      const OpeningPair<Curve>& opening_pair,
                                       const Polynomial& polynomial,
                                       ProverTranscript<Fr>& prover_trancript)
     {
@@ -54,7 +55,7 @@ template <typename Params> class KZG {
      *      - P₁ = [Q(x)]₁
      */
     static bool verify(std::shared_ptr<VK> vk,
-                       const OpeningClaim<Params>& claim,
+                       const OpeningClaim<Curve>& claim,
                        VerifierTranscript<Fr>& verifier_transcript)
     {
         auto quotient_commitment = verifier_transcript.template receive_from_prover<Commitment>("KZG:W");

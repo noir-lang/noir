@@ -1,6 +1,5 @@
 #pragma once
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/ipa/ipa.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/barycentric_data.hpp"
 #include "barretenberg/honk/sumcheck/polynomials/univariate.hpp"
@@ -24,15 +23,17 @@ class StandardGrumpkin {
     // purposes. This will be changed to Grumpkin once generating Honk proofs over Grumpkin has been enabled.
   public:
     using CircuitBuilder = StandardGrumpkinCircuitBuilder;
-    using PCSParams = pcs::ipa::Params;
-    using PCS = pcs::ipa::IPA<PCSParams>;
-    using Curve = PCSParams::Curve;
+    using Curve = curve::Grumpkin;
+    using PCS = pcs::ipa::IPA<Curve>;
     using GroupElement = Curve::Element;
     using Commitment = Curve::AffineElement;
     using CommitmentHandle = Curve::AffineElement;
     using FF = Curve::ScalarField;
     using Polynomial = barretenberg::Polynomial<FF>;
     using PolynomialHandle = std::span<FF>;
+    using CommitmentKey = pcs::CommitmentKey<Curve>;
+    using VerifierCommitmentKey = pcs::VerifierCommitmentKey<Curve>;
+    
     static constexpr size_t NUM_WIRES = CircuitBuilder::NUM_WIRES;
     // The number of multivariate polynomials on which a sumcheck prover sumcheck operates (including shifts). We often
     // need containers of this size to hold related data, so we choose a name more agnostic than `NUM_POLYNOMIALS`

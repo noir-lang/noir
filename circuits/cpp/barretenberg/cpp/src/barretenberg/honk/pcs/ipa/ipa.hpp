@@ -2,7 +2,6 @@
 #include "barretenberg/common/assert.hpp"
 #include "barretenberg/ecc/scalar_multiplication/scalar_multiplication.hpp"
 #include "barretenberg/honk/pcs/claim.hpp"
-#include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/transcript/transcript.hpp"
 #include <cstddef>
 #include <numeric>
@@ -15,13 +14,12 @@
  *
  */
 namespace proof_system::honk::pcs::ipa {
-template <typename Params> class IPA {
-    using Curve = typename Params::Curve;
-    using Fr = typename Params::Fr;
-    using GroupElement = typename Params::GroupElement;
-    using Commitment = typename Params::Commitment;
-    using CK = typename Params::CommitmentKey;
-    using VK = typename Params::VerificationKey;
+template <typename Curve> class IPA {
+    using Fr = typename Curve::ScalarField;
+    using GroupElement = typename Curve::Element;
+    using Commitment = typename Curve::AffineElement;
+    using CK = CommitmentKey<Curve>;
+    using VK = VerifierCommitmentKey<Curve>;
     using Polynomial = barretenberg::Polynomial<Fr>;
 
   public:
@@ -34,7 +32,7 @@ template <typename Params> class IPA {
      * @param transcript Prover transcript
      */
     static void compute_opening_proof(std::shared_ptr<CK> ck,
-                                      const OpeningPair<Params>& opening_pair,
+                                      const OpeningPair<Curve>& opening_pair,
                                       const Polynomial& polynomial,
                                       ProverTranscript<Fr>& transcript)
     {
@@ -136,7 +134,7 @@ template <typename Params> class IPA {
      * @return true/false depending on if the proof verifies
      */
     static bool verify(std::shared_ptr<VK> vk,
-                       const OpeningClaim<Params>& opening_claim,
+                       const OpeningClaim<Curve>& opening_claim,
                        VerifierTranscript<Fr>& transcript)
     {
         auto poly_degree = static_cast<size_t>(transcript.template receive_from_prover<uint64_t>("IPA:poly_degree"));
