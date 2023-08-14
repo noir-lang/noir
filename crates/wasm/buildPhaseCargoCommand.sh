@@ -25,7 +25,7 @@ fi
 
 # TODO: Handle the wasm target being built in release mode
 TARGET=wasm32-unknown-unknown
-WASM_BINARY=${self_path}/../../target/${TARGET}/release/${pname}.wasm
+WASM_BINARY=${CARGO_TARGET_DIR}/${TARGET}/release/${pname}.wasm
 
 NODE_DIR=${self_path}/pkg/nodejs/
 BROWSER_DIR=${self_path}/pkg/web/
