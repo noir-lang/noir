@@ -523,12 +523,20 @@ __metadata:
     "@rushstack/eslint-patch": ^1.1.4
     "@types/fs-extra": ^11.0.1
     "@types/jest": ^29.5.0
+    "@types/lodash.camelcase": ^4.3.7
+    "@types/lodash.capitalize": ^4.2.7
     "@types/lodash.compact": ^3.0.7
+    "@types/lodash.times": ^4.3.7
+    "@types/lodash.upperfirst": ^4.3.7
     "@types/node": ^18.7.23
     commander: ^9.0.0
     fs-extra: ^11.1.1
     jest: ^29.5.0
+    lodash.camelcase: ^4.3.0
+    lodash.capitalize: ^4.2.1
     lodash.compact: ^3.0.1
+    lodash.times: ^4.3.2
+    lodash.upperfirst: ^4.3.1
     toml: ^3.0.0
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
@@ -3228,6 +3236,15 @@ __metadata:
   dependencies:
     "@types/lodash": "*"
   checksum: ef068b921ab439f7b1a2c0ebbd890ba64ba437fc6aeb5e3ac18d34da30f9054fceaac5ccfdfa9e12b2fc403e10910439d3ebf92ba2f93de03c2f02261adfc000
+  languageName: node
+  linkType: hard
+
+"@types/lodash.capitalize@npm:^4.2.7":
+  version: 4.2.7
+  resolution: "@types/lodash.capitalize@npm:4.2.7"
+  dependencies:
+    "@types/lodash": "*"
+  checksum: dab8b781d7dcc56c18ba0c8286a6ccb61cc598d936a449265453a473e62b2b6d7c109c4447dfeb8ccacc4088769bc3bfd0d39bc8797f03e4e685d4f4b1bc7c01
   languageName: node
   linkType: hard
 

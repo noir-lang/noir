@@ -1,6 +1,6 @@
-import { ABIParameter, ABIType, FunctionType } from '@aztec/foundation/abi';
+import { ContractAbi, FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 import { createConsoleLogger } from '@aztec/foundation/log';
-import { generateType } from '@aztec/noir-compiler';
+import { generateNoirContractInterface, generateTSContractInterface } from '@aztec/noir-compiler';
 
 import { readFileSync, writeFileSync } from 'fs';
 import camelCase from 'lodash.camelcase';
@@ -11,7 +11,7 @@ import { join as pathJoin } from 'path';
 
 import mockedKeys from './mockedKeys.json' assert { type: 'json' };
 
-const STATEMENT_TYPES = ['type', 'params', 'return'] as const;
+// const STATEMENT_TYPES = ['type', 'params', 'return'] as const;
 const log = createConsoleLogger('aztec:noir-contracts');
 
 const PROJECT_CONTRACTS = [
@@ -19,6 +19,8 @@ const PROJECT_CONTRACTS = [
   { name: 'SchnorrAccount', target: '../aztec.js/src/abis/', exclude: [] },
   { name: 'EcdsaAccount', target: '../aztec.js/src/abis/', exclude: [] },
 ];
+
+const INTERFACE_CONTRACTS = ['test'];
 
 /**
  * Writes the contract to a specific project folder, if needed.
@@ -40,27 +42,28 @@ function writeToProject(abi: any) {
 
 /**
  * Creates an Aztec function entry.
- * @param type - The type of the function.
- * @param params - The parameters of the function.
+ * @param type - The type of the function (secret | open | unconstrained).
+ * @param params - The parameters of the function ( name, type, visibility ).
  * @param returns - The return types of the function.
  * @param fn - The nargo function entry.
  * @returns The Aztec function entry.
  */
-function getFunction(type: FunctionType, params: ABIParameter[], returns: ABIType[], fn: any) {
-  if (!params) throw new Error(`ABI comment not found for function ${fn.name}`);
+function getFunction(fn: any): FunctionAbi {
+  const type = fn.function_type.toLowerCase();
+  const returns = fn.abi.return_type;
+  const isInternal = fn.is_internal;
+  let params = fn.abi.parameters;
+
   // If the function is not unconstrained, the first item is inputs or CallContext which we should omit
   if (type !== FunctionType.UNCONSTRAINED) params = params.slice(1);
-  // If the function is not secret, drop any padding from the end
-  if (type !== FunctionType.SECRET && params.length > 0 && params[params.length - 1].name.endsWith('padding'))
-    params = params.slice(0, params.length - 1);
 
   return {
     name: fn.name,
     functionType: type,
-    isInternal: fn.is_internal,
+    isInternal,
     parameters: params,
     // If the function is secret, the return is the public inputs, which should be omitted
-    returnTypes: type === FunctionType.SECRET ? [] : returns,
+    returnTypes: type === FunctionType.SECRET ? [] : [returns],
     bytecode: fn.bytecode,
     // verificationKey: Buffer.from(fn.verification_key).toString('hex'),
     verificationKey: mockedKeys.verificationKey,
@@ -69,36 +72,21 @@ function getFunction(type: FunctionType, params: ABIParameter[], returns: ABITyp
 
 /**
  * Creates the Aztec function entries from the source code and the nargo output.
- * @param source - The source code of the contract.
- * @param output - The nargo output.
+ * @param sourceCode - The source code of the contract.
+ * @param buildJson - The nargo output.
  * @returns The Aztec function entries.
  */
-function getFunctions(source: string, output: any) {
-  const abiComments = Array.from(source.matchAll(/\/\/\/ ABI (\w+) (params|return|type) (.+)/g)).map(match => ({
-    functionName: match[1],
-    statementType: match[2],
-    value: JSON.parse(match[3]),
-  }));
-
-  return output.functions
+function getFunctions(_sourceCode: string, buildJson: any): FunctionAbi[] {
+  /**
+   * Sort functions alphabetically, by name.
+   * Remove the proving key field of the function.
+   *
+   */
+  return buildJson.functions
     .sort((fnA: any, fnB: any) => fnA.name.localeCompare(fnB.name))
     .map((fn: any) => {
       delete fn.proving_key;
-      const thisFunctionAbisComments = abiComments
-        .filter(abi => abi.functionName === fn.name)
-        .reduce(
-          (acc, comment) => ({
-            ...acc,
-            [comment.statementType]: comment.value,
-          }),
-          {} as Record<(typeof STATEMENT_TYPES)[number], any>,
-        );
-      return getFunction(
-        thisFunctionAbisComments.type || (fn.function_type.toLowerCase() as FunctionType),
-        thisFunctionAbisComments.params || fn.abi.parameters,
-        thisFunctionAbisComments.return || [fn.abi.return_type],
-        fn,
-      );
+      return getFunction(fn);
     });
 }
 
@@ -106,27 +94,45 @@ const main = () => {
   const name = process.argv[2];
   if (!name) throw new Error(`Missing argument contract name`);
 
-  const folderName = `${snakeCase(name)}_contract`;
-  const folderPath = `src/contracts/${folderName}`;
-  const source = readFileSync(`${folderPath}/src/main.nr`).toString();
-  const contractName = process.argv[3] ?? upperFirst(camelCase(name));
-  const build = JSON.parse(readFileSync(`${folderPath}/target/${folderName}-${contractName}.json`).toString());
-  const artifacts = 'src/artifacts';
+  const projectName = `${snakeCase(name)}_contract`;
+  const projectDirPath = `src/contracts/${projectName}`;
+  const sourceCodeFilePath = `${projectDirPath}/src/main.nr`;
+  const sourceCode = readFileSync(sourceCodeFilePath).toString();
 
-  const abi = {
-    name: build.name,
-    functions: getFunctions(source, build),
+  const contractName = upperFirst(camelCase(name));
+  const buildJsonFilePath = `${projectDirPath}/target/${projectName}-${contractName}.json`;
+  const buildJson = JSON.parse(readFileSync(buildJsonFilePath).toString());
+
+  // Remove extraneous information from the buildJson (which was output by Nargo) to hone in on the function data we actually care about:
+  const artifactJson: ContractAbi = {
+    name: buildJson.name,
+    functions: getFunctions(sourceCode, buildJson),
   };
 
-  const exampleFile = `${artifacts}/${snakeCase(name)}_contract.json`;
-  writeFileSync(exampleFile, JSON.stringify(abi, null, 2) + '\n');
-  log(`Written ${exampleFile}`);
+  // Write the artifact:
+  const artifactsDir = 'src/artifacts';
+  const artifactDestFilePath = `${artifactsDir}/${snakeCase(name)}_contract.json`;
+  writeFileSync(artifactDestFilePath, JSON.stringify(artifactJson, null, 2) + '\n');
+  log(`Written ${artifactDestFilePath}`);
 
-  writeToProject(abi);
+  // Write some artifacts to other packages in the monorepo:
+  writeToProject(artifactJson);
 
-  const typeFile = `src/types/${name}.ts`;
-  writeFileSync(typeFile, generateType(abi, '../artifacts/index.js'));
-  log(`Written ${typeFile}`);
+  // Write a .ts contract interface, for consumption by the typescript code
+  const tsInterfaceDestFilePath = `src/types/${name}.ts`;
+  writeFileSync(tsInterfaceDestFilePath, generateTSContractInterface(artifactJson, '../artifacts/index.js'));
+  log(`Written ${tsInterfaceDestFilePath}`);
+
+  // Write a .nr contract interface, for consumption by other Noir Contracts
+  if (INTERFACE_CONTRACTS.includes(name)) {
+    const noirInterfaceDestFilePath = `${projectDirPath}/src/${projectName}_interface.nr`;
+    try {
+      writeFileSync(noirInterfaceDestFilePath, generateNoirContractInterface(artifactJson));
+      log(`Written ${noirInterfaceDestFilePath}`);
+    } catch (err) {
+      log(`Error generating noir interface for ${name}: ${err}`);
+    }
+  }
 };
 
 try {

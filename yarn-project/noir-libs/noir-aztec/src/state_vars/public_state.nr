@@ -1,6 +1,6 @@
 use crate::oracle::storage::storage_read;
 use crate::oracle::storage::storage_write;
-use crate::state_vars::type_serialisation::TypeSerialisationInterface;
+use crate::types::type_serialisation::TypeSerialisationInterface;
 
 struct PublicState<T, T_SERIALISED_LEN> {
     storage_slot: Field,

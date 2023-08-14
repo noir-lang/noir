@@ -358,21 +358,25 @@ global ARGS_HASH_CHUNK_LENGTH: u32 = 32;
 global ARGS_HASH_CHUNK_COUNT: u32 = 16;
 
 fn hash_args<N>(args: [Field; N]) -> Field {
-    let mut chunks_hashes = [0; ARGS_HASH_CHUNK_COUNT];
-    for i in 0..ARGS_HASH_CHUNK_COUNT {
-        let mut chunk_hash = 0;
-        let start_chunk_index = i * ARGS_HASH_CHUNK_LENGTH;
-        if start_chunk_index < (args.len() as u32) {
-            let mut chunk_args = [0; ARGS_HASH_CHUNK_LENGTH];
-            for j in 0..ARGS_HASH_CHUNK_LENGTH {
-                let item_index = i * ARGS_HASH_CHUNK_LENGTH + j;
-                if item_index < (args.len() as u32) {
-                    chunk_args[j] = args[item_index];
+    if args.len() == 0 {
+        0
+    } else {
+        let mut chunks_hashes = [0; ARGS_HASH_CHUNK_COUNT];
+        for i in 0..ARGS_HASH_CHUNK_COUNT {
+            let mut chunk_hash = 0;
+            let start_chunk_index = i * ARGS_HASH_CHUNK_LENGTH;
+            if start_chunk_index < (args.len() as u32) {
+                let mut chunk_args = [0; ARGS_HASH_CHUNK_LENGTH];
+                for j in 0..ARGS_HASH_CHUNK_LENGTH {
+                    let item_index = i * ARGS_HASH_CHUNK_LENGTH + j;
+                    if item_index < (args.len() as u32) {
+                        chunk_args[j] = args[item_index];
+                    }
                 }
+                chunk_hash = dep::std::hash::pedersen_with_separator(chunk_args, GENERATOR_INDEX__FUNCTION_ARGS)[0];
             }
-            chunk_hash = dep::std::hash::pedersen_with_separator(chunk_args, GENERATOR_INDEX__FUNCTION_ARGS)[0];
+            chunks_hashes[i] = chunk_hash;
         }
-        chunks_hashes[i] = chunk_hash;
+        dep::std::hash::pedersen_with_separator(chunks_hashes, GENERATOR_INDEX__FUNCTION_ARGS)[0]
     }
-    dep::std::hash::pedersen_with_separator(chunks_hashes, GENERATOR_INDEX__FUNCTION_ARGS)[0]
 }

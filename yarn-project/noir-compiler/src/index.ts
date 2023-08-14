@@ -1,2 +1,3 @@
 export * from './compile.js';
-export * from './typegen/index.js';
+export * from './contract-interface-gen/typescript.js';
+export * from './contract-interface-gen/noir.js';

@@ -1,3 +1,4 @@
+mod bool_serialisation;
 mod field_serialisation;
 mod u32_serialisation;
 

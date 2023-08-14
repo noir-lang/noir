@@ -34,7 +34,7 @@ export function computeFunctionSelector(signature: string, size: number) {
  */
 export function generateFunctionSelector(name: string, parameters: ABIParameter[]) {
   const signature = computeFunctionSignature(name, parameters);
-  return keccak(Buffer.from(signature)).slice(0, 4);
+  return computeFunctionSelector(signature, 4);
 }
 
 /**

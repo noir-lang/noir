@@ -48,6 +48,33 @@ function generateMethod(entry: FunctionAbi) {
 }
 
 /**
+ * Generates a deploy method for this contract.
+ * @param input - ABI of the contract.
+ * @returns A type-safe deploy method in ts.
+ */
+function generateDeploy(input: ContractAbi) {
+  const ctor = input.functions.find(f => f.name === 'constructor');
+  const args = (ctor?.parameters ?? []).map(generateParameter).join(', ');
+  const abiName = `${input.name}ContractAbi`;
+
+  return `
+  /**
+   * Creates a tx to deploy a new instance of this contract.
+   */
+  public static deploy(rpc: AztecRPC, ${args}) {
+    return new DeployMethod<${input.name}Contract>(Point.ZERO, rpc, ${abiName}, Array.from(arguments).slice(1));
+  }
+
+  /**
+   * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
+   */
+  public static deployWithPublicKey(rpc: AztecRPC, publicKey: PublicKey, ${args}) {
+    return new DeployMethod<${input.name}Contract>(publicKey, rpc, ${abiName}, Array.from(arguments).slice(2));
+  }
+  `;
+}
+
+/**
  * Generates the constructor by supplying the ABI to the parent class so the user doesn't have to.
  * @param name - Name of the contract to derive the ABI name from.
  * @returns A constructor method.
@@ -94,33 +121,6 @@ function generateCreate(name: string) {
 }
 
 /**
- * Generates a deploy method for this contract.
- * @param input - ABI of the contract.
- * @returns A type-safe deploy method in ts.
- */
-function generateDeploy(input: ContractAbi) {
-  const ctor = input.functions.find(f => f.name === 'constructor');
-  const args = (ctor?.parameters ?? []).map(generateParameter).join(', ');
-  const abiName = `${input.name}ContractAbi`;
-
-  return `
-  /**
-   * Creates a tx to deploy a new instance of this contract.
-   */
-  public static deploy(rpc: AztecRPC, ${args}) {
-    return new DeployMethod<${input.name}Contract>(Point.ZERO, rpc, ${abiName}, Array.from(arguments).slice(1));
-  }
-
-  /**
-   * Creates a tx to deploy a new instance of this contract using the specified public key to derive the address.
-   */
-  public static deployWithPublicKey(rpc: AztecRPC, publicKey: PublicKey, ${args}) {
-    return new DeployMethod<${input.name}Contract>(publicKey, rpc, ${abiName}, Array.from(arguments).slice(2));
-  }
-  `;
-}
-
-/**
  * Generates a static getter for the contract's ABI.
  * @param name - Name of the contract used to derive name of the ABI import.
  */
@@ -142,7 +142,8 @@ function generateAbiGetter(name: string) {
  * @param abiImportPath - Optional path to import the ABI (if not set, will be required in the constructor).
  * @returns The corresponding ts code.
  */
-export function generateType(input: ContractAbi, abiImportPath?: string) {
+export function generateTSContractInterface(input: ContractAbi, abiImportPath?: string) {
+  // `compact` removes all falsey values from an array
   const methods = compact(input.functions.filter(f => f.name !== 'constructor').map(generateMethod));
   const deploy = abiImportPath && generateDeploy(input);
   const ctor = abiImportPath && generateConstructor(input.name);

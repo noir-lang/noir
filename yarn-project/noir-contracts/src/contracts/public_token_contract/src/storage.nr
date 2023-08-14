@@ -3,11 +3,12 @@ use dep::aztec::state_vars::{
     map::Map,
     // highlight-start:PublicState
     public_state::PublicState,  
-    type_serialisation::field_serialisation::{
-        FieldSerialisationMethods,
-        FIELD_SERIALISED_LEN,
-    },
     // highlight-end:PublicState
+};
+
+use dep::aztec::types::type_serialisation::field_serialisation::{
+    FieldSerialisationMethods,
+    FIELD_SERIALISED_LEN,
 };
 
 struct Storage {

@@ -1,6 +1,6 @@
 use dep::aztec::state_vars::public_state::PublicState;
-use dep::aztec::state_vars::type_serialisation::field_serialisation::FieldSerialisationMethods;
-use dep::aztec::state_vars::type_serialisation::field_serialisation::FIELD_SERIALISED_LEN;
+use dep::aztec::types::type_serialisation::field_serialisation::FieldSerialisationMethods;
+use dep::aztec::types::type_serialisation::field_serialisation::FIELD_SERIALISED_LEN;
 
 struct Storage {
     current_value: PublicState<Field, FIELD_SERIALISED_LEN>,

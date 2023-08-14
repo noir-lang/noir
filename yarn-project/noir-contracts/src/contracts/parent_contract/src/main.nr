@@ -58,7 +58,7 @@ contract Parent {
             targetValue,
         ]));
 
-        let _callStackItem = context.call_public_function(targetContract, targetSelector, [targetValue]);
+        context.call_public_function(targetContract, targetSelector, [targetValue]);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -78,9 +78,9 @@ contract Parent {
         ]));
 
         // Enqueue the first public call
-        let return_values1 = context.call_public_function(targetContract, targetSelector, [targetValue]);
+        context.call_public_function(targetContract, targetSelector, [targetValue]);
         // Enqueue the second public call
-        let _return_values2 = context.call_public_function(targetContract, targetSelector, [return_values1[0]]);
+        context.call_public_function(targetContract, targetSelector, [targetValue]);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -101,7 +101,7 @@ contract Parent {
 
         let pubEntryPointSelector = 3221316504;
         let thisAddress = inputs.call_context.storage_contract_address;
-        let _return_values = context.call_public_function(thisAddress, pubEntryPointSelector, [targetContract, targetSelector, targetValue]);
+        context.call_public_function(thisAddress, pubEntryPointSelector, [targetContract, targetSelector, targetValue]);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -123,9 +123,9 @@ contract Parent {
         let pubEntryPointSelector = 3221316504;
         let thisAddress = inputs.call_context.storage_contract_address;
         
-        let _return_values1 = context.call_public_function(thisAddress, pubEntryPointSelector, [targetContract, targetSelector, targetValue]);
+        context.call_public_function(thisAddress, pubEntryPointSelector, [targetContract, targetSelector, targetValue]);
 
-        let _return_values2 = context.call_public_function(thisAddress, pubEntryPointSelector, [targetContract, targetSelector, targetValue + 1]);
+        context.call_public_function(thisAddress, pubEntryPointSelector, [targetContract, targetSelector, targetValue + 1]);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()

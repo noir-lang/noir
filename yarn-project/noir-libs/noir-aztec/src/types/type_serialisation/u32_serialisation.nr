@@ -1,4 +1,4 @@
-use crate::state_vars::type_serialisation::TypeSerialisationInterface;
+use crate::types::type_serialisation::TypeSerialisationInterface;
 
 global U32_SERIALISED_LEN: Field = 1;
 

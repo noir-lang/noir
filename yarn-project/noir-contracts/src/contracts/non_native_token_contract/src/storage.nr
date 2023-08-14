@@ -12,13 +12,17 @@ use dep::value_note::value_note::{
     VALUE_NOTE_LEN,
 };
 
-use dep::aztec::state_vars::{
-    map::Map,
-    set::Set,
-    public_state::PublicState,
+use dep::aztec::{
+    state_vars::{
+        map::Map,
+        set::Set,
+        public_state::PublicState,
+    },
+    types::type_serialisation::field_serialisation::{
+        FIELD_SERIALISED_LEN,
+        FieldSerialisationMethods,
+    },
 };
-use dep::aztec::state_vars::type_serialisation::field_serialisation::FieldSerialisationMethods;
-use dep::aztec::state_vars::type_serialisation::field_serialisation::FIELD_SERIALISED_LEN;
 
 struct Storage {
     balances: Map<Set<ValueNote, VALUE_NOTE_LEN>>,

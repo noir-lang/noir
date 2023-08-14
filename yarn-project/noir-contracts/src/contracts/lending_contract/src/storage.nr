@@ -1,8 +1,8 @@
 use dep::aztec::state_vars::map::Map;
 use dep::aztec::state_vars::public_state::PublicState;
-use dep::aztec::state_vars::type_serialisation::TypeSerialisationInterface;
-use dep::aztec::state_vars::type_serialisation::field_serialisation::FieldSerialisationMethods;
-use dep::aztec::state_vars::type_serialisation::field_serialisation::FIELD_SERIALISED_LEN;
+use dep::aztec::types::type_serialisation::TypeSerialisationInterface;
+use dep::aztec::types::type_serialisation::field_serialisation::FieldSerialisationMethods;
+use dep::aztec::types::type_serialisation::field_serialisation::FIELD_SERIALISED_LEN;
 use dep::std::hash::pedersen;
 
 // Utility struct used to easily get a "id" for a private user that sits in the same

@@ -7,7 +7,7 @@ import fs from 'fs/promises';
 import nodePath from 'path';
 
 import { ContractCompiler } from './compile.js';
-import { generateType } from './index.js';
+import { generateTSContractInterface } from './index.js';
 
 const program = new Command();
 const log = createConsoleLogger('noir-compiler-cli');
@@ -39,7 +39,7 @@ const main = async () => {
     .argument('[targetPath]', 'Path to the output file')
     .action(async (buildPath: string, targetPath: string) => {
       const artifact = readJSONSync(buildPath);
-      const output = generateType(artifact);
+      const output = generateTSContractInterface(artifact);
       await fs.writeFile(targetPath, output);
       log(`Written type for ${artifact.name} to ${targetPath}`);
     });

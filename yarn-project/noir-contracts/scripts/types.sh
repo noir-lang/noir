@@ -22,7 +22,8 @@ ROOT=$(pwd)
 
 write_import() {
     CONTRACT_NAME=$1
-
+    
+    # Convert to PascalCase
     if [ "$(uname)" = "Darwin" ]; then
         # sed \U doesn't work on mac
         NAME=$(echo $CONTRACT_NAME | perl -pe 's/(^|_)(\w)/\U$2/g')
@@ -35,6 +36,8 @@ write_import() {
 
 write_export() {
     CONTRACT_NAME=$1
+
+    # Convert to PascalCase
     if [ "$(uname)" = "Darwin" ]; then
         # sed \U doesn't work on mac
         NAME=$(echo $CONTRACT_NAME | perl -pe 's/(^|_)(\w)/\U$2/g')
