@@ -1,6 +1,7 @@
 use std::{
     future::{self, Future},
     ops::{self, ControlFlow},
+    path::PathBuf,
     pin::Pin,
     task::{self, Poll},
 };
@@ -31,12 +32,13 @@ const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
 pub struct LspState {
+    root_path: Option<PathBuf>,
     client: ClientSocket,
 }
 
 impl LspState {
     fn new(client: &ClientSocket) -> Self {
-        Self { client: client.clone() }
+        Self { client: client.clone(), root_path: None }
     }
 }
 
@@ -102,9 +104,11 @@ impl LspService for NargoLspService {
 // and params passed in.
 
 fn on_initialize(
-    _state: &mut LspState,
-    _params: InitializeParams,
+    state: &mut LspState,
+    params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
+    state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
+
     async {
         let text_document_sync =
             TextDocumentSyncOptions { save: Some(true.into()), ..Default::default() };
@@ -144,7 +148,17 @@ fn on_code_lens_request(
         }
     };
 
-    let toml_path = match find_package_manifest(&file_path) {
+    let root_path = match &state.root_path {
+        Some(root) => root,
+        None => {
+            return future::ready(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "Could not find project root",
+            )))
+        }
+    };
+
+    let toml_path = match find_package_manifest(root_path, &file_path) {
         Ok(toml_path) => toml_path,
         Err(err) => {
             // If we cannot find a manifest, we log a warning but return no code lenses
@@ -269,7 +283,18 @@ fn on_did_save_text_document(
         }
     };
 
-    let toml_path = match find_package_manifest(&file_path) {
+    let root_path = match &state.root_path {
+        Some(root) => root,
+        None => {
+            return ControlFlow::Break(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "Could not find project root",
+            )
+            .into()));
+        }
+    };
+
+    let toml_path = match find_package_manifest(root_path, &file_path) {
         Ok(toml_path) => toml_path,
         Err(err) => {
             // If we cannot find a manifest, we log a warning but return no diagnostics
