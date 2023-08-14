@@ -14,6 +14,7 @@ mod stmt;
 pub use errors::TypeCheckError;
 
 use crate::{
+    hir_def::expr::HirExpression,
     node_interner::{ExprId, FuncId, NodeInterner, StmtId},
     Type,
 };
@@ -55,6 +56,13 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         }
     }
 
+    let empty_function = if let HirExpression::Block(block) = interner.expression(function_body_id)
+    {
+        block.statements().is_empty()
+    } else {
+        false
+    };
+
     // Check declared return type and actual return type
     if !can_ignore_ret {
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
@@ -63,10 +71,21 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
             *function_body_id,
             interner,
             &mut errors,
-            || TypeCheckError::TypeMismatch {
-                expected_typ: declared_return_type.to_string(),
-                expr_typ: function_last_type.to_string(),
-                expr_span: func_span,
+            || {
+                let mut error = TypeCheckError::TypeMismatchWithSource {
+                    lhs: declared_return_type.clone(),
+                    rhs: function_last_type.clone(),
+                    span: func_span,
+                    source: errors::Source::Return,
+                };
+
+                if empty_function {
+                    error = error.add_context(
+                        "implicitly returns `()` as its body has no tail or `return` expression",
+                    );
+                }
+
+                error
             },
         );
     }

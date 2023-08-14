@@ -23,6 +23,8 @@ pub enum Source {
     Comparison,
     #[error("BinOp")]
     BinOp,
+    #[error("Return")]
+    Return,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -195,6 +197,7 @@ impl From<TypeCheckError> for Diagnostic {
                     Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {lhs}, and RHS is {rhs}"),
                     Source::Comparison => format!("Unsupported types for comparison: {lhs} and {rhs}"),
                     Source::BinOp => format!("Unsupported types for binary operation: {lhs} and {rhs}"),
+                    Source::Return => format!("Expected return type {lhs}, but a value of type {rhs} was actually returned"),
                 };
 
                 Diagnostic::simple_error(message, String::new(), span)
