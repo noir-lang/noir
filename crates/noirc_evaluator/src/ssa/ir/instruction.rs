@@ -1,6 +1,6 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::location_stack::LocationStack;
 use num_bigint::BigUint;
 
 use super::{
@@ -426,7 +426,7 @@ pub(crate) enum TerminatorInstruction {
     /// Jumps to specified `destination` with `arguments`.
     /// The optional Location here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, location: Option<Location> },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, location: LocationStack },
 
     /// Return from the current function with the given return values.
     ///
@@ -454,7 +454,7 @@ impl TerminatorInstruction {
             Jmp { destination, arguments, location } => Jmp {
                 destination: *destination,
                 arguments: vecmap(arguments, |value| f(*value)),
-                location: *location,
+                location: location.clone(),
             },
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }

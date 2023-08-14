@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
-use crate::Location;
+use crate::location_stack::LocationStack;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct DebugInfo {
     /// Map opcode index of an ACIR circuit into the source code location
-    pub locations: HashMap<usize, Location>,
+    pub locations: HashMap<usize, LocationStack>,
 }
 
 impl DebugInfo {
-    pub fn new(locations: HashMap<usize, Location>) -> Self {
+    pub fn new(locations: HashMap<usize, LocationStack>) -> Self {
         DebugInfo { locations }
     }
 
@@ -27,13 +27,13 @@ impl DebugInfo {
         let mut new_locations = HashMap::new();
         for (i, idx) in opcode_indices.iter().enumerate() {
             if self.locations.contains_key(idx) {
-                new_locations.insert(i, self.locations[idx]);
+                new_locations.insert(i, self.locations[idx].clone());
             }
         }
         self.locations = new_locations;
     }
 
-    pub fn opcode_location(&self, idx: usize) -> Option<&Location> {
+    pub fn opcode_location(&self, idx: usize) -> Option<&LocationStack> {
         self.locations.get(&idx)
     }
 }

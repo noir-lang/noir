@@ -113,9 +113,9 @@ fn report_unsatisfied_constraint_error(
                 &CustomDiagnostic::simple_error(
                     "Unsatisfied constraint".to_string(),
                     "Constraint failed".to_string(),
-                    loc.span,
+                    loc[0].span,
                 ),
-                Some(loc.file),
+                Some(loc[0].file),
                 false,
             );
         }

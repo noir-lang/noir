@@ -1,12 +1,9 @@
 //! `GeneratedAcir` is constructed as part of the `acir_gen` pass to accumulate all of the ACIR
 //! program as it is being converted from SSA form.
-use std::collections::HashMap;
-
 use crate::{
     brillig::brillig_gen::brillig_directive,
     errors::{InternalError, RuntimeError},
 };
-
 use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::{
@@ -22,8 +19,9 @@ use acvm::{
     FieldElement,
 };
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::location_stack::LocationStack;
 use num_bigint::BigUint;
+use std::collections::HashMap;
 
 #[derive(Debug, Default)]
 /// The output of the Acir-gen pass
@@ -46,11 +44,11 @@ pub(crate) struct GeneratedAcir {
     pub(crate) input_witnesses: Vec<Witness>,
 
     /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
-    pub(crate) locations: HashMap<usize, Location>,
+    pub(crate) locations: HashMap<usize, LocationStack>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
-    pub(crate) current_location: Option<Location>,
+    pub(crate) current_location: LocationStack,
 }
 
 impl GeneratedAcir {
@@ -62,9 +60,7 @@ impl GeneratedAcir {
     /// Adds a new opcode into ACIR.
     fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
-        if let Some(location) = self.current_location {
-            self.locations.insert(self.opcodes.len() - 1, location);
-        }
+        self.locations.insert(self.opcodes.len() - 1, self.current_location.clone());
     }
 
     /// Updates the witness index counter and returns
@@ -195,7 +191,7 @@ impl GeneratedAcir {
                         return Err(InternalError::MissingArg {
                             name: "".to_string(),
                             arg: "message_size".to_string(),
-                            location: self.current_location,
+                            location: self.current_location.clone(),
                         });
                     }
                 };
@@ -706,7 +702,7 @@ impl GeneratedAcir {
         if num_bits >= FieldElement::max_num_bits() {
             return Err(RuntimeError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
-                location: self.current_location,
+                location: self.current_location.clone(),
             });
         };
 

@@ -11,6 +11,8 @@
 //! Currently, 1 and 4 are unimplemented.
 use std::collections::HashSet;
 
+use noirc_errors::location_stack::LocationStack;
+
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
@@ -87,7 +89,11 @@ fn check_for_constant_jmpif(
                 if constant.is_zero() { *else_destination } else { *then_destination };
 
             let arguments = Vec::new();
-            let jmp = TerminatorInstruction::Jmp { destination, arguments, location: None };
+            let jmp = TerminatorInstruction::Jmp {
+                destination,
+                arguments,
+                location: LocationStack::new(),
+            };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
         }

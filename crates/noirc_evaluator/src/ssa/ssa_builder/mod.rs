@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use acvm::FieldElement;
-use noirc_errors::Location;
+use noirc_errors::location_stack::LocationStack;
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -32,7 +32,7 @@ pub(crate) struct FunctionBuilder {
     pub(super) current_function: Function,
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
-    current_location: Option<Location>,
+    current_location: LocationStack,
 }
 
 impl FunctionBuilder {
@@ -53,7 +53,7 @@ impl FunctionBuilder {
             current_function: new_function,
             current_block,
             finished_functions: Vec::new(),
-            current_location: None,
+            current_location: LocationStack::new(),
         }
     }
 
@@ -150,7 +150,7 @@ impl FunctionBuilder {
             instruction,
             self.current_block,
             ctrl_typevars,
-            self.current_location,
+            self.current_location.clone(),
         )
     }
 
@@ -173,8 +173,8 @@ impl FunctionBuilder {
         self.insert_instruction(Instruction::Allocate, None).first()
     }
 
-    pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
-        self.current_location = Some(location);
+    pub(crate) fn set_location(&mut self, location: LocationStack) -> &mut FunctionBuilder {
+        self.current_location = location;
         self
     }
 
@@ -281,7 +281,7 @@ impl FunctionBuilder {
         destination: BasicBlockId,
         arguments: Vec<ValueId>,
     ) {
-        self.terminate_with_jmp_with_location(destination, arguments, None);
+        self.terminate_with_jmp_with_location(destination, arguments, LocationStack::new());
     }
 
     /// Terminate the current block with a jmp instruction to jmp to the given
@@ -291,7 +291,7 @@ impl FunctionBuilder {
         &mut self,
         destination: BasicBlockId,
         arguments: Vec<ValueId>,
-        location: Option<Location>,
+        location: LocationStack,
     ) {
         self.terminate_block_with(TerminatorInstruction::Jmp { destination, arguments, location });
     }

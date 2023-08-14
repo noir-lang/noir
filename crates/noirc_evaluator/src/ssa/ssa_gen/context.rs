@@ -4,7 +4,7 @@ use std::sync::{Mutex, RwLock};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::location_stack::LocationStack;
 use noirc_frontend::monomorphization::ast::{self, LocalId, Parameters};
 use noirc_frontend::monomorphization::ast::{FuncId, Program};
 use noirc_frontend::{BinaryOpKind, Signedness};
@@ -285,7 +285,7 @@ impl<'a> FunctionContext<'a> {
         mut lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         mut rhs: ValueId,
-        location: Location,
+        location: LocationStack,
     ) -> Values {
         let mut result = match operator {
             BinaryOpKind::ShiftLeft => self.insert_shift_left(lhs, rhs),
@@ -354,7 +354,7 @@ impl<'a> FunctionContext<'a> {
         lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         rhs: ValueId,
-        location: Location,
+        location: LocationStack,
     ) -> Values {
         let lhs_type = self.builder.type_of_value(lhs);
         let rhs_type = self.builder.type_of_value(rhs);
@@ -425,7 +425,7 @@ impl<'a> FunctionContext<'a> {
         function: ValueId,
         arguments: Vec<ValueId>,
         result_type: &ast::Type,
-        location: Location,
+        location: LocationStack,
     ) -> Values {
         let result_types = Self::convert_type(result_type).flatten();
         let results =
@@ -603,7 +603,12 @@ impl<'a> FunctionContext<'a> {
             }
             ast::LValue::Index { array, index, element_type, location } => {
                 let (old_array, index, index_lvalue) = self.index_lvalue(array, index);
-                let element = self.codegen_array_index(old_array, index, element_type, *location);
+                let element = self.codegen_array_index(
+                    old_array,
+                    index,
+                    element_type,
+                    LocationStack::from(vec![*location]),
+                );
                 (element, index_lvalue)
             }
             ast::LValue::MemberAccess { object, field_index: index } => {

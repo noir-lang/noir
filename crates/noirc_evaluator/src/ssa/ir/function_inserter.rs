@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::location_stack::LocationStack;
 
 use super::{
     basic_block::BasicBlockId,
@@ -56,7 +56,7 @@ impl<'f> FunctionInserter<'f> {
         self.values.insert(key, value);
     }
 
-    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, Option<Location>) {
+    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, LocationStack) {
         (
             self.function.dfg[id].clone().map_values(|id| self.resolve(id)),
             self.function.dfg.get_location(&id),
@@ -73,7 +73,7 @@ impl<'f> FunctionInserter<'f> {
         instruction: Instruction,
         id: InstructionId,
         block: BasicBlockId,
-        location: Option<Location>,
+        location: LocationStack,
     ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));

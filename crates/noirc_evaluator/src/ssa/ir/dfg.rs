@@ -12,10 +12,10 @@ use super::{
     types::Type,
     value::{Value, ValueId},
 };
+use noirc_errors::location_stack::LocationStack;
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::Location;
 
 /// The DataFlowGraph contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -75,7 +75,7 @@ pub(crate) struct DataFlowGraph {
     ///
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
-    locations: HashMap<InstructionId, Location>,
+    locations: HashMap<InstructionId, LocationStack>,
 }
 
 impl DataFlowGraph {
@@ -149,7 +149,7 @@ impl DataFlowGraph {
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
-        location: Option<Location>,
+        location: LocationStack,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
         match instruction.simplify(self, block) {
@@ -162,9 +162,7 @@ impl DataFlowGraph {
                 let instruction = result.instruction().unwrap_or(instruction);
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
-                if let Some(location) = location {
-                    self.locations.insert(id, location);
-                }
+                self.locations.insert(id, location);
                 InsertInstructionResult::Results(self.instruction_results(id))
             }
         }
@@ -407,14 +405,14 @@ impl DataFlowGraph {
         destination.set_terminator(terminator);
     }
 
-    pub(crate) fn get_location(&self, id: &InstructionId) -> Option<Location> {
-        self.locations.get(id).copied()
+    pub(crate) fn get_location(&self, id: &InstructionId) -> LocationStack {
+        self.locations.get(id).unwrap_or(&LocationStack::new()).clone()
     }
 
-    pub(crate) fn get_value_location(&self, id: &ValueId) -> Option<Location> {
+    pub(crate) fn get_value_location(&self, id: &ValueId) -> LocationStack {
         match &self.values[self.resolve(*id)] {
             Value::Instruction { instruction, .. } => self.get_location(instruction),
-            _ => None,
+            _ => LocationStack::new(),
         }
     }
 

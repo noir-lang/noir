@@ -12,9 +12,7 @@
 //!
 //! Note that this pass also often creates superfluous jmp instructions in the
 //! program that will need to be removed by a later simplify cfg pass.
-use std::collections::{HashMap, HashSet};
-
-use noirc_errors::Location;
+use noirc_errors::location_stack::LocationStack;
 
 use crate::{
     errors::RuntimeError,
@@ -33,6 +31,7 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
+use std::collections::{HashMap, HashSet};
 
 impl Ssa {
     /// Unroll all loops in each SSA function.
@@ -176,7 +175,7 @@ fn unroll_loop(
     function: &mut Function,
     cfg: &ControlFlowGraph,
     loop_: &Loop,
-) -> Result<(), Option<Location>> {
+) -> Result<(), LocationStack> {
     let mut unroll_into = get_pre_header(cfg, loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
 
@@ -209,7 +208,7 @@ fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
 fn get_induction_variable(
     function: &Function,
     block: BasicBlockId,
-) -> Result<ValueId, Option<Location>> {
+) -> Result<ValueId, LocationStack> {
     match function.dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
@@ -221,10 +220,10 @@ fn get_induction_variable(
             if function.dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
             } else {
-                Err(*location)
+                Err(location.clone())
             }
         }
-        _ => Err(None),
+        _ => Err(LocationStack::new()),
     }
 }
 
@@ -236,7 +235,7 @@ fn unroll_loop_header<'a>(
     loop_: &'a Loop,
     unroll_into: BasicBlockId,
     induction_value: ValueId,
-) -> Result<Option<LoopIteration<'a>>, Option<Location>> {
+) -> Result<Option<LoopIteration<'a>>, LocationStack> {
     // We insert into a fresh block first and move instructions into the unroll_into block later
     // only once we verify the jmpif instruction has a constant condition. If it does not, we can
     // just discard this fresh block and leave the loop unmodified.
@@ -391,7 +390,11 @@ impl<'f> LoopIteration<'f> {
                 self.source_block = self.get_original_block(destination);
 
                 let arguments = Vec::new();
-                let jmp = TerminatorInstruction::Jmp { destination, arguments, location: None };
+                let jmp = TerminatorInstruction::Jmp {
+                    destination,
+                    arguments,
+                    location: LocationStack::new(),
+                };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
             }

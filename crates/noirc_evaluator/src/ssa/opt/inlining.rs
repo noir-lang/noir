@@ -387,9 +387,7 @@ impl<'function> PerFunctionContext<'function> {
             .requires_ctrl_typevars()
             .then(|| vecmap(&results, |result| self.source_function.dfg.type_of_value(*result)));
 
-        if let Some(location) = location {
-            self.context.builder.set_location(location);
-        }
+        self.context.builder.set_location(location);
         let new_results = self.context.builder.insert_instruction(instruction, ctrl_typevars);
         Self::insert_new_instruction_results(&mut self.values, &results, new_results);
     }
@@ -439,7 +437,7 @@ impl<'function> PerFunctionContext<'function> {
                 self.context.builder.terminate_with_jmp_with_location(
                     destination,
                     arguments,
-                    *location,
+                    location.clone(),
                 );
                 None
             }

@@ -128,6 +128,8 @@ impl ControlFlowGraph {
 
 #[cfg(test)]
 mod tests {
+    use noirc_errors::location_stack::LocationStack;
+
     use crate::ssa::ir::{instruction::TerminatorInstruction, map::Id, types::Type};
 
     use super::{super::function::Function, ControlFlowGraph};
@@ -220,7 +222,7 @@ mod tests {
         func.dfg[block2_id].set_terminator(TerminatorInstruction::Jmp {
             destination: ret_block_id,
             arguments: vec![],
-            location: None,
+            location: LocationStack::new(),
         });
         func.dfg[block0_id].set_terminator(TerminatorInstruction::JmpIf {
             condition: cond,

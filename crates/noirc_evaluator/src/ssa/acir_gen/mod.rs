@@ -29,6 +29,7 @@ use acvm::{
 };
 use iter_extended::{try_vecmap, vecmap};
 use noirc_abi::AbiDistinctness;
+use noirc_errors::location_stack::LocationStack;
 
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
@@ -93,7 +94,7 @@ impl AcirValue {
             AcirValue::Var(var, _) => Ok(var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
                 message: "Called AcirValue::into_var on an array".to_string(),
-                location: None,
+                location: LocationStack::new(),
             }),
         }
     }
@@ -426,7 +427,7 @@ impl Context {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
         }
-        self.acir_context.set_location(None);
+        self.acir_context.set_location(LocationStack::new());
         Ok(())
     }
 
@@ -449,7 +450,7 @@ impl Context {
                 None => {
                     return Err(InternalError::General {
                         message: format!("Cannot find linked fn {unresolved_fn_label}"),
-                        location: None,
+                        location: LocationStack::new(),
                     })
                 }
             };

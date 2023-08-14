@@ -21,7 +21,7 @@ use acvm::{
 };
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::Location;
+use noirc_errors::location_stack::LocationStack;
 use std::collections::HashMap;
 use std::{borrow::Cow, hash::Hash};
 
@@ -153,11 +153,11 @@ impl AcirContext {
         self.add_data(var_data)
     }
 
-    pub(crate) fn get_location(&self) -> Option<Location> {
-        self.acir_ir.current_location
+    pub(crate) fn get_location(&self) -> LocationStack {
+        self.acir_ir.current_location.clone()
     }
 
-    pub(crate) fn set_location(&mut self, location: Option<Location>) {
+    pub(crate) fn set_location(&mut self, location: LocationStack) {
         self.acir_ir.current_location = location;
     }
 

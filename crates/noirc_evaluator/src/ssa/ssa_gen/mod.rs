@@ -6,7 +6,7 @@ pub(crate) use program::Ssa;
 
 use context::SharedContext;
 use iter_extended::vecmap;
-use noirc_errors::Location;
+use noirc_errors::{location_stack::LocationStack, Location};
 use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
 use self::{
@@ -237,13 +237,18 @@ impl<'a> FunctionContext<'a> {
     fn codegen_binary(&mut self, binary: &ast::Binary) -> Values {
         let lhs = self.codegen_non_tuple_expression(&binary.lhs);
         let rhs = self.codegen_non_tuple_expression(&binary.rhs);
-        self.insert_binary(lhs, binary.operator, rhs, binary.location)
+        self.insert_binary(lhs, binary.operator, rhs, LocationStack::from(vec![binary.location]))
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
         let array = self.codegen_non_tuple_expression(&index.collection);
         let index_value = self.codegen_non_tuple_expression(&index.index);
-        self.codegen_array_index(array, index_value, &index.element_type, index.location)
+        self.codegen_array_index(
+            array,
+            index_value,
+            &index.element_type,
+            LocationStack::from(vec![index.location]),
+        )
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -257,7 +262,7 @@ impl<'a> FunctionContext<'a> {
         array: super::ir::value::ValueId,
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
-        location: Location,
+        location: LocationStack,
     ) -> Values {
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
@@ -276,7 +281,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
         let lhs = self.codegen_non_tuple_expression(&cast.lhs);
         let typ = Self::convert_non_tuple_type(&cast.r#type);
-        self.builder.set_location(cast.location);
+        self.builder.set_location(LocationStack::from(vec![cast.location]));
         self.builder.insert_cast(lhs, typ).into()
     }
 
@@ -306,16 +311,20 @@ impl<'a> FunctionContext<'a> {
         let index_type = Self::convert_non_tuple_type(&for_expr.index_type);
         let loop_index = self.builder.add_block_parameter(loop_entry, index_type);
 
-        self.builder.set_location(for_expr.start_range_location);
+        self.builder.set_location(LocationStack::from(vec![for_expr.start_range_location]));
         let start_index = self.codegen_non_tuple_expression(&for_expr.start_range);
 
-        self.builder.set_location(for_expr.end_range_location);
+        self.builder.set_location(LocationStack::from(vec![for_expr.end_range_location]));
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range);
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
-        let jmp_location = Some(for_expr.start_range_location);
-        self.builder.terminate_with_jmp_with_location(loop_entry, vec![start_index], jmp_location);
+        let jmp_location = for_expr.start_range_location;
+        self.builder.terminate_with_jmp_with_location(
+            loop_entry,
+            vec![start_index],
+            LocationStack::from(vec![jmp_location]),
+        );
 
         // Compile the loop entry block
         self.builder.switch_to_block(loop_entry);
@@ -323,7 +332,7 @@ impl<'a> FunctionContext<'a> {
         // Set the location of the ending Lt instruction and the jmpif back-edge of the loop to the
         // end range. These are the instructions used to issue an error if the end of the range
         // cannot be determined at compile-time.
-        self.builder.set_location(for_expr.end_range_location);
+        self.builder.set_location(LocationStack::from(vec![for_expr.end_range_location]));
         let jump_condition = self.builder.insert_binary(loop_index, BinaryOp::Lt, end_index);
         self.builder.terminate_with_jmpif(jump_condition, loop_body, loop_end);
 
@@ -422,7 +431,12 @@ impl<'a> FunctionContext<'a> {
             .flat_map(|argument| self.codegen_expression(argument).into_value_list(self))
             .collect();
 
-        self.insert_call(function, arguments, &call.return_type, call.location)
+        self.insert_call(
+            function,
+            arguments,
+            &call.return_type,
+            LocationStack::from(vec![call.location]),
+        )
     }
 
     /// Generate SSA for the given variable.
@@ -445,7 +459,7 @@ impl<'a> FunctionContext<'a> {
 
     fn codegen_constrain(&mut self, expr: &Expression, location: Location) -> Values {
         let boolean = self.codegen_non_tuple_expression(expr);
-        self.builder.set_location(location).insert_constrain(boolean);
+        self.builder.set_location(LocationStack::from(vec![location])).insert_constrain(boolean);
         Self::unit_value()
     }
 
