@@ -166,13 +166,8 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::StrAsBytes => {
-            let str = dfg.get_array_constant(arguments[0]);
-            if let Some((str, typ)) = str {
-                let result = dfg.make_array(str, typ);
-                SimplifyResult::SimplifiedTo(result)
-            } else {
-                SimplifyResult::None
-            }
+            // Strings are already represented as bytes internally
+            SimplifyResult::SimplifiedTo(arguments[0])
         }
         Intrinsic::AssertConstant => {
             if arguments.iter().all(|argument| dfg.is_constant(*argument)) {
