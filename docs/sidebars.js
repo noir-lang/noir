@@ -194,6 +194,7 @@ const sidebars = {
       items: [
         "dev_docs/getting_started/noir",
         "dev_docs/getting_started/sandbox",
+        "dev_docs/getting_started/cli",
       ],
     },
 
@@ -280,6 +281,16 @@ const sidebars = {
         id: "dev_docs/sandbox/main",
       },
       items: ["dev_docs/sandbox/components", "dev_docs/sandbox/common_errors"],
+    },
+
+    {
+      label: "CLI",
+      type: "category",
+      link: {
+        type: "doc",
+        id: "dev_docs/cli/main",
+      },
+      items: [],
     },
 
     {

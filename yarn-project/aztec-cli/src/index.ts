@@ -5,10 +5,10 @@ import {
   ContractDeployer,
   Fr,
   Point,
-  createAccounts,
   createAztecRpcClient,
   generatePublicKey,
   getAccountWallet,
+  getUnsafeSchnorrAccount,
   isContractDeployed,
 } from '@aztec/aztec.js';
 import { StructType } from '@aztec/foundation/abi';
@@ -45,7 +45,7 @@ const program = new Command();
 
 program.name('aztec-cli').description('CLI for interacting with Aztec.').version('0.1.0');
 
-const { ETHEREUM_HOST, AZTEC_RPC_HOST, PRIVATE_KEY, PUBLIC_KEY, API_KEY } = process.env;
+const { ETHEREUM_HOST, AZTEC_RPC_HOST, PRIVATE_KEY, API_KEY } = process.env;
 
 /**
  * Main function for the Aztec CLI.
@@ -98,7 +98,7 @@ async function main() {
         publicKey = await generatePublicKey(new PrivateKey(key));
       } else {
         const key = PrivateKey.random();
-        privKey = PrivateKey.random().toString();
+        privKey = key.toString();
         publicKey = await generatePublicKey(key);
       }
       log(`\nPrivate Key: ${privKey}\nPublic Key: ${publicKey.toString()}\n`);
@@ -106,31 +106,31 @@ async function main() {
 
   program
     .command('create-account')
-    .description('Creates an aztec account that can be used for transactions.')
+    .description(
+      'Creates an aztec account that can be used for sending transactions. Registers the account on the RPC server and deploys an account contract. Uses a Schnorr single-key account which uses the same key for encryption and authentication (not secure for production usage).',
+    )
+    .summary('Creates an aztec account that can be used for sending transactions.')
     .option(
       '-k, --private-key <string>',
-      'Private Key to use for the 1st account generation. Uses random by default.',
+      'Private key for note encryption and transaction signing. Uses random by default.',
       PRIVATE_KEY,
     )
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async options => {
       const client = createAztecRpcClient(options.rpcUrl);
-      const privateKey = options.privateKey && Buffer.from(stripLeadingHex(options.privateKey), 'hex');
-      const wallet = await createAccounts(
-        client,
-        SchnorrSingleKeyAccountContractAbi,
-        privateKey && new PrivateKey(privateKey),
-        accountCreationSalt,
-        1,
-      );
-      const accounts = await wallet.getAccounts();
-      const pubKeysAndPartialAddresses = await Promise.all(
-        accounts.map(acc => wallet.getPublicKeyAndPartialAddress(acc)),
-      );
-      log(`\nCreated account(s).`);
-      accounts.map((acc, i) =>
-        log(`\nAddress: ${acc.toString()}\nPublic Key: ${pubKeysAndPartialAddresses[i][0].toString()}\n`),
-      );
+      const privateKey = options.privateKey
+        ? new PrivateKey(Buffer.from(stripLeadingHex(options.privateKey), 'hex'))
+        : PrivateKey.random();
+
+      const account = getUnsafeSchnorrAccount(client, privateKey, accountCreationSalt);
+      const wallet = await account.waitDeploy();
+      const { address, publicKey, partialAddress } = wallet.getCompleteAddress();
+
+      log(`\nCreated new account:\n`);
+      log(`Address:         ${address.toString()}`);
+      log(`Public key:      ${publicKey.toString()}`);
+      if (!options.privateKey) log(`Private key:     ${privateKey.toString()}`);
+      log(`Partial address: ${partialAddress.toString()}`);
     });
 
   program
@@ -145,40 +145,30 @@ async function main() {
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .option(
       '-k, --public-key <string>',
-      'Public key of the deployer. If not provided, it will check the RPC for existing ones.',
-      PUBLIC_KEY,
+      'Optional encryption public key for this address. Set this value only if this contract is expected to receive private notes, which will be encrypted using this public key.',
     )
+    .option('-s, --salt <string>', 'Optional deployment salt as a hex string for generating the deployment address.')
     .action(async (options: any) => {
       const contractAbi = await getContractAbi(options.contractAbi, log);
       const constructorAbi = contractAbi.functions.find(({ name }) => name === 'constructor');
 
       const client = createAztecRpcClient(options.rpcUrl);
-      let publicKey;
-      if (options.publicKey) {
-        publicKey = Point.fromString(options.publicKey);
-      } else {
-        const accounts = await client.getAccounts();
-        if (!accounts) {
-          throw new Error('No public key provided or found in Aztec RPC.');
-        }
-        publicKey = (await client.getPublicKeyAndPartialAddress(accounts[0]))[0];
-      }
-
-      log(`Using Public Key: ${publicKey.toString()}`);
-
-      const deployer = new ContractDeployer(contractAbi, client);
+      const publicKey = options.publicKey ? Point.fromString(options.publicKey) : undefined;
+      const salt = options.salt ? Fr.fromBuffer(Buffer.from(stripLeadingHex(options.salt), 'hex')) : undefined;
+      const deployer = new ContractDeployer(contractAbi, client, publicKey);
 
       const constructor = getAbiFunction(contractAbi, 'constructor');
+      if (!constructor) throw new Error(`Constructor not found in contract ABI`);
       if (constructor.parameters.length !== options.args.length) {
-        throw Error(
-          `Invalid number of args passed. Expected ${constructor.parameters.length}; Received: ${options.args.length}`,
+        throw new Error(
+          `Invalid number of args passed (expected ${constructor.parameters.length} but got ${options.args.length})`,
         );
       }
 
-      const tx = deployer.deploy(...encodeArgs(options.args, constructorAbi!.parameters), publicKey.toBigInts()).send();
-      await tx.isMined();
-      const receipt = await tx.getReceipt();
-      log(`\nAztec Contract deployed at ${receipt.contractAddress?.toString()}\n`);
+      const args = encodeArgs(options.args, constructorAbi!.parameters);
+      const tx = deployer.deploy(args).send({ contractAddressSalt: salt });
+      const deployed = await tx.wait();
+      log(`\nContract deployed at ${deployed.contractAddress!.toString()}\n`);
     });
 
   program
@@ -190,12 +180,13 @@ async function main() {
       const client = createAztecRpcClient(options.rpcUrl);
       const address = AztecAddress.fromString(options.contractAddress);
       const isDeployed = await isContractDeployed(client, address);
-      log(`\n${isDeployed.toString()}\n`);
+      if (isDeployed) log(`\nContract found at ${address.toString()}\n`);
+      else log(`\nNo contract found at ${address.toString()}\n`);
     });
 
   program
     .command('get-tx-receipt')
-    .argument('<txHash>', 'A TX hash to get the receipt for.')
+    .argument('<txHash>', 'A transaction hash to get the receipt for.')
     .description('Gets the receipt for the specified transaction hash.')
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async (_txHash, options) => {
@@ -203,9 +194,9 @@ async function main() {
       const txHash = TxHash.fromString(_txHash);
       const receipt = await client.getTxReceipt(txHash);
       if (!receipt) {
-        log(`No receipt found for tx hash ${_txHash}`);
+        log(`No receipt found for transaction hash ${_txHash}`);
       } else {
-        log(`\nTX Receipt: \n${JsonStringify(receipt, true)}\n`);
+        log(`\nTransaction receipt: \n${JsonStringify(receipt, true)}\n`);
       }
     });
 
@@ -234,7 +225,7 @@ async function main() {
         contractData = contractDataWithOrWithoutBytecode;
       }
       log(`\nContract Data: \nAddress: ${contractData.contractAddress.toString()}`);
-      log(`Portal: ${contractData.portalContractAddress.toString()}`);
+      log(`Portal:  ${contractData.portalContractAddress.toString()}`);
       if ('bytecode' in contractDataWithOrWithoutBytecode) {
         log(`Bytecode: ${contractDataWithOrWithoutBytecode.bytecode}`);
       }
@@ -297,7 +288,9 @@ async function main() {
         log(`Accounts found: \n`);
         for (const address of accounts) {
           const [pk, partialAddress] = await client.getPublicKeyAndPartialAddress(address);
-          log(`Address: ${address}\nPublic Key: ${pk.toString()}\nPartial Address: ${partialAddress.toString()}\n`);
+          log(
+            `Address:         ${address}\nPublic Key:      ${pk.toString()}\nPartial Address: ${partialAddress.toString()}\n`,
+          );
         }
       }
     });
@@ -359,12 +352,12 @@ async function main() {
       const contract = await Contract.create(contractAddress, contractAbi, wallet);
       const tx = contract.methods[functionName](...functionArgs).send();
       await tx.isMined();
-      log('\nTX has been mined');
+      log('\nTransaction has been mined');
       const receipt = await tx.getReceipt();
-      log(`TX Hash: ${(await tx.getTxHash()).toString()}`);
-      log(`Block Num: ${receipt.blockNumber}`);
-      log(`Block Hash: ${receipt.blockHash?.toString('hex')}`);
-      log(`TX Status: ${receipt.status}\n`);
+      log(`Transaction hash: ${(await tx.getTxHash()).toString()}`);
+      log(`Status: ${receipt.status}\n`);
+      log(`Block number: ${receipt.blockNumber}`);
+      log(`Block hash: ${receipt.blockHash?.toString('hex')}`);
     });
 
   program
@@ -399,7 +392,7 @@ async function main() {
       const client = createAztecRpcClient(options.rpcUrl);
       const from = await getTxSender(client, options.from);
       const result = await client.viewTx(functionName, functionArgs, contractAddress, from);
-      log('\nView TX result: ', JsonStringify(result, true), '\n');
+      log('\nView result: ', JsonStringify(result, true), '\n');
     });
 
   // Helper for users to decode hex strings into structs if needed

@@ -10,11 +10,11 @@ It aims to provide all of the functionality required to deploy and invoke contra
 
 ## Requirements
 
-The Aztec CLI is provided as an npm package containing an installed binary. You just need to:
+The Aztec CLI is provided as an npm package containing an installed binary. It can be installed by using:
 
 `yarn global add @aztec/cli`
 
-Once installed it can be invoked via:
+Once installed it is invoked via:
 
 `aztec-cli [options] [command]`
 
