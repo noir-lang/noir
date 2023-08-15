@@ -17,6 +17,8 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
+use super::unrolling::{find_all_loops, Loops};
+
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove stores that are subsequently redundant.
@@ -61,9 +63,7 @@ struct PerFunctionContext {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
     dom_tree: DominatorTree,
-    // Maps block id -> bool stating whether the block shares a common successor
-    // with one of its predecessors
-    has_common_successor: BTreeMap<BasicBlockId, bool>,
+    loops: Loops,
 }
 
 impl PerFunctionContext {
@@ -78,7 +78,7 @@ impl PerFunctionContext {
             cfg,
             post_order,
             dom_tree,
-            has_common_successor: BTreeMap::new(),
+            loops: find_all_loops(function),
         }
     }
 }
@@ -101,14 +101,16 @@ impl PerFunctionContext {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[block_id];
 
+        // Check whether the block has a common successor here to avoid analyzing
+        // the CFG for every block instruction.
         let has_common_successor = self.has_common_successor(block_id);
-        // Maintain a map for whether a block has a common successor to avoid
-        // analyzing the CFG for successors on every store or load
-        self.has_common_successor.insert(block_id, has_common_successor);
 
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
+                    if has_common_successor {
+                        protected_allocations.insert(address);
+                    }
                     address = self.fetch_load_value_to_substitute(block_id, address);
 
                     self.last_stores_with_block.insert((address, block_id), *value);
@@ -137,10 +139,6 @@ impl PerFunctionContext {
                         // This check prevents the pass from removing stores to a value that
                         // is used by reference aliases in different blocks
                         protected_allocations.insert(dfg.resolve(address));
-                    }
-
-                    if has_common_successor {
-                        protected_allocations.insert(address);
                     }
                 }
                 Instruction::Call { arguments, .. } => {
@@ -200,8 +198,16 @@ impl PerFunctionContext {
             // as this pass can occur before loop unrolling and flattening.
             // The mem2reg pass should be ran again following all optimization passes as new values
             // may be able to be promoted
-            if self.has_common_successor[&block_id] {
-                return address;
+            // if self.has_common_successor[&block_id] {
+            //     return address;
+            // }
+            for l in self.loops.yet_to_unroll.iter() {
+                // We do not want to substitute loads that take place within loops as this pass
+                // can occur before loop unrolling
+                // The pass should be ran again following loop unrolling as new values
+                if l.blocks.contains(&block) {
+                    return address;
+                }
             }
 
             // Check whether there is a load value to substitute in the current block.
@@ -246,8 +252,16 @@ impl PerFunctionContext {
             // as this pass can occur before loop unrolling and flattening.
             // The mem2reg pass should be ran again following all optimization passes as new values
             // may be able to be promoted
-            if self.has_common_successor[&block_id] {
-                return false;
+            // if self.has_common_successor[&block_id] {
+            //     return false;
+            // }
+            for l in self.loops.yet_to_unroll.iter() {
+                // We do not want to substitute loads that take place within loops as this pass
+                // can occur before loop unrolling
+                // The pass should be ran again following loop unrolling as new values
+                if l.blocks.contains(&block) {
+                    return false;
+                }
             }
 
             // Check whether there has been a store instruction in the current block
