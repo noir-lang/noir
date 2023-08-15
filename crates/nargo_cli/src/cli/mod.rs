@@ -66,7 +66,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
 
     // If the provided `program_dir` is relative, make it absolute by joining it to the current directory.
     if !config.program_dir.is_absolute() {
-        config.program_dir = std::env::current_dir().unwrap().join(config.program_dir)
+        config.program_dir = std::env::current_dir().unwrap().join(config.program_dir);
     }
 
     // Search through parent directories to find package root if necessary.
