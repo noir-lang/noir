@@ -1,0 +1,7 @@
+[package]
+name = "trait_not_exists"
+type = "bin"
+authors = [""]
+compiler_version = "0.9.0"
+
+[dependencies]

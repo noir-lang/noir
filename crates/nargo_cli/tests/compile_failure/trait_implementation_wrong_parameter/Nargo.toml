@@ -1,0 +1,7 @@
+[package]
+name = "trait_implementation_wrong_parameter"
+type = "bin"
+authors = [""]
+compiler_version = "0.9.0"
+
+[dependencies]
