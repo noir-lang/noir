@@ -42,7 +42,7 @@ else
   echo "Will install package to $out"
 fi
 
-run_or_fail ${self_path}/buildPhaseCargoCommand.sh debug
+run_or_fail ${self_path}/buildPhaseCargoCommand.sh release
 run_or_fail ${self_path}/installPhase.sh
 
 ln -s $out $self_path/result
