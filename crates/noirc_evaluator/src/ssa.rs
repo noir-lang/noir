@@ -52,6 +52,7 @@ pub(crate) fn optimize_into_acir(
             // Run mem2reg with the CFG separated into blocks
             .mem2reg()
             .print(print_ssa_passes, "After Mem2Reg:")
+            .evaluate_assert_constant()?
             .unroll_loops()?
             .print(print_ssa_passes, "After Unrolling:")
             .simplify_cfg()
