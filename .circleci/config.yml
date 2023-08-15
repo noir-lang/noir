@@ -976,6 +976,12 @@ jobs:
             deploy_ecr aztec.js
             deploy_npm aztec.js
       - run:
+          name: "noir-compiler"
+          working_directory: noir-compiler
+          command: |
+            deploy_ecr noir-compiler
+            deploy_npm noir-compiler
+      - run:
           name: "noir-contracts"
           working_directory: noir-contracts
           command: |

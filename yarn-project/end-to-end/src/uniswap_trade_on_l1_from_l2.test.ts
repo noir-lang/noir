@@ -142,7 +142,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
     expect(receipt.status).toEqual(TxStatus.MINED);
-    uniswapL2Contract = await UniswapContract.create(receipt.contractAddress!, wallet);
+    uniswapL2Contract = await UniswapContract.at(receipt.contractAddress!, wallet);
     await uniswapL2Contract.attach(uniswapPortalAddress);
 
     await uniswapPortal.write.initialize(

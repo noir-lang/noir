@@ -70,7 +70,7 @@ describe('e2e_2_rpc_servers', () => {
     await awaitUserSynchronised(wallet, owner);
 
     // Then check the balance
-    const contractWithWallet = await PrivateTokenContract.create(tokenAddress, wallet);
+    const contractWithWallet = await PrivateTokenContract.at(tokenAddress, wallet);
     const balance = await contractWithWallet.methods.getBalance(owner).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
@@ -116,7 +116,7 @@ describe('e2e_2_rpc_servers', () => {
     await expectUnencryptedLogsFromLastBlockToBe(aztecNode, ['Balance set in constructor']);
 
     // Transfer funds from A to B via RPC server A
-    const contractWithWalletA = await PrivateTokenContract.create(tokenAddress, walletA);
+    const contractWithWalletA = await PrivateTokenContract.at(tokenAddress, walletA);
     const txAToB = contractWithWalletA.methods
       .transfer(transferAmount1, userA.address, userB.address)
       .send({ origin: userA.address });
@@ -133,7 +133,7 @@ describe('e2e_2_rpc_servers', () => {
     await expectUnencryptedLogsFromLastBlockToBe(aztecNode, ['Coins transferred']);
 
     // Transfer funds from B to A via RPC server B
-    const contractWithWalletB = await PrivateTokenContract.create(tokenAddress, walletB);
+    const contractWithWalletB = await PrivateTokenContract.at(tokenAddress, walletB);
     const txBToA = contractWithWalletB.methods
       .transfer(transferAmount2, userB.address, userA.address)
       .send({ origin: userB.address });
@@ -188,7 +188,7 @@ describe('e2e_2_rpc_servers', () => {
 
     const newValueToSet = 256n;
 
-    const childContractWithWalletB = await ChildContract.create(childAddress, walletB);
+    const childContractWithWalletB = await ChildContract.at(childAddress, walletB);
     const tx = childContractWithWalletB.methods.pubStoreValue(newValueToSet).send({ origin: userB.address });
     await tx.isMined({ interval: 0.1 });
 

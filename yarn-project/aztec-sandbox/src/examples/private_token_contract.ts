@@ -24,7 +24,7 @@ async function deployZKContract(owner: AztecAddress) {
   logger('Deploying L2 contract...');
   const tx = PrivateTokenContract.deploy(aztecRpcClient, INITIAL_BALANCE, owner).send();
   const receipt = await tx.getReceipt();
-  const contract = await PrivateTokenContract.create(receipt.contractAddress!, wallet);
+  const contract = await PrivateTokenContract.at(receipt.contractAddress!, wallet);
   await tx.isMined();
   logger('L2 contract deployed');
   return contract;

@@ -66,7 +66,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const owner = accounts[userIndex];
 
     // Then check the balance
-    const contractWithWallet = await PrivateTokenContract.create(privateTokenAddress, wallet);
+    const contractWithWallet = await PrivateTokenContract.at(privateTokenAddress, wallet);
     const balance = await contractWithWallet.methods.getBalance(owner).view({ from: owner });
     logger(`Account ${owner} balance: ${balance}`);
     expect(balance).toBe(expectedBalance);
@@ -83,7 +83,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     const sender = accounts[senderIndex];
     const receiver = accounts[receiverIndex];
 
-    const contractWithWallet = await PrivateTokenContract.create(privateTokenAddress, wallets[senderIndex]);
+    const contractWithWallet = await PrivateTokenContract.at(privateTokenAddress, wallets[senderIndex]);
 
     const tx = contractWithWallet.methods.transfer(transferAmount, sender, receiver).send({ origin: sender });
     await tx.isMined({ interval: 0.1 });

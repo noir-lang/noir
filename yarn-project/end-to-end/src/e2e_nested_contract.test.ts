@@ -47,7 +47,7 @@ describe('e2e_nested_contract', () => {
       await tx.isMined({ interval: 0.1 });
 
       const receipt = await tx.getReceipt();
-      const contract = await Contract.create(receipt.contractAddress!, abi, wallet);
+      const contract = await Contract.at(receipt.contractAddress!, abi, wallet);
       logger(`L2 contract ${abi.name} deployed at ${contract.address}`);
       return contract;
     };

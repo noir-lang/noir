@@ -27,7 +27,7 @@ describe('e2e_lending_contract', () => {
     await tx.isMined({ interval: 0.1 });
     const txReceipt = await tx.getReceipt();
     logger(`L2 contract deployed at ${receipt.contractAddress}`);
-    contract = await LendingContract.create(receipt.contractAddress!, wallet);
+    contract = await LendingContract.at(receipt.contractAddress!, wallet);
     return { contract, tx, txReceipt };
   };
 

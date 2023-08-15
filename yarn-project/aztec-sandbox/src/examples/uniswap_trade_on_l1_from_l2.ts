@@ -111,7 +111,7 @@ async function deployAllContracts(owner: AztecAddress) {
   const tx = UniswapContract.deploy(aztecRpcClient).send({ portalContract: uniswapPortalAddress });
   await tx.isMined({ interval: 0.5 });
   const receipt = await tx.getReceipt();
-  const uniswapL2Contract = await UniswapContract.create(receipt.contractAddress!, wallet);
+  const uniswapL2Contract = await UniswapContract.at(receipt.contractAddress!, wallet);
   await uniswapL2Contract.attach(uniswapPortalAddress);
 
   await uniswapPortal.write.initialize(

@@ -1,7 +1,8 @@
 [package]
-name = ""
+name = "test"
 authors = [""]
 compiler_version = "0.1"
+type = "bin"
 
 [dependencies]
 test = { path = "../test_lib" }

@@ -7,9 +7,7 @@ type NoirFunctionType = 'Open' | 'Secret' | 'Unconstrained';
 interface NoirFunctionAbi {
   /** The parameters of the function. */
   parameters: ABIParameter[];
-  /**
-   * The witness indices of the parameters. Indexed by parameter name.
-   */
+  /** The witness indices of the parameters. Indexed by parameter name. */
   param_witnesses: Record<string, number[]>;
   /** The return type of the function. */
   return_type: ABIType;
@@ -20,19 +18,21 @@ interface NoirFunctionAbi {
 /**
  * The compilation result of a noir function.
  */
-interface NoirFunctionEntry {
+export interface NoirFunctionEntry {
   /** The name of the function. */
   name: string;
   /** The type of the function. */
   function_type: NoirFunctionType;
-  /**
-   * Whether the function is internal.
-   */
+  /** Whether the function is internal. */
   is_internal: boolean;
   /** The ABI of the function. */
   abi: NoirFunctionAbi;
-  /** The bytecode of the function. */
-  bytecode: Uint8Array;
+  /** The bytecode of the function in base64. */
+  bytecode: string;
+  /** The proving key. */
+  proving_key: string;
+  /** The verification key. */
+  verification_key: string;
 }
 
 /**
@@ -41,6 +41,8 @@ interface NoirFunctionEntry {
 export interface NoirCompiledContract {
   /** The name of the contract. */
   name: string;
+  /** Compilation backend. */
+  backend: string;
   /** The functions of the contract. */
   functions: NoirFunctionEntry[];
 }

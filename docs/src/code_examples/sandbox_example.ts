@@ -107,10 +107,10 @@ await viewUnencryptedLogs();
 ////////////// QUERYING THE TOKEN BALANCE FOR EACH ACCOUNT //////////////
 
 // Create the contract abstraction and link to Alice's wallet for future signing
-const tokenContractAlice = await PrivateTokenContract.create(receipt.contractAddress!, await accounts[0].getWallet());
+const tokenContractAlice = await PrivateTokenContract.at(receipt.contractAddress!, await accounts[0].getWallet());
 
 // Bob wants to mint some funds, the contract is already deployed, create an abstraction and link it his wallet
-const tokenContractBob = await PrivateTokenContract.create(receipt.contractAddress!, await accounts[1].getWallet());
+const tokenContractBob = await PrivateTokenContract.at(receipt.contractAddress!, await accounts[1].getWallet());
 
 const checkBalances = async () => {
   // Check Alice's balance

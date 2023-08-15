@@ -16,6 +16,9 @@
       "path": "../foundation"
     },
     {
+      "path": "../noir-compiler"
+    },
+    {
       "path": "../noir-contracts"
     },
     {

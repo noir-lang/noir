@@ -51,7 +51,7 @@ export async function deployAndInitializeNonNativeL2TokenContracts(
   });
   await tx.isMined();
   const receipt = await tx.getReceipt();
-  const l2Contract = await NonNativeTokenContract.create(receipt.contractAddress!, wallet);
+  const l2Contract = await NonNativeTokenContract.at(receipt.contractAddress!, wallet);
   await l2Contract.attach(tokenPortalAddress);
   const l2TokenAddress = l2Contract.address.toString() as `0x${string}`;
 

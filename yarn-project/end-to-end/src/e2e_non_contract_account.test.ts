@@ -35,7 +35,7 @@ describe('e2e_non_contract_account', () => {
     const minedReceipt = await tx.getReceipt();
     expect(minedReceipt.status).toEqual(TxStatus.MINED);
     logger('L2 contract deployed');
-    contract = await PokeableTokenContract.create(receipt.contractAddress!, wallet);
+    contract = await PokeableTokenContract.at(receipt.contractAddress!, wallet);
   }, 100_000);
 
   afterEach(async () => {
@@ -56,7 +56,7 @@ describe('e2e_non_contract_account', () => {
     await expectBalance(recipient, 0n);
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
 
-    const contractWithNoContractWallet = await PokeableTokenContract.create(contract.address, pokerWallet);
+    const contractWithNoContractWallet = await PokeableTokenContract.at(contract.address, pokerWallet);
 
     // Send transaction as poker (arbitrary non-contract account)
     await contractWithNoContractWallet.methods

@@ -2,7 +2,10 @@
   "name": "@aztec/noir-compiler",
   "version": "0.0.0",
   "type": "module",
-  "exports": "./dest/index.js",
+  "exports": {
+    ".": "./dest/index.js",
+    "./cli": "./dest/cli/index.js"
+  },
   "typedocOptions": {
     "entryPoints": [
       "./src/index.ts"
@@ -11,7 +14,7 @@
     "tsconfig": "./tsconfig.json"
   },
   "bin": {
-    "aztec_noir_compiler": "dest/cli.js"
+    "aztec-compile": "dest/cli.js"
   },
   "scripts": {
     "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",
@@ -38,6 +41,7 @@
     "@aztec/foundation": "workspace:^",
     "@noir-lang/noir-source-resolver": "1.1.1",
     "@noir-lang/noir_wasm": "0.5.1-9740f54",
+    "base64-js": "^1.5.1",
     "commander": "^9.0.0",
     "fs-extra": "^11.1.1",
     "lodash.camelcase": "^4.3.0",

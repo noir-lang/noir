@@ -64,7 +64,7 @@ describe('e2e_pending_commitments_contract', () => {
     await tx.isMined({ interval: 0.1 });
     await tx.getReceipt();
     logger('L2 contract deployed');
-    contract = await PendingCommitmentsContract.create(receipt.contractAddress!, wallet);
+    contract = await PendingCommitmentsContract.at(receipt.contractAddress!, wallet);
     return contract;
   };
 

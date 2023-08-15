@@ -23,7 +23,7 @@ console.log(`Contract address: ${receipt.contractAddress}`);
 ```typescript
 import { Contract } from '@aztec/aztec.js';
 
-const contract = await Contract.create(contractAddress, contractAbi, aztecRpcServer);
+const contract = await Contract.at(contractAddress, contractAbi, aztecRpcServer);
 const tx = contract.methods
     .transfer(amount, recipientAddress))
     .send({ origin: senderAddress });
@@ -36,7 +36,7 @@ console.log(`Transferred ${amount} to ${recipientAddress}!`);
 ```typescript
 import { Contract } from '@aztec/aztec.js';
 
-const contract = await Contract.create(contractAddress, contractAbi, aztecRpcServer);
+const contract = await Contract.at(contractAddress, contractAbi, aztecRpcServer);
 const balance = contract.methods
     .getBalance(accountPublicKey))
     .view({ from: accountAddress });

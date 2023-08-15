@@ -1,63 +1,34 @@
-import { ContractAbi, FunctionType } from '@aztec/foundation/abi';
-
+/* eslint-disable camelcase */
 import noirResolver from '@noir-lang/noir-source-resolver';
 import { compile } from '@noir-lang/noir_wasm';
+import { fromByteArray } from 'base64-js';
 import fsSync from 'fs';
 import fs from 'fs/promises';
 import nodePath from 'path';
 import toml from 'toml';
 
-import { mockVerificationKey } from './mockedKeys.js';
-import { NoirCompiledContract } from './noir_artifact.js';
+import { NoirCompiledContract } from '../noir_artifact.js';
 
-/**
- * A dependency entry of Nargo.toml.
- */
-export interface Dependency {
-  /**
-   * Path to the dependency.
-   */
+/** A dependency entry of Nargo.toml. */
+interface Dependency {
+  /** Path to the dependency. */
   path?: string;
-  /**
-   * Git repository of the dependency.
-   */
+  /** Git repository of the dependency. */
   git?: string;
 }
 
 /**
- * A class that compiles noir contracts and outputs the Aztec ABI.
+ * A class that compiles noir contracts using the noir wasm package.
  */
-export class ContractCompiler {
+export class WasmContractCompiler {
   constructor(private projectPath: string) {}
 
   /**
-   * Compiles the contracts in projectPath and returns the Aztec ABI.
-   * @returns Aztec ABI of the compiled contracts.
+   * Compiles the contracts in projectPath and returns the Noir artifact.
+   * @returns Noir artifact of the compiled contracts.
    */
-  public async compile(): Promise<ContractAbi[]> {
-    const noirContracts = await this.compileNoir();
-    const abis: ContractAbi[] = noirContracts.map(this.convertToAztecABI);
-    return abis;
-  }
-
-  /**
-   * Converts a compiled noir contract to Aztec ABI.
-   * @param contract - A compiled noir contract.
-   * @returns Aztec ABI of the contract.
-   */
-  private convertToAztecABI(contract: NoirCompiledContract): ContractAbi {
-    return {
-      ...contract,
-      functions: contract.functions.map(noirFn => ({
-        name: noirFn.name,
-        functionType: noirFn.function_type.toLowerCase() as FunctionType,
-        isInternal: noirFn.is_internal,
-        parameters: noirFn.abi.parameters,
-        returnTypes: [noirFn.abi.return_type],
-        bytecode: Buffer.from(noirFn.bytecode).toString('hex'),
-        verificationKey: mockVerificationKey,
-      })),
-    };
+  public compile(): Promise<NoirCompiledContract[]> {
+    return this.compileNoir();
   }
 
   /**
@@ -70,6 +41,22 @@ export class ContractCompiler {
       await fs.readFile(nodePath.join(cratePath, 'Nargo.toml'), { encoding: 'utf8' }),
     );
     return (dependencies || {}) as Record<string, Dependency>;
+  }
+
+  /**
+   * Cleans up wasm output and formats it to match nargo output.
+   * @param contract - A contract as outputted by wasm.
+   * @returns A nargo-like contract artifact.
+   */
+  private cleanUpWasmOutput(contract: any): NoirCompiledContract {
+    return {
+      ...contract,
+      functions: contract.functions.map((fn: any) => ({
+        ...fn,
+        is_internal: !!fn.is_internal, // noir wasm may return undefined for is_internal
+        bytecode: fromByteArray(fn.bytecode), // wasm returns Uint8Array instead of base64-encoded bytecode
+      })),
+    };
   }
 
   /**
@@ -105,9 +92,11 @@ export class ContractCompiler {
       return result;
     });
 
-    return compile({
+    const result = await compile({
       contracts: true,
       optional_dependencies_set: Object.keys(dependenciesMap), // eslint-disable-line camelcase
     });
+
+    return result.map(this.cleanUpWasmOutput);
   }
 }

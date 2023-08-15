@@ -115,7 +115,7 @@ async function deployAllContracts(
   });
   await tx.isMined();
   const receipt = await tx.getReceipt();
-  const uniswapL2Contract = await UniswapContract.create(receipt.contractAddress!, wallet);
+  const uniswapL2Contract = await UniswapContract.at(receipt.contractAddress!, wallet);
   await uniswapL2Contract.attach(uniswapPortalAddress);
 
   await uniswapPortal.write.initialize(

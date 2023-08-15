@@ -140,7 +140,7 @@ describe('e2e_cheat_codes', () => {
       const tx = LendingContract.deploy(aztecRpcServer).send();
       await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
-      const contract = await LendingContract.create(receipt.contractAddress!, wallet);
+      const contract = await LendingContract.at(receipt.contractAddress!, wallet);
 
       // now update time:
       const timestamp = await cc.l1.timestamp();

@@ -169,11 +169,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
         const owner = (await client.getAccounts())[0].address;
         const wallet = await AztecJs.getSandboxAccountsWallet(client);
-        const contract = await Contract.create(
-          AztecAddress.fromString(contractAddress),
-          PrivateTokenContractAbi,
-          wallet,
-        );
+        const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
         const balance = await contract.methods.getBalance(owner).view({ from: owner });
         return balance;
       },
@@ -195,11 +191,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         const owner = accounts[0].address;
         const receiver = accounts[1].address;
         const wallet = await AztecJs.getSandboxAccountsWallet(client);
-        const contract = await Contract.create(
-          AztecAddress.fromString(contractAddress),
-          PrivateTokenContractAbi,
-          wallet,
-        );
+        const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
         await contract.methods.transfer(transferAmount, owner, receiver).send({ origin: owner }).wait();
         console.log(`Transferred ${transferAmount} tokens to new Account`);
         return await contract.methods.getBalance(receiver).view({ from: receiver });
