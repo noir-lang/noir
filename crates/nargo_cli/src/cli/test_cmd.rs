@@ -122,7 +122,7 @@ fn run_test<B: Backend>(
     config: &CompileOptions,
 ) -> Result<(), CliError<B>> {
     let mut program = compile_no_check(context, config, main).map_err(|err| {
-        noirc_errors::reporter::report_all(&context.file_manager, &err, config.deny_warnings);
+        noirc_errors::reporter::report_all(&context.file_manager, &[err], config.deny_warnings);
         CliError::Generic(format!("Test '{test_name}' failed to compile"))
     })?;
 

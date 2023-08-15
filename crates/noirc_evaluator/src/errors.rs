@@ -81,41 +81,32 @@ impl RuntimeError {
     }
 }
 
-impl From<RuntimeError> for Vec<FileDiagnostic> {
-    fn from(error: RuntimeError) -> Vec<FileDiagnostic> {
-        let file_ids = vecmap(error.call_stack(), |loc| loc.file);
-        vecmap(error.as_diagnostics().into_iter().zip(file_ids), |(diagnostic, file_id)| {
-            FileDiagnostic { file_id, diagnostic }
-        })
+impl From<RuntimeError> for FileDiagnostic {
+    fn from(error: RuntimeError) -> FileDiagnostic {
+        let call_stack = vecmap(error.call_stack(), |location| *location);
+        let diagnostic = error.into_diagnostic();
+        let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
+
+        diagnostic.in_file(file_id).with_call_stack(call_stack)
     }
 }
 
 impl RuntimeError {
-    fn as_diagnostics(self) -> Vec<Diagnostic> {
+    fn into_diagnostic(self) -> Diagnostic {
         match self {
             RuntimeError::InternalError(_) => {
-                vec![Diagnostic::simple_error(
+                Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n 
                     This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                     "".to_string(),
                     noirc_errors::Span::new(0..0)
-                )]
+                )
             }
             _ => {
                 let message = self.to_string();
-                let mut locations = self.call_stack().clone();
-                let mut errors = Vec::new();
+                let location = self.call_stack().back().expect("Expected RuntimeError to have a location");
 
-                if let Some(location) = locations.pop_back() {
-                    errors.push(Diagnostic::simple_error(message, String::new(), location.span));
-                }
-
-                for location in locations.into_iter().rev() {
-                    let message = "Called from here".into();
-                    errors.push(Diagnostic::simple_error(message, String::new(), location.span));
-                }
-
-                errors
+                Diagnostic::simple_error(message, String::new(), location.span)
             }
         }
     }

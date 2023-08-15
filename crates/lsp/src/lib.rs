@@ -307,7 +307,7 @@ fn on_did_save_text_document(
             let fm = &context.file_manager;
             let files = fm.as_simple_files();
 
-            for FileDiagnostic { file_id, diagnostic } in file_diagnostics {
+            for FileDiagnostic { file_id, diagnostic, call_stack: _ } in file_diagnostics {
                 // Ignore diagnostics for any file that wasn't the file we saved
                 // TODO: In the future, we could create "related" diagnostics for these files
                 // TODO: This currently just appends the `.nr` file extension that we store as a constant,

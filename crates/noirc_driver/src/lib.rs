@@ -151,12 +151,10 @@ pub fn compile_main(
         Some(m) => m,
         None => {
             // TODO(#2155): This error might be a better to exist in Nargo
-            let err = FileDiagnostic {
-                file_id: FileId::default(),
-                diagnostic: CustomDiagnostic::from_message(
-                    "cannot compile crate into a program as it does not contain a `main` function",
-                ),
-            };
+            let err = CustomDiagnostic::from_message(
+                "cannot compile crate into a program as it does not contain a `main` function",
+            )
+            .in_file(FileId::default());
             return Err(vec![err]);
         }
     };
@@ -231,8 +229,8 @@ fn compile_contract(
         let name = context.function_name(function_id).to_owned();
         let function = match compile_no_check(context, options, *function_id) {
             Ok(function) => function,
-            Err(mut new_errors) => {
-                errors.append(&mut new_errors);
+            Err(new_error) => {
+                errors.push(new_error);
                 continue;
             }
         };
@@ -269,7 +267,7 @@ pub fn compile_no_check(
     context: &Context,
     options: &CompileOptions,
     main_function: FuncId,
-) -> Result<CompiledProgram, Vec<FileDiagnostic>> {
+) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
     let (circuit, debug, abi) = create_circuit(program, options.show_ssa, options.show_brillig)?;
