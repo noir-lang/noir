@@ -115,4 +115,6 @@ You can embed code snippets into a `.md`/`.mdx` file from code which lives elsew
     - `#include_code hello path/from/repo/root/to/file.ts typescript`
   - And somewhere else, you can write:
     - `#include_code goodbye path/from/repo/root/to/file.ts typescript`
+- You can add as a last optional parameter a comma-separated list of options to tweak the display of the code block, for example:
+  - `#include_code hello path/from/repo/root/to/file.ts typescript noTitle,noLineNumbers,noSourceLink`
 - Ironically, we can't show you a rendering of these examples, because this README.md file doesn't support the `#include_code` macro!

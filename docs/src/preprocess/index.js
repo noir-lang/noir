@@ -209,6 +209,11 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
         const identifier = match[1];
         const codeFilePath = match[2]; // Absolute path to the code file from the root of the Docusaurus project
         const language = match[3];
+        const opts = match[4] || "";
+
+        const noTitle = opts.includes("noTitle");
+        const noLineNumbers = opts.includes("noLineNumbers");
+        const noSourceLink = opts.includes("noSourceLink");
 
         try {
           const absoluteCodeFilePath = path.join(rootDir, codeFilePath);
@@ -224,7 +229,12 @@ async function processMarkdownFilesInDir(rootDir, docsDir, regex) {
             codeFilePath
           )}#L${startLine}-L${endLine}`;
 
-          const replacement = `\`\`\`${language} title="${identifier}" showLineNumbers \n${codeSnippet}\n\`\`\`\n> [<sup><sub>Source code: ${url}</sub></sup>](${url})\n`;
+          const title = noTitle ? "" : `title="${identifier}"`;
+          const lineNumbers = noLineNumbers ? "" : "showLineNumbers";
+          const source = noSourceLink
+            ? ""
+            : `\n> [<sup><sub>Source code: ${url}</sub></sup>](${url})`;
+          const replacement = `\`\`\`${language} ${title} ${lineNumbers} \n${codeSnippet}\n\`\`\`${source}\n`;
 
           // Replace the include tag with the code snippet
           updatedContent = updatedContent.replace(fullMatch, replacement);
@@ -365,7 +375,8 @@ async function run() {
    * `/gm`
    *   - match globally (g) across the entire input text and consider multiple lines (m) when matching. This is necessary to handle multiple include tags throughout the markdown content.
    */
-  const regex = /^(?!<!--.*)(?=.*#include_code\s+(\S+)\s+(\S+)\s+(\S+)).*$/gm;
+  const regex =
+    /^(?!<!--.*)(?=.*#include_code\s+(\S+)\s+(\S+)\s+(\S+)(?:[ ]+(\S+))?).*$/gm;
 
   const content = await processMarkdownFilesInDir(rootDir, docsDir, regex);
 
