@@ -127,8 +127,7 @@ contract PendingCommitments {
         amount: Field,
         owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner]));
         context.finish()
     }
 
