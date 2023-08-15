@@ -347,6 +347,7 @@
         COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
         VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
         PKG_PATH = "./pkg";
+        CARGO_TARGET_DIR = "./target";
 
         nativeBuildInputs = with pkgs; [
           which
@@ -359,7 +360,7 @@
         ];
 
         buildPhaseCargoCommand = ''
-          bash crates/noirc_abi_wasm/buildPhaseCargoCommand.sh
+          bash crates/noirc_abi_wasm/buildPhaseCargoCommand.sh release
         '';
 
         installPhase = ''
