@@ -1,6 +1,6 @@
 use noirc_errors::{Location, Span};
 
-use crate::hir_def::expr::HirIdent;
+use crate::hir_def::expr::{HirExpression, HirIdent, HirLiteral};
 use crate::hir_def::stmt::{
     HirAssignStatement, HirConstrainStatement, HirLValue, HirLetStatement, HirPattern, HirStatement,
 };
@@ -272,9 +272,7 @@ impl<'interner> TypeChecker<'interner> {
         let expr = self.interner.expression(rhs_expr);
         let span = self.interner.expr_span(rhs_expr);
         match expr {
-            crate::hir_def::expr::HirExpression::Literal(
-                crate::hir_def::expr::HirLiteral::Integer(value),
-            ) => {
+            HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let v: u128 = value.to_u128();
                 if let Type::Integer(_, bit) = annotated_type {
                     let max = 1 << bit;
@@ -288,7 +286,7 @@ impl<'interner> TypeChecker<'interner> {
                     };
                 };
             }
-            crate::hir_def::expr::HirExpression::Prefix(_) => self
+            HirExpression::Prefix(_) => self
                 .errors
                 .push(TypeCheckError::InvalidUnaryOp { kind: annotated_type.to_string(), span }),
             _ => {}
