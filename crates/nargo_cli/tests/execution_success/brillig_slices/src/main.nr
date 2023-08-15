@@ -3,47 +3,49 @@ use dep::std;
 
 unconstrained fn main(x: Field, y: Field) {
     let mut slice: [Field] = [y, x];
+    std::println(slice.len());
     assert(slice.len() == 2);
 
     slice = slice.push_back(7);
+    std::println(slice.len());
     assert(slice.len() == 3);
     assert(slice[0] == y);
     assert(slice[1] == x);
-    // dep::std::println(slice[2]);
     assert(slice[2] == 7);
 
-    // // Array set on slice target
-    // slice[0] = x;
-    // slice[1] = y;
-    // slice[2] = 1;
+    // Array set on slice target
+    slice[0] = x;
+    slice[1] = y;
+    slice[2] = 1;
 
-    // assert(slice[0] == x);
-    // assert(slice[1] == y);
-    // assert(slice[2] == 1);
+    assert(slice[0] == x);
+    assert(slice[1] == y);
+    assert(slice[2] == 1);
 
-    // slice = push_front_to_slice(slice, 2);
-    // assert(slice.len() == 4);
-    // assert(slice[0] == 2);
-    // assert(slice[1] == x);
-    // assert(slice[2] == y);
-    // assert(slice[3] == 1);
+    slice = push_front_to_slice(slice, 2);
+    assert(slice.len() == 4);
+    assert(slice[0] == 2);
+    assert(slice[1] == x);
+    assert(slice[2] == y);
+    assert(slice[3] == 1);
 
-    // let (item, popped_front_slice) = slice.pop_front();
-    // slice = popped_front_slice;
-    // assert(item == 2);
+    let (item, popped_front_slice) = slice.pop_front();
+    slice = popped_front_slice;
+    assert(item == 2);
+    std::println(popped_front_slice.len());
 
-    // assert(slice.len() == 3);
-    // assert(slice[0] == x);
-    // assert(slice[1] == y);
-    // assert(slice[2] == 1);
+    assert(slice.len() == 3);
+    assert(slice[0] == x);
+    assert(slice[1] == y);
+    assert(slice[2] == 1);
 
-    // let (popped_back_slice, another_item) = slice.pop_back();
-    // slice = popped_back_slice;
-    // assert(another_item == 1);
+    let (popped_back_slice, another_item) = slice.pop_back();
+    slice = popped_back_slice;
+    assert(another_item == 1);
 
-    // assert(slice.len() == 2);
-    // assert(slice[0] == x);
-    // assert(slice[1] == y);
+    assert(slice.len() == 2);
+    assert(slice[0] == x);
+    assert(slice[1] == y);
 
     // slice = slice.insert(1, 2);
     // assert(slice.len() == 3);

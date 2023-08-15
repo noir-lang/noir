@@ -935,7 +935,6 @@ impl BrilligContext {
     }
 
     pub(crate) fn extract_heap_vector(&mut self, variable: RegisterOrMemory) -> HeapVector {
-        dbg!(variable.clone());
         match variable {
             RegisterOrMemory::HeapVector(vector) => vector,
             RegisterOrMemory::HeapArray(array) => {

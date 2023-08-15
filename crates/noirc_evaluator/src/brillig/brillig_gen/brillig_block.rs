@@ -202,7 +202,8 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
-
+        // dbg!(instruction.clone());
+        // dbg!(dfg.instruction_results(instruction_id));
         match instruction {
             Instruction::Binary(binary) => {
                 let result_register = self.function_context.create_register_variable(
@@ -232,6 +233,9 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.store_variable_instruction(address_register, source_variable);
             }
             Instruction::Load { address } => {
+                // println!("LOAD: {address}");
+                // dbg!(dfg.type_of_value(*address));
+                // dbg!(&dfg[*address]);
                 let target_variable = self.function_context.create_variable(
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
@@ -252,7 +256,9 @@ impl<'block> BrilligBlock<'block> {
                 let bit_size = Self::get_bit_size_from_ssa_type(dfg.type_of_value(*value));
                 self.brillig_context.not_instruction(condition_register, bit_size, result_register);
             }
-            Instruction::Call { func, arguments } => match &dfg[*func] {
+            Instruction::Call { func, arguments } => {
+                // dbg!(&dfg[*func]);
+            match &dfg[*func] {
                 Value::ForeignFunction(func_name) => {
                     let result_ids = dfg.instruction_results(instruction_id);
 
@@ -298,6 +304,7 @@ impl<'block> BrilligBlock<'block> {
                     );
                 }
                 Value::Intrinsic(Intrinsic::ArrayLen) => {
+                    dbg!("got into ArrayLen");
                     let result_register = self.function_context.create_register_variable(
                         self.brillig_context,
                         dfg.instruction_results(instruction_id)[0],
@@ -373,6 +380,7 @@ impl<'block> BrilligBlock<'block> {
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
+            }
             },
             Instruction::Truncate { value, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
@@ -598,20 +606,25 @@ impl<'block> BrilligBlock<'block> {
         arguments: &[ValueId],
     ) {
         let slice_id = arguments[1];
-        dbg!(&dfg.type_of_value(slice_id));
         let element_size = dfg.type_of_value(slice_id).element_size();
         let source_variable = self.convert_ssa_value(slice_id, dfg);
         let source_vector = self.convert_array_or_vector_to_vector(source_variable);
         dbg!(intrinsic.clone());
+        dbg!(arguments.len());
         match intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) => {
                 let results = dfg.instruction_results(instruction_id);
-                // TODO: maybe we do not want this
-                match self.function_context.create_variable(
+
+                // TODO: cleanup the source and target len
+                let target_len = match self.function_context.get_or_create_variable(
                     self.brillig_context,
                     results[0],
                     dfg,
                 ) {
+                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    _ => unreachable!("ICE: first value of a slice must be a register index"),
+                };
+                let source_len = match self.function_context.get_or_create_variable(self.brillig_context, arguments[0], dfg) {
                     RegisterOrMemory::RegisterIndex(register_index) => register_index,
                     _ => unreachable!("ICE: first value of a slice must be a register index"),
                 };
@@ -621,43 +634,84 @@ impl<'block> BrilligBlock<'block> {
                     results[1],
                     dfg,
                 );
-                dbg!("about to extract heap vector");
 
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
-                let item_values = vecmap(&arguments[2..element_size + 1], |arg| {
+                let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
-                self.slice_push_back_operation(target_vector, source_vector, &item_values);
-                // self.brillig_context.usize_op_in_place(slice_len, BinaryIntOp::Add, 1);
+                self.slice_push_back_operation(target_vector, source_vector, &item_values, target_len, source_len);
+                dbg!("finished slice_push_back");
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) => {
+                let results = dfg.instruction_results(instruction_id);
+
+                let target_len = match self.function_context.get_or_create_variable(
+                    self.brillig_context,
+                    results[0],
+                    dfg,
+                ) {
+                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    _ => unreachable!("ICE: first value of a slice must be a register index"),
+                };
+                let source_len = match self.function_context.get_or_create_variable(self.brillig_context, arguments[0], dfg) {
+                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    _ => unreachable!("ICE: first value of a slice must be a register index"),
+                };
+
                 let target_variable = self.function_context.create_variable(
                     self.brillig_context,
-                    dfg.instruction_results(instruction_id)[0],
+                    results[1],
                     dfg,
                 );
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
-                let item_values = vecmap(&arguments[2..element_size + 1], |arg| {
+                let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
-                });
-                self.slice_push_front_operation(target_vector, source_vector, &item_values);
+                });   
+
+                self.slice_push_front_operation(target_vector, source_vector, &item_values, target_len, source_len);
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) => {
                 let results = dfg.instruction_results(instruction_id);
 
+                let target_len = match self.function_context.get_or_create_variable(
+                    self.brillig_context,
+                    results[0],
+                    dfg,
+                ) {
+                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    _ => unreachable!("ICE: first value of a slice must be a register index"),
+                };
+                let source_len = match self.function_context.get_or_create_variable(self.brillig_context, arguments[0], dfg) {
+                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    _ => unreachable!("ICE: first value of a slice must be a register index"),
+                };
+
                 let target_variable =
-                    self.function_context.create_variable(self.brillig_context, results[0], dfg);
+                    self.function_context.create_variable(self.brillig_context, results[1], dfg);
 
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
-                let pop_variables = vecmap(&results[1..element_size + 1], |result| {
+                let pop_variables = vecmap(&results[2..element_size + 2], |result| {
                     self.function_context.create_variable(self.brillig_context, *result, dfg)
                 });
 
-                self.slice_pop_back_operation(target_vector, source_vector, &pop_variables);
+                self.slice_pop_back_operation(target_vector, source_vector, &pop_variables, target_len, source_len);
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
                 let results = dfg.instruction_results(instruction_id);
+
+                let target_len = match self.function_context.get_or_create_variable(
+                    self.brillig_context,
+                    results[element_size],
+                    dfg,
+                ) {
+                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    _ => unreachable!("ICE: first value of a slice must be a register index"),
+                };
+                let source_len = match self.function_context.get_or_create_variable(self.brillig_context, arguments[0], dfg) {
+                    RegisterOrMemory::RegisterIndex(register_index) => register_index,
+                    _ => unreachable!("ICE: first value of a slice must be a register index"),
+                };
 
                 let pop_variables = vecmap(&results[0..element_size], |result| {
                     self.function_context.create_variable(self.brillig_context, *result, dfg)
@@ -665,12 +719,12 @@ impl<'block> BrilligBlock<'block> {
 
                 let target_variable = self.function_context.create_variable(
                     self.brillig_context,
-                    results[element_size],
+                    results[element_size + 1],
                     dfg,
                 );
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
-                self.slice_pop_front_operation(target_vector, source_vector, &pop_variables);
+                self.slice_pop_front_operation(target_vector, source_vector, &pop_variables, target_len, source_len);
             }
             Value::Intrinsic(Intrinsic::SliceInsert) => {
                 let results = dfg.instruction_results(instruction_id);

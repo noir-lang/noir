@@ -43,6 +43,10 @@ pub(crate) fn optimize_into_acir(
         .print(print_ssa_passes, "Initial SSA:")
         .defunctionalize()
         .print(print_ssa_passes, "After Defunctionalization:");
+        // .mem2reg()
+        // .print(print_ssa_passes, "After Mem2Reg:")
+        // .fold_constants()
+        // .print(print_ssa_passes, "After Constant Folding:");
 
     let brillig = ssa.to_brillig(print_brillig_trace);
     if let RuntimeType::Acir = ssa.main().runtime() {

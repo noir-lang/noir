@@ -8,11 +8,20 @@ impl<'block> BrilligBlock<'block> {
         target_vector: HeapVector,
         source_vector: HeapVector,
         variables_to_insert: &[RegisterOrMemory],
+        target_len: RegisterIndex,
+        source_len: RegisterIndex,
     ) {
+        dbg!(variables_to_insert.len());
         // First we need to allocate the target vector incrementing the size by variables_to_insert.len()
         self.brillig_context.usize_op(
             source_vector.size,
             target_vector.size,
+            BinaryIntOp::Add,
+            variables_to_insert.len(),
+        );
+        self.brillig_context.usize_op(
+            source_len,
+            target_len,
             BinaryIntOp::Add,
             variables_to_insert.len(),
         );
@@ -43,11 +52,20 @@ impl<'block> BrilligBlock<'block> {
         target_vector: HeapVector,
         source_vector: HeapVector,
         variables_to_insert: &[RegisterOrMemory],
+        target_len: RegisterIndex,
+        source_len: RegisterIndex,
     ) {
+        dbg!(variables_to_insert.len());
         // First we need to allocate the target vector incrementing the size by variables_to_insert.len()
         self.brillig_context.usize_op(
             source_vector.size,
             target_vector.size,
+            BinaryIntOp::Add,
+            variables_to_insert.len(),
+        );
+        self.brillig_context.usize_op(
+            source_len,
+            target_len,
             BinaryIntOp::Add,
             variables_to_insert.len(),
         );
@@ -84,11 +102,19 @@ impl<'block> BrilligBlock<'block> {
         target_vector: HeapVector,
         source_vector: HeapVector,
         removed_items: &[RegisterOrMemory],
+        target_len: RegisterIndex,
+        source_len: RegisterIndex,
     ) {
         // First we need to allocate the target vector decrementing the size by removed_items.len()
         self.brillig_context.usize_op(
             source_vector.size,
             target_vector.size,
+            BinaryIntOp::Sub,
+            removed_items.len(),
+        );
+        self.brillig_context.usize_op(
+            source_len,
+            target_len,
             BinaryIntOp::Sub,
             removed_items.len(),
         );
@@ -124,11 +150,19 @@ impl<'block> BrilligBlock<'block> {
         target_vector: HeapVector,
         source_vector: HeapVector,
         removed_items: &[RegisterOrMemory],
+        target_len: RegisterIndex,
+        source_len: RegisterIndex,
     ) {
         // First we need to allocate the target vector decrementing the size by removed_items.len()
         self.brillig_context.usize_op(
             source_vector.size,
             target_vector.size,
+            BinaryIntOp::Sub,
+            removed_items.len(),
+        );
+        self.brillig_context.usize_op(
+            source_len,
+            target_len,
             BinaryIntOp::Sub,
             removed_items.len(),
         );
@@ -342,6 +376,7 @@ mod tests {
 
     #[test]
     fn test_slice_push_operation() {
+        // TODO: handle these tests
         fn test_case_push(
             push_back: bool,
             array: Vec<Value>,
@@ -377,12 +412,16 @@ mod tests {
                     HeapVector { pointer: copied_array_pointer, size: copied_array_size },
                     HeapVector { pointer: array_pointer, size: array_size },
                     &[RegisterOrMemory::RegisterIndex(item_to_insert)],
+                    array_size,
+                    array_size,
                 );
             } else {
                 block.slice_push_front_operation(
                     HeapVector { pointer: copied_array_pointer, size: copied_array_size },
                     HeapVector { pointer: array_pointer, size: array_size },
                     &[RegisterOrMemory::RegisterIndex(item_to_insert)],
+                    array_size,
+                    array_size,
                 );
             }
 

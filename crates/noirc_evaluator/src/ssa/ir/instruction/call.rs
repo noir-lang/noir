@@ -81,7 +81,7 @@ pub(super) fn simplify_call(
             dbg!(arguments.len());
             // Probably need to check this
             // arguments.len() > 1 && 
-            if let Some(length) = dfg.try_get_array_length(arguments[0]) {
+            let simplify_res = if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
                 // let length = length / FieldElement::from(typ.element_size() as u128);
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
@@ -89,9 +89,12 @@ pub(super) fn simplify_call(
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
+                // SimplifyResult::None
             } else {
                 SimplifyResult::None
-            }
+            };
+            dbg!(simplify_res.clone());
+            simplify_res
 
             // if let Some(length) = dfg.get_numeric_constant(arguments[0]) {
             //     dbg!(length);
@@ -149,6 +152,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SlicePushFront => {
             let slice = dfg.get_array_constant(arguments[1]);
+            dbg!(slice.clone());
             if let Some((mut slice, element_type)) = slice {
                 for elem in arguments[2..].iter().rev() {
                     slice.push_front(*elem);
