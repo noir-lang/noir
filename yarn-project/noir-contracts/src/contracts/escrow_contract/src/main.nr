@@ -8,7 +8,7 @@ contract Escrow {
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::abi::CallContext;
     use dep::aztec::private_call_stack_item::PrivateCallStackItem;
-    use dep::aztec::context::Context;
+    use dep::aztec::context::PrivateContext;
     use dep::aztec::log::emit_encrypted_log;
     use dep::aztec::oracle::get_public_key::get_public_key;
 
@@ -30,8 +30,8 @@ contract Escrow {
         inputs: pub PrivateContextInputs,
         owner: pub Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([owner]));
-        let this = inputs.call_context.storage_contract_address;
+        let mut context = PrivateContext::new(inputs, abi::hash_args([owner]));
+        let this = context.this_address();
         
         let storage = Storage::init();
         let mut note = AddressNote::new(owner, this);
@@ -54,9 +54,9 @@ contract Escrow {
         amount: pub Field,
         recipient: pub Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([token, amount, recipient]));
-        let this = inputs.call_context.storage_contract_address;
-        let sender = inputs.call_context.msg_sender;
+        let mut context = PrivateContext::new(inputs, abi::hash_args([token, amount, recipient]));
+        let this = context.this_address();
+        let sender = context.msg_sender();
         let storage = Storage::init();
         
         // TODO: Do we need to manually nullify and recreate this note for access control? Or does Set handle it for us? Or since we have no methods for updating it, we're good?

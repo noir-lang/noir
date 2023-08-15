@@ -7,16 +7,15 @@ contract Lending {
         abi::PrivateContextInputs,
         abi::PublicContextInputs
     };
-    use dep::aztec::context::Context;
+    use dep::aztec::context::{
+        PrivateContext,
+        PublicContext
+    };
     use dep::aztec::oracle::{
         logs::emit_unencrypted_log,
         create_nullifier::create_nullifier,
     };
-    use dep::aztec::public_call_stack_item::{
-        PublicCallStackItem,
-        call_public_function,
-        call_public_function_no_args,
-    };
+    use dep::aztec::public_call_stack_item::PublicCallStackItem;
     use crate::storage::{Storage, Tot, Account};
 
     struct Pos {
@@ -29,12 +28,14 @@ contract Lending {
         inputs: PrivateContextInputs
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        Context::new(inputs, 0).finish()
+        PrivateContext::new(inputs, 0).finish()
     }
 
     open fn init(
         inputs: PublicContextInputs
-    ) -> pub Field {
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([]));
+
         let storage = Storage::init();
 
         let asset = storage.assets.at(0);
@@ -46,23 +47,25 @@ contract Lending {
 
         asset.write(Tot {
             interest_accumulator: 1000000000,
-            last_updated_ts: inputs.public_global_variables.timestamp as u120,
+            last_updated_ts: context.timestamp() as u120,
         });
 
-        1
+        context.return_values.push(1);
+        context.finish()
     }
 
     // Create a position.
 
     open fn update_tot(
         inputs: PublicContextInputs
-    ) -> pub Field {
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([]));
         let storage = Storage::init();
 
         let asset = storage.assets.at(0);
         let mut tot = asset.read();
 
-        let dt: u120 = inputs.public_global_variables.timestamp as u120  - tot.last_updated_ts;
+        let dt: u120 = context.timestamp() as u120  - tot.last_updated_ts;
 
         // Need proper interest computation here.
         // Assume constant rate because too few reads :cry:
@@ -72,11 +75,12 @@ contract Lending {
         let divisor: u120 = 1000000000;
 
         tot.interest_accumulator = (tot.interest_accumulator * multiplier) / divisor;
-        tot.last_updated_ts = inputs.public_global_variables.timestamp as u120;
+        tot.last_updated_ts = context.timestamp() as u120;
 
         asset.write(tot);
 
-        1
+        context.return_values.push(1);
+        context.finish()
     }
 
     // This don't need to be on behalf of self. We should be able to repay on behalf of someone else.
@@ -86,7 +90,7 @@ contract Lending {
         owner: Field,
         amount: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([
+        let mut context = PrivateContext::new(inputs, abi::hash_args([
             secret,
             owner,
             amount
@@ -94,7 +98,7 @@ contract Lending {
 
         assert (!((secret == 0) as bool & (owner == 0) as bool));
         let mut account = owner;
-        let me = inputs.call_context.msg_sender;
+        let me = context.msg_sender();
 
         if (secret != 0) {
             account = Account::new(me, secret).key();
@@ -104,7 +108,7 @@ contract Lending {
 
         // _deposit(account, amount)
         let _callStackItem = context.call_public_function(
-            inputs.call_context.storage_contract_address, 
+            context.this_address(), 
             3009041984,
             [account, amount]
         );
@@ -116,18 +120,24 @@ contract Lending {
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> pub Field {
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount]));
         // @todo @LHerskind Transfer tokens into this contract. We can't do it now because too few writes.
     
-        call_public_function(inputs.call_context.storage_contract_address, 3009041984, [owner, amount])[0]
+        let return_values = context.call_public_function(context.this_address(), 3009041984, [owner, amount]);
+
+        context.return_values.push(return_values[0]);
+        context.finish()
     }
 
     open internal fn _deposit(
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> pub Field {
-        let _void = call_public_function_no_args(inputs.call_context.storage_contract_address, 1259373467)[0];
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount]));
+
+        let _void = context.call_public_function_no_args(context.this_address(), 1259373467)[0];
 
         let storage = Storage::init();
 
@@ -135,7 +145,9 @@ contract Lending {
         let collateral = coll_loc.read();
 
         coll_loc.write(collateral + amount);
-        1
+
+        context.return_values.push(1);
+        context.finish()
     }
 
     fn withdraw_private(
@@ -143,15 +155,15 @@ contract Lending {
         secret: Field,
         amount: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([
+        let mut context = PrivateContext::new(inputs, abi::hash_args([
             secret,
             amount
         ]));
 
-        let me = inputs.call_context.msg_sender;
+        let me = context.msg_sender();
         let account = Account::new(me, secret).key();
         let _callStackItem = context.call_public_function(
-            inputs.call_context.storage_contract_address, 
+            context.this_address(), 
             1065861440,
             [account, amount]
         );
@@ -163,10 +175,14 @@ contract Lending {
     open fn withdraw_public(
         inputs: PublicContextInputs,
         amount: Field
-    ) -> pub Field {
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([amount]));
         // @todo @LHerskind Transfer tokens into this contract. We can't do it now because too few writes.
     
-        call_public_function(inputs.call_context.storage_contract_address, 1065861440, [inputs.call_context.msg_sender, amount])[0]
+        let return_values = context.call_public_function(context.this_address(), 1065861440, [context.msg_sender(), amount]);
+
+        context.return_values.push(return_values[0]);
+        context.finish()
     }
 
      open internal fn _withdraw(
@@ -174,9 +190,11 @@ contract Lending {
         owner: Field,
         // recipient: Field,
         amount: Field
-    ) -> pub Field {
+    ) -> pub abi::PublicCircuitPublicInputs {
         // Access control.
-        let _void = call_public_function_no_args(inputs.call_context.storage_contract_address, 1259373467)[0];
+        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount]));
+
+        let _void = context.call_public_function_no_args(context.this_address(), 1259373467)[0];
 
         let storage = Storage::init();
 
@@ -192,7 +210,8 @@ contract Lending {
         coll_loc.write(collateral - amount);
 
         // Transfer tokens to recipient (could be with shielding or without, for now, can't to either).
-        1
+        context.return_values.push(1);
+        context.finish()
     }
 
     fn borrow_private(
@@ -200,16 +219,16 @@ contract Lending {
         secret: Field,
         amount: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([
+        let mut context = PrivateContext::new(inputs, abi::hash_args([
             secret,
             amount
         ]));
 
-        let me = inputs.call_context.msg_sender;
+        let me = context.msg_sender();
         let account = Account::new(me, secret).key();
 
         let _callStackItem = context.call_public_function(
-            inputs.call_context.storage_contract_address, 
+            context.this_address(), 
             1462609836,
             [account, amount]
         );
@@ -220,17 +239,22 @@ contract Lending {
     open fn borrow_public(
         inputs: PublicContextInputs,
         amount: Field
-    ) -> pub Field {
-        call_public_function(inputs.call_context.storage_contract_address, 1462609836, [inputs.call_context.msg_sender, amount])[0]
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([amount]));
+        let return_values = context.call_public_function(context.this_address(), 1462609836, [context.msg_sender(), amount]);
+
+        context.return_values.push(return_values[0]);
+        context.finish()
     }
 
     open internal fn _borrow(
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> pub Field {
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount]));
         // Access control.
-        let _void = call_public_function_no_args(inputs.call_context.storage_contract_address, 1259373467)[0];
+        let _void = context.call_public_function_no_args(context.this_address(), 1259373467)[0];
 
         let storage = Storage::init();
 
@@ -246,7 +270,8 @@ contract Lending {
 
         // @todo @LHerskind Transferring funds to the recipient.
 
-        1
+        context.return_values.push(1);
+        context.finish()
     }
 
     // This don't need to be on behalf of self. We should be able to repay on behalf of someone else.
@@ -256,7 +281,7 @@ contract Lending {
         owner: Field,
         amount: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([
+        let mut context = PrivateContext::new(inputs, abi::hash_args([
             secret,
             owner,
             amount
@@ -264,7 +289,7 @@ contract Lending {
 
         assert (!((secret == 0) as bool & (owner == 0) as bool));
         let mut account = owner;
-        let me = inputs.call_context.msg_sender;
+        let me = context.msg_sender();
 
         if (secret != 0) {
             account = Account::new(me, secret).key();
@@ -273,7 +298,7 @@ contract Lending {
         // @todo @lherskind Transfer tokens from me to this contract.
 
         let _callStackItem = context.call_public_function(
-            inputs.call_context.storage_contract_address, 
+            context.this_address(), 
             3985016136,
             [account, amount]
         );
@@ -285,17 +310,22 @@ contract Lending {
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> pub Field {
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount]));
         // @todo @LHerskind Transfer tokens from msg.sender to this contract.
-        call_public_function(inputs.call_context.storage_contract_address, 3985016136, [owner, amount])[0]
+        let return_values = context.call_public_function(context.this_address(), 3985016136, [owner, amount]);
+
+        context.return_values.push(return_values[0]);
+        context.finish()
     }
 
     open internal fn _repay(
         inputs: PublicContextInputs,
         owner: Field,
         amount: Field
-    ) -> pub Field {
-        let _void = call_public_function_no_args(inputs.call_context.storage_contract_address, 1259373467)[0];
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([owner, amount]));
+        let _void = context.call_public_function_no_args(context.this_address(), 1259373467)[0];
 
         let storage = Storage::init();
         // Should constrain access from private.
@@ -310,7 +340,9 @@ contract Lending {
         assert (static_debt as u120 >= amount as u120);
 
         debt_loc.write(static_debt - amount);
-        1
+        
+        context.return_values.push(1);
+        context.finish()
     }
 
     unconstrained fn getTot(

@@ -142,7 +142,11 @@ function generateFunctionInterface(functionData: FunctionAbi) {
   const selector = '0x' + generateFunctionSelector(name, parameters).toString('hex');
   const serialisation = generateSerialisation(parameters);
   const callStatement = generateCallStatement(selector, functionData.functionType);
-  const allParams = ['self', 'context: &mut Context', ...parameters.map(p => generateParameter(p, functionData))];
+  const allParams = [
+    'self',
+    'context: &mut PrivateContext',
+    ...parameters.map(p => generateParameter(p, functionData)),
+  ];
   const retType = isPrivateCall(functionData.functionType) ? `-> [Field; RETURN_VALUES_LENGTH] ` : ``;
 
   return `
@@ -161,7 +165,7 @@ ${callStatement}
  */
 function generateStaticImports() {
   return `use dep::std;
-use dep::aztec::context::Context;
+use dep::aztec::context::PrivateContext;
 use dep::aztec::constants_gen::RETURN_VALUES_LENGTH;`;
 }
 

@@ -1,5 +1,5 @@
 use dep::std::hash::pedersen_with_separator;
-use crate::context::Context;
+use crate::context::PrivateContext;
 use crate::note::lifecycle::create_note;
 use crate::note::note_getter::{
     get_note,
@@ -27,7 +27,7 @@ impl<Note, N> ImmutableSingleton<Note, N> {
         oracle::notes::is_nullifier_emitted(nullifier)
     }
 
-    fn initialise(self, context: &mut Context, note: &mut Note) {
+    fn initialise(self, context: &mut PrivateContext, note: &mut Note) {
         // Nullify the storage slot.
         let nullifier = self.compute_initialisation_nullifier();
         context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);
@@ -39,12 +39,12 @@ impl<Note, N> ImmutableSingleton<Note, N> {
         pedersen_with_separator([self.storage_slot], GENERATOR_INDEX__INITIALISATION_NULLIFIER)[0]
     }
     
-    fn get_note(self, context: &mut Context) -> Note {
+    fn get_note(self, context: &mut PrivateContext) -> Note {
         let storage_slot = self.storage_slot;
         get_note(context, storage_slot, self.note_interface)
     }
 
-    fn assert_contains(self, context: &mut Context, note: &mut Note) {
+    fn assert_contains(self, context: &mut PrivateContext, note: &mut Note) {
         ensure_note_exists(context, self.storage_slot, self.note_interface, note);
     }
 }

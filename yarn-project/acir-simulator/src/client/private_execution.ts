@@ -13,7 +13,7 @@ import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
 import { FunctionL2Logs, NotePreimage, NoteSpendingInfo } from '@aztec/types';
 
-import { extractPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
+import { extractPrivateCircuitPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
 import {
   ZERO_ACVM_FIELD,
   acvm,
@@ -53,7 +53,7 @@ export class PrivateFunctionExecution {
     this.log(`Executing external function ${this.contractAddress.toString()}:${selector}`);
 
     const acir = Buffer.from(this.abi.bytecode, 'base64');
-    const initialWitness = this.writeInputs();
+    const initialWitness = this.getInitialWitness();
 
     // TODO: Move to ClientTxExecutionContext.
     const newNotePreimages: NewNoteData[] = [];
@@ -174,7 +174,7 @@ export class PrivateFunctionExecution {
       },
     });
 
-    const publicInputs = extractPublicInputs(partialWitness, acir);
+    const publicInputs = extractPrivateCircuitPublicInputs(partialWitness, acir);
 
     // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165) --> set this in Noir
     publicInputs.encryptedLogsHash = to2Fields(encryptedLogs.hash());
@@ -213,7 +213,7 @@ export class PrivateFunctionExecution {
    * Writes the function inputs to the initial witness.
    * @returns The initial witness.
    */
-  private writeInputs() {
+  private getInitialWitness() {
     const contractDeploymentData = this.context.txContext.contractDeploymentData ?? ContractDeploymentData.empty();
 
     const blockData = this.context.historicBlockData;
@@ -231,8 +231,8 @@ export class PrivateFunctionExecution {
       blockData.contractTreeRoot,
       blockData.l1ToL2MessagesTreeRoot,
       blockData.blocksTreeRoot,
-      blockData.globalVariablesHash,
       blockData.publicDataTreeRoot,
+      blockData.globalVariablesHash,
 
       contractDeploymentData.deployerPublicKey.x,
       contractDeploymentData.deployerPublicKey.y,

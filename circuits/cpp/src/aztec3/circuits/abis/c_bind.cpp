@@ -524,6 +524,13 @@ WASM_EXPORT const char* abis__test_roundtrip_serialize_private_circuit_public_in
                                                                                     size);
 }
 
+WASM_EXPORT const char* abis__test_roundtrip_serialize_public_circuit_public_inputs(
+    uint8_t const* public_circuits_public_inputs_buf, uint32_t* size)
+{
+    return as_string_output<aztec3::circuits::abis::PublicCircuitPublicInputs<NT>>(public_circuits_public_inputs_buf,
+                                                                                   size);
+}
+
 WASM_EXPORT const char* abis__test_roundtrip_serialize_function_data(uint8_t const* function_data_buf, uint32_t* size)
 {
     return as_string_output<aztec3::circuits::abis::FunctionData<NT>>(function_data_buf, size);

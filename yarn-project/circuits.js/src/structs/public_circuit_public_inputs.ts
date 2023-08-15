@@ -16,6 +16,7 @@ import {
 import { FieldsOf, assertMemberLength, makeTuple } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';
+import { HistoricBlockData } from './index.js';
 
 /**
  * Contract storage read operation on a specific contract.
@@ -185,9 +186,9 @@ export class PublicCircuitPublicInputs {
      */
     public unencryptedLogPreimagesLength: Fr,
     /**
-     * Root of the public data tree when the call started.
+     * Root of the commitment trees when the call started.
      */
-    public historicPublicDataTreeRoot: Fr,
+    public historicBlockData: HistoricBlockData,
     /**
      * Address of the prover.
      */
@@ -229,7 +230,7 @@ export class PublicCircuitPublicInputs {
       makeTuple(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, Fr.zero),
       makeTuple(2, Fr.zero),
       Fr.ZERO,
-      Fr.ZERO,
+      HistoricBlockData.empty(),
       AztecAddress.ZERO,
     );
   }
@@ -248,7 +249,7 @@ export class PublicCircuitPublicInputs {
       isFrArrayEmpty(this.newL2ToL1Msgs) &&
       isFrArrayEmpty(this.unencryptedLogsHash) &&
       this.unencryptedLogPreimagesLength.isZero() &&
-      this.historicPublicDataTreeRoot.isZero() &&
+      this.historicBlockData.isEmpty() &&
       this.proverAddress.isZero()
     );
   }
@@ -271,7 +272,7 @@ export class PublicCircuitPublicInputs {
       fields.newL2ToL1Msgs,
       fields.unencryptedLogsHash,
       fields.unencryptedLogPreimagesLength,
-      fields.historicPublicDataTreeRoot,
+      fields.historicBlockData,
       fields.proverAddress,
     ] as const;
   }

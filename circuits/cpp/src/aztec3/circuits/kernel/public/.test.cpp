@@ -326,7 +326,16 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     std::array<fr, NUM_FIELDS_PER_SHA256> const unencrypted_logs_hash =
         array_of_values<NUM_FIELDS_PER_SHA256>(seed, NUM_FIELDS_PER_SHA256);
     fr const unencrypted_log_preimages_length = ++seed;
-    fr const historic_public_data_tree_root = ++seed;
+    HistoricBlockData<NT> block_data = {
+        .private_data_tree_root = ++seed,
+        .nullifier_tree_root = ++seed,
+        .contract_tree_root = ++seed,
+        .l1_to_l2_messages_tree_root = ++seed,
+        .blocks_tree_root = ++seed,
+        .private_kernel_vk_tree_root = ++seed,
+        .public_data_tree_root = ++seed,
+        .global_variables_hash = ++seed,
+    };
 
     // create the public circuit public inputs
     auto const public_circuit_public_inputs = PublicCircuitPublicInputs<NT>{
@@ -341,7 +350,7 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
         .new_l2_to_l1_msgs = new_l2_to_l1_msgs,
         .unencrypted_logs_hash = unencrypted_logs_hash,
         .unencrypted_log_preimages_length = unencrypted_log_preimages_length,
-        .historic_public_data_tree_root = historic_public_data_tree_root,
+        .historic_block_data = block_data,
     };
 
     const PublicCallStackItem call_stack_item{

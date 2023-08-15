@@ -3,7 +3,7 @@ contract Uniswap {
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::abi::PublicContextInputs;
-    use dep::aztec::context::Context;
+    use dep::aztec::context::PrivateContext;
     use dep::aztec::oracle::{
         public_call,
         context::get_portal_address
@@ -16,7 +16,7 @@ contract Uniswap {
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        Context::new(inputs, 0).finish()
+        PrivateContext::new(inputs, 0).finish()
     }
 
     // What we need to make this nicer:
@@ -42,7 +42,7 @@ contract Uniswap {
         cancellerForL1ToL2Message: Field, // L1 address of who can cancel the message to consume assets on L2.
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([
+        let mut context = PrivateContext::new(inputs, abi::hash_args([
             withdrawFnSelector,
             inputAsset,
             inputAmount,

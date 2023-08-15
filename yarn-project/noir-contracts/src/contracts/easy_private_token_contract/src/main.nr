@@ -13,7 +13,7 @@ contract EasyPrivateToken {
     use dep::aztec::{
         abi,
         abi::PrivateContextInputs,
-        context::Context,
+        context::PrivateContext,
         log::emit_unencrypted_log,
         note::{
             note_header::NoteHeader,
@@ -33,7 +33,7 @@ contract EasyPrivateToken {
         initial_supply: u120, 
         owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([initial_supply as Field, owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([initial_supply as Field, owner]));
         let storage = Storage::init();
         let balances = storage.balances;
 
@@ -54,7 +54,7 @@ contract EasyPrivateToken {
         amount: u120, 
         owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([amount as Field, owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount as Field, owner]));
         let storage = Storage::init();
         let balances = storage.balances;
 
@@ -76,7 +76,7 @@ contract EasyPrivateToken {
         sender: Field, 
         recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([amount as Field, sender, recipient]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount as Field, sender, recipient]));
         let storage = Storage::init();
         let balances = storage.balances;
 

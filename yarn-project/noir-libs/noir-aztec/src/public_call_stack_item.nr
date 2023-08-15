@@ -13,8 +13,6 @@ use crate::constants_gen::{
 // oracles
 use crate::oracle::{
     enqueue_public_function_call::enqueue_public_function_call_internal,
-    public_call::call_public_function_internal,
-    arguments,
 };
 
 struct PublicCallStackItem {
@@ -34,28 +32,3 @@ impl PublicCallStackItem {
     }
 }
 
-// An open function doesn't have a context, so we call this pure function instead of going via Context.
-fn call_public_function<N>(
-    contract_address: Field, 
-    function_selector: Field,
-    args: [Field; N],
-) -> [Field; RETURN_VALUES_LENGTH] {
-    let args_hash = abi::hash_args(args);
-    assert(args_hash == arguments::pack_arguments(args));
-    call_public_function_internal(
-        contract_address, 
-        function_selector, 
-        args_hash,
-    )
-}
-
-fn call_public_function_no_args(
-    contract_address: Field, 
-    function_selector: Field,
-) -> [Field; RETURN_VALUES_LENGTH] {
-    call_public_function_internal(
-        contract_address, 
-        function_selector, 
-        0,
-    )
-}

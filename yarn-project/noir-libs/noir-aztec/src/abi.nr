@@ -10,7 +10,7 @@ use crate::constants_gen::{
     MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
     MAX_PUBLIC_DATA_READS_PER_CALL,
     GENERATOR_INDEX__FUNCTION_ARGS,
-    CONSTANT_HISTORIC_BLOCK_DATA_LENGTH,
+    HISTORIC_BLOCK_DATA_LENGTH,
     CONTRACT_DEPLOYMENT_DATA_LENGTH,
     CALL_CONTEXT_LENGTH,
     PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,
@@ -132,27 +132,27 @@ struct HistoricBlockData {
     contract_tree_root : Field,
     l1_to_l2_messages_tree_root : Field,
     blocks_tree_root: Field,
-    prev_global_variables_hash: Field,
     public_data_tree_root: Field,
+    global_variables_hash: Field,
 }
 
 impl HistoricBlockData {
     // NOTE: this order must match the order in `private_circuit_public_inputs.hpp`
-    fn serialize(self) -> [Field; CONSTANT_HISTORIC_BLOCK_DATA_LENGTH] {
+    fn serialize(self) -> [Field; HISTORIC_BLOCK_DATA_LENGTH] {
         [
             self.private_data_tree_root,
             self.nullifier_tree_root,
             self.contract_tree_root,
             self.l1_to_l2_messages_tree_root,
             self.blocks_tree_root,
-            self.prev_global_variables_hash,
-            self.public_data_tree_root
+            self.public_data_tree_root,
+            self.global_variables_hash,
         ]
     }
-}
 
-fn empty_block_data() -> HistoricBlockData {
-    HistoricBlockData{ private_data_tree_root: 0, nullifier_tree_root: 0, contract_tree_root: 0, l1_to_l2_messages_tree_root: 0, blocks_tree_root: 0, prev_global_variables_hash: 0, public_data_tree_root: 0 }
+    fn empty() -> Self {
+        Self { private_data_tree_root: 0, nullifier_tree_root: 0, contract_tree_root: 0, l1_to_l2_messages_tree_root: 0, blocks_tree_root: 0, public_data_tree_root: 0, global_variables_hash: 0 }
+    }
 }
 
 struct FunctionData {
@@ -249,10 +249,6 @@ struct ContractStorageRead {
     value: Field,
 }
 
-fn empty_contract_storage_read() -> ContractStorageRead {
-    ContractStorageRead { storage_slot: 0, value: 0 }
-}
-
 impl ContractStorageRead {
     fn serialize(self) -> [Field; CONTRACT_STORAGE_READ_LENGTH] {
         [self.storage_slot, self.value]
@@ -260,6 +256,10 @@ impl ContractStorageRead {
 
     fn hash(self) -> Field {
         dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_DATA_READ)[0]
+    }
+
+    fn empty() -> Self {
+        Self { storage_slot: 0, value: 0 }
     }
 }
 
@@ -277,10 +277,10 @@ impl ContractStorageUpdateRequest {
     fn hash(self) -> Field {
         dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST)[0]
     }
-}
 
-fn empty_contract_storage_update_request() -> ContractStorageUpdateRequest {
-    ContractStorageUpdateRequest { storage_slot: 0, old_value: 0, new_value: 0 }
+    fn empty() -> Self {
+        Self { storage_slot: 0, old_value: 0, new_value: 0 }
+    }
 }
 
 
@@ -297,8 +297,10 @@ struct PublicCircuitPublicInputs {
     unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],
     unencrypted_log_preimages_length: Field,
     block_data: HistoricBlockData,
-    historic_public_data_tree_root: Field,
     prover_address: Field,
+
+    // TODO: include globals in here and check them elsewhere
+    // https://github.com/AztecProtocol/aztec-packages/issues/1567
 }
 
 impl PublicCircuitPublicInputs {
@@ -320,11 +322,10 @@ impl PublicCircuitPublicInputs {
         inputs.push_array(self.new_l2_to_l1_msgs);
 
         // We do not include block_data since it's not in the cpp hash
-        // inputs.push(self.block_data.hash()); see https://github.com/AztecProtocol/aztec-packages/issues/1473
 
         inputs.push_array(self.unencrypted_logs_hash);
         inputs.push(self.unencrypted_log_preimages_length);
-        inputs.push(self.historic_public_data_tree_root);
+        inputs.push_array(self.block_data.serialize()); // see https://github.com/AztecProtocol/aztec-packages/issues/1473
         inputs.push(self.prover_address);
 
         dep::std::hash::pedersen_with_separator(inputs.storage, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)[0]
@@ -348,7 +349,6 @@ impl PublicCircuitPublicInputs {
         fields.push_array(self.unencrypted_logs_hash);
         fields.push(self.unencrypted_log_preimages_length);
         fields.push_array(self.block_data.serialize());
-        fields.push(self.historic_public_data_tree_root);
         fields.push(self.prover_address);
         fields.storage
     }

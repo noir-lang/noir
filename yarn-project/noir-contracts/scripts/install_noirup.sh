@@ -3,7 +3,6 @@
 set -eu
 
 SPECIFIED_HOME=${1:-$HOME}
-VERSION="aztec"
 
 export NARGO_HOME="$SPECIFIED_HOME/.nargo"
 NARGO_BIN_DIR="$NARGO_HOME/bin"

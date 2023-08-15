@@ -17,7 +17,7 @@ contract PendingCommitments {
     use dep::aztec::constants_gen::ARGS_LENGTH;
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::context::Context;
+    use dep::aztec::context::PrivateContext;
     use dep::aztec::note::{
         note_getter::NoteGetterOptions,
         note_header::NoteHeader,
@@ -35,7 +35,7 @@ contract PendingCommitments {
         inputs: PrivateContextInputs
         //*********************************/
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let context = Context::new(inputs, 0);
+        let context = PrivateContext::new(inputs, 0);
         context.finish()
     }
 
@@ -51,7 +51,7 @@ contract PendingCommitments {
         owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner]));
 
         let owner_balance = storage.balances.at(owner);
         let mut note = ValueNote::new(amount, owner);
@@ -91,7 +91,7 @@ contract PendingCommitments {
         owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner]));
 
         let owner_balance = storage.balances.at(owner);
 
@@ -142,7 +142,7 @@ contract PendingCommitments {
         owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner]));
 
         let owner_balance = storage.balances.at(owner);
         let mut note = ValueNote::new(amount, owner);
@@ -170,7 +170,7 @@ contract PendingCommitments {
         owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([expected_value, owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([expected_value, owner]));
 
         let owner_balance = storage.balances.at(owner);
 
@@ -195,7 +195,7 @@ contract PendingCommitments {
         owner: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([owner]));
 
         let owner_balance = storage.balances.at(owner);
 
@@ -222,7 +222,7 @@ contract PendingCommitments {
         get_then_nullify_fn_selector: Field,
         get_note_zero_fn_selector: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector, get_note_zero_fn_selector]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector, get_note_zero_fn_selector]));
 
         // args for nested calls
         let mut args = [0; ARGS_LENGTH];
@@ -250,7 +250,7 @@ contract PendingCommitments {
         insert_fn_selector: Field,
         get_then_nullify_fn_selector: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector]));
 
         // args for nested calls
         let mut args = [0; ARGS_LENGTH];
@@ -281,7 +281,7 @@ contract PendingCommitments {
         insert_fn_selector: Field,
         get_then_nullify_fn_selector: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector]));
 
         // args for nested calls
         let mut args = [0; ARGS_LENGTH];
@@ -311,8 +311,8 @@ contract PendingCommitments {
         get_then_nullify_fn_selector: Field,
         get_note_zero_fn_selector: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        //let mut context = Context::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector]));
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector, get_note_zero_fn_selector]));
+        //let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner, insert_fn_selector, get_then_nullify_fn_selector, get_note_zero_fn_selector]));
 
         // args for nested calls
         let mut args = [0; ARGS_LENGTH];

@@ -1,0 +1,73 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`basic PublicCircuitPublicInputs serialization serializes a trivial PublicCircuitPublicInputs and prints it 1`] = `
+"call_context:
+msg_sender: 0x0
+storage_contract_address: 0x1
+portal_contract_address: 0x202020202020202020202020202020202020202
+is_delegate_call: 0
+is_static_call: 0
+is_contract_deployment: 0
+
+args_hash: 0x100
+return_values: [ 0x200 0x201 0x0 0x0 ]
+contract_storage_update_requests: [ storage_slot: 0x400
+old_value: 0x401
+new_value: 0x402
+ storage_slot: 0x401
+old_value: 0x402
+new_value: 0x403
+ storage_slot: 0x402
+old_value: 0x403
+new_value: 0x404
+ storage_slot: 0x403
+old_value: 0x404
+new_value: 0x405
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ ]
+contract_storage_reads: [ storage_slot: 0x500
+current_value: 0x501
+ storage_slot: 0x501
+current_value: 0x502
+ storage_slot: 0x502
+current_value: 0x503
+ storage_slot: 0x503
+current_value: 0x504
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ ]
+public_call_stack: [ 0x600 0x601 0x0 0x0 ]
+new_commitments: [ 0x700 0x701 0x0 0x0 ]
+new_nullifiers: [ 0x800 0x801 0x0 0x0 ]
+new_l2_to_l1_msgs: [ 0x900 0x0 ]
+unencrypted_logs_hash: [ 0x901 0x0 ]
+unencrypted_log_preimages_length: 0x902
+historic_block_data: private_data_tree_root: 0xa00
+nullifier_tree_root: 0xa01
+contract_tree_root: 0xa02
+l1_to_l2_messages_tree_root: 0xa03
+blocks_tree_root: 0xa04
+private_kernel_vk_tree_root: 0xa05
+public_data_tree_root: 0xa06
+global_variables_hash: 0xa07
+
+prover_address: 0xb01
+"
+`;

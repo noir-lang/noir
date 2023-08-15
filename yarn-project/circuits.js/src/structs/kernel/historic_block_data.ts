@@ -36,11 +36,11 @@ export class HistoricBlockData {
     /**
      * Current public state tree hash.
      */
-    public readonly publicDataTreeRoot: Fr,
+    public publicDataTreeRoot: Fr,
     /**
      * Previous globals hash, this value is used to recalculate the block hash.
      */
-    public readonly globalVariablesHash: Fr,
+    public globalVariablesHash: Fr,
   ) {}
 
   static from(fields: FieldsOf<HistoricBlockData>) {

@@ -62,7 +62,7 @@ KernelCircuitPublicInputs<NT> native_public_kernel_circuit_private_previous_kern
     // validate the kernel execution common to all invocation circumstances
     common_validate_kernel_execution(builder, public_kernel_inputs);
 
-    // vallidate our public call hash
+    // validate our public call hash
     validate_this_public_call_hash(builder, public_kernel_inputs, public_inputs);
 
     // update the public end state of the circuit

@@ -481,8 +481,8 @@ historic_nullifier_tree_root: 0x1f11
 historic_contract_tree_root: 0x1d11
 historic_l1_to_l2_messages_tree_root: 0x2011
 historic_blocks_tree_root: 0x2111
-historic_global_variables_hash: 0x2211
-historic_public_data_tree_root: 0x2311
+historic_public_data_tree_root: 0x2211
+historic_global_variables_hash: 0x2311
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -529,8 +529,8 @@ historic_nullifier_tree_root: 0x1f21
 historic_contract_tree_root: 0x1d21
 historic_l1_to_l2_messages_tree_root: 0x2021
 historic_blocks_tree_root: 0x2121
-historic_global_variables_hash: 0x2221
-historic_public_data_tree_root: 0x2321
+historic_public_data_tree_root: 0x2221
+historic_global_variables_hash: 0x2321
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -576,8 +576,8 @@ historic_nullifier_tree_root: 0x1f22
 historic_contract_tree_root: 0x1d22
 historic_l1_to_l2_messages_tree_root: 0x2022
 historic_blocks_tree_root: 0x2122
-historic_global_variables_hash: 0x2222
-historic_public_data_tree_root: 0x2322
+historic_public_data_tree_root: 0x2222
+historic_global_variables_hash: 0x2322
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -623,8 +623,8 @@ historic_nullifier_tree_root: 0x1f23
 historic_contract_tree_root: 0x1d23
 historic_l1_to_l2_messages_tree_root: 0x2023
 historic_blocks_tree_root: 0x2123
-historic_global_variables_hash: 0x2223
-historic_public_data_tree_root: 0x2323
+historic_public_data_tree_root: 0x2223
+historic_global_variables_hash: 0x2323
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -670,8 +670,8 @@ historic_nullifier_tree_root: 0x1f24
 historic_contract_tree_root: 0x1d24
 historic_l1_to_l2_messages_tree_root: 0x2024
 historic_blocks_tree_root: 0x2124
-historic_global_variables_hash: 0x2224
-historic_public_data_tree_root: 0x2324
+historic_public_data_tree_root: 0x2224
+historic_global_variables_hash: 0x2324
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -990,8 +990,8 @@ historic_nullifier_tree_root: 0x1f11
 historic_contract_tree_root: 0x1d11
 historic_l1_to_l2_messages_tree_root: 0x2011
 historic_blocks_tree_root: 0x2111
-historic_global_variables_hash: 0x2211
-historic_public_data_tree_root: 0x2311
+historic_public_data_tree_root: 0x2211
+historic_global_variables_hash: 0x2311
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -1038,8 +1038,8 @@ historic_nullifier_tree_root: 0x1f21
 historic_contract_tree_root: 0x1d21
 historic_l1_to_l2_messages_tree_root: 0x2021
 historic_blocks_tree_root: 0x2121
-historic_global_variables_hash: 0x2221
-historic_public_data_tree_root: 0x2321
+historic_public_data_tree_root: 0x2221
+historic_global_variables_hash: 0x2321
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -1085,8 +1085,8 @@ historic_nullifier_tree_root: 0x1f22
 historic_contract_tree_root: 0x1d22
 historic_l1_to_l2_messages_tree_root: 0x2022
 historic_blocks_tree_root: 0x2122
-historic_global_variables_hash: 0x2222
-historic_public_data_tree_root: 0x2322
+historic_public_data_tree_root: 0x2222
+historic_global_variables_hash: 0x2322
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -1132,8 +1132,8 @@ historic_nullifier_tree_root: 0x1f23
 historic_contract_tree_root: 0x1d23
 historic_l1_to_l2_messages_tree_root: 0x2023
 historic_blocks_tree_root: 0x2123
-historic_global_variables_hash: 0x2223
-historic_public_data_tree_root: 0x2323
+historic_public_data_tree_root: 0x2223
+historic_global_variables_hash: 0x2323
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -1179,8 +1179,8 @@ historic_nullifier_tree_root: 0x1f24
 historic_contract_tree_root: 0x1d24
 historic_l1_to_l2_messages_tree_root: 0x2024
 historic_blocks_tree_root: 0x2124
-historic_global_variables_hash: 0x2224
-historic_public_data_tree_root: 0x2324
+historic_public_data_tree_root: 0x2224
+historic_global_variables_hash: 0x2324
 contract_deployment_data: deployer_public_key:
 x: 0x1
 y: 0x2
@@ -1743,13 +1743,21 @@ current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  ]
-public_call_stack: [ 0x136824172dbc34c53430101e3a04e1ab503cebad18c5bfa6c529af15d79e8843 0x1b21b2e1c216fccf7b51f75cf1f98de9945755ee23ab1dd6336b5513a64befaa 0x143ce8bf3701eb9f520cf686440db29c7a5385ebc6543bfcbbc0c8ea589ef1c1 0x1093a857092bc1ce7d1ca2fe1cd9216294429424b63f76513e3a5be183095ade ]
+public_call_stack: [ 0x969e86085622075da29cdba0432a18b67fbcf164a5dda8785cba8f4bf5cdd8d 0xe8aef22899a38f44f2b48fc12f51d0f0bd3146f15aae6a4e3de529e9daccf0b 0xb87bacccf7202cd576213b03d15dd98585c697de6571d5c37e915b8a35460c1 0x2f4095e46083b42757f0f7aabedc690037044e8ad4464d02a27ebd89d2ddf464 ]
 new_commitments: [ 0x1711 0x1712 0x0 0x0 ]
 new_nullifiers: [ 0x1811 0x1812 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1911 0x0 ]
 unencrypted_logs_hash: [ 0x1912 0x0 ]
 unencrypted_log_preimages_length: 0x1913
-historic_public_data_tree_root: 0x1a11
+historic_block_data: private_data_tree_root: 0x1a11
+nullifier_tree_root: 0x1a12
+contract_tree_root: 0x1a13
+l1_to_l2_messages_tree_root: 0x1a14
+blocks_tree_root: 0x1a15
+private_kernel_vk_tree_root: 0x1a16
+public_data_tree_root: 0x1a17
+global_variables_hash: 0x1a18
+
 prover_address: 0x1b12
 
 is_execution_request: 0
@@ -1818,7 +1826,15 @@ new_nullifiers: [ 0x1b11 0x1b12 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1c11 0x0 ]
 unencrypted_logs_hash: [ 0x1c12 0x0 ]
 unencrypted_log_preimages_length: 0x1c13
-historic_public_data_tree_root: 0x1d11
+historic_block_data: private_data_tree_root: 0x1d11
+nullifier_tree_root: 0x1d12
+contract_tree_root: 0x1d13
+l1_to_l2_messages_tree_root: 0x1d14
+blocks_tree_root: 0x1d15
+private_kernel_vk_tree_root: 0x1d16
+public_data_tree_root: 0x1d17
+global_variables_hash: 0x1d18
+
 prover_address: 0x1e12
 
 is_execution_request: 0
@@ -1886,7 +1902,15 @@ new_nullifiers: [ 0x1b12 0x1b13 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1c12 0x0 ]
 unencrypted_logs_hash: [ 0x1c13 0x0 ]
 unencrypted_log_preimages_length: 0x1c14
-historic_public_data_tree_root: 0x1d12
+historic_block_data: private_data_tree_root: 0x1d12
+nullifier_tree_root: 0x1d13
+contract_tree_root: 0x1d14
+l1_to_l2_messages_tree_root: 0x1d15
+blocks_tree_root: 0x1d16
+private_kernel_vk_tree_root: 0x1d17
+public_data_tree_root: 0x1d18
+global_variables_hash: 0x1d19
+
 prover_address: 0x1e13
 
 is_execution_request: 0
@@ -1954,7 +1978,15 @@ new_nullifiers: [ 0x1b13 0x1b14 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1c13 0x0 ]
 unencrypted_logs_hash: [ 0x1c14 0x0 ]
 unencrypted_log_preimages_length: 0x1c15
-historic_public_data_tree_root: 0x1d13
+historic_block_data: private_data_tree_root: 0x1d13
+nullifier_tree_root: 0x1d14
+contract_tree_root: 0x1d15
+l1_to_l2_messages_tree_root: 0x1d16
+blocks_tree_root: 0x1d17
+private_kernel_vk_tree_root: 0x1d18
+public_data_tree_root: 0x1d19
+global_variables_hash: 0x1d1a
+
 prover_address: 0x1e14
 
 is_execution_request: 0
@@ -2022,7 +2054,15 @@ new_nullifiers: [ 0x1b14 0x1b15 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1c14 0x0 ]
 unencrypted_logs_hash: [ 0x1c15 0x0 ]
 unencrypted_log_preimages_length: 0x1c16
-historic_public_data_tree_root: 0x1d14
+historic_block_data: private_data_tree_root: 0x1d14
+nullifier_tree_root: 0x1d15
+contract_tree_root: 0x1d16
+l1_to_l2_messages_tree_root: 0x1d17
+blocks_tree_root: 0x1d18
+private_kernel_vk_tree_root: 0x1d19
+public_data_tree_root: 0x1d1a
+global_variables_hash: 0x1d1b
+
 prover_address: 0x1e15
 
 is_execution_request: 0

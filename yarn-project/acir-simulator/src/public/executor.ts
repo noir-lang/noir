@@ -15,7 +15,7 @@ import {
   ZERO_ACVM_FIELD,
   acvm,
   convertACVMFieldToBuffer,
-  extractReturnWitness,
+  extractPublicCircuitPublicInputs,
   frToAztecAddress,
   frToSelector,
   fromACVMField,
@@ -160,7 +160,7 @@ export class PublicExecutor {
       },
     });
 
-    const returnValues = extractReturnWitness(acir, partialWitness).map(fromACVMField);
+    const { returnValues } = extractPublicCircuitPublicInputs(partialWitness, acir);
 
     const [contractStorageReads, contractStorageUpdateRequests] = storageActions.collect();
 

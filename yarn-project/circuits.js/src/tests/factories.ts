@@ -326,7 +326,7 @@ export function makePublicCircuitPublicInputs(
     tupleGenerator(MAX_NEW_L2_TO_L1_MSGS_PER_CALL, fr, seed + 0x900),
     tupleGenerator(2, fr, seed + 0x901),
     fr(seed + 0x902),
-    fr(seed + 0xa00),
+    makeHistoricBlockData(seed + 0xa00),
     makeAztecAddress(seed + 0xb01),
   );
 }

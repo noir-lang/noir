@@ -1,5 +1,8 @@
 use crate::abi::PublicContextInputs;
-use crate::context::Context;
+use crate::context::{
+    PrivateContext,
+    PublicContext,
+};
 use crate::note::{
     note_header::NoteHeader,
     note_interface::NoteInterface,
@@ -11,12 +14,12 @@ use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
 use crate::types::option::Option;
 
 fn create_note<Note, N>(
-    context: &mut Context,
+    context: &mut PrivateContext,
     storage_slot: Field,
     note: &mut Note,
     note_interface: NoteInterface<Note, N>,
 ) {
-    let contract_address = context.inputs.call_context.storage_contract_address;
+    let contract_address = (*context).this_address();
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0 };
     let set_header = note_interface.set_header;
@@ -31,12 +34,12 @@ fn create_note<Note, N>(
 }
 
 fn create_note_hash_from_public<Note, N>(
-    inputs: PublicContextInputs,
+    context: PublicContext,
     storage_slot: Field,
     note: &mut Note,
     note_interface: NoteInterface<Note, N>,
 ) {
-    let contract_address = inputs.call_context.storage_contract_address;
+    let contract_address = context.this_address();
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0 };
     let set_header = note_interface.set_header;
@@ -47,7 +50,7 @@ fn create_note_hash_from_public<Note, N>(
 }
 
 fn destroy_note<Note, N>(
-    context: &mut Context,
+    context: &mut PrivateContext,
     storage_slot: Field,
     note: Note,
     note_interface: NoteInterface<Note, N>,

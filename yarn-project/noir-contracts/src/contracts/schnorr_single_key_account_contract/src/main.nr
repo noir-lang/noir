@@ -10,7 +10,7 @@ contract SchnorrSingleKeyAccount {
     use dep::aztec::abi::CallContext;
     use dep::aztec::private_call_stack_item::PrivateCallStackItem;
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
-    use dep::aztec::context::Context;
+    use dep::aztec::context::PrivateContext;
     use dep::aztec::types::vec::BoundedVec;
     use dep::aztec::types::point::Point;
     use dep::aztec::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;
@@ -30,7 +30,7 @@ contract SchnorrSingleKeyAccount {
         for byte in owner { args.push(byte as Field); }
         for byte in signature { args.push(byte as Field); }
         args.push(partial_address);
-        let mut context = Context::new(inputs, abi::hash_args(args.storage));
+        let mut context = PrivateContext::new(inputs, abi::hash_args(args.storage));
 
         // Verify payload signature
         let payload_fields: [Field; entrypoint::ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
@@ -56,7 +56,7 @@ contract SchnorrSingleKeyAccount {
 
         // Verify public key against address
         let reproduced_address = dep::std::hash::pedersen_with_separator([x, y, partial_address], GENERATOR_INDEX__CONTRACT_ADDRESS)[0];
-        assert(reproduced_address == inputs.call_context.storage_contract_address);
+        assert(reproduced_address == context.this_address());
 
         // Execute calls
         payload.execute_calls(&mut context);
@@ -69,6 +69,6 @@ contract SchnorrSingleKeyAccount {
         inputs: pub PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
-        Context::new(inputs, 0).finish()
+        PrivateContext::new(inputs, 0).finish()
     }
 }

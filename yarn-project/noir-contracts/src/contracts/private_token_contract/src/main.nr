@@ -10,7 +10,7 @@ contract PrivateToken {
 
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::context::Context;
+    use dep::aztec::context::PrivateContext;
     use dep::aztec::note::{
         note_header::NoteHeader,
         utils as note_utils,
@@ -31,7 +31,7 @@ contract PrivateToken {
         owner: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([initial_supply, owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([initial_supply, owner]));
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
@@ -54,7 +54,7 @@ contract PrivateToken {
         owner: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, owner]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner]));
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
@@ -76,7 +76,7 @@ contract PrivateToken {
         recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([amount, sender, recipient]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, sender, recipient]));
 
         // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender);

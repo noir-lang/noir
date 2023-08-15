@@ -85,7 +85,7 @@ describe('ACIR public execution simulator', () => {
         const result = await executor.execute(execution, GlobalVariables.empty());
 
         const expectedBalance = new Fr(160n);
-        expect(result.returnValues).toEqual([expectedBalance]);
+        expect(result.returnValues[0]).toEqual(expectedBalance);
 
         const storageSlot = computeSlotForMapping(new Fr(1n), recipient.toField(), circuitsWasm);
         expect(result.contractStorageUpdateRequests).toEqual([
@@ -154,7 +154,7 @@ describe('ACIR public execution simulator', () => {
         const expectedRecipientBalance = new Fr(160n);
         const expectedSenderBalance = new Fr(60n);
 
-        expect(result.returnValues).toEqual([expectedRecipientBalance]);
+        expect(result.returnValues[0]).toEqual(expectedRecipientBalance);
 
         expect(result.contractStorageUpdateRequests).toEqual([
           { storageSlot: senderStorageSlot, oldValue: senderBalance, newValue: expectedSenderBalance },
@@ -174,7 +174,7 @@ describe('ACIR public execution simulator', () => {
 
         const result = await executor.execute(execution, GlobalVariables.empty());
 
-        expect(result.returnValues).toEqual([recipientBalance]);
+        expect(result.returnValues[0]).toEqual(recipientBalance);
 
         expect(result.contractStorageReads).toEqual([
           { storageSlot: recipientStorageSlot, value: recipientBalance },
@@ -245,7 +245,7 @@ describe('ACIR public execution simulator', () => {
         } else {
           const result = await executor.execute(execution, globalVariables);
 
-          expect(result.returnValues).toEqual([
+          expect(result.returnValues[0]).toEqual(
             new Fr(
               initialValue +
                 globalVariables.chainId.value +
@@ -253,7 +253,7 @@ describe('ACIR public execution simulator', () => {
                 globalVariables.blockNumber.value +
                 globalVariables.timestamp.value,
             ),
-          ]);
+          );
         }
       },
       20_000,

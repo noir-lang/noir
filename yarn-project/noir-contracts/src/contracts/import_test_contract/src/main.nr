@@ -5,7 +5,7 @@ mod test_contract_interface;
 contract ImportTest {
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::context::Context;
+    use dep::aztec::context::PrivateContext;
     
     use crate::test_contract_interface::{
         TestContractInterface,
@@ -18,7 +18,7 @@ contract ImportTest {
     fn constructor(
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        Context::new(inputs, 0).finish()
+        PrivateContext::new(inputs, 0).finish()
     }   
  
     // Calls the testCodeGen on the Test contract at the target address
@@ -29,7 +29,7 @@ contract ImportTest {
         inputs: PrivateContextInputs,
         target: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([target]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([target]));
         let test_contract_instance = TestContractInterface::at(target);
         let return_values = test_contract_instance.testCodeGen(
             &mut context,
@@ -61,7 +61,7 @@ contract ImportTest {
         inputs: PrivateContextInputs,
         target: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([target]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([target]));
         let test_contract_instance = TestContractInterface::at(target);
         let return_values = test_contract_instance.getThisAddress(&mut context);
         context.return_values.push(return_values[0]);
@@ -75,7 +75,7 @@ contract ImportTest {
         inputs: PrivateContextInputs,
         target: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([target]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([target]));
         let test_contract_instance = TestContractInterface::at(target);
         test_contract_instance.createNullifierPublic(&mut context, 1, 2);
         context.finish()

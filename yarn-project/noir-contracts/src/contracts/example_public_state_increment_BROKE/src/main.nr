@@ -4,7 +4,10 @@ contract ExamplePublicStateIncrement {
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::abi::PublicContextInputs;
-    use dep::aztec::context::Context;
+    use dep::aztec::context::{
+        PrivateContext,
+        PublicContext,
+    };
     use dep::aztec::oracle::logs::emit_unencrypted_log;
     use dep::aztec::types::point::Point;
     use crate::storage::Storage;
@@ -19,7 +22,7 @@ contract ExamplePublicStateIncrement {
     fn constructor(
         inputs: PrivateContextInputs,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, 0);
+        let mut context = PrivateContext::new(inputs, 0);
 
         let initialise_a_function_selector: Field = 1234;
         let _return_values = context.call_public_function_no_args(context.this_address(), initialise_a_function_selector);
@@ -29,20 +32,28 @@ contract ExamplePublicStateIncrement {
 
     // a = 100;
     open internal fn initialise_a(
-        _inputs: PublicContextInputs,
-    ) {
+        inputs: PublicContextInputs,
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([]));
+
         let storage = Storage::init();
         storage.a.write(100);
+
+        context.finish()
     }
 
     // a += b;
     open fn increment_a(
-        _inputs: PublicContextInputs,
+        inputs: PublicContextInputs,
         b: Field,
-    ) {
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([b]));
+
         let storage = Storage::init();
         let mut a = storage.a.read();
         a += b;
         storage.a.write(a);
+
+        context.finish()
     }
 }

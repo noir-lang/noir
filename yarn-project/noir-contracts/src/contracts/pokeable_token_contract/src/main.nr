@@ -11,7 +11,7 @@ contract PokeableToken {
     };
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
-    use dep::aztec::context::Context;
+    use dep::aztec::context::PrivateContext;
     use dep::aztec::note::{
         note_getter::NoteGetterOptions,
         note_header::{NoteHeader},
@@ -34,7 +34,7 @@ contract PokeableToken {
         recipient: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = Context::new(inputs, abi::hash_args([initial_supply, sender, recipient]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([initial_supply, sender, recipient]));
 
         let mut sender_note = AddressNote::new(sender);
         let mut recipient_note = AddressNote::new(recipient);
@@ -59,7 +59,7 @@ contract PokeableToken {
         sender: Field,
         recipient: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
-        let mut context = Context::new(inputs, abi::hash_args([sender, recipient]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([sender, recipient]));
         let storage = Storage::init();
 
         // TODO: This check is not satisfying constraints

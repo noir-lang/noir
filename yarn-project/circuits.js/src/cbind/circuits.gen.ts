@@ -1243,7 +1243,7 @@ interface MsgpackPublicCircuitPublicInputs {
   new_l2_to_l1_msgs: Tuple<Buffer, 2>;
   unencrypted_logs_hash: Tuple<Buffer, 2>;
   unencrypted_log_preimages_length: Buffer;
-  historic_public_data_tree_root: Buffer;
+  historic_block_data: MsgpackHistoricBlockData;
   prover_address: Buffer;
 }
 
@@ -1281,8 +1281,8 @@ export function toPublicCircuitPublicInputs(o: MsgpackPublicCircuitPublicInputs)
   if (o.unencrypted_log_preimages_length === undefined) {
     throw new Error('Expected unencrypted_log_preimages_length in PublicCircuitPublicInputs deserialization');
   }
-  if (o.historic_public_data_tree_root === undefined) {
-    throw new Error('Expected historic_public_data_tree_root in PublicCircuitPublicInputs deserialization');
+  if (o.historic_block_data === undefined) {
+    throw new Error('Expected historic_block_data in PublicCircuitPublicInputs deserialization');
   }
   if (o.prover_address === undefined) {
     throw new Error('Expected prover_address in PublicCircuitPublicInputs deserialization');
@@ -1301,7 +1301,7 @@ export function toPublicCircuitPublicInputs(o: MsgpackPublicCircuitPublicInputs)
     mapTuple(o.new_l2_to_l1_msgs, (v: Buffer) => Fr.fromBuffer(v)),
     mapTuple(o.unencrypted_logs_hash, (v: Buffer) => Fr.fromBuffer(v)),
     Fr.fromBuffer(o.unencrypted_log_preimages_length),
-    Fr.fromBuffer(o.historic_public_data_tree_root),
+    toHistoricBlockData(o.historic_block_data),
     Address.fromBuffer(o.prover_address),
   );
 }
@@ -1340,8 +1340,8 @@ export function fromPublicCircuitPublicInputs(o: PublicCircuitPublicInputs): Msg
   if (o.unencryptedLogPreimagesLength === undefined) {
     throw new Error('Expected unencryptedLogPreimagesLength in PublicCircuitPublicInputs serialization');
   }
-  if (o.historicPublicDataTreeRoot === undefined) {
-    throw new Error('Expected historicPublicDataTreeRoot in PublicCircuitPublicInputs serialization');
+  if (o.historicBlockData === undefined) {
+    throw new Error('Expected historicBlockData in PublicCircuitPublicInputs serialization');
   }
   if (o.proverAddress === undefined) {
     throw new Error('Expected proverAddress in PublicCircuitPublicInputs serialization');
@@ -1360,7 +1360,7 @@ export function fromPublicCircuitPublicInputs(o: PublicCircuitPublicInputs): Msg
     new_l2_to_l1_msgs: mapTuple(o.newL2ToL1Msgs, (v: Fr) => toBuffer(v)),
     unencrypted_logs_hash: mapTuple(o.unencryptedLogsHash, (v: Fr) => toBuffer(v)),
     unencrypted_log_preimages_length: toBuffer(o.unencryptedLogPreimagesLength),
-    historic_public_data_tree_root: toBuffer(o.historicPublicDataTreeRoot),
+    historic_block_data: fromHistoricBlockData(o.historicBlockData),
     prover_address: toBuffer(o.proverAddress),
   };
 }

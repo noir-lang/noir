@@ -155,6 +155,7 @@ export class PublicProcessor {
       executionStack.push(...result.nestedExecutions);
       const preimages = await this.getPublicCallStackPreimages(result);
       const callData = await this.getPublicCallData(result, preimages, isExecutionRequest);
+
       [kernelOutput, kernelProof] = await this.runKernelCircuit(callData, kernelOutput, kernelProof);
     }
 
@@ -200,9 +201,11 @@ export class PublicProcessor {
 
   protected async getPublicCircuitPublicInputs(result: PublicExecutionResult) {
     const publicDataTreeInfo = await this.db.getTreeInfo(MerkleTreeId.PUBLIC_DATA_TREE);
-    const historicPublicDataTreeRoot = Fr.fromBuffer(publicDataTreeInfo.root);
+    this.blockData.publicDataTreeRoot = Fr.fromBuffer(publicDataTreeInfo.root);
+
     const callStackPreimages = await this.getPublicCallStackPreimages(result);
     const wasm = await CircuitsWasm.get();
+
     const publicCallStack = mapTuple(callStackPreimages, item =>
       item.isEmpty() ? Fr.zero() : computeCallStackItemHash(wasm, item),
     );
@@ -232,7 +235,7 @@ export class PublicProcessor {
       publicCallStack,
       unencryptedLogsHash,
       unencryptedLogPreimagesLength,
-      historicPublicDataTreeRoot,
+      historicBlockData: this.blockData,
     });
   }
 

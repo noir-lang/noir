@@ -8,7 +8,7 @@ use dep::value_note::{
 };
 
 use dep::aztec::{
-    context::Context,
+    context::PrivateContext,
     log::emit_encrypted_log,
     note::note_getter_options::NoteGetterOptions,
     oracle::get_public_key::get_public_key,
@@ -39,7 +39,7 @@ impl EasyPrivateUint {
     // Very similar to `send_note`.
     fn add(
         self,
-        context: &mut Context,
+        context: &mut PrivateContext,
         addend: u120,
         owner: Field,
     ) {
@@ -53,7 +53,7 @@ impl EasyPrivateUint {
         let owner_key = get_public_key(owner);
         emit_encrypted_log(
             context,
-            context.inputs.call_context.storage_contract_address,
+            (*context).this_address(),
             self.set.storage_slot,
             owner_key,
             addend_note.serialise(),
@@ -63,7 +63,7 @@ impl EasyPrivateUint {
     // Very similar to `spend_note`.
     fn sub(
         self,
-        context: &mut Context,
+        context: &mut PrivateContext,
         subtrahend: u120,
         owner: Field,
     ) {
@@ -106,7 +106,7 @@ impl EasyPrivateUint {
 
         emit_encrypted_log(
             context,
-            context.inputs.call_context.storage_contract_address,
+            (*context).this_address(),
             self.set.storage_slot,
             owner_key,
             encrypted_data,

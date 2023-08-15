@@ -5,7 +5,7 @@ use crate::constants_gen::{
     MAX_NOTES_PER_PAGE,
     VIEW_NOTE_ORACLE_RETURN_LENGTH,
 };
-use crate::context::Context;
+use crate::context::PrivateContext;
 use crate::note::{
     note_getter_options::NoteGetterOptions,
     note_interface::NoteInterface,
@@ -20,20 +20,20 @@ use crate::oracle;
 use crate::types::option::Option;
 
 fn check_note_header<Note, N>(
-    context: Context,
+    context: PrivateContext,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     note: Note,
 ) {
     let get_header = note_interface.get_header;
     let header = get_header(note);
-    let contract_address = context.inputs.call_context.storage_contract_address;
+    let contract_address = context.this_address();
     assert(header.contract_address == contract_address);
     assert(header.storage_slot == storage_slot);
 }
 
 fn ensure_note_exists<Note, N>(
-    context: &mut Context,
+    context: &mut PrivateContext,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     note: &mut Note,
@@ -56,7 +56,7 @@ fn ensure_note_exists<Note, N>(
 // notes via the oracle.
 // Modifies the note by populating it with header info.
 fn ensure_note_hash_exists<Note, N>(
-    context: &mut Context,
+    context: &mut PrivateContext,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     note: &mut Note,
@@ -67,7 +67,7 @@ fn ensure_note_hash_exists<Note, N>(
     // - and the nonce (used in the unique siloed note hash)
     let set_header = note_interface.set_header;
     let note_header = NoteHeader {
-        contract_address: context.inputs.call_context.storage_contract_address,
+        contract_address: (*context).this_address(),
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): should be
         // real nonce (once public kernel applies nonces).
         nonce: 0,
@@ -98,7 +98,7 @@ fn ensure_note_hash_exists<Note, N>(
 }
 
 fn get_note<Note, N>(
-    context: &mut Context,
+    context: &mut PrivateContext,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
 ) -> Note {
@@ -113,7 +113,7 @@ fn get_note<Note, N>(
 }
 
 fn get_notes<Note, N, S, P>(
-    context: &mut Context,
+    context: &mut PrivateContext,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     options: NoteGetterOptions<Note, N, S, P>,

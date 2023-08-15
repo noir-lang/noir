@@ -1,6 +1,6 @@
 use crate::abi;
 use crate::types::vec::BoundedVec;
-use crate::context::Context;
+use crate::context::PrivateContext;
 use crate::private_call_stack_item::PrivateCallStackItem;
 use crate::public_call_stack_item::PublicCallStackItem;    
 
@@ -88,7 +88,7 @@ impl EntrypointPayload {
   }
 
   // Executes all private and public calls 
-  fn execute_calls(self, context: &mut Context) {
+  fn execute_calls(self, context: &mut PrivateContext) {
     for i in 0..ACCOUNT_MAX_PRIVATE_CALLS {
         let target_address = self.flattened_targets[i];
         if target_address != 0 {
