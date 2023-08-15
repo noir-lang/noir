@@ -23,6 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
+use super::spanned;
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
@@ -264,7 +265,7 @@ fn function_return_type() -> impl NoirParser<((AbiDistinctness, AbiVisibility), 
     just(Token::Arrow)
         .ignore_then(optional_distinctness())
         .then(optional_visibility())
-        .then(parse_type().map_with_span(|ty, span| (ty, span)))
+        .then(spanned(parse_type()))
         .or_not()
         .map_with_span(|ret, span| match ret {
             Some((head, (ty, span))) => (head, FunctionReturnType::Ty(ty, span)),

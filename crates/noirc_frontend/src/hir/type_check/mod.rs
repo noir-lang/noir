@@ -58,24 +58,10 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         }
     }
 
-    let (expr_span, empty_function) =
-        if let HirExpression::Block(block) = interner.expression(function_body_id) {
-            let last_stmt = block.statements().last();
-            let span = last_stmt.and_then(|last| {
-                if let HirStatement::Expression(expr) = interner.statement(last) {
-                    interner.expr_span(&expr).into()
-                } else {
-                    None
-                }
-            });
-
-            (span, last_stmt.is_none())
-        } else {
-            (None, false)
-        };
-
     // Check declared return type and actual return type
     if !can_ignore_ret {
+        let (expr_span, empty_function) = function_info(interner, function_body_id);
+
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         function_last_type.unify_with_coercions(
             &declared_return_type,
@@ -87,7 +73,7 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
                     lhs: declared_return_type.clone(),
                     rhs: function_last_type.clone(),
                     span: func_span,
-                    source: Source::Return(meta.return_span, expr_span),
+                    source: Source::Return(meta.return_type, expr_span),
                 };
 
                 if empty_function {
@@ -102,6 +88,28 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
     }
 
     errors
+}
+
+fn function_info(
+    interner: &mut NodeInterner,
+    function_body_id: &ExprId,
+) -> (noirc_errors::Span, bool) {
+    let (expr_span, empty_function) =
+        if let HirExpression::Block(block) = interner.expression(function_body_id) {
+            let last_stmt = block.statements().last();
+            let mut span = interner.expr_span(function_body_id);
+
+            if let Some(last_stmt) = last_stmt {
+                if let HirStatement::Expression(expr) = interner.statement(last_stmt) {
+                    span = interner.expr_span(&expr);
+                }
+            }
+
+            (span, last_stmt.is_none())
+        } else {
+            (interner.expr_span(function_body_id), false)
+        };
+    (expr_span, empty_function)
 }
 
 impl<'interner> TypeChecker<'interner> {
@@ -267,7 +275,7 @@ mod test {
             return_visibility: noirc_abi::AbiVisibility::Private,
             return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
             has_body: true,
-            return_span: FunctionReturnType::Default(Span::default()),
+            return_type: FunctionReturnType::Default(Span::default()),
         };
         interner.push_fn_meta(func_meta, func_id);
 

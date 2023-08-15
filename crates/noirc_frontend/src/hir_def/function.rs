@@ -7,7 +7,7 @@ use super::stmt::HirPattern;
 use crate::hir::def_map::ModuleId;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attribute, FunctionKind};
-use crate::{ContractFunctionType, Type, FunctionReturnType};
+use crate::{ContractFunctionType, FunctionReturnType, Type};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -137,7 +137,7 @@ pub struct FuncMeta {
 
     pub parameters: Parameters,
 
-    pub return_span: FunctionReturnType,
+    pub return_type: FunctionReturnType,
 
     pub return_visibility: AbiVisibility,
 

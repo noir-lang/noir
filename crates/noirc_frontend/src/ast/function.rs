@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{token::Attribute, Ident, Pattern, FunctionReturnType};
+use crate::{token::Attribute, FunctionReturnType, Ident, Pattern};
 
 use super::{FunctionDefinition, UnresolvedType};
 

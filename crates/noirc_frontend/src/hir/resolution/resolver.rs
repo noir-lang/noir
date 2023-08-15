@@ -726,7 +726,7 @@ impl<'a> Resolver<'a> {
             location,
             typ,
             parameters: parameters.into(),
-            return_span: func.def.return_type.clone(),
+            return_type: func.def.return_type.clone(),
             return_visibility: func.def.return_visibility,
             return_distinctness: func.def.return_distinctness,
             has_body: !func.def.body.is_empty(),

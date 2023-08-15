@@ -3,7 +3,10 @@ use std::fmt::Display;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use crate::{BlockExpression, Expression, Ident, NoirFunction, UnresolvedGenerics, UnresolvedType, FunctionReturnType};
+use crate::{
+    BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, UnresolvedGenerics,
+    UnresolvedType,
+};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
