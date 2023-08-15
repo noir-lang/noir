@@ -44,7 +44,7 @@ impl Ssa {
     }
 }
 
-struct Loop {
+pub(crate) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
     header: BasicBlockId,
@@ -54,15 +54,15 @@ struct Loop {
     back_edge_start: BasicBlockId,
 
     /// All the blocks contained within the loop, including `header` and `back_edge_start`.
-    blocks: HashSet<BasicBlockId>,
+    pub(crate) blocks: HashSet<BasicBlockId>,
 }
 
-struct Loops {
+pub(crate) struct Loops {
     /// The loops that failed to be unrolled so that we do not try to unroll them again.
     /// Each loop is identified by its header block id.
     failed_to_unroll: HashSet<BasicBlockId>,
 
-    yet_to_unroll: Vec<Loop>,
+    pub(crate) yet_to_unroll: Vec<Loop>,
     modified_blocks: HashSet<BasicBlockId>,
     cfg: ControlFlowGraph,
     dom_tree: DominatorTree,
@@ -70,7 +70,7 @@ struct Loops {
 
 /// Find a loop in the program by finding a node that dominates any predecessor node.
 /// The edge where this happens will be the back-edge of the loop.
-fn find_all_loops(function: &Function) -> Loops {
+pub(crate) fn find_all_loops(function: &Function) -> Loops {
     let cfg = ControlFlowGraph::with_function(function);
     let post_order = PostOrder::with_function(function);
     let mut dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);

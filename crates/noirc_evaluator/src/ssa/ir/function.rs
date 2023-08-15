@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use iter_extended::vecmap;
 
@@ -107,8 +107,8 @@ impl Function {
     /// Note that self.dfg.basic_blocks_iter() iterates over all blocks,
     /// whether reachable or not. This function should be used if you
     /// want to iterate only reachable blocks.
-    pub(crate) fn reachable_blocks(&self) -> HashSet<BasicBlockId> {
-        let mut blocks = HashSet::new();
+    pub(crate) fn reachable_blocks(&self) -> BTreeSet<BasicBlockId> {
+        let mut blocks = BTreeSet::new();
         let mut stack = vec![self.entry_block];
 
         while let Some(block) = stack.pop() {

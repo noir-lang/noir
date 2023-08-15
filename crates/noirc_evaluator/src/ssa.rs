@@ -49,13 +49,21 @@ pub(crate) fn optimize_into_acir(
         ssa = ssa
             .inline_functions()
             .print(print_ssa_passes, "After Inlining:")
+            // Run mem2reg with the CFG separated into blocks
+            .mem2reg()
+            .print(print_ssa_passes, "After Mem2Reg:")
             .evaluate_assert_constant()?
             .unroll_loops()?
             .print(print_ssa_passes, "After Unrolling:")
             .simplify_cfg()
             .print(print_ssa_passes, "After Simplifying:")
+            // Run mem2reg before flattening to handle any promotion
+            // of values that can be accessed after loop unrolling
+            .mem2reg()
+            .print(print_ssa_passes, "After Mem2Reg:")
             .flatten_cfg()
             .print(print_ssa_passes, "After Flattening:")
+            // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
             .mem2reg()
             .print(print_ssa_passes, "After Mem2Reg:")
             .fold_constants()
