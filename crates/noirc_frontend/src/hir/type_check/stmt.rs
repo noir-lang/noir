@@ -276,8 +276,8 @@ impl<'interner> TypeChecker<'interner> {
         match expr {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let v: u128 = value.to_u128();
-                if let Type::Integer(_, bit) = annotated_type {
-                    let max = 1 << bit;
+                if let Type::Integer(_, bit_count) = annotated_type {
+                    let max = 1 << bit_count;
                     if v >= max {
                         self.errors.push(TypeCheckError::OverflowingAssignment {
                             expr: value,
