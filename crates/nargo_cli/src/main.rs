@@ -8,10 +8,14 @@ const PANIC_MESSAGE: &str = "This is a bug. We may have already fixed this in ne
 fn main() -> eyre::Result<()> {
     // Register a panic hook to display more readable panic messages to end-users
     HookBuilder::default()
-    .display_env_section(false)
-    .display_location_section(false)
-    .panic_section(PANIC_MESSAGE)
-    .install()?;
+        .display_env_section(false)
+        .display_location_section(false)
+        .panic_section(PANIC_MESSAGE)
+        .install()?;
+
+    if std::env::var("RUST_LIB_BACKTRACE").is_err() {
+        std::env::set_var("RUST_LIB_BACKTRACE", "0");
+    }
 
     start_cli()
 }
