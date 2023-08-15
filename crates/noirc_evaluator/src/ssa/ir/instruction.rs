@@ -75,7 +75,7 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::Println => true,
+            Intrinsic::Println | Intrinsic::AssertConstant => true,
 
             Intrinsic::Sort
             | Intrinsic::ArrayLen
