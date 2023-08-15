@@ -423,7 +423,7 @@ pub(crate) enum TerminatorInstruction {
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`.
-    /// The optional Location here is expected to be used to issue an error when the start range of
+    /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
     Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
 
@@ -450,10 +450,10 @@ impl TerminatorInstruction {
                 then_destination: *then_destination,
                 else_destination: *else_destination,
             },
-            Jmp { destination, arguments, call_stack: location } => Jmp {
+            Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
                 arguments: vecmap(arguments, |value| f(*value)),
-                call_stack: location.clone(),
+                call_stack: call_stack.clone(),
             },
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }

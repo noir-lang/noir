@@ -71,12 +71,12 @@ impl Context {
             .requires_ctrl_typevars()
             .then(|| vecmap(&old_results, |result| function.dfg.type_of_value(*result)));
 
-        let location = function.dfg.get_call_stack(id);
+        let call_stack = function.dfg.get_call_stack(id);
         let new_results = match function.dfg.insert_instruction_and_results(
             instruction,
             block,
             ctrl_typevars,
-            location,
+            call_stack,
         ) {
             InsertInstructionResult::SimplifiedTo(new_result) => vec![new_result],
             InsertInstructionResult::SimplifiedToMultiple(new_results) => new_results,

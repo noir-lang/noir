@@ -45,7 +45,7 @@ pub(crate) struct GeneratedAcir {
     /// All witness indices which are inputs to the main function
     pub(crate) input_witnesses: Vec<Witness>,
 
-    /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
+    /// Correspondance between an opcode index (in opcodes) and the source code call stack which generated it
     pub(crate) locations: BTreeMap<usize, CallStack>,
 
     /// Source code location of the current instruction being processed

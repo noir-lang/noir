@@ -72,11 +72,12 @@ pub(crate) struct DataFlowGraph {
     replaced_value_ids: HashMap<ValueId, ValueId>,
 
     /// Source location of each instruction for debugging and issuing errors.
-    /// The Vec here corresponds to the entire callstack of locations. Initially this only
-    /// contains the actual location of the instruction. During inlining, a new location will
-    /// be pushed to each instruction for the location of the function call of the function the
-    /// instruction was originally located in. Once inlining is complete, the locations Vec here
-    /// should contain the entire callstack for each instruction.
+    ///
+    /// The `CallStack` here corresponds to the entire callstack of locations. Initially this
+    /// only contains the actual location of the instruction. During inlining, a new location
+    /// will be pushed to each instruction for the location of the function call of the function
+    /// the instruction was originally located in. Once inlining is complete, the locations Vec
+    /// here should contain the entire callstack for each instruction.
     ///
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.

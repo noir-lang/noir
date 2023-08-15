@@ -488,11 +488,11 @@ impl Context {
                     let index = match index_const.try_to_u64() {
                         Some(index_const) => index_const as usize,
                         None => {
-                            let location = self.acir_context.get_call_stack();
+                            let call_stack = self.acir_context.get_call_stack();
                             return Err(RuntimeError::TypeConversion {
                                 from: "array index".to_string(),
                                 into: "u64".to_string(),
-                                call_stack: location,
+                                call_stack,
                             });
                         }
                     };
@@ -500,11 +500,11 @@ impl Context {
                         // Ignore the error if side effects are disabled.
                         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
                         {
-                            let location = self.acir_context.get_call_stack();
+                            let call_stack = self.acir_context.get_call_stack();
                             return Err(RuntimeError::IndexOutOfBounds {
                                 index,
                                 array_size,
-                                call_stack: location,
+                                call_stack,
                             });
                         }
                         let result_type =

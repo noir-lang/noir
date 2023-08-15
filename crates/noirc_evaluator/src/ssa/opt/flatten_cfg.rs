@@ -460,24 +460,27 @@ impl<'f> Context<'f> {
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
 
-        let then_location = self.inserter.function.dfg.get_value_call_stack(then_value);
-        let else_location = self.inserter.function.dfg.get_value_call_stack(else_value);
+        let then_call_stack = self.inserter.function.dfg.get_value_call_stack(then_value);
+        let else_call_stack = self.inserter.function.dfg.get_value_call_stack(else_value);
 
-        let location =
-            if then_location.is_empty() { else_location.clone() } else { then_location.clone() };
+        let call_stack = if then_call_stack.is_empty() {
+            else_call_stack.clone()
+        } else {
+            then_call_stack.clone()
+        };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
         let then_condition =
-            self.insert_instruction(Instruction::Cast(then_condition, then_type), then_location);
+            self.insert_instruction(Instruction::Cast(then_condition, then_type), then_call_stack);
         let else_condition =
-            self.insert_instruction(Instruction::Cast(else_condition, else_type), else_location);
+            self.insert_instruction(Instruction::Cast(else_condition, else_type), else_call_stack);
 
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
         let then_value = self
             .inserter
             .function
             .dfg
-            .insert_instruction_and_results(mul, block, None, location.clone())
+            .insert_instruction_and_results(mul, block, None, call_stack.clone())
             .first();
 
         let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
@@ -485,14 +488,14 @@ impl<'f> Context<'f> {
             .inserter
             .function
             .dfg
-            .insert_instruction_and_results(mul, block, None, location.clone())
+            .insert_instruction_and_results(mul, block, None, call_stack.clone())
             .first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
         self.inserter
             .function
             .dfg
-            .insert_instruction_and_results(add, block, None, location)
+            .insert_instruction_and_results(add, block, None, call_stack)
             .first()
     }
 
@@ -678,12 +681,12 @@ impl<'f> Context<'f> {
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
     fn push_instruction(&mut self, id: InstructionId) {
-        let (instruction, location) = self.inserter.map_instruction(id);
-        let instruction = self.handle_instruction_side_effects(instruction, location.clone());
+        let (instruction, call_stack) = self.inserter.map_instruction(id);
+        let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
         let is_allocate = matches!(instruction, Instruction::Allocate);
 
         let entry = self.inserter.function.entry_block();
-        let results = self.inserter.push_instruction_value(instruction, id, entry, location);
+        let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.

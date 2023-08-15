@@ -50,7 +50,6 @@ pub(crate) fn optimize_into_acir(
             .inline_functions()
             .print(print_ssa_passes, "After Inlining:")
             .evaluate_assert_constant()?
-            .print(print_ssa_passes, "After asert cons:")
             .unroll_loops()?
             .print(print_ssa_passes, "After Unrolling:")
             .simplify_cfg()
@@ -106,7 +105,11 @@ pub fn create_circuit(
         return_values,
     };
 
-    let locations = locations.into_iter().map(|(k, v)| (k, v.into_iter().collect())).collect();
+    // This converts each im::Vector in the BTreeMap to a Vec
+    let locations = locations
+        .into_iter()
+        .map(|(index, locations)| (index, locations.into_iter().collect()))
+        .collect();
 
     let debug_info = DebugInfo::new(locations);
 
