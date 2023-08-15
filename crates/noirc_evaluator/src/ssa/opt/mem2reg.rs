@@ -26,14 +26,8 @@ impl Ssa {
             let mut all_protected_allocations = HashSet::new();
 
             let mut context = PerFunctionContext::new(function);
-            // let post_order_slice = .iter().rev();
-            let post_order = PostOrder::with_function(function);
-            let post_order_slice = post_order.as_slice();
 
-            // TODO: for array_dynamic the normal post_order works, but for regression_2218 we need it reverse
-            let post_order_iter = post_order_slice.iter().rev();
-            // let post_order_iter = post_order_slice.iter();
-            for block in post_order_iter.clone() {
+            for block in function.reachable_blocks() {
                 // Maps Load instruction id -> value to replace the result of the load with
                 let mut loads_to_substitute_per_block = BTreeMap::new();
 
@@ -45,13 +39,13 @@ impl Ssa {
                         &mut function.dfg,
                         &mut loads_to_substitute_per_block,
                         &mut load_values_to_substitute,
-                        *block,
+                        block,
                     );
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
             }
 
-            for block in post_order_iter {
-                context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, *block);
+            for block in function.reachable_blocks() {
+                context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, block);
             }
         }
         self
