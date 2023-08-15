@@ -73,6 +73,11 @@ impl BasicBlock {
         &mut self.instructions
     }
 
+    /// Take the instructions in this block, replacing it with an empty Vec
+    pub(crate) fn take_instructions(&mut self) -> Vec<InstructionId> {
+        std::mem::take(&mut self.instructions)
+    }
+
     /// Sets the terminator instruction of this block.
     ///
     /// A properly-constructed block will always terminate with a TerminatorInstruction -

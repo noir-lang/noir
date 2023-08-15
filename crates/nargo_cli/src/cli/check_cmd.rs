@@ -3,7 +3,7 @@ use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
 use nargo::{package::Package, prepare_package};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
 use noirc_frontend::{
@@ -18,8 +18,12 @@ use super::NargoConfig;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CheckCommand {
     /// The name of the package to check
-    #[clap(long)]
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Check all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -30,8 +34,11 @@ pub(crate) fn run<B: Backend>(
     args: CheckCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let toml_path = get_package_manifest(&config.program_dir)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
     for package in &workspace {
         check_package(package, &args.compile_options)?;
@@ -44,8 +51,8 @@ fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<
     let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 
-    if package.is_library() {
-        // Libraries do not have ABIs.
+    if package.is_library() || package.is_contract() {
+        // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
         Ok(())
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
@@ -88,7 +95,7 @@ fn create_input_toml_template(
                     .collect();
                 toml::Value::Array(default_value_vec)
             }
-            AbiType::Struct { fields } => {
+            AbiType::Struct { fields, .. } => {
                 let default_value_map = toml::map::Map::from_iter(
                     fields.into_iter().map(|(name, typ)| (name, default_value(typ))),
                 );
@@ -128,6 +135,7 @@ mod tests {
             typed_param(
                 "d",
                 AbiType::Struct {
+                    name: String::from("MyStruct"),
                     fields: vec![
                         (String::from("d1"), AbiType::Field),
                         (

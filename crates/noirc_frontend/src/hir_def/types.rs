@@ -447,6 +447,10 @@ impl Type {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
     }
 
+    pub fn is_unsigned(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
+    }
+
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
         // True if the given type is a NamedGeneric with the target_id
         let named_generic_id_matches_target = |typ: &Type| {
@@ -986,7 +990,7 @@ impl Type {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
                 let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
-                AbiType::Struct { fields }
+                AbiType::Struct { fields, name: struct_type.name.to_string() }
             }
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_, _) => unreachable!(),

@@ -88,7 +88,7 @@
         BARRETENBERG_BIN_DIR = "${pkgs.barretenberg-wasm}/bin";
       };
 
-      testEnvironment = sharedEnvironment // {};
+      testEnvironment = sharedEnvironment // { };
 
       # The `self.rev` property is only available when the working tree is not dirty
       GIT_COMMIT = if (self ? rev) then self.rev else "unknown";
@@ -117,7 +117,7 @@
 
       sharedArgs = {
         # x-release-please-start-version
-        version = "0.9.0";
+        version = "0.10.0";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
@@ -295,6 +295,7 @@
         COMMIT_SHORT = builtins.substring 0 7 GIT_COMMIT;
         VERSION_APPENDIX = if GIT_DIRTY == "true" then "-dirty" else "";
         PKG_PATH = "./pkg";
+        CARGO_TARGET_DIR = "./target";
 
         nativeBuildInputs = with pkgs; [
           which
@@ -307,7 +308,7 @@
         ];
 
         buildPhaseCargoCommand = ''
-          bash crates/wasm/buildPhaseCargoCommand.sh
+          bash crates/wasm/buildPhaseCargoCommand.sh release
         '';
 
         installPhase = ''

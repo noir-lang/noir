@@ -1,7 +1,6 @@
 use std::{
     collections::BTreeMap,
-    fs::ReadDir,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use fm::{NormalizePath, FILE_EXTENSION};
@@ -18,11 +17,12 @@ mod git;
 pub use errors::ManifestError;
 use git::clone_git_repo;
 
-/// Returns the path of the root directory of the package containing `current_path`.
+/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
 ///
-/// Returns a `CliError` if no parent directories of `current_path` contain a manifest file.
+/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
 pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
-    let manifest_path = find_package_manifest(current_path)?;
+    let root = path_root(current_path);
+    let manifest_path = find_package_manifest(&root, current_path)?;
 
     let package_root =
         manifest_path.parent().expect("infallible: manifest file path can't be root directory");
@@ -30,36 +30,58 @@ pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> 
     Ok(package_root.to_path_buf())
 }
 
-/// Returns the path of the manifest file (`Nargo.toml`) of the package containing `current_path`.
+// TODO(#2323): We are probably going to need a "filepath utils" crate soon
+fn path_root(path: &Path) -> PathBuf {
+    let mut components = path.components();
+
+    match (components.next(), components.next()) {
+        // Preserve prefix if one exists
+        (Some(prefix @ Component::Prefix(_)), Some(root @ Component::RootDir)) => {
+            PathBuf::from(prefix.as_os_str()).join(root.as_os_str())
+        }
+        (Some(root @ Component::RootDir), _) => PathBuf::from(root.as_os_str()),
+        _ => PathBuf::new(),
+    }
+}
+
+/// Returns the [PathBuf] of the `Nargo.toml` file by searching from `current_path` and stopping at `root_path`.
 ///
-/// Returns a `CliError` if no parent directories of `current_path` contain a manifest file.
-pub fn find_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> {
-    current_path
-        .ancestors()
-        .find_map(|dir| find_file(dir, "Nargo", "toml"))
-        .ok_or_else(|| ManifestError::MissingFile(current_path.to_path_buf()))
+/// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
+pub fn find_package_manifest(
+    root_path: &Path,
+    current_path: &Path,
+) -> Result<PathBuf, ManifestError> {
+    if current_path.starts_with(root_path) {
+        let mut found_toml_paths = Vec::new();
+        for path in current_path.ancestors() {
+            if let Ok(toml_path) = get_package_manifest(path) {
+                found_toml_paths.push(toml_path);
+            }
+            // While traversing, break once we process the root specified
+            if path == root_path {
+                break;
+            }
+        }
+
+        // Return the shallowest Nargo.toml, which will be the last in the list
+        found_toml_paths.pop().ok_or_else(|| ManifestError::MissingFile(current_path.to_path_buf()))
+    } else {
+        Err(ManifestError::NoCommonAncestor {
+            root: root_path.to_path_buf(),
+            current: current_path.to_path_buf(),
+        })
+    }
 }
-
-// Looks for file named `file_name` in path
-fn find_file<P: AsRef<Path>>(path: P, file_name: &str, extension: &str) -> Option<PathBuf> {
-    let entries = list_files_and_folders_in(path)?;
-    let file_name = format!("{file_name}.{extension}");
-
-    find_artifact(entries, &file_name)
-}
-
-// There is no distinction between files and folders
-fn find_artifact(entries: ReadDir, artifact_name: &str) -> Option<PathBuf> {
-    let entry = entries
-        .into_iter()
-        .flatten()
-        .find(|entry| entry.file_name().to_str() == Some(artifact_name))?;
-
-    Some(entry.path())
-}
-
-fn list_files_and_folders_in<P: AsRef<Path>>(path: P) -> Option<ReadDir> {
-    std::fs::read_dir(path).ok()
+/// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
+///
+/// Returns a [ManifestError] if `current_path` does not contain a manifest file.
+pub fn get_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> {
+    let toml_path = current_path.join("Nargo.toml");
+    if toml_path.exists() {
+        Ok(toml_path)
+    } else {
+        Err(ManifestError::MissingFile(current_path.to_path_buf()))
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -72,14 +94,20 @@ struct PackageConfig {
 impl PackageConfig {
     fn resolve_to_package(&self, root_dir: &Path) -> Result<Package, ManifestError> {
         let name = if let Some(name) = &self.package.name {
-            name.parse().map_err(|_| ManifestError::InvalidPackageName)?
+            name.parse().map_err(|_| ManifestError::InvalidPackageName {
+                toml: root_dir.join("Nargo.toml"),
+                name: name.into(),
+            })?
         } else {
             return Err(ManifestError::MissingNameField { toml: root_dir.join("Nargo.toml") });
         };
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in self.dependencies.iter() {
-            let name = name.parse().map_err(|_| ManifestError::InvalidPackageName)?;
+            let name = name.parse().map_err(|_| ManifestError::InvalidDependencyName {
+                toml: root_dir.join("Nargo.toml"),
+                name: name.into(),
+            })?;
             let resolved_dep = dep_config.resolve_to_dependency(root_dir)?;
 
             dependencies.insert(name, resolved_dep);
@@ -243,19 +271,20 @@ impl DependencyConfig {
 
 fn toml_to_workspace(
     nargo_toml: NargoToml,
-    selected_package: Option<CrateName>,
+    package_selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
             let member = package_config.resolve_to_package(&nargo_toml.root_dir)?;
-            if selected_package.is_none() || Some(&member.name) == selected_package.as_ref() {
-                Workspace {
+            match &package_selection {
+                PackageSelection::Selected(selected_name) if selected_name != &member.name => {
+                    return Err(ManifestError::MissingSelectedPackage(member.name))
+                }
+                _ => Workspace {
                     root_dir: nargo_toml.root_dir,
                     selected_package_index: Some(0),
                     members: vec![member],
-                }
-            } else {
-                return Err(ManifestError::MissingSelectedPackage(member.name));
+                },
             }
         }
         Config::Workspace { workspace_config } => {
@@ -266,17 +295,18 @@ fn toml_to_workspace(
                 let package_toml_path = package_root_dir.join("Nargo.toml");
                 let member = resolve_package_from_toml(&package_toml_path)?;
 
-                match selected_package.as_ref() {
-                    Some(selected_name) => {
+                match &package_selection {
+                    PackageSelection::Selected(selected_name) => {
                         if &member.name == selected_name {
                             selected_package_index = Some(index);
                         }
                     }
-                    None => {
+                    PackageSelection::DefaultOrAll => {
                         if Some(&member_path) == workspace_config.default_member.as_ref() {
                             selected_package_index = Some(index);
                         }
                     }
+                    PackageSelection::All => selected_package_index = None,
                 }
 
                 members.push(member);
@@ -284,13 +314,21 @@ fn toml_to_workspace(
 
             // If the selected_package_index is still `None` but we have see a default_member or selected package,
             // we want to present an error to users
-            if selected_package_index.is_none() {
-                if let Some(selected_name) = selected_package {
-                    return Err(ManifestError::MissingSelectedPackage(selected_name));
+            match package_selection {
+                PackageSelection::Selected(selected_name) => {
+                    if selected_package_index.is_none() {
+                        return Err(ManifestError::MissingSelectedPackage(selected_name));
+                    }
                 }
-                if let Some(default_path) = workspace_config.default_member {
-                    return Err(ManifestError::MissingDefaultPackage(default_path));
-                }
+                PackageSelection::DefaultOrAll => match workspace_config.default_member {
+                    // If `default-member` is specified but we don't have a selected_package_index, we need to fail
+                    Some(default_path) if selected_package_index.is_none() => {
+                        return Err(ManifestError::MissingDefaultPackage(default_path));
+                    }
+                    // However, if there wasn't a `default-member`, we select All, so no error is needed
+                    _ => (),
+                },
+                PackageSelection::All => (),
             }
 
             Workspace { root_dir: nargo_toml.root_dir, members, selected_package_index }
@@ -325,14 +363,21 @@ fn resolve_package_from_toml(toml_path: &Path) -> Result<Package, ManifestError>
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum PackageSelection {
+    Selected(CrateName),
+    DefaultOrAll,
+    All,
+}
+
 /// Resolves a Nargo.toml file into a `Workspace` struct as defined by our `nargo` core.
 pub fn resolve_workspace_from_toml(
     toml_path: &Path,
-    selected_package: Option<CrateName>,
+    package_selection: PackageSelection,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
 
-    toml_to_workspace(nargo_toml, selected_package)
+    toml_to_workspace(nargo_toml, package_selection)
 }
 
 #[test]

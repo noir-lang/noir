@@ -1,6 +1,7 @@
 use std::{
     future::{self, Future},
     ops::{self, ControlFlow},
+    path::PathBuf,
     pin::Pin,
     task::{self, Poll},
 };
@@ -19,9 +20,10 @@ use lsp_types::{
     PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncOptions,
 };
 use nargo::prepare_package;
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::check_crate;
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
+use noirc_frontend::hir::FunctionNameMatch;
 use serde_json::Value as JsonValue;
 use tower::Service;
 
@@ -30,12 +32,13 @@ const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
 pub struct LspState {
+    root_path: Option<PathBuf>,
     client: ClientSocket,
 }
 
 impl LspState {
     fn new(client: &ClientSocket) -> Self {
-        Self { client: client.clone() }
+        Self { client: client.clone(), root_path: None }
     }
 }
 
@@ -101,9 +104,11 @@ impl LspService for NargoLspService {
 // and params passed in.
 
 fn on_initialize(
-    _state: &mut LspState,
-    _params: InitializeParams,
+    state: &mut LspState,
+    params: InitializeParams,
 ) -> impl Future<Output = Result<InitializeResult, ResponseError>> {
+    state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
+
     async {
         let text_document_sync =
             TextDocumentSyncOptions { save: Some(true.into()), ..Default::default() };
@@ -143,7 +148,17 @@ fn on_code_lens_request(
         }
     };
 
-    let toml_path = match find_package_manifest(&file_path) {
+    let root_path = match &state.root_path {
+        Some(root) => root,
+        None => {
+            return future::ready(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "Could not find project root",
+            )))
+        }
+    };
+
+    let toml_path = match find_package_manifest(root_path, &file_path) {
         Ok(toml_path) => toml_path,
         Err(err) => {
             // If we cannot find a manifest, we log a warning but return no code lenses
@@ -155,7 +170,7 @@ fn on_code_lens_request(
             return future::ready(Ok(None));
         }
     };
-    let workspace = match resolve_workspace_from_toml(&toml_path, None) {
+    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
@@ -176,7 +191,8 @@ fn on_code_lens_request(
 
         let fm = &context.file_manager;
         let files = fm.as_simple_files();
-        let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
+        let tests = context
+            .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
 
         for (func_name, func_id) in tests {
             let location = context.function_meta(&func_id).name.location;
@@ -196,7 +212,14 @@ fn on_code_lens_request(
             let command = Command {
                 title: TEST_CODELENS_TITLE.into(),
                 command: TEST_COMMAND.into(),
-                arguments: Some(vec![func_name.into()]),
+                arguments: Some(vec![
+                    "--program-dir".into(),
+                    format!("{}", workspace.root_dir.display()).into(),
+                    "--package".into(),
+                    format!("{}", package.name).into(),
+                    "--exact".into(),
+                    func_name.into(),
+                ]),
             };
 
             let lens = CodeLens { range, command: command.into(), data: None };
@@ -260,7 +283,18 @@ fn on_did_save_text_document(
         }
     };
 
-    let toml_path = match find_package_manifest(&file_path) {
+    let root_path = match &state.root_path {
+        Some(root) => root,
+        None => {
+            return ControlFlow::Break(Err(ResponseError::new(
+                ErrorCode::REQUEST_FAILED,
+                "Could not find project root",
+            )
+            .into()));
+        }
+    };
+
+    let toml_path = match find_package_manifest(root_path, &file_path) {
         Ok(toml_path) => toml_path,
         Err(err) => {
             // If we cannot find a manifest, we log a warning but return no diagnostics
@@ -272,7 +306,7 @@ fn on_did_save_text_document(
             return ControlFlow::Continue(());
         }
     };
-    let workspace = match resolve_workspace_from_toml(&toml_path, None) {
+    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
