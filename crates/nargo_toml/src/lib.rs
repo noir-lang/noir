@@ -30,31 +30,18 @@ pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> 
     Ok(package_root.to_path_buf())
 }
 
-// TODO: We are probably going to need a "filepath utils" crate soon
+// TODO(#2323): We are probably going to need a "filepath utils" crate soon
 fn path_root(path: &Path) -> PathBuf {
-    let mut components = path.components().peekable();
+    let mut components = path.components();
 
-    // Preserve path prefix if one exists.
-    let mut normalized_path = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
-        components.next();
-        PathBuf::from(c.as_os_str())
-    } else {
-        PathBuf::new()
-    };
-
-    for component in components {
-        match component {
-            Component::Prefix(..) => unreachable!("Path cannot contain multiple prefixes"),
-            Component::RootDir => {
-                normalized_path.push(component.as_os_str());
-            }
-            Component::CurDir | Component::ParentDir | Component::Normal(_) => {
-                break;
-            }
+    match (components.next(), components.next()) {
+        // Preserve prefix if one exists
+        (Some(prefix @ Component::Prefix(_)), Some(root @ Component::RootDir)) => {
+            PathBuf::from(prefix.as_os_str()).join(root.as_os_str())
         }
+        (Some(root @ Component::RootDir), _) => PathBuf::from(root.as_os_str()),
+        _ => PathBuf::new(),
     }
-
-    normalized_path
 }
 
 /// Returns the [Path] of the `Nargo.toml` file by searching from `current_path` and stopping at `root_path`.
