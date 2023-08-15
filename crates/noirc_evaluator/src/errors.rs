@@ -32,6 +32,8 @@ pub enum RuntimeError {
     UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, location: Option<Location> },
     #[error("Could not determine loop bound at compile-time")]
     UnknownLoopBound { location: Option<Location> },
+    #[error("Argument is not constant")]
+    AssertConstantFailed { location: Option<Location> },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -69,7 +71,8 @@ impl RuntimeError {
             | RuntimeError::InvalidRangeConstraint { location, .. }
             | RuntimeError::TypeConversion { location, .. }
             | RuntimeError::UnInitialized { location, .. }
-            | RuntimeError::UnknownLoopBound { location, .. }
+            | RuntimeError::UnknownLoopBound { location }
+            | RuntimeError::AssertConstantFailed { location }
             | RuntimeError::UnsupportedIntegerSize { location, .. } => *location,
         }
     }

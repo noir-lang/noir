@@ -137,7 +137,7 @@ mod test {
     use noirc_errors::{Location, Span};
 
     use crate::graph::CrateId;
-    use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
+    use crate::hir::def_map::{ModuleData, ModuleId};
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir_def::expr::HirIdent;
     use crate::hir_def::stmt::HirLetStatement;
@@ -380,7 +380,8 @@ mod test {
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
-        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+        let location = Location::new(Default::default(), file);
+        modules.insert(ModuleData::new(None, location, false));
 
         def_maps.insert(
             CrateId::dummy_id(),

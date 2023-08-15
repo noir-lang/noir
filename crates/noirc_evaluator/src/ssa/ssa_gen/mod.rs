@@ -235,6 +235,14 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
+        let element_types = Self::convert_type(element_type);
+        values.map_both(element_types, |value, element_type| {
+            let reference = value.eval(self);
+            self.builder.insert_load(reference, element_type).into()
+        })
+    }
+
     fn codegen_reference(&mut self, expr: &Expression) -> Values {
         match expr {
             Expression::Ident(ident) => self.codegen_ident_reference(ident),

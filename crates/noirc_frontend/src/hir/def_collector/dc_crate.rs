@@ -1,5 +1,5 @@
 use super::dc_mod::collect_defs;
-use super::errors::DefCollectorErrorKind;
+use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
@@ -137,7 +137,7 @@ impl DefCollector {
         let current_def_map = context.def_maps.get(&crate_id).unwrap();
 
         errors.extend(vecmap(unresolved_imports, |(error, module_id)| {
-            let file_id = current_def_map.modules[module_id.0].origin.file_id();
+            let file_id = current_def_map.file_id(module_id);
             let error = DefCollectorErrorKind::PathResolutionError(error);
             error.into_file_diagnostic(file_id)
         }));
@@ -151,7 +151,11 @@ impl DefCollector {
                     .import(name.clone(), ns);
 
                 if let Err((first_def, second_def)) = result {
-                    let err = DefCollectorErrorKind::DuplicateImport { first_def, second_def };
+                    let err = DefCollectorErrorKind::Duplicate {
+                        typ: DuplicateType::Import,
+                        first_def,
+                        second_def,
+                    };
                     errors.push(err.into_file_diagnostic(root_file_id));
                 }
             }
@@ -225,7 +229,7 @@ fn collect_impls(
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: *module_id, krate: crate_id });
 
-        let file = def_maps[&crate_id].module_file_id(*module_id);
+        let file = def_maps[&crate_id].file_id(*module_id);
 
         for (generics, span, unresolved) in methods {
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
@@ -256,8 +260,11 @@ fn collect_impls(
                     let result = module.declare_function(method.name_ident().clone(), *method_id);
 
                     if let Err((first_def, second_def)) = result {
-                        let err =
-                            DefCollectorErrorKind::DuplicateFunction { first_def, second_def };
+                        let err = DefCollectorErrorKind::Duplicate {
+                            typ: DuplicateType::Function,
+                            first_def,
+                            second_def,
+                        };
                         errors.push(err.into_file_diagnostic(unresolved.file_id));
                     }
                 }
@@ -418,7 +425,7 @@ fn resolve_impls(
         let path_resolver =
             StandardPathResolver::new(ModuleId { local_id: module_id, krate: crate_id });
 
-        let file = def_maps[&crate_id].module_file_id(module_id);
+        let file = def_maps[&crate_id].file_id(module_id);
 
         for (generics, _, functions) in methods {
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);

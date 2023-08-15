@@ -17,14 +17,13 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-use super::unrolling::{find_all_loops, Loops};
+use super::unrolling::{Loops, find_all_loops};
 
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove stores that are subsequently redundant.
     /// As long as they are not stores on memory used inside of loops
     pub(crate) fn mem2reg(mut self) -> Ssa {
-        dbg!("start mem2reg");
         for function in self.functions.values_mut() {
             let mut all_protected_allocations = HashSet::new();
 
@@ -47,14 +46,10 @@ impl Ssa {
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
             }
 
-            // Now that we have a comprehensive list of used allocations across all the
-            // function's blocks, it is safe to remove any stores that do not touch such
-            // allocations.
             for block in function.reachable_blocks() {
                 context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, block);
             }
         }
-        dbg!("ended mem2reg");
         self
     }
 }
@@ -66,7 +61,11 @@ struct PerFunctionContext {
     load_values_to_substitute_per_func: BTreeMap<ValueId, (ValueId, BasicBlockId)>,
     store_ids: Vec<InstructionId>,
     cfg: ControlFlowGraph,
+    post_order: PostOrder,
     dom_tree: DominatorTree,
+    // Maps block id -> bool stating whether the block shares a common successor
+    // with one of its predecessors
+    has_common_successor: BTreeMap<BasicBlockId, bool>,
     loops: Loops,
 }
 
@@ -80,7 +79,9 @@ impl PerFunctionContext {
             load_values_to_substitute_per_func: BTreeMap::new(),
             store_ids: Vec::new(),
             cfg,
+            post_order,
             dom_tree,
+            has_common_successor: BTreeMap::new(),
             loops: find_all_loops(function),
         }
     }
@@ -104,6 +105,11 @@ impl PerFunctionContext {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[block_id];
 
+        let has_common_successor = self.has_common_successor(block_id);
+        // Maintain a map for whether a block has a common successor to avoid
+        // analyzing the CFG for successors on every store or load
+        self.has_common_successor.insert(block_id, has_common_successor);
+
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
@@ -111,6 +117,10 @@ impl PerFunctionContext {
 
                     self.last_stores_with_block.insert((address, block_id), *value);
                     self.store_ids.push(*instruction_id);
+
+                    if has_common_successor {
+                        protected_allocations.insert(address);
+                    }
                 }
                 Instruction::Load { mut address } => {
                     address = self.fetch_load_value_to_substitute(block_id, address);
@@ -124,6 +134,16 @@ impl PerFunctionContext {
                         load_values_to_substitute_per_block,
                     );
                     if !found_last_value {
+                        // We want to protect allocations that do not have a load to substitute
+                        protected_allocations.insert(address);
+                        // We also want to check for allocations that share a value
+                        // with the one we are protecting.
+                        // This check prevents the pass from removing stores to a value that
+                        // is used by reference aliases in different blocks
+                        protected_allocations.insert(dfg.resolve(address));
+                    }
+
+                    if has_common_successor {
                         protected_allocations.insert(address);
                     }
                 }
@@ -165,7 +185,7 @@ impl PerFunctionContext {
         protected_allocations
     }
 
-    // This method finds the load values to substitute for a given address
+    // This method will fetch already saved load values to substitute for a given address.
     // The search starts at the block supplied as a parameter. If there is not a load to substitute
     // the CFG is analyzed to determine whether a predecessor block has a load value to substitute.
     // If there is no load value to substitute the original address is returned.
@@ -180,11 +200,21 @@ impl PerFunctionContext {
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
-            // for l in self.loops.yet_to_unroll.iter() {
-            //     if block == l.header {
-            //         return address;
-            //     }
+            // We do not want to substitute loads that take place within loops or yet to be simplified branches
+            // as this pass can occur before loop unrolling and flattening.
+            // The mem2reg pass should be ran again following all optimization passes as new values
+            // may be able to be promoted
+            // if self.has_common_successor[&block_id] {
+            //     return address;
             // }
+            for l in self.loops.yet_to_unroll.iter() {
+                // We do not want to substitute loads that take place within loops as this pass
+                // can occur before loop unrolling
+                // The pass should be ran again following loop unrolling as new values
+                if l.blocks.contains(&block) {
+                    return address;
+                }
+            }
 
             // Check whether there is a load value to substitute in the current block.
             // Return the value if found.
@@ -197,30 +227,15 @@ impl PerFunctionContext {
             }
 
             // If no load values to substitute have been found in the current block, check the block's predecessors.
-            // let predecessors = self.cfg.predecessors(block);
-            // for predecessor in predecessors {
-            //     if self.dom_tree.is_reachable(predecessor)
-            //         && self.dom_tree.dominates(predecessor, block)
-            //         && !visited.contains(&predecessor)
-            //     {
-            //         stack.push(predecessor);
-            //     }
-            // }
-            let mut predecessors = self.cfg.predecessors(block);
-            if predecessors.len() == 1 {
-                let predecessor = predecessors.next().unwrap();
-                if self.dom_tree.is_reachable(predecessor)
-                    && self.dom_tree.dominates(predecessor, block)
-                    && !visited.contains(&predecessor)
-                {
-                    stack.push(predecessor);
-                }
+            if let Some(predecessor) = self.block_has_predecessor(block, &visited) {
+                stack.push(predecessor);
             }
         }
         address
     }
 
-    // This method determines which loads should be substituted.
+    // This method determines which loads should be substituted and saves them
+    // to be substituted further in the pass.
     // Starting at the block supplied as a parameter, we check whether a store has occurred with the given address.
     // If no store has occurred in the supplied block, the CFG is analyzed to determine whether
     // a predecessor block has a store at the given address.
@@ -239,6 +254,22 @@ impl PerFunctionContext {
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
+            // We do not want to substitute loads that take place within loops or yet to be simplified branches
+            // as this pass can occur before loop unrolling and flattening.
+            // The mem2reg pass should be ran again following all optimization passes as new values
+            // may be able to be promoted
+            // if self.has_common_successor[&block_id] {
+            //     return false;
+            // }
+            for l in self.loops.yet_to_unroll.iter() {
+                // We do not want to substitute loads that take place within loops as this pass
+                // can occur before loop unrolling
+                // The pass should be ran again following loop unrolling as new values
+                if l.blocks.contains(&block) {
+                    return false;
+                }
+            }
+
             // Check whether there has been a store instruction in the current block
             // If there has been a store, add a load to be substituted.
             if let Some(last_value) = self.last_stores_with_block.get(&(address, block)) {
@@ -253,30 +284,69 @@ impl PerFunctionContext {
                 return true;
             }
 
-
-            // If no stores have been found in the current block, check the block's predecessor
-            // let predecessors = self.cfg.predecessors(block);
-            // for predecessor in predecessors {
-            //     if self.dom_tree.is_reachable(predecessor)
-            //         && self.dom_tree.dominates(predecessor, block)
-            //         && !visited.contains(&predecessor)
-            //     {
-            //         stack.push(predecessor);
-            //     }
-            // }
-
-            let mut predecessors = self.cfg.predecessors(block);
-            if predecessors.len() == 1 {
-                let predecessor = predecessors.next().unwrap();
-                if self.dom_tree.is_reachable(predecessor)
-                    && self.dom_tree.dominates(predecessor, block)
-                    && !visited.contains(&predecessor)
-                {
-                    stack.push(predecessor);
-                }
+            // If no load values to substitute have been found in the current block, check the block's predecessors.
+            if let Some(predecessor) = self.block_has_predecessor(block, &visited) {
+                stack.push(predecessor);
             }
         }
         false
+    }
+
+    // If no loads or stores have been found in the current block, check the block's predecessors.
+    // Only check blocks with one predecessor as otherwise a constant value could be propogated
+    // through successor blocks with multiple branches that rely on other simplification passes
+    // such as loop unrolling or flattening of the CFG.
+    fn block_has_predecessor(
+        &mut self,
+        block_id: BasicBlockId,
+        visited: &HashSet<BasicBlockId>,
+    ) -> Option<BasicBlockId> {
+        let mut predecessors = self.cfg.predecessors(block_id);
+        if predecessors.len() == 1 {
+            let predecessor = predecessors.next().unwrap();
+            if self.dom_tree.is_reachable(predecessor)
+                && self.dom_tree.dominates(predecessor, block_id)
+                && !visited.contains(&predecessor)
+            {
+                return Some(predecessor);
+            }
+        }
+        None
+    }
+
+    fn has_common_successor(&mut self, block_id: BasicBlockId) -> bool {
+        let mut predecessors = self.cfg.predecessors(block_id);
+        if let Some(predecessor) = predecessors.next() {
+            let pred_successors = self.find_all_successors(predecessor);
+            let current_successors: HashSet<_> = self.cfg.successors(block_id).collect();
+            return pred_successors.into_iter().any(|b| current_successors.contains(&b));
+        }
+        false
+    }
+
+    fn find_all_successors(&self, block_id: BasicBlockId) -> HashSet<BasicBlockId> {
+        let mut stack = vec![];
+        let mut visited = HashSet::new();
+
+        // Fetch initial block successors
+        let successors = self.cfg.successors(block_id);
+        for successor in successors {
+            if !visited.contains(&successor) {
+                stack.push(successor);
+            }
+        }
+
+        // Follow the CFG to fetch the remaining successors
+        while let Some(block) = stack.pop() {
+            visited.insert(block);
+            let successors = self.cfg.successors(block);
+            for successor in successors {
+                if !visited.contains(&successor) {
+                    stack.push(successor);
+                }
+            }
+        }
+        visited
     }
 
     /// Checks whether the given value id refers to an allocation.

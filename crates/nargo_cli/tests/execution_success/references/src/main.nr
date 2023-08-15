@@ -1,6 +1,4 @@
 fn main(mut x: Field) {
-    regression_2218(x, 10);
-
     add1(&mut x);
     assert(x == 3);
 
@@ -36,6 +34,13 @@ fn main(mut x: Field) {
     regression_1887();
     regression_2054();
     regression_2030();
+    regression_2255();
+
+    // x == 3 at this point
+    regression_2218_if_inner_if(x, 10);
+    regression_2218_if_inner_else(20, x);
+    regression_2218_else(x, 3);
+    regression_2218_loop(x, 10);
 }
 
 fn add1(x: &mut Field) {
@@ -100,7 +105,20 @@ fn regression_2030() {
     *array[0] = 1;
 }
 
-fn regression_2218(x: Field, y: Field) {
+// The `mut x: &mut ...` caught a bug handling lvalues where a double-dereference would occur internally
+// in one step rather than being tracked by two separate steps. This lead to assigning the 1 value to the
+// incorrect outer `mut` reference rather than the correct `&mut` reference.
+fn regression_2255() {
+    let x = &mut 0;
+    regression_2255_helper(x);
+    assert(*x == 1);
+}
+
+fn regression_2255_helper(mut x: &mut Field) {
+    *x = 1;
+}
+
+fn regression_2218(x: Field, y: Field) -> Field {
     let q = &mut &mut 0;
     let q1 = *q;
     let q2 = *q;
@@ -111,8 +129,104 @@ fn regression_2218(x: Field, y: Field) {
         if x != 20 {
             *q1 = 10;
             *q2 = 2; // now we'd expect q1 == q2 == 2
-            
+
             assert(*q1 == 2);  
+        } else {
+            *q2 = 15;
+            assert(*q1 == 15);
+        }
+    } else {
+        *q2 = 20;
+        assert(*q1 == 20);  
+    }
+    // Have to assign value to return it
+    let value = *q1;
+    value
+}
+
+fn regression_2218_if_inner_if(x: Field, y: Field) {
+    let value = regression_2218(x, y);
+    assert(value == 2);
+}
+
+fn regression_2218_if_inner_else(x: Field, y: Field) {
+    let value = regression_2218(x, y);
+    assert(value == 15);
+}
+
+fn regression_2218_else(x: Field, y: Field) {
+    let value = regression_2218(x, y);
+    assert(value == 20);  
+}
+
+fn regression_2218_loop(x: Field, y: Field) {
+    let q = &mut &mut 0;
+    let q1 = *q;
+    let q2 = *q;
+
+    for _ in 0..1 {
+        if x != y {
+            *q1 = 10;
+            *q2 = 2; // now we'd expect q1 == q2 == 2
+            
+            assert(*q1 == 2);
+        } else {
+            *q2 = 20;
+            assert(*q1 == 20);  
+        } 
+    }
+    assert(*q1 == 2);
+
+    for _ in 0..1 {
+        for _ in 0..5 {
+            if x != y {
+                *q1 = 1;
+                // Make sure that we correct load reference aliases through multiple blocks
+                if x != 20 {
+                    *q1 = 10;
+                    *q2 = 2; // now we'd expect q1 == q2 == 2
+                    
+                    assert(*q1 == 2);
+                }
+            } else {
+                *q2 = 20;
+                assert(*q1 == 20);
+            }
+        }
+        if x != y {
+            *q1 = 1;
+            for _ in 0..5 {
+                // Make sure that we correct load reference aliases through multiple blocks
+                if x != 20 {
+                    *q1 = 10;
+                    *q2 = 2; // now we'd expect q1 == q2 == 2
+                    
+                    assert(*q1 == 2);
+                }
+            }
+        } else {
+            *q2 = 20;
+            assert(*q1 == 20);  
         }
     }
+    assert(*q1 == 2);  
+
+    if x != y {
+        for _ in 0..5 {
+            if x != y {
+                *q1 = 1;
+                // Make sure that we correct load reference aliases through multiple blocks
+                if x != 20 {
+                    *q1 = 10;
+                    *q2 = 2; // now we'd expect q1 == q2 == 2
+
+                    assert(*q1 == 2);  
+                }
+            }
+        }
+    } else {
+        *q2 = 20;
+        assert(*q1 == 20);  
+    }
+    assert(*q1 == 2);  
 }
