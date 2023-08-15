@@ -92,6 +92,8 @@ pub enum TypeCheckError {
     CallDeprecated { name: String, note: Option<String>, span: Span },
     #[error("{0}")]
     ResolverError(ResolverError),
+    #[error("Unused expression result (of type {expr_type})")]
+    UnusedResultError { expr_type: Type, expr_span: Span },
 }
 
 impl TypeCheckError {
@@ -204,6 +206,13 @@ impl From<TypeCheckError> for Diagnostic {
                 let secondary_message = note.clone().unwrap_or_default();
 
                 Diagnostic::simple_warning(primary_message, secondary_message, span)
+            }
+            TypeCheckError::UnusedResultError { expr_type, expr_span } => {
+                Diagnostic::simple_warning(
+                    format!("Unused expression result (of type {expr_type})"),
+                    String::new(),
+                    expr_span,
+                )
             }
         }
     }

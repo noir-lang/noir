@@ -78,17 +78,11 @@ impl Statement {
                             Statement::Expression(expr)
                         }
                     }
-
-                    // Don't wrap expressions that are not the last expression in
-                    // a block in a Semi so that we can report errors in the type checker
-                    // for unneeded expressions like { 1 + 2; 3 }
-                    (_, Some(_), false) => Statement::Expression(expr),
                     (_, None, false) => {
                         emit_error(missing_semicolon);
                         Statement::Expression(expr)
                     }
-
-                    (_, Some(_), true) => Statement::Semi(expr),
+                    (_, Some(_), _) => Statement::Semi(expr),
                     (_, None, true) => Statement::Expression(expr),
                 }
             }
