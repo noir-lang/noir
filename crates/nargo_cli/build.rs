@@ -40,7 +40,7 @@ fn main() {
     let test_dir = manifest_dir.join("tests");
 
     generate_execution_success_tests(&mut test_file, &test_dir);
-    generate_compile_success_tests(&mut test_file, &test_dir);
+    generate_compile_success_empty_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 }
 
@@ -81,8 +81,8 @@ fn execution_success_{test_name}() {{
     }
 }
 
-fn generate_compile_success_tests(test_file: &mut File, test_data_dir: &Path) {
-    let test_sub_dir = "compile_success";
+fn generate_compile_success_empty_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_sub_dir = "compile_success_empty";
     let test_data_dir = test_data_dir.join(test_sub_dir);
 
     let test_case_dirs =
@@ -102,14 +102,14 @@ fn generate_compile_success_tests(test_file: &mut File, test_data_dir: &Path) {
             test_file,
             r#"
 #[test]
-fn compile_success_{test_name}() {{
+fn compile_success_empty_{test_name}() {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
     cmd.arg("info");
 
-    // `compile_success` tests should be able to compile down to an empty circuit.
+    // `compile_success_empty` tests should be able to compile down to an empty circuit.
     cmd.assert().stdout(predicate::str::contains("Total ACIR opcodes generated for language PLONKCSat {{ width: 3 }}: 0"));
 }}
             "#,

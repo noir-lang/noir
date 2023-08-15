@@ -3,8 +3,8 @@
 Integration tests for the Noir compiler are broken down into the following directories:
 
 - `compile_failure`: programs which are not valid or unsatisfiable Noir code and so the compiler should reject.
-- `compile_success`: programs which are valid satisfiable Noir code but have no arguments.
-- `execution_success`: programs which are valid Noir satisfiable code and have arguments.
+- `compile_success_empty`: programs which are valid satisfiable Noir code but have no opcodes.
+- `execution_success`: programs which are valid Noir satisfiable code and have opcodes.
 
 The current testing flow can be thought of as shown:
 ```mermaid
@@ -14,7 +14,7 @@ flowchart TD
         A1[Attempt to compile] --> A2[Assert compilation fails]
     end
 
-    subgraph compile_success
+    subgraph compile_success_empty
         B1[Attempt to compile] --> B2[Assert compilation succeeds]
         B2 --> B3[Assert empty circuit]
     end
@@ -31,8 +31,8 @@ flowchart TD
     end
 ```
 
-## `execution_success` vs `compile_success`
+## `execution_success` vs `compile_success_empty`
 
-Note that `execution_success` and `compile_success` are distinct as `compile_success` is expected to compile down to an empty circuit. This may not be possible for some argument-less circuits in the situation where instructions have side-effects or certain compiler optimizations are missing, but once moved to `compile_success` a program compiling down to a non-empty circuit is a compiler regression.
+Note that `execution_success` and `compile_success_empty` are distinct as `compile_success_empty` is expected to compile down to an empty circuit. This may not be possible for some argument-less circuits in the situation where instructions have side-effects or certain compiler optimizations are missing, but once moved to `compile_success_empty` a program compiling down to a non-empty circuit is a compiler regression.
 
 
