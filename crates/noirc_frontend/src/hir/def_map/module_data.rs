@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use fm::FileId;
+use noirc_errors::Location;
 
 use crate::{
     node_interner::{FuncId, StmtId, StructId, TypeAliasId},
@@ -23,24 +23,20 @@ pub struct ModuleData {
     /// Contains only the definitions directly defined in the current module
     definitions: ItemScope,
 
-    pub origin: ModuleOrigin,
+    pub location: Location,
 
     /// True if this module is a `contract Foo { ... }` module containing contract functions
     pub is_contract: bool,
 }
 
 impl ModuleData {
-    pub fn new(
-        parent: Option<LocalModuleId>,
-        origin: ModuleOrigin,
-        is_contract: bool,
-    ) -> ModuleData {
+    pub fn new(parent: Option<LocalModuleId>, location: Location, is_contract: bool) -> ModuleData {
         ModuleData {
             parent,
             children: HashMap::new(),
             scope: ItemScope::default(),
             definitions: ItemScope::default(),
-            origin,
+            location,
             is_contract,
         }
     }
@@ -97,32 +93,5 @@ impl ModuleData {
     /// excluding any type definitions.
     pub fn value_definitions(&self) -> impl Iterator<Item = ModuleDefId> + '_ {
         self.definitions.values().values().map(|(id, _)| *id)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum ModuleOrigin {
-    CrateRoot(FileId),
-    File(FileId),
-}
-
-impl ModuleOrigin {
-    pub fn file_id(&self) -> FileId {
-        match self {
-            ModuleOrigin::CrateRoot(file_id) => *file_id,
-            ModuleOrigin::File(file_id) => *file_id,
-        }
-    }
-}
-
-impl From<ModuleOrigin> for FileId {
-    fn from(origin: ModuleOrigin) -> Self {
-        origin.file_id()
-    }
-}
-
-impl Default for ModuleOrigin {
-    fn default() -> Self {
-        ModuleOrigin::CrateRoot(FileId::default())
     }
 }

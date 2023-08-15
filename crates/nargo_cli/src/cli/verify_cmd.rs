@@ -13,7 +13,7 @@ use clap::Args;
 use nargo::constants::{PROOF_EXT, VERIFIER_INPUT_FILE};
 use nargo::ops::verify_proof;
 use nargo::{artifacts::program::PreprocessedProgram, package::Package};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
@@ -30,8 +30,12 @@ pub(crate) struct VerifyCommand {
     verifier_name: String,
 
     /// The name of the package verify
-    #[clap(long)]
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Verify all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -43,7 +47,10 @@ pub(crate) fn run<B: Backend>(
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
     let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let proofs_dir = workspace.proofs_directory_path();
 
     for package in &workspace {

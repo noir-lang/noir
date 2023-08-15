@@ -1485,8 +1485,9 @@ mod test {
 
     use fm::FileId;
     use iter_extended::vecmap;
+    use noirc_errors::Location;
 
-    use crate::hir::def_map::{ModuleData, ModuleId, ModuleOrigin};
+    use crate::hir::def_map::{ModuleData, ModuleId};
     use crate::hir::resolution::errors::ResolverError;
     use crate::hir::resolution::import::PathResolutionError;
     use crate::hir::resolution::resolver::StmtId;
@@ -1520,7 +1521,8 @@ mod test {
         let file = FileId::default();
 
         let mut modules = arena::Arena::new();
-        modules.insert(ModuleData::new(None, ModuleOrigin::File(file), false));
+        let location = Location::new(Default::default(), file);
+        modules.insert(ModuleData::new(None, location, false));
 
         let path_resolver = TestPathResolver(HashMap::new());
 
@@ -1924,7 +1926,7 @@ mod test {
             fn main() {
                 let string = f"this is i: {i}";
                 println(string);
-                
+
                 println(f"I want to print {0}");
 
                 let new_val = 10;

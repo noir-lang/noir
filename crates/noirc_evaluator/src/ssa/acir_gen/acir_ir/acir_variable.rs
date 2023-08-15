@@ -10,6 +10,7 @@ use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::brillig::{BrilligInputs, BrilligOutputs},
 };
+use acvm::brillig_vm::{brillig::Value, Registers, VMStatus, VM};
 use acvm::{
     acir::{
         circuit::opcodes::FunctionInput,
@@ -18,6 +19,7 @@ use acvm::{
     },
     FieldElement,
 };
+use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use std::collections::HashMap;
@@ -865,6 +867,14 @@ impl AcirContext {
             }
         })?;
 
+        // Optimistically try executing the brillig now, if we can complete execution they just return the results.
+        // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
+        if let Some(brillig_outputs) = self.execute_brillig(code.clone(), &b_inputs, &outputs) {
+            return Ok(brillig_outputs);
+        }
+
+        // Otherwise we must generate ACIR for it and execute at runtime.
+
         let mut b_outputs = Vec::new();
         let outputs_var = vecmap(outputs, |output| match output {
             AcirType::NumericType(_) => {
@@ -949,6 +959,66 @@ impl AcirContext {
             }
         }
         (AcirValue::Array(array_values), witnesses)
+    }
+
+    fn execute_brillig(
+        &mut self,
+        code: Vec<BrilligOpcode>,
+        inputs: &[BrilligInputs],
+        outputs_types: &[AcirType],
+    ) -> Option<Vec<AcirValue>> {
+        let (registers, memory) = execute_brillig(code, inputs)?;
+
+        let outputs_var = vecmap(outputs_types.iter().enumerate(), |(index, output)| {
+            let register_value = registers.get(index.into());
+            match output {
+                AcirType::NumericType(_) => {
+                    let var = self.add_data(AcirVarData::Const(register_value.to_field()));
+                    AcirValue::Var(var, output.clone())
+                }
+                AcirType::Array(element_types, size) => {
+                    let mem_ptr = register_value.to_usize();
+                    self.brillig_constant_array_output(
+                        element_types,
+                        *size,
+                        &mut memory.iter().skip(mem_ptr),
+                    )
+                }
+            }
+        });
+
+        Some(outputs_var)
+    }
+
+    /// Recursively create [`AcirValue`]s for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
+    fn brillig_constant_array_output<'a>(
+        &mut self,
+        element_types: &[AcirType],
+        size: usize,
+        memory_iter: &mut impl Iterator<Item = &'a Value>,
+    ) -> AcirValue {
+        let mut array_values = im::Vector::new();
+        for _ in 0..size {
+            for element_type in element_types {
+                match element_type {
+                    AcirType::Array(nested_element_types, nested_size) => {
+                        let nested_acir_value = self.brillig_constant_array_output(
+                            nested_element_types,
+                            *nested_size,
+                            memory_iter,
+                        );
+                        array_values.push_back(nested_acir_value);
+                    }
+                    AcirType::NumericType(_) => {
+                        let memory_value =
+                            memory_iter.next().expect("ICE: Unexpected end of memory");
+                        let var = self.add_data(AcirVarData::Const(memory_value.to_field()));
+                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
+                    }
+                }
+            }
+        }
+        AcirValue::Array(array_values)
     }
 
     /// Generate output variables that are constrained to be the sorted inputs
@@ -1112,3 +1182,92 @@ impl AcirVarData {
 /// A Reference to an `AcirVarData`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct AcirVar(usize);
+
+/// Attempts to execute the provided [`Brillig`][`acvm::acir::brillig`] bytecode
+///
+/// Returns the finished state of the Brillig VM if execution can complete.
+///
+/// Returns `None` if complete execution of the Brillig bytecode is not possible.
+fn execute_brillig(
+    code: Vec<BrilligOpcode>,
+    inputs: &[BrilligInputs],
+) -> Option<(Registers, Vec<Value>)> {
+    struct NullBbSolver;
+
+    impl BlackBoxFunctionSolver for NullBbSolver {
+        fn schnorr_verify(
+            &self,
+            _public_key_x: &FieldElement,
+            _public_key_y: &FieldElement,
+            _signature: &[u8],
+            _message: &[u8],
+        ) -> Result<bool, BlackBoxResolutionError> {
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::SchnorrVerify))
+        }
+        fn pedersen(
+            &self,
+            _inputs: &[FieldElement],
+            _domain_separator: u32,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::Pedersen))
+        }
+        fn fixed_base_scalar_mul(
+            &self,
+            _input: &FieldElement,
+        ) -> Result<(FieldElement, FieldElement), BlackBoxResolutionError> {
+            Err(BlackBoxResolutionError::Unsupported(BlackBoxFunc::FixedBaseScalarMul))
+        }
+    }
+
+    // Set input values
+    let mut input_register_values: Vec<Value> = Vec::with_capacity(inputs.len());
+    let mut input_memory: Vec<Value> = Vec::new();
+    // Each input represents a constant or array of constants.
+    // Iterate over each input and push it into registers and/or memory.
+    for input in inputs {
+        match input {
+            BrilligInputs::Single(expr) => {
+                input_register_values.push(expr.to_const()?.into());
+            }
+            BrilligInputs::Array(expr_arr) => {
+                // Attempt to fetch all array input values
+                let memory_pointer = input_memory.len();
+                for expr in expr_arr.iter() {
+                    input_memory.push(expr.to_const()?.into());
+                }
+
+                // Push value of the array pointer as a register
+                input_register_values.push(Value::from(memory_pointer));
+            }
+        }
+    }
+
+    // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
+    let input_registers = Registers::load(input_register_values);
+    let mut vm = VM::new(input_registers, input_memory, code, Vec::new(), &NullBbSolver);
+
+    // Run the Brillig VM on these inputs, bytecode, etc!
+    let vm_status = vm.process_opcodes();
+
+    // Check the status of the Brillig VM.
+    // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
+    // If it's finished then we can omit the opcode and just write in the return values.
+    match vm_status {
+        VMStatus::Finished => Some((vm.get_registers().clone(), vm.get_memory().clone())),
+        VMStatus::InProgress => unreachable!("Brillig VM has not completed execution"),
+        VMStatus::Failure { .. } => {
+            // TODO: Return an error stating that the brillig function failed.
+            None
+        }
+        VMStatus::ForeignCallWait { .. } => {
+            // If execution can't complete then keep the opcode
+
+            // TODO: We could bake in all the execution up to this point by replacing the inputs
+            // such that they initialize the registers/memory to the current values and then discard
+            // any opcodes prior to the one which performed this foreign call.
+            //
+            // Seems overkill for now however.
+            None
+        }
+    }
+}

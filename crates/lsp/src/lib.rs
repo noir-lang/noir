@@ -19,9 +19,10 @@ use lsp_types::{
     PublishDiagnosticsParams, Range, ServerCapabilities, TextDocumentSyncOptions,
 };
 use nargo::prepare_package;
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::check_crate;
 use noirc_errors::{DiagnosticKind, FileDiagnostic};
+use noirc_frontend::hir::FunctionNameMatch;
 use serde_json::Value as JsonValue;
 use tower::Service;
 
@@ -155,7 +156,7 @@ fn on_code_lens_request(
             return future::ready(Ok(None));
         }
     };
-    let workspace = match resolve_workspace_from_toml(&toml_path, None) {
+    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
@@ -176,7 +177,8 @@ fn on_code_lens_request(
 
         let fm = &context.file_manager;
         let files = fm.as_simple_files();
-        let tests = context.get_all_test_functions_in_crate_matching(&crate_id, "");
+        let tests = context
+            .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
 
         for (func_name, func_id) in tests {
             let location = context.function_meta(&func_id).name.location;
@@ -196,7 +198,14 @@ fn on_code_lens_request(
             let command = Command {
                 title: TEST_CODELENS_TITLE.into(),
                 command: TEST_COMMAND.into(),
-                arguments: Some(vec![func_name.into()]),
+                arguments: Some(vec![
+                    "--program-dir".into(),
+                    format!("{}", workspace.root_dir.display()).into(),
+                    "--package".into(),
+                    format!("{}", package.name).into(),
+                    "--exact".into(),
+                    func_name.into(),
+                ]),
             };
 
             let lens = CodeLens { range, command: command.into(), data: None };
@@ -272,7 +281,7 @@ fn on_did_save_text_document(
             return ControlFlow::Continue(());
         }
     };
-    let workspace = match resolve_workspace_from_toml(&toml_path, None) {
+    let workspace = match resolve_workspace_from_toml(&toml_path, PackageSelection::All) {
         Ok(workspace) => workspace,
         Err(err) => {
             // If we found a manifest, but the workspace is invalid, we raise an error about it
