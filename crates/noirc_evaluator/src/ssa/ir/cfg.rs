@@ -1,4 +1,4 @@
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{BTreeSet, HashMap};
 
 use super::{
     basic_block::{BasicBlock, BasicBlockId},

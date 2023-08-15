@@ -17,14 +17,11 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-use super::unrolling::{Loops, find_all_loops};
-
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove stores that are subsequently redundant.
     /// As long as they are not stores on memory used inside of loops
     pub(crate) fn mem2reg(mut self) -> Ssa {
-        dbg!("start mem2reg");
         for function in self.functions.values_mut() {
             let mut all_protected_allocations = HashSet::new();
 
@@ -33,14 +30,6 @@ impl Ssa {
             let post_order = PostOrder::with_function(function);
             let post_order_slice = post_order.as_slice();
 
-            for b in post_order_slice.iter().rev() {
-                println!("BLOCK: {b}");
-                let predecessors = context.cfg.predecessors(*b);
-                for p in predecessors {
-                    println!("predecessor: {p}");
-                }
-            }
-            dbg!(post_order_slice);
             // TODO: for array_dynamic the normal post_order works, but for regression_2218 we need it reverse
             let post_order_iter = post_order_slice.iter().rev();
             // let post_order_iter = post_order_slice.iter();
@@ -58,27 +47,13 @@ impl Ssa {
                         &mut load_values_to_substitute,
                         *block,
                     );
-                // dbg!(all_protected_allocations.clone());
                 all_protected_allocations.extend(allocations_protected_by_block.into_iter());
-
-                // Broken strategy because the alias will not be recognized, just don't mem2reg compile time blocks
-                // let remaining_loads = context.find_remaining_loads(&mut function.dfg, *block);
-                // dbg!(remaining_loads.clone());
-                // let mut new_remaining_loads = HashSet::new();
-                // for load in remaining_loads.clone() {
-                //     let result_value = function.dfg.resolve(load);
-                //     new_remaining_loads.insert(result_value);
-                // }
-                // dbg!(new_remaining_loads.clone());
-                // all_protected_allocations.extend(remaining_loads.into_iter());
-                // all_protected_allocations.extend(new_remaining_loads.into_iter());
             }
 
             for block in post_order_iter {
                 context.remove_unused_stores(&mut function.dfg, &all_protected_allocations, *block);
             }
         }
-        dbg!("ended mem2reg");
         self
     }
 }
@@ -90,9 +65,11 @@ struct PerFunctionContext {
     load_values_to_substitute_per_func: BTreeMap<ValueId, (ValueId, BasicBlockId)>,
     store_ids: Vec<InstructionId>,
     cfg: ControlFlowGraph,
-    post_order: PostOrder, 
+    post_order: PostOrder,
     dom_tree: DominatorTree,
-    loops: Loops,
+    // Maps block id -> bool stating whether the block shares a common successor
+    // with one of its predecessors
+    has_common_successor: BTreeMap<BasicBlockId, bool>,
 }
 
 impl PerFunctionContext {
@@ -107,7 +84,7 @@ impl PerFunctionContext {
             cfg,
             post_order,
             dom_tree,
-            loops: find_all_loops(function),
+            has_common_successor: BTreeMap::new(),
         }
     }
 }
@@ -129,43 +106,27 @@ impl PerFunctionContext {
     ) -> HashSet<AllocId> {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[block_id];
-        // println!("BLOCK: {block_id}");
+
+        let has_common_successor = self.has_common_successor(block_id);
+        // Maintain a map for whether a block has a common successor to avoid
+        // analyzing the CFG for successors on every store or load
+        self.has_common_successor.insert(block_id, has_common_successor);
 
         for instruction_id in block.instructions() {
-            // dbg!(&dfg[*instruction_id]);
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
-                    println!("STORE: {address}");
                     address = self.fetch_load_value_to_substitute(block_id, address);
-                    println!("address after: {address}");
 
-                    // println!("about to insert store: {address}, block_id: {block_id}, value: {value}");
                     self.last_stores_with_block.insert((address, block_id), *value);
                     self.store_ids.push(*instruction_id);
+
+                    if has_common_successor {
+                        protected_allocations.insert(address);
+                    }
                 }
                 Instruction::Load { mut address } => {
-                    // dbg!(load_values_to_substitute_per_block.get(&address).is_some());
-
-                    println!("LOAD: {address}");
                     address = self.fetch_load_value_to_substitute(block_id, address);
-                    println!("address after: {address}");
 
-                    let predecessors = self.cfg.predecessors(block_id);
-                    let p_len = predecessors.len();
-                    dbg!(p_len);
-                    drop(predecessors);
-
-                    // let mut found_last_value = false;
-                    // if p_len != 2 {
-                    //     found_last_value = self.find_load_to_substitute(
-                    //             block_id,
-                    //             address,
-                    //             dfg,
-                    //             instruction_id,
-                    //             loads_to_substitute,
-                    //             load_values_to_substitute_per_block,
-                    //     );
-                    // }
                     let found_last_value = self.find_load_to_substitute(
                         block_id,
                         address,
@@ -174,51 +135,18 @@ impl PerFunctionContext {
                         loads_to_substitute,
                         load_values_to_substitute_per_block,
                     );
-                    dbg!(found_last_value);
                     if !found_last_value {
-                        // We want to protect allocations that do not have a load to substitute 
-                        dbg!(address);
-                        let resolved_address = dfg.resolve(address);
-                        dbg!(resolved_address);
+                        // We want to protect allocations that do not have a load to substitute
                         protected_allocations.insert(address);
+                        // We also want to check for allocations that share a value
+                        // with the one we are protecting.
+                        // This check prevents the pass from removing stores to a value that
+                        // is used by reference aliases in different blocks
+                        protected_allocations.insert(dfg.resolve(address));
+                    }
 
-                        // Need this to solve regression 2218 with loops
-                        let found_last_value = self.find_load_to_substitute(
-                            block_id,
-                            resolved_address,
-                            dfg,
-                            instruction_id,
-                            loads_to_substitute,
-                            load_values_to_substitute_per_block,
-                        );
-                        dbg!(found_last_value);
-                        if found_last_value {
-                            protected_allocations.insert(resolved_address);
-                        }
-
-                        // We also want to check for allocations that share a value we are substituting
-                        // with the one we are protecting. 
-                        // This check prevents the pass from removing stores to reference aliases across
-                        // multiple blocks. 
-                        // TODO: this feels like a cop-out where I am restricting
-                        // functionality so the pass has to be run again rather than checking stores across blocks
-                        // but it may be needed that we can only do these removals after flattening
-                        // NOTE: not the cause of the extra allocate in regression test
-                        if let Some((value, outer_block)) =
-                            self.load_values_to_substitute_per_func.get(&address)
-                        {
-                            println!("value: {value}");
-                            for (address, (inner_value, block)) in &self.load_values_to_substitute_per_func {
-                                println!("inner_value: {inner_value}");
-                                println!("address: {address}");
-                                dbg!(*inner_value == *value);
-                                dbg!(*outer_block == *block);
-                                if *inner_value == *value && *outer_block == *block {
-                                    dbg!(address);
-                                    protected_allocations.insert(*address);
-                                }
-                            }
-                        }
+                    if has_common_successor {
+                        protected_allocations.insert(address);
                     }
                 }
                 Instruction::Call { arguments, .. } => {
@@ -270,7 +198,6 @@ impl PerFunctionContext {
         for instruction_id in block.instructions() {
             if let Instruction::Load { address } = &dfg[*instruction_id] {
                 protected_allocations.insert(*address);
-
             }
         }
 
@@ -292,21 +219,13 @@ impl PerFunctionContext {
         while let Some(block) = stack.pop() {
             visited.insert(block);
 
-            // TODO: check that any of the predecssor blocks are loops
-            for l in self.loops.yet_to_unroll.iter() {
-                // We do not want to substitute loads that take place within loops as this pass
-                // can occur before loop unrolling
-                // The pass should be ran again following loop unrolling as new values
-                if l.blocks.contains(&block) {
-                    return address;
-                }
+            // We do not want to substitute loads that take place within loops or yet to be simplified branches
+            // as this pass can occur before loop unrolling and flattening.
+            // The mem2reg pass should be ran again following all optimization passes as new values
+            // may be able to be promoted
+            if self.has_common_successor[&block_id] {
+                return address;
             }
-
-            // let predecessors = self.cfg.predecessors(block);
-            // dbg!(predecessors.len());
-            // if predecessors.len() == 2 {
-            //     return address;
-            // }
 
             // Check whether there is a load value to substitute in the current block.
             // Return the value if found.
@@ -318,29 +237,15 @@ impl PerFunctionContext {
                 }
             }
 
+            // If no load values to substitute have been found in the current block, check the block's predecessors.
             if let Some(predecessor) = self.block_has_predecessor(block, &visited) {
                 stack.push(predecessor);
             }
-
-            // If no load values to substitute have been found in the current block, check the block's predecessors.
-            // let predecessors = self.cfg.predecessors(block);
-            // for predecessor in predecessors {
-            //     // if self.dom_tree.is_reachable(predecessor)
-            //     // && self.dom_tree.dominates(predecessor, block)
-            //     // && !visited.contains(&predecessor) {
-            //     //     stack.push(predecessor);
-            //     // }
-            //     if self.dom_tree.is_reachable(predecessor)
-            //         && !visited.contains(&predecessor)
-            //     {
-            //         stack.push(predecessor);
-            //     }
-            // }
         }
         address
     }
 
-    // This method determines which loads should be substituted and saves them 
+    // This method determines which loads should be substituted and saves them
     // to be substituted further in the pass.
     // Starting at the block supplied as a parameter, we check whether a store has occurred with the given address.
     // If no store has occurred in the supplied block, the CFG is analyzed to determine whether
@@ -358,74 +263,34 @@ impl PerFunctionContext {
         let mut visited = HashSet::new();
 
         while let Some(block) = stack.pop() {
-            println!("BLOCK in find_load_to_substitute: {block}");
-            // let predecessors = self.cfg.predecessors(block);
-            // for predecessor in predecessors {
-            //     println!("predecessor: {predecessor}");
-            // }
             visited.insert(block);
 
-            for l in self.loops.yet_to_unroll.iter() {
-                // We do not want to substitute loads that take place within loops as this pass
-                // can occur before loop unrolling
-                // The pass should be ran again following loop unrolling as new values
-                // dbg!(l.blocks.clone());
-                if l.blocks.contains(&block) {
-                    dbg!(block);
-                    return false;
-                }
+            // We do not want to substitute loads that take place within loops or yet to be simplified branches
+            // as this pass can occur before loop unrolling and flattening.
+            // The mem2reg pass should be ran again following all optimization passes as new values
+            // may be able to be promoted
+            if self.has_common_successor[&block_id] {
+                return false;
             }
-
-            // let predecessors = self.cfg.clone().predecessors(block_id);
-            // dbg!(predecessors.len());
-            // if predecessors.len() == 2 {
-            //     return false;
-            // }
 
             // Check whether there has been a store instruction in the current block
             // If there has been a store, add a load to be substituted.
             if let Some(last_value) = self.last_stores_with_block.get(&(address, block)) {
-                // println!("last_value: {last_value}");
                 let result_value = *dfg
                     .instruction_results(*instruction_id)
                     .first()
                     .expect("ICE: Load instructions should have single result");
 
-                // println!("result_value: {result_value}");
                 loads_to_substitute.insert(*instruction_id, *last_value);
                 load_values_to_substitute_per_block.insert(result_value, *last_value);
                 self.load_values_to_substitute_per_func.insert(result_value, (*last_value, block));
                 return true;
             }
 
-            // TODO: some situations we only need to check block with one predecessor and in some need to check more
+            // If no load values to substitute have been found in the current block, check the block's predecessors.
             if let Some(predecessor) = self.block_has_predecessor(block, &visited) {
                 stack.push(predecessor);
             }
-
-            // If no load values to substitute have been found in the current block, check the block's predecessors.
-            // let predecessors = self.cfg.predecessors(block);
-            // // dbg!(predecessors.len());
-            // for predecessor in predecessors {
-            //     // dbg!(predecessor);
-            //     // check out the post order here see if there is a match
-            //     // perhaps it is not dominating as it doesn't have to flow through
-            //     // dbg!(self.dom_tree.dominates(predecessor, block));
-
-            //     // Need this for array_dynamic
-            //     // if self.dom_tree.is_reachable(predecessor)
-            //     // && self.dom_tree.dominates(predecessor, block)
-            //     // && !visited.contains(&predecessor) {
-            //     //     stack.push(predecessor);
-            //     // }
-            //     // TODO: references regression 2218 with loops working with this and blocks constructed from successors
-            //     // only a few tests failing after that
-            //     if self.dom_tree.is_reachable(predecessor)
-            //         && !visited.contains(&predecessor)
-            //     {
-            //         stack.push(predecessor);
-            //     }
-            // }
         }
         false
     }
@@ -440,7 +305,6 @@ impl PerFunctionContext {
         visited: &HashSet<BasicBlockId>,
     ) -> Option<BasicBlockId> {
         let mut predecessors = self.cfg.predecessors(block_id);
-        // dbg!(predecessors.len());
         if predecessors.len() == 1 {
             let predecessor = predecessors.next().unwrap();
             if self.dom_tree.is_reachable(predecessor)
@@ -449,13 +313,43 @@ impl PerFunctionContext {
             {
                 return Some(predecessor);
             }
-            // if self.dom_tree.is_reachable(predecessor)
-            // && !visited.contains(&predecessor)
-            // {
-            //     return Some(predecessor);
-            // }
         }
         None
+    }
+
+    fn has_common_successor(&mut self, block_id: BasicBlockId) -> bool {
+        let mut predecessors = self.cfg.predecessors(block_id);
+        if let Some(predecessor) = predecessors.next() {
+            let pred_successors = self.find_all_successors(predecessor);
+            let current_successors: HashSet<_> = self.cfg.successors(block_id).collect();
+            return pred_successors.into_iter().any(|b| current_successors.contains(&b));
+        }
+        false
+    }
+
+    fn find_all_successors(&self, block_id: BasicBlockId) -> HashSet<BasicBlockId> {
+        let mut stack = vec![];
+        let mut visited = HashSet::new();
+
+        // Fetch initial block successors
+        let successors = self.cfg.successors(block_id);
+        for successor in successors {
+            if !visited.contains(&successor) {
+                stack.push(successor);
+            }
+        }
+
+        // Follow the CFG to fetch the remaining successors
+        while let Some(block) = stack.pop() {
+            visited.insert(block);
+            let successors = self.cfg.successors(block);
+            for successor in successors {
+                if !visited.contains(&successor) {
+                    stack.push(successor);
+                }
+            }
+        }
+        visited
     }
 
     /// Checks whether the given value id refers to an allocation.
