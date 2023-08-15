@@ -87,6 +87,7 @@ impl Intrinsic {
             | Intrinsic::SlicePopFront
             | Intrinsic::SliceInsert
             | Intrinsic::SliceRemove
+            | Intrinsic::StrAsBytes
             | Intrinsic::ToBits(_)
             | Intrinsic::ToRadix(_) => false,
 
