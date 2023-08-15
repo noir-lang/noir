@@ -17,7 +17,7 @@ mod git;
 pub use errors::ManifestError;
 use git::clone_git_repo;
 
-/// Returns the [Path] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
+/// Returns the [PathBuf] of the directory containing the `Nargo.toml` by searching from `current_path` to the root of its [Path].
 ///
 /// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
 pub fn find_package_root(current_path: &Path) -> Result<PathBuf, ManifestError> {
