@@ -275,7 +275,7 @@ impl<'interner> TypeChecker<'interner> {
         let span = self.interner.expr_span(rhs_expr);
         match expr {
             HirExpression::Literal(HirLiteral::Integer(value)) => {
-                let v: u128 = value.to_u128();
+                let v = value.to_u128();
                 if let Type::Integer(_, bit_count) = annotated_type {
                     let max = 1 << bit_count;
                     if v >= max {
