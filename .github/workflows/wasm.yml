@@ -130,7 +130,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: noir_wasm
-          path: ./crates/wasm/dist
+          path: ./crates/wasm/result
 
       - name: Download nargo binary
         uses: actions/download-artifact@v3
