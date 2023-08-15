@@ -6,6 +6,6 @@ impl<N> str<N> {
 
     /// return a byte vector of the str content
     fn as_bytes_vec(self: Self) -> Vec<u8> {
-        Vec::from_slice(self.as_bytes())
+        Vec::from_slice(self.as_bytes().as_slice())
     }
 } 
