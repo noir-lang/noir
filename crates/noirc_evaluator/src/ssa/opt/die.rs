@@ -129,7 +129,12 @@ impl Context {
 #[cfg(test)]
 mod test {
     use crate::ssa::{
-        ir::{function::RuntimeType, instruction::BinaryOp, map::Id, types::Type},
+        ir::{
+            function::RuntimeType,
+            instruction::{BinaryOp, Intrinsic},
+            map::Id,
+            types::Type,
+        },
         ssa_builder::FunctionBuilder,
     };
 
@@ -154,7 +159,6 @@ mod test {
         //     return v9
         // }
         let main_id = Id::test_new(0);
-        let println_id = Id::test_new(1);
 
         // Compiling main
         let mut builder = FunctionBuilder::new("main".into(), main_id, RuntimeType::Acir);
@@ -182,6 +186,8 @@ mod test {
         let v9 = builder.insert_binary(v7, BinaryOp::Add, two);
         let v10 = builder.insert_binary(v7, BinaryOp::Add, three);
         let _v11 = builder.insert_binary(v10, BinaryOp::Add, v10);
+
+        let println_id = builder.import_intrinsic_id(Intrinsic::Println);
         builder.insert_call(println_id, vec![v8], vec![]);
         builder.terminate_with_return(vec![v9]);
 
