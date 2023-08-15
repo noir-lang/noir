@@ -27,10 +27,11 @@ use noirc_frontend::hir::FunctionNameMatch;
 use serde_json::Value as JsonValue;
 use tower::Service;
 
+const ARROW: &str = "▶\u{fe0e}";
 const TEST_COMMAND: &str = "nargo.test";
-const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
+const TEST_CODELENS_TITLE: &str = "Run Test";
 const COMPILE_COMMAND: &str = "nargo.compile";
-const COMPILE_CODELENS_TITLE: &str = "▶\u{fe0e} Compile";
+const COMPILE_CODELENS_TITLE: &str = "Compile";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
 pub struct LspState {
@@ -212,7 +213,7 @@ fn on_code_lens_request(
                 .unwrap_or_default();
 
             let command = Command {
-                title: TEST_CODELENS_TITLE.into(),
+                title: format!("{ARROW} {TEST_CODELENS_TITLE}"),
                 command: TEST_COMMAND.into(),
                 arguments: Some(vec![
                     "--program-dir".into(),
@@ -246,7 +247,7 @@ fn on_code_lens_request(
                     .unwrap_or_default();
 
                 let command = Command {
-                    title: COMPILE_CODELENS_TITLE.into(),
+                    title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
                     command: COMPILE_COMMAND.into(),
                     arguments: Some(vec![
                         "--program-dir".into(),
@@ -280,7 +281,7 @@ fn on_code_lens_request(
                     .unwrap_or_default();
 
                 let command = Command {
-                    title: COMPILE_CODELENS_TITLE.into(),
+                    title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
                     command: COMPILE_COMMAND.into(),
                     arguments: Some(vec![
                         "--program-dir".into(),
