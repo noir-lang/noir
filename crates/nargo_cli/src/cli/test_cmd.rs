@@ -3,9 +3,13 @@ use std::io::Write;
 use acvm::{acir::native_types::WitnessMap, Backend};
 use clap::Args;
 use nargo::{ops::execute_circuit, package::Package, prepare_package};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml};
+use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_driver::{compile_no_check, CompileOptions};
-use noirc_frontend::{graph::CrateName, hir::Context, node_interner::FuncId};
+use noirc_frontend::{
+    graph::CrateName,
+    hir::{Context, FunctionNameMatch},
+    node_interner::FuncId,
+};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::{cli::check_cmd::check_crate_and_report_errors, errors::CliError};
@@ -22,9 +26,17 @@ pub(crate) struct TestCommand {
     #[arg(long)]
     show_output: bool,
 
-    /// The name of the package to test
+    /// Only run tests that match exactly
     #[clap(long)]
+    exact: bool,
+
+    /// The name of the package to test
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Test all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -35,13 +47,25 @@ pub(crate) fn run<B: Backend>(
     args: TestCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let test_name: String = args.test_name.unwrap_or_else(|| "".to_owned());
-
     let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
+
+    let pattern = match &args.test_name {
+        Some(name) => {
+            if args.exact {
+                FunctionNameMatch::Exact(name)
+            } else {
+                FunctionNameMatch::Contains(name)
+            }
+        }
+        None => FunctionNameMatch::Anything,
+    };
 
     for package in &workspace {
-        run_tests(backend, package, &test_name, args.show_output, &args.compile_options)?;
+        run_tests(backend, package, pattern, args.show_output, &args.compile_options)?;
     }
 
     Ok(())
@@ -50,7 +74,7 @@ pub(crate) fn run<B: Backend>(
 fn run_tests<B: Backend>(
     backend: &B,
     package: &Package,
-    test_name: &str,
+    test_name: FunctionNameMatch,
     show_output: bool,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError<B>> {

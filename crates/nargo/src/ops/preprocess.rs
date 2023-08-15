@@ -42,7 +42,7 @@ pub fn preprocess_contract_function<B: ProofSystemCompiler>(
     include_keys: bool,
     common_reference_string: &[u8],
     func: ContractFunction,
-) -> Result<PreprocessedContractFunction, B::Error> {
+) -> Result<(PreprocessedContractFunction, DebugInfo), B::Error> {
     // TODO: currently `func`'s bytecode is already optimized for the backend.
     // In future we'll need to apply those optimizations here.
     let optimized_bytecode = func.bytecode;
@@ -54,14 +54,17 @@ pub fn preprocess_contract_function<B: ProofSystemCompiler>(
         (None, None)
     };
 
-    Ok(PreprocessedContractFunction {
-        name: func.name,
-        function_type: func.function_type,
-        is_internal: func.is_internal,
-        abi: func.abi,
+    Ok((
+        PreprocessedContractFunction {
+            name: func.name,
+            function_type: func.function_type,
+            is_internal: func.is_internal,
+            abi: func.abi,
 
-        bytecode: optimized_bytecode,
-        proving_key,
-        verification_key,
-    })
+            bytecode: optimized_bytecode,
+            proving_key,
+            verification_key,
+        },
+        func.debug,
+    ))
 }

@@ -34,12 +34,12 @@ fn main(mut x: Field) {
     regression_1887();
     regression_2054();
     regression_2030();
+    regression_2255();
 
     // x == 3 at this point
     regression_2218_if_inner_if(x, 10);
     regression_2218_if_inner_else(20, x);
     regression_2218_else(x, 3);
-
     regression_2218_loop(x, 10);
 }
 
@@ -103,6 +103,19 @@ fn regression_2030() {
     let mut array = [ref, ref];
     let _ = *array[0];
     *array[0] = 1;
+}
+
+// The `mut x: &mut ...` caught a bug handling lvalues where a double-dereference would occur internally
+// in one step rather than being tracked by two separate steps. This lead to assigning the 1 value to the
+// incorrect outer `mut` reference rather than the correct `&mut` reference.
+fn regression_2255() {
+    let x = &mut 0;
+    regression_2255_helper(x);
+    assert(*x == 1);
+}
+
+fn regression_2255_helper(mut x: &mut Field) {
+    *x = 1;
 }
 
 fn regression_2218(x: Field, y: Field) -> Field {
