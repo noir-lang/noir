@@ -1,12 +1,14 @@
 #!/bin/bash
 
 # Install noir if it is not installed already
-if ! command -v nargo &> /dev/null
+if ! command -v noirup &> /dev/null
 then
     echo "Installing noir"
-    ./scripts/install_noir.sh
+    source ./scripts/install_noirup.sh
 fi
 
+# Update noir
+./scripts/install_noir.sh
 
 # Use yarn script to compile and create types
 yarn 

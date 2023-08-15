@@ -10,6 +10,28 @@ Please note that any example contract set out herein is provided solely for info
 
 ### Installing Noir
 
+An essential tool for managing noir versions is noirup.
+
+- Install [noirup](https://github.com/noir-lang/noirup)
+  ```
+  curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
+  ```
+
+### Happy Path
+Currently we all work from a single `aztec` tagged noir release. This release updates independently from noir's regular cadence to allow us to rapidly prototype new features. 
+It has prebuilt binaries and is super easy to install using `noirup`
+
+- Install [noirup](https://github.com/noir-lang/noirup)
+  ```
+  curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
+  ```
+- Install `aztec` tagged nargo
+  ```
+  noirup -v aztec
+  ```
+
+### Building from source (If working with custom features)
+
 - Install [noirup](https://github.com/noir-lang/noirup)
   ```
   curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
@@ -42,11 +64,11 @@ Please note that any example contract set out herein is provided solely for info
   git clone https://github.com/noir-lang/noir.git
   ```
 
-- Checkout aztec3 branch
+- Checkout your target noir branch
 
   ```
   cd noir
-  git checkout aztec3
+  git checkout <branch>
   ```
 
 - Enable direnv

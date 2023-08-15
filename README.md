@@ -18,6 +18,8 @@ To build the C++ code, follow the [instructions in the circuits subdirectory](./
 
 To build Typescript code, make sure to have [`nvm`](https://github.com/nvm-sh/nvm) (node version manager) installed.
 
+To build noir code, make sure that you are using the `aztec` tagged version of nargo. This is the latest pin version the team works on to ensure local and ci environments are in sync. This should be installed through `noir-contracts/bootstrap.sh` and the regular `bootstrap.sh` script. However if you find yourself wanting to update to the latest `aztec` tag outside of these channels, you can run `noirup -v aztec` to manually download the latest binaries.
+
 ## Continuous Integration
 
 This repository uses CircleCI for continuous integration. Build steps are managed using [`build-system`](https://github.com/AztecProtocol/build-system). Small packages are built and tested as part of a docker build operation, while larger ones and end-to-end tests spin up a large AWS spot instance. Each successful build step creates a new docker image that gets tagged with the package name and commit.
