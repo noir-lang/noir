@@ -44,7 +44,7 @@ fn path_root(path: &Path) -> PathBuf {
     }
 }
 
-/// Returns the [Path] of the `Nargo.toml` file by searching from `current_path` and stopping at `root_path`.
+/// Returns the [PathBuf] of the `Nargo.toml` file by searching from `current_path` and stopping at `root_path`.
 ///
 /// Returns a [ManifestError] if no parent directories of `current_path` contain a manifest file.
 pub fn find_package_manifest(
@@ -72,7 +72,7 @@ pub fn find_package_manifest(
         })
     }
 }
-/// Returns the [Path] of the `Nargo.toml` file in the `current_path` directory.
+/// Returns the [PathBuf] of the `Nargo.toml` file in the `current_path` directory.
 ///
 /// Returns a [ManifestError] if `current_path` does not contain a manifest file.
 pub fn get_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestError> {
