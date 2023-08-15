@@ -71,6 +71,30 @@ impl std::fmt::Display for Intrinsic {
 }
 
 impl Intrinsic {
+    /// Returns whether the `Intrinsic` has side effects.
+    ///
+    /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
+    pub(crate) fn has_side_effects(&self) -> bool {
+        match self {
+            Intrinsic::Println | Intrinsic::AssertConstant => true,
+
+            Intrinsic::Sort
+            | Intrinsic::ArrayLen
+            | Intrinsic::SlicePushBack
+            | Intrinsic::SlicePushFront
+            | Intrinsic::SlicePopBack
+            | Intrinsic::SlicePopFront
+            | Intrinsic::SliceInsert
+            | Intrinsic::SliceRemove
+            | Intrinsic::StrAsBytes
+            | Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_) => false,
+
+            // Some black box functions have side-effects
+            Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
+        }
+    }
+
     /// Lookup an Intrinsic by name and return it if found.
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
@@ -181,6 +205,29 @@ impl Instruction {
     /// inserting this instruction into a DataFlowGraph.
     pub(crate) fn requires_ctrl_typevars(&self) -> bool {
         matches!(self.result_type(), InstructionResultType::Unknown)
+    }
+
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | Allocate
+            | Load { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => false,
+
+            Constrain(_) | Store { .. } | EnableSideEffects { .. } => true,
+
+            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                _ => false,
+            },
+        }
     }
 
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
