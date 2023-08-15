@@ -122,7 +122,7 @@ pub fn report_all(
 }
 
 impl FileDiagnostic {
-    fn report(&self, files: &fm::FileManager, deny_warnings: bool) -> bool {
+    pub fn report(&self, files: &fm::FileManager, deny_warnings: bool) -> bool {
         report(files, &self.diagnostic, Some(self.file_id), &self.call_stack, deny_warnings)
     }
 }
