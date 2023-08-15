@@ -268,6 +268,8 @@ impl<'interner> TypeChecker<'interner> {
         }
     }
 
+    /// Check if an assignment is overflowing with respect to `annotated_type`
+    /// in a declaration statement where `annotated_type` is an unsigned integer
     fn lint_overflowing_uint(&mut self, rhs_expr: &ExprId, annotated_type: &Type) {
         let expr = self.interner.expression(rhs_expr);
         let span = self.interner.expr_span(rhs_expr);
