@@ -176,6 +176,10 @@ fn convert_diagnostic(
 }
 
 fn stack_trace(files: &fm::FileManager, call_stack: &[Location]) -> String {
+    if call_stack.is_empty() {
+        return String::new();
+    }
+
     let mut result = "Call stack:\n".to_string();
 
     for (i, call_item) in call_stack.iter().enumerate() {

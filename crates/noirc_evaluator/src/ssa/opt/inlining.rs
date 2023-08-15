@@ -378,14 +378,19 @@ impl<'function> PerFunctionContext<'function> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
-        let mut location = self.source_function.dfg.get_call_stack(call_id);
-        assert_eq!(location.len(), 1);
-        let location =
-            location.pop_back().expect("the assert_eq above verifies this will not fail");
+        let mut call_stack = self.source_function.dfg.get_call_stack(call_id);
+        let has_location = !call_stack.is_empty();
 
-        self.context.call_stack.push_back(location);
+        // Function calls created by the defunctionalization pass will not have source locations
+        if let Some(location) = call_stack.pop_back() {
+            self.context.call_stack.push_back(location);
+        }
+
         let new_results = self.context.inline_function(ssa, function, &arguments);
-        self.context.call_stack.pop_back();
+
+        if has_location {
+            self.context.call_stack.pop_back();
+        }
 
         let new_results = InsertInstructionResult::Results(&new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
