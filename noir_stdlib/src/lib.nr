@@ -27,3 +27,8 @@ unconstrained fn println<T>(input: T) {
 
 #[foreign(recursive_aggregation)]
 fn verify_proof<N>(_verification_key : [Field], _proof : [Field], _public_inputs : [Field], _key_hash : Field, _input_aggregation_object : [Field; N]) -> [Field; N] {}
+
+// Asserts that the given value is known at compile-time.
+// Useful for debugging for-loop bounds.
+#[builtin(assert_constant)]
+fn assert_constant<T>(_x: T) {}

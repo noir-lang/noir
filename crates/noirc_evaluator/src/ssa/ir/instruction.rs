@@ -34,6 +34,7 @@ pub(crate) type InstructionId = Id<Instruction>;
 pub(crate) enum Intrinsic {
     Sort,
     ArrayLen,
+    AssertConstant,
     SlicePushBack,
     SlicePushFront,
     SlicePopBack,
@@ -52,6 +53,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::Println => write!(f, "println"),
             Intrinsic::Sort => write!(f, "arraysort"),
             Intrinsic::ArrayLen => write!(f, "array_len"),
+            Intrinsic::AssertConstant => write!(f, "assert_constant"),
             Intrinsic::SlicePushBack => write!(f, "slice_push_back"),
             Intrinsic::SlicePushFront => write!(f, "slice_push_front"),
             Intrinsic::SlicePopBack => write!(f, "slice_pop_back"),
@@ -98,6 +100,7 @@ impl Intrinsic {
             "println" => Some(Intrinsic::Println),
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
+            "assert_constant" => Some(Intrinsic::AssertConstant),
             "slice_push_back" => Some(Intrinsic::SlicePushBack),
             "slice_push_front" => Some(Intrinsic::SlicePushFront),
             "slice_pop_back" => Some(Intrinsic::SlicePopBack),

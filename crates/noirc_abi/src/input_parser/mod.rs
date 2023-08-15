@@ -162,6 +162,7 @@ mod serialization_tests {
                 AbiParameter {
                     name: "bar".into(),
                     typ: AbiType::Struct {
+                        name: "MyStruct".into(),
                         fields: vec![
                             ("field1".into(), AbiType::Integer { sign: Sign::Unsigned, width: 8 }),
                             (

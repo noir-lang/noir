@@ -165,6 +165,13 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::AssertConstant => {
+            if arguments.iter().all(|argument| dfg.is_constant(*argument)) {
+                SimplifyResult::Remove
+            } else {
+                SimplifyResult::None
+            }
+        }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
         Intrinsic::Sort => simplify_sort(dfg, arguments),
         Intrinsic::Println => SimplifyResult::None,

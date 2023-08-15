@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::Location;
 use serde::{Deserialize, Serialize};
@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct DebugInfo {
     /// Map opcode index of an ACIR circuit into the source code location
-    pub locations: HashMap<usize, Location>,
+    pub locations: BTreeMap<usize, Location>,
 }
 
 impl DebugInfo {
-    pub fn new(locations: HashMap<usize, Location>) -> Self {
+    pub fn new(locations: BTreeMap<usize, Location>) -> Self {
         DebugInfo { locations }
     }
 
@@ -24,7 +24,7 @@ impl DebugInfo {
     /// This is the case during fallback or width 'optimization'
     /// opcode_indices is this list of mixed indices
     pub fn update_acir(&mut self, opcode_indices: Vec<usize>) {
-        let mut new_locations = HashMap::new();
+        let mut new_locations = BTreeMap::new();
         for (i, idx) in opcode_indices.iter().enumerate() {
             if self.locations.contains_key(idx) {
                 new_locations.insert(i, self.locations[idx]);

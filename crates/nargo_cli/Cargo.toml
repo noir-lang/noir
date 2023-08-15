@@ -32,13 +32,14 @@ acvm.workspace = true
 toml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+prettytable-rs = "0.10"
 thiserror.workspace = true
 tower.workspace = true
 async-lsp = { version = "0.0.5", default-features = false, features = [
     "client-monitor",
     "stdio",
     "tracing",
-    "tokio"
+    "tokio",
 ] }
 const_format = "0.2.30"
 hex = "0.4.2"
@@ -56,10 +57,25 @@ assert_cmd = "2.0.8"
 assert_fs = "1.0.10"
 predicates = "2.1.5"
 fm.workspace = true
+criterion = "0.5.0"
+paste = "1.0.14"
+pprof = { version = "0.12", features = [
+    "flamegraph",
+    "frame-pointer",
+    "criterion",
+] }
+iai = "0.1.1"
+
+[[bench]]
+name = "criterion"
+harness = false
+
+[[bench]]
+name = "iai"
+harness = false
 
 [features]
 default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
 plonk_bn254 = ["acvm-backend-barretenberg/native"]
 plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]
-
