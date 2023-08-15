@@ -36,7 +36,7 @@ fn main(mut x: Field) {
     regression_2030();
     regression_2255();
 
-    // x == 3 at this point
+    assert(x == 3);
     regression_2218_if_inner_if(x, 10);
     regression_2218_if_inner_else(20, x);
     regression_2218_else(x, 3);
