@@ -325,7 +325,7 @@
         ];
 
         buildPhaseCargoCommand = ''
-          bash crates/wasm/buildPhaseCargoCommand.sh
+          bash crates/wasm/buildPhaseCargoCommand.sh release
         '';
 
         installPhase = ''
