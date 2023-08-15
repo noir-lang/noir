@@ -84,8 +84,10 @@ impl Intrinsic {
             | Intrinsic::SliceInsert
             | Intrinsic::SliceRemove
             | Intrinsic::ToBits(_)
-            | Intrinsic::ToRadix(_)
-            | Intrinsic::BlackBox(_) => false,
+            | Intrinsic::ToRadix(_) => false,
+
+            // Some black box functions have side-effects
+            Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
         }
     }
 
