@@ -17,7 +17,7 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-use super::unrolling::{Loops, find_all_loops};
+use super::unrolling::{find_all_loops, Loops};
 
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
@@ -63,9 +63,6 @@ struct PerFunctionContext {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
     dom_tree: DominatorTree,
-    // Maps block id -> bool stating whether the block shares a common successor
-    // with one of its predecessors
-    has_common_successor: BTreeMap<BasicBlockId, bool>,
     loops: Loops,
 }
 
@@ -81,7 +78,6 @@ impl PerFunctionContext {
             cfg,
             post_order,
             dom_tree,
-            has_common_successor: BTreeMap::new(),
             loops: find_all_loops(function),
         }
     }
@@ -105,14 +101,16 @@ impl PerFunctionContext {
         let mut protected_allocations = HashSet::new();
         let block = &dfg[block_id];
 
+        // Check whether the block has a common successor here to avoid analyzing
+        // the CFG for every block instruction.
         let has_common_successor = self.has_common_successor(block_id);
-        // Maintain a map for whether a block has a common successor to avoid
-        // analyzing the CFG for successors on every store or load
-        self.has_common_successor.insert(block_id, has_common_successor);
 
         for instruction_id in block.instructions() {
             match &dfg[*instruction_id] {
                 Instruction::Store { mut address, value } => {
+                    if has_common_successor {
+                        protected_allocations.insert(address);
+                    }
                     address = self.fetch_load_value_to_substitute(block_id, address);
 
                     self.last_stores_with_block.insert((address, block_id), *value);
@@ -141,10 +139,6 @@ impl PerFunctionContext {
                         // This check prevents the pass from removing stores to a value that
                         // is used by reference aliases in different blocks
                         protected_allocations.insert(dfg.resolve(address));
-                    }
-
-                    if has_common_successor {
-                        protected_allocations.insert(address);
                     }
                 }
                 Instruction::Call { arguments, .. } => {
