@@ -1,7 +1,7 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
-import { AztecAddress, EthAddress, Fr, PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, CompleteAddress, EthAddress, Fr, PublicKey } from '@aztec/circuits.js';
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { sha256ToField } from '@aztec/foundation/crypto';
@@ -25,7 +25,7 @@ export class CrossChainTestHarness {
     aztecNode: AztecNodeService | undefined,
     aztecRpcServer: AztecRPC,
     deployL1ContractsValues: DeployL1Contracts,
-    accounts: AztecAddress[],
+    accounts: CompleteAddress[],
     wallet: Wallet,
     logger: DebugLogger,
     cheatCodes: CheatCodes,
@@ -33,8 +33,7 @@ export class CrossChainTestHarness {
     const walletClient = deployL1ContractsValues.walletClient;
     const publicClient = deployL1ContractsValues.publicClient;
     const ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
-    const [ownerAddress, receiver] = accounts;
-    const ownerPub = (await aztecRpcServer.getPublicKeyAndPartialAddress(ownerAddress))[0];
+    const [owner, receiver] = accounts;
 
     const outbox = getContract({
       address: deployL1ContractsValues.outboxAddress.toString(),
@@ -50,7 +49,7 @@ export class CrossChainTestHarness {
       publicClient,
       deployL1ContractsValues!.registryAddress,
       initialBalance,
-      ownerAddress,
+      owner.address,
     );
     const l2Contract = contracts.l2Contract;
     const underlyingERC20 = contracts.underlyingERC20;
@@ -73,9 +72,9 @@ export class CrossChainTestHarness {
       outbox,
       publicClient,
       walletClient,
-      ownerAddress,
-      receiver,
-      ownerPub,
+      owner.address,
+      receiver.address,
+      owner.publicKey,
     );
   }
   constructor(
@@ -86,7 +85,7 @@ export class CrossChainTestHarness {
     /** CheatCodes. */
     public cc: CheatCodes,
     /** Accounts. */
-    public accounts: AztecAddress[],
+    public accounts: CompleteAddress[],
     /** Logger. */
     public logger: DebugLogger,
 
@@ -105,7 +104,7 @@ export class CrossChainTestHarness {
     public outbox: any,
     /** Viem Public client instance. */
     public publicClient: PublicClient<HttpTransport, Chain>,
-    /** Viem Walllet Client instance. */
+    /** Viem Wallet Client instance. */
     public walletClient: any,
 
     /** Aztec address to use in tests. */
@@ -160,7 +159,7 @@ export class CrossChainTestHarness {
     // send a transfer tx to force through rollup with the message included
     const transferTx = this.l2Contract.methods
       .transfer(transferAmount, this.ownerAddress, this.receiver)
-      .send({ origin: this.accounts[0] });
+      .send({ origin: this.accounts[0].address });
 
     await transferTx.isMined({ interval: 0.1 });
     const transferReceipt = await transferTx.getReceipt();

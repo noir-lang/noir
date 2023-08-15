@@ -7,7 +7,7 @@ import {
 } from '@aztec/circuits.js/abis';
 import { ContractAbi, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
 
-import { CircuitsWasm, DeploymentInfo, Fr, FunctionData, PublicKey } from '../index.js';
+import { CircuitsWasm, CompleteAddress, DeploymentInfo, Fr, FunctionData, PublicKey } from '../index.js';
 import { generateFunctionLeaves, hashVKStr, isConstructor } from './contract_tree/contract_tree.js';
 
 /**
@@ -55,11 +55,11 @@ export async function getContractDeploymentInfo(
     constructorHash,
   );
 
+  const completeAddress = await CompleteAddress.create(contractAddress, publicKey, partialAddress);
+
   return {
-    address: contractAddress,
-    partialAddress,
+    completeAddress,
     constructorHash: constructorVkHash,
     functionTreeRoot,
-    publicKey,
   };
 }

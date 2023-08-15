@@ -3,7 +3,7 @@ import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PrivateTokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
 
 import {
   expectUnencryptedLogsFromLastBlockToBe,
@@ -15,13 +15,17 @@ describe('e2e_private_token_contract', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
-  let accounts: AztecAddress[];
   let logger: DebugLogger;
+  let owner: AztecAddress;
+  let receiver: AztecAddress;
 
   let contract: PrivateTokenContract;
 
   beforeEach(async () => {
+    let accounts: CompleteAddress[];
     ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
+    owner = accounts[0].address;
+    receiver = accounts[1].address;
   }, 100_000);
 
   afterEach(async () => {
@@ -49,9 +53,9 @@ describe('e2e_private_token_contract', () => {
    */
   it('1.3 should deploy private token contract with initial token minted to the account', async () => {
     const initialBalance = 987n;
-    await deployContract(initialBalance, accounts[0]);
-    await expectBalance(accounts[0], initialBalance);
-    await expectBalance(accounts[1], 0n);
+    await deployContract(initialBalance, owner);
+    await expectBalance(owner, initialBalance);
+    await expectBalance(receiver, 0n);
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
     await expectUnencryptedLogsFromLastBlockToBe(aztecNode, ['Balance set in constructor']);
@@ -62,8 +66,6 @@ describe('e2e_private_token_contract', () => {
    */
   it('1.4 should call mint and increase balance', async () => {
     const mintAmount = 65n;
-
-    const [owner] = accounts;
 
     await deployContract(0n, owner);
     await expectBalance(owner, 0n);
@@ -88,7 +90,6 @@ describe('e2e_private_token_contract', () => {
   it('1.5 should call transfer and increase balance of another account', async () => {
     const initialBalance = 987n;
     const transferAmount = 654n;
-    const [owner, receiver] = accounts;
 
     await deployContract(initialBalance, owner);
 
@@ -98,7 +99,7 @@ describe('e2e_private_token_contract', () => {
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
     await expectUnencryptedLogsFromLastBlockToBe(aztecNode, ['Balance set in constructor']);
 
-    const tx = contract.methods.transfer(transferAmount, owner, receiver).send({ origin: accounts[0] });
+    const tx = contract.methods.transfer(transferAmount, owner, receiver).send({ origin: owner });
 
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();

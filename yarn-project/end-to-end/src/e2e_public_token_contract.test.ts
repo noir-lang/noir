@@ -3,7 +3,7 @@ import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PublicTokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, L2BlockL2Logs, TxStatus } from '@aztec/types';
+import { AztecRPC, CompleteAddress, L2BlockL2Logs, TxStatus } from '@aztec/types';
 
 import times from 'lodash.times';
 
@@ -13,8 +13,8 @@ describe('e2e_public_token_contract', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
-  let accounts: AztecAddress[];
   let logger: DebugLogger;
+  let recipient: AztecAddress;
 
   let contract: PublicTokenContract;
 
@@ -36,7 +36,9 @@ describe('e2e_public_token_contract', () => {
   };
 
   beforeEach(async () => {
+    let accounts: CompleteAddress[];
     ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup());
+    recipient = accounts[0].address;
   }, 100_000);
 
   afterEach(async () => {
@@ -54,9 +56,6 @@ describe('e2e_public_token_contract', () => {
   it('should deploy a public token contract and mint tokens to a recipient', async () => {
     const mintAmount = 359n;
 
-    const recipientIdx = 0;
-
-    const recipient = accounts[recipientIdx];
     await deployContract();
 
     const tx = contract.methods.mint(mintAmount, recipient).send({ origin: recipient });
@@ -75,8 +74,6 @@ describe('e2e_public_token_contract', () => {
   // Regression for https://github.com/AztecProtocol/aztec-packages/issues/640
   it('should mint tokens thrice to a recipient within the same block', async () => {
     const mintAmount = 42n;
-    const recipientIdx = 0;
-    const recipient = accounts[recipientIdx];
 
     await deployContract();
 

@@ -2,6 +2,7 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { JsonRpcServer } from '@aztec/foundation/json-rpc/server';
 import {
+  CompleteAddress,
   ContractData,
   ContractDataAndBytecode,
   ContractDeploymentTx,
@@ -27,6 +28,7 @@ export function getHttpRpcServer(aztecRpcServer: AztecRPCServer): JsonRpcServer 
   const generatedRpcServer = new JsonRpcServer(
     aztecRpcServer,
     {
+      CompleteAddress,
       AztecAddress,
       TxExecutionRequest,
       ContractData,

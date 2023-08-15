@@ -2,8 +2,8 @@ import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { mapTuple, numToUInt32BE } from '@aztec/foundation/serialize';
 
-import { computeCallStackItemHash, computeContractAddressFromPartial } from '../abis/abis.js';
-import { Grumpkin, SchnorrSignature } from '../barretenberg/index.js';
+import { computeCallStackItemHash } from '../abis/abis.js';
+import { SchnorrSignature } from '../barretenberg/index.js';
 import {
   ARGS_LENGTH,
   AggregationObject,
@@ -65,7 +65,6 @@ import {
   PrivateCircuitPublicInputs,
   PrivateKernelInputsInit,
   PrivateKernelInputsInner,
-  PrivateKey,
   Proof,
   PublicCallData,
   PublicCallRequest,
@@ -947,19 +946,4 @@ export function makeBaseRollupInputs(seed = 0): BaseRollupInputs {
  */
 export function fr(n: number): Fr {
   return new Fr(BigInt(n));
-}
-
-/**
- * Computes a valid address, partial address, and public key out of a private key.
- * @param privateKey - A private encryption key (optional, will use a random one if not set).
- * @returns A valid address, partial address, and public key.
- */
-export async function makeAddressWithPreimagesFromPrivateKey(privateKey?: PrivateKey) {
-  privateKey = privateKey ?? PrivateKey.random();
-  const wasm = await CircuitsWasm.get();
-  const grumpkin = new Grumpkin(wasm);
-  const publicKey = grumpkin.mul(Grumpkin.generator, privateKey);
-  const partialAddress = Fr.random();
-  const address = computeContractAddressFromPartial(wasm, publicKey, partialAddress);
-  return { address, partialAddress, publicKey, privateKey };
 }

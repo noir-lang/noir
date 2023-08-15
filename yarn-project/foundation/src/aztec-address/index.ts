@@ -126,11 +126,11 @@ export class AztecAddress {
    * Determines if this AztecAddress instance is equal to the given AztecAddress instance.
    * Equality is based on the content of their respective buffers.
    *
-   * @param rhs - The AztecAddress instance to compare against.
+   * @param other - The AztecAddress instance to compare against.
    * @returns True if the buffers of both instances are equal, false otherwise.
    */
-  equals(rhs: AztecAddress) {
-    return this.buffer.equals(rhs.buffer);
+  equals(other: AztecAddress) {
+    return this.buffer.equals(other.buffer);
   }
 
   /**

@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, HistoricBlockData, PrivateKey } from '@aztec/circuits.js';
+import { CompleteAddress, Fr, HistoricBlockData, PrivateKey } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { TestKeyStore } from '@aztec/key-store';
 import { AztecNode, L2Block, MerkleTreeId } from '@aztec/types';
@@ -103,17 +103,17 @@ describe('Synchroniser', () => {
 
     // Manually adding account to database so that we can call synchroniser.isAccountStateSynchronised
     const keyStore = new TestKeyStore(await Grumpkin.new());
-    keyStore.addAccount(PrivateKey.random());
-    const pubKey = (await keyStore.getAccounts())[0];
-    const address = AztecAddress.random();
-    await database.addPublicKeyAndPartialAddress(address, pubKey, new Fr(0));
+    const privateKey = PrivateKey.random();
+    keyStore.addAccount(privateKey);
+    const completeAddress = await CompleteAddress.fromPrivateKey(privateKey);
+    await database.addCompleteAddress(completeAddress);
 
     // Add the account which will add the note processor to the synchroniser
-    synchroniser.addAccount(pubKey, keyStore);
+    synchroniser.addAccount(completeAddress.publicKey, keyStore);
 
     await synchroniser.workNoteProcessorCatchUp();
 
-    expect(await synchroniser.isAccountStateSynchronised(address)).toBe(true);
+    expect(await synchroniser.isAccountStateSynchronised(completeAddress.address)).toBe(true);
   });
 });
 

@@ -48,37 +48,37 @@ async function main() {
 
   wallet = await createAccounts(aztecRpcClient, SchnorrSingleKeyAccountContractAbi, privateKey, Fr.random(), 2);
   const accounts = await aztecRpcClient.getAccounts();
-  const [ownerAddress, address2] = accounts;
+  const [owner, account2] = accounts;
   logger(`Created ${accounts.length} accounts`);
 
-  logger(`Created Owner account ${ownerAddress.toString()}`);
+  logger(`Created Owner account ${owner.toString()}`);
 
-  const zkContract = await deployZKContract(ownerAddress);
-  const [balance1] = await zkContract.methods.getBalance(ownerAddress).view({ from: ownerAddress });
+  const zkContract = await deployZKContract(owner.address);
+  const [balance1] = await zkContract.methods.getBalance(owner.address).view({ from: owner.address });
   logger(`Initial owner balance: ${balance1}`);
 
   // Mint more tokens
   logger(`Minting ${SECONDARY_AMOUNT} more coins`);
-  const mintTx = zkContract.methods.mint(SECONDARY_AMOUNT, ownerAddress).send({ origin: ownerAddress });
+  const mintTx = zkContract.methods.mint(SECONDARY_AMOUNT, owner.address).send({ origin: owner.address });
   await mintTx.isMined({ interval: 0.5 });
-  const balanceAfterMint = await getBalance(zkContract, ownerAddress);
+  const balanceAfterMint = await getBalance(zkContract, owner.address);
   logger(`Owner's balance is now: ${balanceAfterMint}`);
 
   // Perform a transfer
   logger(`Transferring ${SECONDARY_AMOUNT} tokens from owner to another account.`);
   const transferTx = zkContract.methods
-    .transfer(SECONDARY_AMOUNT, ownerAddress, address2)
-    .send({ origin: ownerAddress });
+    .transfer(SECONDARY_AMOUNT, owner.address, account2.address)
+    .send({ origin: owner.address });
   await transferTx.isMined({ interval: 0.5 });
-  const balanceAfterTransfer = await getBalance(zkContract, ownerAddress);
-  const receiverBalance = await getBalance(zkContract, address2);
+  const balanceAfterTransfer = await getBalance(zkContract, owner.address);
+  const receiverBalance = await getBalance(zkContract, account2.address);
   logger(`Owner's balance is now ${balanceAfterTransfer}`);
   logger(`The transfer receiver's balance is ${receiverBalance}`);
 }
 
 main()
   .then(() => {
-    logger('Finished running successfuly.');
+    logger('Finished running successfully.');
     process.exit(0);
   })
   .catch(err => {

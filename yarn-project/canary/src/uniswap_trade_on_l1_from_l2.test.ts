@@ -137,10 +137,7 @@ async function deployAllContracts(
   };
 }
 
-const getL2BalanceOf = async (
-  owner: AztecAddress,
-  l2Contract: NonNativeTokenContract
-) => {
+const getL2BalanceOf = async (owner: AztecAddress, l2Contract: NonNativeTokenContract) => {
   return await l2Contract.methods.getBalance(owner).view({ from: owner });
 };
 
@@ -193,7 +190,8 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     wallet = await getSandboxAccountsWallet(aztecRpcClient);
     const accounts = await wallet.getAccounts();
-    const [owner, receiver] = accounts;
+    const owner = accounts[0].address;
+    const receiver = accounts[1].address;
 
     const result = await deployAllContracts(owner, publicClient, walletClient);
     const {
@@ -290,7 +288,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);
     logger(`Withdraw receipt status: ${withdrawReceipt.status}`);
 
-    // check weth balance of owner on L2 (we first briedged `wethAmountToBridge` into L2 and now withdrew it!)
+    // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
     await expectBalanceOnL2(owner, INITIAL_BALANCE - transferAmount, wethL2Contract);
 
     // 5. Consume L2 to L1 message by calling uniswapPortal.swap()

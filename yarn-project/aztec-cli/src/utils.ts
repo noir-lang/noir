@@ -9,7 +9,7 @@ import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 import { encodeArgs } from './cli_encoder.js';
 
 /**
- * Helper type to dynamically import contarcts.
+ * Helper type to dynamically import contracts.
  */
 interface ArtifactsType {
   [key: string]: ContractAbi;
@@ -105,9 +105,9 @@ export async function getTxSender(client: AztecRPC, _from?: string) {
   } else {
     const accounts = await client.getAccounts();
     if (!accounts.length) {
-      throw new Error('No accounts found in Aztec RPC insance.');
+      throw new Error('No accounts found in Aztec RPC instance.');
     }
-    from = accounts[0];
+    from = accounts[0].address;
   }
   return from;
 }

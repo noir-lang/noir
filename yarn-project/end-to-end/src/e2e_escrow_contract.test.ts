@@ -1,7 +1,7 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, BatchCall, Wallet, generatePublicKey } from '@aztec/aztec.js';
-import { Fr, PrivateKey, getContractDeploymentInfo } from '@aztec/circuits.js';
+import { CompleteAddress, Fr, PrivateKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { generateFunctionSelector } from '@aztec/foundation/abi';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { DebugLogger } from '@aztec/foundation/log';
@@ -15,7 +15,7 @@ describe('e2e_escrow_contract', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
-  let accounts: AztecAddress[];
+  let accounts: CompleteAddress[];
   let logger: DebugLogger;
 
   let privateTokenContract: PrivateTokenContract;
@@ -36,7 +36,8 @@ describe('e2e_escrow_contract', () => {
   beforeEach(async () => {
     // Setup environment
     ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
-    [owner, recipient] = accounts;
+    owner = accounts[0].address;
+    recipient = accounts[1].address;
 
     // Generate private key for escrow contract, register key in rpc server, and deploy
     // Note that we need to register it first if we want to emit an encrypted note for it in the constructor
@@ -44,7 +45,7 @@ describe('e2e_escrow_contract', () => {
     escrowPublicKey = await generatePublicKey(escrowPrivateKey);
     const salt = Fr.random();
     const deployInfo = await getContractDeploymentInfo(EscrowContractAbi, [owner], salt, escrowPublicKey);
-    await aztecRpcServer.addAccount(escrowPrivateKey, deployInfo.address, deployInfo.partialAddress);
+    await aztecRpcServer.registerAccount(escrowPrivateKey, deployInfo.completeAddress);
 
     escrowContract = await EscrowContract.deployWithPublicKey(wallet, escrowPublicKey, owner)
       .send({ contractAddressSalt: salt })

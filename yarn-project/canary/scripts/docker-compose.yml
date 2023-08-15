@@ -1,4 +1,4 @@
-version: "3"
+version: '3'
 services:
   fork:
     image: ghcr.io/foundry-rs/foundry:nightly-a44aa13cfc23491ba32aaedc093e9488c1a6db43
@@ -10,12 +10,12 @@ services:
         exec anvil -p 8545 --host 0.0.0.0 --chain-id 31337
       fi'
     ports:
-      - "8545:8545"
+      - '8545:8545'
 
   sandbox:
     image: aztecprotocol/aztec-sandbox:latest
     environment:
-      DEBUG: "aztec:*,wasm"
+      DEBUG: 'aztec:*,wasm'
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL_MS: 50
@@ -26,7 +26,7 @@ services:
       ARCHIVER_VIEM_POLLING_INTERVAL_MS: 500
       SEARCH_START_BLOCK: ${FORK_BLOCK_NUMBER:-0}
     ports:
-      - "8080:8080"
+      - '8080:8080'
 
   canary:
     image: aztecprotocol/canary:latest

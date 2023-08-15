@@ -360,7 +360,7 @@ WASM_EXPORT void abis__compute_contract_address_from_partial(uint8_t const* poin
  * @param constructor_hash_buf the hash of the contract constructor's verification key
  * @param output buffer that will contain the output. The serialized contract address.
  * See the link bellow for more details:
- * https://github.com/AztecProtocol/aztec-packages/blob/janb/rpc-interface-cleanup/docs/docs/concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys
+ * https://github.com/AztecProtocol/aztec-packages/blob/master/docs/docs/concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys
  */
 WASM_EXPORT void abis__compute_partial_address(uint8_t const* contract_address_salt_buf,
                                                uint8_t const* function_tree_root_buf,

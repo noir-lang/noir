@@ -1,7 +1,7 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
-import { CircuitsWasm } from '@aztec/circuits.js';
+import { CircuitsWasm, CompleteAddress } from '@aztec/circuits.js';
 import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { DebugLogger } from '@aztec/foundation/log';
 import { LendingContract } from '@aztec/noir-contracts/types';
@@ -13,7 +13,7 @@ describe('e2e_lending_contract', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
-  let accounts: AztecAddress[];
+  let accounts: CompleteAddress[];
   let logger: DebugLogger;
 
   let contract: LendingContract;
@@ -85,7 +85,7 @@ describe('e2e_lending_contract', () => {
   it('Full lending run-through', async () => {
     const recipientIdx = 0;
 
-    const recipient = accounts[recipientIdx];
+    const recipient = accounts[recipientIdx].address;
     const { contract: deployedContract } = await deployContract();
 
     const account = new Account(recipient, new Fr(42));

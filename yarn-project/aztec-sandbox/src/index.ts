@@ -98,12 +98,12 @@ async function main() {
 
   const registeredAccounts = await aztecRpcServer.getAccounts();
   for (const account of accounts) {
-    const completedAddress = await account.account.getCompleteAddress();
-    if (registeredAccounts.find(a => a.equals(completedAddress.address))) {
-      accountStrings.push(` Address: ${completedAddress.address.toString()}\n`);
-      accountStrings.push(` Partial Address: ${completedAddress.partialAddress.toString()}\n`);
+    const completeAddress = await account.account.getCompleteAddress();
+    if (registeredAccounts.find(a => a.equals(completeAddress))) {
+      accountStrings.push(` Address: ${completeAddress.address.toString()}\n`);
+      accountStrings.push(` Partial Address: ${completeAddress.partialAddress.toString()}\n`);
       accountStrings.push(` Private Key: ${account.privateKey.toString()}\n`);
-      accountStrings.push(` Public Key: ${completedAddress.publicKey.toString()}\n\n`);
+      accountStrings.push(` Public Key: ${completeAddress.publicKey.toString()}\n\n`);
     }
   }
   logger.info(`${splash}\n${github}\n\n`.concat(...accountStrings));

@@ -1,8 +1,7 @@
 import { ContractAbi } from '@aztec/foundation/abi';
-import { NodeInfo } from '@aztec/types';
+import { CompleteAddress, NodeInfo } from '@aztec/types';
 
 import { Entrypoint } from '../index.js';
-import { CompleteAddress } from './../complete_address.js';
 
 export * from './ecdsa_account_contract.js';
 export * from './schnorr_account_contract.js';

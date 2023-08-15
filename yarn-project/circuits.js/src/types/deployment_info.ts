@@ -1,17 +1,13 @@
-import { AztecAddress, Fr, PartialAddress, PublicKey } from '../index.js';
+import { CompleteAddress, Fr } from '../index.js';
 
 /**
  * Represents the data generated as part of contract deployment.
  */
 export type DeploymentInfo = {
   /**
-   * The derived aztec address of the contract.
+   * The complete address of the deployed contract.
    */
-  address: AztecAddress;
-  /**
-   * The partially derived aztec address of the contract.
-   */
-  partialAddress: PartialAddress;
+  completeAddress: CompleteAddress;
   /**
    * The contract's constructor hash.
    */
@@ -20,8 +16,4 @@ export type DeploymentInfo = {
    * The root of the contract's function tree.
    */
   functionTreeRoot: Fr;
-  /**
-   * The public key associated with the contract.
-   */
-  publicKey: PublicKey;
 };

@@ -1,8 +1,7 @@
-import { AztecRPC, PrivateKey } from '@aztec/types';
+import { AztecRPC, CompleteAddress, PrivateKey } from '@aztec/types';
 
 import { AccountContract, AccountWallet, AztecAddress, Fr } from '../index.js';
 import { Account } from './account.js';
-import { CompleteAddress } from './complete_address.js';
 import { EcdsaAccountContract } from './contract/ecdsa_account_contract.js';
 import { SchnorrAccountContract } from './contract/schnorr_account_contract.js';
 import { SingleKeyAccountContract } from './contract/single_key_account_contract.js';
@@ -93,9 +92,11 @@ export async function getWallet(
   address: AztecAddress,
   accountContract: AccountContract,
 ): Promise<AccountWallet> {
-  const [publicKey, partialAddress] = await rpc.getPublicKeyAndPartialAddress(address);
+  const completeAddress = await rpc.getAccount(address);
+  if (!completeAddress) {
+    throw new Error(`Account ${address} not found`);
+  }
   const nodeInfo = await rpc.getNodeInfo();
-  const completeAddress: CompleteAddress = { publicKey, partialAddress, address };
   const entrypoint = await accountContract.getEntrypoint(completeAddress, nodeInfo);
   return new AccountWallet(rpc, entrypoint, completeAddress);
 }

@@ -1,6 +1,7 @@
-import { AztecAddress, EthAddress, Fr, PartialAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, Fr, PrivateKey } from '@aztec/circuits.js';
 import { ContractAbi } from '@aztec/foundation/abi';
 import {
+  CompleteAddress,
   ContractData,
   ContractDataAndBytecode,
   L2BlockL2Logs,
@@ -63,22 +64,54 @@ export type SyncStatus = {
  */
 export interface AztecRPC {
   /**
-   * Registers an account backed by an account contract.
+   * Registers an account in the Aztec RPC server.
    *
    * @param privKey - Private key of the corresponding user master public key.
-   * @param address - Address of the account contract.
-   * @param partialAddress - The partially computed address of the account contract.
-   * @returns The address of the account contract.
+   * @param account - A complete address of the account.
+   * @returns Empty promise.
    */
-  addAccount(privKey: PrivateKey, address: AztecAddress, partialAddress: PartialAddress): Promise<AztecAddress>;
+  registerAccount(privKey: PrivateKey, account: CompleteAddress): Promise<void>;
 
   /**
-   * Retrieves the list of Aztec addresses added to this rpc server
-   * The addresses are returned as a promise that resolves to an array of AztecAddress objects.
-   *
-   * @returns A promise that resolves to an array of AztecAddress instances.
+   * Registers recipient in the Aztec RPC server.
+   * @param recipient - A complete address of the recipient
+   * @returns Empty promise.
+   * @remarks Called recipient because we can only send notes to this account and not receive them via this RPC server.
+   *          This is because we don't have the associated private key and for this reason we can't decrypt
+   *          the recipient's notes. We can send notes to this account because we can encrypt them with the recipient's
+   *          public key.
    */
-  getAccounts(): Promise<AztecAddress[]>;
+  registerRecipient(recipient: CompleteAddress): Promise<void>;
+
+  /**
+   * Retrieves the list of accounts added to this rpc server.
+   * The addresses are returned as a promise that resolves to an array of CompleteAddress objects.
+   *
+   * @returns A promise that resolves to an array of the accounts registered on this RPC server.
+   */
+  getAccounts(): Promise<CompleteAddress[]>;
+
+  /**
+   * Retrieves the complete address of the account corresponding to the provided aztec address.
+   * @param address - The aztec address of the account contract.
+   * @returns A promise that resolves to the complete address of the requested account.
+   */
+  getAccount(address: AztecAddress): Promise<CompleteAddress | undefined>;
+
+  /**
+   * Retrieves the list of recipients added to this rpc server.
+   * The addresses are returned as a promise that resolves to an array of CompleteAddress objects.
+   *
+   * @returns A promise that resolves to an array registered recipients on this RPC server.
+   */
+  getRecipients(): Promise<CompleteAddress[]>;
+
+  /**
+   * Retrieves the complete address of the recipient corresponding to the provided aztec address.
+   * @param address - The aztec address of the recipient.
+   * @returns A promise that resolves to the complete address of the requested recipient.
+   */
+  getRecipient(address: AztecAddress): Promise<CompleteAddress | undefined>;
 
   /**
    * Add an array of deployed contracts to the database.
@@ -172,30 +205,6 @@ export interface AztecRPC {
    * @returns - The node information.
    */
   getNodeInfo(): Promise<NodeInfo>;
-
-  /**
-   * Adds public key and partial address to a database.
-   * @param address - Address of the account to add public key and partial address for.
-   * @param publicKey - Public key of the corresponding user.
-   * @param partialAddress - The partially computed address of the account contract.
-   * @returns A Promise that resolves once the public key has been added to the database.
-   */
-  addPublicKeyAndPartialAddress(
-    address: AztecAddress,
-    publicKey: PublicKey,
-    partialAddress: PartialAddress,
-  ): Promise<void>;
-
-  /**
-   * Retrieve the public key and partial address associated with an address.
-   * Throws an error if the account is not found in the key store.
-   *
-   * @param address - The AztecAddress instance representing the account to get public key and partial address for.
-   * @returns A Promise resolving to the PublicKey instance representing the public key.
-   * @remarks The public key and partial address form a preimage of a contract address. See
-   * https://github.com/AztecProtocol/aztec-packages/blob/janb/rpc-interface-cleanup/docs/docs/concepts/foundation/accounts/keys.md#addresses-partial-addresses-and-public-keys
-   */
-  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialAddress]>;
 
   /**
    * Checks whether all the blocks were processed (tree roots updated, txs updated with block info, etc.).

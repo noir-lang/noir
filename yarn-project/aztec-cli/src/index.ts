@@ -15,7 +15,7 @@ import { StructType } from '@aztec/foundation/abi';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { createConsoleLogger, createDebugLogger } from '@aztec/foundation/log';
 import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/artifacts';
-import { ContractData, L2BlockL2Logs, PrivateKey, TxHash } from '@aztec/types';
+import { CompleteAddress, ContractData, L2BlockL2Logs, PrivateKey, TxHash } from '@aztec/types';
 
 import { Command } from 'commander';
 import { mnemonicToAccount } from 'viem/accounts';
@@ -254,8 +254,8 @@ async function main() {
     });
 
   program
-    .command('register-public-key')
-    .description("Register an account's public key to the RPC server")
+    .command('register-recipient')
+    .description('Register a recipient in the Aztec RPC.')
     .option('-a, --address <aztecAddress>', "The account's Aztec address.")
     .option('-p, --public-key <publicKey>', 'The account public key.')
     .option('-pa, --partial-address <partialAddress', 'The partially computed address of the account contract.')
@@ -266,7 +266,7 @@ async function main() {
       const publicKey = Point.fromString(options.publicKey);
       const partialAddress = Fr.fromString(options.partialAddress);
 
-      await client.addPublicKeyAndPartialAddress(address, publicKey, partialAddress);
+      await client.registerRecipient(await CompleteAddress.create(address, publicKey, partialAddress));
       log(`\nRegistered details for Address: ${options.address}\n`);
     });
 
@@ -281,29 +281,60 @@ async function main() {
         log('No accounts found.');
       } else {
         log(`Accounts found: \n`);
-        for (const address of accounts) {
-          const [pk, partialAddress] = await client.getPublicKeyAndPartialAddress(address);
-          log(
-            `Address:         ${address}\nPublic Key:      ${pk.toString()}\nPartial Address: ${partialAddress.toString()}\n`,
-          );
+        for (const account of accounts) {
+          log(account.toReadableString());
         }
       }
     });
 
   program
-    .command('get-account-public-key')
-    .description("Gets an account's public key, given its Aztec address.")
-    .argument('<address>', 'The Aztec address to get the public key for')
+    .command('get-account')
+    .description('Gets an account given its Aztec address.')
+    .argument('<address>', 'The Aztec address to get account for')
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async (_address, options) => {
       const client = createAztecRpcClient(options.rpcUrl);
       const address = AztecAddress.fromString(_address);
-      const [pk, partialAddress] = await client.getPublicKeyAndPartialAddress(address);
+      const account = await client.getAccount(address);
 
-      if (!pk) {
+      if (!account) {
         log(`Unknown account ${_address}`);
       } else {
-        log(`Public Key: \n ${pk.toString()}\nPartial Address: ${partialAddress.toString()}\n`);
+        log(account.toReadableString());
+      }
+    });
+
+  program
+    .command('get-recipients')
+    .description('Gets all the recipients stored in the Aztec RPC.')
+    .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
+    .action(async (options: any) => {
+      const client = createAztecRpcClient(options.rpcUrl);
+      const recipients = await client.getRecipients();
+      if (!recipients.length) {
+        log('No recipients found.');
+      } else {
+        log(`Recipients found: \n`);
+        for (const recipient of recipients) {
+          log(recipient.toReadableString());
+        }
+      }
+    });
+
+  program
+    .command('get-recipient')
+    .description('Gets a recipient given its Aztec address.')
+    .argument('<address>', 'The Aztec address to get recipient for')
+    .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
+    .action(async (_address, options) => {
+      const client = createAztecRpcClient(options.rpcUrl);
+      const address = AztecAddress.fromString(_address);
+      const recipient = await client.getRecipient(address);
+
+      if (!recipient) {
+        log(`Unknown recipient ${_address}`);
+      } else {
+        log(recipient.toReadableString());
       }
     });
 

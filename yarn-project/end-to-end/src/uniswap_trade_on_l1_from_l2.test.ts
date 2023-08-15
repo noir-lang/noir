@@ -6,7 +6,7 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
 import { UniswapPortalAbi, UniswapPortalBytecode } from '@aztec/l1-artifacts';
 import { UniswapContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
 
 import { getContract, parseEther } from 'viem';
 
@@ -35,12 +35,12 @@ describe('uniswap_trade_on_l1_from_l2', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
-  let accounts: AztecAddress[];
+  let accounts: CompleteAddress[];
   let logger: DebugLogger;
   let cheatCodes: CheatCodes;
 
   let ethAccount: EthAddress;
-  let ownerAddress: AztecAddress;
+  let owner: AztecAddress;
   let receiver: AztecAddress;
   const initialBalance = 10n;
   const wethAmountToBridge = parseEther('1');
@@ -67,8 +67,9 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     }
 
     ethAccount = EthAddress.fromString((await walletClient.getAddresses())[0]);
-    [ownerAddress, receiver] = accounts;
-    const ownerPublicKey = (await aztecRpcServer.getPublicKeyAndPartialAddress(ownerAddress))[0];
+    owner = accounts[0].address;
+    const ownerPublicKey = accounts[0].publicKey;
+    receiver = accounts[1].address;
 
     logger('Deploying DAI Portal, initializing and deploying l2 contract...');
     const daiContracts = await deployAndInitializeNonNativeL2TokenContracts(
@@ -77,7 +78,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       publicClient,
       deployL1ContractsValues!.registryAddress,
       initialBalance,
-      ownerAddress,
+      owner,
       DAI_ADDRESS,
     );
     daiCrossChainHarness = new CrossChainTestHarness(
@@ -94,7 +95,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       null,
       publicClient,
       walletClient,
-      ownerAddress,
+      owner,
       receiver,
       ownerPublicKey,
     );
@@ -106,7 +107,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       publicClient,
       deployL1ContractsValues!.registryAddress,
       initialBalance,
-      ownerAddress,
+      owner,
       WETH9_ADDRESS,
     );
     wethCrossChainHarness = new CrossChainTestHarness(
@@ -123,7 +124,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       null,
       publicClient,
       walletClient,
-      ownerAddress,
+      owner,
       receiver,
       ownerPublicKey,
     );
@@ -181,11 +182,11 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     // 3. Claim WETH on L2
     logger('Minting weth on L2');
     await wethCrossChainHarness.consumeMessageOnAztecAndMintSecretly(wethAmountToBridge, messageKey, secret);
-    await wethCrossChainHarness.expectBalanceOnL2(ownerAddress, wethAmountToBridge + initialBalance - transferAmount);
+    await wethCrossChainHarness.expectBalanceOnL2(owner, wethAmountToBridge + initialBalance - transferAmount);
 
     // Store balances
-    const wethBalanceBeforeSwap = await wethCrossChainHarness.getL2BalanceOf(ownerAddress);
-    const daiBalanceBeforeSwap = await daiCrossChainHarness.getL2BalanceOf(ownerAddress);
+    const wethBalanceBeforeSwap = await wethCrossChainHarness.getL2BalanceOf(owner);
+    const daiBalanceBeforeSwap = await daiCrossChainHarness.getL2BalanceOf(owner);
 
     // 4. Send L2 to L1 message to withdraw funds and another message to swap assets.
     logger('Send L2 tx to withdraw WETH to uniswap portal and send message to swap assets on L1');
@@ -200,20 +201,20 @@ describe('uniswap_trade_on_l1_from_l2', () => {
         new Fr(3000),
         daiCrossChainHarness.l2Contract.address.toField(),
         new Fr(minimumOutputAmount),
-        ownerAddress,
-        ownerAddress,
+        owner,
+        owner,
         secretHash,
         new Fr(2 ** 32 - 1),
         ethAccount.toField(),
         ethAccount.toField(),
       )
-      .send({ origin: ownerAddress });
+      .send({ origin: owner });
     await withdrawTx.isMined({ interval: 0.1 });
     const withdrawReceipt = await withdrawTx.getReceipt();
     expect(withdrawReceipt.status).toBe(TxStatus.MINED);
 
     // check weth balance of owner on L2 (we first bridged `wethAmountToBridge` into L2 and now withdrew it!)
-    await wethCrossChainHarness.expectBalanceOnL2(ownerAddress, initialBalance - transferAmount);
+    await wethCrossChainHarness.expectBalanceOnL2(owner, initialBalance - transferAmount);
 
     // 5. Consume L2 to L1 message by calling uniswapPortal.swap()
     logger('Execute withdraw and swap on the uniswapPortal!');
@@ -225,7 +226,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
       3000,
       daiCrossChainHarness.tokenPortalAddress.toString(),
       minimumOutputAmount,
-      ownerAddress.toString(),
+      owner.toString(),
       secretHash.toString(true),
       deadline,
       ethAccount.toString(),
@@ -250,10 +251,10 @@ describe('uniswap_trade_on_l1_from_l2', () => {
     // 6. claim dai on L2
     logger('Consuming messages to mint dai on L2');
     await daiCrossChainHarness.consumeMessageOnAztecAndMintSecretly(daiAmountToBridge, depositDaiMessageKey, secret);
-    await daiCrossChainHarness.expectBalanceOnL2(ownerAddress, initialBalance + daiAmountToBridge);
+    await daiCrossChainHarness.expectBalanceOnL2(owner, initialBalance + daiAmountToBridge);
 
-    const wethBalanceAfterSwap = await wethCrossChainHarness.getL2BalanceOf(ownerAddress);
-    const daiBalanceAfterSwap = await daiCrossChainHarness.getL2BalanceOf(ownerAddress);
+    const wethBalanceAfterSwap = await wethCrossChainHarness.getL2BalanceOf(owner);
+    const daiBalanceAfterSwap = await daiCrossChainHarness.getL2BalanceOf(owner);
 
     logger('WETH balance before swap: ', wethBalanceBeforeSwap.toString());
     logger('DAI balance before swap  : ', daiBalanceBeforeSwap.toString());

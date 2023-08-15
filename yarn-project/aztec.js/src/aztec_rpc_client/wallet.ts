@@ -1,4 +1,4 @@
-import { AztecAddress, CircuitsWasm, Fr, PartialAddress, PrivateKey, PublicKey, TxContext } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, Fr, PrivateKey, TxContext } from '@aztec/circuits.js';
 import {
   AztecRPC,
   ContractData,
@@ -31,18 +31,23 @@ export abstract class BaseWallet implements Wallet {
 
   abstract createTxExecutionRequest(execs: FunctionCall[], opts?: CreateTxRequestOpts): Promise<TxExecutionRequest>;
 
-  addAccount(privKey: PrivateKey, address: AztecAddress, partialAddress: Fr): Promise<AztecAddress> {
-    return this.rpc.addAccount(privKey, address, partialAddress);
+  registerAccount(privKey: PrivateKey, completeAddress: CompleteAddress): Promise<void> {
+    return this.rpc.registerAccount(privKey, completeAddress);
   }
-  addPublicKeyAndPartialAddress(
-    address: AztecAddress,
-    publicKey: PublicKey,
-    partialAddress: PartialAddress,
-  ): Promise<void> {
-    return this.rpc.addPublicKeyAndPartialAddress(address, publicKey, partialAddress);
+  registerRecipient(account: CompleteAddress): Promise<void> {
+    return this.rpc.registerRecipient(account);
   }
-  getAccounts(): Promise<AztecAddress[]> {
+  getAccounts(): Promise<CompleteAddress[]> {
     return this.rpc.getAccounts();
+  }
+  getAccount(address: AztecAddress): Promise<CompleteAddress | undefined> {
+    return this.rpc.getAccount(address);
+  }
+  getRecipients(): Promise<CompleteAddress[]> {
+    return this.rpc.getRecipients();
+  }
+  getRecipient(address: AztecAddress): Promise<CompleteAddress | undefined> {
+    return this.rpc.getRecipient(address);
   }
   addContracts(contracts: DeployedContract[]): Promise<void> {
     return this.rpc.addContracts(contracts);
@@ -76,9 +81,6 @@ export abstract class BaseWallet implements Wallet {
   }
   getNodeInfo(): Promise<NodeInfo> {
     return this.rpc.getNodeInfo();
-  }
-  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialAddress]> {
-    return this.rpc.getPublicKeyAndPartialAddress(address);
   }
   isGlobalStateSynchronised() {
     return this.rpc.isGlobalStateSynchronised();

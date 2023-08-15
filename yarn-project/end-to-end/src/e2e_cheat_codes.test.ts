@@ -29,7 +29,7 @@ describe('e2e_cheat_codes', () => {
     walletClient = deployL1ContractsValues.walletClient;
     publicClient = deployL1ContractsValues.publicClient;
     rollupAddress = deployL1ContractsValues.rollupAddress;
-    recipient = accounts[0];
+    recipient = accounts[0].address;
   }, 100_000);
 
   afterAll(async () => {

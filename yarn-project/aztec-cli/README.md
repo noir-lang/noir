@@ -236,15 +236,15 @@ Example usage:
 aztec-cli get-contract-data 0x123456789abcdef123456789abcdef12345678
 ```
 
-### register-public-key
+### register-recipient
 
-Register an account's public key to the RPC server.
+Register a recipient account on the RPC server (called recipient because we can only send notes to this account and not receive them via this RPC server).
 To read about how keys are generated and used, head to our docs [here](https://github.com/AztecProtocol/aztec-packages/blob/master/docs/docs/aztec/developer/wallet-providers/keys.md#addresses-partial-addresses-and-public-keys).
 
 Syntax:
 
 ```shell
-aztec-cli register-public-key [options]
+aztec-cli register-recipient [options]
 ```
 
 Options:
@@ -257,7 +257,7 @@ Options:
 Example usage:
 
 ```shell
-aztec-cli register-public-key -p 0x20d9d93c4a9eb2b4bdb70ead07d28d1edb74bfd78443a8c36b098b024cd26f0e0647f5dbe3619453f42eb788c2beed0294c84676425047aadac23294605c4af9 -a 0x111fdc0f6bf831ca59f05863199762d643b782699d7ce6feaae40a923baf60af -pa 0x72bf7c9537875b0af267b4a8c497927e251f5988af6e30527feb16299042ed
+aztec-cli register-recipient -p 0x20d9d93c4a9eb2b4bdb70ead07d28d1edb74bfd78443a8c36b098b024cd26f0e0647f5dbe3619453f42eb788c2beed0294c84676425047aadac23294605c4af9 -a 0x111fdc0f6bf831ca59f05863199762d643b782699d7ce6feaae40a923baf60af -pa 0x72bf7c9537875b0af267b4a8c497927e251f5988af6e30527feb16299042ed
 ```
 
 ### get-accounts
@@ -282,14 +282,14 @@ Example usage:
 aztec-cli get-accounts
 ```
 
-### get-account-public-key
+### get-account
 
-Gets an account's public key, given its Aztec address.
+Gets an account given its Aztec address.
 
 Syntax:
 
 ```shell
-aztec-cli get-account-public-key <address> [options]
+aztec-cli get-account <address> [options]
 ```
 
 - `address`: The Aztec address to get the public key for.
@@ -303,7 +303,7 @@ This command retrieves and displays the public key of an account given its Aztec
 Example usage:
 
 ```shell
-aztec-cli get-account-public-key 0x123456789abcdef123456789abcdef12345678
+aztec-cli get-account 0x123456789abcdef123456789abcdef12345678
 ```
 
 ### send

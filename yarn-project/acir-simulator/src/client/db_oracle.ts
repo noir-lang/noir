@@ -1,4 +1,4 @@
-import { HistoricBlockData, PartialAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
+import { CompleteAddress, HistoricBlockData, PrivateKey, PublicKey } from '@aztec/circuits.js';
 import { FunctionAbi } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
@@ -72,11 +72,11 @@ export interface CommitmentDataOracleInputs {
  */
 export interface DBOracle extends CommitmentsDB {
   /**
-   * Retrieve the public key associated to a given address.
+   * Retrieve the complete address associated to a given address.
    * @param address - Address to fetch the pubkey for.
-   * @returns A public key and the corresponding partial address, such that the hash of the two resolves to the input address.
+   * @returns A complete address associated with the input address.
    */
-  getPublicKey(address: AztecAddress): Promise<[PublicKey, PartialAddress]>;
+  getCompleteAddress(address: AztecAddress): Promise<CompleteAddress>;
 
   /**
    * Retrieve the secret key associated with a specific public key.

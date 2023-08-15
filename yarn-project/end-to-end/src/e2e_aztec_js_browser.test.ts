@@ -27,6 +27,20 @@ const { SANDBOX_URL } = process.env;
 const conditionalDescribe = () => (SANDBOX_URL ? describe : describe.skip);
 const privKey = PrivateKey.random();
 
+/**
+ * This test is a bit of a special case as it's relying on sandbox and web browser and not only on anvil and node.js.
+ * To run the test, do the following:
+ *    1) Build the whole repository,
+ *    2) go to `yarn-project/aztec.js` and build the web packed package with `yarn build:web`,
+ *    3) start anvil: `anvil`,
+ *    4) open new terminal and optionally set the more verbose debug level: `DEBUG=aztec:*`,
+ *    5) go to the sandbox dir `yarn-project/aztec-sandbox` and run `yarn start`,
+ *    6) open new terminal and export the sandbox URL: `export SANDBOX_URL='http://localhost:8080'`,
+ *    7) go to `yarn-project/end-to-end` and run the test: `yarn test aztec_js_browser`
+ *
+ * NOTE: If you see aztec-sandbox logs spammed with unexpected logs there is probably a chrome process with a webpage
+ *       unexpectedly running in the background. Kill it with `killall chrome`
+ */
 conditionalDescribe()('e2e_aztec.js_browser', () => {
   const initialBalance = 33n;
   const transferAmount = 3n;
@@ -110,24 +124,35 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
       privKey.toString(),
     );
     const accounts = await testClient.getAccounts();
-    const stringAccounts = accounts.map(acc => acc.toString());
+    const stringAccounts = accounts.map(acc => acc.address.toString());
     expect(stringAccounts.includes(result)).toBeTruthy();
   });
 
   it('Deploys Private Token contract', async () => {
     const txHash = await page.evaluate(
-      async (rpcUrl, initialBalance, PrivateTokenContractAbi) => {
-        const { DeployMethod, createAztecRpcClient, mustSucceedFetch } = window.AztecJs;
+      async (rpcUrl, privateKeyString, initialBalance, PrivateTokenContractAbi) => {
+        const { PrivateKey, DeployMethod, createAztecRpcClient, mustSucceedFetch, getUnsafeSchnorrAccount } =
+          window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
-        const owner = (await client.getAccounts())[0];
-        const publicKey = (await client.getPublicKeyAndPartialAddress(owner))[0];
-        const tx = new DeployMethod(publicKey, client, PrivateTokenContractAbi, [initialBalance, owner]).send();
+        let accounts = await client.getAccounts();
+        if (accounts.length === 0) {
+          // This test needs an account for deployment. We create one in case there is none available in the RPC server.
+          const privateKey = PrivateKey.fromString(privateKeyString);
+          await getUnsafeSchnorrAccount(client, privateKey).waitDeploy();
+          accounts = await client.getAccounts();
+        }
+        const owner = accounts[0];
+        const tx = new DeployMethod(owner.publicKey, client, PrivateTokenContractAbi, [
+          initialBalance,
+          owner.address,
+        ]).send();
         await tx.wait();
         const receipt = await tx.getReceipt();
         console.log(`Contract Deployed: ${receipt.contractAddress}`);
         return receipt.txHash.toString();
       },
       SANDBOX_URL,
+      privKey.toString(),
       initialBalance,
       PrivateTokenContractAbi,
     );
@@ -142,7 +167,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
       async (rpcUrl, contractAddress, PrivateTokenContractAbi) => {
         const { Contract, AztecAddress, createAztecRpcClient, mustSucceedFetch } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
-        const [owner] = await client.getAccounts();
+        const owner = (await client.getAccounts())[0].address;
         const wallet = await AztecJs.getSandboxAccountsWallet(client);
         const contract = await Contract.create(
           AztecAddress.fromString(contractAddress),
@@ -166,7 +191,9 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         console.log(`Starting transfer tx`);
         const { AztecAddress, Contract, createAztecRpcClient, mustSucceedFetch } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
-        const [owner, receiver] = await client.getAccounts();
+        const accounts = await client.getAccounts();
+        const owner = accounts[0].address;
+        const receiver = accounts[1].address;
         const wallet = await AztecJs.getSandboxAccountsWallet(client);
         const contract = await Contract.create(
           AztecAddress.fromString(contractAddress),
@@ -174,7 +201,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
           wallet,
         );
         await contract.methods.transfer(transferAmount, owner, receiver).send({ origin: owner }).wait();
-        console.log(`Transfered ${transferAmount} tokens to new Account`);
+        console.log(`Transferred ${transferAmount} tokens to new Account`);
         return await contract.methods.getBalance(receiver).view({ from: receiver });
       },
       SANDBOX_URL,

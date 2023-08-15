@@ -2,10 +2,10 @@ import { CommitmentDataOracleInputs, DBOracle, MessageLoadOracleInputs } from '@
 import {
   AztecAddress,
   CircuitsWasm,
+  CompleteAddress,
   EthAddress,
   Fr,
   HistoricBlockData,
-  PartialAddress,
   PrivateKey,
   PublicKey,
 } from '@aztec/circuits.js';
@@ -32,13 +32,13 @@ export class SimulatorOracle implements DBOracle {
     return this.keyStore.getAccountPrivateKey(pubKey);
   }
 
-  async getPublicKey(address: AztecAddress): Promise<[PublicKey, PartialAddress]> {
-    const result = await this.db.getPublicKeyAndPartialAddress(address);
-    if (!result)
+  async getCompleteAddress(address: AztecAddress): Promise<CompleteAddress> {
+    const completeAddress = await this.db.getCompleteAddress(address);
+    if (!completeAddress)
       throw new Error(
-        `Unknown public key for address ${address.toString()}. Add public key to Aztec RPC server by calling server.addPublicKeyAndPartialAddress(...)`,
+        `Unknown complete address for address ${address.toString()}. Add the information to Aztec RPC server by calling server.registerRecipient(...) or server.registerAccount(...)`,
       );
-    return result;
+    return completeAddress;
   }
 
   async getNotes(contractAddress: AztecAddress, storageSlot: Fr) {

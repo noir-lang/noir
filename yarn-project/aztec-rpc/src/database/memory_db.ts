@@ -1,4 +1,4 @@
-import { HistoricBlockData, PartialAddress } from '@aztec/circuits.js';
+import { CompleteAddress, HistoricBlockData } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -20,7 +20,7 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
   private noteSpendingInfoTable: NoteSpendingInfoDao[] = [];
   private treeRoots: Record<MerkleTreeId, Fr> | undefined;
   private globalVariablesHash: Fr | undefined;
-  private publicKeysAndPartialAddresses: Map<bigint, [PublicKey, PartialAddress]> = new Map();
+  private addresses: CompleteAddress[] = [];
 
   constructor(logSuffix?: string) {
     super(createDebugLogger(logSuffix ? 'aztec:memory_db_' + logSuffix : 'aztec:memory_db'));
@@ -121,24 +121,23 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     });
   }
 
-  addPublicKeyAndPartialAddress(
-    address: AztecAddress,
-    publicKey: PublicKey,
-    partialAddress: PartialAddress,
-  ): Promise<void> {
-    if (this.publicKeysAndPartialAddresses.has(address.toBigInt())) {
-      throw new Error(`Account ${address} already exists`);
+  public addCompleteAddress(completeAddress: CompleteAddress): Promise<void> {
+    const accountIndex = this.addresses.findIndex(r => r.address.equals(completeAddress.address));
+    if (accountIndex !== -1) {
+      throw new Error(
+        `Complete address corresponding to ${completeAddress.address.toString()} already exists in memory database`,
+      );
     }
-    this.publicKeysAndPartialAddresses.set(address.toBigInt(), [publicKey, partialAddress]);
+    this.addresses.push(completeAddress);
     return Promise.resolve();
   }
 
-  getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, Fr] | undefined> {
-    return Promise.resolve(this.publicKeysAndPartialAddresses.get(address.toBigInt()));
+  public getCompleteAddress(address: AztecAddress): Promise<CompleteAddress | undefined> {
+    const recipient = this.addresses.find(r => r.address.equals(address));
+    return Promise.resolve(recipient);
   }
 
-  getAccounts(): Promise<AztecAddress[]> {
-    const addresses = Array.from(this.publicKeysAndPartialAddresses.keys());
-    return Promise.resolve(addresses.map(AztecAddress.fromBigInt));
+  public getCompleteAddresses(): Promise<CompleteAddress[]> {
+    return Promise.resolve(this.addresses);
   }
 }

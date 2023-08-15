@@ -4,8 +4,7 @@ import {
   collectEnqueuedPublicFunctionCalls,
   collectUnencryptedLogs,
 } from '@aztec/acir-simulator';
-import { AztecAddress, CircuitsWasm, FunctionData, PartialAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
-import { computeContractAddressFromPartial } from '@aztec/circuits.js/abis';
+import { AztecAddress, CompleteAddress, FunctionData, PrivateKey } from '@aztec/circuits.js';
 import { encodeArguments } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
@@ -82,35 +81,55 @@ export class AztecRPCServer implements AztecRPC {
     this.log.info('Stopped');
   }
 
-  public async addAccount(privKey: PrivateKey, address: AztecAddress, partialAddress: PartialAddress) {
+  public async registerAccount(privKey: PrivateKey, account: CompleteAddress) {
     const pubKey = this.keyStore.addAccount(privKey);
-    const wasm = await CircuitsWasm.get();
-    const expectedAddress = computeContractAddressFromPartial(wasm, pubKey, partialAddress);
-    if (!expectedAddress.equals(address)) {
-      throw new Error(
-        `Address cannot be derived from pubkey and partial address (received ${address.toString()}, derived ${expectedAddress.toString()})`,
-      );
-    }
-    await this.db.addPublicKeyAndPartialAddress(address, pubKey, partialAddress);
+    // TODO: Re-enable this check once https://github.com/AztecProtocol/aztec-packages/issues/1556 is solved
+    // if (!pubKey.equals(account.publicKey)) {
+    //   throw new Error(`Public key mismatch: ${pubKey.toString()} != ${account.publicKey.toString()}`);
+    // }
+    await this.db.addCompleteAddress(account);
     this.synchroniser.addAccount(pubKey, this.keyStore);
-    this.log.info(`Added account ${address.toString()}`);
-    return address;
   }
 
-  public async addPublicKeyAndPartialAddress(
-    address: AztecAddress,
-    publicKey: PublicKey,
-    partialAddress: PartialAddress,
-  ): Promise<void> {
-    const wasm = await CircuitsWasm.get();
-    const expectedAddress = computeContractAddressFromPartial(wasm, publicKey, partialAddress);
-    if (!expectedAddress.equals(address)) {
-      throw new Error(
-        `Address cannot be derived from pubkey and partial address (received ${address.toString()}, derived ${expectedAddress.toString()})`,
-      );
+  public async getAccounts(): Promise<CompleteAddress[]> {
+    // Get complete addresses of both the recipients and the accounts
+    const addresses = await this.db.getCompleteAddresses();
+    // Filter out the addresses not corresponding to accounts
+    const accountPubKeys = await this.keyStore.getAccounts();
+    const accounts = addresses.filter(address => accountPubKeys.find(pubKey => pubKey.equals(address.publicKey)));
+    return accounts;
+  }
+
+  public async getAccount(address: AztecAddress): Promise<CompleteAddress> {
+    const result = await this.getAccounts();
+    const account = result.find(r => r.address.equals(address));
+    if (!account) {
+      throw new Error(`Unable to get complete address for address ${address.toString()}`);
     }
-    await this.db.addPublicKeyAndPartialAddress(address, publicKey, partialAddress);
-    this.log.info(`Added public key for ${address.toString()}`);
+    return Promise.resolve(account);
+  }
+
+  public async registerRecipient(recipient: CompleteAddress): Promise<void> {
+    await this.db.addCompleteAddress(recipient);
+    this.log.info(`Added recipient: ${recipient.toString()}`);
+  }
+
+  public async getRecipients(): Promise<CompleteAddress[]> {
+    // Get complete addresses of both the recipients and the accounts
+    const addresses = await this.db.getCompleteAddresses();
+    // Filter out the addresses corresponding to accounts
+    const accountPubKeys = await this.keyStore.getAccounts();
+    const recipients = addresses.filter(address => !accountPubKeys.find(pubKey => pubKey.equals(address.publicKey)));
+    return recipients;
+  }
+
+  public async getRecipient(address: AztecAddress): Promise<CompleteAddress> {
+    const result = await this.getRecipients();
+    const recipient = result.find(r => r.address.equals(address));
+    if (!recipient) {
+      throw new Error(`Unable to get complete address for address ${address.toString()}`);
+    }
+    return Promise.resolve(recipient);
   }
 
   public async addContracts(contracts: DeployedContract[]) {
@@ -121,18 +140,6 @@ export class AztecRPCServer implements AztecRPC {
         contract.portalContract && !contract.portalContract.isZero() ? ` with portal ${contract.portalContract}` : '';
       this.log.info(`Added contract ${contract.name} at ${contract.address}${portalInfo}`);
     }
-  }
-
-  public async getAccounts(): Promise<AztecAddress[]> {
-    return await this.db.getAccounts();
-  }
-
-  public async getPublicKeyAndPartialAddress(address: AztecAddress): Promise<[PublicKey, PartialAddress]> {
-    const result = await this.db.getPublicKeyAndPartialAddress(address);
-    if (!result) {
-      throw new Error(`Unable to get public key for address ${address.toString()}`);
-    }
-    return Promise.resolve(result);
   }
 
   public async getPublicStorageAt(contract: AztecAddress, storageSlot: Fr) {

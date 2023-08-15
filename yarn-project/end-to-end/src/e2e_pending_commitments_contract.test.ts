@@ -3,7 +3,7 @@ import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PendingCommitmentsContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, TxStatus } from '@aztec/types';
+import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -11,13 +11,15 @@ describe('e2e_pending_commitments_contract', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
-  let accounts: AztecAddress[];
   let logger: DebugLogger;
+  let owner: AztecAddress;
 
   let contract: PendingCommitmentsContract;
 
   beforeEach(async () => {
+    let accounts: CompleteAddress[];
     ({ aztecNode, aztecRpcServer, accounts, wallet, logger } = await setup(2));
+    owner = accounts[0].address;
   }, 100_000);
 
   afterEach(async () => {
@@ -68,7 +70,6 @@ describe('e2e_pending_commitments_contract', () => {
 
   it('Noir function can "get" notes it just "inserted"', async () => {
     const mintAmount = 65n;
-    const [owner] = accounts;
 
     const deployedContract = await deployContract();
 
@@ -85,7 +86,6 @@ describe('e2e_pending_commitments_contract', () => {
     // Kernel will squash the noteHash and its nullifier.
     // Realistic way to describe this test is "Mint note A, then burn note A in the same transaction"
     const mintAmount = 65n;
-    const [owner] = accounts;
 
     const deployedContract = await deployContract();
 
@@ -111,7 +111,6 @@ describe('e2e_pending_commitments_contract', () => {
     // Kernel will squash both noteHashes and their nullifier.
     // Realistic way to describe this test is "Mint notes A and B, then burn both in the same transaction"
     const mintAmount = 65n;
-    const [owner] = accounts;
 
     const deployedContract = await deployContract();
 
@@ -138,7 +137,6 @@ describe('e2e_pending_commitments_contract', () => {
     // The other note will become persistent!
     // Realistic way to describe this test is "Mint notes A and B, then burn note A in the same transaction"
     const mintAmount = 65n;
-    const [owner] = accounts;
 
     const deployedContract = await deployContract();
 
@@ -166,7 +164,6 @@ describe('e2e_pending_commitments_contract', () => {
     // but the nullifier for the persistent note (from the first TX) will itself become persistent.
     // Realistic way to describe this test is "Mint note A, then burn note A in the same transaction"
     const mintAmount = 65n;
-    const [owner] = accounts;
 
     const deployedContract = await deployContract();
 

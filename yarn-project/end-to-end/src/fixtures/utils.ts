@@ -14,7 +14,7 @@ import {
   getSandboxAccountsWallet,
   getUnsafeSchnorrAccount,
 } from '@aztec/aztec.js';
-import { PrivateKey, PublicKey } from '@aztec/circuits.js';
+import { CompleteAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
@@ -140,7 +140,7 @@ export async function setupAztecRPCServer(
   /**
    * The accounts created by the RPC server.
    */
-  accounts: AztecAddress[];
+  accounts: CompleteAddress[];
   /**
    * The wallet to be used.
    */
@@ -210,7 +210,7 @@ export async function setup(
   /**
    * The accounts created by the RPC server.
    */
-  accounts: AztecAddress[];
+  accounts: CompleteAddress[];
   /**
    * The Aztec Node configuration.
    */
@@ -343,7 +343,7 @@ export function getLogger() {
  * @param rollupRegistryAddress - address of rollup registry to pass to initialize the token portal
  * @param initialBalance - initial balance of the owner of the L2 contract
  * @param owner - owner of the L2 contract
- * @param underlyingERC20Address - address of the underlying ERC20 contract to use (if noone supplied, it deploys one)
+ * @param underlyingERC20Address - address of the underlying ERC20 contract to use (if none supplied, it deploys one)
  * @returns l2 contract instance, token portal instance, token portal address and the underlying ERC20 instance
  */
 export async function deployAndInitializeNonNativeL2TokenContracts(

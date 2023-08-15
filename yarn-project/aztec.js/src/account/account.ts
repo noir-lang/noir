@@ -1,8 +1,7 @@
 import { Fr, PublicKey, getContractDeploymentInfo } from '@aztec/circuits.js';
-import { AztecRPC, PrivateKey } from '@aztec/types';
+import { AztecRPC, CompleteAddress, PrivateKey } from '@aztec/types';
 
 import { AccountWallet, ContractDeployer, DeployMethod, WaitOpts, generatePublicKey } from '../index.js';
-import { CompleteAddress, isCompleteAddress } from './complete_address.js';
 import { DeployAccountSentTx } from './deploy_account_sent_tx.js';
 import { AccountContract, Entrypoint, Salt } from './index.js';
 
@@ -24,7 +23,7 @@ export class Account {
     private accountContract: AccountContract,
     saltOrAddress?: Salt | CompleteAddress,
   ) {
-    if (isCompleteAddress(saltOrAddress)) {
+    if (saltOrAddress instanceof CompleteAddress) {
       this.completeAddress = saltOrAddress;
     } else {
       this.salt = saltOrAddress ? new Fr(saltOrAddress) : Fr.random();
@@ -56,12 +55,13 @@ export class Account {
   public async getCompleteAddress(): Promise<CompleteAddress> {
     if (!this.completeAddress) {
       const encryptionPublicKey = await generatePublicKey(this.encryptionPrivateKey);
-      this.completeAddress = await getContractDeploymentInfo(
+      const contractDeploymentInfo = await getContractDeploymentInfo(
         this.accountContract.getContractAbi(),
         await this.accountContract.getDeploymentArgs(),
         this.salt!,
         encryptionPublicKey,
       );
+      this.completeAddress = contractDeploymentInfo.completeAddress;
     }
     return this.completeAddress;
   }
@@ -83,8 +83,8 @@ export class Account {
    * @returns A Wallet instance.
    */
   public async register(): Promise<AccountWallet> {
-    const { address, partialAddress } = await this.getCompleteAddress();
-    await this.rpc.addAccount(this.encryptionPrivateKey, address, partialAddress);
+    const completeAddress = await this.getCompleteAddress();
+    await this.rpc.registerAccount(this.encryptionPrivateKey, completeAddress);
     return this.getWallet();
   }
 
