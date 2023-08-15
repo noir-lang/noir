@@ -110,7 +110,11 @@ fn compile_success_{test_name}() {{
     cmd.arg("info");
 
     // `compile_success` tests should be able to compile down to an empty circuit.
-    cmd.assert().stdout(predicate::str::contains("Total ACIR opcodes generated for language PLONKCSat {{ width: 3 }}: 0"));
+    cmd.assert().stdout(predicate::str::contains("| Package")
+        .and(predicate::str::contains("| Language"))
+        .and(predicate::str::contains("| ACIR Opcodes | Backend Circuit Size |"))
+        .and(predicate::str::contains("| PLONKCSat {{ width: 3 }} |"))
+        .and(predicate::str::contains("| 0            | 1                    |")));
 }}
             "#,
             test_dir = test_dir.display(),

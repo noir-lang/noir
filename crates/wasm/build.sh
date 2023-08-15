@@ -30,7 +30,7 @@ require_command wasm-opt
 
 self_path=$(dirname "$(readlink -f "$0")")
 export pname=$(toml2json < ${self_path}/Cargo.toml | jq -r .package.name)
-export CARGO_TARGET_DIR=$self_path/target
+export CARGO_TARGET_DIR=$self_path/../../target
 
 rm -rf $self_path/outputs >/dev/null 2>&1
 rm -rf $self_path/result >/dev/null 2>&1

@@ -1,5 +1,5 @@
 use fm::FileId;
-use noirc_errors::FileDiagnostic;
+use noirc_errors::{FileDiagnostic, Location};
 
 use crate::{
     graph::CrateId, hir::def_collector::dc_crate::UnresolvedStruct, node_interner::StructId,
@@ -11,7 +11,7 @@ use super::{
     dc_crate::{DefCollector, UnresolvedFunctions, UnresolvedGlobal, UnresolvedTypeAlias},
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId, ModuleOrigin};
+use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
@@ -315,7 +315,8 @@ impl<'a> ModCollector<'a> {
         errors: &mut Vec<FileDiagnostic>,
     ) -> Option<LocalModuleId> {
         let parent = Some(self.module_id);
-        let new_module = ModuleData::new(parent, ModuleOrigin::File(file_id), is_contract);
+        let location = Location::new(mod_name.span(), file_id);
+        let new_module = ModuleData::new(parent, location, is_contract);
         let module_id = self.def_collector.def_map.modules.insert(new_module);
 
         let modules = &mut self.def_collector.def_map.modules;

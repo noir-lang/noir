@@ -75,7 +75,7 @@ impl CustomDiagnostic {
         matches!(self.kind, DiagnosticKind::Error)
     }
 
-    pub fn is_warrning(&self) -> bool {
+    pub fn is_warning(&self) -> bool {
         matches!(self.kind, DiagnosticKind::Warning)
     }
 }
