@@ -447,6 +447,10 @@ impl Type {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
     }
 
+    pub fn is_unsigned(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
+    }
+
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
         // True if the given type is a NamedGeneric with the target_id
         let named_generic_id_matches_target = |typ: &Type| {

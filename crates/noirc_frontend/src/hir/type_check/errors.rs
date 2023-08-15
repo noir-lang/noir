@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
@@ -29,6 +30,8 @@ pub enum Source {
 pub enum TypeCheckError {
     #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
+    #[error("The literal `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
+    OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -170,7 +173,8 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::IntegerTypeMismatch { span, .. }
             | TypeCheckError::FieldComparison { span, .. }
             | TypeCheckError::AmbiguousBitWidth { span, .. }
-            | TypeCheckError::IntegerAndFieldBinaryOperation { span } => {
+            | TypeCheckError::IntegerAndFieldBinaryOperation { span }
+            | TypeCheckError::OverflowingAssignment { span, .. } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
