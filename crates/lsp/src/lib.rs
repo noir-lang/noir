@@ -32,6 +32,8 @@ const TEST_COMMAND: &str = "nargo.test";
 const TEST_CODELENS_TITLE: &str = "Run Test";
 const COMPILE_COMMAND: &str = "nargo.compile";
 const COMPILE_CODELENS_TITLE: &str = "Compile";
+const EXECUTE_COMMAND: &str = "nargo.execute";
+const EXECUTE_CODELENS_TITLE: &str = "Execute";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
 pub struct LspState {
@@ -212,7 +214,7 @@ fn on_code_lens_request(
             let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
                 .unwrap_or_default();
 
-            let command = Command {
+            let test_command = Command {
                 title: format!("{ARROW} {TEST_CODELENS_TITLE}"),
                 command: TEST_COMMAND.into(),
                 arguments: Some(vec![
@@ -225,9 +227,9 @@ fn on_code_lens_request(
                 ]),
             };
 
-            let lens = CodeLens { range, command: command.into(), data: None };
+            let test_lens = CodeLens { range, command: Some(test_command), data: None };
 
-            lenses.push(lens);
+            lenses.push(test_lens);
         }
 
         if package.is_binary() {
@@ -246,7 +248,7 @@ fn on_code_lens_request(
                 let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
                     .unwrap_or_default();
 
-                let command = Command {
+                let compile_command = Command {
                     title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
                     command: COMPILE_COMMAND.into(),
                     arguments: Some(vec![
@@ -257,9 +259,24 @@ fn on_code_lens_request(
                     ]),
                 };
 
-                let lens = CodeLens { range, command: command.into(), data: None };
+                let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
 
-                lenses.push(lens);
+                lenses.push(compile_lens);
+
+                let execute_command = Command {
+                    title: format!("{EXECUTE_CODELENS_TITLE}"),
+                    command: EXECUTE_COMMAND.into(),
+                    arguments: Some(vec![
+                        "--program-dir".into(),
+                        format!("{}", workspace.root_dir.display()).into(),
+                        "--package".into(),
+                        format!("{}", package.name).into(),
+                    ]),
+                };
+
+                let execute_lens = CodeLens { range, command: Some(execute_command), data: None };
+
+                lenses.push(execute_lens);
             }
         }
 
@@ -280,7 +297,7 @@ fn on_code_lens_request(
                 let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
                     .unwrap_or_default();
 
-                let command = Command {
+                let compile_command = Command {
                     title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
                     command: COMPILE_COMMAND.into(),
                     arguments: Some(vec![
@@ -291,9 +308,9 @@ fn on_code_lens_request(
                     ]),
                 };
 
-                let lens = CodeLens { range, command: command.into(), data: None };
+                let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
 
-                lenses.push(lens);
+                lenses.push(compile_lens);
             }
         }
     }
