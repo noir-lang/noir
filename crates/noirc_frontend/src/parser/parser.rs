@@ -1719,7 +1719,7 @@ mod test {
         assert_eq!(errors.len(), 5);
         assert!(errors
             .iter()
-            .all(|err| { err.is_warning() && format!("{}", err).contains("deprecated") }))
+            .all(|err| { err.is_warning() && err.to_string().contains("deprecated") }));
     }
 
     /// This is the standard way to declare an assert statement
