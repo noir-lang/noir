@@ -73,10 +73,18 @@ pub(crate) struct DataFlowGraph {
 
     /// Source location of each instruction for debugging and issuing errors.
     ///
+    /// The `CallStack` here corresponds to the entire callstack of locations. Initially this
+    /// only contains the actual location of the instruction. During inlining, a new location
+    /// will be pushed to each instruction for the location of the function call of the function
+    /// the instruction was originally located in. Once inlining is complete, the locations Vec
+    /// here should contain the entire callstack for each instruction.
+    ///
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
-    locations: HashMap<InstructionId, Location>,
+    locations: HashMap<InstructionId, CallStack>,
 }
+
+pub(crate) type CallStack = im::Vector<Location>;
 
 impl DataFlowGraph {
     /// Creates a new basic block with no parameters.
@@ -149,7 +157,7 @@ impl DataFlowGraph {
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
-        location: Option<Location>,
+        call_stack: CallStack,
     ) -> InsertInstructionResult {
         use InsertInstructionResult::*;
         match instruction.simplify(self, block) {
@@ -162,9 +170,7 @@ impl DataFlowGraph {
                 let instruction = result.instruction().unwrap_or(instruction);
                 let id = self.make_instruction(instruction, ctrl_typevars);
                 self.blocks[block].insert_instruction(id);
-                if let Some(location) = location {
-                    self.locations.insert(id, location);
-                }
+                self.locations.insert(id, call_stack);
                 InsertInstructionResult::Results(self.instruction_results(id))
             }
         }
@@ -407,14 +413,18 @@ impl DataFlowGraph {
         destination.set_terminator(terminator);
     }
 
-    pub(crate) fn get_location(&self, id: &InstructionId) -> Option<Location> {
-        self.locations.get(id).copied()
+    pub(crate) fn get_call_stack(&self, instruction: InstructionId) -> CallStack {
+        self.locations.get(&instruction).cloned().unwrap_or_default()
     }
 
-    pub(crate) fn get_value_location(&self, id: &ValueId) -> Option<Location> {
-        match &self.values[self.resolve(*id)] {
-            Value::Instruction { instruction, .. } => self.get_location(instruction),
-            _ => None,
+    pub(crate) fn add_location(&mut self, instruction: InstructionId, location: Location) {
+        self.locations.entry(instruction).or_default().push_back(location);
+    }
+
+    pub(crate) fn get_value_call_stack(&self, value: ValueId) -> CallStack {
+        match &self.values[self.resolve(value)] {
+            Value::Instruction { instruction, .. } => self.get_call_stack(*instruction),
+            _ => im::Vector::new(),
         }
     }
 

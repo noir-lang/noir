@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 use iter_extended::vecmap;
-use noirc_errors::Location;
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::InsertInstructionResult,
+    dfg::{CallStack, InsertInstructionResult},
     function::Function,
     instruction::{Instruction, InstructionId},
     value::ValueId,
@@ -56,10 +55,10 @@ impl<'f> FunctionInserter<'f> {
         self.values.insert(key, value);
     }
 
-    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, Option<Location>) {
+    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStack) {
         (
             self.function.dfg[id].clone().map_values(|id| self.resolve(id)),
-            self.function.dfg.get_location(&id),
+            self.function.dfg.get_call_stack(id),
         )
     }
 
@@ -73,7 +72,7 @@ impl<'f> FunctionInserter<'f> {
         instruction: Instruction,
         id: InstructionId,
         block: BasicBlockId,
-        location: Option<Location>,
+        call_stack: CallStack,
     ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id);
         let results = vecmap(results, |id| self.function.dfg.resolve(*id));
@@ -86,7 +85,7 @@ impl<'f> FunctionInserter<'f> {
             instruction,
             block,
             ctrl_typevars,
-            location,
+            call_stack,
         );
 
         Self::insert_new_instruction_results(&mut self.values, &results, &new_results);

@@ -104,6 +104,13 @@ pub fn create_circuit(
         public_parameters,
         return_values,
     };
+
+    // This converts each im::Vector in the BTreeMap to a Vec
+    let locations = locations
+        .into_iter()
+        .map(|(index, locations)| (index, locations.into_iter().collect()))
+        .collect();
+
     let debug_info = DebugInfo::new(locations);
 
     Ok((circuit, debug_info, abi))
