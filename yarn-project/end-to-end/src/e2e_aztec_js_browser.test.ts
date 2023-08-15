@@ -44,6 +44,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
 
   beforeAll(async () => {
     testClient = AztecJs.createAztecRpcClient(SANDBOX_URL!, AztecJs.mustSucceedFetch);
+    await AztecJs.waitForSandbox(testClient);
 
     app = new Koa();
     app.use(serve(path.resolve(__dirname, './web')));
@@ -77,7 +78,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
       pageLogger.error(err.toString());
     });
     await page.goto(`http://localhost:${PORT}/index.html`);
-  });
+  }, 120_000);
 
   afterAll(async () => {
     await browser.close();
@@ -98,16 +99,19 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         const { PrivateKey, createAztecRpcClient, mustSucceedFetch, getUnsafeSchnorrAccount } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
         const privateKey = PrivateKey.fromString(privateKeyString);
-        await getUnsafeSchnorrAccount(client, privateKey).waitDeploy();
-        const accounts = await client.getAccounts();
-        console.log(`Created Account: ${accounts[0].toString()}`);
-        return accounts[0].toString();
+        const account = getUnsafeSchnorrAccount(client, privateKey);
+        await account.waitDeploy();
+        const completeAddress = await account.getCompleteAddress();
+        const addressString = completeAddress.address.toString();
+        console.log(`Created Account: ${addressString}`);
+        return addressString;
       },
       SANDBOX_URL,
       privKey.toString(),
     );
-    const account = (await testClient.getAccounts())[0];
-    expect(result).toEqual(account.toString());
+    const accounts = await testClient.getAccounts();
+    const stringAccounts = accounts.map(acc => acc.toString());
+    expect(stringAccounts.includes(result)).toBeTruthy();
   });
 
   it('Deploys Private Token contract', async () => {
@@ -135,13 +139,11 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
 
   it("Gets the owner's balance", async () => {
     const result = await page.evaluate(
-      async (rpcUrl, privateKeyString, contractAddress, PrivateTokenContractAbi) => {
-        const { Contract, AztecAddress, PrivateKey, createAztecRpcClient, getUnsafeSchnorrWallet, mustSucceedFetch } =
-          window.AztecJs;
-        const privateKey = PrivateKey.fromString(privateKeyString);
+      async (rpcUrl, contractAddress, PrivateTokenContractAbi) => {
+        const { Contract, AztecAddress, createAztecRpcClient, mustSucceedFetch } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
         const [owner] = await client.getAccounts();
-        const wallet = await getUnsafeSchnorrWallet(client, owner, privateKey);
+        const wallet = await AztecJs.getSandboxAccountsWallet(client);
         const contract = await Contract.create(
           AztecAddress.fromString(contractAddress),
           PrivateTokenContractAbi,
@@ -151,7 +153,6 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         return balance;
       },
       SANDBOX_URL,
-      privKey.toString(),
       contractAddress.toString(),
       PrivateTokenContractAbi,
     );
@@ -161,25 +162,12 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
 
   it('Sends a transfer TX', async () => {
     const result = await page.evaluate(
-      async (rpcUrl, privateKeyString, contractAddress, transferAmount, PrivateTokenContractAbi) => {
+      async (rpcUrl, contractAddress, transferAmount, PrivateTokenContractAbi) => {
         console.log(`Starting transfer tx`);
-        const {
-          AztecAddress,
-          Contract,
-          PrivateKey,
-          createAztecRpcClient,
-          getUnsafeSchnorrAccount,
-          getUnsafeSchnorrWallet,
-          mustSucceedFetch,
-        } = window.AztecJs;
+        const { AztecAddress, Contract, createAztecRpcClient, mustSucceedFetch } = window.AztecJs;
         const client = createAztecRpcClient(rpcUrl!, mustSucceedFetch);
-        const privateKey = PrivateKey.fromString(privateKeyString);
-        const { address: receiver } = await getUnsafeSchnorrAccount(client, PrivateKey.random())
-          .register()
-          .then(w => w.getCompleteAddress());
-        console.log(`Created 2nd Account: ${receiver.toString()}`);
-        const [owner] = await client.getAccounts();
-        const wallet = await getUnsafeSchnorrWallet(client, owner, privateKey);
+        const [owner, receiver] = await client.getAccounts();
+        const wallet = await AztecJs.getSandboxAccountsWallet(client);
         const contract = await Contract.create(
           AztecAddress.fromString(contractAddress),
           PrivateTokenContractAbi,
@@ -190,7 +178,6 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
         return await contract.methods.getBalance(receiver).view({ from: receiver });
       },
       SANDBOX_URL,
-      privKey.toString(),
       contractAddress.toString(),
       transferAmount,
       PrivateTokenContractAbi,

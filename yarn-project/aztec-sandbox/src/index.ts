@@ -1,5 +1,6 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { createAztecRPCServer, getHttpRpcServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
+import { deployInitialSandboxAccounts } from '@aztec/aztec.js';
 import { PrivateKey } from '@aztec/circuits.js';
 import { deployL1Contracts } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
@@ -70,6 +71,9 @@ async function main() {
   const aztecNode = await AztecNodeService.createAndSync(aztecNodeConfig);
   const aztecRpcServer = await createAztecRPCServer(aztecNode, rpcConfig);
 
+  logger('Deploying initial accounts...');
+  const accounts = await deployInitialSandboxAccounts(aztecRpcServer);
+
   const shutdown = async () => {
     logger('Shutting down...');
     await aztecRpcServer.stop();
@@ -89,12 +93,23 @@ async function main() {
 
   const httpServer = http.createServer(app.callback());
   httpServer.listen(SERVER_PORT);
+  logger.info(`Aztec JSON RPC listening on port ${SERVER_PORT}`);
+  const accountStrings = [`Initial Accounts:\n\n`];
+
+  const registeredAccounts = await aztecRpcServer.getAccounts();
+  for (const account of accounts) {
+    const completedAddress = await account.account.getCompleteAddress();
+    if (registeredAccounts.find(a => a.equals(completedAddress.address))) {
+      accountStrings.push(` Address: ${completedAddress.address.toString()}\n`);
+      accountStrings.push(` Partial Address: ${completedAddress.partialAddress.toString()}\n`);
+      accountStrings.push(` Private Key: ${account.privateKey.toString()}\n`);
+      accountStrings.push(` Public Key: ${completedAddress.publicKey.toString()}\n\n`);
+    }
+  }
+  logger.info(`${splash}\n${github}\n\n`.concat(...accountStrings));
 }
 
-main()
-  .then(() => logger.info(`Aztec JSON RPC listening on port ${SERVER_PORT}`))
-  .then(() => logger.info(`${splash}\n${github}\n\n`))
-  .catch(err => {
-    logger.fatal(err);
-    process.exit(1);
-  });
+main().catch(err => {
+  logger.fatal(err);
+  process.exit(1);
+});

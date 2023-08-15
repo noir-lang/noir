@@ -11,6 +11,7 @@ import {
   Wallet,
   createAztecRpcClient as createJsonRpcClient,
   getL1ContractAddresses,
+  getSandboxAccountsWallet,
   getUnsafeSchnorrAccount,
 } from '@aztec/aztec.js';
 import { PrivateKey, PublicKey } from '@aztec/circuits.js';
@@ -152,23 +153,31 @@ export async function setupAztecRPCServer(
   const rpcConfig = getRpcConfigEnvVars();
   const aztecRpcServer = await createRpcServer(rpcConfig, aztecNode, logger, useLogSuffix);
 
-  logger('RPC server created, deploying accounts...');
   const accounts: AztecAccount[] = [];
 
-  // Prepare deployments
-  for (let i = 0; i < numberOfAccounts; ++i) {
-    const privateKey = i === 0 && firstPrivKey !== null ? firstPrivKey! : PrivateKey.random();
-    const account = getUnsafeSchnorrAccount(aztecRpcServer, privateKey);
-    await account.getDeployMethod().then(d => d.simulate({ contractAddressSalt: account.salt }));
-    accounts.push(account);
-  }
+  const createWalletWithAccounts = async () => {
+    if (!SANDBOX_URL) {
+      logger('RPC server created, deploying new accounts...');
 
-  // Send them and await them to be mined
-  const txs = await Promise.all(accounts.map(account => account.deploy()));
-  await Promise.all(txs.map(tx => tx.wait({ interval: 0.1 })));
+      // Prepare deployments
+      for (let i = 0; i < numberOfAccounts; ++i) {
+        const privateKey = i === 0 && firstPrivKey !== null ? firstPrivKey! : PrivateKey.random();
+        const account = getUnsafeSchnorrAccount(aztecRpcServer, privateKey);
+        await account.getDeployMethod().then(d => d.simulate({ contractAddressSalt: account.salt }));
+        accounts.push(account);
+      }
 
-  // Assemble them into a single wallet
-  const wallet = new EntrypointWallet(aztecRpcServer, await EntrypointCollection.fromAccounts(accounts));
+      // Send them and await them to be mined
+      const txs = await Promise.all(accounts.map(account => account.deploy()));
+      await Promise.all(txs.map(tx => tx.wait({ interval: 0.1 })));
+      return new EntrypointWallet(aztecRpcServer, await EntrypointCollection.fromAccounts(accounts));
+    } else {
+      logger('RPC server created, constructing wallet from initial sandbox accounts...');
+      return await getSandboxAccountsWallet(aztecRpcServer);
+    }
+  };
+
+  const wallet = await createWalletWithAccounts();
 
   return {
     aztecRpcServer: aztecRpcServer!,

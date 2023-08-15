@@ -7,14 +7,14 @@ import {
   Point,
   createAztecRpcClient,
   generatePublicKey,
-  getAccountWallet,
-  getUnsafeSchnorrAccount,
+  getAccountWallets,
+  getSchnorrAccount,
   isContractDeployed,
 } from '@aztec/aztec.js';
 import { StructType } from '@aztec/foundation/abi';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
 import { createConsoleLogger, createDebugLogger } from '@aztec/foundation/log';
-import { SchnorrSingleKeyAccountContractAbi } from '@aztec/noir-contracts/artifacts';
+import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { ContractData, L2BlockL2Logs, PrivateKey, TxHash } from '@aztec/types';
 
 import { Command } from 'commander';
@@ -122,7 +122,7 @@ async function main() {
         ? new PrivateKey(Buffer.from(stripLeadingHex(options.privateKey), 'hex'))
         : PrivateKey.random();
 
-      const account = getUnsafeSchnorrAccount(client, privateKey, accountCreationSalt);
+      const account = getSchnorrAccount(client, privateKey, privateKey, accountCreationSalt);
       const wallet = await account.waitDeploy();
       const { address, publicKey, partialAddress } = wallet.getCompleteAddress();
 
@@ -337,12 +337,15 @@ async function main() {
         );
       }
 
+      const privateKey = new PrivateKey(Buffer.from(stripLeadingHex(options.privateKey), 'hex'));
+
       const client = createAztecRpcClient(options.rpcUrl);
-      const wallet = await getAccountWallet(
+      const wallet = await getAccountWallets(
         client,
-        SchnorrSingleKeyAccountContractAbi,
-        PrivateKey.fromString(options.privateKey),
-        accountCreationSalt,
+        SchnorrAccountContractAbi,
+        [privateKey],
+        [privateKey],
+        [accountCreationSalt],
       );
       const contract = await Contract.create(contractAddress, contractAbi, wallet);
       const tx = contract.methods[functionName](...functionArgs).send();
