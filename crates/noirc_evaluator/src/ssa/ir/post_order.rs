@@ -13,7 +13,6 @@ enum Visit {
     Last,
 }
 
-#[derive(Clone)]
 pub(crate) struct PostOrder(Vec<BasicBlockId>);
 
 impl PostOrder {

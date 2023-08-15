@@ -181,23 +181,6 @@ impl PerFunctionContext {
         protected_allocations
     }
 
-    fn find_remaining_loads(
-        &mut self,
-        dfg: &mut DataFlowGraph,
-        block_id: BasicBlockId,
-    ) -> HashSet<AllocId> {
-        let mut protected_allocations = HashSet::new();
-        let block = &dfg[block_id];
-
-        for instruction_id in block.instructions() {
-            if let Instruction::Load { address } = &dfg[*instruction_id] {
-                protected_allocations.insert(*address);
-            }
-        }
-
-        protected_allocations
-    }
-
     // This method will fetch already saved load values to substitute for a given address.
     // The search starts at the block supplied as a parameter. If there is not a load to substitute
     // the CFG is analyzed to determine whether a predecessor block has a load value to substitute.
