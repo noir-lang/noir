@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 pub struct DebugInfo {
     /// Map opcode index of an ACIR circuit into the source code location
-    pub locations: BTreeMap<usize, Location>,
+    pub locations: BTreeMap<usize, Vec<Location>>,
 }
 
 impl DebugInfo {
-    pub fn new(locations: BTreeMap<usize, Location>) -> Self {
+    pub fn new(locations: BTreeMap<usize, Vec<Location>>) -> Self {
         DebugInfo { locations }
     }
 
@@ -27,13 +27,13 @@ impl DebugInfo {
         let mut new_locations = BTreeMap::new();
         for (i, idx) in opcode_indices.iter().enumerate() {
             if self.locations.contains_key(idx) {
-                new_locations.insert(i, self.locations[idx]);
+                new_locations.insert(i, self.locations[idx].clone());
             }
         }
         self.locations = new_locations;
     }
 
-    pub fn opcode_location(&self, idx: usize) -> Option<&Location> {
-        self.locations.get(&idx)
+    pub fn opcode_location(&self, idx: usize) -> Option<Vec<Location>> {
+        self.locations.get(&idx).cloned()
     }
 }
