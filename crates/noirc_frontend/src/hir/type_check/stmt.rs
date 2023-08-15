@@ -259,9 +259,46 @@ impl<'interner> TypeChecker<'interner> {
                     expr_span,
                 }
             });
+            if annotated_type.is_unsigned() {
+                self.lint_overflowing_uint(&rhs_expr, &annotated_type);
+            }
             annotated_type
         } else {
             expr_type
+        }
+    }
+
+    fn lint_overflowing_uint(&mut self, rhs_expr: &ExprId, annotated_type: &Type) {
+        let expr = self.interner.expression(rhs_expr);
+        let span = self.interner.expr_span(rhs_expr);
+        match expr {
+            crate::hir_def::expr::HirExpression::Literal(literal) => match literal {
+                crate::hir_def::expr::HirLiteral::Integer(value) => {
+                    let v: u128 = value.to_u128();
+                    match annotated_type {
+                        Type::Integer(_, bit) => {
+                            let max = 1 << bit;
+                            if v >= max {
+                                self.errors.push(TypeCheckError::OverflowingAssignment {
+                                    expr: value,
+                                    ty: annotated_type.clone(),
+                                    range: format!("0..={}", max - 1),
+                                    span: span,
+                                })
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            },
+            crate::hir_def::expr::HirExpression::Prefix(_) => {
+                self.errors.push(TypeCheckError::InvalidUnaryOp {
+                    kind: annotated_type.to_string(),
+                    span: span,
+                })
+            }
+            _ => {}
         }
     }
 }
