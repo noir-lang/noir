@@ -63,7 +63,7 @@ jobs:
           repo: noir-lang/noir
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
-          inputs: '{ "noir-ref": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
+          inputs: '{ "tag": "${{ needs.release-please.outputs.tag-name }}", "publish": true }'
 
   publish-wasm:
     name: Publish noir_wasm package
