@@ -23,6 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
+use super::spanned;
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
@@ -34,10 +35,11 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, FunctionDefinition, Ident,
-    IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
-    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, FunctionDefinition,
+    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
+    NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable,
+    TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    UnresolvedTypeExpression, UseTree, UseTreeKind,
 };
 
 use chumsky::prelude::*;
@@ -258,17 +260,19 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
         .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
 }
 
-fn function_return_type() -> impl NoirParser<((AbiDistinctness, AbiVisibility), UnresolvedType)> {
+fn function_return_type() -> impl NoirParser<((AbiDistinctness, AbiVisibility), FunctionReturnType)>
+{
     just(Token::Arrow)
         .ignore_then(optional_distinctness())
         .then(optional_visibility())
-        .then(parse_type())
+        .then(spanned(parse_type()))
         .or_not()
-        .map(|ret| {
-            ret.unwrap_or((
+        .map_with_span(|ret, span| match ret {
+            Some((head, (ty, span))) => (head, FunctionReturnType::Ty(ty, span)),
+            None => (
                 (AbiDistinctness::DuplicationAllowed, AbiVisibility::Private),
-                UnresolvedType::Unit,
-            ))
+                FunctionReturnType::Default(span),
+            ),
         })
 }
 
