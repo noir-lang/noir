@@ -120,24 +120,25 @@ impl<'a> FunctionContext<'a> {
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Values {
         match literal {
             ast::Literal::Array(array) => {
-                // let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
+                let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
                 let typ = Self::convert_non_tuple_type(&array.typ);
-
+                // dbg!(typ.clone());
                 let new_convert_type = Self::convert_type(&array.typ);
                 // dbg!(new_convert_type.clone());
                 if new_convert_type.count_leaves() > 1 {
+                    dbg!("got here");
                     let slice_length = ast::Literal::Integer(
                         (array.contents.len() as u128).into(),
                         ast::Type::Field,
                     );
                     let slice_length = self.codegen_literal(&slice_length);
-                    let elements =
-                        vecmap(&array.contents, |element| self.codegen_expression(element));
+                    // let elements =
+                    //     vecmap(&array.contents, |element| self.codegen_expression(element));
                     let slice_contents = self.codegen_array(elements, typ);
                     Tree::Branch(vec![slice_length, slice_contents])
                 } else {
-                    let elements =
-                        vecmap(&array.contents, |element| self.codegen_expression(element));
+                    // let elements =
+                    //     vecmap(&array.contents, |element| self.codegen_expression(element));
                     self.codegen_array(elements, typ)
                 }
             }
@@ -261,37 +262,20 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
-        // let array = self.codegen_non_tuple_expression(&index.collection);
-        // let index_value = self.codegen_non_tuple_expression(&index.index);
-        // self.codegen_array_index(array, index_value, &index.element_type, index.location)
-        // dbg!("codegen_index");
-        let array_or_slice = self.codegen_expression(&index.collection);
-        // dbg!(array_or_slice.clone());
-        if array_or_slice.count_leaves() > 1 {
-            let index_value = self.codegen_non_tuple_expression(&index.index);
-            match &array_or_slice {
-                Tree::Branch(values) => {
-                    // dbg!(values.clone());
-                    // for value in values {
-                        // let x = value.clone().into_leaf().eval(self);
-                        // dbg!(&self.builder.current_function.dfg[x]);
-                    // }
-                    let slice_length = values[0].clone().into_leaf().eval(self);
-                    let slice = values[1].clone().into_leaf().eval(self);
-                    self.codegen_array_index(
-                        slice,
-                        index_value,
-                        &index.element_type,
-                        index.location,
-                        Some(slice_length),
-                    )
-                }
-                Tree::Leaf(_) => panic!("Nooo"),
-            }
+        let array_or_slice = self.codegen_expression(&index.collection).into_value_list(self);
+        let index_value = self.codegen_non_tuple_expression(&index.index);
+        if array_or_slice.len() > 1 {
+            let slice_length = array_or_slice[0];
+            let slice = array_or_slice[1];
+            self.codegen_array_index(
+                slice,
+                index_value,
+                &index.element_type,
+                index.location,
+                Some(slice_length),
+            )
         } else {
-            let array = self.codegen_non_tuple_expression(&index.collection);
-            let index_value = self.codegen_non_tuple_expression(&index.index);
-            self.codegen_array_index(array, index_value, &index.element_type, index.location, None)
+            self.codegen_array_index(array_or_slice[0], index_value, &index.element_type, index.location, None)
         }
     }
 
@@ -328,12 +312,10 @@ impl<'a> FunctionContext<'a> {
             let array_type = &self.builder.type_of_value(array);
             match array_type {
                 Type::Slice(_) => {
-                    dbg!("got slice");
                     let array_len =
                         max_length.expect("ICE: a length must be supplied for indexing slices");
                     // If the index and the array_len are both Fields we will not be able to perform a less than comparison on them
                     // Thus, we cast the array len to a u64 before performing the less than comparison
-                    dbg!(array_len);
                     let array_len_int = self.builder.insert_cast(
                         array_len,
                         Type::Numeric(NumericType::Unsigned { bit_size: 64 }),

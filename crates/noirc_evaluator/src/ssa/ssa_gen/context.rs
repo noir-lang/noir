@@ -263,8 +263,10 @@ impl<'a> FunctionContext<'a> {
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = self.builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
             let length = self.builder.field_constant(FieldElement::from(bit_size as i128));
-            let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
-            let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types)[0];
+            let result_types = vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
+            let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types);
+            dbg!(rhs_bits.len());
+            let rhs_bits = rhs_bits[1];
             let one = self.builder.field_constant(FieldElement::one());
             let mut r = one;
             for i in 1..bit_size + 1 {
@@ -364,8 +366,9 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let lhs_type = self.builder.type_of_value(lhs);
+        dbg!(lhs_type.clone());
         let rhs_type = self.builder.type_of_value(rhs);
-
+        dbg!(rhs_type.clone());
         let (array_length, element_type) = match (lhs_type, rhs_type) {
             (
                 Type::Array(lhs_composite_type, lhs_length),

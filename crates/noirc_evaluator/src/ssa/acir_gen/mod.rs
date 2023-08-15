@@ -473,8 +473,11 @@ impl Context {
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
-
-        match self.convert_value(array, dfg) {
+        let value_id = dfg.resolve(array);
+        let value = &dfg[value_id];
+        dbg!(value);
+        let acir_value = self.convert_value(array, dfg);
+        match acir_value {
             AcirValue::Var(acir_var, _) => {
                 return Err(RuntimeError::InternalError(InternalError::UnExpected {
                     expected: "an array value".to_string(),

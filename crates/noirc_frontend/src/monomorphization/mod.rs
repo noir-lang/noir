@@ -430,6 +430,7 @@ impl<'interner> Monomorphizer<'interner> {
         constructor: HirConstructorExpression,
         id: node_interner::ExprId,
     ) -> ast::Expression {
+        dbg!(constructor.r#type.borrow().name.clone());
         let typ = self.interner.id_type(id);
         let field_types = unwrap_struct_type(&typ);
 
@@ -447,7 +448,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             field_vars.insert(field_name.0.contents.clone(), (new_id, typ));
             let expression = Box::new(self.expr(expr_id));
-
+            dbg!(new_id);
             new_exprs.push(ast::Expression::Let(ast::Let {
                 id: new_id,
                 mutable: false,
