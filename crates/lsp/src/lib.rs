@@ -264,7 +264,7 @@ fn on_code_lens_request(
         }
 
         if package.is_contract() {
-            // Currently not looking to dedupe this since we don't have a clear decision on if the Contract stuff is staying
+            // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
             for contract in context.get_all_contracts(&crate_id) {
                 let location = contract.location;
                 let file_id = location.file;
