@@ -120,7 +120,6 @@ describe('e2e_pending_commitments_contract', () => {
         owner,
         Fr.fromBuffer(deployedContract.methods.insert_note.selector),
         Fr.fromBuffer(deployedContract.methods.get_then_nullify_note.selector),
-        //Fr.fromBuffer(deployedContract.methods.get_note_zero_balance.selector),
       )
       .send({ origin: owner });
 
@@ -199,10 +198,39 @@ describe('e2e_pending_commitments_contract', () => {
     await expectNullifiersSquashedExcept(1);
   }, 60_000);
 
-  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/836): test nullify & squash of pending notes
-  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/892): test expected kernel failures if transient reads (or their hints) don't match
-  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/836): test expected kernel failures if nullifiers (or their hints) don't match
-  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/839): test creation, getting, nullifying of multiple notes
-  // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1242): test nullifying a note created in a previous transaction and
-  //                                                                    get_notes in the same transaction should not return it.
+  it('get_notes function filters a nullified note created in a previous transaction', async () => {
+    // Create a note in an isolated transaction.
+    // In a subsequent transaction, we nullify the note and a call to 'get note' should
+    // not return anything.
+    // Remark: This test can be seen as a simplification of the previous one but has the merit to
+    // isolate the simplest 'get note' filtering with a pending nullifier on a persistent note.
+    const mintAmount = 65n;
+
+    const deployedContract = await deployContract();
+    const tx0 = deployedContract.methods.insert_note(mintAmount, owner).send({ origin: owner });
+
+    await tx0.isMined({ interval: 0.1 });
+    const receipt = await tx0.getReceipt();
+    expect(receipt.status).toBe(TxStatus.MINED);
+
+    // There is a single new commitment/note.
+    await expectCommitmentsSquashedExcept(1);
+
+    const tx1 = deployedContract.methods
+      .test_insert_then_get_then_nullify_all_in_nested_calls(
+        mintAmount,
+        owner,
+        Fr.fromBuffer(deployedContract.methods.dummy.selector),
+        Fr.fromBuffer(deployedContract.methods.get_then_nullify_note.selector),
+        Fr.fromBuffer(deployedContract.methods.get_note_zero_balance.selector),
+      )
+      .send({ origin: owner });
+
+    await tx1.isMined({ interval: 0.1 });
+    const receipt2 = await tx1.getReceipt();
+    expect(receipt2.status).toBe(TxStatus.MINED);
+
+    // There is a single new nullifier.
+    await expectNullifiersSquashedExcept(1);
+  }, 60_000);
 });

@@ -23,6 +23,11 @@ using aztec3::utils::array_length;
 using aztec3::utils::CircuitErrorCode;
 
 
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/892): test expected kernel failures if transient reads
+// (or their hints) don't match
+// TODO(https://github.com/AztecProtocol/aztec-packages/issues/836): test expected kernel failures if nullifiers (or
+// their hints) don't match
+
 /**************************************************************
  * MULTI ITERATION UNIT TESTS FOR NATIVE PRIVATE KERNEL CIRCUIT
  **************************************************************/
