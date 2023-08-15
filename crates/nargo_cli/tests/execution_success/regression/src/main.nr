@@ -76,7 +76,6 @@ fn main(x: [u8; 5], z: Field)
     //Issue 1144
 	let (nib, len) = compact_decode(x,z);
 	assert(len == 5);
-	// dep::std::println(nib);
 	assert([nib[0], nib[1], nib[2], nib[3], nib[4]] == [15, 1, 12, 11, 8]);
 
 	// Issue 1169
