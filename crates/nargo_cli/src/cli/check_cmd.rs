@@ -3,7 +3,7 @@ use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
 use nargo::{package::Package, prepare_package};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
 use noirc_frontend::{
@@ -34,7 +34,7 @@ pub(crate) fn run<B: Backend>(
     args: CheckCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let toml_path = find_package_manifest(&config.program_dir)?;
+    let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
