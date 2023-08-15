@@ -7,7 +7,7 @@ use crate::ssa::{
         basic_block::{BasicBlock, BasicBlockId},
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Instruction, InstructionId},
+        instruction::InstructionId,
         post_order::PostOrder,
         value::{Value, ValueId},
     },
@@ -88,34 +88,15 @@ impl Context {
     /// An instruction can be removed as long as it has no side-effects, and none of its result
     /// values have been referenced.
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
-        use Instruction::*;
-
         let instruction = &function.dfg[instruction_id];
 
-        match instruction {
-            // These instruction types can be safely removed
-            Binary(_)
-            | Cast(_, _)
-            | Not(_)
-            | Truncate { .. }
-            | Allocate
-            | Load { .. }
-            | ArrayGet { .. }
-            | ArraySet { .. } => (),
-
-            // These instruction types cannot be removed
-            Constrain(_) | Store { .. } | EnableSideEffects { .. } => return false,
-
-            Call { func, .. } => match function.dfg[*func] {
-                Value::Intrinsic(intrinsic) if !intrinsic.has_side_effects() => {
-                    // Intrinsics without side-effects can be safely removed.
-                }
-                _ => return false,
-            },
+        if instruction.has_side_effects(&function.dfg) {
+            // If the instruction has side effects we should never remove it.
+            false
+        } else {
+            let results = function.dfg.instruction_results(instruction_id);
+            results.iter().all(|result| !self.used_values.contains(result))
         }
-
-        let results = function.dfg.instruction_results(instruction_id);
-        results.iter().all(|result| !self.used_values.contains(result))
     }
 
     /// Adds values referenced by the terminator to the set of used values.

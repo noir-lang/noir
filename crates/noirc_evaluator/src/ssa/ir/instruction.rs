@@ -201,6 +201,29 @@ impl Instruction {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
 
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | Allocate
+            | Load { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => false,
+
+            Constrain(_) | Store { .. } | EnableSideEffects { .. } => true,
+
+            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                _ => false,
+            },
+        }
+    }
+
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
     /// Note that the returned instruction is fresh and will not have an assigned InstructionId
     /// until it is manually inserted in a DataFlowGraph later.
