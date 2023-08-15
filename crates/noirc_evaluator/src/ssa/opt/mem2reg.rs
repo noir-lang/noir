@@ -198,9 +198,6 @@ impl PerFunctionContext {
             // as this pass can occur before loop unrolling and flattening.
             // The mem2reg pass should be ran again following all optimization passes as new values
             // may be able to be promoted
-            // if self.has_common_successor[&block_id] {
-            //     return address;
-            // }
             for l in self.loops.yet_to_unroll.iter() {
                 // We do not want to substitute loads that take place within loops as this pass
                 // can occur before loop unrolling
@@ -252,9 +249,6 @@ impl PerFunctionContext {
             // as this pass can occur before loop unrolling and flattening.
             // The mem2reg pass should be ran again following all optimization passes as new values
             // may be able to be promoted
-            // if self.has_common_successor[&block_id] {
-            //     return false;
-            // }
             for l in self.loops.yet_to_unroll.iter() {
                 // We do not want to substitute loads that take place within loops as this pass
                 // can occur before loop unrolling
