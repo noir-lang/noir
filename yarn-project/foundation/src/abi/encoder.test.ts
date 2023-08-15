@@ -49,7 +49,7 @@ describe('abi/encoder', () => {
     expect(() => encodeArguments(testFunctionAbi, args)).toThrowError('Cannot convert garbage to a BigInt');
   });
 
-  it.only('throws when passing object argument as field', () => {
+  it('throws when passing object argument as field', () => {
     const testFunctionAbi: FunctionAbi = {
       name: 'constructor',
       functionType: FunctionType.SECRET,
@@ -73,6 +73,8 @@ describe('abi/encoder', () => {
       },
     ];
 
-    expect(() => encodeArguments(testFunctionAbi, args)).toThrowError('Argument cannot be serialised to a field');
+    expect(() => encodeArguments(testFunctionAbi, args)).toThrowError(
+      'Argument for owner cannot be serialised to a field',
+    );
   });
 });

@@ -32,7 +32,7 @@ class ArgumentEncoder {
           } else if (arg instanceof Fr) {
             this.flattened.push(arg);
           } else {
-            throw new Error('Argument cannot be serialised to a field');
+            throw new Error(`Argument for ${name} cannot be serialised to a field`);
           }
         } else {
           throw new Error(`Invalid argument "${arg}" of type ${abiType.kind}`);

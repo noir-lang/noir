@@ -166,8 +166,11 @@ async function main() {
         );
       }
 
+      debugLogger(`Input arguments: ${options.args.map((x: any) => `"${x}"`).join(', ')}`);
       const args = encodeArgs(options.args, constructorAbi!.parameters);
-      const tx = deployer.deploy(args).send({ contractAddressSalt: salt });
+      debugLogger(`Encoded arguments: ${args.join(', ')}`);
+      const tx = deployer.deploy(...args).send({ contractAddressSalt: salt });
+      debugLogger(`Deploy tx sent with hash ${await tx.getTxHash()}`);
       const deployed = await tx.wait();
       log(`\nContract deployed at ${deployed.contractAddress!.toString()}\n`);
     });
@@ -241,7 +244,7 @@ async function main() {
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async options => {
       const { from, limit } = options;
-      const fromBlock = from ? parseInt(from) : 0;
+      const fromBlock = from ? parseInt(from) : 1;
       const limitCount = limit ? parseInt(limit) : 100;
 
       const client = createAztecRpcClient(options.rpcUrl);
@@ -475,6 +478,7 @@ async function main() {
 }
 
 main().catch(err => {
-  log(`Error thrown: ${err}`);
+  log(`Error in command execution`);
+  log(err);
   process.exit(1);
 });
