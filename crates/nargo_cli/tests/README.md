@@ -4,6 +4,7 @@ Integration tests for the Noir compiler are broken down into the following direc
 
 - `compile_failure`: programs which are not valid or unsatisfiable Noir code and so the compiler should reject.
 - `compile_success_empty`: programs which are valid satisfiable Noir code but have no opcodes.
+- `compile_success_contract`: contracts which are valid Noir code.
 - `execution_success`: programs which are valid Noir satisfiable code and have opcodes.
 
 The current testing flow can be thought of as shown:
@@ -28,6 +29,10 @@ flowchart TD
         C6[Publish witness + circuit as artifact]
         C3 --> C6
         C5 --> C6
+    end
+
+    subgraph compile_success_contract
+        D1[Attempt to compile] --> D2[Assert compilation succeeds]
     end
 ```
 
