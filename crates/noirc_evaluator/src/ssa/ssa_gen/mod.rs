@@ -98,7 +98,6 @@ impl<'a> FunctionContext<'a> {
     /// to reassign to it. Note that mutable references `let x = &mut ...;` do not require this
     /// since they are not automatically loaded from and must be explicitly dereferenced.
     fn codegen_ident_reference(&mut self, ident: &ast::Ident) -> Values {
-        // dbg!(ident.definition.clone());
         match &ident.definition {
             ast::Definition::Local(id) => self.lookup(*id),
             ast::Definition::Function(id) => self.get_or_queue_function(*id),
@@ -303,16 +302,21 @@ impl<'a> FunctionContext<'a> {
         Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
+
             let array_type = &self.builder.type_of_value(array);
             match array_type {
+                // Prepare a slice access
+                // Check that the index being used is less than the dynamic slice length
                 Type::Slice(_) => {
                     let array_len =
                         max_length.expect("ICE: a length must be supplied for indexing slices");
-                    // If the index and the array_len are both Fields we will not be able to perform a less than comparison on them
-                    // Thus, we cast the array len to a u64 before performing the less than comparison
+                    // Check the type of the index value for valid comparisons
                     let array_len = match self.builder.type_of_value(index) {
                         Type::Numeric(numeric_type) => match numeric_type {
+                            // If the index itself is an integer, keep the array length as a Field
                             NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
+                            // If the index and the array length are both Fields we will not be able to perform a less than comparison on them.
+                            // Thus, we cast the array length to a u64 before performing the less than comparison
                             NumericType::NativeField => self.builder.insert_cast(
                                 array_len,
                                 Type::Numeric(NumericType::Unsigned { bit_size: 64 }),
@@ -326,11 +330,10 @@ impl<'a> FunctionContext<'a> {
                     self.builder.insert_constrain(is_offset_out_of_bounds);
                 }
                 Type::Array(..) => {
-                    // Nothing needs to done to prepare an array get on an array
+                    // Nothing needs to done to prepare an array access on an array
                 }
                 _ => unreachable!("must have array or slice but got {array_type}"),
             }
-            // dbg!("about to insert array get");
             self.builder.insert_array_get(array, offset, typ).into()
         })
     }

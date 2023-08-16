@@ -266,7 +266,6 @@ impl<'a> FunctionContext<'a> {
             let result_types =
                 vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
             let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types);
-            dbg!(rhs_bits.len());
             let rhs_bits = rhs_bits[1];
             let one = self.builder.field_constant(FieldElement::one());
             let mut r = one;
@@ -367,9 +366,8 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> Values {
         let lhs_type = self.builder.type_of_value(lhs);
-        dbg!(lhs_type.clone());
         let rhs_type = self.builder.type_of_value(rhs);
-        dbg!(rhs_type.clone());
+
         let (array_length, element_type) = match (lhs_type, rhs_type) {
             (
                 Type::Array(lhs_composite_type, lhs_length),

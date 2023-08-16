@@ -363,7 +363,6 @@ impl Instruction {
                     let index =
                         index.try_to_u64().expect("Expected array index to fit in u64") as usize;
                     if index < array.len() {
-                        // dbg!(array[index]);
                         return SimplifiedTo(array[index]);
                     }
                 }
@@ -830,7 +829,6 @@ impl std::fmt::Display for BinaryOp {
     }
 }
 
-#[derive(Debug, Clone)]
 /// Contains the result to Instruction::simplify, specifying how the instruction
 /// should be simplified.
 pub(crate) enum SimplifyResult {
