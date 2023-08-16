@@ -269,7 +269,13 @@ impl<'a> FunctionContext<'a> {
                 Some(slice_length),
             )
         } else {
-            self.codegen_array_index(array_or_slice[0], index_value, &index.element_type, index.location, None)
+            self.codegen_array_index(
+                array_or_slice[0],
+                index_value,
+                &index.element_type,
+                index.location,
+                None,
+            )
         }
     }
 
@@ -305,20 +311,16 @@ impl<'a> FunctionContext<'a> {
                     // If the index and the array_len are both Fields we will not be able to perform a less than comparison on them
                     // Thus, we cast the array len to a u64 before performing the less than comparison
                     let array_len = match self.builder.type_of_value(index) {
-                        Type::Numeric(numeric_type) => {
-                            match numeric_type {
-                                NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
-                                NumericType::NativeField => {
-                                    self.builder.insert_cast(
-                                        array_len,
-                                        Type::Numeric(NumericType::Unsigned { bit_size: 64 }),
-                                    )
-                                }
-                            }
-                        }
+                        Type::Numeric(numeric_type) => match numeric_type {
+                            NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
+                            NumericType::NativeField => self.builder.insert_cast(
+                                array_len,
+                                Type::Numeric(NumericType::Unsigned { bit_size: 64 }),
+                            ),
+                        },
                         _ => unreachable!("ICE: array index must be a numeric type"),
                     };
-                    
+
                     let is_offset_out_of_bounds =
                         self.builder.insert_binary(index, BinaryOp::Lt, array_len);
                     self.builder.insert_constrain(is_offset_out_of_bounds);

@@ -561,7 +561,7 @@ mod tests {
             let copied_array_pointer = context.allocate_register();
 
             let copied_array_size = context.allocate_register();
-            
+
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
             block.slice_insert_operation(

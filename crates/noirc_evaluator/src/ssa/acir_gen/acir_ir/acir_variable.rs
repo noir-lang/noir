@@ -792,7 +792,6 @@ impl AcirContext {
 
         // `Intrinsic::ToRadix` returns slices which are represented
         // by tuples with the structure (length, slice contents)
-        dbg!(limb_vars.len());
         Ok(vec![
             AcirValue::Var(
                 self.add_constant(FieldElement::from(limb_vars.len() as u128)),

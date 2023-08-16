@@ -942,8 +942,10 @@ impl Context {
         let mut var = self.convert_numeric_value(value_id, dfg)?;
         match &dfg[value_id] {
             Value::Instruction { instruction, .. } => {
-                if matches!(&dfg[*instruction], Instruction::Binary(Binary { operator: BinaryOp::Sub, .. }))
-                {
+                if matches!(
+                    &dfg[*instruction],
+                    Instruction::Binary(Binary { operator: BinaryOp::Sub, .. })
+                ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
                     let integer_modulus =
@@ -955,7 +957,9 @@ impl Context {
                 // Binary operations on params may have been entirely simplified if the operation
                 // results in the identity of the parameter
             }
-            _ => unreachable!("ICE: Truncates are only ever applied to the result of a binary op or a param"),
+            _ => unreachable!(
+                "ICE: Truncates are only ever applied to the result of a binary op or a param"
+            ),
         };
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)

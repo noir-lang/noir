@@ -3,11 +3,9 @@ use dep::std;
 
 unconstrained fn main(x: Field, y: Field) {
     let mut slice: [Field] = [y, x];
-    std::println(slice.len());
     assert(slice.len() == 2);
 
     slice = slice.push_back(7);
-    std::println(slice.len());
     assert(slice.len() == 3);
     assert(slice[0] == y);
     assert(slice[1] == x);
@@ -32,7 +30,6 @@ unconstrained fn main(x: Field, y: Field) {
     let (item, popped_front_slice) = slice.pop_front();
     slice = popped_front_slice;
     assert(item == 2);
-    std::println(popped_front_slice.len());
 
     assert(slice.len() == 3);
     assert(slice[0] == x);

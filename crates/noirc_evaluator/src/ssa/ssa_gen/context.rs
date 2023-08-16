@@ -263,7 +263,8 @@ impl<'a> FunctionContext<'a> {
         if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
             let to_bits = self.builder.import_intrinsic_id(Intrinsic::ToBits(Endian::Little));
             let length = self.builder.field_constant(FieldElement::from(bit_size as i128));
-            let result_types = vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
+            let result_types =
+                vec![Type::field(), Type::Array(Rc::new(vec![Type::bool()]), bit_size as usize)];
             let rhs_bits = self.builder.insert_call(to_bits, vec![rhs, length], result_types);
             dbg!(rhs_bits.len());
             let rhs_bits = rhs_bits[1];
@@ -598,7 +599,7 @@ impl<'a> FunctionContext<'a> {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
         let index = self.codegen_non_tuple_expression(index);
         let array_lvalue = Box::new(array_lvalue);
-        
+
         // A slice is represented as a tuple (length, slice contents)
         // We need to fetch the second
         if old_array.count_leaves() > 1 {

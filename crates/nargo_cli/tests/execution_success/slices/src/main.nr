@@ -1,8 +1,6 @@
 use dep::std::slice;
 use dep::std;
 fn main(x : Field, y : pub Field) {
-    regression_merge_slices(x, y);
-
     let mut slice = [0; 2];
     assert(slice[0] == 0);
     assert(slice[0] != 1);
@@ -48,6 +46,8 @@ fn main(x : Field, y : pub Field) {
     assert(append[4] == 5);
 
     regression_2083();
+    // The parameters to this function must come from witness values (inputs to main)
+    regression_merge_slices(x, y);
 }
 
 // Ensure that slices of struct/tuple values work.

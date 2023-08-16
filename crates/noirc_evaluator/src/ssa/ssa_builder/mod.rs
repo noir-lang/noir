@@ -397,12 +397,11 @@ mod tests {
         let input = builder.numeric_constant(FieldElement::from(7_u128), Type::field());
         let length = builder.numeric_constant(FieldElement::from(8_u128), Type::field());
         let result_types = vec![Type::Array(Rc::new(vec![Type::bool()]), 8)];
-        let call_results = builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
+        let call_results =
+            builder.insert_call(to_bits_id, vec![input, length], result_types).into_owned();
 
         let slice_len = match &builder.current_function.dfg[call_results[0]] {
-            Value::NumericConstant { constant, .. } => {
-                *constant
-            }
+            Value::NumericConstant { constant, .. } => *constant,
             _ => panic!(),
         };
         assert_eq!(slice_len, FieldElement::from(256u128));

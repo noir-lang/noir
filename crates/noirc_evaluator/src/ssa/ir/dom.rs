@@ -11,7 +11,7 @@ use super::{
 };
 
 /// Dominator tree node. We keep one of these per reachable block.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default)]
 struct DominatorTreeNode {
     /// The block's idx in the control flow graph's reverse post-order
     reverse_post_order_idx: u32,

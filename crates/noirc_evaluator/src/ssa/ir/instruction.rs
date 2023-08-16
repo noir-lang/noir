@@ -366,7 +366,7 @@ impl Instruction {
                         // dbg!(array[index]);
                         return SimplifiedTo(array[index]);
                     }
-                } 
+                }
                 None
             }
             Instruction::ArraySet { array, index, value } => {
