@@ -437,8 +437,8 @@ impl<'f> Context<'f> {
                 let typevars = Some(vec![element_type.clone()]);
 
                 let mut get_element = |array, typevars, len| {
-                    // The smaller slice is filled with placeholder information. Codegen for slice accesses must
-                    // include checks against the dynamic slice length
+                    // The smaller slice is filled with placeholder data. Codegen for slice accesses must
+                    // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                     if (len - 1) < index_value.to_u128() as usize {
                         self.inserter
                             .function
