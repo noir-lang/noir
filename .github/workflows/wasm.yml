@@ -51,11 +51,11 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       CACHED_PATHS: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
+        ~/.cargo/bin/
+        ~/.cargo/registry/index/
+        ~/.cargo/registry/cache/
+        ~/.cargo/git/db/
+        target/
 
     steps:
       - name: Checkout Noir repo
