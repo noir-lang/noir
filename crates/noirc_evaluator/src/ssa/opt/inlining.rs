@@ -2,7 +2,7 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use iter_extended::vecmap;
 
@@ -35,8 +35,16 @@ impl Ssa {
     /// changes. This is because if the function's id later becomes known by a later
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
-    pub(crate) fn inline_functions(self) -> Ssa {
-        InlineContext::new(&self).inline_all(self)
+    pub(crate) fn inline_functions(mut self) -> Ssa {
+        self.functions = get_entry_point_functions(&self)
+            .into_iter()
+            .map(|entry_point| {
+                let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
+                (entry_point, new_function)
+            })
+            .collect();
+
+        self
     }
 }
 
@@ -51,10 +59,8 @@ struct InlineContext {
 
     call_stack: CallStack,
 
-    /// True if we failed to inline at least one call. If this is still false when finishing
-    /// inlining we can remove all other functions from the resulting Ssa struct and keep only
-    /// the function that was inlined into.
-    failed_to_inline_a_call: bool,
+    // The FunctionId of the entry point function we're inlining into in the old, unmodified Ssa.
+    entry_point: FunctionId,
 }
 
 /// The per-function inlining context contains information that is only valid for one function.
@@ -87,8 +93,22 @@ struct PerFunctionContext<'function> {
     /// Maps InstructionIds from the function being inlined to the function being inlined into.
     instructions: HashMap<InstructionId, InstructionId>,
 
-    /// True if we're currently working on the main function.
-    inlining_main: bool,
+    /// True if we're currently working on the entry point function.
+    inlining_entry: bool,
+}
+
+/// The entry point functions are each function we should inline into - and each function that
+/// should be left in the final program. This is usually just `main` but also includes any
+/// brillig functions used.
+fn get_entry_point_functions(ssa: &Ssa) -> BTreeSet<FunctionId> {
+    let functions = ssa.functions.iter();
+    let mut entry_points = functions
+        .filter(|(_, function)| function.runtime() == RuntimeType::Brillig)
+        .map(|(id, _)| *id)
+        .collect::<BTreeSet<_>>();
+
+    entry_points.insert(ssa.main_id);
+    entry_points
 }
 
 impl InlineContext {
@@ -97,22 +117,18 @@ impl InlineContext {
     /// The function being inlined into will always be the main function, although it is
     /// actually a copy that is created in case the original main is still needed from a function
     /// that could not be inlined calling it.
-    fn new(ssa: &Ssa) -> InlineContext {
-        let main_name = ssa.main().name().to_owned();
-        let builder = FunctionBuilder::new(main_name, ssa.next_id.next(), RuntimeType::Acir);
-        Self {
-            builder,
-            recursion_level: 0,
-            call_stack: CallStack::new(),
-            failed_to_inline_a_call: false,
-        }
+    fn new(ssa: &Ssa, entry_point: FunctionId) -> InlineContext {
+        let source = &ssa.functions[&entry_point];
+        let builder = FunctionBuilder::new(source.name().to_owned(), entry_point, source.runtime());
+        Self { builder, recursion_level: 0, entry_point, call_stack: CallStack::new() }
     }
 
-    /// Start inlining the main function and all functions reachable from it.
-    fn inline_all(mut self, ssa: Ssa) -> Ssa {
-        let main = ssa.main();
-        let mut context = PerFunctionContext::new(&mut self, main);
-        context.inlining_main = true;
+    /// Start inlining the entry point function and all functions reachable from it.
+    fn inline_all(mut self, ssa: &Ssa) -> Function {
+        let entry_point = &ssa.functions[&self.entry_point];
+
+        let mut context = PerFunctionContext::new(&mut self, entry_point);
+        context.inlining_entry = true;
 
         // The main block is already inserted so we have to add it to context.blocks and add
         // its parameters here. Failing to do so would cause context.translate_block() to add
@@ -127,8 +143,12 @@ impl InlineContext {
         }
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
-        context.inline_blocks(&ssa);
-        self.finish(ssa)
+        context.inline_blocks(ssa);
+
+        // Finally, we should have 1 function left representing the inlined version of the target function.
+        let mut new_ssa = self.builder.finish();
+        assert_eq!(new_ssa.functions.len(), 1);
+        new_ssa.functions.pop_first().unwrap().1
     }
 
     /// Inlines a function into the current function and returns the translated return values
@@ -161,26 +181,6 @@ impl InlineContext {
         self.recursion_level -= 1;
         return_values
     }
-
-    /// Finish inlining and return the new Ssa struct with the inlined version of main.
-    /// If any functions failed to inline, they are not removed from the final Ssa struct.
-    fn finish(self, mut ssa: Ssa) -> Ssa {
-        let mut new_ssa = self.builder.finish();
-        assert_eq!(new_ssa.functions.len(), 1);
-
-        // If we failed to inline any call, any function may still be reachable so we
-        // don't remove any from the final program. We could be more precise here and
-        // do a reachability analysis but it should be fine to keep the extra functions
-        // around longer if they are not called.
-        if self.failed_to_inline_a_call {
-            let new_main = new_ssa.functions.pop_first().unwrap().1;
-            ssa.main_id = new_main.id();
-            ssa.functions.insert(new_main.id(), new_main);
-            ssa
-        } else {
-            new_ssa
-        }
-    }
 }
 
 impl<'function> PerFunctionContext<'function> {
@@ -195,7 +195,7 @@ impl<'function> PerFunctionContext<'function> {
             blocks: HashMap::new(),
             instructions: HashMap::new(),
             values: HashMap::new(),
-            inlining_main: false,
+            inlining_entry: false,
         }
     }
 
@@ -279,10 +279,7 @@ impl<'function> PerFunctionContext<'function> {
             // don't correspond to actual functions in the SSA program that would
             // need to be removed afterward.
             Value::Intrinsic(_) => None,
-            _ => {
-                self.context.failed_to_inline_a_call = true;
-                None
-            }
+            _ => None,
         }
     }
 
@@ -355,10 +352,7 @@ impl<'function> PerFunctionContext<'function> {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(function) => match ssa.functions[&function].runtime() {
                         RuntimeType::Acir => self.inline_function(ssa, *id, function, arguments),
-                        RuntimeType::Brillig => {
-                            self.context.failed_to_inline_a_call = true;
-                            self.push_instruction(*id);
-                        }
+                        RuntimeType::Brillig => self.push_instruction(*id),
                     },
                     None => self.push_instruction(*id),
                 },
@@ -494,7 +488,7 @@ impl<'function> PerFunctionContext<'function> {
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_values = vecmap(return_values, |value| self.translate_value(*value));
-                if self.inlining_main {
+                if self.inlining_entry {
                     self.context.builder.terminate_with_return(return_values.clone());
                 }
                 // Note that `translate_block` would take us back to the point at which the
