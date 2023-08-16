@@ -89,7 +89,6 @@ pub(super) fn simplify_call(
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
-                // SimplifyResult::None
             } else {
                 SimplifyResult::None
             };
