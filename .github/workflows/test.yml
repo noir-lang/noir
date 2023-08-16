@@ -63,7 +63,8 @@ jobs:
           nix copy --to "file:///tmp/nix-cache?compression=zstd&parallel-compression=true" .#native-cargo-artifacts
 
       - uses: actions/cache/save@v3
-        if: ${{ github.event_name != 'merge_group' }} # Don't create cache entries for the merge queue.
+        # Write a cache entry even if the tests fail but don't create any for the merge queue.
+        if: ${{ always() && github.event_name != 'merge_group' }}
         with:
           path: ${{ steps.restore-cache.inputs.path }}
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
