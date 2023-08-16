@@ -85,9 +85,43 @@ fn regression_2083() {
 
 // The parameters to this function must come from witness values (inputs to main)
 fn regression_merge_slices(x: Field, y: Field) {
-    // Test returning a merged slice without a mutation
+    merge_slices_if(x, y);
+    merge_slices_else(x);
+}
+
+fn merge_slices_if(x: Field, y: Field) {
+    let slice = merge_slices_return(x, y);
+    assert(slice[2] == 10);
+    assert(slice.len() == 3);
+
+    let slice = merge_slices_mutate(x, y);
+    assert(slice[3] == 5);
+    assert(slice.len() == 4);
+
+    let slice = merge_slices_mutate_in_loop(x, y);
+    assert(slice[6] == 4);
+    assert(slice.len() == 7);
+}
+
+fn merge_slices_else(x: Field) {
+    let slice = merge_slices_return(x, 5);
+    assert(slice[0] == 0);
+    assert(slice[1] == 0);
+    assert(slice.len() == 2);
+
+    let slice = merge_slices_mutate(x, 5);
+    assert(slice[2] == 5);
+    assert(slice.len() == 3);
+
+    let slice = merge_slices_mutate_in_loop(x, 5);
+    assert(slice[2] == 5);
+    assert(slice.len() == 3);
+}
+
+// Test returning a merged slice without a mutation
+fn merge_slices_return(x: Field, y: Field) -> [Field] {
     let slice = [0; 2];
-    let slice = if x != y {
+    if x != y {
         if x != 20 {
             slice.push_back(y)
         } else {
@@ -95,11 +129,11 @@ fn regression_merge_slices(x: Field, y: Field) {
         }
     } else {
         slice
-    };
-    assert(slice[2] == 10);
-    assert(slice.len() == 3);
+    }
+}
 
-    // Test mutating a slice inside of an if statement
+// Test mutating a slice inside of an if statement
+fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
     let mut slice = [0; 2];
     if x != y {
         slice = slice.push_back(y);
@@ -107,10 +141,11 @@ fn regression_merge_slices(x: Field, y: Field) {
     } else {
         slice = slice.push_back(x);
     }
-    assert(slice[3] == 5);
-    assert(slice.len() == 4);
+    slice
+}
 
-    // Test mutating a slice inside of a loop in an if statement
+// Test mutating a slice inside of a loop in an if statement
+fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
     let mut slice = [0; 2];
     if x != y {
         for i in 0..5 {
@@ -119,6 +154,5 @@ fn regression_merge_slices(x: Field, y: Field) {
     } else {
         slice = slice.push_back(x);
     }
-    assert(slice[6] == 4);
-    assert(slice.len() == 7);
+    slice
 }

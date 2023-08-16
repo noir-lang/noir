@@ -100,7 +100,6 @@ pub(super) fn simplify_call(
         }
         Intrinsic::SlicePushFront => {
             let slice = dfg.get_array_constant(arguments[1]);
-            dbg!(slice.clone());
             if let Some((mut slice, element_type)) = slice {
                 for elem in arguments[2..].iter().rev() {
                     slice.push_front(*elem);
