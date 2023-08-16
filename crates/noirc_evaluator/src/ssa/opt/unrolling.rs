@@ -60,7 +60,7 @@ pub(crate) struct Loop {
 pub(crate) struct Loops {
     /// The loops that failed to be unrolled so that we do not try to unroll them again.
     /// Each loop is identified by its header block id.
-    pub(crate) failed_to_unroll: HashSet<BasicBlockId>,
+    failed_to_unroll: HashSet<BasicBlockId>,
 
     pub(crate) yet_to_unroll: Vec<Loop>,
     modified_blocks: HashSet<BasicBlockId>,
