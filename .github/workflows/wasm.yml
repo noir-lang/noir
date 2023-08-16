@@ -54,7 +54,8 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
 
-      - uses: ./.github/actions/cache
+      - uses: actions/cache/restore@v3
+        id: restore-cache
         with:
           path: |
             ~/.cargo/bin/
@@ -63,7 +64,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          read-only: ${{ github.event_name == 'merge_group' }}
 
       - name: Download artifact
         uses: actions/download-artifact@v3
@@ -79,6 +79,12 @@ jobs:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --no-default-features --features plonk_bn254_wasm
+
+      - uses: actions/cache/save@v3
+        if: ${{ github.event_name != 'merge_group' }} # Don't create cache entries for the merge queue.
+        with:
+          path: ${{ steps.restore-cache.inputs.path }}
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
         run: |

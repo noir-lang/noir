@@ -79,7 +79,8 @@ jobs:
           echo "SDKROOT=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-path)" >> $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
 
-      - uses: ./.github/actions/cache
+      - uses: actions/cache/restore@v3
+        id: restore-cache
         with:
           path: |
             ~/.cargo/bin/
@@ -88,8 +89,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          read-only: ${{ github.event_name == 'merge_group' }}
-
+          
       - name: Download artifact
         uses: actions/download-artifact@v3
         with:
@@ -107,6 +107,12 @@ jobs:
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
+      - uses: actions/cache/save@v3
+        if: ${{ github.event_name != 'merge_group' }} # Don't create cache entries for the merge queue.
+        with:
+          path: ${{ steps.restore-cache.inputs.path }}
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
+      
       - name: Package artifacts
         run: |
           mkdir dist
@@ -162,7 +168,8 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
-      - uses: ./.github/actions/cache
+      - uses: actions/cache/restore@v3
+        id: restore-cache
         with:
           path: |
             ~/.cargo/bin/
@@ -171,7 +178,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          read-only: ${{ github.event_name == 'merge_group' }}
 
       - name: Download artifact
         uses: actions/download-artifact@v3
@@ -190,6 +196,12 @@ jobs:
         run: |
           cargo install cross --force --git https://github.com/cross-rs/cross
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
+
+      - uses: actions/cache/save@v3
+        if: ${{ github.event_name != 'merge_group' }} # Don't create cache entries for the merge queue.
+        with:
+          path: ${{ steps.restore-cache.inputs.path }}
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
         run: |
@@ -239,7 +251,8 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
-      - uses: ./.github/actions/cache
+      - uses: actions/cache/restore@v3
+        id: restore-cache
         with:
           path: |
             ~/.cargo/bin/
@@ -248,7 +261,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          read-only: ${{ github.event_name == 'merge_group' }}
+          
 
       - name: Download artifact
         uses: actions/download-artifact@v3
@@ -266,6 +279,12 @@ jobs:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
+
+      - uses: actions/cache/save@v3
+        if: ${{ github.event_name != 'merge_group' }} # Don't create cache entries for the merge queue.
+        with:
+          path: ${{ steps.restore-cache.inputs.path }}
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
         run: |

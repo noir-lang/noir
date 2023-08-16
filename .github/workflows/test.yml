@@ -37,16 +37,15 @@ jobs:
           name: barretenberg
 
       - name: Restore nix store cache
-        id: nix-store-cache
-        uses: ./.github/actions/cache
+        uses: actions/cache/restore@v3
+        id: restore-cache
         with:
           path: /tmp/nix-cache
           key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
-          read-only: ${{ github.event_name == 'merge_group' }}
-
+          
       # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
       - name: Copy cache into nix store
-        if: steps.nix-store-cache.outputs.cache-hit == 'true'
+        if: steps.restore-cache.outputs.cache-hit == 'true'
         # We don't check the signature because we're the one that created the cache
         run: |
           for narinfo in /tmp/nix-cache/*.narinfo; do
@@ -62,3 +61,9 @@ jobs:
         if: steps.nix-store-cache.outputs.cache-hit != 'true'
         run: |
           nix copy --to "file:///tmp/nix-cache?compression=zstd&parallel-compression=true" .#native-cargo-artifacts
+
+      - uses: actions/cache/save@v3
+        if: ${{ github.event_name != 'merge_group' }} # Don't create cache entries for the merge queue.
+        with:
+          path: ${{ steps.restore-cache.inputs.path }}
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
