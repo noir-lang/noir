@@ -74,7 +74,6 @@ pub(super) fn simplify_call(
         Intrinsic::ArrayLen => {
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
-                let length = length / FieldElement::from(typ.element_size() as u128);
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
             } else if let Some(length) = dfg.get_numeric_constant(arguments[0]) {
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
@@ -103,7 +102,7 @@ pub(super) fn simplify_call(
                         }),
                         block,
                         None,
-                        None,
+                        dfg.get_value_call_stack(arguments[0]),
                     )
                     .first();
 
@@ -134,7 +133,7 @@ pub(super) fn simplify_call(
                         }),
                         block,
                         None,
-                        None,
+                        dfg.get_value_call_stack(arguments[0]),
                     )
                     .first();
 
@@ -174,7 +173,7 @@ pub(super) fn simplify_call(
                         }),
                         block,
                         None,
-                        None,
+                        dfg.get_value_call_stack(arguments[0]),
                     )
                     .first();
 
@@ -207,7 +206,7 @@ pub(super) fn simplify_call(
                         }),
                         block,
                         None,
-                        None,
+                        dfg.get_value_call_stack(arguments[0]),
                     )
                     .first();
                 results.push(new_slice_length);
@@ -246,7 +245,7 @@ pub(super) fn simplify_call(
                         }),
                         block,
                         None,
-                        None,
+                        dfg.get_value_call_stack(arguments[0]),
                     )
                     .first();
 
@@ -284,7 +283,7 @@ pub(super) fn simplify_call(
                         }),
                         block,
                         None,
-                        None,
+                        dfg.get_value_call_stack(arguments[0]),
                     )
                     .first();
                 results.insert(0, new_slice_length);
