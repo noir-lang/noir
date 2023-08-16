@@ -598,7 +598,7 @@ impl<'a> FunctionContext<'a> {
         let index = self.codegen_non_tuple_expression(index);
         let array_lvalue = Box::new(array_lvalue);
         let array_values = old_array.clone().into_value_list(self);
-        
+
         // A slice is represented as a tuple (length, slice contents)
         // We need to fetch the second
         if array_values.len() > 1 {
@@ -860,7 +860,7 @@ impl SharedContext {
 }
 
 /// Used to remember the results of each step of extracting a value from an ast::LValue
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(super) enum LValue {
     Ident,
     Index { old_array: ValueId, index: ValueId, array_lvalue: Box<LValue> },

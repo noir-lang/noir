@@ -120,19 +120,19 @@ impl<'a> FunctionContext<'a> {
         match literal {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
-                let typ = Self::convert_non_tuple_type(&array.typ);
-                let new_convert_type = Self::convert_type(&array.typ);
-
-                if new_convert_type.count_leaves() > 1 {
+                let contents_typ = Self::convert_non_tuple_type(&array.typ);
+                
+                let typ = Self::convert_type(&array.typ);
+                if typ.count_leaves() > 1 {
                     let slice_length = ast::Literal::Integer(
                         (array.contents.len() as u128).into(),
                         ast::Type::Field,
                     );
                     let slice_length = self.codegen_literal(&slice_length);
-                    let slice_contents = self.codegen_array(elements, typ);
+                    let slice_contents = self.codegen_array(elements, contents_typ);
                     Tree::Branch(vec![slice_length, slice_contents])
                 } else {
-                    self.codegen_array(elements, typ)
+                    self.codegen_array(elements, contents_typ)
                 }
             }
             ast::Literal::Integer(value, typ) => {
