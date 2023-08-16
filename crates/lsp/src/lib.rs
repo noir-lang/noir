@@ -264,7 +264,7 @@ fn on_code_lens_request(
                 lenses.push(compile_lens);
 
                 let execute_command = Command {
-                    title: format!("{EXECUTE_CODELENS_TITLE}"),
+                    title: EXECUTE_CODELENS_TITLE.to_string(),
                     command: EXECUTE_COMMAND.into(),
                     arguments: Some(vec![
                         "--program-dir".into(),
