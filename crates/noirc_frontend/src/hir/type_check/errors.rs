@@ -92,7 +92,7 @@ pub enum TypeCheckError {
     CallDeprecated { name: String, note: Option<String>, span: Span },
     #[error("{0}")]
     ResolverError(ResolverError),
-    #[error("Unused expression result (of type {expr_type})")]
+    #[error("Unused expression result of type {expr_type}")]
     UnusedResultError { expr_type: Type, expr_span: Span },
 }
 
