@@ -49,6 +49,13 @@ jobs:
   build-nargo:
     needs: [build-barretenberg]
     runs-on: ubuntu-22.04
+    env:
+      CACHED_PATHS: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
 
     steps:
       - name: Checkout Noir repo
@@ -57,12 +64,7 @@ jobs:
       - uses: actions/cache/restore@v3
         id: restore-cache
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
+          path: $CACHED_PATHS
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact

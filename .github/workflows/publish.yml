@@ -62,6 +62,12 @@ jobs:
     runs-on: macos-latest
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+      CACHED_PATHS: |
+        ~/.cargo/bin/
+        ~/.cargo/registry/index/
+        ~/.cargo/registry/cache/
+        ~/.cargo/git/db/
+        target/
     strategy:
       matrix:
         target: [x86_64-apple-darwin, aarch64-apple-darwin]
@@ -82,12 +88,7 @@ jobs:
       - uses: actions/cache/restore@v3
         id: restore-cache
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
+          path: $CACHED_PATHS
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
@@ -111,7 +112,7 @@ jobs:
         # Don't create cache entries for the merge queue.
         if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
-          path: ${{ steps.restore-cache.inputs.path }}
+          path: $CACHED_PATHS
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
       
       - name: Package artifacts
@@ -152,6 +153,12 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+      CACHED_PATHS: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
     strategy:
       fail-fast: false
       matrix:
@@ -172,12 +179,7 @@ jobs:
       - uses: actions/cache/restore@v3
         id: restore-cache
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
+          path: $CACHED_PATHS
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
@@ -202,7 +204,7 @@ jobs:
         # Don't create cache entries for the merge queue.
         if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
-          path: ${{ steps.restore-cache.inputs.path }}
+          path: $CACHED_PATHS
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
@@ -243,6 +245,12 @@ jobs:
     runs-on: windows-2022
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
+      CACHED_PATHS: |
+        ~/.cargo/bin/
+        ~/.cargo/registry/index/
+        ~/.cargo/registry/cache/
+        ~/.cargo/git/db/
+        target/
     strategy:
       matrix:
         target: [x86_64-pc-windows-msvc]
@@ -256,12 +264,7 @@ jobs:
       - uses: actions/cache/restore@v3
         id: restore-cache
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
+          path: $CACHED_PATHS
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
@@ -285,7 +288,7 @@ jobs:
         # Don't create cache entries for the merge queue.
         if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
-          path: ${{ steps.restore-cache.inputs.path }}
+          path: $CACHED_PATHS
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
