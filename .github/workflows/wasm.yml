@@ -141,7 +141,7 @@ jobs:
       - name: Export cache from nix store
         if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         run: |
-          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#wasm-cargo-artifacts
+          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#noir-wasm-cargo-artifacts
 
       - uses: actions/cache/save@v3
         # Write a cache entry even if the tests fail but don't create any for the merge queue.
