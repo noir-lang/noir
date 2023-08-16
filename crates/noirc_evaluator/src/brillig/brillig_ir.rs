@@ -858,7 +858,11 @@ impl BrilligContext {
         limb_count: RegisterIndex,
         big_endian: bool,
     ) {
+        let loop_iter_count = self.allocate_register();
+        self.mov_instruction(loop_iter_count, limb_count);
         self.mov_instruction(target_vector.size, limb_count);
+        // The full array that is returned is going to be the limb count + 1
+        self.usize_op_in_place(target_vector.size, BinaryIntOp::Add, 1usize);
         self.allocate_array_instruction(target_vector.pointer, target_vector.size);
 
         let shifted_register = self.allocate_register();
@@ -866,7 +870,7 @@ impl BrilligContext {
 
         let modulus_register: RegisterIndex = self.allocate_register();
 
-        self.loop_instruction(target_vector.size, |ctx, iterator_register| {
+        self.loop_instruction(loop_iter_count, |ctx, iterator_register| {
             // Compute the modulus
             ctx.modulo_instruction(
                 modulus_register,
