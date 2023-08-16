@@ -148,7 +148,7 @@ impl CrateDefMap {
                     let functions =
                         module.value_definitions().filter_map(|id| id.as_function()).collect();
                     let name = self.get_module_path(id, module.parent);
-                    Some(Contract { name, functions })
+                    Some(Contract { name, location: module.location, functions })
                 } else {
                     None
                 }
@@ -194,6 +194,7 @@ impl CrateDefMap {
 pub struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
+    pub location: Location,
     pub functions: Vec<FuncId>,
 }
 
