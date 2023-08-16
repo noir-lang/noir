@@ -206,12 +206,9 @@ struct Branch {
 }
 
 fn flatten_function_cfg(function: &mut Function) {
-    // TODO This pass will run forever on a brillig function.
-    // TODO In particular, analyze will check if the predecessors
-    // TODO have been processed and push the block to the back of the queue
-    // TODO This loops forever, if the predecessors are not then processed
-    // TODO Because it will visit the same block again, pop it out of the queue
-    // TODO then back into the queue again.
+    // This pass may run forever on a brillig function.
+    // Analyze will check if the predecessors have been processed and push the block to the back of
+    // the queue. This loops forever if there are still any loops present in the program.
     if let crate::ssa::ir::function::RuntimeType::Brillig = function.runtime() {
         return;
     }
