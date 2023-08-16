@@ -261,7 +261,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          
 
       - name: Download artifact
         uses: actions/download-artifact@v3
