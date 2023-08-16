@@ -597,17 +597,16 @@ impl<'a> FunctionContext<'a> {
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
         let index = self.codegen_non_tuple_expression(index);
         let array_lvalue = Box::new(array_lvalue);
-
+        let array_values = old_array.clone().into_value_list(self);
+        
         // A slice is represented as a tuple (length, slice contents)
         // We need to fetch the second
-        if old_array.count_leaves() > 1 {
-            let slice_values = old_array.clone().into_value_list(self);
+        if array_values.len() > 1 {
             let slice_lvalue =
                 LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue };
-            (slice_values[1], index, slice_lvalue, Some(slice_values[0]))
+            (array_values[1], index, slice_lvalue, Some(array_values[0]))
         } else {
-            let old_array = old_array.into_leaf().eval(self);
-            (old_array, index, LValue::Index { old_array, index, array_lvalue }, None)
+            (array_values[0], index, LValue::Index { old_array: array_values[0], index, array_lvalue }, None)
         }
     }
 
