@@ -1,5 +1,5 @@
 use acvm::{
-    acir::brillig::{ForeignCallResult, Value},
+    acir::brillig::{ForeignCallResult, ForeignCallOutput, Value},
     pwg::ForeignCallWaitInfo,
 };
 use iter_extended::vecmap;
@@ -54,13 +54,15 @@ impl ForeignCall {
             }
             Some(ForeignCall::Sequence) => {
                 let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
-
-                Ok(vecmap(0..sequence_length, Value::from).into())
+                let sequence = vecmap(0..sequence_length, Value::from);
+                
+                Ok(ForeignCallResult { values: vec![ForeignCallOutput::Single(sequence_length.into()), ForeignCallOutput::Array(sequence) ] })
             }
             Some(ForeignCall::ReverseSequence) => {
                 let sequence_length: u128 = foreign_call.inputs[0][0].to_field().to_u128();
+                let sequence = vecmap((0..sequence_length).rev(), Value::from);
 
-                Ok(vecmap((0..sequence_length).rev(), Value::from).into())
+                Ok(ForeignCallResult { values: vec![ForeignCallOutput::Single(sequence_length.into()), ForeignCallOutput::Array(sequence) ] })
             }
             None => panic!("unexpected foreign call {:?}", foreign_call_name),
         }

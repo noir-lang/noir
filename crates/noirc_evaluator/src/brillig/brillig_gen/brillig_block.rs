@@ -233,9 +233,6 @@ impl<'block> BrilligBlock<'block> {
                 self.brillig_context.store_variable_instruction(address_register, source_variable);
             }
             Instruction::Load { address } => {
-                // println!("LOAD: {address}");
-                // dbg!(dfg.type_of_value(*address));
-                // dbg!(&dfg[*address]);
                 let target_variable = self.function_context.create_variable(
                     self.brillig_context,
                     dfg.instruction_results(instruction_id)[0],
@@ -274,13 +271,21 @@ impl<'block> BrilligBlock<'block> {
                         &output_registers,
                     );
 
-                    for output_register in output_registers {
+                    for (i, output_register) in output_registers.iter().enumerate() {
                         if let RegisterOrMemory::HeapVector(HeapVector { size, .. }) =
                             output_register
                         {
                             // Update the stack pointer so that we do not overwrite
                             // dynamic memory returned from other external calls
-                            self.brillig_context.update_stack_pointer(size);
+                            self.brillig_context.update_stack_pointer(*size);
+                            
+                            if let RegisterOrMemory::RegisterIndex(len_index) = output_registers[i - 1] {
+                                let element_size = dfg[result_ids[i]].get_type().element_size();
+                                self.brillig_context.mov_instruction(len_index, *size);
+                                self.brillig_context.usize_op_in_place(len_index, BinaryIntOp::UnsignedDiv, element_size);
+                            } else {
+                                unreachable!("ICE: a vector must be preceded by a register containing its length");
+                            }
                         }
                         // Single values and allocation of fixed sized arrays has already been handled
                         // inside of `allocate_external_call_result`
@@ -304,21 +309,14 @@ impl<'block> BrilligBlock<'block> {
                     );
                 }
                 Value::Intrinsic(Intrinsic::ArrayLen) => {
-                    dbg!("got into ArrayLen");
                     let result_register = self.function_context.create_register_variable(
                         self.brillig_context,
                         dfg.instruction_results(instruction_id)[0],
                         dfg,
                     );
                     let param_id = arguments[0];
-                    dbg!(dfg.type_of_value(param_id));
-                    dbg!(&dfg[arguments[0]]);
-                    if let Type::Numeric(numeric_type) = dfg.type_of_value(param_id) {
-                        dbg!(numeric_type);
-                        // self.brillig_context
-                        //     .const_instruction(result_register, (constant).into());
-                        let len = self.convert_ssa_value(arguments[0], dfg);
-                        dbg!(len);
+                    if let Type::Numeric(_) = dfg.type_of_value(param_id) {
+                        self.convert_ssa_value(arguments[0], dfg);
                     } else {
                         self.convert_ssa_array_len(arguments[0], result_register, dfg);
                     }
@@ -675,8 +673,7 @@ impl<'block> BrilligBlock<'block> {
                     item_values.len() / element_size,
                 );
 
-                self.slice_push_back_operation(target_vector, source_vector, &item_values, target_len, source_len);
-                dbg!("finished slice_push_back");
+                self.slice_push_back_operation(target_vector, source_vector, &item_values);
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) => {
                 let results = dfg.instruction_results(instruction_id);
@@ -710,7 +707,7 @@ impl<'block> BrilligBlock<'block> {
                     item_values.len() / element_size,
                 );
 
-                self.slice_push_front_operation(target_vector, source_vector, &item_values, target_len, source_len);
+                self.slice_push_front_operation(target_vector, source_vector, &item_values);
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) => {
                 let results = dfg.instruction_results(instruction_id);
@@ -743,7 +740,7 @@ impl<'block> BrilligBlock<'block> {
                     pop_variables.len() / element_size,
                 );
 
-                self.slice_pop_back_operation(target_vector, source_vector, &pop_variables, target_len, source_len);
+                self.slice_pop_back_operation(target_vector, source_vector, &pop_variables);
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
                 let results = dfg.instruction_results(instruction_id);
@@ -778,7 +775,7 @@ impl<'block> BrilligBlock<'block> {
                 );
                 let target_vector = self.brillig_context.extract_heap_vector(target_variable);
 
-                self.slice_pop_front_operation(target_vector, source_vector, &pop_variables, target_len, source_len);
+                self.slice_pop_front_operation(target_vector, source_vector, &pop_variables);
             }
             Value::Intrinsic(Intrinsic::SliceInsert) => {
                 let results = dfg.instruction_results(instruction_id);
@@ -825,7 +822,7 @@ impl<'block> BrilligBlock<'block> {
                     items.len() / element_size,
                 );
 
-                self.slice_insert_operation(target_vector, source_vector, converted_index, &items, target_len, source_len);
+                self.slice_insert_operation(target_vector, source_vector, converted_index, &items);
                 self.brillig_context.deallocate_register(converted_index);
             }
             Value::Intrinsic(Intrinsic::SliceRemove) => {
@@ -877,8 +874,6 @@ impl<'block> BrilligBlock<'block> {
                     source_vector,
                     converted_index,
                     &removed_items,
-                    target_len,
-                    source_len,
                 );
 
                 self.brillig_context.deallocate_register(converted_index);
