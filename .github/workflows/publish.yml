@@ -79,7 +79,7 @@ jobs:
           echo "SDKROOT=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-path)" >> $GITHUB_ENV
           echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
 
-      - uses: actions/cache@v3
+      - uses: ./.github/actions/cache
         with:
           path: |
             ~/.cargo/bin/
@@ -88,6 +88,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          read-only: ${{ github.event_name == 'merge_group' }}
 
       - name: Download artifact
         uses: actions/download-artifact@v3
@@ -161,7 +162,7 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
-      - uses: actions/cache@v3
+      - uses: ./.github/actions/cache
         with:
           path: |
             ~/.cargo/bin/
@@ -170,6 +171,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          read-only: ${{ github.event_name == 'merge_group' }}
 
       - name: Download artifact
         uses: actions/download-artifact@v3
@@ -237,7 +239,7 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
-      - uses: actions/cache@v3
+      - uses: ./.github/actions/cache
         with:
           path: |
             ~/.cargo/bin/
@@ -246,6 +248,7 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          read-only: ${{ github.event_name == 'merge_group' }}
 
       - name: Download artifact
         uses: actions/download-artifact@v3

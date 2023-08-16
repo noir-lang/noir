@@ -38,10 +38,11 @@ jobs:
 
       - name: Restore nix store cache
         id: nix-store-cache
-        uses: actions/cache@v3
+        uses: ./.github/actions/cache
         with:
           path: /tmp/nix-cache
           key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
+          read-only: ${{ github.event_name == 'merge_group' }}
 
       # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
       - name: Copy cache into nix store

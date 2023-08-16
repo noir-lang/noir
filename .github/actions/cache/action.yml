@@ -1,0 +1,38 @@
+name: Cache
+description: 'A wrapper around `actions/cache` which exposes an additional `read-only` input to conditionally write new cache entries'
+
+inputs:
+  path:
+    description: 'A list of files, directories, and wildcard patterns to cache and restore'
+    required: true
+  key:
+    description: 'An explicit key for restoring and saving the cache'
+    required: true
+  read-only:
+    description: 'Do not write cache artifacts in the case of a missed cache'
+    default: 'false'
+    required: false
+
+outputs:
+  cache-hit:
+    description: 'A boolean value to indicate an exact match was found for the primary key'
+    value: ${{ steps.cache.outputs.cache-hit || steps.restore.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+
+    - id: restore
+      uses: actions/cache/restore@v3
+      if: ${{ inputs.read_only }}
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}
+
+    - id: cache
+      uses: actions/cache@v3
+      if: ${{ !inputs.read_only }}
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}  
+    
