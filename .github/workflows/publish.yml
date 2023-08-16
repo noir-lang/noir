@@ -88,7 +88,7 @@ jobs:
       - uses: actions/cache/restore@v3
         id: restore-cache
         with:
-          path: $CACHED_PATHS
+          path: ${{ env.CACHED_PATHS }}
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
@@ -112,7 +112,7 @@ jobs:
         # Don't create cache entries for the merge queue.
         if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
-          path: $CACHED_PATHS
+          path: ${{ env.CACHED_PATHS }}
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
       
       - name: Package artifacts
@@ -179,7 +179,7 @@ jobs:
       - uses: actions/cache/restore@v3
         id: restore-cache
         with:
-          path: $CACHED_PATHS
+          path: ${{ env.CACHED_PATHS }}
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
@@ -204,7 +204,7 @@ jobs:
         # Don't create cache entries for the merge queue.
         if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
-          path: $CACHED_PATHS
+          path: ${{ env.CACHED_PATHS }}
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
@@ -264,7 +264,7 @@ jobs:
       - uses: actions/cache/restore@v3
         id: restore-cache
         with:
-          path: $CACHED_PATHS
+          path: ${{ env.CACHED_PATHS }}
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
@@ -288,7 +288,7 @@ jobs:
         # Don't create cache entries for the merge queue.
         if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
-          path: $CACHED_PATHS
+          path: ${{ env.CACHED_PATHS }}
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
