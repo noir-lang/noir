@@ -14,9 +14,12 @@ mod stmt;
 pub use errors::TypeCheckError;
 
 use crate::{
+    hir_def::{expr::HirExpression, stmt::HirStatement},
     node_interner::{ExprId, FuncId, NodeInterner, StmtId},
     Type,
 };
+
+use self::errors::Source;
 
 type TypeCheckFn = Box<dyn FnOnce() -> Result<(), TypeCheckError>>;
 
@@ -57,21 +60,56 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
 
     // Check declared return type and actual return type
     if !can_ignore_ret {
+        let (expr_span, empty_function) = function_info(interner, function_body_id);
+
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
         function_last_type.unify_with_coercions(
             &declared_return_type,
             *function_body_id,
             interner,
             &mut errors,
-            || TypeCheckError::TypeMismatch {
-                expected_typ: declared_return_type.to_string(),
-                expr_typ: function_last_type.to_string(),
-                expr_span: func_span,
+            || {
+                let mut error = TypeCheckError::TypeMismatchWithSource {
+                    lhs: declared_return_type.clone(),
+                    rhs: function_last_type.clone(),
+                    span: func_span,
+                    source: Source::Return(meta.return_type, expr_span),
+                };
+
+                if empty_function {
+                    error = error.add_context(
+                        "implicitly returns `()` as its body has no tail or `return` expression",
+                    );
+                }
+
+                error
             },
         );
     }
 
     errors
+}
+
+fn function_info(
+    interner: &mut NodeInterner,
+    function_body_id: &ExprId,
+) -> (noirc_errors::Span, bool) {
+    let (expr_span, empty_function) =
+        if let HirExpression::Block(block) = interner.expression(function_body_id) {
+            let last_stmt = block.statements().last();
+            let mut span = interner.expr_span(function_body_id);
+
+            if let Some(last_stmt) = last_stmt {
+                if let HirStatement::Expression(expr) = interner.statement(last_stmt) {
+                    span = interner.expr_span(&expr);
+                }
+            }
+
+            (span, last_stmt.is_none())
+        } else {
+            (interner.expr_span(function_body_id), false)
+        };
+    (expr_span, empty_function)
 }
 
 impl<'interner> TypeChecker<'interner> {
@@ -149,7 +187,6 @@ mod test {
         stmt::HirStatement,
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
-    use crate::BinaryOpKind;
     use crate::{
         hir::{
             def_map::{CrateDefMap, LocalModuleId, ModuleDefId},
@@ -157,6 +194,7 @@ mod test {
         },
         parse_program, FunctionKind, Path,
     };
+    use crate::{BinaryOpKind, FunctionReturnType};
 
     #[test]
     fn basic_let() {
@@ -237,6 +275,7 @@ mod test {
             return_visibility: noirc_abi::AbiVisibility::Private,
             return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
             has_body: true,
+            return_type: FunctionReturnType::Default(Span::default()),
         };
         interner.push_fn_meta(func_meta, func_id);
 

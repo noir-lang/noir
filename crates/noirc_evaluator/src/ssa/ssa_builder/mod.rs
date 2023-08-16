@@ -14,7 +14,7 @@ use crate::ssa::ir::{
 use super::{
     ir::{
         basic_block::BasicBlock,
-        dfg::InsertInstructionResult,
+        dfg::{CallStack, InsertInstructionResult},
         function::RuntimeType,
         instruction::{InstructionId, Intrinsic},
     },
@@ -32,7 +32,7 @@ pub(crate) struct FunctionBuilder {
     pub(super) current_function: Function,
     current_block: BasicBlockId,
     finished_functions: Vec<Function>,
-    current_location: Option<Location>,
+    call_stack: CallStack,
 }
 
 impl FunctionBuilder {
@@ -53,7 +53,7 @@ impl FunctionBuilder {
             current_function: new_function,
             current_block,
             finished_functions: Vec::new(),
-            current_location: None,
+            call_stack: CallStack::new(),
         }
     }
 
@@ -150,7 +150,7 @@ impl FunctionBuilder {
             instruction,
             self.current_block,
             ctrl_typevars,
-            self.current_location,
+            self.call_stack.clone(),
         )
     }
 
@@ -174,7 +174,12 @@ impl FunctionBuilder {
     }
 
     pub(crate) fn set_location(&mut self, location: Location) -> &mut FunctionBuilder {
-        self.current_location = Some(location);
+        self.call_stack = im::Vector::unit(location);
+        self
+    }
+
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) -> &mut FunctionBuilder {
+        self.call_stack = call_stack;
         self
     }
 
@@ -281,19 +286,12 @@ impl FunctionBuilder {
         destination: BasicBlockId,
         arguments: Vec<ValueId>,
     ) {
-        self.terminate_with_jmp_with_location(destination, arguments, None);
-    }
-
-    /// Terminate the current block with a jmp instruction to jmp to the given
-    /// block with the given arguments. This version also remembers the Location of the jmp
-    /// for issuing error messages.
-    pub(crate) fn terminate_with_jmp_with_location(
-        &mut self,
-        destination: BasicBlockId,
-        arguments: Vec<ValueId>,
-        location: Option<Location>,
-    ) {
-        self.terminate_block_with(TerminatorInstruction::Jmp { destination, arguments, location });
+        let call_stack = self.call_stack.clone();
+        self.terminate_block_with(TerminatorInstruction::Jmp {
+            destination,
+            arguments,
+            call_stack,
+        });
     }
 
     /// Terminate the current block with a jmpif instruction to jmp with the given arguments

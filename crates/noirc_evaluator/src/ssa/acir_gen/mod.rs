@@ -6,6 +6,7 @@ use std::fmt::Debug;
 use std::ops::RangeInclusive;
 
 use self::acir_ir::acir_variable::{AcirContext, AcirType, AcirVar};
+use super::ir::dfg::CallStack;
 use super::{
     ir::{
         dfg::DataFlowGraph,
@@ -93,7 +94,7 @@ impl AcirValue {
             AcirValue::Var(var, _) => Ok(var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
                 message: "Called AcirValue::into_var on an array".to_string(),
-                location: None,
+                call_stack: CallStack::new(),
             }),
         }
     }
@@ -320,8 +321,7 @@ impl Context {
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
-        self.acir_context.set_location(dfg.get_location(&instruction_id));
-        // dbg!(instruction.clone());
+        self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
@@ -427,7 +427,7 @@ impl Context {
                 unreachable!("Expected all load instructions to be removed before acir_gen")
             }
         }
-        self.acir_context.set_location(None);
+        self.acir_context.set_call_stack(CallStack::new());
         Ok(())
     }
 
@@ -450,7 +450,7 @@ impl Context {
                 None => {
                     return Err(InternalError::General {
                         message: format!("Cannot find linked fn {unresolved_fn_label}"),
-                        location: None,
+                        call_stack: CallStack::new(),
                     })
                 }
             };
@@ -479,7 +479,7 @@ impl Context {
                 return Err(RuntimeError::InternalError(InternalError::UnExpected {
                     expected: "an array value".to_string(),
                     found: format!("{acir_var:?}"),
-                    location: self.acir_context.get_location(),
+                    call_stack: self.acir_context.get_call_stack(),
                 }))
             }
             AcirValue::Array(array) => {
@@ -488,11 +488,11 @@ impl Context {
                     let index = match index_const.try_to_u64() {
                         Some(index_const) => index_const as usize,
                         None => {
-                            let location = self.acir_context.get_location();
+                            let call_stack = self.acir_context.get_call_stack();
                             return Err(RuntimeError::TypeConversion {
                                 from: "array index".to_string(),
                                 into: "u64".to_string(),
-                                location,
+                                call_stack,
                             });
                         }
                     };
@@ -500,11 +500,11 @@ impl Context {
                         // Ignore the error if side effects are disabled.
                         if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
                         {
-                            let location = self.acir_context.get_location();
+                            let call_stack = self.acir_context.get_call_stack();
                             return Err(RuntimeError::IndexOutOfBounds {
                                 index,
                                 array_size,
-                                location,
+                                call_stack,
                             });
                         }
                         let result_type =
@@ -559,7 +559,7 @@ impl Context {
                 _ => {
                     return Err(RuntimeError::UnInitialized {
                         name: "array".to_string(),
-                        location: self.acir_context.get_location(),
+                        call_stack: self.acir_context.get_call_stack(),
                     })
                 }
             }
@@ -621,7 +621,7 @@ impl Context {
                 _ => {
                     return Err(InternalError::General {
                         message: format!("Array {array} should be initialized"),
-                        location: self.acir_context.get_location(),
+                        call_stack: self.acir_context.get_call_stack(),
                     })
                 }
             }
@@ -771,12 +771,12 @@ impl Context {
             AcirValue::Array(array) => Err(InternalError::UnExpected {
                 expected: "a numeric value".to_string(),
                 found: format!("{array:?}"),
-                location: self.acir_context.get_location(),
+                call_stack: self.acir_context.get_call_stack(),
             }),
             AcirValue::DynamicArray(_) => Err(InternalError::UnExpected {
                 expected: "a numeric value".to_string(),
                 found: "an array".to_string(),
-                location: self.acir_context.get_location(),
+                call_stack: self.acir_context.get_call_stack(),
             }),
         }
     }
@@ -802,7 +802,7 @@ impl Context {
                     return Err(RuntimeError::UnsupportedIntegerSize {
                         num_bits: *bit_size,
                         max_num_bits: max_integer_bit_size,
-                        location: self.acir_context.get_location(),
+                        call_stack: self.acir_context.get_call_stack(),
                     });
                 }
             }

@@ -2,6 +2,7 @@ use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
+use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
@@ -21,7 +22,6 @@ use acvm::{
 };
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError};
 use iter_extended::{try_vecmap, vecmap};
-use noirc_errors::Location;
 use std::collections::HashMap;
 use std::{borrow::Cow, hash::Hash};
 
@@ -153,12 +153,12 @@ impl AcirContext {
         self.add_data(var_data)
     }
 
-    pub(crate) fn get_location(&self) -> Option<Location> {
-        self.acir_ir.current_location
+    pub(crate) fn get_call_stack(&self) -> CallStack {
+        self.acir_ir.call_stack.clone()
     }
 
-    pub(crate) fn set_location(&mut self, location: Option<Location>) {
-        self.acir_ir.current_location = location;
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+        self.acir_ir.call_stack = call_stack;
     }
 
     /// Converts an [`AcirVar`] to a [`Witness`]
@@ -171,7 +171,9 @@ impl AcirContext {
     fn var_to_expression(&self, var: AcirVar) -> Result<Expression, InternalError> {
         let var_data = match self.vars.get(&var) {
             Some(var_data) => var_data,
-            None => return Err(InternalError::UndeclaredAcirVar { location: self.get_location() }),
+            None => {
+                return Err(InternalError::UndeclaredAcirVar { call_stack: self.get_call_stack() })
+            }
         };
         Ok(var_data.to_expression().into_owned())
     }
@@ -338,7 +340,7 @@ impl AcirContext {
                 Err(RuntimeError::FailedConstraint {
                     lhs: *lhs_const,
                     rhs: *rhs_const,
-                    location: self.get_location(),
+                    call_stack: self.get_call_stack(),
                 })
             }
         } else {
@@ -673,7 +675,7 @@ impl AcirContext {
                         return Err(RuntimeError::InternalError(InternalError::MissingArg {
                             name: "pedersen call".to_string(),
                             arg: "domain separator".to_string(),
-                            location: self.get_location(),
+                            call_stack: self.get_call_stack(),
                         }))
                     }
                 };
@@ -683,7 +685,7 @@ impl AcirContext {
                     None => {
                         return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                             name: "domain separator".to_string(),
-                            location: self.get_location(),
+                            call_stack: self.get_call_stack(),
                         }))
                     }
                 };
@@ -749,7 +751,7 @@ impl AcirContext {
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "radix".to_string(),
-                    location: self.get_location(),
+                    call_stack: self.get_call_stack(),
                 }));
             }
         };
@@ -759,7 +761,7 @@ impl AcirContext {
             None => {
                 return Err(RuntimeError::InternalError(InternalError::NotAConstant {
                     name: "limb_size".to_string(),
-                    location: self.get_location(),
+                    call_stack: self.get_call_stack(),
                 }));
             }
         };

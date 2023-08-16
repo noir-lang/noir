@@ -294,6 +294,10 @@ pub(super) fn simplify_call(
                 SimplifyResult::None
             }
         }
+        Intrinsic::StrAsBytes => {
+            // Strings are already represented as bytes internally
+            SimplifyResult::SimplifiedTo(arguments[0])
+        }
         Intrinsic::AssertConstant => {
             if arguments.iter().all(|argument| dfg.is_constant(*argument)) {
                 SimplifyResult::Remove

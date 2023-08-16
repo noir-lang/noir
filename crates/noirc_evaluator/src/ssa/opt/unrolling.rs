@@ -14,15 +14,13 @@
 //! program that will need to be removed by a later simplify cfg pass.
 use std::collections::{HashMap, HashSet};
 
-use noirc_errors::Location;
-
 use crate::{
     errors::RuntimeError,
     ssa::{
         ir::{
             basic_block::BasicBlockId,
             cfg::ControlFlowGraph,
-            dfg::DataFlowGraph,
+            dfg::{CallStack, DataFlowGraph},
             dom::DominatorTree,
             function::{Function, RuntimeType},
             function_inserter::FunctionInserter,
@@ -46,7 +44,6 @@ impl Ssa {
     }
 }
 
-#[derive(Debug)]
 pub(crate) struct Loop {
     /// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
@@ -66,7 +63,7 @@ pub(crate) struct Loops {
     pub(crate) failed_to_unroll: HashSet<BasicBlockId>,
 
     pub(crate) yet_to_unroll: Vec<Loop>,
-    pub(crate) modified_blocks: HashSet<BasicBlockId>,
+    modified_blocks: HashSet<BasicBlockId>,
     cfg: ControlFlowGraph,
     dom_tree: DominatorTree,
 }
@@ -127,8 +124,8 @@ impl Loops {
             if !self.failed_to_unroll.contains(&next_loop.header) {
                 match unroll_loop(function, &self.cfg, &next_loop) {
                     Ok(_) => self.modified_blocks.extend(next_loop.blocks),
-                    Err(location) if abort_on_error => {
-                        return Err(RuntimeError::UnknownLoopBound { location });
+                    Err(call_stack) if abort_on_error => {
+                        return Err(RuntimeError::UnknownLoopBound { call_stack });
                     }
                     Err(_) => {
                         self.failed_to_unroll.insert(next_loop.header);
@@ -177,7 +174,7 @@ fn unroll_loop(
     function: &mut Function,
     cfg: &ControlFlowGraph,
     loop_: &Loop,
-) -> Result<(), Option<Location>> {
+) -> Result<(), CallStack> {
     let mut unroll_into = get_pre_header(cfg, loop_);
     let mut jump_value = get_induction_variable(function, unroll_into)?;
 
@@ -207,12 +204,9 @@ fn get_pre_header(cfg: &ControlFlowGraph, loop_: &Loop) -> BasicBlockId {
 ///
 /// Expects the current block to terminate in `jmp h(N)` where h is the loop header and N is
 /// a Field value.
-fn get_induction_variable(
-    function: &Function,
-    block: BasicBlockId,
-) -> Result<ValueId, Option<Location>> {
+fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, CallStack> {
     match function.dfg[block].terminator() {
-        Some(TerminatorInstruction::Jmp { arguments, location, .. }) => {
+        Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
             // block parameters. If that becomes the case we'll need to figure out which variable
             // is generally constant and increasing to guess which parameter is the induction
@@ -222,10 +216,10 @@ fn get_induction_variable(
             if function.dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
             } else {
-                Err(*location)
+                Err(location.clone())
             }
         }
-        _ => Err(None),
+        _ => Err(CallStack::new()),
     }
 }
 
@@ -237,7 +231,7 @@ fn unroll_loop_header<'a>(
     loop_: &'a Loop,
     unroll_into: BasicBlockId,
     induction_value: ValueId,
-) -> Result<Option<LoopIteration<'a>>, Option<Location>> {
+) -> Result<Option<LoopIteration<'a>>, CallStack> {
     // We insert into a fresh block first and move instructions into the unroll_into block later
     // only once we verify the jmpif instruction has a constant condition. If it does not, we can
     // just discard this fresh block and leave the loop unmodified.
@@ -270,7 +264,7 @@ fn unroll_loop_header<'a>(
             } else {
                 // If this case is reached the loop either uses non-constant indices or we need
                 // another pass, such as mem2reg to resolve them to constants.
-                Err(context.inserter.function.dfg.get_value_location(&condition))
+                Err(context.inserter.function.dfg.get_value_call_stack(condition))
             }
         }
         other => unreachable!("Expected loop header to terminate in a JmpIf to the loop body, but found {other:?} instead"),
@@ -362,7 +356,7 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 self.handle_jmpif(*condition, *then_destination, *else_destination)
             }
-            TerminatorInstruction::Jmp { destination, arguments, location: _ } => {
+            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     assert_eq!(arguments.len(), 1);
                     self.induction_value = Some((self.insert_block, arguments[0]));
@@ -392,7 +386,11 @@ impl<'f> LoopIteration<'f> {
                 self.source_block = self.get_original_block(destination);
 
                 let arguments = Vec::new();
-                let jmp = TerminatorInstruction::Jmp { destination, arguments, location: None };
+                let jmp = TerminatorInstruction::Jmp {
+                    destination,
+                    arguments,
+                    call_stack: CallStack::new(),
+                };
                 self.inserter.function.dfg.set_block_terminator(self.insert_block, jmp);
                 vec![destination]
             }

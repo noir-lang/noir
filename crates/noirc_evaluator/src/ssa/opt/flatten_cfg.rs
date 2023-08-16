@@ -135,13 +135,12 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_errors::Location;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::InsertInstructionResult,
+        dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
@@ -260,7 +259,7 @@ impl<'f> Context<'f> {
                     self.inline_branch(block, then_block, old_condition, then_condition, one);
 
                 let else_condition =
-                    self.insert_instruction(Instruction::Not(then_condition), None);
+                    self.insert_instruction(Instruction::Not(then_condition), CallStack::new());
                 let zero = FieldElement::zero();
 
                 // Make sure the else branch sees the previous values of each store
@@ -285,7 +284,7 @@ impl<'f> Context<'f> {
                 let end = self.branch_ends[&block];
                 self.inline_branch_end(end, then_branch, else_branch)
             }
-            TerminatorInstruction::Jmp { destination, arguments, location: _ } => {
+            TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if let Some((end_block, _)) = self.conditions.last() {
                     if destination == end_block {
                         return block;
@@ -317,7 +316,7 @@ impl<'f> Context<'f> {
 
         if let Some((_, previous_condition)) = self.conditions.last() {
             let and = Instruction::binary(BinaryOp::And, *previous_condition, condition);
-            let new_condition = self.insert_instruction(and, None);
+            let new_condition = self.insert_instruction(and, CallStack::new());
             self.conditions.push((end_block, new_condition));
         } else {
             self.conditions.push((end_block, condition));
@@ -327,16 +326,12 @@ impl<'f> Context<'f> {
     /// Insert a new instruction into the function's entry block.
     /// Unlike push_instruction, this function will not map any ValueIds.
     /// within the given instruction, nor will it modify self.values in any way.
-    fn insert_instruction(
-        &mut self,
-        instruction: Instruction,
-        location: Option<Location>,
-    ) -> ValueId {
+    fn insert_instruction(&mut self, instruction: Instruction, call_stack: CallStack) -> ValueId {
         let block = self.inserter.function.entry_block();
         self.inserter
             .function
             .dfg
-            .insert_instruction_and_results(instruction, block, None, location)
+            .insert_instruction_and_results(instruction, block, None, call_stack)
             .first()
     }
 
@@ -354,7 +349,7 @@ impl<'f> Context<'f> {
             instruction,
             block,
             ctrl_typevars,
-            None,
+            CallStack::new(),
         )
     }
 
@@ -532,22 +527,27 @@ impl<'f> Context<'f> {
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
         );
 
-        let then_location = self.inserter.function.dfg.get_value_location(&then_value);
-        let else_location = self.inserter.function.dfg.get_value_location(&else_value);
-        let merge_location = then_location.or(else_location);
+        let then_call_stack = self.inserter.function.dfg.get_value_call_stack(then_value);
+        let else_call_stack = self.inserter.function.dfg.get_value_call_stack(else_value);
+
+        let call_stack = if then_call_stack.is_empty() {
+            else_call_stack.clone()
+        } else {
+            then_call_stack.clone()
+        };
 
         // We must cast the bool conditions to the actual numeric type used by each value.
         let then_condition =
-            self.insert_instruction(Instruction::Cast(then_condition, then_type), then_location);
+            self.insert_instruction(Instruction::Cast(then_condition, then_type), then_call_stack);
         let else_condition =
-            self.insert_instruction(Instruction::Cast(else_condition, else_type), else_location);
+            self.insert_instruction(Instruction::Cast(else_condition, else_type), else_call_stack);
 
         let mul = Instruction::binary(BinaryOp::Mul, then_condition, then_value);
         let then_value = self
             .inserter
             .function
             .dfg
-            .insert_instruction_and_results(mul, block, None, merge_location)
+            .insert_instruction_and_results(mul, block, None, call_stack.clone())
             .first();
 
         let mul = Instruction::binary(BinaryOp::Mul, else_condition, else_value);
@@ -555,14 +555,14 @@ impl<'f> Context<'f> {
             .inserter
             .function
             .dfg
-            .insert_instruction_and_results(mul, block, None, merge_location)
+            .insert_instruction_and_results(mul, block, None, call_stack.clone())
             .first();
 
         let add = Instruction::binary(BinaryOp::Add, then_value, else_value);
         self.inserter
             .function
             .dfg
-            .insert_instruction_and_results(add, block, None, merge_location)
+            .insert_instruction_and_results(add, block, None, call_stack)
             .first()
     }
 
@@ -748,12 +748,12 @@ impl<'f> Context<'f> {
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
     fn push_instruction(&mut self, id: InstructionId) {
-        let (instruction, location) = self.inserter.map_instruction(id);
-        let instruction = self.handle_instruction_side_effects(instruction, location);
+        let (instruction, call_stack) = self.inserter.map_instruction(id);
+        let instruction = self.handle_instruction_side_effects(instruction, call_stack.clone());
         let is_allocate = matches!(instruction, Instruction::Allocate);
 
         let entry = self.inserter.function.entry_block();
-        let results = self.inserter.push_instruction_value(instruction, id, entry, location);
+        let results = self.inserter.push_instruction_value(instruction, id, entry, call_stack);
 
         // Remember an allocate was created local to this branch so that we do not try to merge store
         // values across branches for it later.
@@ -767,18 +767,18 @@ impl<'f> Context<'f> {
     fn handle_instruction_side_effects(
         &mut self,
         instruction: Instruction,
-        location: Option<Location>,
+        call_stack: CallStack,
     ) -> Instruction {
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
                 Instruction::Constrain(value) => {
                     let mul = self.insert_instruction(
                         Instruction::binary(BinaryOp::Mul, value, condition),
-                        location,
+                        call_stack.clone(),
                     );
                     let eq = self.insert_instruction(
                         Instruction::binary(BinaryOp::Eq, mul, condition),
-                        location,
+                        call_stack,
                     );
                     Instruction::Constrain(eq)
                 }

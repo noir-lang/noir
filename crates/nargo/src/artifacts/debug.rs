@@ -30,7 +30,12 @@ impl DebugArtifact {
 
         let files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
             .iter()
-            .flat_map(|function_symbols| function_symbols.locations.values().map(|loc| loc.file))
+            .flat_map(|function_symbols| {
+                function_symbols
+                    .locations
+                    .values()
+                    .filter_map(|call_stack| call_stack.last().map(|location| location.file))
+            })
             .collect();
 
         for file_id in files_with_debug_symbols {

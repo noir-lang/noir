@@ -77,7 +77,7 @@ fn evaluate_assert_constant(
     if arguments.iter().all(|arg| function.dfg.is_constant(*arg)) {
         Ok(false)
     } else {
-        let location = function.dfg.get_location(&instruction);
-        Err(RuntimeError::AssertConstantFailed { location })
+        let call_stack = function.dfg.get_call_stack(instruction);
+        Err(RuntimeError::AssertConstantFailed { call_stack })
     }
 }
