@@ -209,7 +209,7 @@ impl From<TypeCheckError> for Diagnostic {
             }
             TypeCheckError::UnusedResultError { expr_type, expr_span } => {
                 Diagnostic::simple_warning(
-                    format!("Unused expression result (of type {expr_type})"),
+                    format!("Unused expression result of type {expr_type}"),
                     String::new(),
                     expr_span,
                 )
