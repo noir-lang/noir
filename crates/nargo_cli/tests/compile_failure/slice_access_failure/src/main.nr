@@ -9,11 +9,3 @@ fn main(x : Field, y : pub Field) {
     // This constraint should fail as the slice length is 2 and the index is 2
     assert(slice[2] == 0);
 }
-
-#[test]
-fn test_main() {
-    main(1, 2);
-
-    // Uncomment to make test fail
-    // main(1, 1);
-}
