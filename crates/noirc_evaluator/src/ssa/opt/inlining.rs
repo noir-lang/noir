@@ -7,6 +7,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use iter_extended::{btree_map, vecmap};
 
 use crate::ssa::{
+    function_builder::FunctionBuilder,
     ir::{
         basic_block::BasicBlockId,
         dfg::{CallStack, InsertInstructionResult},
@@ -14,7 +15,6 @@ use crate::ssa::{
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
-    ssa_builder::FunctionBuilder,
     ssa_gen::Ssa,
 };
 
@@ -504,6 +504,7 @@ mod test {
     use acvm::FieldElement;
 
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
             function::RuntimeType,
@@ -511,7 +512,6 @@ mod test {
             map::Id,
             types::Type,
         },
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]

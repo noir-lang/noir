@@ -1135,8 +1135,8 @@ mod tests {
     use crate::{
         brillig::Brillig,
         ssa::{
+            function_builder::FunctionBuilder,
             ir::{function::RuntimeType, map::Id, types::Type},
-            ssa_builder::FunctionBuilder,
         },
     };
 

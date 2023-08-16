@@ -25,9 +25,9 @@ use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ssa_gen::Ssa};
 
 mod abi_gen;
 mod acir_gen;
+mod function_builder;
 pub mod ir;
 mod opt;
-mod ssa_builder;
 pub mod ssa_gen;
 
 /// Optimize the given program by converting it into SSA

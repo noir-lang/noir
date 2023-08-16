@@ -454,8 +454,8 @@ impl<'f> LoopIteration<'f> {
 #[cfg(test)]
 mod tests {
     use crate::ssa::{
+        function_builder::FunctionBuilder,
         ir::{function::RuntimeType, instruction::BinaryOp, map::Id, types::Type},
-        ssa_builder::FunctionBuilder,
     };
 
     #[test]
