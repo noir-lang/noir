@@ -3,7 +3,7 @@
 name = "private_token_contract"
 authors = [""]
 compiler_version = "0.1"
-type = "bin"
+type = "contract"
 
 [dependencies]
 # highlight-next-line:importing-aztec

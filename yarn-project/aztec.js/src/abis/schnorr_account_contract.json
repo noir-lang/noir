@@ -84,6 +84,7 @@
           "name": "payload",
           "type": {
             "kind": "struct",
+            "name": "EntrypointPayload",
             "fields": [
               {
                 "name": "flattened_args_hashes",

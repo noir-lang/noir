@@ -110,7 +110,7 @@ function processEnumTS(enumName: string, enumValues: { [key: string]: number }):
 function processConstantsNoir(constants: { [key: string]: number }, prefix = ''): string {
   const code: string[] = [];
   Object.entries(constants).forEach(([key, value]) => {
-    code.push(`global ${prefix}${key}: comptime Field = ${value};`);
+    code.push(`global ${prefix}${key}: Field = ${value};`);
   });
   return code.join('\n') + '\n';
 }

@@ -6,7 +6,7 @@ struct CommitmentGetterData {
     root: Field,
 }
 
-fn make_commitment_getter_data(fields: [Field; COMMITMENT_GETTER_LENGTH], start: comptime Field) -> CommitmentGetterData {
+fn make_commitment_getter_data(fields: [Field; COMMITMENT_GETTER_LENGTH], start: Field) -> CommitmentGetterData {
     CommitmentGetterData {
         message: fields[start],
         leaf_index: fields[start + 1],

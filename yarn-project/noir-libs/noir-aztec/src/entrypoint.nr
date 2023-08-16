@@ -4,11 +4,11 @@ use crate::context::PrivateContext;
 use crate::private_call_stack_item::PrivateCallStackItem;
 use crate::public_call_stack_item::PublicCallStackItem;    
 
-global ACCOUNT_MAX_PRIVATE_CALLS: comptime Field = 2;
-global ACCOUNT_MAX_PUBLIC_CALLS: comptime Field = 2;
-global ACCOUNT_MAX_CALLS: comptime Field = 4;
+global ACCOUNT_MAX_PRIVATE_CALLS: Field = 2;
+global ACCOUNT_MAX_PUBLIC_CALLS: Field = 2;
+global ACCOUNT_MAX_CALLS: Field = 4;
 // 1 (ARGS_HASH) + 1 (FUNCTION_SELECTOR) + 1 (TARGET_ADDRESS)
-global FUNCTION_CALL_SIZE: comptime Field = 3;
+global FUNCTION_CALL_SIZE: Field = 3;
 
 struct FunctionCall {
   args_hash: Field,
@@ -23,8 +23,8 @@ impl FunctionCall {
 }
 
 // FUNCTION_CALL_SIZE * (ACCOUNT_MAX_PUBLIC_CALLS + ACCOUNT_MAX_PRIVATE_CALLS) + 1
-global ENTRYPOINT_PAYLOAD_SIZE: comptime Field = 13;
-global ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: comptime Field = 416;
+global ENTRYPOINT_PAYLOAD_SIZE: Field = 13;
+global ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: Field = 416;
 
 struct EntrypointPayload {
   // Noir doesnt support nested arrays or structs yet so we flatten everything

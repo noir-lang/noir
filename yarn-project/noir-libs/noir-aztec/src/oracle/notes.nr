@@ -77,10 +77,10 @@ unconstrained fn get_notes<Note, N, M, S, NS>(
     let set_header = note_interface.set_header;
     for i in 0..placeholder_opt_notes.len() {
         if i as u32 < num_notes {
-            // comptime lengths named as per typescript.
-            let return_header_length: comptime Field = 2; // num_notes & contract_address.
-            let extra_preimage_length: comptime Field = 2; // nonce & is_some.
-            let read_offset: comptime Field = return_header_length + i * (N + extra_preimage_length);
+            // lengths named as per typescript.
+            let return_header_length: Field = 2; // num_notes & contract_address.
+            let extra_preimage_length: Field = 2; // nonce & is_some.
+            let read_offset: Field = return_header_length + i * (N + extra_preimage_length);
             let nonce = fields[read_offset];
             let header = NoteHeader { contract_address, nonce, storage_slot };
             let is_some = fields[read_offset + 1] as bool;

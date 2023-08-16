@@ -1,7 +1,7 @@
 
 struct BoundedVec<T, MaxLen> {
     storage: [T; MaxLen],
-    len: comptime Field,
+    len: Field,
 }
 
 impl<T, MaxLen> BoundedVec<T, MaxLen> {
@@ -9,7 +9,7 @@ impl<T, MaxLen> BoundedVec<T, MaxLen> {
         BoundedVec { storage: [initial_value; MaxLen], len: 0 }
     }
 
-    fn get(mut self: Self, index: comptime Field) -> T {
+    fn get(mut self: Self, index: Field) -> T {
         assert(index as u64 < self.len as u64);
         self.storage[index]
     }

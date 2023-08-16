@@ -2,7 +2,7 @@
 name = "schnorr_account_contract"
 authors = [""]
 compiler_version = "0.1"
-type = "bin"
+type = "contract"
 
 [dependencies]
 aztec = { path = "../../../../noir-libs/noir-aztec" }

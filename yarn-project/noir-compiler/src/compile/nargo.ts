@@ -28,7 +28,7 @@ export class NargoContractCompiler {
     const nargoBin = this.opts.nargoBin ?? 'nargo';
     execSync(`${nargoBin} --version`, { cwd: this.projectPath, stdio });
     emptyDirSync(this.getTargetFolder());
-    execSync(`${nargoBin} compile --contracts `, { cwd: this.projectPath, stdio });
+    execSync(`${nargoBin} compile `, { cwd: this.projectPath, stdio });
     return Promise.resolve(this.collectArtifacts());
   }
 
