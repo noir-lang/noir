@@ -461,7 +461,7 @@ impl<'f> Context<'f> {
                 ));
             }
         }
-        // dbg!(merged.clone());
+
         self.inserter.function.dfg.make_array(merged, typ)
     }
 
