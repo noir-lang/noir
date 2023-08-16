@@ -122,23 +122,17 @@ impl<'a> FunctionContext<'a> {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
                 let typ = Self::convert_non_tuple_type(&array.typ);
-                // dbg!(typ.clone());
                 let new_convert_type = Self::convert_type(&array.typ);
-                // dbg!(new_convert_type.clone());
+
                 if new_convert_type.count_leaves() > 1 {
-                    dbg!("got here");
                     let slice_length = ast::Literal::Integer(
                         (array.contents.len() as u128).into(),
                         ast::Type::Field,
                     );
                     let slice_length = self.codegen_literal(&slice_length);
-                    // let elements =
-                    //     vecmap(&array.contents, |element| self.codegen_expression(element));
                     let slice_contents = self.codegen_array(elements, typ);
                     Tree::Branch(vec![slice_length, slice_contents])
                 } else {
-                    // let elements =
-                    //     vecmap(&array.contents, |element| self.codegen_expression(element));
                     self.codegen_array(elements, typ)
                 }
             }
@@ -293,12 +287,6 @@ impl<'a> FunctionContext<'a> {
         location: Location,
         max_length: Option<super::ir::value::ValueId>,
     ) -> Values {
-        // let array_value = &self.builder.current_function.dfg[array];
-
-        // dbg!(array_value.clone());
-        // let len = &self.builder.current_function.dfg.try_get_array_length(array);
-        // dbg!(len);
-
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size = self.builder.field_constant(type_size as u128);
@@ -330,11 +318,7 @@ impl<'a> FunctionContext<'a> {
                         }
                         _ => unreachable!("ICE: array index must be a numeric type"),
                     };
-                    // let array_len_int = self.builder.insert_cast(
-                    //     array_len,
-                    //     Type::Numeric(NumericType::Unsigned { bit_size: 64 }),
-                    // );
-
+                    
                     let is_offset_out_of_bounds =
                         self.builder.insert_binary(index, BinaryOp::Lt, array_len);
                     self.builder.insert_constrain(is_offset_out_of_bounds);

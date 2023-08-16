@@ -253,9 +253,7 @@ impl<'block> BrilligBlock<'block> {
                 let bit_size = Self::get_bit_size_from_ssa_type(dfg.type_of_value(*value));
                 self.brillig_context.not_instruction(condition_register, bit_size, result_register);
             }
-            Instruction::Call { func, arguments } => {
-                // dbg!(&dfg[*func]);
-            match &dfg[*func] {
+            Instruction::Call { func, arguments } => match &dfg[*func] {
                 Value::ForeignFunction(func_name) => {
                     let result_ids = dfg.instruction_results(instruction_id);
 
@@ -264,7 +262,6 @@ impl<'block> BrilligBlock<'block> {
                     let output_registers = vecmap(result_ids, |value_id| {
                         self.allocate_external_call_result(*value_id, dfg)
                     });
-                    dbg!(output_registers.len());
                     self.brillig_context.foreign_call_instruction(
                         func_name.to_owned(),
                         &input_registers,
@@ -342,7 +339,6 @@ impl<'block> BrilligBlock<'block> {
                     let limb_count = self.convert_ssa_register_value(arguments[2], dfg);
 
                     let results = dfg.instruction_results(instruction_id);
-                    dbg!(results);
                     let target_len = match self.function_context.get_or_create_variable(
                         self.brillig_context,
                         results[0],
@@ -405,7 +401,6 @@ impl<'block> BrilligBlock<'block> {
                 _ => {
                     unreachable!("unsupported function call type {:?}", dfg[*func])
                 }
-            }
             },
             Instruction::Truncate { value, .. } => {
                 let result_ids = dfg.instruction_results(instruction_id);
@@ -634,8 +629,7 @@ impl<'block> BrilligBlock<'block> {
         let element_size = dfg.type_of_value(slice_id).element_size();
         let source_variable = self.convert_ssa_value(slice_id, dfg);
         let source_vector = self.convert_array_or_vector_to_vector(source_variable);
-        dbg!(intrinsic.clone());
-        dbg!(arguments.len());
+
         match intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) => {
                 let results = dfg.instruction_results(instruction_id);
@@ -664,8 +658,7 @@ impl<'block> BrilligBlock<'block> {
                 let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });
-                dbg!(item_values.len());
-                dbg!(item_values.len() / element_size);
+
                 self.brillig_context.usize_op(
                     source_len,
                     target_len,
@@ -811,7 +804,7 @@ impl<'block> BrilligBlock<'block> {
                     converted_index,
                     BinaryIntOp::Mul,
                 );
-                dbg!(element_size + 3);
+
                 let items = vecmap(&arguments[3..element_size + 3], |arg| {
                     self.convert_ssa_value(*arg, dfg)
                 });

@@ -473,11 +473,8 @@ impl Context {
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<(), RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
-        let value_id = dfg.resolve(array);
-        let value = &dfg[value_id];
-        dbg!(value);
-        let acir_value = self.convert_value(array, dfg);
-        match acir_value {
+
+        match self.convert_value(array, dfg) {
             AcirValue::Var(acir_var, _) => {
                 return Err(RuntimeError::InternalError(InternalError::UnExpected {
                     expected: "an array value".to_string(),
@@ -604,7 +601,6 @@ impl Context {
         // Use the SSA ID to get or create its block ID
         let block_id = self.block_id(&array);
 
-        dbg!(dfg.type_of_value(array));
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
         let len = match dfg.type_of_value(array) {
@@ -957,7 +953,7 @@ impl Context {
             }
             Value::Param { .. } => {
                 // Binary operations on params may have been entirely simplified if the operation
-                // give back the identity of the param
+                // results in the identity of the parameter
             }
             _ => unreachable!("ICE: Truncates are only ever applied to the result of a binary op or a param"),
         };
@@ -993,7 +989,7 @@ impl Context {
                 let limb_size = self.convert_value(arguments[2], dfg).into_var()?;
 
                 let result_type = Self::array_element_type(dfg, result_ids[1]);
-                dbg!(result_type.clone());
+
                 self.acir_context.radix_decompose(endian, field, radix, limb_size, result_type)
             }
             Intrinsic::ToBits(endian) => {
@@ -1048,7 +1044,6 @@ impl Context {
     /// Given an array value, return the numerical type of its element.
     /// Panics if the given value is not an array or has a non-numeric element type.
     fn array_element_type(dfg: &DataFlowGraph, value: ValueId) -> AcirType {
-        dbg!(dfg.type_of_value(value));
         match dfg.type_of_value(value) {
             Type::Array(elements, _) => {
                 assert_eq!(elements.len(), 1);

@@ -342,7 +342,6 @@ mod tests {
 
     #[test]
     fn test_slice_push_operation() {
-        // TODO: handle these tests
         fn test_case_push(
             push_back: bool,
             array: Vec<Value>,
@@ -465,11 +464,7 @@ mod tests {
 
             let copied_array_size = context.allocate_register();
 
-            let slice_size = context.make_constant(array.len().into());
-            let copied_slice_size = context.allocate_register();
-
             let mut block = create_brillig_block(&mut function_context, &mut context);
-
 
             if pop_back {
                 block.slice_pop_back_operation(
@@ -566,10 +561,7 @@ mod tests {
             let copied_array_pointer = context.allocate_register();
 
             let copied_array_size = context.allocate_register();
-
-            let slice_size = context.make_constant(array.len().into());
-            let copied_slice_size = context.allocate_register();
-
+            
             let mut block = create_brillig_block(&mut function_context, &mut context);
 
             block.slice_insert_operation(

@@ -396,10 +396,8 @@ impl<'f> Context<'f> {
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            // TODO(#1889)
             typ @ Type::Slice(_) => {
                 self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
-                // panic!("Cannot return slices from an if expression")
             }
             Type::Reference => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
@@ -421,12 +419,8 @@ impl<'f> Context<'f> {
             _ => panic!("Expected slice type"),
         };
 
-        // TODO: Handle when these are instructions for SlicePushBack rather than
-        // already converted to slices
         let then_value = self.inserter.function.dfg[then_value_id].clone();
         let else_value = self.inserter.function.dfg[else_value_id].clone();
-        // dbg!(then_value.clone());
-        // dbg!(else_value.clone());
 
         let len = match then_value {
             Value::Array { array, .. } => array.len(),
@@ -447,8 +441,9 @@ impl<'f> Context<'f> {
 
                 let typevars = Some(vec![element_type.clone()]);
 
-                // Works but leads to slices with more values at the end
                 let mut get_element = |array, typevars, len| {
+                    // The smaller slice is filled with placeholder information. Codegen for slice accesses must
+                    // include checks against the dynamic slice length
                     if (len - 1) < index_value.to_u128() as usize {
                         self.inserter
                             .function

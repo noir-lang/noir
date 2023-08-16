@@ -595,11 +595,10 @@ impl<'a> FunctionContext<'a> {
         array: &ast::LValue,
         index: &ast::Expression,
     ) -> (ValueId, ValueId, LValue, Option<ValueId>) {
-        // dbg!(array.clone());
         let (old_array, array_lvalue) = self.extract_current_value_recursive(array);
-        // dbg!(array_lvalue.clone());
         let index = self.codegen_non_tuple_expression(index);
         let array_lvalue = Box::new(array_lvalue);
+        
         // A slice is represented as a tuple (length, slice contents)
         // We need to fetch the second
         if old_array.count_leaves() > 1 {
