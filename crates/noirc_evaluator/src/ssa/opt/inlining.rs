@@ -4,7 +4,7 @@
 //! be a single function remaining when the pass finishes.
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use iter_extended::vecmap;
+use iter_extended::{btree_map, vecmap};
 
 use crate::ssa::{
     ir::{
@@ -36,13 +36,10 @@ impl Ssa {
     /// pass, we would need to re-run all of inlining anyway to inline it, so we might
     /// as well save the work for later instead of performing it twice.
     pub(crate) fn inline_functions(mut self) -> Ssa {
-        self.functions = get_entry_point_functions(&self)
-            .into_iter()
-            .map(|entry_point| {
-                let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
-                (entry_point, new_function)
-            })
-            .collect();
+        self.functions = btree_map(get_entry_point_functions(&self), |entry_point| {
+            let new_function = InlineContext::new(&self, entry_point).inline_all(&self);
+            (entry_point, new_function)
+        });
 
         self
     }
