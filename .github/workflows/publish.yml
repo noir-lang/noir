@@ -154,11 +154,11 @@ jobs:
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
       CACHED_PATHS: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
+        ~/.cargo/bin/
+        ~/.cargo/registry/index/
+        ~/.cargo/registry/cache/
+        ~/.cargo/git/db/
+        target/
     strategy:
       fail-fast: false
       matrix:
