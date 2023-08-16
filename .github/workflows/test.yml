@@ -14,6 +14,8 @@ jobs:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+    env:
+      CACHED_PATH: /tmp/nix-cache
 
     strategy:
       fail-fast: false
@@ -40,7 +42,7 @@ jobs:
         uses: actions/cache/restore@v3
         id: cache
         with:
-          path: /tmp/nix-cache
+          path: ${{ env.CACHED_PATH }}
           key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
 
       # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
@@ -48,9 +50,9 @@ jobs:
         if: steps.cache.outputs.cache-hit == 'true'
         # We don't check the signature because we're the one that created the cache
         run: |
-          for narinfo in /tmp/nix-cache/*.narinfo; do
+          for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
             path=$(head -n 1 "$narinfo" | awk '{print $2}')
-            nix copy --no-check-sigs --from "file:///tmp/nix-cache" "$path"
+            nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
           done
 
       - name: Run `nix flake check`
@@ -60,11 +62,11 @@ jobs:
       - name: Export cache from nix store
         if: steps.nix-store-cache.outputs.cache-hit != 'true'
         run: |
-          nix copy --to "file:///tmp/nix-cache?compression=zstd&parallel-compression=true" .#native-cargo-artifacts
+          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#native-cargo-artifacts
 
       - uses: actions/cache/save@v3
         # Write a cache entry even if the tests fail but don't create any for the merge queue.
         if: ${{ always() && steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
-          path: /tmp/nix-cache
+          path: ${{ env.CACHED_PATH }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
