@@ -86,7 +86,7 @@ jobs:
           echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx$(sw_vers -productVersion) --show-sdk-platform-version)" >> $GITHUB_ENV
 
       - uses: actions/cache/restore@v3
-        id: restore-cache
+        id: cache
         with:
           path: ${{ env.CACHED_PATHS }}
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -110,10 +110,10 @@ jobs:
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
-        if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
       
       - name: Package artifacts
         run: |
@@ -177,7 +177,7 @@ jobs:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
       - uses: actions/cache/restore@v3
-        id: restore-cache
+        id: cache
         with:
           path: ${{ env.CACHED_PATHS }}
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -202,10 +202,10 @@ jobs:
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
-        if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
         run: |
@@ -262,7 +262,7 @@ jobs:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
       - uses: actions/cache/restore@v3
-        id: restore-cache
+        id: cache
         with:
           path: ${{ env.CACHED_PATHS }}
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -286,10 +286,10 @@ jobs:
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
-        if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path: ${{ env.CACHED_PATHS }}
-          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
         run: |

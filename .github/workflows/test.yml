@@ -38,14 +38,14 @@ jobs:
 
       - name: Restore nix store cache
         uses: actions/cache/restore@v3
-        id: restore-cache
+        id: cache
         with:
           path: /tmp/nix-cache
           key: ${{ runner.os }}-flake-${{ hashFiles('*.lock') }}
 
       # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
       - name: Copy cache into nix store
-        if: steps.restore-cache.outputs.cache-hit == 'true'
+        if: steps.cache.outputs.cache-hit == 'true'
         # We don't check the signature because we're the one that created the cache
         run: |
           for narinfo in /tmp/nix-cache/*.narinfo; do
@@ -64,7 +64,7 @@ jobs:
 
       - uses: actions/cache/save@v3
         # Write a cache entry even if the tests fail but don't create any for the merge queue.
-        if: ${{ always() && steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+        if: ${{ always() && steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path: /tmp/nix-cache
-          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}

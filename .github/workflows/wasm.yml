@@ -62,7 +62,7 @@ jobs:
         uses: actions/checkout@v3
 
       - uses: actions/cache/restore@v3
-        id: restore-cache
+        id: cache
         with:
           path: ${{ env.CACHED_PATHS }}
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -84,10 +84,10 @@ jobs:
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
-        if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }} 
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }} 
         with:
           path:  ${{ env.CACHED_PATHS }}
-          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
         run: |
