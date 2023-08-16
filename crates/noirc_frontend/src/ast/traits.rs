@@ -3,7 +3,10 @@ use std::fmt::Display;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use crate::{BlockExpression, Expression, Ident, NoirFunction, UnresolvedGenerics, UnresolvedType};
+use crate::{
+    BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, UnresolvedGenerics,
+    UnresolvedType,
+};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -24,7 +27,7 @@ pub enum TraitItem {
         name: Ident,
         generics: Vec<Ident>,
         parameters: Vec<(Ident, UnresolvedType)>,
-        return_type: UnresolvedType,
+        return_type: FunctionReturnType,
         where_clause: Vec<TraitConstraint>,
         body: Option<BlockExpression>,
     },

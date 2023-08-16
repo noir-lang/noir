@@ -314,8 +314,8 @@ impl<'a> FunctionContext<'a> {
 
         // Set the location of the initial jmp instruction to the start range. This is the location
         // used to issue an error if the start range cannot be determined at compile-time.
-        let jmp_location = Some(for_expr.start_range_location);
-        self.builder.terminate_with_jmp_with_location(loop_entry, vec![start_index], jmp_location);
+        self.builder.set_location(for_expr.start_range_location);
+        self.builder.terminate_with_jmp(loop_entry, vec![start_index]);
 
         // Compile the loop entry block
         self.builder.switch_to_block(loop_entry);

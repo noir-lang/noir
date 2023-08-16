@@ -364,9 +364,17 @@ pub struct FunctionDefinition {
     pub body: BlockExpression,
     pub span: Span,
     pub where_clause: Vec<TraitConstraint>,
-    pub return_type: UnresolvedType,
+    pub return_type: FunctionReturnType,
     pub return_visibility: noirc_abi::AbiVisibility,
     pub return_distinctness: noirc_abi::AbiDistinctness,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum FunctionReturnType {
+    /// Returns type is not specified.
+    Default(Span),
+    /// Everything else.
+    Ty(UnresolvedType, Span),
 }
 
 /// Describes the types of smart contract functions that are allowed.
@@ -634,5 +642,14 @@ impl Display for FunctionDefinition {
             self.return_type,
             self.body
         )
+    }
+}
+
+impl Display for FunctionReturnType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FunctionReturnType::Default(_) => f.write_str(""),
+            FunctionReturnType::Ty(ty, _) => write!(f, "{ty}"),
+        }
     }
 }

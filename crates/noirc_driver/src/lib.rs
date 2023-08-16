@@ -151,12 +151,10 @@ pub fn compile_main(
         Some(m) => m,
         None => {
             // TODO(#2155): This error might be a better to exist in Nargo
-            let err = FileDiagnostic {
-                file_id: FileId::default(),
-                diagnostic: CustomDiagnostic::from_message(
-                    "cannot compile crate into a program as it does not contain a `main` function",
-                ),
-            };
+            let err = CustomDiagnostic::from_message(
+                "cannot compile crate into a program as it does not contain a `main` function",
+            )
+            .in_file(FileId::default());
             return Err(vec![err]);
         }
     };
@@ -226,13 +224,13 @@ fn compile_contract(
     options: &CompileOptions,
 ) -> Result<CompiledContract, Vec<FileDiagnostic>> {
     let mut functions = Vec::new();
-    let mut errs = Vec::new();
+    let mut errors = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
         let function = match compile_no_check(context, options, *function_id) {
             Ok(function) => function,
-            Err(err) => {
-                errs.push(err);
+            Err(new_error) => {
+                errors.push(new_error);
                 continue;
             }
         };
@@ -253,10 +251,10 @@ fn compile_contract(
         });
     }
 
-    if errs.is_empty() {
+    if errors.is_empty() {
         Ok(CompiledContract { name: contract.name, functions })
     } else {
-        Err(errs)
+        Err(errors)
     }
 }
 

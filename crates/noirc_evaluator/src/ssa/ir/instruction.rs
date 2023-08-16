@@ -1,11 +1,10 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::Location;
 use num_bigint::BigUint;
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::DataFlowGraph,
+    dfg::{CallStack, DataFlowGraph},
     map::Id,
     types::{NumericType, Type},
     value::{Value, ValueId},
@@ -72,6 +71,30 @@ impl std::fmt::Display for Intrinsic {
 }
 
 impl Intrinsic {
+    /// Returns whether the `Intrinsic` has side effects.
+    ///
+    /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
+    pub(crate) fn has_side_effects(&self) -> bool {
+        match self {
+            Intrinsic::Println | Intrinsic::AssertConstant => true,
+
+            Intrinsic::Sort
+            | Intrinsic::ArrayLen
+            | Intrinsic::SlicePushBack
+            | Intrinsic::SlicePushFront
+            | Intrinsic::SlicePopBack
+            | Intrinsic::SlicePopFront
+            | Intrinsic::SliceInsert
+            | Intrinsic::SliceRemove
+            | Intrinsic::StrAsBytes
+            | Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_) => false,
+
+            // Some black box functions have side-effects
+            Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
+        }
+    }
+
     /// Lookup an Intrinsic by name and return it if found.
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
@@ -182,6 +205,38 @@ impl Instruction {
     /// inserting this instruction into a DataFlowGraph.
     pub(crate) fn requires_ctrl_typevars(&self) -> bool {
         matches!(self.result_type(), InstructionResultType::Unknown)
+    }
+
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | Allocate
+            | Load { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => false,
+
+            Constrain(_) | Store { .. } | EnableSideEffects { .. } => true,
+
+            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+
+                // All foreign functions are treated as having side effects.
+                // This is because they can be used to pass information
+                // from the ACVM to the external world during execution.
+                Value::ForeignFunction(_) => true,
+
+                // We must assume that functions contain a side effect as we cannot inspect more deeply.
+                Value::Function(_) => true,
+
+                _ => false,
+            },
+        }
     }
 
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
@@ -427,9 +482,9 @@ pub(crate) enum TerminatorInstruction {
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`.
-    /// The optional Location here is expected to be used to issue an error when the start range of
+    /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, location: Option<Location> },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
 
     /// Return from the current function with the given return values.
     ///
@@ -454,10 +509,10 @@ impl TerminatorInstruction {
                 then_destination: *then_destination,
                 else_destination: *else_destination,
             },
-            Jmp { destination, arguments, location } => Jmp {
+            Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
                 arguments: vecmap(arguments, |value| f(*value)),
-                location: *location,
+                call_stack: call_stack.clone(),
             },
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }
