@@ -187,7 +187,7 @@ fn compile_failure_{test_name}() {{
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.arg("--program-dir").arg(test_program_dir);
-    cmd.arg("compile");
+    cmd.arg("execute");
 
     cmd.assert().failure();
 }}
