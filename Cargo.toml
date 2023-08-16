@@ -18,7 +18,7 @@ default-members = ["crates/nargo_cli"]
 
 [workspace.package]
 # x-release-please-start-version
-version = "0.10.1"
+version = "0.10.2"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"

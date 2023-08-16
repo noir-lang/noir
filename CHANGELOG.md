@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2](https://github.com/noir-lang/noir/compare/v0.10.1...v0.10.2) (2023-08-16)
+
+
+### Bug Fixes
+
+* Prevent dead instruction elimination of brillig functions which may contain side-effects ([#2340](https://github.com/noir-lang/noir/issues/2340)) ([ba8ffd8](https://github.com/noir-lang/noir/commit/ba8ffd84c19b3516334c126bc2f25c725985baa3))
+
 ## [0.10.1](https://github.com/noir-lang/noir/compare/v0.10.0...v0.10.1) (2023-08-15)
 
 
