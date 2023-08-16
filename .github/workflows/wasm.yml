@@ -86,7 +86,7 @@ jobs:
         # Don't create cache entries for the merge queue.
         if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }} 
         with:
-          path: ${{ steps.restore-cache.inputs.path }}
+          path:  ${{ env.CACHED_PATHS }}
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       - name: Package artifacts
