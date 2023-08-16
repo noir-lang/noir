@@ -108,7 +108,8 @@ jobs:
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - uses: actions/cache/save@v3
-        if: ${{ github.event_name != 'merge_group' }} # Don't create cache entries for the merge queue.
+        # Don't create cache entries for the merge queue.
+        if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path: ${{ steps.restore-cache.inputs.path }}
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
@@ -198,7 +199,8 @@ jobs:
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - uses: actions/cache/save@v3
-        if: ${{ github.event_name != 'merge_group' }} # Don't create cache entries for the merge queue.
+        # Don't create cache entries for the merge queue.
+        if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path: ${{ steps.restore-cache.inputs.path }}
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
@@ -280,7 +282,8 @@ jobs:
           cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - uses: actions/cache/save@v3
-        if: ${{ github.event_name != 'merge_group' }} # Don't create cache entries for the merge queue.
+        # Don't create cache entries for the merge queue.
+        if: ${{ steps.restore-cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
         with:
           path: ${{ steps.restore-cache.inputs.path }}
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
