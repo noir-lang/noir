@@ -6,6 +6,7 @@
     ".": "./dest/index.js",
     "./http": "./dest/server.js"
   },
+  "bin": "./dest/index.js",
   "typedocOptions": {
     "entryPoints": [
       "./src/index.ts"

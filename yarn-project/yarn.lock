@@ -205,6 +205,8 @@ __metadata:
     ts-node: ^10.9.1
     typescript: ^5.0.4
     viem: ^1.2.5
+  bin:
+    aztec-sandbox: ./dest/index.js
   languageName: unknown
   linkType: soft
 

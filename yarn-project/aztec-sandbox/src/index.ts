@@ -1,3 +1,4 @@
+#!/usr/bin/env -S node --no-warnings
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
 import { createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
 import { deployInitialSandboxAccounts } from '@aztec/aztec.js';
@@ -34,7 +35,7 @@ async function waitThenDeploy(rpcUrl: string, hdAccount: HDAccount) {
       try {
         chainId = await publicClient.getChainId();
       } catch (err) {
-        logger(`Failed to get Chain ID. Retrying...`);
+        logger.warn(`Failed to connect to Ethereum node at ${rpcUrl}. Retrying...`);
       }
       return chainId;
     },
@@ -44,7 +45,7 @@ async function waitThenDeploy(rpcUrl: string, hdAccount: HDAccount) {
   );
 
   if (!chainID) {
-    throw Error(`ETH RPC server unresponsive at ${rpcUrl}.`);
+    throw Error(`Ethereum node unresponsive at ${rpcUrl}.`);
   }
 
   // Deploy L1 contracts
