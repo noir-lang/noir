@@ -94,7 +94,10 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
   program
     .command('generate-private-key')
     .description('Generates a 32-byte private key.')
-    .option('-m, --mnemonic', 'A mnemonic string that can be used for the private key generation.')
+    .option(
+      '-m, --mnemonic',
+      'An optional mnemonic string used for the private key generation. If not provided, random private key will be generated.',
+    )
     .action(async options => {
       let privKey;
       let publicKey;
@@ -143,10 +146,9 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
   program
     .command('deploy')
     .description('Deploys a compiled Noir contract to Aztec.')
-    .option(
+    .requiredOption(
       '-c, --contract-abi <file>',
       "A compiled Noir contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
-      undefined,
     )
     .option('-a, --args <constructorArgs...>', 'Contract constructor arguments', [])
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
@@ -184,7 +186,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
   program
     .command('check-deploy')
     .description('Checks if a contract is deployed to the specified Aztec address.')
-    .option('-ca, --contract-address <address>', 'An Aztec address to check if contract has been deployed to.')
+    .requiredOption('-ca, --contract-address <address>', 'An Aztec address to check if contract has been deployed to.')
     .option('-u, --rpc-url <url>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async options => {
       const client = createAztecRpcClient(options.rpcUrl);
@@ -215,7 +217,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .description('Gets information about the Aztec contract deployed at the specified address.')
     .argument('<contractAddress>', 'Aztec address of the contract.')
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
-    .option('-b, --include-bytecode', "Include the contract's public function bytecode, if any.")
+    .option('-b, --include-bytecode <boolean>', "Include the contract's public function bytecode, if any.", false)
     .action(async (contractAddress, options) => {
       const client = createAztecRpcClient(options.rpcUrl);
       const address = AztecAddress.fromString(contractAddress);
@@ -266,9 +268,9 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
   program
     .command('register-recipient')
     .description('Register a recipient in the Aztec RPC.')
-    .option('-a, --address <aztecAddress>', "The account's Aztec address.")
-    .option('-p, --public-key <publicKey>', 'The account public key.')
-    .option('-pa, --partial-address <partialAddress', 'The partially computed address of the account contract.')
+    .requiredOption('-a, --address <aztecAddress>', "The account's Aztec address.")
+    .requiredOption('-p, --public-key <publicKey>', 'The account public key.')
+    .requiredOption('-pa, --partial-address <partialAddress', 'The partially computed address of the account contract.')
     .option('-u, --rpc-url <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async options => {
       const client = createAztecRpcClient(options.rpcUrl);
@@ -353,12 +355,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .description('Calls a function on an Aztec contract.')
     .argument('<functionName>', 'Name of Function to view')
     .option('-a, --args [functionArgs...]', 'Function arguments', [])
-    .option(
+    .requiredOption(
       '-c, --contract-abi <fileLocation>',
       "A compiled Noir contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
-      undefined,
     )
-    .option('-ca, --contract-address <address>', 'Aztec address of the contract.')
+    .requiredOption('-ca, --contract-address <address>', 'Aztec address of the contract.')
     .option('-k, --private-key <string>', "The sender's private key.", PRIVATE_KEY)
     .option('-u, --rpcUrl <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
 
@@ -406,12 +407,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     )
     .argument('<functionName>', 'Name of Function to view')
     .option('-a, --args [functionArgs...]', 'Function arguments', [])
-    .option(
+    .requiredOption(
       '-c, --contract-abi <fileLocation>',
       "A compiled Noir contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
-      undefined,
     )
-    .option('-ca, --contract-address <address>', 'Aztec address of the contract.')
+    .requiredOption('-ca, --contract-address <address>', 'Aztec address of the contract.')
     .option('-f, --from <string>', 'Public key of the TX viewer. If empty, will try to find account in RPC.')
     .option('-u, --rpcUrl <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async (functionName, options) => {
@@ -439,12 +439,11 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .command('parse-parameter-struct')
     .description("Helper for parsing an encoded string into a contract's parameter struct.")
     .argument('<encodedString>', 'The encoded hex string')
-    .option(
+    .requiredOption(
       '-c, --contract-abi <fileLocation>',
       "A compiled Noir contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
-      undefined,
     )
-    .option('-p, --parameter <parameterName>', 'The name of the struct parameter to decode into')
+    .requiredOption('-p, --parameter <parameterName>', 'The name of the struct parameter to decode into')
     .action(async (encodedString, options) => {
       const contractAbi = await getContractAbi(options.contractAbi, log);
       const parameterAbitype = contractAbi.functions
