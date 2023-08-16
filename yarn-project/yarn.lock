@@ -181,7 +181,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/aztec-sandbox@workspace:aztec-sandbox":
+"@aztec/aztec-sandbox@workspace:^, @aztec/aztec-sandbox@workspace:aztec-sandbox":
   version: 0.0.0-use.local
   resolution: "@aztec/aztec-sandbox@workspace:aztec-sandbox"
   dependencies:
@@ -310,7 +310,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aztec/cli@workspace:aztec-cli":
+"@aztec/cli@workspace:^, @aztec/cli@workspace:aztec-cli":
   version: 0.0.0-use.local
   resolution: "@aztec/cli@workspace:aztec-cli"
   dependencies:
@@ -332,7 +332,7 @@ __metadata:
     typescript: ^5.0.4
     viem: ^1.2.5
   bin:
-    aztec-cli: ./dest/index.js
+    aztec-cli: ./dest/bin/index.js
   languageName: unknown
   linkType: soft
 
@@ -351,8 +351,10 @@ __metadata:
     "@aztec/archiver": "workspace:^"
     "@aztec/aztec-node": "workspace:^"
     "@aztec/aztec-rpc": "workspace:^"
+    "@aztec/aztec-sandbox": "workspace:^"
     "@aztec/aztec.js": "workspace:^"
     "@aztec/circuits.js": "workspace:^"
+    "@aztec/cli": "workspace:^"
     "@aztec/ethereum": "workspace:^"
     "@aztec/foundation": "workspace:^"
     "@aztec/l1-artifacts": "workspace:^"
@@ -367,6 +369,7 @@ __metadata:
     "@types/jest": ^29.5.0
     "@types/koa-static": ^4.0.2
     "@types/levelup": ^5.1.2
+    "@types/lodash.compact": ^3.0.7
     "@types/lodash.every": ^4.6.7
     "@types/lodash.times": ^4.3.7
     "@types/lodash.zip": ^4.2.7
@@ -377,11 +380,13 @@ __metadata:
     koa: ^2.14.2
     koa-static: ^5.0.0
     levelup: ^5.1.1
+    lodash.compact: ^3.0.1
     lodash.every: ^4.6.0
     lodash.times: ^4.3.2
     lodash.zip: ^4.2.0
     lodash.zipwith: ^4.2.0
     puppeteer: ^20.9.0
+    string-argv: ^0.3.2
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
     tslib: ^2.4.0
@@ -11144,7 +11149,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"string-argv@npm:^0.3.1":
+"string-argv@npm:^0.3.1, string-argv@npm:^0.3.2":
   version: 0.3.2
   resolution: "string-argv@npm:0.3.2"
   checksum: 8703ad3f3db0b2641ed2adbb15cf24d3945070d9a751f9e74a924966db9f325ac755169007233e8985a39a6a292f14d4fee20482989b89b96e473c4221508a0f

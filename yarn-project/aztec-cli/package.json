@@ -4,7 +4,7 @@
   "type": "module",
   "main": "./dest/index.js",
   "bin": {
-    "aztec-cli": "./dest/index.js"
+    "aztec-cli": "./dest/bin/index.js"
   },
   "typedocOptions": {
     "entryPoints": [

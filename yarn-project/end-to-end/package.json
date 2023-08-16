@@ -27,8 +27,10 @@
     "@aztec/archiver": "workspace:^",
     "@aztec/aztec-node": "workspace:^",
     "@aztec/aztec-rpc": "workspace:^",
+    "@aztec/aztec-sandbox": "workspace:^",
     "@aztec/aztec.js": "workspace:^",
     "@aztec/circuits.js": "workspace:^",
+    "@aztec/cli": "workspace:^",
     "@aztec/ethereum": "workspace:^",
     "@aztec/foundation": "workspace:^",
     "@aztec/l1-artifacts": "workspace:^",
@@ -51,11 +53,13 @@
     "koa": "^2.14.2",
     "koa-static": "^5.0.0",
     "levelup": "^5.1.1",
+    "lodash.compact": "^3.0.1",
     "lodash.every": "^4.6.0",
     "lodash.times": "^4.3.2",
     "lodash.zip": "^4.2.0",
     "lodash.zipwith": "^4.2.0",
     "puppeteer": "^20.9.0",
+    "string-argv": "^0.3.2",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",
     "tslib": "^2.4.0",
@@ -64,6 +68,7 @@
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.1.4",
+    "@types/lodash.compact": "^3.0.7",
     "concurrently": "^7.6.0"
   },
   "files": [

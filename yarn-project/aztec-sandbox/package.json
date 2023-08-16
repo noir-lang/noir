@@ -2,7 +2,10 @@
   "name": "@aztec/aztec-sandbox",
   "version": "0.0.0",
   "type": "module",
-  "exports": "./dest/index.js",
+  "exports": {
+    ".": "./dest/index.js",
+    "./http": "./dest/server.js"
+  },
   "typedocOptions": {
     "entryPoints": [
       "./src/index.ts"

@@ -6,7 +6,7 @@ import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import fs from 'fs';
 import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts';
 
-import { encodeArgs } from './cli_encoder.js';
+import { encodeArgs } from './encoding.js';
 
 /**
  * Helper type to dynamically import contracts.

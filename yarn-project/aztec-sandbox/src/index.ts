@@ -1,17 +1,16 @@
 import { AztecNodeConfig, AztecNodeService, getConfigEnvVars } from '@aztec/aztec-node';
-import { createAztecRPCServer, getHttpRpcServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
+import { createAztecRPCServer, getConfigEnvVars as getRpcConfigEnvVars } from '@aztec/aztec-rpc';
 import { deployInitialSandboxAccounts } from '@aztec/aztec.js';
 import { PrivateKey } from '@aztec/circuits.js';
 import { deployL1Contracts } from '@aztec/ethereum';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 
-import http from 'http';
 import { HDAccount, createPublicClient, http as httpViemTransport } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 import { foundry } from 'viem/chains';
 
-import { createApiRouter } from './routes.js';
+import { startHttpRpcServer } from './server.js';
 import { github, splash } from './splash.js';
 
 const { SERVER_PORT = 8080, MNEMONIC = 'test test test test test test test test test test test junk' } = process.env;
@@ -84,15 +83,7 @@ async function main() {
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
 
-  const rpcServer = getHttpRpcServer(aztecRpcServer);
-
-  const app = rpcServer.getApp();
-  const apiRouter = createApiRouter(deployedL1Contracts);
-  app.use(apiRouter.routes());
-  app.use(apiRouter.allowedMethods());
-
-  const httpServer = http.createServer(app.callback());
-  httpServer.listen(SERVER_PORT);
+  startHttpRpcServer(aztecRpcServer, deployedL1Contracts, SERVER_PORT);
   logger.info(`Aztec JSON RPC listening on port ${SERVER_PORT}`);
   const accountStrings = [`Initial Accounts:\n\n`];
 

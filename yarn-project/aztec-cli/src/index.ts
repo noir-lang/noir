@@ -1,4 +1,3 @@
-#!/usr/bin/env -S node --no-warnings
 import {
   AztecAddress,
   Contract,
@@ -13,15 +12,18 @@ import {
 } from '@aztec/aztec.js';
 import { StructType } from '@aztec/foundation/abi';
 import { JsonStringify } from '@aztec/foundation/json-rpc';
-import { createConsoleLogger, createDebugLogger } from '@aztec/foundation/log';
+import { DebugLogger, LogFn } from '@aztec/foundation/log';
 import { compileContract } from '@aztec/noir-compiler/cli';
 import { SchnorrAccountContractAbi } from '@aztec/noir-contracts/artifacts';
 import { CompleteAddress, ContractData, L2BlockL2Logs, PrivateKey, TxHash } from '@aztec/types';
 
 import { Command } from 'commander';
+import { readFileSync } from 'fs';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { mnemonicToAccount } from 'viem/accounts';
 
-import { encodeArgs, parseStructString } from './cli_encoder.js';
+import { encodeArgs, parseStructString } from './encoding.js';
 import {
   deployAztecContracts,
   getAbiFunction,
@@ -33,8 +35,6 @@ import {
 
 const accountCreationSalt = Fr.ZERO;
 
-const debugLogger = createDebugLogger('aztec:cli');
-const log = createConsoleLogger();
 const stripLeadingHex = (hex: string) => {
   if (hex.length > 2 && hex.startsWith('0x')) {
     return hex.substring(2);
@@ -42,16 +42,22 @@ const stripLeadingHex = (hex: string) => {
   return hex;
 };
 
-const program = new Command();
-
-program.name('aztec-cli').description('CLI for interacting with Aztec.').version('0.1.0');
-
 const { ETHEREUM_HOST, AZTEC_RPC_HOST, PRIVATE_KEY, API_KEY } = process.env;
 
 /**
- * Main function for the Aztec CLI.
+ * Returns commander program that defines the CLI.
+ * @param log - Console logger.
+ * @param debugLogger - Debug logger.
+ * @returns The CLI.
  */
-async function main() {
+export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
+  const program = new Command();
+
+  const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), '../package.json');
+  const version: string = JSON.parse(readFileSync(packageJsonPath).toString()).version;
+
+  program.name('aztec-cli').description('CLI for interacting with Aztec.').version(version);
+
   program
     .command('deploy-l1-contracts')
     .description('Deploys all necessary Ethereum contracts for Aztec.')
@@ -474,11 +480,5 @@ async function main() {
 
   compileContract(program, 'compile', log);
 
-  await program.parseAsync(process.argv);
+  return program;
 }
-
-main().catch(err => {
-  log(`Error in command execution`);
-  log(err);
-  process.exit(1);
-});
