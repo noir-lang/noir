@@ -853,11 +853,14 @@ impl BrilligContext {
     pub(crate) fn radix_instruction(
         &mut self,
         source: RegisterIndex,
+        target_vector_len: RegisterIndex,
         target_vector: HeapVector,
         radix: RegisterIndex,
         limb_count: RegisterIndex,
         big_endian: bool,
     ) {
+        self.mov_instruction(target_vector_len, limb_count);
+        self.usize_op_in_place(target_vector_len, BinaryIntOp::Add, 1usize);
         self.mov_instruction(target_vector.size, limb_count);
         self.allocate_array_instruction(target_vector.pointer, target_vector.size);
 
@@ -938,7 +941,6 @@ impl BrilligContext {
         match variable {
             RegisterOrMemory::HeapVector(vector) => vector,
             RegisterOrMemory::HeapArray(array) => {
-                dbg!(array.size);
                 let size = self.allocate_register();
                 self.const_instruction(size, array.size.into());
                 HeapVector { pointer: array.pointer, size }

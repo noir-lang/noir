@@ -47,30 +47,30 @@ unconstrained fn main(x: Field, y: Field) {
     assert(slice[0] == x);
     assert(slice[1] == y);
 
-    // slice = slice.insert(1, 2);
-    // assert(slice.len() == 3);
-    // assert(slice[0] == x);
-    // assert(slice[1] == 2);
-    // assert(slice[2] == y);
+    slice = slice.insert(1, 2);
+    assert(slice.len() == 3);
+    assert(slice[0] == x);
+    assert(slice[1] == 2);
+    assert(slice[2] == y);
 
-    // let (removed_slice, should_be_2) = slice.remove(1);
-    // slice = removed_slice;
-    // assert(should_be_2 == 2);
+    let (removed_slice, should_be_2) = slice.remove(1);
+    slice = removed_slice;
+    assert(should_be_2 == 2);
 
-    // assert(slice.len() == 2);
-    // assert(slice[0] == x);
-    // assert(slice[1] == y);
+    assert(slice.len() == 2);
+    assert(slice[0] == x);
+    assert(slice[1] == y);
 
-    // let (slice_with_only_x, should_be_y) = slice.remove(1);
-    // slice = slice_with_only_x;
-    // assert(should_be_y == y);
+    let (slice_with_only_x, should_be_y) = slice.remove(1);
+    slice = slice_with_only_x;
+    assert(should_be_y == y);
 
-    // assert(slice.len() == 1);
-    // assert(slice[0] == x);
+    assert(slice.len() == 1);
+    assert(slice[0] == x);
 
-    // let (empty_slice, should_be_x) = slice.remove(0);
-    // assert(should_be_x == x);
-    // assert(empty_slice.len() == 0);
+    let (empty_slice, should_be_x) = slice.remove(0);
+    assert(should_be_x == x);
+    assert(empty_slice.len() == 0);
 }
 
 // Tests slice passing to/from functions

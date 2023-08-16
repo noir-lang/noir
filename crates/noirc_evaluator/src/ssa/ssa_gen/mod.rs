@@ -316,13 +316,27 @@ impl<'a> FunctionContext<'a> {
                         max_length.expect("ICE: a length must be supplied for indexing slices");
                     // If the index and the array_len are both Fields we will not be able to perform a less than comparison on them
                     // Thus, we cast the array len to a u64 before performing the less than comparison
-                    let array_len_int = self.builder.insert_cast(
-                        array_len,
-                        Type::Numeric(NumericType::Unsigned { bit_size: 64 }),
-                    );
+                    let array_len = match self.builder.type_of_value(index) {
+                        Type::Numeric(numeric_type) => {
+                            match numeric_type {
+                                NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
+                                NumericType::NativeField => {
+                                    self.builder.insert_cast(
+                                        array_len,
+                                        Type::Numeric(NumericType::Unsigned { bit_size: 64 }),
+                                    )
+                                }
+                            }
+                        }
+                        _ => unreachable!("ICE: array index must be a numeric type"),
+                    };
+                    // let array_len_int = self.builder.insert_cast(
+                    //     array_len,
+                    //     Type::Numeric(NumericType::Unsigned { bit_size: 64 }),
+                    // );
 
                     let is_offset_out_of_bounds =
-                        self.builder.insert_binary(index, BinaryOp::Lt, array_len_int);
+                        self.builder.insert_binary(index, BinaryOp::Lt, array_len);
                     self.builder.insert_constrain(is_offset_out_of_bounds);
                 }
                 Type::Array(..) => {
