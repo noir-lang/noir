@@ -6,6 +6,7 @@ fn main() {
     panic::set_hook();
 
     if let Err(report) = nargo_cli::cli::start_cli() {
-        println!("{report}");
+        eprintln!("{report}");
+        std::process::exit(1);
     }
 }
