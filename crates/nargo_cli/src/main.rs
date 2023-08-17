@@ -10,6 +10,7 @@
 mod backends;
 mod cli;
 mod errors;
+mod panic;
 
 fn main() {
     panic::set_hook();

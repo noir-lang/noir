@@ -4,8 +4,6 @@ use miette::IntoDiagnostic;
 use nargo_toml::find_package_root;
 use std::path::PathBuf;
 
-use crate::find_package_root;
-
 mod fs;
 
 mod check_cmd;
