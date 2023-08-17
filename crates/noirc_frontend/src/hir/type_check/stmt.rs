@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use noirc_errors::{Location, Span};
 
 use crate::hir_def::expr::{HirExpression, HirIdent, HirLiteral};
@@ -66,18 +67,23 @@ impl<'interner> TypeChecker<'interner> {
                 }
                 Type::Error => (),
                 other => {
-                    self.errors.push(TypeCheckError::TypeMismatch {
-                        expected_typ: other.to_string(),
-                        expr_typ: other.to_string(),
-                        expr_span: *span,
+                    let expected =
+                        Type::Tuple(vecmap(fields, |_| self.interner.next_type_variable()));
+
+                    self.errors.push(TypeCheckError::TypeMismatchWithSource {
+                        expected,
+                        actual: other,
+                        span: *span,
+                        source: Source::Assignment,
                     });
                 }
             },
             HirPattern::Struct(struct_type, fields, span) => {
-                self.unify(struct_type, &typ, || TypeCheckError::TypeMismatch {
-                    expected_typ: typ.to_string(),
-                    expr_typ: struct_type.to_string(),
-                    expr_span: *span,
+                self.unify(struct_type, &typ, || TypeCheckError::TypeMismatchWithSource {
+                    expected: struct_type.clone(),
+                    actual: typ.clone(),
+                    span: *span,
+                    source: Source::Assignment,
                 });
 
                 if let Type::Struct(struct_type, generics) = struct_type {
@@ -109,8 +115,8 @@ impl<'interner> TypeChecker<'interner> {
         let span = self.interner.expr_span(&assign_stmt.expression);
         self.unify_with_coercions(&expr_type, &lvalue_type, assign_stmt.expression, || {
             TypeCheckError::TypeMismatchWithSource {
-                rhs: expr_type.clone(),
-                lhs: lvalue_type.clone(),
+                actual: lvalue_type.clone(),
+                expected: expr_type.clone(),
                 span,
                 source: Source::Assignment,
             }

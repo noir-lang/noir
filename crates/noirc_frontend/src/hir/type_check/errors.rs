@@ -39,8 +39,8 @@ pub enum TypeCheckError {
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
     TypeMismatch { expected_typ: String, expr_typ: String, expr_span: Span },
-    #[error("Expected type {lhs} is not the same as {rhs}")]
-    TypeMismatchWithSource { lhs: Type, rhs: Type, span: Span, source: Source },
+    #[error("Expected type {expected} is not the same as {actual}")]
+    TypeMismatchWithSource { expected: Type, actual: Type, span: Span, source: Source },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: u16, found: u16, span: Span },
     #[error("Return type in a function cannot be public")]
@@ -193,29 +193,29 @@ impl From<TypeCheckError> for Diagnostic {
                 span,
             ),
             TypeCheckError::ResolverError(error) => error.into(),
-            TypeCheckError::TypeMismatchWithSource { lhs, rhs, span, source } => {
+            TypeCheckError::TypeMismatchWithSource { expected, actual, span, source } => {
                 let message = match source {
-                    Source::Binary => format!("Types in a binary operation should match, but found {lhs} and {rhs}"),
+                    Source::Binary => format!("Types in a binary operation should match, but found {expected} and {actual}"),
                     Source::Assignment => {
-                        format!("Cannot assign an expression of type {lhs} to a value of type {rhs}")
+                        format!("Cannot assign an expression of type {actual} to a value of type {expected}")
                     }
-                    Source::ArrayElements => format!("Cannot compare {lhs} and {rhs}, the array element types differ"),
-                    Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {lhs}, and RHS is {rhs}"),
-                    Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {lhs}, and RHS is {rhs}"),
-                    Source::Comparison => format!("Unsupported types for comparison: {lhs} and {rhs}"),
-                    Source::BinOp => format!("Unsupported types for binary operation: {lhs} and {rhs}"),
+                    Source::ArrayElements => format!("Cannot compare {expected} and {actual}, the array element types differ"),
+                    Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
+                    Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
+                    Source::Comparison => format!("Unsupported types for comparison: {expected} and {actual}"),
+                    Source::BinOp => format!("Unsupported types for binary operation: {expected} and {actual}"),
                     Source::Return(ret_ty, expr_span) => {
                         let ret_ty_span = match ret_ty {
                             FunctionReturnType::Default(span) | FunctionReturnType::Ty(_, span) => span
                         };
 
-                        let mut diagnostic = Diagnostic::simple_error(format!("expected type {lhs}, found type {rhs}"), format!("expected {lhs} because of return type"), ret_ty_span);
+                        let mut diagnostic = Diagnostic::simple_error(format!("expected type {expected}, found type {actual}"), format!("expected {expected} because of return type"), ret_ty_span);
 
                         if let FunctionReturnType::Default(_) = ret_ty {
-                            diagnostic.add_note(format!("help: try adding a return type: `-> {rhs}`"));
+                            diagnostic.add_note(format!("help: try adding a return type: `-> {actual}`"));
                         }
 
-                        diagnostic.add_secondary(format!("{rhs} returned here"), expr_span);
+                        diagnostic.add_secondary(format!("{actual} returned here"), expr_span);
 
                         return diagnostic
                     },
