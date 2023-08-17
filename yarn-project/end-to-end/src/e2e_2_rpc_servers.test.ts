@@ -189,7 +189,7 @@ describe('e2e_2_rpc_servers', () => {
     const newValueToSet = 256n;
 
     const childContractWithWalletB = await ChildContract.at(childAddress, walletB);
-    const tx = childContractWithWalletB.methods.pubStoreValue(newValueToSet).send({ origin: userB.address });
+    const tx = childContractWithWalletB.methods.pubIncValue(newValueToSet).send({ origin: userB.address });
     await tx.isMined({ interval: 0.1 });
 
     const receipt = await tx.getReceipt();

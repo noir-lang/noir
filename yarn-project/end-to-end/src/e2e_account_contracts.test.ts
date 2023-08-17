@@ -47,7 +47,7 @@ function itShouldBehaveLikeAnAccountContract(getAccountContract: (encryptionKey:
     it('calls a public function', async () => {
       const { logger, aztecRpcServer } = context;
       logger('Calling public function...');
-      const tx = child.methods.pubStoreValue(42).send();
+      const tx = child.methods.pubIncValue(42).send();
       expect(await tx.isMined({ interval: 0.1 })).toBeTruthy();
       expect(toBigInt((await aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)))!)).toEqual(42n);
     }, 60_000);

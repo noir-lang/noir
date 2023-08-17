@@ -833,6 +833,18 @@ jobs:
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_pending_commitments_contract.test.ts
           working_directory: yarn-project/end-to-end
 
+  e2e-ordering:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_ordering.test.ts
+          working_directory: yarn-project/end-to-end
+
   uniswap-trade-on-l1-from-l2:
     machine:
       image: ubuntu-2004:202010-01
@@ -1312,6 +1324,7 @@ workflows:
       - e2e-account-contracts: *e2e_test
       - e2e-escrow-contract: *e2e_test
       - e2e-pending-commitments-contract: *e2e_test
+      - e2e-ordering: *e2e_test
       - uniswap-trade-on-l1-from-l2: *e2e_test
       - integration-l1-publisher: *e2e_test
       - integration-archiver-l1-to-l2: *e2e_test
@@ -1338,6 +1351,7 @@ workflows:
             - e2e-account-contracts
             - e2e-escrow-contract
             - e2e-pending-commitments-contract
+            - e2e-ordering
             - uniswap-trade-on-l1-from-l2
             - integration-l1-publisher
             - integration-archiver-l1-to-l2

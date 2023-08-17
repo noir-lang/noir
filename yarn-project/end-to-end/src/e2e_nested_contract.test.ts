@@ -73,7 +73,7 @@ describe('e2e_nested_contract', () => {
 
     it('performs public nested calls', async () => {
       const tx = parentContract.methods
-        .pubEntryPoint(childContract.address, Fr.fromBuffer(childContract.methods.pubValue.selector), 42n)
+        .pubEntryPoint(childContract.address, Fr.fromBuffer(childContract.methods.pubGetValue.selector), 42n)
         .send({ origin: sender });
 
       await tx.isMined({ interval: 0.1 });
@@ -84,7 +84,7 @@ describe('e2e_nested_contract', () => {
 
     it('enqueues a single public call', async () => {
       const tx = parentContract.methods
-        .enqueueCallToChild(childContract.address, Fr.fromBuffer(childContract.methods.pubStoreValue.selector), 42n)
+        .enqueueCallToChild(childContract.address, Fr.fromBuffer(childContract.methods.pubIncValue.selector), 42n)
         .send({ origin: sender });
 
       await tx.isMined({ interval: 0.1 });
@@ -101,7 +101,7 @@ describe('e2e_nested_contract', () => {
       const tx = parentContract.methods
         .enqueueCallToChildTwice(
           addressToField(childContract.address),
-          Fr.fromBuffer(childContract.methods.pubStoreValue.selector).value,
+          Fr.fromBuffer(childContract.methods.pubIncValue.selector).value,
           42n,
         )
         .send({ origin: sender });
@@ -117,7 +117,7 @@ describe('e2e_nested_contract', () => {
       const tx = parentContract.methods
         .enqueueCallToPubEntryPoint(
           childContract.address,
-          Fr.fromBuffer(childContract.methods.pubStoreValue.selector),
+          Fr.fromBuffer(childContract.methods.pubIncValue.selector),
           42n,
         )
         .send({ origin: sender });
@@ -136,7 +136,7 @@ describe('e2e_nested_contract', () => {
       const tx = parentContract.methods
         .enqueueCallsToPubEntryPoint(
           childContract.address,
-          Fr.fromBuffer(childContract.methods.pubStoreValue.selector),
+          Fr.fromBuffer(childContract.methods.pubIncValue.selector),
           42n,
         )
         .send({ origin: sender });
@@ -156,7 +156,7 @@ describe('e2e_nested_contract', () => {
       const tx = parentContract.methods
         .pubEntryPointTwice(
           addressToField(childContract.address),
-          Fr.fromBuffer(childContract.methods.pubStoreValue.selector).value,
+          Fr.fromBuffer(childContract.methods.pubIncValue.selector).value,
           42n,
         )
         .send({ origin: sender });

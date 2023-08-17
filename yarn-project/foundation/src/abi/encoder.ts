@@ -27,7 +27,9 @@ class ArgumentEncoder {
         } else if (typeof arg === 'bigint') {
           this.flattened.push(new Fr(arg));
         } else if (typeof arg === 'object') {
-          if (typeof arg.toField === 'function') {
+          if (Buffer.isBuffer(arg)) {
+            this.flattened.push(Fr.fromBuffer(arg));
+          } else if (typeof arg.toField === 'function') {
             this.flattened.push(arg.toField());
           } else if (arg instanceof Fr) {
             this.flattened.push(arg);

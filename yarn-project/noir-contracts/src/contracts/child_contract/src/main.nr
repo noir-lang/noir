@@ -10,6 +10,7 @@ contract Child {
         PublicContext
     };
     use crate::storage::Storage;
+    use dep::aztec::oracle::logs::emit_unencrypted_log;
 
     fn constructor(
         inputs: PrivateContextInputs,
@@ -32,7 +33,7 @@ contract Child {
     }
 
     // Returns base_value + 42.
-    open fn pubValue(inputs: PublicContextInputs, base_value: Field) -> pub abi::PublicCircuitPublicInputs {
+    open fn pubGetValue(inputs: PublicContextInputs, base_value: Field) -> pub abi::PublicCircuitPublicInputs {
         let mut context = PublicContext::new(inputs, abi::hash_args([base_value]));
         
         let returnValue = base_value + context.chain_id() + context.version() + context.block_number() + context.timestamp();
@@ -41,20 +42,26 @@ contract Child {
         context.finish()
     }
 
-    // Increments `current_value` by `new_value` and returns `new_value` + 1.
-    open fn pubStoreValue(inputs: PublicContextInputs, new_value: Field) -> pub abi::PublicCircuitPublicInputs {
+    // Sets `current_value` to `new_value`
+    open fn pubSetValue(inputs: PublicContextInputs, new_value: Field) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([new_value]));
+
+        let storage = Storage::init();
+        storage.current_value.write(new_value);
+        let _hash = emit_unencrypted_log(new_value);
+        context.return_values.push(new_value);
+        context.finish()
+    }
+
+    // Increments `current_value` by `new_value`
+    open fn pubIncValue(inputs: PublicContextInputs, new_value: Field) -> pub abi::PublicCircuitPublicInputs {
         let mut context = PublicContext::new(inputs, abi::hash_args([new_value]));
 
         let storage = Storage::init();
         let old_value = storage.current_value.read();
-        // Compiler complains if we don't assign the result to anything
-        let _void1 = storage.current_value.write(old_value + new_value);
-        // Compiler fails with "we do not allow private ABI inputs to be returned as public outputs" if we try to
-        // return new_value as-is, but then it also complains if we add `pub` to `new_value` in the args, so we
-        // just assign it to another variable and tweak it so it's not the same value, and the compiler is happy.
-        let return_value = new_value + 1;
-
-        context.return_values.push(return_value);
+        storage.current_value.write(old_value + new_value);
+        let _hash = emit_unencrypted_log(new_value);
+        context.return_values.push(new_value);
         context.finish()
     }
 }
