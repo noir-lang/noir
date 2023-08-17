@@ -46,8 +46,7 @@ hex = "0.4.2"
 termcolor = "1.1.2"
 tokio = { version = "1.0", features = ["io-std"] }
 miette = { version = "5.10.0", features = ["fancy"] }
-backtrace = "0.3.68"
-backtrace-ext = "0.2.1"
+color-eyre = "0.6.2"
 tokio-util = { version = "0.7.8", features = ["compat"] }
 
 # Backends
