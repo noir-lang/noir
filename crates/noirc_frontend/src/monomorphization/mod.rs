@@ -727,7 +727,6 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Forall(_, _)
             | HirType::Constant(_)
             | HirType::NotConstant
-            | HirType::Trait(..)
             | HirType::Error => {
                 unreachable!("Unexpected type {} found", typ)
             }

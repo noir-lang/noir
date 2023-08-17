@@ -826,7 +826,6 @@ impl<'a> Resolver<'a> {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::Trait(..)
             | Type::Forall(_, _) => (),
 
             Type::Array(length, element_type) => {

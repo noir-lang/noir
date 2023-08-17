@@ -48,11 +48,6 @@ pub enum Type {
     /// represents the generic arguments (if any) to this struct type.
     Struct(Shared<StructType>, Vec<Type>),
 
-    /// A user-defined trait type. The `Shared<TraitType>` field here refers to
-    /// the shared definition for each instance of this trait type. The `Vec<Type>`
-    /// represents the generic arguments (if any) to this trait type.
-    Trait(Shared<Trait>, Vec<Type>),
-
     /// A tuple type with the given list of fields in the order they appear in source code.
     Tuple(Vec<Type>),
 
@@ -544,7 +539,6 @@ impl Type {
             | Type::Constant(_)
             | Type::NamedGeneric(_, _)
             | Type::NotConstant
-            | Type::Trait(..)
             | Type::Forall(_, _) => false,
 
             Type::Array(length, elem) => {
@@ -615,15 +609,6 @@ impl std::fmt::Display for Type {
                 }
             }
             Type::Struct(s, args) => {
-                let args = vecmap(args, |arg| arg.to_string());
-                if args.is_empty() {
-                    write!(f, "{}", s.borrow())
-                } else {
-                    write!(f, "{}<{}>", s.borrow(), args.join(", "))
-                }
-            }
-            Type::Trait(s, args) => {
-                // TODO: Extract this into a shared helper for traits and structs
                 let args = vecmap(args, |arg| arg.to_string());
                 if args.is_empty() {
                     write!(f, "{}", s.borrow())
@@ -1070,7 +1055,6 @@ impl Type {
                 let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
                 AbiType::Struct { fields, name: struct_type.name.to_string() }
             }
-            Type::Trait(_, _) => unreachable!("traits cannot be used in the abi"),
             Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
@@ -1177,12 +1161,6 @@ impl Type {
                 let args = vecmap(args, |arg| arg.substitute(type_bindings));
                 Type::Struct(fields.clone(), args)
             }
-            Type::Trait(items, args) => {
-                let args = vecmap(args, |arg| arg.substitute(type_bindings));
-                // TODO: Don't we need to substitute any reference to the generic parameters within the
-                //       items as well here? How does it work for structs?
-                Type::Trait(items.clone(), args)
-            }
             Type::Tuple(fields) => {
                 let fields = vecmap(fields, |field| field.substitute(type_bindings));
                 Type::Tuple(fields)
@@ -1227,7 +1205,6 @@ impl Type {
                 len_occurs || field_occurs
             }
             Type::Struct(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
-            Type::Trait(_, generic_args) => generic_args.iter().any(|arg| arg.occurs(target_id)),
             Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
             Type::NamedGeneric(binding, _) | Type::TypeVariable(binding, _) => {
                 match &*binding.borrow() {
@@ -1296,7 +1273,7 @@ impl Type {
             MutableReference(element) => MutableReference(Box::new(element.follow_bindings())),
 
             // Expect that this function should only be called on instantiated types
-            Forall(..) | Trait(..) => unreachable!(),
+            Forall(..) => unreachable!(),
 
             FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Error | NotConstant => {
                 self.clone()
