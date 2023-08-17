@@ -43,6 +43,7 @@ describe('rollup/rollup_wasm_wrapper', () => {
     return input;
   };
 
+  // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1586
   it.skip('calls base_rollup__sim', () => {
     const input = makeBaseRollupInputsForCircuit();
 
@@ -86,6 +87,7 @@ Refer to https://docs.aztec.network/aztec/protocol/errors for more information.`
     }
   });
 
+  // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1586
   it.skip('calls root_rollup__sim', () => {
     const input = makeRootRollupInputs();
     for (const rd of input.previousRollupData) {

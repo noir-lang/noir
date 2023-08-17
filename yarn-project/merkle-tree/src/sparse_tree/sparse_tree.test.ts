@@ -160,6 +160,7 @@ describe('SparseTreeSpecific', () => {
     }
   });
 
+  // This one is a performance measurement and is enabled only to check regression in performance.
   it.skip('measures time of inserting 1000 leaves at random positions for depth 254', async () => {
     const depth = 254;
     const maxIndex = 2 ** depth - 1;

@@ -96,6 +96,7 @@ describe('e2e_nested_contract', () => {
 
     // Fails with "solver opcode resolution error: cannot solve opcode: expression has too many unknowns %EXPR [ 0 ]%"
     // See https://github.com/noir-lang/noir/issues/1347
+    // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1587
     it.skip('enqueues multiple public calls', async () => {
       const tx = parentContract.methods
         .enqueueCallToChildTwice(
@@ -130,6 +131,7 @@ describe('e2e_nested_contract', () => {
 
     // Fails with "solver opcode resolution error: cannot solve opcode: expression has too many unknowns %EXPR [ 0 ]%"
     // See https://github.com/noir-lang/noir/issues/1347
+    // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1587
     it.skip('enqueues multiple public calls with nested public calls', async () => {
       const tx = parentContract.methods
         .enqueueCallsToPubEntryPoint(
@@ -149,6 +151,7 @@ describe('e2e_nested_contract', () => {
     // Regression for https://github.com/AztecProtocol/aztec-packages/issues/640
     // Fails with "solver opcode resolution error: cannot solve opcode: expression has too many unknowns %EXPR [ 0 ]%"
     // See https://github.com/noir-lang/noir/issues/1347
+    // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1587
     it.skip('reads fresh value after write within the same tx', async () => {
       const tx = parentContract.methods
         .pubEntryPointTwice(

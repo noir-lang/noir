@@ -96,6 +96,46 @@ Fr {
 }
 `;
 
+exports[`abis wasm bindings hashes VK 1`] = `
+{
+  "data": [
+    18,
+    27,
+    182,
+    124,
+    37,
+    144,
+    241,
+    62,
+    203,
+    104,
+    141,
+    178,
+    22,
+    93,
+    79,
+    221,
+    21,
+    63,
+    245,
+    104,
+    71,
+    249,
+    55,
+    250,
+    39,
+    168,
+    54,
+    232,
+    57,
+    46,
+    130,
+    254,
+  ],
+  "type": "Buffer",
+}
+`;
+
 exports[`abis wasm bindings hashes a tx request 1`] = `
 {
   "data": [

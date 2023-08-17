@@ -37,9 +37,7 @@ describe('abis wasm bindings', () => {
     expect(res).toMatchSnapshot();
   });
 
-  // TODO: This test fails on CI since build-system is not updating the latest circuits wasm
-  // We may need to wait until we bump to the next commit to see if it picks up the change
-  it.skip('hashes VK', () => {
+  it('hashes VK', () => {
     const vk = makeVerificationKey();
     const res = hashVK(wasm, vk.toBuffer());
     expect(res).toMatchSnapshot();

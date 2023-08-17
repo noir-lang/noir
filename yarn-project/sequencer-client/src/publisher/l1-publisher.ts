@@ -191,12 +191,14 @@ export class L1Publisher implements L2BlockReceiver {
   }
 
   // TODO: Check fee distributor has at least 0.5 ETH.
+  // Related to https://github.com/AztecProtocol/aztec-packages/issues/1588
   // eslint-disable-next-line require-await
   private async checkFeeDistributorBalance(): Promise<boolean> {
     return true;
   }
 
   // TODO: Fail if blockchainStatus.nextBlockNum > thisBlockNum.
+  // Related to https://github.com/AztecProtocol/aztec-packages/issues/1588
   private checkNextL2BlockNum(_thisBlockNum: number): Promise<boolean> {
     return Promise.resolve(true);
   }

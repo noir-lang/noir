@@ -167,6 +167,7 @@ describe('ACIR public execution simulator', () => {
       // Contract storage reads and update requests are implemented as built-ins, which at the moment Noir does not
       // now whether they have side-effects or not, so they get run even when their code path
       // is not picked by a conditional. Once that's fixed, we should re-enable this test.
+      // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1588
       it.skip('should run the transfer function without enough sender balance', async () => {
         const senderBalance = new Fr(10n);
         const recipientBalance = new Fr(20n);
