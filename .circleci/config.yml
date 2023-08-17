@@ -1051,6 +1051,12 @@ jobs:
             deploy_ecr world-state
             deploy_npm world-state
       - run:
+          name: "key-store"
+          working_directory: key-store
+          command: |
+            deploy_ecr key-store
+            deploy_npm key-store
+      - run:
           name: "aztec-node"
           working_directory: aztec-node
           command: |
