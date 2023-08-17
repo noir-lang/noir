@@ -74,8 +74,8 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
                 &mut errors,
                 || {
                     let mut error = TypeCheckError::TypeMismatchWithSource {
-                        lhs: declared_return_type.clone(),
-                        rhs: function_last_type.clone(),
+                        expected: declared_return_type.clone(),
+                        actual: function_last_type.clone(),
                         span: func_span,
                         source: Source::Return(meta.return_type, expr_span),
                     };
