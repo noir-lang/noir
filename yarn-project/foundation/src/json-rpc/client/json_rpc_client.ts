@@ -4,8 +4,8 @@
 //  while avoiding Promise of Promise.
 import { RemoteObject } from 'comlink';
 
-import { createDebugLogger } from '../../log/index.js';
-import { NoRetryError, retry } from '../../retry/index.js';
+import { DebugLogger, createDebugLogger } from '../../log/index.js';
+import { NoRetryError, makeBackoff, retry } from '../../retry/index.js';
 import { ClassConverter, JsonClassConverterInput, StringClassConverterInput } from '../class_converter.js';
 import { JsonStringify, convertFromJsonObj, convertToJsonObj } from '../convert.js';
 
@@ -70,6 +70,24 @@ export async function defaultFetch(
  */
 export async function mustSucceedFetch(host: string, rpcMethod: string, body: any, useApiEndpoints: boolean) {
   return await retry(() => defaultFetch(host, rpcMethod, body, useApiEndpoints), 'JsonRpcClient request');
+}
+
+/**
+ * Makes a fetch function that retries based on the given attempts.
+ * @param retries - Sequence of intervals (in seconds) to retry.
+ * @param noRetry - Whether to stop retries on server errors.
+ * @param log - Optional logger for logging attempts.
+ * @returns A fetch function.
+ */
+export function makeFetch(retries: number[], noRetry: boolean, log?: DebugLogger) {
+  return async (host: string, rpcMethod: string, body: any, useApiEndpoints: boolean) => {
+    return await retry(
+      () => defaultFetch(host, rpcMethod, body, useApiEndpoints, noRetry),
+      'JsonRpcClient request',
+      makeBackoff(retries),
+      log,
+    );
+  };
 }
 
 /**

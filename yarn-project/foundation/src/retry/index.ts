@@ -22,6 +22,17 @@ export function* backoffGenerator() {
 }
 
 /**
+ * Generates a backoff sequence based on the array of retry intervals to use with the `retry` function.
+ * @param retries - Intervals to retry (in seconds).
+ * @returns A generator sequence.
+ */
+export function* makeBackoff(retries: number[]) {
+  for (const retry of retries) {
+    yield retry;
+  }
+}
+
+/**
  * Retry a given asynchronous function with a specific backoff strategy, until it succeeds or backoff generator ends.
  * It logs the error and retry interval in case an error is caught. The function can be named for better log output.
  *
