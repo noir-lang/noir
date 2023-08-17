@@ -993,8 +993,6 @@ impl Context {
 
                 self.acir_context.bit_decompose(endian, field, bit_size, result_type)
             }
-            // TODO(#2115): Remove the println intrinsic as the oracle println is now used instead
-            Intrinsic::Println => Ok(Vec::new()),
             Intrinsic::Sort => {
                 let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
                 // We flatten the inputs and retrieve the bit_size of the elements
