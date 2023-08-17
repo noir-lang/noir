@@ -117,7 +117,7 @@
 
       sharedArgs = {
         # x-release-please-start-version
-        version = "0.9.0";
+        version = "0.10.3";
         # x-release-please-end
 
         src = pkgs.lib.cleanSourceWith {
@@ -268,6 +268,7 @@
         # We expose the `*-cargo-artifacts` derivations so we can cache our cargo dependencies in CI
         inherit native-cargo-artifacts;
         inherit wasm-cargo-artifacts;
+        inherit noir-wasm-cargo-artifacts;
       };
 
       # TODO(#1197): Look into installable apps with Nix flakes

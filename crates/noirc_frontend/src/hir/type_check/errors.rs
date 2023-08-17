@@ -1,3 +1,4 @@
+use acvm::FieldElement;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
 use thiserror::Error;
@@ -5,6 +6,7 @@ use thiserror::Error;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::types::Type;
+use crate::FunctionReturnType;
 use crate::Signedness;
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
@@ -23,12 +25,16 @@ pub enum Source {
     Comparison,
     #[error("BinOp")]
     BinOp,
+    #[error("Return")]
+    Return(FunctionReturnType, Span),
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Operator {op:?} cannot be used in a {place:?}")]
     OpCannotBeUsed { op: HirBinaryOp, place: &'static str, span: Span },
+    #[error("The literal `{expr:?}` cannot fit into `{ty}` which has range `{range}`")]
+    OverflowingAssignment { expr: FieldElement, ty: Type, range: String, span: Span },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, span: Span },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -92,6 +98,8 @@ pub enum TypeCheckError {
     CallDeprecated { name: String, note: Option<String>, span: Span },
     #[error("{0}")]
     ResolverError(ResolverError),
+    #[error("Unused expression result of type {expr_type}")]
+    UnusedResultError { expr_type: Type, expr_span: Span },
 }
 
 impl TypeCheckError {
@@ -170,7 +178,8 @@ impl From<TypeCheckError> for Diagnostic {
             | TypeCheckError::IntegerTypeMismatch { span, .. }
             | TypeCheckError::FieldComparison { span, .. }
             | TypeCheckError::AmbiguousBitWidth { span, .. }
-            | TypeCheckError::IntegerAndFieldBinaryOperation { span } => {
+            | TypeCheckError::IntegerAndFieldBinaryOperation { span }
+            | TypeCheckError::OverflowingAssignment { span, .. } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), span)
             }
             TypeCheckError::PublicReturnType { typ, span } => Diagnostic::simple_error(
@@ -195,6 +204,21 @@ impl From<TypeCheckError> for Diagnostic {
                     Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {lhs}, and RHS is {rhs}"),
                     Source::Comparison => format!("Unsupported types for comparison: {lhs} and {rhs}"),
                     Source::BinOp => format!("Unsupported types for binary operation: {lhs} and {rhs}"),
+                    Source::Return(ret_ty, expr_span) => {
+                        let ret_ty_span = match ret_ty {
+                            FunctionReturnType::Default(span) | FunctionReturnType::Ty(_, span) => span
+                        };
+
+                        let mut diagnostic = Diagnostic::simple_error(format!("expected type {lhs}, found type {rhs}"), format!("expected {lhs} because of return type"), ret_ty_span);
+
+                        if let FunctionReturnType::Default(_) = ret_ty {
+                            diagnostic.add_note(format!("help: try adding a return type: `-> {rhs}`"));
+                        }
+
+                        diagnostic.add_secondary(format!("{rhs} returned here"), expr_span);
+
+                        return diagnostic
+                    },
                 };
 
                 Diagnostic::simple_error(message, String::new(), span)
@@ -204,6 +228,13 @@ impl From<TypeCheckError> for Diagnostic {
                 let secondary_message = note.clone().unwrap_or_default();
 
                 Diagnostic::simple_warning(primary_message, secondary_message, span)
+            }
+            TypeCheckError::UnusedResultError { expr_type, expr_span } => {
+                Diagnostic::simple_warning(
+                    format!("Unused expression result of type {expr_type}"),
+                    String::new(),
+                    expr_span,
+                )
             }
         }
     }

@@ -15,6 +15,7 @@ mod unsafe;
 mod collections;
 mod compat;
 mod option;
+mod string;
 
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident 

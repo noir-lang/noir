@@ -5,7 +5,7 @@ use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
 use nargo::NargoError;
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
@@ -45,7 +45,7 @@ pub(crate) fn run<B: Backend>(
     args: ExecuteCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let toml_path = find_package_manifest(&config.program_dir)?;
+    let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
@@ -108,23 +108,23 @@ fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Op
         _ => None,
     }
 }
+
 fn report_unsatisfied_constraint_error(
     opcode_idx: Option<usize>,
     debug: &DebugInfo,
     context: &Context,
 ) {
     if let Some(opcode_index) = opcode_idx {
-        if let Some(loc) = debug.opcode_location(opcode_index) {
-            noirc_errors::reporter::report(
-                &context.file_manager,
-                &CustomDiagnostic::simple_error(
-                    "Unsatisfied constraint".to_string(),
-                    "Constraint failed".to_string(),
-                    loc.span,
-                ),
-                Some(loc.file),
-                false,
-            );
+        if let Some(locations) = debug.opcode_location(opcode_index) {
+            // The location of the error itself will be the location at the top
+            // of the call stack (the last item in the Vec).
+            if let Some(location) = locations.last() {
+                let message = "Failed constraint".into();
+                CustomDiagnostic::simple_error(message, String::new(), location.span)
+                    .in_file(location.file)
+                    .with_call_stack(locations)
+                    .report(&context.file_manager, false);
+            }
         }
     }
 }

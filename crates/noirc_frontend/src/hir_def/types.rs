@@ -54,8 +54,7 @@ pub enum Type {
     /// TypeVariables are stand-in variables for some type which is not yet known.
     /// They are not to be confused with NamedGenerics. While the later mostly works
     /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
-    /// will be automatically rebound as necessary to satisfy any calls to unify
-    /// and make_subtype_of.
+    /// will be automatically rebound as necessary to satisfy any calls to unify.
     ///
     /// TypeVariables are often created when a generic function is instantiated. This
     /// is a process that replaces each NamedGeneric in a generic function with a TypeVariable.
@@ -445,6 +444,10 @@ impl Type {
 
     pub fn is_signed(&self) -> bool {
         matches!(self.follow_bindings(), Type::Integer(Signedness::Signed, _))
+    }
+
+    pub fn is_unsigned(&self) -> bool {
+        matches!(self.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
     }
 
     fn contains_numeric_typevar(&self, target_id: TypeVariableId) -> bool {
@@ -881,7 +884,36 @@ impl Type {
         }
     }
 
-    /// Similar to `make_subtype_of` but if the check fails this will attempt to coerce the
+    /// Similar to try_unify() but allows non-matching capture groups for function types
+    pub fn try_unify_allow_incompat_lambdas(&self, other: &Type) -> Result<(), UnificationError> {
+        use Type::*;
+        use TypeVariableKind::*;
+
+        match (self, other) {
+            (TypeVariable(binding, Normal), other) | (other, TypeVariable(binding, Normal)) => {
+                if let TypeBinding::Bound(link) = &*binding.borrow() {
+                    return link.try_unify_allow_incompat_lambdas(other);
+                }
+
+                other.try_bind_to(binding)
+            }
+            (Function(params_a, ret_a, _), Function(params_b, ret_b, _)) => {
+                if params_a.len() == params_b.len() {
+                    for (a, b) in params_a.iter().zip(params_b.iter()) {
+                        a.try_unify_allow_incompat_lambdas(b)?;
+                    }
+
+                    // no check for environments here!
+                    ret_b.try_unify_allow_incompat_lambdas(ret_a)
+                } else {
+                    Err(UnificationError)
+                }
+            }
+            _ => self.try_unify(other),
+        }
+    }
+
+    /// Similar to `unify` but if the check fails this will attempt to coerce the
     /// argument to the target type. When this happens, the given expression is wrapped in
     /// a new expression to convert its type. E.g. `array` -> `array.as_slice()`
     ///
@@ -919,7 +951,7 @@ impl Type {
             // If we have an array and our target is a slice
             if matches!(size1, Type::Constant(_)) && matches!(size2, Type::NotConstant) {
                 // Still have to ensure the element types match.
-                // Don't need to issue an error here if not, it will be done in make_subtype_of_with_coercions
+                // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 if element1.try_unify(element2).is_ok() {
                     convert_array_expression_to_slice(expression, this, target, interner);
                     return true;

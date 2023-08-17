@@ -231,19 +231,21 @@ impl<'interner> TypeChecker<'interner> {
                 for (i, stmt) in statements.iter().enumerate() {
                     let expr_type = self.check_statement(stmt);
 
-                    if i + 1 < statements.len() {
-                        let id = match self.interner.statement(stmt) {
-                            crate::hir_def::stmt::HirStatement::Expression(expr) => expr,
-                            _ => *expr_id,
-                        };
+                    if let crate::hir_def::stmt::HirStatement::Semi(expr) =
+                        self.interner.statement(stmt)
+                    {
+                        let inner_expr_type = self.interner.id_type(expr);
+                        let span = self.interner.expr_span(&expr);
 
-                        let span = self.interner.expr_span(&id);
-                        self.unify(&expr_type, &Type::Unit, || TypeCheckError::TypeMismatch {
-                            expected_typ: Type::Unit.to_string(),
-                            expr_typ: expr_type.to_string(),
-                            expr_span: span,
+                        self.unify(&inner_expr_type, &Type::Unit, || {
+                            TypeCheckError::UnusedResultError {
+                                expr_type: inner_expr_type.clone(),
+                                expr_span: span,
+                            }
                         });
-                    } else {
+                    }
+
+                    if i + 1 == statements.len() {
                         block_type = expr_type;
                     }
                 }
@@ -835,11 +837,13 @@ impl<'interner> TypeChecker<'interner> {
         }
 
         for (param, (arg, _, arg_span)) in fn_params.iter().zip(callsite_args) {
-            self.unify(arg, param, || TypeCheckError::TypeMismatch {
-                expected_typ: param.to_string(),
-                expr_typ: arg.to_string(),
-                expr_span: *arg_span,
-            });
+            if arg.try_unify_allow_incompat_lambdas(param).is_err() {
+                self.errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: param.to_string(),
+                    expr_typ: arg.to_string(),
+                    expr_span: *arg_span,
+                });
+            }
         }
 
         fn_ret.clone()
