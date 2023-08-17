@@ -1,8 +1,7 @@
 use clap::{Args, Parser, Subcommand};
 use const_format::formatcp;
+use miette::IntoDiagnostic;
 use std::path::PathBuf;
-
-use color_eyre::eyre;
 
 use crate::find_package_root;
 
@@ -61,12 +60,12 @@ enum NargoCommand {
     Lsp(lsp_cmd::LspCommand),
 }
 
-pub fn start_cli() -> eyre::Result<()> {
+pub fn start_cli() -> miette::Result<()> {
     let NargoCli { command, mut config } = NargoCli::parse();
 
     // Search through parent directories to find package root if necessary.
     if !matches!(command, NargoCommand::New(_) | NargoCommand::Init(_) | NargoCommand::Lsp(_)) {
-        config.program_dir = find_package_root(&config.program_dir)?;
+        config.program_dir = find_package_root(&config.program_dir).into_diagnostic()?;
     }
 
     let backend = crate::backends::ConcreteBackend::default();
@@ -83,7 +82,8 @@ pub fn start_cli() -> eyre::Result<()> {
         NargoCommand::Info(args) => info_cmd::run(&backend, args, config),
         NargoCommand::CodegenVerifier(args) => codegen_verifier_cmd::run(&backend, args, config),
         NargoCommand::Lsp(args) => lsp_cmd::run(&backend, args, config),
-    }?;
+    }
+    .into_diagnostic()?;
 
     Ok(())
 }
