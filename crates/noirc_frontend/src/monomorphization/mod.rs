@@ -10,7 +10,7 @@
 //! function, will monomorphize the entire reachable program.
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::FunctionSignature;
+use noirc_printable::PrintableType;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
@@ -184,13 +184,13 @@ impl<'interner> Monomorphizer<'interner> {
         self.globals.entry(id).or_default().insert(typ, new_id);
     }
 
-    fn compile_main(&mut self, main_id: node_interner::FuncId) -> FunctionSignature {
+    fn compile_main(&mut self, main_id: node_interner::FuncId) -> (Vec<Param>, Option<Type>) {
         let new_main_id = self.next_function_id();
         assert_eq!(new_main_id, Program::main_id());
         self.function(main_id, new_main_id);
 
         let main_meta = self.interner.function_meta(&main_id);
-        main_meta.into_function_signature(self.interner)
+        main_meta.into_function_signature()
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
@@ -776,7 +776,7 @@ impl<'interner> Monomorphizer<'interner> {
                 if name.as_str() == "println" {
                     // Oracle calls are required to be wrapped in an unconstrained function
                     // Thus, the only argument to the `println` oracle is expected to always be an ident
-                    self.append_abi_arg(&hir_arguments[0], &mut arguments);
+                    self.append_printable_type_arg(&hir_arguments[0], &mut arguments);
                 }
             }
         }
@@ -839,7 +839,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// is the serialized `AbiType` for the argument passed to the function.
     /// The caller that is running a Noir program should then deserialize the `AbiType`,
     /// and accurately decode the list of field elements passed to the foreign call.
-    fn append_abi_arg(
+    fn append_printable_type_arg(
         &mut self,
         hir_argument: &HirExpression,
         arguments: &mut Vec<ast::Expression>,
@@ -855,7 +855,7 @@ impl<'interner> Monomorphizer<'interner> {
                         match *elements {
                             Type::Tuple(element_types) => {
                                 for typ in element_types {
-                                    Self::append_abi_arg_inner(&typ, arguments);
+                                    Self::append_printable_type_arg_inner(&typ, arguments);
                                 }
                             }
                             _ => unreachable!(
@@ -865,7 +865,7 @@ impl<'interner> Monomorphizer<'interner> {
                         true
                     }
                     _ => {
-                        Self::append_abi_arg_inner(&typ, arguments);
+                        Self::append_printable_type_arg_inner(&typ, arguments);
                         false
                     }
                 };
@@ -876,17 +876,17 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn append_abi_arg_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+    fn append_printable_type_arg_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
         if let HirType::Array(size, _) = typ {
             if let HirType::NotConstant = **size {
                 unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
             }
         }
-        let abi_type = typ.as_abi_type();
-        let abi_as_string =
-            serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
+        let printable_type = PrintableType::from(typ);
+        let printable_type_as_string =
+            serde_json::to_string(&printable_type).expect("ICE: expected Abi type to serialize");
 
-        arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
+        arguments.push(ast::Expression::Literal(ast::Literal::Str(printable_type_as_string)));
     }
 
     /// Try to evaluate certain builtin functions (currently only 'array_len' and field modulus methods)
@@ -1025,9 +1025,8 @@ impl<'interner> Monomorphizer<'interner> {
         let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            Param(pattern, typ, Visibility::Private)
-        }));
+        let parameters =
+            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
 
         let parameters = self.parameters(parameters);
         let body = self.expr(lambda.body);
@@ -1077,9 +1076,8 @@ impl<'interner> Monomorphizer<'interner> {
         let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            Param(pattern, typ, Visibility::Private)
-        }));
+        let parameters =
+            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
 
         let mut converted_parameters = self.parameters(parameters);
 

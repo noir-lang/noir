@@ -3,7 +3,7 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
 };
 use iter_extended::vecmap;
-use noirc_abi::{decode_string_value, input_parser::InputValueDisplay, AbiType};
+use noirc_printable::{decode_string_value, PrintableType, PrintableValueDisplay};
 use regex::{Captures, Regex};
 
 use crate::errors::ForeignCallError;
@@ -95,16 +95,16 @@ impl ForeignCall {
 fn convert_string_inputs(foreign_call_inputs: &[Vec<Value>]) -> Result<String, ForeignCallError> {
     // Fetch the abi type from the foreign call input
     // The remaining input values should hold what is to be printed
-    let (abi_type_as_values, input_values) =
+    let (printable_type_as_values, input_values) =
         foreign_call_inputs.split_last().ok_or(ForeignCallError::MissingForeignCallInputs)?;
-    let abi_type = fetch_abi_type(abi_type_as_values)?;
+    let printable_type = fetch_printable_type(printable_type_as_values)?;
 
     // We must use a flat map here as each value in a struct will be in a separate input value
     let mut input_values_as_fields =
         input_values.iter().flat_map(|values| vecmap(values, |value| value.to_field()));
 
     let input_value_display =
-        InputValueDisplay::try_from_fields(&mut input_values_as_fields, abi_type)?;
+        PrintableValueDisplay::try_from_fields(&mut input_values_as_fields, printable_type)?;
 
     Ok(input_value_display.to_string())
 }
@@ -126,7 +126,7 @@ fn convert_fmt_string_inputs(
 
     let mut abi_types = Vec::new();
     for abi_values in input_and_abi_values.iter().skip(input_and_abi_values.len() - num_values) {
-        let abi_type = fetch_abi_type(abi_values)?;
+        let abi_type = fetch_printable_type(abi_values)?;
         abi_types.push(abi_type);
     }
 
@@ -139,7 +139,7 @@ fn convert_fmt_string_inputs(
             .flat_map(|values| vecmap(values, |value| value.to_field()));
 
         let input_value_display =
-            InputValueDisplay::try_from_fields(&mut input_values_as_fields, abi_type.clone())?;
+            PrintableValueDisplay::try_from_fields(&mut input_values_as_fields, abi_type.clone())?;
 
         output_strings.push(input_value_display.to_string());
     }
@@ -157,11 +157,13 @@ fn convert_fmt_string_inputs(
     Ok(formatted_str.into_owned())
 }
 
-fn fetch_abi_type(abi_type_as_values: &[Value]) -> Result<AbiType, ForeignCallError> {
-    let abi_type_as_fields = vecmap(abi_type_as_values, |value| value.to_field());
-    let abi_type_as_string = decode_string_value(&abi_type_as_fields);
-    let abi_type: AbiType = serde_json::from_str(&abi_type_as_string)
+fn fetch_printable_type(
+    printable_type_as_values: &[Value],
+) -> Result<PrintableType, ForeignCallError> {
+    let printable_type_as_fields = vecmap(printable_type_as_values, |value| value.to_field());
+    let printable_type_as_string = decode_string_value(&printable_type_as_fields);
+    let printable_type: PrintableType = serde_json::from_str(&printable_type_as_string)
         .map_err(|err| ForeignCallError::InputParserError(err.into()))?;
 
-    Ok(abi_type)
+    Ok(printable_type)
 }

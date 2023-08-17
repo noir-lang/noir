@@ -1,9 +1,8 @@
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
 
-use crate::{BinaryOpKind, Distinctness, Signedness};
+use crate::{hir_def::function::Param, BinaryOpKind, Distinctness, Signedness};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
@@ -236,7 +235,7 @@ impl Type {
 #[derive(Debug, Clone)]
 pub struct Program {
     pub functions: Vec<Function>,
-    pub main_function_signature: FunctionSignature,
+    pub main_function_signature: (Vec<Param>, Option<crate::Type>),
     /// Indicates whether witness indices are allowed to reoccur in the ABI of the resulting ACIR.
     ///
     /// Note: this has no impact on monomorphization, and is simply attached here for ease of
@@ -247,7 +246,7 @@ pub struct Program {
 impl Program {
     pub fn new(
         functions: Vec<Function>,
-        main_function_signature: FunctionSignature,
+        main_function_signature: (Vec<Param>, Option<crate::Type>),
         return_distinctness: Distinctness,
     ) -> Program {
         Program { functions, main_function_signature, return_distinctness }

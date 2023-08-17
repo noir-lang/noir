@@ -8,15 +8,14 @@ edition.workspace = true
 
 [dependencies]
 acvm.workspace = true
-noirc_abi.workspace = true
 noirc_errors.workspace = true
+noirc_printable.workspace = true
 fm.workspace = true
 arena.workspace = true
 iter-extended.workspace = true
 chumsky.workspace = true
 thiserror.workspace = true
 smol_str.workspace = true
-serde.workspace = true
 serde_json.workspace = true
 rustc-hash = "1.1.0"
 small-ord-set = "0.1.3"

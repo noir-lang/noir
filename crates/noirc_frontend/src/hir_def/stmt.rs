@@ -1,5 +1,5 @@
 use super::expr::HirIdent;
-use crate::node_interner::ExprId;
+use crate::node_interner::{ExprId, NodeInterner};
 use crate::{Ident, Type};
 use fm::FileId;
 use noirc_errors::Span;
@@ -77,6 +77,17 @@ impl HirPattern {
                 Box::new(fields.iter().enumerate().map(|(i, field)| (i.to_string(), field)))
             }
             other => panic!("Tried to iterate over the fields of '{other:?}', which has none"),
+        }
+    }
+
+    /// Attempts to retrieve the name of this parameter. Returns None
+    /// if this parameter is a tuple or struct pattern.
+    pub fn get_param_name<'a>(&self, interner: &'a NodeInterner) -> Option<&'a str> {
+        match self {
+            HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
+            HirPattern::Mutable(pattern, _) => pattern.get_param_name(interner),
+            HirPattern::Tuple(_, _) => None,
+            HirPattern::Struct(_, _, _) => None,
         }
     }
 }

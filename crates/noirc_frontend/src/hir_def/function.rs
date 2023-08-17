@@ -1,5 +1,4 @@
 use iter_extended::vecmap;
-use noirc_abi::{AbiParameter, AbiType};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
@@ -36,34 +35,12 @@ impl HirFunction {
 }
 
 /// An interned function parameter from a function definition
-#[derive(Debug, Clone)]
-pub struct Param(pub HirPattern, pub Type, pub Visibility);
-
-/// Attempts to retrieve the name of this parameter. Returns None
-/// if this parameter is a tuple or struct pattern.
-fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Option<&'a str> {
-    match pattern {
-        HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
-        HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
-        HirPattern::Tuple(_, _) => None,
-        HirPattern::Struct(_, _, _) => None,
-    }
-}
+pub type Param = (HirPattern, Type, Visibility);
 
 #[derive(Debug, Clone)]
-pub struct Parameters(pub Vec<Param>);
+pub struct Parameters(Vec<Param>);
 
 impl Parameters {
-    fn into_abi_params(self, interner: &NodeInterner) -> Vec<AbiParameter> {
-        vecmap(self.0, |param| {
-            let param_name = get_param_name(&param.0, interner)
-                .expect("Abi for tuple and struct parameters is unimplemented")
-                .to_owned();
-            let as_abi = param.1.as_abi_type();
-            AbiParameter { name: param_name, typ: as_abi, visibility: param.2.into() }
-        })
-    }
-
     pub fn span(&self) -> Span {
         assert!(!self.is_empty());
         let mut spans = vecmap(&self.0, |param| match &param.0 {
@@ -104,7 +81,7 @@ impl IntoIterator for Parameters {
 
 impl From<Vec<Param>> for Parameters {
     fn from(vec: Vec<Param>) -> Parameters {
-        Parameters(vec)
+        Self(vec)
     }
 }
 
@@ -165,18 +142,13 @@ impl FuncMeta {
         }
     }
 
-    pub fn into_function_signature(
-        self,
-        interner: &NodeInterner,
-    ) -> (Vec<AbiParameter>, Option<AbiType>) {
+    pub fn into_function_signature(self) -> (Vec<Param>, Option<Type>) {
         let return_type = match self.return_type() {
             Type::Unit => None,
-            typ => Some(typ.as_abi_type()),
+            typ => Some(typ.clone()),
         };
 
-        let params = self.parameters.into_abi_params(interner);
-
-        (params, return_type)
+        (self.parameters.0, return_type)
     }
 
     /// Gives the (uninstantiated) return type of this function.

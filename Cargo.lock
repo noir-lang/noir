@@ -2191,6 +2191,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
+ "noirc_printable",
  "regex",
  "rustc_version",
  "serde",
@@ -2311,6 +2312,7 @@ version = "0.10.3"
 dependencies = [
  "acvm",
  "iter-extended",
+ "noirc_frontend",
  "serde",
  "serde_json",
  "strum",
@@ -2327,6 +2329,7 @@ dependencies = [
  "base64",
  "clap",
  "fm",
+ "iter-extended",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
@@ -2368,16 +2371,26 @@ dependencies = [
  "chumsky",
  "fm",
  "iter-extended",
- "noirc_abi",
  "noirc_errors",
+ "noirc_printable",
  "regex",
  "rustc-hash",
- "serde",
  "serde_json",
  "small-ord-set",
  "smol_str",
  "strum",
  "strum_macros",
+ "thiserror",
+]
+
+[[package]]
+name = "noirc_printable"
+version = "0.10.3"
+dependencies = [
+ "acvm",
+ "iter-extended",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

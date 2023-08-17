@@ -8,6 +8,7 @@ edition.workspace = true
 
 [dependencies]
 clap.workspace = true
+iter-extended.workspace = true
 noirc_errors.workspace = true
 noirc_frontend.workspace = true
 noirc_evaluator.workspace = true

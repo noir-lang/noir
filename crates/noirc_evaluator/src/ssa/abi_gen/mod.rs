@@ -1,17 +1,27 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::native_types::Witness;
-use iter_extended::btree_map;
-use noirc_abi::{Abi, AbiParameter, FunctionSignature};
+use iter_extended::{btree_map, vecmap};
+use noirc_abi::{Abi, AbiParameter, AbiType};
+use noirc_frontend::{hir_def::function::Param, node_interner::NodeInterner, Type};
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
 pub(crate) fn gen_abi(
-    func_sig: FunctionSignature,
+    interner: &NodeInterner,
+    func_sig: (Vec<Param>, Option<Type>),
     input_witnesses: &[Witness],
     return_witnesses: Vec<Witness>,
 ) -> Abi {
     let (parameters, return_type) = func_sig;
+    let parameters = vecmap(parameters.iter(), |(pattern, typ, vis)| {
+        let param_name = pattern
+            .get_param_name(interner)
+            .expect("Abi for tuple and struct parameters is unimplemented")
+            .to_owned();
+        AbiParameter { name: param_name, typ: AbiType::from(typ), visibility: vis.into() }
+    });
+    let return_type = return_type.map(Into::into);
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
     Abi { parameters, return_type, param_witnesses, return_witnesses }
 }

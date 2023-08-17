@@ -5,7 +5,8 @@
 
 use clap::Args;
 use fm::FileId;
-use noirc_abi::FunctionSignature;
+use iter_extended::vecmap;
+use noirc_abi::{AbiParameter, AbiType, FunctionSignature};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::create_circuit;
 use noirc_frontend::graph::{CrateId, CrateName};
@@ -132,8 +133,16 @@ pub fn compute_function_signature(
     let main_function = context.get_main_function(crate_id)?;
 
     let func_meta = context.def_interner.function_meta(&main_function);
-
-    Some(func_meta.into_function_signature(&context.def_interner))
+    let (parameters, return_type) = func_meta.into_function_signature();
+    let parameters = vecmap(parameters.iter(), |(pattern, typ, vis)| {
+        let param_name = pattern
+            .get_param_name(&context.def_interner)
+            .expect("Abi for tuple and struct parameters is unimplemented")
+            .to_owned();
+        AbiParameter { name: param_name, typ: AbiType::from(typ), visibility: vis.into() }
+    });
+    let return_type = return_type.map(Into::into);
+    Some((parameters, return_type))
 }
 
 /// Run the frontend to check the crate for errors then compile the main function if there were none
@@ -270,7 +279,8 @@ pub fn compile_no_check(
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) = create_circuit(program, options.show_ssa, options.show_brillig)?;
+    let (circuit, debug, abi) =
+        create_circuit(context, program, options.show_ssa, options.show_brillig)?;
 
     Ok(CompiledProgram { circuit, debug, abi })
 }

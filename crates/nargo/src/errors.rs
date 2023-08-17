@@ -1,5 +1,5 @@
 use acvm::pwg::OpcodeResolutionError;
-use noirc_abi::errors::{AbiError, InputParserError};
+use noirc_printable::{AbiError, InputParserError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

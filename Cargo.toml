@@ -38,6 +38,7 @@ noirc_driver = { path = "crates/noirc_driver" }
 noirc_errors = { path = "crates/noirc_errors" }
 noirc_evaluator = { path = "crates/noirc_evaluator" }
 noirc_frontend = { path = "crates/noirc_frontend" }
+noirc_printable = { path = "crates/noirc_printable" }
 noir_wasm = { path = "crates/wasm" }
 cfg-if = "1.0.0"
 clap = { version = "4.3.19", features = ["derive"] }

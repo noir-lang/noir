@@ -112,13 +112,13 @@ impl Ssa {
     pub(crate) fn into_acir(
         self,
         brillig: Brillig,
-        abi_distinctness: Distinctness,
+        distinctness: Distinctness,
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let context = Context::new();
         let mut generated_acir = context.convert_ssa(self, brillig, last_array_uses)?;
 
-        match abi_distinctness {
+        match distinctness {
             Distinctness::Distinct => {
                 // Create a witness for each return witness we have
                 // to guarantee that the return witnesses are distinct
