@@ -1,9 +1,11 @@
-import { MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Proof } from '@aztec/circuits.js';
+import { AztecAddress, EthAddress, MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, Proof } from '@aztec/circuits.js';
 import { makeKernelPublicInputs, makePublicCallRequest } from '@aztec/circuits.js/factories';
+import { ContractAbi } from '@aztec/foundation/abi';
+import { randomBytes } from '@aztec/foundation/crypto';
 
 import times from 'lodash.times';
 
-import { EncodedContractFunction, FunctionL2Logs, TxL2Logs } from './index.js';
+import { DeployedContract, EncodedContractFunction, FunctionL2Logs, TxL2Logs } from './index.js';
 import { Tx } from './tx/index.js';
 
 /**
@@ -24,3 +26,14 @@ export const mockTx = (seed = 1) => {
     times(MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX, makePublicCallRequest),
   );
 };
+
+export const randomContractAbi = (): ContractAbi => ({
+  name: randomBytes(4).toString('hex'),
+  functions: [],
+});
+
+export const randomDeployedContract = (): DeployedContract => ({
+  abi: randomContractAbi(),
+  address: AztecAddress.random(),
+  portalContract: EthAddress.random(),
+});

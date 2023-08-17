@@ -69,6 +69,7 @@ export interface AztecRPC {
    * @param privKey - Private key of the corresponding user master public key.
    * @param account - A complete address of the account.
    * @returns Empty promise.
+   * @throws If the account is already registered.
    */
   registerAccount(privKey: PrivateKey, account: CompleteAddress): Promise<void>;
 
@@ -80,6 +81,7 @@ export interface AztecRPC {
    *          This is because we don't have the associated private key and for this reason we can't decrypt
    *          the recipient's notes. We can send notes to this account because we can encrypt them with the recipient's
    *          public key.
+   * @throws If the recipient is already registered.
    */
   registerRecipient(recipient: CompleteAddress): Promise<void>;
 
@@ -121,6 +123,12 @@ export interface AztecRPC {
    * @returns A Promise that resolves once all the contracts have been added to the database.
    */
   addContracts(contracts: DeployedContract[]): Promise<void>;
+
+  /**
+   * Retrieves the list of addresses of contracts added to this rpc server.
+   * @returns A promise that resolves to an array of contracts addresses registered on this RPC server.
+   */
+  getContracts(): Promise<AztecAddress[]>;
 
   /**
    * Create a transaction for a contract function call with the provided arguments.

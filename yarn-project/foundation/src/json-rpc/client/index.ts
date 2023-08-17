@@ -1,1 +1,6 @@
-export { createJsonRpcClient, mustSucceedFetch, defaultFetch } from './json_rpc_client.js';
+export {
+  createJsonRpcClient,
+  mustSucceedFetch,
+  mustSucceedFetchUnlessNoRetry,
+  defaultFetch,
+} from './json_rpc_client.js';

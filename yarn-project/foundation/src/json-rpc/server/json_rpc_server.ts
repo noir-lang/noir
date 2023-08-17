@@ -80,13 +80,20 @@ export class JsonRpcServer {
         }
         router.post(`/${method}`, async (ctx: Koa.Context) => {
           const { params = [], jsonrpc, id } = ctx.request.body as any;
-          const result = await this.proxy.call(method, params);
-          ctx.body = {
-            jsonrpc,
-            id,
-            result: convertBigintsInObj(result),
-          };
-          ctx.status = 200;
+          try {
+            const result = await this.proxy.call(method, params);
+            ctx.body = {
+              jsonrpc,
+              id,
+              result: convertBigintsInObj(result),
+            };
+            ctx.status = 200;
+          } catch (err: any) {
+            // Propagate the error message to the client. Plenty of the errors are expected to occur (e.g. adding
+            // a duplicate recipient) so this is necessary.
+            ctx.status = 400;
+            ctx.body = { error: err.message };
+          }
         });
       }
     } else {
@@ -101,15 +108,23 @@ export class JsonRpcServer {
         ) {
           ctx.status = 400;
           ctx.body = { error: `Invalid method name: ${method}` };
-        }
-        const result = await this.proxy.call(method, params);
+        } else {
+          try {
+            const result = await this.proxy.call(method, params);
 
-        ctx.body = {
-          jsonrpc,
-          id,
-          result: convertBigintsInObj(result),
-        };
-        ctx.status = 200;
+            ctx.body = {
+              jsonrpc,
+              id,
+              result: convertBigintsInObj(result),
+            };
+            ctx.status = 200;
+          } catch (err: any) {
+            // Propagate the error message to the client. Plenty of the errors are expected to occur (e.g. adding
+            // a duplicate recipient) so this is necessary.
+            ctx.status = 400;
+            ctx.body = { error: err.message };
+          }
+        }
       });
     }
 

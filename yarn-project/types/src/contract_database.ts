@@ -24,4 +24,10 @@ export interface ContractDatabase {
    * @returns A Promise resolving to the ContractDao instance matching the given address or undefined.
    */
   getContract(address: AztecAddress): Promise<ContractDao | undefined>;
+
+  /**
+   * Retrieve all ContractDao instances stored in the database.
+   * @returns A Promise resolving to an array of all stored ContractDao instances.
+   */
+  getContracts(): Promise<ContractDao[]>;
 }

@@ -13,6 +13,7 @@ import {
 } from '@aztec/types';
 
 export { mustSucceedFetch } from '@aztec/foundation/json-rpc/client';
+export { mustSucceedFetchUnlessNoRetry } from '@aztec/foundation/json-rpc/client';
 
 export const createAztecRpcClient = (url: string, fetch = defaultFetch): AztecRPC =>
   createJsonRpcClient<AztecRPC>(

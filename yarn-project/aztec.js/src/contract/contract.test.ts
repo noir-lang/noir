@@ -1,7 +1,14 @@
 import { AztecAddress, CompleteAddress, EthAddress } from '@aztec/circuits.js';
 import { ABIParameterVisibility, ContractAbi, FunctionType } from '@aztec/foundation/abi';
-import { randomBytes } from '@aztec/foundation/crypto';
-import { ContractData, DeployedContract, NodeInfo, Tx, TxExecutionRequest, TxHash, TxReceipt } from '@aztec/types';
+import {
+  ContractData,
+  NodeInfo,
+  Tx,
+  TxExecutionRequest,
+  TxHash,
+  TxReceipt,
+  randomDeployedContract,
+} from '@aztec/types';
 
 import { MockProxy, mock } from 'jest-mock-extended';
 
@@ -80,17 +87,6 @@ describe('Contract Class', () => {
     ],
   };
 
-  const randomContractAbi = (): ContractAbi => ({
-    name: randomBytes(4).toString('hex'),
-    functions: [],
-  });
-
-  const randomDeployContract = (): DeployedContract => ({
-    abi: randomContractAbi(),
-    address: AztecAddress.random(),
-    portalContract: EthAddress.random(),
-  });
-
   beforeEach(async () => {
     account = await CompleteAddress.random();
     wallet = mock<Wallet>();
@@ -143,7 +139,7 @@ describe('Contract Class', () => {
   });
 
   it('should add contract and dependencies to aztec rpc', async () => {
-    const entry = randomDeployContract();
+    const entry = randomDeployedContract();
     const contract = await Contract.at(entry.address, entry.abi, wallet);
 
     {
@@ -154,7 +150,7 @@ describe('Contract Class', () => {
     }
 
     {
-      const dependencies = [randomDeployContract(), randomDeployContract()];
+      const dependencies = [randomDeployedContract(), randomDeployedContract()];
       await contract.attach(entry.portalContract, dependencies);
       expect(wallet.addContracts).toHaveBeenCalledTimes(1);
       expect(wallet.addContracts).toHaveBeenCalledWith([entry, ...dependencies]);

@@ -2,6 +2,9 @@ import { createDebugLogger } from '../log/index.js';
 import { sleep } from '../sleep/index.js';
 import { Timer } from '../timer/index.js';
 
+/** An error that indicates that the operation should not be retried. */
+export class NoRetryError extends Error {}
+
 /**
  * Generates a backoff sequence for retrying operations with an increasing delay.
  * The backoff sequence follows this pattern: 1, 1, 1, 2, 4, 8, 16, 32, 64, ...
@@ -27,6 +30,7 @@ export function* backoffGenerator() {
  * @param backoff - The optional backoff generator providing the intervals in seconds between retries. Defaults to a predefined series.
  * @param log - Logger to use for logging.
  * @returns A Promise that resolves with the successful result of the provided function, or rejects if backoff generator ends.
+ * @throws If `NoRetryError` is thrown by the `fn`, it is rethrown.
  */
 export async function retry<Result>(
   fn: () => Promise<Result>,
@@ -38,6 +42,10 @@ export async function retry<Result>(
     try {
       return await fn();
     } catch (err: any) {
+      if (err instanceof NoRetryError) {
+        // A special error that indicates that the operation should not be retried. Rethrow it.
+        throw err;
+      }
       const s = backoff.next().value;
       if (s === undefined) {
         throw err;

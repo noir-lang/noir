@@ -5,7 +5,7 @@
 import { RemoteObject } from 'comlink';
 
 import { createDebugLogger } from '../../log/index.js';
-import { retry } from '../../retry/index.js';
+import { NoRetryError, retry } from '../../retry/index.js';
 import { ClassConverter, JsonClassConverterInput, StringClassConverterInput } from '../class_converter.js';
 import { JsonStringify, convertFromJsonObj, convertToJsonObj } from '../convert.js';
 
@@ -18,9 +18,17 @@ const debug = createDebugLogger('json-rpc:json_rpc_client');
  * @param host - The host URL.
  * @param method - The RPC method name.
  * @param body - The RPC payload.
+ * @param noRetry - Whether to throw a `NoRetryError` in case the response is not ok and the body contains an error
+ *                  message (see `retry` function for more details).
  * @returns The parsed JSON response, or throws an error.
  */
-export async function defaultFetch(host: string, rpcMethod: string, body: any, useApiEndpoints: boolean) {
+export async function defaultFetch(
+  host: string,
+  rpcMethod: string,
+  body: any,
+  useApiEndpoints: boolean,
+  noRetry = false,
+) {
   debug(`JsonRpcClient.fetch`, host, rpcMethod, '->', body);
   let resp: Response;
   if (useApiEndpoints) {
@@ -37,15 +45,24 @@ export async function defaultFetch(host: string, rpcMethod: string, body: any, u
     });
   }
 
-  if (!resp.ok) {
-    throw new Error(resp.statusText);
-  }
-
+  let responseJson;
   try {
-    return await resp.json();
+    responseJson = await resp.json();
   } catch (err) {
+    if (!resp.ok) {
+      throw new Error(resp.statusText);
+    }
     throw new Error(`Failed to parse body as JSON: ${resp.text()}`);
   }
+  if (!resp.ok) {
+    if (noRetry) {
+      throw new NoRetryError(responseJson.error);
+    } else {
+      throw new Error(responseJson.error);
+    }
+  }
+
+  return responseJson;
 }
 
 /**
@@ -53,6 +70,19 @@ export async function defaultFetch(host: string, rpcMethod: string, body: any, u
  */
 export async function mustSucceedFetch(host: string, rpcMethod: string, body: any, useApiEndpoints: boolean) {
   return await retry(() => defaultFetch(host, rpcMethod, body, useApiEndpoints), 'JsonRpcClient request');
+}
+
+/**
+ * A fetch function with retries unless the error is a NoRetryError.
+ */
+export async function mustSucceedFetchUnlessNoRetry(
+  host: string,
+  rpcMethod: string,
+  body: any,
+  useApiEndpoints: boolean,
+) {
+  const noRetry = true;
+  return await retry(() => defaultFetch(host, rpcMethod, body, useApiEndpoints, noRetry), 'JsonRpcClient request');
 }
 
 /**

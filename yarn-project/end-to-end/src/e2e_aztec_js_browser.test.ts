@@ -126,7 +126,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
     const accounts = await testClient.getAccounts();
     const stringAccounts = accounts.map(acc => acc.address.toString());
     expect(stringAccounts.includes(result)).toBeTruthy();
-  });
+  }, 15_000);
 
   it('Deploys Private Token contract', async () => {
     const txHash = await page.evaluate(

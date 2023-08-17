@@ -33,8 +33,12 @@ export class MemoryContractDatabase implements ContractDatabase {
    * @param address - The AztecAddress to search for in the stored contracts.
    * @returns A Promise resolving to the ContractDao instance matching the given address or undefined.
    */
-  public getContract(address: AztecAddress) {
+  public getContract(address: AztecAddress): Promise<ContractDao | undefined> {
     return Promise.resolve(this.contracts.find(c => c.address.equals(address)));
+  }
+
+  public getContracts(): Promise<ContractDao[]> {
+    return Promise.resolve(this.contracts);
   }
 
   /**

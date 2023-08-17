@@ -32,7 +32,7 @@ export class EntrypointCollection implements Entrypoint {
 
   /**
    * Registers an entrypoint against an aztec address
-   * @param addr - The aztec address agianst which to register the implementation.
+   * @param addr - The aztec address against which to register the implementation.
    * @param impl - The entrypoint to be registered.
    */
   public registerAccount(addr: AztecAddress, impl: Entrypoint) {
