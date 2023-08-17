@@ -72,6 +72,8 @@ pub struct DefCollector {
     pub(crate) collected_traits: HashMap<TraitId, UnresolvedTrait>,
     pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     pub(crate) collected_impls: ImplMap,
+    pub(crate) collected_traits_impls: ImplMap,
+
 }
 
 /// Maps the type and the module id in which the impl is defined to the functions contained in that
@@ -90,6 +92,7 @@ impl DefCollector {
             collected_type_aliases: HashMap::new(),
             collected_traits: HashMap::new(),
             collected_impls: HashMap::new(),
+            collected_traits_impls: HashMap::new(),
             collected_globals: vec![],
         }
     }
@@ -197,6 +200,8 @@ impl DefCollector {
         // impl since that determines the module we should collect into.
         collect_impls(context, crate_id, &def_collector.collected_impls, errors);
 
+        collect_impls(context, crate_id, &def_collector.collected_traits_impls, errors);
+
         // Lower each function in the crate. This is now possible since imports have been resolved
         let file_func_ids = resolve_free_functions(
             &mut context.def_interner,
@@ -215,10 +220,19 @@ impl DefCollector {
             errors,
         );
 
+        let file_trait_impls_ids = resolve_impls(
+            &mut context.def_interner,
+            crate_id,
+            &context.def_maps,
+            def_collector.collected_traits_impls,
+            errors,
+        );
+
         type_check_globals(&mut context.def_interner, file_global_ids, errors);
 
         // Type check all of the functions in the crate
         type_check_functions(&mut context.def_interner, file_func_ids, errors);
+        type_check_functions(&mut context.def_interner, file_trait_impls_ids, errors);
         type_check_functions(&mut context.def_interner, file_method_ids, errors);
     }
 }

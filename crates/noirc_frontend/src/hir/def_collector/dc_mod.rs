@@ -304,7 +304,7 @@ impl<'a> ModCollector<'a> {
             let collected_implementations =
                 self.collect_trait_implementations(context, &trait_impl, &trait_def, errors);
             let key = (impl_object_type, self.module_id);
-            self.def_collector.collected_impls.entry(key).or_default().push((
+            self.def_collector.collected_traits_impls.entry(key).or_default().push((
                 impl_generics,
                 impl_type_span,
                 collected_implementations,
