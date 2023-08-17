@@ -223,7 +223,7 @@ export class L1Publisher implements L2BlockReceiver {
       try {
         return await this.txSender.sendEmitContractDeploymentTx(l2BlockNum, l2BlockHash, contractData);
       } catch (err) {
-        this.log(`Error sending contract data to L1`, err);
+        this.log.error(`Error sending contract data to L1`, err);
         await this.sleepOrInterrupted();
       }
     }
@@ -234,7 +234,7 @@ export class L1Publisher implements L2BlockReceiver {
       try {
         return await this.txSender.getTransactionReceipt(txHash);
       } catch (err) {
-        //this.log(`Error getting tx receipt`, err);
+        //this.log.error(`Error getting tx receipt`, err);
         await this.sleepOrInterrupted();
       }
     }

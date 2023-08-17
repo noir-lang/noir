@@ -145,7 +145,7 @@ describe('server_world_state_synchroniser', () => {
     nextBlocks = [getMockBlock(currentBlockNumber + 1)];
 
     // start the sync process but don't await
-    server.start().catch(err => log('Sync not completed: ', err));
+    server.start().catch(err => log.error('Sync not completed: ', err));
 
     // now setup a loop to monitor the sync progress and push new blocks in
     while (currentBlockNumber <= LATEST_BLOCK_NUMBER) {

@@ -82,6 +82,6 @@ main()
     process.exit(0);
   })
   .catch(err => {
-    logger('Error in main fn: ', err);
+    logger.error('Error in main fn: ', err);
     process.exit(1);
   });

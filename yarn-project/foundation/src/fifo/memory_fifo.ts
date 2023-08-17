@@ -108,7 +108,7 @@ export class MemoryFifo<T> {
         await handler(item);
       }
     } catch (err) {
-      this.log('Queue handler exception:', err);
+      this.log.error('Queue handler exception:', err);
     }
   }
 }

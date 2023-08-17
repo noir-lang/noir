@@ -62,7 +62,7 @@ export async function retry<Result>(
         throw err;
       }
       log(`${name} failed. Will retry in ${s}s...`);
-      log(err);
+      log.error(err);
       await sleep(s * 1000);
       continue;
     }

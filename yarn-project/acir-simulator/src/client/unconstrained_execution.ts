@@ -59,7 +59,7 @@ export class UnconstrainedFunctionExecution {
       storageRead: async ([slot], [numberOfElements]) => {
         if (!aztecNode) {
           const errMsg = `Aztec node is undefined, cannot read storage`;
-          this.log(errMsg);
+          this.log.error(errMsg);
           throw new Error(errMsg);
         }
 

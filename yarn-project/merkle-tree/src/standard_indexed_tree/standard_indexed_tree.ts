@@ -251,7 +251,7 @@ export class StandardIndexedTree extends TreeBase implements IndexedTree {
           resolve();
         })
         .on('error', function () {
-          log('stream error');
+          log.error('stream error');
           reject();
         });
     });

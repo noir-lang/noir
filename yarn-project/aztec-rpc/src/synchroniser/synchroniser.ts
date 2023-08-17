@@ -132,7 +132,7 @@ export class Synchroniser {
 
       this.synchedToBlock = latestBlock.block.number;
     } catch (err) {
-      this.log(err);
+      this.log.error(err);
       await this.interruptableSleep.sleep(retryInterval);
     }
   }
@@ -186,7 +186,7 @@ export class Synchroniser {
         this.noteProcessors.push(noteProcessor);
       }
     } catch (err) {
-      this.log(err);
+      this.log.error(err);
       await this.interruptableSleep.sleep(retryInterval);
     }
   }

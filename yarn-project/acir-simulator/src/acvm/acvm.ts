@@ -85,7 +85,7 @@ export async function acvm(
       const result = await oracleFunction.call(callback, ...args);
       return [result];
     } catch (err: any) {
-      logger(`Error in oracle callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
+      logger.error(`Error in oracle callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
       throw err;
     }
   });

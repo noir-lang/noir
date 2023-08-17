@@ -215,7 +215,7 @@ export class LibP2PService implements P2PService {
       }
       await this.processMessage(message, peer);
     } catch (err) {
-      this.logger(
+      this.logger.error(
         `Failed to handle received message from peer ${incomingStreamData.connection.remotePeer.toString()}`,
         err,
       );
@@ -274,7 +274,7 @@ export class LibP2PService implements P2PService {
       }
       await this.sendGetTransactionsMessageToPeer(txHashes, peerId);
     } catch (err) {
-      this.logger(`Failed to process received tx hashes`, err);
+      this.logger.error(`Failed to process received tx hashes`, err);
     }
   }
 
@@ -290,7 +290,7 @@ export class LibP2PService implements P2PService {
       }
       await this.sendTransactionsMessageToPeer(txs, peerId);
     } catch (err) {
-      this.logger(`Failed to process get txs request`, err);
+      this.logger.error(`Failed to process get txs request`, err);
     }
   }
 
@@ -303,7 +303,7 @@ export class LibP2PService implements P2PService {
         await this.processTxFromPeer(tx, peerId);
       }
     } catch (err) {
-      this.logger(`Failed to process pooled transactions message`, err);
+      this.logger.error(`Failed to process pooled transactions message`, err);
     }
   }
 
@@ -332,7 +332,7 @@ export class LibP2PService implements P2PService {
         await this.sendRawMessageToPeer(payload, peer);
         this.knownTxLookup.addPeerForTx(peer, txHashString);
       } catch (err) {
-        this.logger(`Failed to send txs to peer ${peer.toString()}`, err);
+        this.logger.error(`Failed to send txs to peer ${peer.toString()}`, err);
         continue;
       }
     }
@@ -347,7 +347,7 @@ export class LibP2PService implements P2PService {
       const message = createTransactionHashesMessage(hashes);
       await this.sendRawMessageToPeer(new Uint8Array(message), peer);
     } catch (err) {
-      this.logger(`Failed to send tx hashes to peer ${peer.toString()}`, err);
+      this.logger.error(`Failed to send tx hashes to peer ${peer.toString()}`, err);
     }
   }
 
@@ -356,7 +356,7 @@ export class LibP2PService implements P2PService {
       const message = createGetTransactionsRequestMessage(hashes);
       await this.sendRawMessageToPeer(new Uint8Array(message), peer);
     } catch (err) {
-      this.logger(`Failed to send tx request to peer ${peer.toString()}`, err);
+      this.logger.error(`Failed to send tx request to peer ${peer.toString()}`, err);
     }
   }
 

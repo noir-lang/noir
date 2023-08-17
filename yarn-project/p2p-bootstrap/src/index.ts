@@ -25,5 +25,5 @@ async function main() {
 }
 
 main().catch(err => {
-  logger(err);
+  logger.error(err);
 });

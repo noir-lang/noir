@@ -71,7 +71,7 @@ export class BoundedSerialQueue {
         }
       })
       .catch(err => {
-        this.log('BoundedSerialQueue handler exception:', err);
+        this.log.error('BoundedSerialQueue handler exception:', err);
       });
   }
 

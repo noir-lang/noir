@@ -38,14 +38,14 @@ export class JsonRpcServer {
       try {
         await next();
       } catch (err: any) {
-        this.log(err);
+        this.log.error(err);
         ctx.status = 400;
         ctx.body = { error: err.message };
       }
     };
     const app = new Koa();
     app.on('error', error => {
-      this.log(`KOA app-level error. ${convertBigintsInObj({ error })}`);
+      this.log.error(`KOA app-level error. ${JSON.stringify({ error })}`);
     });
     app.use(compress({ br: false } as any));
     app.use(bodyParser());

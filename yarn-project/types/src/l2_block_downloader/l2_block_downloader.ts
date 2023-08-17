@@ -53,7 +53,7 @@ export class L2BlockDownloader {
           this.queue.put(blocks);
           this.from += blocks.length;
         } catch (err) {
-          log(err);
+          log.error(err);
           await this.interruptableSleep.sleep(this.pollIntervalMS);
         }
       }

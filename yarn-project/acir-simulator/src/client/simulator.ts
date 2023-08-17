@@ -48,7 +48,7 @@ export class AcirSimulator {
     }
 
     if (request.origin !== contractAddress) {
-      this.log(`WARN: Request origin does not match contract address in simulation`);
+      this.log.warn('Request origin does not match contract address in simulation');
     }
 
     const curve = await Grumpkin.new();

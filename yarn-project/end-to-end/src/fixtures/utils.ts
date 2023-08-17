@@ -50,7 +50,7 @@ const { SANDBOX_URL = '' } = process.env;
 export const waitForRPCServer = async (rpcServer: AztecRPC, logger: DebugLogger) => {
   await retryUntil(async () => {
     try {
-      logger('Attmpting to contact RPC Server...');
+      logger('Attempting to contact RPC Server...');
       await rpcServer.getNodeInfo();
       return true;
     } catch (error) {

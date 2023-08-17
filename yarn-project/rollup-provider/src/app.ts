@@ -31,7 +31,7 @@ export function appFactory(node: AztecNode, prefix: string) {
     try {
       await next();
     } catch (err: any) {
-      logger(err);
+      logger.error(err);
       ctx.status = 400;
       ctx.body = { error: err.message };
     }
@@ -258,7 +258,7 @@ export function appFactory(node: AztecNode, prefix: string) {
 
   const app = new Koa();
   app.on('error', error => {
-    logger(`KOA app-level error. ${JSON.stringify({ error })}`);
+    logger.error(`KOA app-level error. ${JSON.stringify({ error })}`);
   });
   app.proxy = true;
   app.use(exceptionHandler);
