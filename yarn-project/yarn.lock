@@ -630,7 +630,6 @@ __metadata:
     jest-mock-extended: ^3.0.4
     libp2p: ^0.45.1
     lodash.times: ^4.3.2
-    multiaddr: ^10.0.1
     sha3: ^2.1.4
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
@@ -5549,17 +5548,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dns-over-http-resolver@npm:^1.2.3":
-  version: 1.2.3
-  resolution: "dns-over-http-resolver@npm:1.2.3"
-  dependencies:
-    debug: ^4.3.1
-    native-fetch: ^3.0.0
-    receptacle: ^1.3.2
-  checksum: 3cc1a1d77fc43e7a8a12453da987b80860ac96dc1031386c5eb1a39154775a87cfa1d50c0eaa5ea5e397e898791654608f6e2acf03f750f4098ab8822bb7d928
-  languageName: node
-  linkType: hard
-
 "dns-over-http-resolver@npm:^2.1.0":
   version: 2.1.1
   resolution: "dns-over-http-resolver@npm:2.1.1"
@@ -7253,13 +7241,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ip-regex@npm:^4.0.0":
-  version: 4.3.0
-  resolution: "ip-regex@npm:4.3.0"
-  checksum: 7ff904b891221b1847f3fdf3dbb3e6a8660dc39bc283f79eb7ed88f5338e1a3d1104b779bc83759159be266249c59c2160e779ee39446d79d4ed0890dfd06f08
-  languageName: node
-  linkType: hard
-
 "ip-regex@npm:^5.0.0":
   version: 5.0.0
   resolution: "ip-regex@npm:5.0.0"
@@ -7439,15 +7420,6 @@ __metadata:
   bin:
     is-inside-container: cli.js
   checksum: c50b75a2ab66ab3e8b92b3bc534e1ea72ca25766832c0623ac22d134116a98bcf012197d1caabe1d1c4bd5f84363d4aa5c36bb4b585fbcaf57be172cd10a1a03
-  languageName: node
-  linkType: hard
-
-"is-ip@npm:^3.1.0":
-  version: 3.1.0
-  resolution: "is-ip@npm:3.1.0"
-  dependencies:
-    ip-regex: ^4.0.0
-  checksum: da2c2b282407194adf2320bade0bad94be9c9d0bdab85ff45b1b62d8185f31c65dff3884519d57bf270277e5ea2046c7916a6e5a6db22fe4b7ddcdd3760f23eb
   languageName: node
   linkType: hard
 
@@ -9409,20 +9381,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"multiaddr@npm:^10.0.1":
-  version: 10.0.1
-  resolution: "multiaddr@npm:10.0.1"
-  dependencies:
-    dns-over-http-resolver: ^1.2.3
-    err-code: ^3.0.1
-    is-ip: ^3.1.0
-    multiformats: ^9.4.5
-    uint8arrays: ^3.0.0
-    varint: ^6.0.0
-  checksum: d53aaf7efd52ee5e6413ef36ececd29239ceb5c1f048c1fa9b820442226dc232067312d25e509a2571a14047465fb934dd35029c7f3166f4d02d13e3c501925d
-  languageName: node
-  linkType: hard
-
 "multiformats@npm:^11.0.0, multiformats@npm:^11.0.2":
   version: 11.0.2
   resolution: "multiformats@npm:11.0.2"
@@ -9434,13 +9392,6 @@ __metadata:
   version: 12.0.1
   resolution: "multiformats@npm:12.0.1"
   checksum: 227f5a0bb835e998d105028ffaa4cec944b6461c7b7f3ddc4f3aca22f6917ad59643302898c67af167a6f9d7abddcab094e501488664e2b9437f0b6a9b2ab68d
-  languageName: node
-  linkType: hard
-
-"multiformats@npm:^9.4.2, multiformats@npm:^9.4.5":
-  version: 9.9.0
-  resolution: "multiformats@npm:9.9.0"
-  checksum: d3e8c1be400c09a014f557ea02251a2710dbc9fca5aa32cc702ff29f636c5471e17979f30bdcb0a9cbb556f162a8591dc2e1219c24fc21394a56115b820bb84e
   languageName: node
   linkType: hard
 
@@ -9466,15 +9417,6 @@ __metadata:
   version: 2.0.0
   resolution: "napi-macros@npm:2.0.0"
   checksum: 30384819386977c1f82034757014163fa60ab3c5a538094f778d38788bebb52534966279956f796a92ea771c7f8ae072b975df65de910d051ffbdc927f62320c
-  languageName: node
-  linkType: hard
-
-"native-fetch@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "native-fetch@npm:3.0.0"
-  peerDependencies:
-    node-fetch: "*"
-  checksum: eec8cc78d6da4d0f3f56055e3e557473ac86dd35fd40053ea268d644af7b20babc891d2b53ef821b77ed2428265f60b85e49d754c555de89bfa071a743b853bb
   languageName: node
   linkType: hard
 
@@ -11875,15 +11817,6 @@ __metadata:
   dependencies:
     uint8arrays: ^4.0.2
   checksum: 95225fe2b8f6a4d8919b6c8e3dcff32ced35a08a53efaef757a50bc0082fb5b91f09e7e46f0d1c234243899930f7cb02ef9eb44b97ce03e2381d416de15e16c9
-  languageName: node
-  linkType: hard
-
-"uint8arrays@npm:^3.0.0":
-  version: 3.1.1
-  resolution: "uint8arrays@npm:3.1.1"
-  dependencies:
-    multiformats: ^9.4.2
-  checksum: b93b6c3f0a526b116799f3a3409bd4b5d5553eb3e73e485998ece7974742254fbc0d2f7988dd21ac86c4b974552f45d9ae9cf9cba9647e529f8eb1fdd2ed84d0
   languageName: node
   linkType: hard
 
