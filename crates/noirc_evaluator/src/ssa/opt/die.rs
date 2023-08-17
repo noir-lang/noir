@@ -187,8 +187,8 @@ mod test {
         let v10 = builder.insert_binary(v7, BinaryOp::Add, three);
         let _v11 = builder.insert_binary(v10, BinaryOp::Add, v10);
 
-        let to_le_bits_id = builder.import_intrinsic_id(Intrinsic::AssertConstant);
-        builder.insert_call(to_le_bits_id, vec![v8], vec![]);
+        let assert_constant_id = builder.import_intrinsic_id(Intrinsic::AssertConstant);
+        builder.insert_call(assert_constant_id, vec![v8], vec![]);
         builder.terminate_with_return(vec![v9]);
 
         let ssa = builder.finish();
