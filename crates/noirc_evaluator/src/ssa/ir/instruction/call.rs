@@ -178,7 +178,6 @@ pub(super) fn simplify_call(
         }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
         Intrinsic::Sort => simplify_sort(dfg, arguments),
-        Intrinsic::Println => SimplifyResult::None,
     }
 }
 
