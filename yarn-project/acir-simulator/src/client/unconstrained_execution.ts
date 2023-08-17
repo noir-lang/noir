@@ -7,6 +7,7 @@ import { AztecNode } from '@aztec/types';
 
 import { extractReturnWitness, frToAztecAddress } from '../acvm/deserialize.js';
 import { ACVMField, ZERO_ACVM_FIELD, acvm, fromACVMField, toACVMField, toACVMWitness } from '../acvm/index.js';
+import { AcirSimulator } from '../index.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { oracleDebugCallToFormattedStr } from './debug.js';
 
@@ -40,7 +41,7 @@ export class UnconstrainedFunctionExecution {
     const acir = Buffer.from(this.abi.bytecode, 'base64');
     const initialWitness = toACVMWitness(1, this.args);
 
-    const { partialWitness } = await acvm(acir, initialWitness, {
+    const { partialWitness } = await acvm(await AcirSimulator.getSolver(), acir, initialWitness, {
       getSecretKey: ([ownerX], [ownerY]) => this.context.getSecretKey(this.contractAddress, ownerX, ownerY),
       getPublicKey: async ([acvmAddress]) => {
         const address = frToAztecAddress(fromACVMField(acvmAddress));

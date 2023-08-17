@@ -8,6 +8,8 @@ import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { AztecNode, FunctionCall, TxExecutionRequest } from '@aztec/types';
 
+import { WasmBlackBoxFunctionSolver, createBlackBoxSolver } from 'acvm_js';
+
 import { PackedArgsCache } from '../packed_args_cache.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { DBOracle } from './db_oracle.js';
@@ -20,10 +22,29 @@ import { UnconstrainedFunctionExecution } from './unconstrained_execution.js';
  * The ACIR simulator.
  */
 export class AcirSimulator {
+  private static solver: WasmBlackBoxFunctionSolver; // ACVM's backend
   private log: DebugLogger;
 
   constructor(private db: DBOracle) {
     this.log = createDebugLogger('aztec:simulator');
+  }
+
+  /**
+   * Gets or initializes the ACVM WasmBlackBoxFunctionSolver.
+   *
+   * @remarks
+   *
+   * Occurs only once across all instances of AcirSimulator.
+   * Speeds up execution by only performing setup tasks (like pedersen
+   * generator initialization) one time.
+   * TODO(https://github.com/AztecProtocol/aztec-packages/issues/1627):
+   * determine whether this requires a lock
+   *
+   * @returns ACVM WasmBlackBoxFunctionSolver
+   */
+  public static async getSolver(): Promise<WasmBlackBoxFunctionSolver> {
+    if (!this.solver) this.solver = await createBlackBoxSolver();
+    return this.solver;
   }
 
   /**

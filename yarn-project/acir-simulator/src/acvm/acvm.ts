@@ -3,7 +3,13 @@ import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 
-import { ForeignCallInput, ForeignCallOutput, WitnessMap, executeCircuit } from 'acvm_js';
+import {
+  ForeignCallInput,
+  ForeignCallOutput,
+  WasmBlackBoxFunctionSolver,
+  WitnessMap,
+  executeCircuitWithBlackBoxSolver,
+} from 'acvm_js';
 
 /**
  * The format for fields on the ACVM.
@@ -69,26 +75,32 @@ export interface ACIRExecutionResult {
  * The function call that executes an ACIR.
  */
 export async function acvm(
+  solver: WasmBlackBoxFunctionSolver,
   acir: Buffer,
   initialWitness: ACVMWitness,
   callback: ACIRCallback,
 ): Promise<ACIRExecutionResult> {
   const logger = createDebugLogger('aztec:simulator:acvm');
-  const partialWitness = await executeCircuit(acir, initialWitness, async (name: string, args: ForeignCallInput[]) => {
-    try {
-      logger(`Oracle callback ${name}`);
-      const oracleFunction = callback[name as ORACLE_NAMES];
-      if (!oracleFunction) {
-        throw new Error(`Oracle callback ${name} not found`);
-      }
+  const partialWitness = await executeCircuitWithBlackBoxSolver(
+    solver,
+    acir,
+    initialWitness,
+    async (name: string, args: ForeignCallInput[]) => {
+      try {
+        logger(`Oracle callback ${name}`);
+        const oracleFunction = callback[name as ORACLE_NAMES];
+        if (!oracleFunction) {
+          throw new Error(`Oracle callback ${name} not found`);
+        }
 
-      const result = await oracleFunction.call(callback, ...args);
-      return [result];
-    } catch (err: any) {
-      logger.error(`Error in oracle callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
-      throw err;
-    }
-  });
+        const result = await oracleFunction.call(callback, ...args);
+        return [result];
+      } catch (err: any) {
+        logger.error(`Error in oracle callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
+        throw err;
+      }
+    },
+  );
   return Promise.resolve({ partialWitness });
 }
 
