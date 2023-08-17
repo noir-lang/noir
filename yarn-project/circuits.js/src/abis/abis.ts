@@ -183,7 +183,7 @@ export function hashConstructor(
  * Computes a contract address.
  * @param wasm - A module providing low-level wasm access.
  * @param deployerPubKey - The pubkey of the contract deployer.
- * @param contractAddrSalt - The salt used as 1 one of the inputs of the contract address computation.
+ * @param contractAddrSalt - The salt used as one of the inputs of the contract address computation.
  * @param fnTreeRoot - The function tree root of the contract being deployed.
  * @param constructorHash - The hash of the constructor.
  * @returns The contract address.
@@ -208,7 +208,7 @@ export function computeContractAddress(
 /**
  * Computes a partial address. Consists of all contract address components except the deployer public key.
  * @param wasm - A module providing low-level wasm access.
- * @param contractAddrSalt - The salt used as 1 one of the inputs of the contract address computation.
+ * @param contractAddrSalt - The salt used as one of the inputs of the contract address computation.
  * @param fnTreeRoot - The function tree root of the contract being deployed.
  * @param constructorHash - The hash of the constructor.
  * @returns The partially constructed contract address.
@@ -232,7 +232,7 @@ export function computePartialAddress(
 /**
  * Computes a contract address from its partial address and the pubkey.
  * @param wasm - A module providing low-level wasm access.
- * @param partial - The salt used as 1 one of the inputs of the contract address computation.
+ * @param partial - The salt used as one of the inputs of the contract address computation.
  * @param fnTreeRoot - The function tree root of the contract being deployed.
  * @param constructorHash - The hash of the constructor.
  * @returns The partially constructed contract address.

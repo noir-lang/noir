@@ -146,8 +146,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
   program
     .command('deploy')
     .description('Deploys a compiled Noir contract to Aztec.')
-    .requiredOption(
-      '-c, --contract-abi <file>',
+    .argument(
+      '<abi>',
       "A compiled Noir contract's ABI in JSON format or name of a contract ABI exported by @aztec/noir-contracts",
     )
     .option('-a, --args <constructorArgs...>', 'Contract constructor arguments', [])
@@ -157,8 +157,8 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       'Optional encryption public key for this address. Set this value only if this contract is expected to receive private notes, which will be encrypted using this public key.',
     )
     .option('-s, --salt <string>', 'Optional deployment salt as a hex string for generating the deployment address.')
-    .action(async (options: any) => {
-      const contractAbi = await getContractAbi(options.contractAbi, log);
+    .action(async (abiPath, options: any) => {
+      const contractAbi = await getContractAbi(abiPath, log);
       const constructorAbi = contractAbi.functions.find(({ name }) => name === 'constructor');
 
       const client = createClient(options.rpcUrl);
@@ -279,7 +279,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
       const partialAddress = Fr.fromString(options.partialAddress);
 
       await client.registerRecipient(await CompleteAddress.create(address, publicKey, partialAddress));
-      log(`\nRegistered details for Address: ${options.address}\n`);
+      log(`\nRegistered details for account with address: ${options.address}\n`);
     });
 
   program
