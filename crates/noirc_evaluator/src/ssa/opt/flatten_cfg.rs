@@ -1000,8 +1000,8 @@ mod test {
         // will store values. Other blocks do not store values so that we can test
         // how these existing values are merged at each join point.
         //
-        // For debugging purposes, each block also has a call to println with two
-        // arguments. The first is the block the println was originally in, and the
+        // For debugging purposes, each block also has a call to test_function with two
+        // arguments. The first is the block the test_function was originally in, and the
         // second is the current value stored in the reference.
         //
         //         b0   (0 stored)
