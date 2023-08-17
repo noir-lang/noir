@@ -16,7 +16,7 @@
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
     "test": "NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --passWithNoTests",
-    "noir:clean": "rm -rf ./src/artifacts ./src/types && find ../aztec.js/src/abis/ -mindepth 1 -delete",
+    "noir:clean": "rm -rf ./src/artifacts ./src/types && mkdir -p ../aztec.js/src/abis/ && find ../aztec.js/src/abis/ -mindepth 1 -delete",
     "noir:build": "./src/scripts/compile.sh",
     "noir:build:all": "yarn noir:clean && ./src/scripts/compile.sh $(./scripts/get_all_contracts.sh)",
     "noir:types:all": "./scripts/types.sh $(./scripts/get_all_contracts.sh)"
