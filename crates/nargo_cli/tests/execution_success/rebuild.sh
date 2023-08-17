@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-excluded_dirs=("workspace")
+excluded_dirs=("workspace" "workspace_default_member")
 
 # Loop over every directory
 for dir in ./*; do
@@ -28,4 +28,3 @@ for dir in ./*; do
       cd ..
   fi
 done
-
