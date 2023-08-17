@@ -860,8 +860,6 @@ impl BrilligContext {
         big_endian: bool,
     ) {
         self.mov_instruction(target_vector_len, limb_count);
-        // The full array that is returned is going to be the limb count + 1
-        self.usize_op_in_place(target_vector_len, BinaryIntOp::Add, 1usize);
         self.mov_instruction(target_vector.size, limb_count);
         self.allocate_array_instruction(target_vector.pointer, target_vector.size);
 

@@ -780,16 +780,6 @@ impl AcirContext {
             limb_vars.reverse();
         }
 
-        // For legacy reasons (see #617) the to_radix interface supports 256 bits even though
-        // FieldElement::max_num_bits() is only 254 bits. Any limbs beyond the specified count
-        // become zero padding.
-        let max_decomposable_bits: u32 = 256;
-        let limb_count_with_padding = max_decomposable_bits / bit_size;
-        let zero = self.add_constant(FieldElement::zero());
-        while limb_vars.len() < limb_count_with_padding as usize {
-            limb_vars.push(AcirValue::Var(zero, result_element_type.clone()));
-        }
-
         // `Intrinsic::ToRadix` returns slices which are represented
         // by tuples with the structure (length, slice contents)
         Ok(vec![
