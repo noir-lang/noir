@@ -1,6 +1,6 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { AztecAddress, Fr, Wallet } from '@aztec/aztec.js';
+import { AztecAddress, CheatCodes, Fr, Wallet } from '@aztec/aztec.js';
 import { DeployL1Contracts, deployL1Contract } from '@aztec/ethereum';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { DebugLogger } from '@aztec/foundation/log';
@@ -10,7 +10,6 @@ import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
 
 import { getContract, parseEther } from 'viem';
 
-import { CheatCodes } from './fixtures/cheat_codes.js';
 import { CrossChainTestHarness } from './fixtures/cross_chain_test_harness.js';
 import { delay, deployAndInitializeNonNativeL2TokenContracts, setup } from './fixtures/utils.js';
 

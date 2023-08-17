@@ -1,13 +1,12 @@
 import { AztecNodeService } from '@aztec/aztec-node';
-import { AztecAddress, AztecRPCServer, EthAddress, Fr } from '@aztec/aztec-rpc';
-import { Wallet } from '@aztec/aztec.js';
+import { AztecAddress, AztecRPCServer, EthAddress } from '@aztec/aztec-rpc';
+import { CheatCodes, Wallet } from '@aztec/aztec.js';
 import { RollupAbi } from '@aztec/l1-artifacts';
 import { LendingContract } from '@aztec/noir-contracts/types';
 import { AztecRPC } from '@aztec/types';
 
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getAddress, getContract, parseEther } from 'viem';
 
-import { CheatCodes } from './fixtures/cheat_codes.js';
 import { setup } from './fixtures/utils.js';
 
 describe('e2e_cheat_codes', () => {
@@ -157,7 +156,7 @@ describe('e2e_cheat_codes', () => {
       await txInit.isMined({ interval: 0.1 });
 
       // fetch last updated ts from L2 contract and expect it to me same as new timestamp
-      const lastUpdatedTs = Number(new Fr((await contract.methods.getTot(0).view())[0][1]).value);
+      const lastUpdatedTs = Number((await contract.methods.getTot(0).view())['last_updated_ts']);
       expect(lastUpdatedTs).toEqual(newTimestamp);
       // ensure anvil is correctly updated
       expect(await cc.l1.timestamp()).toEqual(newTimestamp);

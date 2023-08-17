@@ -86,7 +86,7 @@ export class L1CheatCodes {
   }
 
   /**
-   * Get the current chainId
+   * Advance the chain by a number of blocks
    * @param numberOfBlocks - The number of blocks to mine
    * @returns The current chainId
    */
@@ -155,7 +155,6 @@ export class L1CheatCodes {
 
   /**
    * Computes the slot value for a given map and key.
-   * Both the baseSlot and key will be padded to 32 bytes in the function.
    * @param baseSlot - The base slot of the map (specified in noir contract)
    * @param key - The key to lookup in the map
    * @returns The storage slot of the value in the map

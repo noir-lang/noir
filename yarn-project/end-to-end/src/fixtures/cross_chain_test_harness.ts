@@ -1,6 +1,6 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
-import { Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
+import { CheatCodes, Wallet, computeMessageSecretHash } from '@aztec/aztec.js';
 import { AztecAddress, CompleteAddress, EthAddress, Fr, PublicKey } from '@aztec/circuits.js';
 import { DeployL1Contracts } from '@aztec/ethereum';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
@@ -12,7 +12,6 @@ import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { Chain, HttpTransport, PublicClient, getContract } from 'viem';
 
-import { CheatCodes } from './cheat_codes.js';
 import { deployAndInitializeNonNativeL2TokenContracts } from './utils.js';
 
 /**

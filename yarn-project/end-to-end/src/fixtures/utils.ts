@@ -3,11 +3,13 @@ import { RpcServerConfig, createAztecRPCServer, getConfigEnvVars as getRpcConfig
 import {
   Account as AztecAccount,
   AztecAddress,
+  CheatCodes,
   Contract,
   ContractDeployer,
   EntrypointCollection,
   EntrypointWallet,
   EthAddress,
+  L1CheatCodes,
   Wallet,
   createAztecRpcClient as createJsonRpcClient,
   getL1ContractAddresses,
@@ -41,7 +43,6 @@ import {
 } from 'viem';
 import { mnemonicToAccount } from 'viem/accounts';
 
-import { CheatCodes, L1CheatCodes } from './cheat_codes.js';
 import { MNEMONIC, localAnvil } from './fixtures.js';
 
 const { SANDBOX_URL = '' } = process.env;
