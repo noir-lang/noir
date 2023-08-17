@@ -12,7 +12,7 @@ use iter_extended::vecmap;
 use noirc_abi::AbiType;
 use noirc_errors::Span;
 
-use crate::{node_interner::StructId, Ident, Signedness};
+use crate::{node_interner::StructId, node_interner::TraitId, Ident, Signedness};
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
@@ -123,6 +123,39 @@ pub struct StructType {
     pub span: Span,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum TraitItemType {
+    /// A function declaration in a trait.
+    Function {
+        name: Ident,
+        generics: Generics,
+        arguments: Vec<Type>,
+        return_type: Type,
+        span: Span,
+    },
+
+    /// A constant declaration in a trait.
+    Constant { name: Ident, ty: Type, span: Span },
+
+    /// A type declaration in a trait.
+    Type { name: Ident, ty: Type, span: Span },
+}
+/// Represents a trait type in the type system. Each instance of this
+/// rust struct will be shared across all Type::Trait variants that represent
+/// the same trait type.
+#[derive(Debug, Eq)]
+pub struct Trait {
+    /// A unique id representing this trait type. Used to check if two
+    /// struct traits are equal.
+    pub id: TraitId,
+
+    pub items: Vec<TraitItemType>,
+
+    pub name: Ident,
+    pub generics: Generics,
+    pub span: Span,
+}
+
 /// Corresponds to generic lists such as `<T, U>` in the source
 /// program. The `TypeVariableId` portion is used to match two
 /// type variables to check for equality, while the `TypeVariable` is
@@ -138,6 +171,36 @@ impl std::hash::Hash for StructType {
 impl PartialEq for StructType {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl std::hash::Hash for Trait {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for Trait {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Trait {
+    pub fn new(
+        id: TraitId,
+        name: Ident,
+        span: Span,
+        items: Vec<TraitItemType>,
+        generics: Generics,
+    ) -> Trait {
+        Trait { id, name, span, items, generics }
+    }
+}
+
+impl std::fmt::Display for Trait {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 

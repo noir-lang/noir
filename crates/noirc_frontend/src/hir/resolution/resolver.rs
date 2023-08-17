@@ -26,7 +26,7 @@ use crate::graph::CrateId;
 use crate::hir::def_map::{ModuleDefId, ModuleId, TryFromModuleDefId, MAIN_FUNCTION};
 use crate::hir_def::stmt::{HirAssignStatement, HirLValue, HirPattern};
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, StructId, TraitId,
 };
 use crate::{
     hir::{def_map::CrateDefMap, resolution::path_resolver::PathResolver},
@@ -35,7 +35,7 @@ use crate::{
 };
 use crate::{
     ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
-    Shared, StructType, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
+    Shared, StructType, Trait, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
     UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
 };
 use fm::FileId;
@@ -1295,6 +1295,10 @@ impl<'a> Resolver<'a> {
 
     pub fn get_struct(&self, type_id: StructId) -> Shared<StructType> {
         self.interner.get_struct(type_id)
+    }
+
+    pub fn get_trait(&self, type_id: TraitId) -> Shared<Trait> {
+        self.interner.get_trait(type_id)
     }
 
     fn lookup<T: TryFromModuleDefId>(&mut self, path: Path) -> Result<T, ResolverError> {
