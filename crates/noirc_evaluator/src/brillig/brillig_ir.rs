@@ -859,10 +859,6 @@ impl BrilligContext {
         big_endian: bool,
     ) {
         self.mov_instruction(target_vector.size, limb_count);
-        // The full array that is returned is going to be the limb count + 1
-        if !big_endian {
-            self.usize_op_in_place(target_vector.size, BinaryIntOp::Add, 1usize);
-        }
         self.allocate_array_instruction(target_vector.pointer, target_vector.size);
 
         let shifted_register = self.allocate_register();
