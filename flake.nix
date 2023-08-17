@@ -289,10 +289,7 @@
           toml2json
           llvmPackages.lldb # This ensures the right lldb is in the environment for running rust-lldb
           wasm-bindgen-cli
-          binaryen
           jq
-          rust-bin.stable."1.66.1".default
-          rust-analyzer
         ];
 
         shellHook = ''
