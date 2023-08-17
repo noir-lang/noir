@@ -37,7 +37,9 @@ Because the contract sends a note to the owner specified inside the constructor,
 aztec-cli register-recipient --address 0x147392a39e593189902458f4303bc6e0a39128c5a1c1612f76527a162d36d529 --public-key 0x26e193aef4f83c70651485b5526c6d01a36d763223ab24efd1f9ff91b394ac0c20ad99d0ef669dc0dde8d5f5996c63105de8e15c2c87d8260b9e6f02f72af622 --partial-address 0x200e9a6c2d2e8352012e51c6637659713d336405c29386c7c4ac56779ab54fa7
 ```
 
-> **NOTE**: If we didn't register owner as a recipient we could not encrypt a note for the owner and the contract deployment would fail because constructor execution would fail (we need owner's public key to encrypt a note).
+> **NOTE 1**: If we didn't register owner as a recipient we could not encrypt a note for the owner and the contract deployment would fail because constructor execution would fail (we need owner's public key to encrypt a note).
+
+> **NOTE 2**: If a note recipient is one of the accounts inside the Aztec RPC, we don't need to register it as a recipient because we already have the public key available.
 
 Once the recipient is registered we can deploy the contract:
 

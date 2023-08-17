@@ -115,7 +115,7 @@ Partial address: 0x72bf7c9537875b0af267b4a8c497927e251f5988af6e30527feb16299042e
 We will now deploy the private token contract using the `deploy` command, minting 1000000 initial tokens to address `0x175310d40cd3412477db1c2a2188efd586b63d6830115fbb46c592a6303dbf6c`. Make sure to replace this address with one of the two you created earlier.
 
 ```
-% aztec-cli deploy --contract-abi PrivateTokenContractAbi --args 1000000 0x175310d40cd3412477db1c2a2188efd586b63d6830115fbb46c592a6303dbf6c
+% aztec-cli deploy PrivateTokenContractAbi --args 1000000 0x175310d40cd3412477db1c2a2188efd586b63d6830115fbb46c592a6303dbf6c
 
 Contract deployed at 0x1ae8eea0dc265fb7f160dae62cc8912686d8a9ed78e821fbdd8bcedc54c06d0f
 ```
@@ -124,9 +124,10 @@ Contract deployed at 0x1ae8eea0dc265fb7f160dae62cc8912686d8a9ed78e821fbdd8bcedc5
 If you use a different address in the constructor above, you will get an error when running the deployment. This is because you need to register an account in the sandbox before it can receive private notes. When you create a new account, it gets automatically registered. Alternatively, you can register an account you do not own along with its public key using the `register-recipient` command.
 :::
 
-This command takes two main arguments:
+This command takes 1 mandatory positional argument which is the path to the contract ABI file in a JSON format (e.g. `contracts/target/PrivateToken.json`).
+Alternatively you can pass the name of an example contract as exported by `@aztec/noir-contracts` (run `aztec-cli example-contracts` to see the full list of contracts available).
 
-- `--contract-abi` - The abi of the contract to deploy. You can either provide a path to a file or use the name of one of the example contracts provided with the CLI.
+The command takes a few optional arguments while the most important one is:
 - `--args` - Arguments to the constructor of the contract. In this case we have minted 1000000 initial tokens to the aztec address 0x175310d40cd3412477db1c2a2188efd586b63d6830115fbb46c592a6303dbf6c.
 
 The CLI tells us that the contract was successfully deployed. We can use the `check-deploy` command to verify that a contract has been successfully deployed to that address:
