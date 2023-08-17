@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.3](https://github.com/noir-lang/noir/compare/v0.10.2...v0.10.3) (2023-08-16)
+
+
+### Features
+
+* Allow calling higher-order functions with closures ([#2335](https://github.com/noir-lang/noir/issues/2335)) ([75fd3e0](https://github.com/noir-lang/noir/commit/75fd3e0e27f16fb0aa5f8b01cefe78e04f867726))
+* **lsp:** Add `Compile` code lens for `main` function and contracts ([#2309](https://github.com/noir-lang/noir/issues/2309)) ([5fe69c6](https://github.com/noir-lang/noir/commit/5fe69c6eeef0b7ed2e4df9c3a80627f54c75a355))
+* **lsp:** Add `Execute` code lens for `main` functions ([#2330](https://github.com/noir-lang/noir/issues/2330)) ([5aa59e0](https://github.com/noir-lang/noir/commit/5aa59e0f3c4b3e6e14330d1f0e45ec912f562892))
+
+
+### Bug Fixes
+
+* Display warning if last expression of block is unused ([#2314](https://github.com/noir-lang/noir/issues/2314)) ([8110136](https://github.com/noir-lang/noir/commit/81101362ccba787a44c6d48c0378696cb16f0acb))
+
 ## [0.10.2](https://github.com/noir-lang/noir/compare/v0.10.1...v0.10.2) (2023-08-16)
 
 

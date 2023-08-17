@@ -27,8 +27,13 @@ use noirc_frontend::hir::FunctionNameMatch;
 use serde_json::Value as JsonValue;
 use tower::Service;
 
+const ARROW: &str = "▶\u{fe0e}";
 const TEST_COMMAND: &str = "nargo.test";
-const TEST_CODELENS_TITLE: &str = "▶\u{fe0e} Run Test";
+const TEST_CODELENS_TITLE: &str = "Run Test";
+const COMPILE_COMMAND: &str = "nargo.compile";
+const COMPILE_CODELENS_TITLE: &str = "Compile";
+const EXECUTE_COMMAND: &str = "nargo.execute";
+const EXECUTE_CODELENS_TITLE: &str = "Execute";
 
 // State for the LSP gets implemented on this struct and is internal to the implementation
 pub struct LspState {
@@ -185,7 +190,7 @@ fn on_code_lens_request(
 
     for package in &workspace {
         let (mut context, crate_id) = prepare_package(package);
-        // We ignore the warnings and errors produced by compilation for producing codelenses
+        // We ignore the warnings and errors produced by compilation for producing code lenses
         // because we can still get the test functions even if compilation fails
         let _ = check_crate(&mut context, crate_id, false);
 
@@ -209,8 +214,8 @@ fn on_code_lens_request(
             let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
                 .unwrap_or_default();
 
-            let command = Command {
-                title: TEST_CODELENS_TITLE.into(),
+            let test_command = Command {
+                title: format!("{ARROW} {TEST_CODELENS_TITLE}"),
                 command: TEST_COMMAND.into(),
                 arguments: Some(vec![
                     "--program-dir".into(),
@@ -222,9 +227,158 @@ fn on_code_lens_request(
                 ]),
             };
 
-            let lens = CodeLens { range, command: command.into(), data: None };
+            let test_lens = CodeLens { range, command: Some(test_command), data: None };
 
-            lenses.push(lens);
+            lenses.push(test_lens);
+        }
+
+        if package.is_binary() {
+            if let Some(main_func_id) = context.get_main_function(&crate_id) {
+                let location = context.function_meta(&main_func_id).name.location;
+                let file_id = location.file;
+
+                // Ignore diagnostics for any file that wasn't the file we saved
+                // TODO: In the future, we could create "related" diagnostics for these files
+                // TODO: This currently just appends the `.nr` file extension that we store as a constant,
+                // but that won't work if we accept other extensions
+                if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                    continue;
+                }
+
+                let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
+                    .unwrap_or_default();
+
+                let compile_command = Command {
+                    title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
+                    command: COMPILE_COMMAND.into(),
+                    arguments: Some(vec![
+                        "--program-dir".into(),
+                        format!("{}", workspace.root_dir.display()).into(),
+                        "--package".into(),
+                        format!("{}", package.name).into(),
+                    ]),
+                };
+
+                let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
+
+                lenses.push(compile_lens);
+
+                let execute_command = Command {
+                    title: EXECUTE_CODELENS_TITLE.to_string(),
+                    command: EXECUTE_COMMAND.into(),
+                    arguments: Some(vec![
+                        "--program-dir".into(),
+                        format!("{}", workspace.root_dir.display()).into(),
+                        "--package".into(),
+                        format!("{}", package.name).into(),
+                    ]),
+                };
+
+                let execute_lens = CodeLens { range, command: Some(execute_command), data: None };
+
+                lenses.push(execute_lens);
+            }
+        }
+
+        if package.is_contract() {
+            // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
+            for contract in context.get_all_contracts(&crate_id) {
+                let location = contract.location;
+                let file_id = location.file;
+
+                // Ignore diagnostics for any file that wasn't the file we saved
+                // TODO: In the future, we could create "related" diagnostics for these files
+                // TODO: This currently just appends the `.nr` file extension that we store as a constant,
+                // but that won't work if we accept other extensions
+                if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                    continue;
+                }
+
+                let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
+                    .unwrap_or_default();
+
+                let compile_command = Command {
+                    title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
+                    command: COMPILE_COMMAND.into(),
+                    arguments: Some(vec![
+                        "--program-dir".into(),
+                        format!("{}", workspace.root_dir.display()).into(),
+                        "--package".into(),
+                        format!("{}", package.name).into(),
+                    ]),
+                };
+
+                let compile_lens = CodeLens { range, command: Some(compile_command), data: None };
+
+                lenses.push(compile_lens);
+            }
+        }
+
+        if package.is_binary() {
+            if let Some(main_func_id) = context.get_main_function(&crate_id) {
+                let location = context.function_meta(&main_func_id).name.location;
+                let file_id = location.file;
+
+                // Ignore diagnostics for any file that wasn't the file we saved
+                // TODO: In the future, we could create "related" diagnostics for these files
+                // TODO: This currently just appends the `.nr` file extension that we store as a constant,
+                // but that won't work if we accept other extensions
+                if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                    continue;
+                }
+
+                let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
+                    .unwrap_or_default();
+
+                let command = Command {
+                    title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
+                    command: COMPILE_COMMAND.into(),
+                    arguments: Some(vec![
+                        "--program-dir".into(),
+                        format!("{}", workspace.root_dir.display()).into(),
+                        "--package".into(),
+                        format!("{}", package.name).into(),
+                    ]),
+                };
+
+                let lens = CodeLens { range, command: command.into(), data: None };
+
+                lenses.push(lens);
+            }
+        }
+
+        if package.is_contract() {
+            // Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
+            for contract in context.get_all_contracts(&crate_id) {
+                let location = contract.location;
+                let file_id = location.file;
+
+                // Ignore diagnostics for any file that wasn't the file we saved
+                // TODO: In the future, we could create "related" diagnostics for these files
+                // TODO: This currently just appends the `.nr` file extension that we store as a constant,
+                // but that won't work if we accept other extensions
+                if fm.path(file_id).with_extension(FILE_EXTENSION) != file_path {
+                    continue;
+                }
+
+                let range = byte_span_to_range(files, file_id.as_usize(), location.span.into())
+                    .unwrap_or_default();
+
+                let command = Command {
+                    title: format!("{ARROW} {COMPILE_CODELENS_TITLE}"),
+                    command: COMPILE_COMMAND.into(),
+                    arguments: Some(vec![
+                        "--program-dir".into(),
+                        format!("{}", workspace.root_dir.display()).into(),
+                        "--package".into(),
+                        format!("{}", package.name).into(),
+                    ]),
+                };
+
+                let lens = CodeLens { range, command: command.into(), data: None };
+
+                lenses.push(lens);
+            }
         }
     }
 
@@ -364,6 +518,9 @@ fn on_did_save_text_document(
             }
         }
     }
+
+    // We need to refresh lenses when we compile since that's the only time they can be accurately reflected
+    let _ = state.client.code_lens_refresh(());
 
     let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
         uri: params.text_document.uri,

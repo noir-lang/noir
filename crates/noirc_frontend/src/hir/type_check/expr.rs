@@ -686,8 +686,8 @@ impl<'interner> TypeChecker<'interner> {
                     Ok(Bool)
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
-                        rhs: lhs_type.clone(),
-                        lhs: rhs_type.clone(),
+                        lhs: lhs_type.clone(),
+                        rhs: rhs_type.clone(),
                         span,
                         source: Source::Binary,
                     })
@@ -732,15 +732,15 @@ impl<'interner> TypeChecker<'interner> {
                 if matches!(op.kind, Equal | NotEqual) =>
             {
                 self.unify(x_type, y_type, || TypeCheckError::TypeMismatchWithSource {
-                    rhs: lhs_type.clone(),
-                    lhs: rhs_type.clone(),
+                    lhs: lhs_type.clone(),
+                    rhs: rhs_type.clone(),
                     source: Source::ArrayElements,
                     span: op.location.span,
                 });
 
                 self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    rhs: lhs_type.clone(),
-                    lhs: rhs_type.clone(),
+                    lhs: lhs_type.clone(),
+                    rhs: rhs_type.clone(),
                     source: Source::ArrayLen,
                     span: op.location.span,
                 });
@@ -752,8 +752,8 @@ impl<'interner> TypeChecker<'interner> {
                     return Ok(Bool);
                 }
                 Err(TypeCheckError::TypeMismatchWithSource {
-                    rhs: lhs.clone(),
-                    lhs: rhs.clone(),
+                    lhs: lhs.clone(),
+                    rhs: rhs.clone(),
                     source: Source::Comparison,
                     span,
                 })
@@ -769,8 +769,8 @@ impl<'interner> TypeChecker<'interner> {
                 Ok(Bool)
             }
             (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
-                rhs: lhs.clone(),
-                lhs: rhs.clone(),
+                lhs: lhs.clone(),
+                rhs: rhs.clone(),
                 source: Source::Comparison,
                 span,
             }),
@@ -837,11 +837,13 @@ impl<'interner> TypeChecker<'interner> {
         }
 
         for (param, (arg, _, arg_span)) in fn_params.iter().zip(callsite_args) {
-            self.unify(arg, param, || TypeCheckError::TypeMismatch {
-                expected_typ: param.to_string(),
-                expr_typ: arg.to_string(),
-                expr_span: *arg_span,
-            });
+            if arg.try_unify_allow_incompat_lambdas(param).is_err() {
+                self.errors.push(TypeCheckError::TypeMismatch {
+                    expected_typ: param.to_string(),
+                    expr_typ: arg.to_string(),
+                    expr_span: *arg_span,
+                });
+            }
         }
 
         fn_ret.clone()

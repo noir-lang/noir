@@ -49,19 +49,22 @@ jobs:
   build-nargo:
     needs: [build-barretenberg]
     runs-on: ubuntu-22.04
+    env:
+      CACHED_PATHS: |
+        ~/.cargo/bin/
+        ~/.cargo/registry/index/
+        ~/.cargo/registry/cache/
+        ~/.cargo/git/db/
+        target/
 
     steps:
       - name: Checkout Noir repo
         uses: actions/checkout@v3
 
-      - uses: actions/cache@v3
+      - uses: actions/cache/restore@v3
+        id: cache
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
+          path: ${{ env.CACHED_PATHS }}
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Download artifact
@@ -79,6 +82,13 @@ jobs:
         run: |
           cargo build --package nargo_cli --release --no-default-features --features plonk_bn254_wasm
 
+      - uses: actions/cache/save@v3
+        # Don't create cache entries for the merge queue.
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }} 
+        with:
+          path:  ${{ env.CACHED_PATHS }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
       - name: Package artifacts
         run: |
           mkdir dist
@@ -94,6 +104,9 @@ jobs:
 
   build-wasm:
     runs-on: ubuntu-latest
+    env:
+      CACHED_PATH: /tmp/nix-cache
+
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
@@ -104,9 +117,38 @@ jobs:
           nix_path: nixpkgs=channel:nixos-22.11
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Restore nix store cache
+        uses: actions/cache/restore@v3
+        id: cache
+        with:
+          path: ${{ env.CACHED_PATH }}
+          key: ${{ runner.os }}-flake-wasm-${{ hashFiles('*.lock') }}
+
+      # Based on https://github.com/marigold-dev/deku/blob/b5016f0cf4bf6ac48db9111b70dd7fb49b969dfd/.github/workflows/build.yml#L26
+      - name: Copy cache into nix store
+        if: steps.cache.outputs.cache-hit == 'true'
+        # We don't check the signature because we're the one that created the cache
+        run: |
+          for narinfo in ${{ env.CACHED_PATH }}/*.narinfo; do
+            path=$(head -n 1 "$narinfo" | awk '{print $2}')
+            nix copy --no-check-sigs --from "file://${{ env.CACHED_PATH }}" "$path"
+          done
+
       - name: Build wasm package
         run: |
           nix build -L .#wasm
+
+      - name: Export cache from nix store
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+        run: |
+          nix copy --to "file://${{ env.CACHED_PATH }}?compression=zstd&parallel-compression=true" .#noir-wasm-cargo-artifacts
+
+      - uses: actions/cache/save@v3
+        # Don't create cache entries for the merge queue.
+        if: ${{ steps.cache.outputs.cache-hit != 'true' && github.event_name != 'merge_group' }}
+        with:
+          path: ${{ env.CACHED_PATH }}
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
       - name: Dereference symlink
         run: echo "UPLOAD_PATH=$(readlink -f result)" >> $GITHUB_ENV
