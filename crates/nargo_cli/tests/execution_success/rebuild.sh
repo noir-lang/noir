@@ -16,6 +16,15 @@ for dir in ./*; do
         rm -r ./target/
       fi
       nargo compile && nargo execute witness
+
+      # Extract bytecode field from JSON and save it to a target directory
+      if [ -f ./target/${dir_name}.json ]; then
+          jq -r '.bytecode' ./target/${dir_name}.json > ./target/${dir_name}.bytecode
+      fi
+
+      # Delete the JSON file after extracting bytecode field
+      rm ./target/${dir_name}.json
+
       cd ..
   fi
 done
