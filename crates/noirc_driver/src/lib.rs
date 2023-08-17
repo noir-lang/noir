@@ -8,7 +8,7 @@ use fm::FileId;
 use noirc_abi::FunctionSignature;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use noirc_evaluator::create_circuit;
-use noirc_frontend::graph::{CrateId, CrateName, CrateType};
+use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
 use noirc_frontend::monomorphization::monomorphize;
@@ -25,10 +25,10 @@ pub use program::CompiledProgram;
 #[derive(Args, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CompileOptions {
     /// Emit debug information for the intermediate SSA IR
-    #[arg(short, long)]
+    #[arg(long, hide = true)]
     pub show_ssa: bool,
 
-    #[arg(long)]
+    #[arg(long, hide = true)]
     pub show_brillig: bool,
 
     /// Display the ACIR for compiled circuit
@@ -36,7 +36,7 @@ pub struct CompileOptions {
     pub print_acir: bool,
 
     /// Treat all warnings as errors
-    #[arg(short, long)]
+    #[arg(long)]
     pub deny_warnings: bool,
 }
 
@@ -52,15 +52,15 @@ pub fn compile_file(
     context: &mut Context,
     root_file: &Path,
 ) -> Result<(CompiledProgram, Warnings), ErrorsAndWarnings> {
-    let crate_id = prepare_crate(context, root_file, CrateType::Binary);
+    let crate_id = prepare_crate(context, root_file);
     compile_main(context, crate_id, &CompileOptions::default())
 }
 
 /// Adds the file from the file system at `Path` to the crate graph
-pub fn prepare_crate(context: &mut Context, file_name: &Path, crate_type: CrateType) -> CrateId {
+pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
-    context.crate_graph.add_crate_root(crate_type, root_file_id)
+    context.crate_graph.add_crate_root(root_file_id)
 }
 
 /// Adds a edge in the crate graph for two crates
@@ -70,11 +70,6 @@ pub fn add_dep(
     depends_on: CrateId,
     crate_name: CrateName,
 ) {
-    // Cannot depend on a binary
-    if context.crate_graph.crate_type(depends_on) == CrateType::Binary {
-        panic!("crates cannot depend on binaries. {crate_name:?} is a binary crate")
-    }
-
     context
         .crate_graph
         .add_dep(this_crate, crate_name, depends_on)
@@ -117,7 +112,7 @@ pub fn check_crate(
 
     // You can add any crate type to the crate graph
     // but you cannot depend on Binaries
-    let std_crate = context.crate_graph.add_stdlib(CrateType::Library, root_file_id);
+    let std_crate = context.crate_graph.add_stdlib(root_file_id);
     propagate_dep(context, std_crate, &std_crate_name.parse().unwrap());
 
     let mut errors = vec![];
@@ -155,15 +150,16 @@ pub fn compile_main(
     let main = match context.get_main_function(&crate_id) {
         Some(m) => m,
         None => {
-            let err = FileDiagnostic {
-                    file_id: FileId::default(),
-                    diagnostic: CustomDiagnostic::from_message("cannot compile crate into a program as the local crate is not a binary. For libraries, please use the check command")
-                };
+            // TODO(#2155): This error might be a better to exist in Nargo
+            let err = CustomDiagnostic::from_message(
+                "cannot compile crate into a program as it does not contain a `main` function",
+            )
+            .in_file(FileId::default());
             return Err(vec![err]);
         }
     };
 
-    let compiled_program = compile_no_check(context, true, options, main)?;
+    let compiled_program = compile_no_check(context, options, main)?;
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -181,6 +177,7 @@ pub fn compile_contracts(
 ) -> Result<(Vec<CompiledContract>, Warnings), ErrorsAndWarnings> {
     let warnings = check_crate(context, crate_id, options.deny_warnings)?;
 
+    // TODO: We probably want to error if contracts is empty
     let contracts = context.get_all_contracts(&crate_id);
     let mut compiled_contracts = vec![];
     let mut errors = warnings;
@@ -227,13 +224,13 @@ fn compile_contract(
     options: &CompileOptions,
 ) -> Result<CompiledContract, Vec<FileDiagnostic>> {
     let mut functions = Vec::new();
-    let mut errs = Vec::new();
+    let mut errors = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
-        let function = match compile_no_check(context, true, options, *function_id) {
+        let function = match compile_no_check(context, options, *function_id) {
             Ok(function) => function,
-            Err(err) => {
-                errs.push(err);
+            Err(new_error) => {
+                errors.push(new_error);
                 continue;
             }
         };
@@ -250,13 +247,14 @@ fn compile_contract(
             is_internal: func_meta.is_internal.unwrap_or(false),
             abi: function.abi,
             bytecode: function.circuit,
+            debug: function.debug,
         });
     }
 
-    if errs.is_empty() {
+    if errors.is_empty() {
         Ok(CompiledContract { name: contract.name, functions })
     } else {
-        Err(errs)
+        Err(errors)
     }
 }
 
@@ -267,14 +265,12 @@ fn compile_contract(
 #[allow(deprecated)]
 pub fn compile_no_check(
     context: &Context,
-    show_output: bool,
     options: &CompileOptions,
     main_function: FuncId,
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) =
-        create_circuit(program, options.show_ssa, options.show_brillig, show_output)?;
+    let (circuit, debug, abi) = create_circuit(program, options.show_ssa, options.show_brillig)?;
 
     Ok(CompiledProgram { circuit, debug, abi })
 }

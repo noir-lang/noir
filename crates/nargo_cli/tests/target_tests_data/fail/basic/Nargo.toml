@@ -1,6 +1,0 @@
-[package]
-name = "fail_basic"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

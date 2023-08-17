@@ -3,7 +3,7 @@
 // by the methods in the `slice` module
 impl<T, N> [T; N] {
     #[builtin(array_len)]
-    fn len(_self: Self) -> comptime Field {}
+    fn len(_self: Self) -> Field {}
 
     #[builtin(arraysort)]
     fn sort(_self: Self) -> Self {}

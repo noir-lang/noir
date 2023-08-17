@@ -5,6 +5,7 @@ use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
 use nargo::NargoError;
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
@@ -12,12 +13,10 @@ use noirc_errors::{debug_info::DebugInfo, CustomDiagnostic};
 use noirc_frontend::graph::CrateName;
 use noirc_frontend::hir::Context;
 
-use super::compile_cmd::compile_circuit;
+use super::compile_cmd::compile_package;
 use super::fs::{inputs::read_inputs_from_file, witness::save_witness_to_dir};
 use super::NargoConfig;
 use crate::errors::CliError;
-use crate::manifest::resolve_workspace_from_toml;
-use crate::{find_package_manifest, prepare_package};
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]
@@ -30,8 +29,12 @@ pub(crate) struct ExecuteCommand {
     prover_name: String,
 
     /// The name of the package to execute
-    #[clap(long)]
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Execute all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -42,8 +45,11 @@ pub(crate) fn run<B: Backend>(
     args: ExecuteCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let toml_path = get_package_manifest(&config.program_dir)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let witness_dir = &workspace.target_directory_path();
 
     for package in &workspace {
@@ -69,8 +75,7 @@ fn execute_package<B: Backend>(
     prover_name: &str,
     compile_options: &CompileOptions,
 ) -> Result<(Option<InputValue>, WitnessMap), CliError<B>> {
-    let (mut context, crate_id) = prepare_package(package);
-    let compiled_program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
+    let (context, compiled_program) = compile_package(backend, package, compile_options)?;
     let CompiledProgram { abi, circuit, debug } = compiled_program;
 
     // Parse the initial witness values from Prover.toml
@@ -103,23 +108,23 @@ fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Op
         _ => None,
     }
 }
+
 fn report_unsatisfied_constraint_error(
     opcode_idx: Option<usize>,
     debug: &DebugInfo,
     context: &Context,
 ) {
     if let Some(opcode_index) = opcode_idx {
-        if let Some(loc) = debug.opcode_location(opcode_index) {
-            noirc_errors::reporter::report(
-                &context.file_manager,
-                &CustomDiagnostic::simple_error(
-                    "Unsatisfied constraint".to_string(),
-                    "Constraint failed".to_string(),
-                    loc.span,
-                ),
-                Some(loc.file),
-                false,
-            );
+        if let Some(locations) = debug.opcode_location(opcode_index) {
+            // The location of the error itself will be the location at the top
+            // of the call stack (the last item in the Vec).
+            if let Some(location) = locations.last() {
+                let message = "Failed constraint".into();
+                CustomDiagnostic::simple_error(message, String::new(), location.span)
+                    .in_file(location.file)
+                    .with_call_stack(locations)
+                    .report(&context.file_manager, false);
+            }
         }
     }
 }
@@ -132,7 +137,7 @@ pub(crate) fn execute_program<B: Backend>(
     debug_data: Option<(DebugInfo, Context)>,
 ) -> Result<WitnessMap, CliError<B>> {
     let initial_witness = abi.encode(inputs_map, None)?;
-    let solved_witness_err = nargo::ops::execute_circuit(backend, circuit, initial_witness);
+    let solved_witness_err = nargo::ops::execute_circuit(backend, circuit, initial_witness, true);
     match solved_witness_err {
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {

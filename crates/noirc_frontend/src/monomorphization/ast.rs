@@ -29,7 +29,6 @@ pub enum Expression {
     Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
-
     Let(Let),
     Constrain(Box<Expression>, Location),
     Assign(Assign),
@@ -75,6 +74,9 @@ pub struct For {
     pub start_range: Box<Expression>,
     pub end_range: Box<Expression>,
     pub block: Box<Expression>,
+
+    pub start_range_location: Location,
+    pub end_range_location: Location,
 }
 
 #[derive(Debug, Clone)]
@@ -104,6 +106,12 @@ pub struct Binary {
 }
 
 #[derive(Debug, Clone)]
+pub struct Lambda {
+    pub function: Ident,
+    pub env: Ident,
+}
+
+#[derive(Debug, Clone)]
 pub struct If {
     pub condition: Box<Expression>,
     pub consequence: Box<Expression>,
@@ -115,6 +123,7 @@ pub struct If {
 pub struct Cast {
     pub lhs: Box<Expression>,
     pub r#type: Type,
+    pub location: Location,
 }
 
 #[derive(Debug, Clone)]
@@ -199,7 +208,6 @@ pub struct Function {
 /// - All type variables and generics removed
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
-/// - No CompTime
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
@@ -213,7 +221,7 @@ pub enum Type {
     Tuple(Vec<Type>),
     Slice(Box<Type>),
     MutableReference(Box<Type>),
-    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>),
+    Function(/*args:*/ Vec<Type>, /*ret:*/ Box<Type>, /*env:*/ Box<Type>),
 }
 
 impl Type {
@@ -324,9 +332,13 @@ impl std::fmt::Display for Type {
                 let elements = vecmap(elements, ToString::to_string);
                 write!(f, "({})", elements.join(", "))
             }
-            Type::Function(args, ret) => {
+            Type::Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
-                write!(f, "fn({}) -> {}", args.join(", "), ret)
+                let closure_env_text = match **env {
+                    Type::Unit => "".to_string(),
+                    _ => format!(" with closure environment {env}"),
+                };
+                write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
             Type::Slice(element) => write!(f, "[{element}"),
             Type::MutableReference(element) => write!(f, "&mut {element}"),

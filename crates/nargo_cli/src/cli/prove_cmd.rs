@@ -6,11 +6,12 @@ use nargo::artifacts::program::PreprocessedProgram;
 use nargo::constants::{PROVER_INPUT_FILE, VERIFIER_INPUT_FILE};
 use nargo::ops::{preprocess_program, prove_execution, verify_proof};
 use nargo::package::Package;
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::Format;
 use noirc_driver::CompileOptions;
 use noirc_frontend::graph::CrateName;
 
-use super::compile_cmd::compile_circuit;
+use super::compile_cmd::compile_package;
 use super::fs::{
     common_reference_string::{
         read_cached_common_reference_string, update_common_reference_string,
@@ -21,9 +22,7 @@ use super::fs::{
     proof::save_proof_to_dir,
 };
 use super::NargoConfig;
-use crate::manifest::resolve_workspace_from_toml;
 use crate::{cli::execute_cmd::execute_program, errors::CliError};
-use crate::{find_package_manifest, prepare_package};
 
 /// Create proof for this program. The proof is returned as a hex encoded string.
 #[derive(Debug, Clone, Args)]
@@ -41,8 +40,12 @@ pub(crate) struct ProveCommand {
     verify: bool,
 
     /// The name of the package to prove
-    #[clap(long)]
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Prove all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -53,8 +56,11 @@ pub(crate) fn run<B: Backend>(
     args: ProveCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let toml_path = get_package_manifest(&config.program_dir)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let proof_dir = workspace.proofs_directory_path();
 
     for package in &workspace {
@@ -96,8 +102,7 @@ pub(crate) fn prove_package<B: Backend>(
                 .map_err(CliError::CommonReferenceStringError)?;
         (common_reference_string, program, None)
     } else {
-        let (mut context, crate_id) = prepare_package(package);
-        let program = compile_circuit(backend, &mut context, crate_id, compile_options)?;
+        let (context, program) = compile_package(backend, package, compile_options)?;
         let common_reference_string =
             update_common_reference_string(backend, &common_reference_string, &program.circuit)
                 .map_err(CliError::CommonReferenceStringError)?;

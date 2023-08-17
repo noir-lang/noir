@@ -6,7 +6,7 @@ use crate::parser::{parse_program, ParsedModule};
 use crate::token::Attribute;
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
-use noirc_errors::FileDiagnostic;
+use noirc_errors::{FileDiagnostic, Location};
 use std::collections::HashMap;
 
 mod module_def;
@@ -87,8 +87,8 @@ impl CrateDefMap {
 
         // Allocate a default Module for the root, giving it a ModuleId
         let mut modules: Arena<ModuleData> = Arena::default();
-        let origin = ModuleOrigin::CrateRoot(root_file_id);
-        let root = modules.insert(ModuleData::new(None, origin, false));
+        let location = Location::new(Default::default(), root_file_id);
+        let root = modules.insert(ModuleData::new(None, location, false));
 
         let def_map = CrateDefMap {
             root: LocalModuleId(root),
@@ -120,13 +120,8 @@ impl CrateDefMap {
         root_module.find_func_with_name(&MAIN_FUNCTION.into())
     }
 
-    pub fn root_file_id(&self) -> FileId {
-        let root_module = &self.modules()[self.root.0];
-        root_module.origin.into()
-    }
-
-    pub fn module_file_id(&self, module_id: LocalModuleId) -> FileId {
-        self.modules[module_id.0].origin.file_id()
+    pub fn file_id(&self, module_id: LocalModuleId) -> FileId {
+        self.modules[module_id.0].location.file
     }
 
     /// Go through all modules in this crate, and find all functions in
@@ -153,7 +148,7 @@ impl CrateDefMap {
                     let functions =
                         module.value_definitions().filter_map(|id| id.as_function()).collect();
                     let name = self.get_module_path(id, module.parent);
-                    Some(Contract { name, functions })
+                    Some(Contract { name, location: module.location, functions })
                 } else {
                     None
                 }
@@ -199,6 +194,7 @@ impl CrateDefMap {
 pub struct Contract {
     /// To keep `name` semi-unique, it is prefixed with the names of parent modules via CrateDefMap::get_module_path
     pub name: String,
+    pub location: Location,
     pub functions: Vec<FuncId>,
 }
 

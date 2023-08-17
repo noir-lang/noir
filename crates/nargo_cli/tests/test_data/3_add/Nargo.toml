@@ -1,6 +1,0 @@
-[package]
-name = "3_add"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

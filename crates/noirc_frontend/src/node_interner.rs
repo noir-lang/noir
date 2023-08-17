@@ -11,7 +11,7 @@ use crate::hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTypeAlias}
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::hir::StorageSlot;
 use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::types::{StructType, Type};
+use crate::hir_def::types::{StructType, Trait, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -61,6 +61,15 @@ pub struct NodeInterner {
     // When resolving types, check against this map to see if a type alias is defined.
     type_aliases: Vec<TypeAliasType>,
 
+    // Trait map.
+    //
+    // Each trait definition is possibly shared across multiple type nodes.
+    // It is also mutated through the RefCell during name resolution to append
+    // methods from impls to the type.
+    //
+    // TODO: We may be able to remove the Shared wrapper once traits are no longer types.
+    // We'd just lookup their methods as needed through the NodeInterner.
+    traits: HashMap<TraitId, Shared<Trait>>,
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
@@ -147,6 +156,18 @@ pub struct TypeAliasId(pub usize);
 impl TypeAliasId {
     pub fn dummy_id() -> TypeAliasId {
         TypeAliasId(std::usize::MAX)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct TraitId(pub ModuleId);
+
+impl TraitId {
+    // dummy id for error reporting
+    // This can be anything, as the program will ultimately fail
+    // after resolution
+    pub fn dummy_id() -> TraitId {
+        TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
 
@@ -262,6 +283,7 @@ impl Default for NodeInterner {
             id_to_type: HashMap::new(),
             structs: HashMap::new(),
             type_aliases: Vec::new(),
+            traits: HashMap::new(),
             instantiation_bindings: HashMap::new(),
             field_indices: HashMap::new(),
             next_type_variable_id: 0,
@@ -547,6 +569,10 @@ impl NodeInterner {
         self.structs[&id].clone()
     }
 
+    pub fn get_trait(&self, id: TraitId) -> Shared<Trait> {
+        self.traits[&id].clone()
+    }
+
     pub fn get_type_alias(&self, id: TypeAliasId) -> &TypeAliasType {
         &self.type_aliases[id.0]
     }
@@ -664,15 +690,15 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     use TypeMethodKey::*;
     let typ = typ.follow_bindings();
     match &typ {
-        Type::FieldElement(_) => Some(FieldOrInt),
+        Type::FieldElement => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
-        Type::Integer(_, _, _) => Some(FieldOrInt),
-        Type::TypeVariable(_, TypeVariableKind::IntegerOrField(_)) => Some(FieldOrInt),
-        Type::Bool(_) => Some(Bool),
+        Type::Integer(_, _) => Some(FieldOrInt),
+        Type::TypeVariable(_, TypeVariableKind::IntegerOrField) => Some(FieldOrInt),
+        Type::Bool => Some(Bool),
         Type::String(_) => Some(String),
         Type::Unit => Some(Unit),
         Type::Tuple(_) => Some(Tuple),
-        Type::Function(_, _) => Some(Function),
+        Type::Function(_, _, _) => Some(Function),
         Type::MutableReference(element) => get_type_method_key(element),
 
         // We do not support adding methods to these types

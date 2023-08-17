@@ -1,13 +1,11 @@
-use crate::{
-    errors::CliError, find_package_manifest, manifest::resolve_workspace_from_toml, prepare_package,
-};
+use crate::errors::{CliError, CompileError};
 use acvm::Backend;
 use clap::Args;
 use iter_extended::btree_map;
-use nargo::package::Package;
+use nargo::{package::Package, prepare_package};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
-use noirc_errors::reporter::ReportedErrors;
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::Context,
@@ -20,8 +18,12 @@ use super::NargoConfig;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct CheckCommand {
     /// The name of the package to check
-    #[clap(long)]
+    #[clap(long, conflicts_with = "workspace")]
     package: Option<CrateName>,
+
+    /// Check all packages in the workspace
+    #[clap(long, conflicts_with = "package")]
+    workspace: bool,
 
     #[clap(flatten)]
     compile_options: CompileOptions,
@@ -32,8 +34,11 @@ pub(crate) fn run<B: Backend>(
     args: CheckCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let toml_path = find_package_manifest(&config.program_dir)?;
-    let workspace = resolve_workspace_from_toml(&toml_path, args.package)?;
+    let toml_path = get_package_manifest(&config.program_dir)?;
+    let default_selection =
+        if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
+    let selection = args.package.map_or(default_selection, PackageSelection::Selected);
+    let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
 
     for package in &workspace {
         check_package(package, &args.compile_options)?;
@@ -42,33 +47,37 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn check_package(
-    package: &Package,
-    compile_options: &CompileOptions,
-) -> Result<(), ReportedErrors> {
+fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<(), CompileError> {
     let (mut context, crate_id) = prepare_package(package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options.deny_warnings)?;
 
-    // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-    if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
-        let path_to_prover_input = package.prover_input_path();
-        let path_to_verifier_input = package.verifier_input_path();
-
-        // If they are not available, then create them and populate them based on the ABI
-        if !path_to_prover_input.exists() {
-            let prover_toml = create_input_toml_template(parameters.clone(), None);
-            write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
-        }
-        if !path_to_verifier_input.exists() {
-            let public_inputs = parameters.into_iter().filter(|param| param.is_public()).collect();
-
-            let verifier_toml = create_input_toml_template(public_inputs, return_type);
-            write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
-        }
+    if package.is_library() || package.is_contract() {
+        // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.
+        Ok(())
     } else {
-        // This means that this is a library. Libraries do not have ABIs.
+        // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
+        if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
+            let path_to_prover_input = package.prover_input_path();
+            let path_to_verifier_input = package.verifier_input_path();
+
+            // If they are not available, then create them and populate them based on the ABI
+            if !path_to_prover_input.exists() {
+                let prover_toml = create_input_toml_template(parameters.clone(), None);
+                write_to_file(prover_toml.as_bytes(), &path_to_prover_input);
+            }
+            if !path_to_verifier_input.exists() {
+                let public_inputs =
+                    parameters.into_iter().filter(|param| param.is_public()).collect();
+
+                let verifier_toml = create_input_toml_template(public_inputs, return_type);
+                write_to_file(verifier_toml.as_bytes(), &path_to_verifier_input);
+            }
+
+            Ok(())
+        } else {
+            Err(CompileError::MissingMainFunction(package.name.clone()))
+        }
     }
-    Ok(())
 }
 
 /// Generates the contents of a toml file with fields for each of the passed parameters.
@@ -86,7 +95,7 @@ fn create_input_toml_template(
                     .collect();
                 toml::Value::Array(default_value_vec)
             }
-            AbiType::Struct { fields } => {
+            AbiType::Struct { fields, .. } => {
                 let default_value_map = toml::map::Map::from_iter(
                     fields.into_iter().map(|(name, typ)| (name, default_value(typ))),
                 );
@@ -108,16 +117,9 @@ fn create_input_toml_template(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use noirc_abi::{AbiParameter, AbiType, AbiVisibility, Sign};
-    use noirc_driver::CompileOptions;
-
-    use crate::{find_package_manifest, manifest::resolve_workspace_from_toml};
 
     use super::create_input_toml_template;
-
-    const TEST_DATA_DIR: &str = "tests/target_tests_data";
 
     #[test]
     fn valid_toml_template() {
@@ -133,6 +135,7 @@ mod tests {
             typed_param(
                 "d",
                 AbiType::Struct {
+                    name: String::from("MyStruct"),
                     fields: vec![
                         (String::from("d1"), AbiType::Field),
                         (
@@ -158,63 +161,6 @@ d2 = ["", "", ""]
 "#;
         assert_eq!(toml_str, expected_toml_str);
     }
-
-    #[test]
-    fn pass() {
-        let pass_dir =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/pass"));
-
-        let config = CompileOptions::default();
-        let paths = std::fs::read_dir(pass_dir).unwrap();
-        for path in paths.flatten() {
-            let path = path.path();
-            let toml_path = find_package_manifest(&path).unwrap();
-            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
-            for package in &workspace {
-                assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
-            }
-        }
-    }
-
-    #[test]
-    #[ignore = "This test fails because the reporter exits the process with 1"]
-    fn fail() {
-        let fail_dir =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("{TEST_DATA_DIR}/fail"));
-
-        let config = CompileOptions::default();
-        let paths = std::fs::read_dir(fail_dir).unwrap();
-        for path in paths.flatten() {
-            let path = path.path();
-            let toml_path = find_package_manifest(&path).unwrap();
-            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
-            for package in &workspace {
-                assert!(
-                    super::check_package(package, &config).is_err(),
-                    "path: {}",
-                    path.display()
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn pass_with_warnings() {
-        let pass_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join(format!("{TEST_DATA_DIR}/pass_dev_mode"));
-
-        let config = CompileOptions { deny_warnings: false, ..Default::default() };
-
-        let paths = std::fs::read_dir(pass_dir).unwrap();
-        for path in paths.flatten() {
-            let path = path.path();
-            let toml_path = find_package_manifest(&path).unwrap();
-            let workspace = resolve_workspace_from_toml(&toml_path, None).unwrap();
-            for package in &workspace {
-                assert!(super::check_package(package, &config).is_ok(), "path: {}", path.display());
-            }
-        }
-    }
 }
 
 /// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
@@ -223,7 +169,7 @@ pub(crate) fn check_crate_and_report_errors(
     context: &mut Context,
     crate_id: CrateId,
     deny_warnings: bool,
-) -> Result<(), ReportedErrors> {
+) -> Result<(), CompileError> {
     let result = check_crate(context, crate_id, deny_warnings).map(|warnings| ((), warnings));
     super::compile_cmd::report_errors(result, context, deny_warnings)
 }

@@ -4,7 +4,7 @@ pub mod resolution;
 pub mod scope;
 pub mod type_check;
 
-use crate::graph::{CrateGraph, CrateId, CrateType};
+use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner};
 use def_map::{Contract, CrateDefMap};
@@ -23,6 +23,13 @@ pub struct Context {
     /// Maps a given (contract) module id to the next available storage slot
     /// for that contract.
     pub storage_slots: HashMap<def_map::ModuleId, StorageSlot>,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum FunctionNameMatch<'a> {
+    Anything,
+    Exact(&'a str),
+    Contains(&'a str),
 }
 
 pub type StorageSlot = u32;
@@ -52,8 +59,27 @@ impl Context {
         self.crate_graph.iter_keys()
     }
 
+    // TODO: Decide if we actually need `function_name` and `fully_qualified_function_name`
     pub fn function_name(&self, id: &FuncId) -> &str {
         self.def_interner.function_name(id)
+    }
+
+    pub fn fully_qualified_function_name(&self, crate_id: &CrateId, id: &FuncId) -> String {
+        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
+
+        let name = self.def_interner.function_name(id);
+
+        let meta = self.def_interner.function_meta(id);
+        let module = self.module(meta.module_id);
+
+        let parent =
+            def_map.get_module_path_with_separator(meta.module_id.local_id.0, module.parent, "::");
+
+        if parent.is_empty() {
+            name.into()
+        } else {
+            format!("{parent}::{name}")
+        }
     }
 
     pub fn function_meta(&self, func_id: &FuncId) -> FuncMeta {
@@ -67,14 +93,7 @@ impl Context {
         // Find the local crate, one should always be present
         let local_crate = self.def_map(crate_id).unwrap();
 
-        // Check the crate type
-        // We don't panic here to allow users to `evaluate` libraries which will do nothing
-        if matches!(self.crate_graph[*crate_id].crate_type, CrateType::Binary) {
-            // All Binaries should have a main function
-            local_crate.main_function()
-        } else {
-            None
-        }
+        local_crate.main_function()
     }
 
     /// Returns a list of all functions in the current crate marked with #[test]
@@ -83,7 +102,7 @@ impl Context {
     pub fn get_all_test_functions_in_crate_matching(
         &self,
         crate_id: &CrateId,
-        pattern: &str,
+        pattern: FunctionNameMatch,
     ) -> Vec<(String, FuncId)> {
         let interner = &self.def_interner;
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
@@ -91,20 +110,16 @@ impl Context {
         def_map
             .get_all_test_functions(interner)
             .filter_map(|id| {
-                let name = interner.function_name(&id);
-
-                let meta = interner.function_meta(&id);
-                let module = self.module(meta.module_id);
-
-                let parent = def_map.get_module_path_with_separator(
-                    meta.module_id.local_id.0,
-                    module.parent,
-                    "::",
-                );
-                let path =
-                    if parent.is_empty() { name.into() } else { format!("{parent}::{name}") };
-
-                path.contains(pattern).then_some((path, id))
+                let fully_qualified_name = self.fully_qualified_function_name(crate_id, &id);
+                match &pattern {
+                    FunctionNameMatch::Anything => Some((fully_qualified_name, id)),
+                    FunctionNameMatch::Exact(pattern) => {
+                        (&fully_qualified_name == pattern).then_some((fully_qualified_name, id))
+                    }
+                    FunctionNameMatch::Contains(pattern) => {
+                        fully_qualified_name.contains(pattern).then_some((fully_qualified_name, id))
+                    }
+                }
             })
             .collect()
     }

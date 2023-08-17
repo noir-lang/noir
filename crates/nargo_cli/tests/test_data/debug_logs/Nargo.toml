@@ -1,6 +1,0 @@
-[package]
-name = "debug_logs"
-authors = [""]
-compiler_version = "0.8.0"
-
-[dependencies]

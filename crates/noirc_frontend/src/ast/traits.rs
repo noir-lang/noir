@@ -3,7 +3,10 @@ use std::fmt::Display;
 use iter_extended::vecmap;
 use noirc_errors::Span;
 
-use crate::{Ident, NoirFunction, UnresolvedGenerics, UnresolvedType};
+use crate::{
+    BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, UnresolvedGenerics,
+    UnresolvedType,
+};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -11,6 +14,8 @@ use crate::{Ident, NoirFunction, UnresolvedGenerics, UnresolvedType};
 pub struct NoirTrait {
     pub name: Ident,
     pub generics: Vec<Ident>,
+    pub where_clause: Vec<TraitConstraint>,
+    pub span: Span,
     pub items: Vec<TraitItem>,
 }
 
@@ -22,8 +27,14 @@ pub enum TraitItem {
         name: Ident,
         generics: Vec<Ident>,
         parameters: Vec<(Ident, UnresolvedType)>,
-        return_type: UnresolvedType,
+        return_type: FunctionReturnType,
         where_clause: Vec<TraitConstraint>,
+        body: Option<BlockExpression>,
+    },
+    Constant {
+        name: Ident,
+        typ: UnresolvedType,
+        default_value: Option<Expression>,
     },
     Type {
         name: Ident,
@@ -68,6 +79,7 @@ pub struct TraitConstraint {
 #[derive(Clone, Debug)]
 pub enum TraitImplItem {
     Function(NoirFunction),
+    Constant(Ident, UnresolvedType, Expression),
     Type { name: Ident, alias: UnresolvedType },
 }
 
@@ -110,7 +122,7 @@ impl Display for NoirTrait {
 impl Display for TraitItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TraitItem::Function { name, generics, parameters, return_type, where_clause } => {
+            TraitItem::Function { name, generics, parameters, return_type, where_clause, body } => {
                 let generics = vecmap(generics, |generic| generic.to_string());
                 let parameters = vecmap(parameters, |(name, typ)| format!("{name}: {typ}"));
                 let where_clause = vecmap(where_clause, ToString::to_string);
@@ -121,9 +133,24 @@ impl Display for TraitItem {
 
                 write!(
                     f,
-                    "fn {name}<{}>({}) -> {} where {};",
+                    "fn {name}<{}>({}) -> {} where {}",
                     generics, parameters, return_type, where_clause
-                )
+                )?;
+
+                if let Some(body) = body {
+                    write!(f, "{}", body)
+                } else {
+                    write!(f, ";")
+                }
+            }
+            TraitItem::Constant { name, typ, default_value } => {
+                write!(f, "let {}: {}", name, typ)?;
+
+                if let Some(default_value) = default_value {
+                    write!(f, "{};", default_value)
+                } else {
+                    write!(f, ";")
+                }
             }
             TraitItem::Type { name } => write!(f, "type {name};"),
         }
@@ -159,7 +186,10 @@ impl Display for TraitImplItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TraitImplItem::Function(function) => function.fmt(f),
-            TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias}"),
+            TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias};"),
+            TraitImplItem::Constant(name, typ, value) => {
+                write!(f, "let {}: {} = {};", name, typ, value)
+            }
         }
     }
 }
