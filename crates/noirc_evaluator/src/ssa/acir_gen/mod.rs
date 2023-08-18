@@ -524,9 +524,13 @@ impl Context {
 
                     self.define_result(dfg, instruction, value);
                     return Ok(());
+                } else {
+                    self.check_array_dynamic_index(index, array.len(), dfg)?;
                 }
             }
-            AcirValue::DynamicArray(_) => (),
+            AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => {
+                self.check_array_dynamic_index(index, len, dfg)?;
+            }
         }
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
@@ -536,6 +540,44 @@ impl Context {
             self.array_get(instruction, array, index, dfg)?;
         }
 
+        Ok(())
+    }
+
+    /// Checks that a dynamic index is less than the specified length of an array.
+    /// Without this check, we could potentially attempt to access uninitialized
+    /// memory in the virtual machine executing ACIR.  
+    fn check_array_dynamic_index(
+        &mut self,
+        index: ValueId,
+        length: usize,
+        dfg: &DataFlowGraph,
+    ) -> Result<(), RuntimeError> {
+        let index_var = self.convert_value(index, dfg).into_var()?;
+        let len_var = self.acir_context.add_constant((length as u128).into());
+
+        // Check the type of the index value for valid comparisons
+        // and fetch the binary operation bit size
+        let index_type = dfg.type_of_value(index);
+        let (len_var, bit_size) = match index_type {
+            Type::Numeric(numeric_type) => match numeric_type {
+                // If the index itself is an integer, keep the array length as a Field
+                // and use the bit size of the index variable
+                NumericType::Unsigned { bit_size } | NumericType::Signed { bit_size } => {
+                    (len_var, bit_size)
+                }
+                // If the index and the array length are both Fields we do not want to perform a comparison on them.
+                // Thus, we cast the array length to a u64 before performing the less than comparison
+                NumericType::NativeField => (
+                    self.acir_context.truncate_var(len_var, 64, FieldElement::max_num_bits())?,
+                    64,
+                ),
+            },
+            _ => unreachable!("ICE: array index must be a numeric type but got {}", index_type),
+        };
+        let one = self.acir_context.add_constant(FieldElement::one());
+        let is_index_out_of_bounds =
+            self.acir_context.less_than_var(index_var, len_var, bit_size, one)?;
+        self.acir_context.assert_eq_one(is_index_out_of_bounds)?;
         Ok(())
     }
 
