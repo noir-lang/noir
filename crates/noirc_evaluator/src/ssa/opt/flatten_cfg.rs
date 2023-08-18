@@ -440,10 +440,8 @@ impl<'f> Context<'f> {
                     // The smaller slice is filled with placeholder data. Codegen for slice accesses must
                     // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
                     if (len - 1) < index_value.to_u128() as usize {
-                        self.inserter
-                            .function
-                            .dfg
-                            .make_constant(FieldElement::zero(), Type::field())
+                        let zero = FieldElement::zero();
+                        self.inserter.function.dfg.make_constant(zero, Type::field())
                     } else {
                         let get = Instruction::ArrayGet { array, index };
                         self.insert_instruction_with_typevars(get, typevars).first()
