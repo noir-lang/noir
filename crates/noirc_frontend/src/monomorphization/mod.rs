@@ -784,15 +784,27 @@ impl<'interner> Monomorphizer<'interner> {
 
         let is_closure = self.is_function_closure(call.func);
         if is_closure {
-            let extracted_func: ast::Expression;
-            let hir_call_func = self.interner.expression(&call.func);
-            if let HirExpression::Lambda(l) = hir_call_func {
-                let (setup, closure_variable) = self.lambda_with_setup(l, call.func);
-                block_expressions.push(setup);
-                extracted_func = closure_variable;
-            } else {
-                extracted_func = *original_func;
-            }
+            let local_id = self.next_local_id();
+
+            // store the function in a temporary variable before calling it
+            // this is needed for example if call.func is of the form `foo()()`
+            // without this, we would translate it to `foo().1(foo().0)`
+            let let_stmt = ast::Expression::Let(ast::Let {
+                id: local_id,
+                mutable: false,
+                name: "tmp".to_string(),
+                expression: Box::new(*original_func),
+            });
+            block_expressions.push(let_stmt);
+
+            let extracted_func = ast::Expression::Ident(ast::Ident {
+                location: None,
+                definition: Definition::Local(local_id),
+                mutable: false,
+                name: "tmp".to_string(),
+                typ: Self::convert_type(&self.interner.id_type(call.func)),
+            });
+
             func = Box::new(ast::Expression::ExtractTupleField(
                 Box::new(extracted_func.clone()),
                 1usize,
@@ -1435,7 +1447,7 @@ mod tests {
     #[test]
     fn simple_closure_with_no_captured_variables() {
         let src = r#"
-        fn main() -> Field {
+        fn main() -> pub Field {
             let x = 1;
             let closure = || x;
             closure()
@@ -1451,7 +1463,10 @@ mod tests {
         };
         closure_variable$l2
     };
-    closure$l3.1(closure$l3.0)
+    {
+        let tmp$4 = closure$l3;
+        tmp$l4.1(tmp$l4.0)
+    }
 }
 fn lambda$f1(mut env$l1: (Field)) -> Field {
     env$l1.0

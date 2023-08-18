@@ -50,7 +50,11 @@ pub enum UnresolvedType {
     // Note: Tuples have no visibility, instead each of their elements may have one.
     Tuple(Vec<UnresolvedType>),
 
-    Function(/*args:*/ Vec<UnresolvedType>, /*ret:*/ Box<UnresolvedType>),
+    Function(
+        /*args:*/ Vec<UnresolvedType>,
+        /*ret:*/ Box<UnresolvedType>,
+        /*env:*/ Box<UnresolvedType>,
+    ),
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
@@ -109,9 +113,19 @@ impl std::fmt::Display for UnresolvedType {
                 Some(len) => write!(f, "str<{len}>"),
             },
             FormatString(len, elements) => write!(f, "fmt<{len}, {elements}"),
-            Function(args, ret) => {
+            Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
-                write!(f, "fn({}) -> {ret}", args.join(", "))
+
+                match &**env {
+                    UnresolvedType::Unit => {
+                        write!(f, "fn({}) -> {ret}", args.join(", "))
+                    }
+                    UnresolvedType::Tuple(env_types) => {
+                        let env_types = vecmap(env_types, ToString::to_string);
+                        write!(f, "fn[{}]({}) -> {ret}", env_types.join(", "), args.join(", "))
+                    }
+                    _ => unreachable!(),
+                }
             }
             MutableReference(element) => write!(f, "&mut {element}"),
             Unit => write!(f, "()"),

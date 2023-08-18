@@ -947,35 +947,6 @@ impl Type {
         }
     }
 
-    /// Similar to try_unify() but allows non-matching capture groups for function types
-    pub fn try_unify_allow_incompat_lambdas(&self, other: &Type) -> Result<(), UnificationError> {
-        use Type::*;
-        use TypeVariableKind::*;
-
-        match (self, other) {
-            (TypeVariable(binding, Normal), other) | (other, TypeVariable(binding, Normal)) => {
-                if let TypeBinding::Bound(link) = &*binding.borrow() {
-                    return link.try_unify_allow_incompat_lambdas(other);
-                }
-
-                other.try_bind_to(binding)
-            }
-            (Function(params_a, ret_a, _), Function(params_b, ret_b, _)) => {
-                if params_a.len() == params_b.len() {
-                    for (a, b) in params_a.iter().zip(params_b.iter()) {
-                        a.try_unify_allow_incompat_lambdas(b)?;
-                    }
-
-                    // no check for environments here!
-                    ret_b.try_unify_allow_incompat_lambdas(ret_a)
-                } else {
-                    Err(UnificationError)
-                }
-            }
-            _ => self.try_unify(other),
-        }
-    }
-
     /// Similar to `unify` but if the check fails this will attempt to coerce the
     /// argument to the target type. When this happens, the given expression is wrapped in
     /// a new expression to convert its type. E.g. `array` -> `array.as_slice()`
