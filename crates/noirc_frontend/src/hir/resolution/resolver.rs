@@ -361,10 +361,10 @@ impl<'a> Resolver<'a> {
             UnresolvedType::Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
-            UnresolvedType::Function(args, ret) => {
+            UnresolvedType::Function(args, ret, env) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
-                let env = Box::new(Type::Unit);
+                let env = Box::new(self.resolve_type_inner(*env, new_variables));
                 Type::Function(args, ret, env)
             }
             UnresolvedType::MutableReference(element) => {

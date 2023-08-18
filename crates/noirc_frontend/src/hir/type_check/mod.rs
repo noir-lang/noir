@@ -63,33 +63,28 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         let (expr_span, empty_function) = function_info(interner, function_body_id);
 
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        function_last_type.unify_with_coercions(
+            &declared_return_type,
+            *function_body_id,
+            interner,
+            &mut errors,
+            || {
+                let mut error = TypeCheckError::TypeMismatchWithSource {
+                    expected: declared_return_type.clone(),
+                    actual: function_last_type.clone(),
+                    span: func_span,
+                    source: Source::Return(meta.return_type, expr_span),
+                };
 
-        let result = function_last_type.try_unify_allow_incompat_lambdas(&declared_return_type);
+                if empty_function {
+                    error = error.add_context(
+                        "implicitly returns `()` as its body has no tail or `return` expression",
+                    );
+                }
 
-        if result.is_err() {
-            function_last_type.unify_with_coercions(
-                &declared_return_type,
-                *function_body_id,
-                interner,
-                &mut errors,
-                || {
-                    let mut error = TypeCheckError::TypeMismatchWithSource {
-                        expected: declared_return_type.clone(),
-                        actual: function_last_type.clone(),
-                        span: func_span,
-                        source: Source::Return(meta.return_type, expr_span),
-                    };
-
-                    if empty_function {
-                        error = error.add_context(
-                            "implicitly returns `()` as its body has no tail or `return` expression",
-                        );
-                    }
-
-                    error
-                },
-            );
-        }
+                error
+            },
+        );
     }
 
     errors
