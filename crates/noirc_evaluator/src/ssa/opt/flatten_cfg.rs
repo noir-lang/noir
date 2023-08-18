@@ -427,7 +427,7 @@ impl<'f> Context<'f> {
             _ => panic!("Expected array value"),
         };
 
-        let len = if len > else_len { len } else { else_len };
+        let len = len.max(else_len);
 
         for i in 0..len {
             for (element_index, element_type) in element_types.iter().enumerate() {
