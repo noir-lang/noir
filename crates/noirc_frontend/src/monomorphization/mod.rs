@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use crate::{
     hir_def::{
         expr::*,
-        function::{FuncMeta, FunctionSignature, Param, Parameters},
+        function::{FuncMeta, FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
@@ -1024,9 +1024,8 @@ impl<'interner> Monomorphizer<'interner> {
         let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            Param(pattern, typ, Visibility::Private)
-        }));
+        let parameters =
+            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
 
         let parameters = self.parameters(parameters);
         let body = self.expr(lambda.body);
@@ -1076,9 +1075,8 @@ impl<'interner> Monomorphizer<'interner> {
         let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            Param(pattern, typ, Visibility::Private)
-        }));
+        let parameters =
+            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
 
         let mut converted_parameters = self.parameters(parameters);
 

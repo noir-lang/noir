@@ -35,8 +35,7 @@ impl HirFunction {
 }
 
 /// An interned function parameter from a function definition
-#[derive(Debug, Clone)]
-pub struct Param(pub HirPattern, pub Type, pub Visibility);
+pub type Param = (HirPattern, Type, Visibility);
 
 #[derive(Debug, Clone)]
 pub struct Parameters(pub Vec<Param>);

@@ -23,12 +23,12 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Optio
 }
 
 pub fn into_abi_params(params: Vec<Param>, interner: &NodeInterner) -> Vec<AbiParameter> {
-    vecmap(params, |param| {
-        let param_name = get_param_name(&param.0, interner)
+    vecmap(params, |(pattern, typ, vis)| {
+        let param_name = get_param_name(&pattern, interner)
             .expect("Abi for tuple and struct parameters is unimplemented")
             .to_owned();
-        let as_abi = param.1.as_abi_type();
-        AbiParameter { name: param_name, typ: as_abi, visibility: param.2.into() }
+        let as_abi = typ.as_abi_type();
+        AbiParameter { name: param_name, typ: as_abi, visibility: vis.into() }
     })
 }
 
