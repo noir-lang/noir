@@ -660,7 +660,7 @@ impl<'a> FunctionContext<'a> {
 
                 slice_values[1] = self.assign_lvalue_index(new_value, slice_values[1], index);
 
-                // The size of the slice does not change in an assign so we can reuse the same length value
+                // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
                 self.assign_new_value(*slice_lvalue, new_slice);
             }
