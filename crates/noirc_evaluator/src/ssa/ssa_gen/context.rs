@@ -582,9 +582,9 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Compile the given `array[index]` expression as a reference.
-    /// This will return a triple of (array, index, lvalue_ref, Option<max_length>) where the lvalue_ref records the
+    /// This will return a triple of (array, index, lvalue_ref, Option<length>) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
-    /// The optional max length is for indexing slices rather than arrays since slices
+    /// The optional length is for indexing slices rather than arrays since slices
     /// are represented as a tuple in the form: (length, slice contents).
     fn index_lvalue(
         &mut self,
@@ -596,8 +596,8 @@ impl<'a> FunctionContext<'a> {
         let array_lvalue = Box::new(array_lvalue);
         let array_values = old_array.clone().into_value_list(self);
 
-        // A slice is represented as a tuple (length, slice contents)
-        // We need to fetch the second
+        // A slice is represented as a tuple (length, slice contents).
+        // We need to fetch the second value.
         if array_values.len() > 1 {
             let slice_lvalue =
                 LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue };

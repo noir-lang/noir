@@ -255,12 +255,20 @@ impl<'a> FunctionContext<'a> {
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
         let array_or_slice = self.codegen_expression(&index.collection).into_value_list(self);
         let index_value = self.codegen_non_tuple_expression(&index.index);
+        // Slices are represented as a tuple in the form: (length, slice contents).
+        // Thus, slices require two value ids for their representation.
         let (array, slice_length) = if array_or_slice.len() > 1 {
             (array_or_slice[1], Some(array_or_slice[0]))
         } else {
             (array_or_slice[0], None)
         };
-        self.codegen_array_index(array, index_value, &index.element_type, index.location, slice_length)
+        self.codegen_array_index(
+            array,
+            index_value,
+            &index.element_type,
+            index.location,
+            slice_length,
+        )
     }
 
     /// This is broken off from codegen_index so that it can also be
