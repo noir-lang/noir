@@ -69,7 +69,7 @@ export class Synchroniser {
   protected async initialSync() {
     const [blockNumber, historicBlockData] = await Promise.all([
       this.node.getBlockHeight(),
-      Promise.resolve(this.node.getHistoricBlockData()),
+      this.node.getHistoricBlockData(),
     ]);
     this.initialSyncBlockHeight = blockNumber;
     this.synchedToBlock = this.initialSyncBlockHeight;

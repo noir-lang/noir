@@ -1,4 +1,4 @@
-import { GlobalVariables } from '@aztec/circuits.js';
+import { Fr } from '@aztec/foundation/fields';
 import { LowLeafWitnessData } from '@aztec/merkle-tree';
 import { L2Block, MerkleTreeId, SiblingPath } from '@aztec/types';
 
@@ -24,7 +24,7 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
    * Get the current roots of the commitment trees.
    * @returns The current roots of the trees.
    */
-  getTreeRoots(): CurrentTreeRoots {
+  getTreeRoots(): Promise<CurrentTreeRoots> {
     return this.trees.getTreeRoots(this.includeUncommitted);
   }
 
@@ -116,11 +116,26 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
   /**
    * Inserts into the roots trees (CONTRACT_TREE_ROOTS_TREE, PRIVATE_DATA_TREE_ROOTS_TREE)
    * the current roots of the corresponding trees (CONTRACT_TREE, PRIVATE_DATA_TREE).
-   * @param globalVariables - The current global variables to include in the block hash.
+   * @param globalVariablesHash - The hash of the current global variables to include in the block hash.
    * @returns Empty promise.
    */
-  public updateHistoricBlocksTree(globalVariables: GlobalVariables): Promise<void> {
-    return this.trees.updateHistoricBlocksTree(globalVariables, this.includeUncommitted);
+  public updateHistoricBlocksTree(globalVariablesHash: Fr): Promise<void> {
+    return this.trees.updateHistoricBlocksTree(globalVariablesHash, this.includeUncommitted);
+  }
+
+  /**
+   * Updates the latest global variables hash
+   * @param globalVariablesHash - The latest global variables hash
+   */
+  public updateLatestGlobalVariablesHash(globalVariablesHash: Fr): Promise<void> {
+    return this.trees.updateLatestGlobalVariablesHash(globalVariablesHash, this.includeUncommitted);
+  }
+
+  /**
+   * Gets the global variables hash from the previous block
+   */
+  public getLatestGlobalVariablesHash(): Promise<Fr> {
+    return this.trees.getLatestGlobalVariablesHash(this.includeUncommitted);
   }
 
   /**

@@ -30,7 +30,8 @@
     "./wasm": "./dest/wasm/index.js",
     "./worker": "./dest/worker/index.js",
     "./bigint-buffer": "./dest/bigint-buffer/index.js",
-    "./types": "./dest/types/index.js"
+    "./types": "./dest/types/index.js",
+    "./committable": "./dest/committable/index.js"
   },
   "scripts": {
     "prepare": "node ../yarn-project-base/scripts/update_build_manifest.mjs package.json",

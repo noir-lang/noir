@@ -1,8 +1,7 @@
-import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { L2Block, L2BlockDownloader, L2BlockSource } from '@aztec/types';
 
-import { MerkleTreeDb, MerkleTreeOperations, computeGlobalVariablesHash } from '../index.js';
+import { MerkleTreeDb, MerkleTreeOperations } from '../index.js';
 import { MerkleTreeOperationsFacade } from '../merkle-tree/merkle_tree_operations_facade.js';
 import { getConfigEnvVars } from './config.js';
 import { WorldStateRunningState, WorldStateStatus, WorldStateSynchroniser } from './world_state_synchroniser.js';
@@ -22,9 +21,6 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
   private stopping = false;
   private runningPromise: Promise<void> = Promise.resolve();
   private currentState: WorldStateRunningState = WorldStateRunningState.IDLE;
-
-  /** The latest Global Variables hash for the HEAD of the chain. */
-  public latestGlobalVariablesHash: Fr = Fr.ZERO;
 
   constructor(
     private merkleTreeDb: MerkleTreeDb,
@@ -57,7 +53,6 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
 
     // get the current latest block number
     this.latestBlockNumberAtStart = await this.l2BlockSource.getBlockHeight();
-    this.latestGlobalVariablesHash = await computeGlobalVariablesHash();
 
     const blockToDownloadFrom = this.currentL2BlockNum + 1;
 
@@ -121,8 +116,6 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
   private async handleL2Block(l2Block: L2Block) {
     await this.merkleTreeDb.handleL2Block(l2Block);
     this.currentL2BlockNum = l2Block.number;
-    this.latestGlobalVariablesHash = await computeGlobalVariablesHash(l2Block.globalVariables);
-    this.log(`Synced global variables with hash ${this.latestGlobalVariablesHash.toString()}`);
     if (
       this.currentState === WorldStateRunningState.SYNCHING &&
       this.currentL2BlockNum >= this.latestBlockNumberAtStart

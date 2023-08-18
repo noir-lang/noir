@@ -2,8 +2,7 @@ import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Contract, Fr, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
-import { PrivateTokenAirdropContract } from '@aztec/noir-contracts/types';
-import { MultiTransferContract } from '@aztec/noir-contracts/types';
+import { MultiTransferContract, PrivateTokenAirdropContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, CompleteAddress } from '@aztec/types';
 
 import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';

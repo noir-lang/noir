@@ -11,7 +11,7 @@ export async function getHistoricBlockData(
 ) {
   const wasm = await CircuitsWasm.get();
   const prevGlobalsHash = computeGlobalsHash(wasm, prevBlockGlobalVariables);
-  const roots = db.getTreeRoots();
+  const roots = await db.getTreeRoots();
 
   return new HistoricBlockData(
     Fr.fromBuffer(roots.privateDataTreeRoot),
