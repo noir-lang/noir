@@ -48,7 +48,7 @@ __metadata:
     webpack-cli: ^5.1.1
     webpack-dev-server: ^4.15.0
   bin:
-    bb.js: ./dest/main.js
+    bb: dest/node/main.js
   languageName: unknown
   linkType: soft
 
