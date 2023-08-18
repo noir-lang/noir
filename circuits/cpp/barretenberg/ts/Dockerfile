@@ -13,4 +13,9 @@ RUN yarn --immutable
 COPY . .
 ENV DOCKER_ENV=true
 RUN yarn formatting && yarn build:ts:browser && yarn build:ts:node
+
+# Run bb.js binary tests
+WORKDIR /usr/src/barretenberg/ts/bin-test
+RUN ./bin-test.sh
+
 CMD ["yarn", "test"]

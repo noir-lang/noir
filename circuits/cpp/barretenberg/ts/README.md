@@ -118,3 +118,4 @@ To run the tests run `yarn test`.
 To run a continuous "stress test" run `yarn simple_test` to do 10 full pk/proof/vk iterations.
 
 To run the same test in the browser run `yarn serve`, navigate to appropriate URL and open the console.
+

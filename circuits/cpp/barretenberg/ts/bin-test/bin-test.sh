@@ -2,7 +2,7 @@
 set -eu
 
 bb() {
-  ../bb.js-dev -v "$@"
+  ../dest/node/main.js -v "$@"
 }
 
 bb gates
