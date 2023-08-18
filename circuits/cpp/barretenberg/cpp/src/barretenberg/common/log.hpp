@@ -63,6 +63,11 @@ template <typename... Args> inline void info(Args... args)
     logstr(format(args...).c_str());
 }
 
+template <typename... Args> inline void important(Args... args)
+{
+    logstr(format("important: ", args...).c_str());
+}
+
 /**
  * @brief Info used to store circuit statistics during CI/CD with concrete structure. Writes straight to log
  *

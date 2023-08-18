@@ -156,6 +156,7 @@ void match_nullifiers_to_commitments_and_squash(
                 // match found!
                 // squash both the nullifier and the commitment
                 // (set to 0 here and then rearrange array after loop)
+                important("chopped commitment for siloed inner hash note \n", new_commitments[match_pos]);
                 new_commitments[match_pos] = NT::fr(0);
                 new_nullifiers[n_idx] = NT::fr(0);
             } else {
