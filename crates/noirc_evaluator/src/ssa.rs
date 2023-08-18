@@ -19,11 +19,11 @@ use noirc_errors::debug_info::DebugInfo;
 
 use noirc_abi::Abi;
 
-use noirc_frontend::monomorphization::ast::Program;
+use noirc_frontend::{hir::Context, monomorphization::ast::Program};
 
 use self::{abi_gen::gen_abi, acir_gen::GeneratedAcir, ir::function::RuntimeType, ssa_gen::Ssa};
 
-mod abi_gen;
+pub mod abi_gen;
 mod acir_gen;
 pub mod ir;
 mod opt;
@@ -81,6 +81,7 @@ pub(crate) fn optimize_into_acir(
 ///
 /// The output ACIR is is backend-agnostic and so must go through a transformation pass before usage in proof generation.
 pub fn create_circuit(
+    context: &Context,
     program: Program,
     enable_ssa_logging: bool,
     enable_brillig_logging: bool,
@@ -95,7 +96,7 @@ pub fn create_circuit(
         ..
     } = optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
 
-    let abi = gen_abi(func_sig, &input_witnesses, return_witnesses.clone());
+    let abi = gen_abi(&context.def_interner, func_sig, &input_witnesses, return_witnesses.clone());
     let public_abi = abi.clone().public_abi();
 
     let public_parameters =

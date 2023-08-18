@@ -10,13 +10,12 @@
 //! function, will monomorphize the entire reachable program.
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::FunctionSignature;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
     hir_def::{
         expr::*,
-        function::{FuncMeta, Param, Parameters},
+        function::{FuncMeta, FunctionSignature, Param, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
@@ -190,7 +189,7 @@ impl<'interner> Monomorphizer<'interner> {
         self.function(main_id, new_main_id);
 
         let main_meta = self.interner.function_meta(&main_id);
-        main_meta.into_function_signature(self.interner)
+        main_meta.into_function_signature()
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
