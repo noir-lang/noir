@@ -69,6 +69,9 @@ export class SentTx {
    * Resolves to true if the transaction status is 'MINED', false otherwise.
    * Throws an error if the transaction receipt cannot be fetched after the given timeout.
    *
+   * @deprecated Use wait() instead as it throws if the tx is not mined,
+   * while this would silently fail if the return value isn't checked explicitly.
+   *
    * @param opts - Options for configuring the waiting for the tx to be mined.
    * @returns A Promise that resolves to a boolean indicating if the transaction is mined or not.
    */
