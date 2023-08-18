@@ -318,8 +318,14 @@ impl<'block> BrilligBlock<'block> {
                         dfg,
                     );
                     let param_id = arguments[0];
+                    // Slices are represented as a tuple in the form: (length, slice contents).
+                    // Thus, we can expect the first argument to a field in the case of a slice
+                    // or an array in the case of an array.
                     if let Type::Numeric(_) = dfg.type_of_value(param_id) {
-                        self.convert_ssa_value(arguments[0], dfg);
+                        let len_variable = self.convert_ssa_value(arguments[0], dfg);
+                        let len_register_index =
+                            self.function_context.extract_register(len_variable);
+                        self.brillig_context.mov_instruction(result_register, len_register_index);
                     } else {
                         self.convert_ssa_array_len(arguments[0], result_register, dfg);
                     }
@@ -346,14 +352,12 @@ impl<'block> BrilligBlock<'block> {
 
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len = match self.function_context.get_or_create_variable(
+                    let target_len_variable = self.function_context.get_or_create_variable(
                         self.brillig_context,
                         results[0],
                         dfg,
-                    ) {
-                        RegisterOrMemory::RegisterIndex(register_index) => register_index,
-                        _ => unreachable!("ICE: first value of a slice must be a register index"),
-                    };
+                    );
+                    let target_len = self.function_context.extract_register(target_len_variable);
 
                     let target_slice = self.function_context.create_variable(
                         self.brillig_context,
@@ -362,9 +366,12 @@ impl<'block> BrilligBlock<'block> {
                     );
 
                     let heap_vec = self.brillig_context.extract_heap_vector(target_slice);
+
+                    // Update the user-facing slice length
+                    self.brillig_context.mov_instruction(target_len, limb_count);
+
                     self.brillig_context.radix_instruction(
                         source,
-                        target_len,
                         heap_vec,
                         radix,
                         limb_count,
@@ -377,14 +384,12 @@ impl<'block> BrilligBlock<'block> {
 
                     let results = dfg.instruction_results(instruction_id);
 
-                    let target_len = match self.function_context.get_or_create_variable(
+                    let target_len_variable = self.function_context.get_or_create_variable(
                         self.brillig_context,
                         results[0],
                         dfg,
-                    ) {
-                        RegisterOrMemory::RegisterIndex(register_index) => register_index,
-                        _ => unreachable!("ICE: first value of a slice must be a register index"),
-                    };
+                    );
+                    let target_len = self.function_context.extract_register(target_len_variable);
 
                     let target_slice = self.function_context.create_variable(
                         self.brillig_context,
@@ -394,9 +399,12 @@ impl<'block> BrilligBlock<'block> {
 
                     let radix = self.brillig_context.make_constant(2_usize.into());
                     let heap_vec = self.brillig_context.extract_heap_vector(target_slice);
+
+                    // Update the user-facing slice length
+                    self.brillig_context.mov_instruction(target_len, limb_count);
+
                     self.brillig_context.radix_instruction(
                         source,
-                        target_len,
                         heap_vec,
                         radix,
                         limb_count,
@@ -815,6 +823,15 @@ impl<'block> BrilligBlock<'block> {
         }
     }
 
+    /// Slices have a tuple structure (slice length, slice contents) to enable logic
+    /// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
+    /// This method codegens an update to the slice length.
+    ///
+    /// The binary operation performed on the slice length is always an addition or subtraction of `1`.
+    /// This is because the slice length holds the user length (length as displayed by a `.len()` call),
+    /// and not a flattened length used internally to represent arrays of tuples.
+    /// The length inside of `RegisterOrMemory::HeapVector` represents the entire flattened number
+    /// of fields in the vector.
     fn update_slice_length(
         &mut self,
         target_len: RegisterIndex,
@@ -822,14 +839,9 @@ impl<'block> BrilligBlock<'block> {
         dfg: &DataFlowGraph,
         binary_op: BinaryIntOp,
     ) {
-        let source_len = match self.function_context.get_or_create_variable(
-            self.brillig_context,
-            source_value,
-            dfg,
-        ) {
-            RegisterOrMemory::RegisterIndex(register_index) => register_index,
-            _ => unreachable!("ICE: first value of a slice must be a register index"),
-        };
+        let source_len_variable =
+            self.function_context.get_or_create_variable(self.brillig_context, source_value, dfg);
+        let source_len = self.function_context.extract_register(source_len_variable);
 
         self.brillig_context.usize_op(source_len, target_len, binary_op, 1);
     }

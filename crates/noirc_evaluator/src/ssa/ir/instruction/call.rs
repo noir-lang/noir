@@ -226,7 +226,7 @@ pub(super) fn simplify_call(
 ///
 /// The binary operation performed on the slice length is always an addition or subtraction of `1`.
 /// This is because the slice length holds the user length (length as displayed by a `.len()` call),
-/// and not a flattened length used in SSA internally to represent arrays of tuples.
+/// and not a flattened length used internally to represent arrays of tuples.
 fn update_slice_length(slice_len: ValueId, dfg: &mut DataFlowGraph, operator: BinaryOp) -> ValueId {
     let one = dfg.make_constant(FieldElement::one(), Type::field());
     let block = dfg.make_block();
