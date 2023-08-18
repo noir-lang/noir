@@ -1,22 +1,19 @@
+use dep::std::option::Option;
 use dep::value_note::{
-    filter::get_2_notes,
+    filter::filter_notes_min_sum,
     value_note::{
         ValueNote,
         ValueNoteMethods,
         VALUE_NOTE_LEN,
     },
 };
-
 use dep::aztec::{
     context::PrivateContext,
     log::emit_encrypted_log,
     note::note_getter_options::NoteGetterOptions,
     oracle::get_public_key::get_public_key,
     state_vars::set::Set,
-    types::{
-        point::Point,
-        option::Option,
-    }
+    types::point::Point,
 };
 
 struct EasyPrivateUint {
@@ -67,28 +64,25 @@ impl EasyPrivateUint {
         subtrahend: u120,
         owner: Field,
     ) {
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
+        let options = NoteGetterOptions::with_filter(filter_notes_min_sum, subtrahend as Field);
         let maybe_notes = self.set.get_notes(context, options);
 
-        let note0 = maybe_notes[0].unwrap_or(ValueNote::dummy());
-        let note1 = maybe_notes[1].unwrap_or(ValueNote::dummy());
+        let mut minuend: u120 = 0;
+        for i in 0..maybe_notes.len() {
+            if maybe_notes[i].is_some() {
+                let note = maybe_notes[i].unwrap_unchecked();
 
-        // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
-        // nullifying someone else's notes).
-        if maybe_notes[0].is_some() {
-            assert(owner == note0.owner);
-            // Removes the note from the owner's set of notes.
-            self.set.remove(context, note0);
-        }
-        if maybe_notes[1].is_some() {
-            assert(owner == note1.owner);
-            // Removes the note from the owner's set of notes.
-            self.set.remove(context, note1);
+                // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
+                // spending someone else's notes).
+                assert(note.owner == owner);
+
+                // Removes the note from the owner's set of notes.
+                self.set.remove(context, note);
+
+                minuend += note.value as u120;
+            }
         }
 
-        let note0_value: u120 = note0.value as u120;
-        let note1_value: u120 = note1.value as u120;
-        let minuend = note0_value + note1_value;
         assert(minuend >= subtrahend);
 
         // Creates change note for the owner.

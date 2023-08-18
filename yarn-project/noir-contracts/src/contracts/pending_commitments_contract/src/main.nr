@@ -8,7 +8,7 @@ contract PendingCommitments {
     // Libs
     use dep::value_note::{
         balance_utils,
-        filter::get_2_notes,
+        filter::{filter_notes_min_sum, get_1_note, get_max_notes},
         value_note::{VALUE_NOTE_LEN, ValueNote, ValueNoteMethods},
     };
 
@@ -66,7 +66,7 @@ contract PendingCommitments {
             note.serialise(),
         );
 
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
+        let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
         // get note inserted above
         let maybe_notes = owner_balance.get_notes(&mut context, options);
 
@@ -95,7 +95,7 @@ contract PendingCommitments {
 
         let owner_balance = storage.balances.at(owner);
 
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
+        let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
         // get note (note inserted at bottom of function shouldn't exist yet)
         let maybe_notes = owner_balance.get_notes(&mut context, options);
 
@@ -173,7 +173,7 @@ contract PendingCommitments {
 
         let owner_balance = storage.balances.at(owner);
 
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
+        let options = NoteGetterOptions::with_filter(get_1_note, 0);
         let note = owner_balance.get_notes(&mut context, options)[0].unwrap();
 
         assert(expected_value == note.value);
@@ -198,7 +198,7 @@ contract PendingCommitments {
 
         let owner_balance = storage.balances.at(owner);
 
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
+        let options = NoteGetterOptions::with_filter(get_max_notes, 0);
         let maybe_notes = owner_balance.get_notes(&mut context, options);
 
         assert(maybe_notes[0].is_none());

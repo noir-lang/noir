@@ -1,9 +1,9 @@
+use dep::std::option::Option;
 use crate::note::{
     note_header::NoteHeader,
     note_interface::NoteInterface,
 };
 use crate::utils::arr_copy_slice;
-use crate::types::option::Option;
 
 #[oracle(notifyCreatedNote)]
 fn notify_created_note_oracle<N>(

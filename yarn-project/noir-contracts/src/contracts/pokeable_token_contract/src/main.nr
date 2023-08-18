@@ -7,7 +7,7 @@ contract PokeableToken {
         balance_utils,
         utils::{send_note, spend_notes},
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods, ValueNote},
-        filter::get_2_notes,
+        filter::get_max_notes,
     };
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
@@ -71,22 +71,22 @@ contract PokeableToken {
         // Pick from the set of sender's notes.
         let sender_balance = storage.balances.at(sender);
 
-        let options = NoteGetterOptions::with_filter(get_2_notes, 0);
+        let options = NoteGetterOptions::with_filter(get_max_notes, 0);
         let maybe_notes = sender_balance.get_notes(&mut context, options);
+        let mut note_sum = 0;
+        for i in 0..maybe_notes.len() {
+            if maybe_notes[i].is_some() {
+                let note = maybe_notes[i].unwrap_unchecked();
 
-        let note0 = maybe_notes[0].unwrap_or(ValueNote::dummy());
-        let note1 = maybe_notes[1].unwrap_or(ValueNote::dummy());
+                // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
+                // spending someone else's notes).
+                assert(note.owner == sender);
 
-        let note_sum = note0.value + note1.value;
+                // Removes the note from the owner's set of notes.
+                sender_balance.remove(&mut context, note);
 
-        // Removes the 2 notes from the sender's set of notes.
-        if maybe_notes[0].is_some() {
-          assert(sender == note0.owner);
-          sender_balance.remove(&mut context, note0);
-        }
-        if maybe_notes[1].is_some() {
-          assert(sender == note1.owner);
-          sender_balance.remove(&mut context, note1);
+                note_sum += note.value;
+            }
         }
 
         // Create new note for the recipient.

@@ -1,5 +1,6 @@
+use dep::std::option::Option;
+
 use crate::constants_gen::MAX_READ_REQUESTS_PER_CALL;
-use crate::types::option::Option;
 
 struct SortOrderEnum {
     DESC: u8,

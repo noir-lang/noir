@@ -1,3 +1,4 @@
+use dep::std::option::Option;
 use crate::abi::PublicContextInputs;
 use crate::context::{
     PrivateContext,
@@ -11,7 +12,6 @@ use crate::note::{
 use crate::oracle::create_commitment::create_commitment;
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
-use crate::types::option::Option;
 
 fn create_note<Note, N>(
     context: &mut PrivateContext,

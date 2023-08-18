@@ -65,15 +65,6 @@ impl EcdsaPublicKeyNote {
     fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
-
-    fn dummy() -> Self {
-        EcdsaPublicKeyNote {
-            x: [0;32],
-            y: [0;32],
-            owner: 0,
-            header: NoteHeader::empty(),
-        }
-    }
 }
 
 fn deserialise(preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> EcdsaPublicKeyNote {
@@ -108,10 +99,6 @@ fn compute_nullifier(note: EcdsaPublicKeyNote) -> Field {
     note.compute_nullifier()
 }
 
-fn dummy() -> EcdsaPublicKeyNote {
-    EcdsaPublicKeyNote::dummy()
-}
-
 fn get_header(note: EcdsaPublicKeyNote) -> NoteHeader {
     note.header
 }
@@ -125,7 +112,6 @@ global EcdsaPublicKeyNoteInterface = NoteInterface {
     serialise,
     compute_note_hash,
     compute_nullifier,
-    dummy,
     get_header,
     set_header,
 };

@@ -44,15 +44,6 @@ impl PublicKeyNote {
     fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
-
-    fn dummy() -> Self {
-        PublicKeyNote {
-            x: 0,
-            y: 0,
-            owner: 0,
-            header: NoteHeader::empty(),
-        }
-    }
 }
 
 fn deserialise(preimage: [Field; PUBLIC_KEY_NOTE_LEN]) -> PublicKeyNote {
@@ -76,10 +67,6 @@ fn compute_nullifier(note: PublicKeyNote) -> Field {
     note.compute_nullifier()
 }
 
-fn dummy() -> PublicKeyNote {
-    PublicKeyNote::dummy()
-}
-
 fn get_header(note: PublicKeyNote) -> NoteHeader {
     note.header
 }
@@ -93,7 +80,6 @@ global PublicKeyNoteMethods = NoteInterface {
     serialise,
     compute_note_hash,
     compute_nullifier,
-    dummy,
     get_header,
     set_header,
 };

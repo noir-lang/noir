@@ -76,15 +76,6 @@ impl TransparentNote {
         pedersen([self.secret, siloed_note_hash])[0]
     }
 
-    fn dummy() -> Self {
-        TransparentNote {
-            amount: 0,
-            secret_hash: 0,
-            secret: 0,
-            header: NoteHeader::empty(),
-        }
-    }
-
     fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
@@ -119,10 +110,6 @@ fn compute_nullifier(note: TransparentNote) -> Field {
     note.compute_nullifier()
 }
 
-fn dummy() -> TransparentNote {
-    TransparentNote::dummy()
-}
-
 fn get_header(note: TransparentNote) -> NoteHeader {
     note.header
 }
@@ -136,7 +123,6 @@ global TransparentNoteMethods = NoteInterface {
     serialise,
     compute_note_hash,
     compute_nullifier,
-    dummy,
     get_header,
     set_header,
 };

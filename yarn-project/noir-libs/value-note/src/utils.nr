@@ -5,8 +5,7 @@ use dep::aztec::oracle::get_public_key::get_public_key;
 use dep::aztec::state_vars::set::Set;
 use dep::aztec::types::point::Point;
 use crate::{
-    filter::get_2_notes,
-    filter::get_4_notes,
+    filter::{get_1_note, filter_notes_min_sum},
     value_note::{ValueNote, VALUE_NOTE_LEN},
 };
 
@@ -16,25 +15,25 @@ fn spend_notes(
     amount: Field,
     owner: Field,
 ) {
-    let options = NoteGetterOptions::with_filter(get_2_notes, 0);
-    let maybe_notes = balance.get_notes(context, options);
+    let options = NoteGetterOptions::with_filter(filter_notes_min_sum, amount);
+    let opt_notes = balance.get_notes(context, options);
 
-    let note0 = maybe_notes[0].unwrap_or(ValueNote::dummy());
-    let note1 = maybe_notes[1].unwrap_or(ValueNote::dummy());
+    let mut sum = 0;
+    for i in 0..opt_notes.len() {
+        if opt_notes[i].is_some() {
+            let note = opt_notes[i].unwrap_unchecked();
 
-    // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
-    // spending someone else's notes).
-    if maybe_notes[0].is_some() {
-        assert(owner == note0.owner);
-        // Removes the note from the owner's set of notes.
-        balance.remove(context, note0);
+            // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
+            // spending someone else's notes).
+            assert(note.owner == owner);
+
+            // Removes the note from the owner's set of notes.
+            balance.remove(context, note);
+
+            sum += note.value;
+        }
     }
-    if maybe_notes[1].is_some() {
-        assert(owner == note1.owner);
-        balance.remove(context, note1);
-    }
 
-    let sum = note0.value + note1.value;
     assert(sum as u120 >= amount as u120);
 
     // Creates change note for the owner.
@@ -70,47 +69,22 @@ fn spend_one_note(
     balance: Set<ValueNote, VALUE_NOTE_LEN>,
     amount: Field,
     owner: Field,
-    note_offset: Field,
-    spend_note_index: Field,
+    spend_note_offset: u32,
 ) {
-    let options = NoteGetterOptions::with_filter_and_offset(get_4_notes, 0, note_offset as u32);
-    let maybe_notes = balance.get_notes(context, options);
+    let options = NoteGetterOptions::with_filter_and_offset(get_1_note, 0, spend_note_offset);
+    let opt_notes = balance.get_notes(context, options);
 
-    let note0 = maybe_notes[0].unwrap_or(ValueNote::dummy());
-    let note1 = maybe_notes[1].unwrap_or(ValueNote::dummy());
-    let note2 = maybe_notes[2].unwrap_or(ValueNote::dummy());
-    let note3 = maybe_notes[3].unwrap_or(ValueNote::dummy());
+    // The note should always exist.
+    let note = opt_notes[0].unwrap();
 
-    assert(spend_note_index as u64 < 4);
-    
-    // Check that the note being spent is actually owned by the owner.
-    // Removes only the note that is meant to be actually spent from the owner's notes.
-    let mut note_value = 0;
-    if spend_note_index == 0 {
-        if maybe_notes[0].is_some() {
-            assert(owner == note0.owner);
-        }
-        note_value = note0.value;
-        balance.remove(context, note0);
-    } else if spend_note_index == 1 {
-        if maybe_notes[1].is_some() {
-            assert(owner == note1.owner);
-        }
-        note_value = note1.value;
-        balance.remove(context, note1);
-    } else if spend_note_index == 2 {
-        if maybe_notes[2].is_some() {
-            assert(owner == note2.owner);
-        }
-        note_value = note2.value;
-        balance.remove(context, note2);
-    } else {
-        if maybe_notes[3].is_some() {
-            assert(owner == note3.owner);
-        }
-        note_value = note3.value;
-        balance.remove(context, note3);
-    }
+    // Ensure the notes are actually owned by the owner (to prevent user from generating a valid proof while
+    // spending someone else's notes).
+    assert(owner == note.owner);
+
+    // Removes the note from the owner's set of notes.
+    balance.remove(context, note);
+
+    let note_value = note.value;
     
     // Assert that the note chosen to spend has enough funds.
     assert(note_value as u64 >= amount as u64);
@@ -166,13 +140,13 @@ fn send_note(
   Why three? Because one private call currently allows `MAX_NEW_COMMITMENTS_PER_CALL = 4` output commitments.
   So we split the output notes as: 3 to recipients + 1 to the owner (the change note).
 */
-fn send_notes(
+fn send_notes<NUM_RECIPIENTS>(
     context: &mut PrivateContext,
-    recipient_balances: [Set<ValueNote, VALUE_NOTE_LEN>; 3],
-    amounts: [Field; 3], 
-    recipients: [Field; 3],
+    recipient_balances: [Set<ValueNote, VALUE_NOTE_LEN>; NUM_RECIPIENTS],
+    amounts: [Field; NUM_RECIPIENTS], 
+    recipients: [Field; NUM_RECIPIENTS],
 ) {
-    for i in 0..3 {
+    for i in 0..recipients.len() {
         // Creates a new note for the i-th recipients
         let mut recipient_note = ValueNote::new(amounts[i], recipients[i]);
 

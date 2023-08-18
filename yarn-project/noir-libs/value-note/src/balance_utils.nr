@@ -10,9 +10,10 @@ unconstrained fn get_balance_internal(storage_slot: Field, limit: u32, offset: u
 
     let opt_notes = view_notes(storage_slot, ValueNoteMethods, limit, offset);
     let len = opt_notes.len();
-    let dummy = ValueNoteMethods.dummy;
     for i in 0..len {
-        balance += opt_notes[i].unwrap_or(dummy()).value;
+        if opt_notes[i].is_some() {
+            balance += opt_notes[i].unwrap_unchecked().value;
+        }
     }
     if (opt_notes[len - 1].is_some()) {
         balance += get_balance_internal(storage_slot, limit, offset + limit);

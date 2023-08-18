@@ -1,3 +1,4 @@
+use dep::std::option::Option;
 use crate::abi::PublicContextInputs;
 use crate::context::{
     PrivateContext,
@@ -10,7 +11,6 @@ use crate::note::{
     note_interface::NoteInterface,
     utils::compute_inner_note_hash,
 };
-use crate::types::option::Option;
 
 struct Set<Note, N> {
     storage_slot: Field,

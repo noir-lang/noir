@@ -9,8 +9,6 @@ struct NoteInterface<Note, N> {
 
     compute_nullifier: fn (Note) -> Field,
 
-    dummy: fn () -> Note,
-
     get_header: fn (Note) -> NoteHeader,
 
     set_header: fn (&mut Note, NoteHeader) -> (),

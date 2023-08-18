@@ -49,14 +49,6 @@ impl ClaimNote {
         ])[0]
     }
 
-    fn dummy() -> Self {
-        ClaimNote {
-            value: 0,
-            secret_hash: 0,
-            header: NoteHeader::empty(),
-        }
-    }
-
     fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
@@ -78,10 +70,6 @@ fn compute_nullifier(note: ClaimNote) -> Field {
     note.compute_nullifier()
 }
 
-fn dummy() -> ClaimNote {
-    ClaimNote::dummy()
-}
-
 fn get_header(note: ClaimNote) -> NoteHeader {
     note.header
 }
@@ -95,7 +83,6 @@ global ClaimNoteMethods = NoteInterface {
     serialise,
     compute_note_hash,
     compute_nullifier,
-    dummy,
     get_header,
     set_header,
 };

@@ -64,15 +64,6 @@ impl ValueNote {
         ])[0]
     }
 
-    fn dummy() -> Self {
-        ValueNote {
-            value: 0,
-            owner: 0,
-            randomness: 0,
-            header: NoteHeader::empty(),
-        }
-    }
-
     fn set_header(&mut self, header: NoteHeader) {
         self.header = header;
     }
@@ -94,10 +85,6 @@ fn compute_nullifier(note: ValueNote) -> Field {
     note.compute_nullifier()
 }
 
-fn dummy() -> ValueNote {
-    ValueNote::dummy()
-}
-
 fn get_header(note: ValueNote) -> NoteHeader {
     note.header
 }
@@ -111,7 +98,6 @@ global ValueNoteMethods = NoteInterface {
     serialise,
     compute_note_hash,
     compute_nullifier,
-    dummy,
     get_header,
     set_header,
 };

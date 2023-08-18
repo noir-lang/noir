@@ -1,3 +1,4 @@
+use dep::std::option::Option;
 use crate::constants_gen::{
     MAX_READ_REQUESTS_PER_CALL,
     GET_NOTE_ORACLE_RETURN_LENGTH,
@@ -17,7 +18,6 @@ use crate::note::{
 };
 use crate::messaging::get_commitment_getter_data::make_commitment_getter_data;
 use crate::oracle;
-use crate::types::option::Option;
 
 fn check_note_header<Note, N>(
     context: PrivateContext,
@@ -131,15 +131,19 @@ fn get_notes<Note, N, S, P>(
         // failure if malicious oracle injects 0 nonce here for a "pre-existing" note.
         context.push_read_request(note_hash_for_read_request);
     };
-    opt_notes
+
+    // TODO(#1660)
+    // Move it back to get_notes_internal and only make read request for selected notes.
+    let filter = options.filter;
+    let filter_args = options.filter_args;
+    filter(opt_notes, filter_args)
 }
 
 unconstrained fn get_note_internal<Note, N>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
 ) -> Note {
-    let dummy = note_interface.dummy;
-    let placeholder_note = [Option::none(dummy())];
+    let placeholder_note = [Option::none()];
     let placeholder_fields = [0; GET_NOTE_ORACLE_RETURN_LENGTH];
     oracle::notes::get_notes(
         storage_slot,
@@ -157,8 +161,7 @@ unconstrained fn get_notes_internal<Note, N, S, P>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
     options: NoteGetterOptions<Note, N, S, P>,
-) -> [Option<Note>; S] {
-    let dummy = note_interface.dummy;
+) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {
     let sort_by = options.sort_by;
     let mut sort_by_indices = [0; N];
     let mut sort_order = [0; N];
@@ -166,9 +169,9 @@ unconstrained fn get_notes_internal<Note, N, S, P>(
         sort_by_indices[i] = sort_by[i].field_index;
         sort_order[i] = sort_by[i].order;
     };
-    let placeholder_opt_notes = [Option::none(dummy()); MAX_READ_REQUESTS_PER_CALL];
+    let placeholder_opt_notes = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
     let placeholder_fields = [0; GET_NOTES_ORACLE_RETURN_LENGTH];
-    let opt_notes = oracle::notes::get_notes(
+    oracle::notes::get_notes(
         storage_slot,
         note_interface,
         sort_by_indices,
@@ -177,11 +180,7 @@ unconstrained fn get_notes_internal<Note, N, S, P>(
         options.offset,
         placeholder_opt_notes,
         placeholder_fields,
-    );
-
-    let filter = options.filter;
-    let filter_args = options.filter_args;
-    filter(opt_notes, filter_args)
+    )
 }
 
 unconstrained fn view_notes<Note, N>(
@@ -190,10 +189,9 @@ unconstrained fn view_notes<Note, N>(
     limit: u32,
     offset: u32,
 ) -> [Option<Note>; MAX_NOTES_PER_PAGE] {
-    let dummy = note_interface.dummy;
     let sort_by = [0; N];
     let sort_order = [0; N];
-    let dummy_notes = [Option::none(dummy()); MAX_NOTES_PER_PAGE];
-    let zero_fields = [0; VIEW_NOTE_ORACLE_RETURN_LENGTH];
-    oracle::notes::get_notes(storage_slot, note_interface, sort_by, sort_order, limit, offset, dummy_notes, zero_fields)
+    let placeholder_opt_notes = [Option::none(); MAX_NOTES_PER_PAGE];
+    let placeholder_fields = [0; VIEW_NOTE_ORACLE_RETURN_LENGTH];
+    oracle::notes::get_notes(storage_slot, note_interface, sort_by, sort_order, limit, offset, placeholder_opt_notes, placeholder_fields)
 }
