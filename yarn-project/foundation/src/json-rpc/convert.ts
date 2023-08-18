@@ -1,4 +1,5 @@
 import { Buffer } from 'buffer';
+import cloneDeepWith from 'lodash.clonedeepwith';
 
 import { ClassConverter } from './class_converter.js';
 
@@ -8,17 +9,11 @@ import { ClassConverter } from './class_converter.js';
  * @returns The converted object with stringified bigints.
  */
 export const convertBigintsInObj = (obj: any) => {
-  for (const i in obj) {
-    if (typeof obj[i] === 'bigint') {
-      obj[i] = {
-        type: 'bigint',
-        data: obj[i].toString(),
-      };
-    } else if (typeof obj[i] === 'object') {
-      convertBigintsInObj(obj[i]);
+  return cloneDeepWith(obj, (value: any) => {
+    if (typeof value === 'bigint') {
+      return { type: 'bigint', data: value.toString() };
     }
-  }
-  return obj;
+  });
 };
 
 /**

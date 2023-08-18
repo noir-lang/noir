@@ -435,6 +435,7 @@ __metadata:
     "@types/koa__cors": ^4.0.0
     "@types/leveldown": ^4.0.3
     "@types/levelup": ^5.1.2
+    "@types/lodash.clonedeepwith": ^4.5.7
     "@types/memdown": ^3.0.1
     "@types/node": ^18.7.23
     "@types/supertest": ^2.0.12
@@ -455,6 +456,7 @@ __metadata:
     koa-router: ^12.0.0
     leveldown: ^6.1.1
     levelup: ^5.1.1
+    lodash.clonedeepwith: ^4.5.0
     memdown: ^6.1.1
     prettier: ^2.7.1
     sha3: ^2.1.4
@@ -3253,6 +3255,15 @@ __metadata:
   dependencies:
     "@types/lodash": "*"
   checksum: 20d6a20970b3b54b3c10cf17ace1cea49c4905d7f7cae2575a98108466e8d4c9bea3b3449d11ccaac4da1fc9bab225f477f4c2dbea8ba877cc47f629455efb69
+  languageName: node
+  linkType: hard
+
+"@types/lodash.clonedeepwith@npm:^4.5.7":
+  version: 4.5.7
+  resolution: "@types/lodash.clonedeepwith@npm:4.5.7"
+  dependencies:
+    "@types/lodash": "*"
+  checksum: 2cfc7c55533abf491a2b6897a233244b187bf55ac51545e4f0b937721fdfb7e82cb3743290aa4dcb41487d653d95fdddc172b39318a893c9a2ca6658b0866430
   languageName: node
   linkType: hard
 
@@ -8783,6 +8794,13 @@ __metadata:
   version: 4.5.0
   resolution: "lodash.clonedeep@npm:4.5.0"
   checksum: 92c46f094b064e876a23c97f57f81fbffd5d760bf2d8a1c61d85db6d1e488c66b0384c943abee4f6af7debf5ad4e4282e74ff83177c9e63d8ff081a4837c3489
+  languageName: node
+  linkType: hard
+
+"lodash.clonedeepwith@npm:^4.5.0":
+  version: 4.5.0
+  resolution: "lodash.clonedeepwith@npm:4.5.0"
+  checksum: 9fbf4ebfa04b381df226a2298eba680327bea3d0d5d19c5118de7ae218fd219186e30e9fd0d33b13729f34ffbc83c1cf09cb27aff265ba94cb602b8a2b1e71c9
   languageName: node
   linkType: hard
 

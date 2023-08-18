@@ -45,7 +45,7 @@ export class JsonRpcServer {
     };
     const app = new Koa();
     app.on('error', error => {
-      this.log.error(`KOA app-level error. ${JSON.stringify({ error })}`);
+      this.log.error(`Error on API handler: ${error}`);
     });
     app.use(compress({ br: false } as any));
     app.use(bodyParser());
@@ -111,7 +111,6 @@ export class JsonRpcServer {
         } else {
           try {
             const result = await this.proxy.call(method, params);
-
             ctx.body = {
               jsonrpc,
               id,

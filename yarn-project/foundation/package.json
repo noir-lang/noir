@@ -64,6 +64,7 @@
     "koa-router": "^12.0.0",
     "leveldown": "^6.1.1",
     "levelup": "^5.1.1",
+    "lodash.clonedeepwith": "^4.5.0",
     "memdown": "^6.1.1",
     "sha3": "^2.1.4"
   },
@@ -81,6 +82,7 @@
     "@types/koa__cors": "^4.0.0",
     "@types/leveldown": "^4.0.3",
     "@types/levelup": "^5.1.2",
+    "@types/lodash.clonedeepwith": "^4.5.7",
     "@types/memdown": "^3.0.1",
     "@types/node": "^18.7.23",
     "@types/supertest": "^2.0.12",
