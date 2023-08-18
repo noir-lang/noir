@@ -726,6 +726,17 @@ jobs:
           command: ./scripts/cond_run_script end-to-end $JOB_NAME ./scripts/run_tests_local e2e_private_token_contract.test.ts
           working_directory: yarn-project/end-to-end
 
+  e2e-multi-transfer-contract:
+    docker:
+      - image: aztecprotocol/alpine-build-image
+    resource_class: small
+    steps:
+      - *checkout
+      - *setup_env
+      - run:
+          name: "Test"
+          command: cond_spot_run_tests end-to-end e2e_multi_transfer.test.ts
+
   e2e-block-building:
     machine:
       image: ubuntu-2004:202010-01
@@ -1312,6 +1323,7 @@ workflows:
       - e2e-deploy-contract: *e2e_test
       - e2e-lending-contract: *e2e_test
       - e2e-zk-token-contract: *e2e_test
+      - e2e-multi-transfer-contract: *e2e_test
       - e2e-block-building: *e2e_test
       - e2e-nested-contract: *e2e_test
       - e2e-non-contract-account: *e2e_test
@@ -1339,6 +1351,7 @@ workflows:
             - e2e-deploy-contract
             - e2e-lending-contract
             - e2e-zk-token-contract
+            - e2e-multi-transfer-contract
             - e2e-block-building
             - e2e-nested-contract
             - e2e-non-contract-account

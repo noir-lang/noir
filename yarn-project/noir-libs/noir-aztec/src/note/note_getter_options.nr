@@ -61,4 +61,17 @@ impl<Note, N, S, P> NoteGetterOptions<Note, N, S, P> {
             filter_args,
         }
     }
+
+    fn with_filter_and_offset(
+        filter: fn ([Option<Note>; MAX_READ_REQUESTS_PER_CALL], P) -> [Option<Note>; S],
+        filter_args: P,
+        offset: u32,
+    ) -> Self {
+         NoteGetterOptions {
+            sort_by: [Sort::nada(); N],
+            offset,
+            filter,
+            filter_args,
+        }
+    }
 }

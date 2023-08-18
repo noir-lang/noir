@@ -109,6 +109,10 @@ export class NoteProcessor {
           indexOfTxInABlock * MAX_NEW_COMMITMENTS_PER_TX,
           (indexOfTxInABlock + 1) * MAX_NEW_COMMITMENTS_PER_TX,
         );
+        const newNullifiers = block.newNullifiers.slice(
+          indexOfTxInABlock * MAX_NEW_NULLIFIERS_PER_TX,
+          (indexOfTxInABlock + 1) * MAX_NEW_NULLIFIERS_PER_TX,
+        );
         // Note: Each tx generates a `TxL2Logs` object and for this reason we can rely on its index corresponding
         //       to the index of a tx in a block.
         const txFunctionLogs = txLogs[indexOfTxInABlock].functionLogs;
@@ -117,10 +121,6 @@ export class NoteProcessor {
             const noteSpendingInfo = NoteSpendingInfo.fromEncryptedBuffer(logs, privateKey, curve);
             if (noteSpendingInfo) {
               // We have successfully decrypted the data.
-              const newNullifiers = block.newNullifiers.slice(
-                indexOfTxInABlock * MAX_NEW_NULLIFIERS_PER_TX,
-                (indexOfTxInABlock + 1) * MAX_NEW_NULLIFIERS_PER_TX,
-              );
               try {
                 const { index, nonce, siloedNullifier } = await this.findNoteIndexAndNullifier(
                   dataStartIndexForTx,
