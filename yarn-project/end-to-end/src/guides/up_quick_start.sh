@@ -10,7 +10,7 @@ BOB="0x0d557417a3ce7d7b356a8f15d79a868fd8da2af9c5f4981feb9bcf0b614bd17e"
 
 # docs:start:deploy
 aztec-cli deploy \
-  --contract-abi PrivateTokenContractAbi \
+  PrivateTokenContractAbi \
   --args 1000000 $ALICE \
   --salt 0
 # docs:end:deploy
