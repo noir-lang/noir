@@ -4,8 +4,17 @@ import {
   collectEnqueuedPublicFunctionCalls,
   collectUnencryptedLogs,
 } from '@aztec/acir-simulator';
-import { AztecAddress, CompleteAddress, FunctionData, PrivateKey } from '@aztec/circuits.js';
+import {
+  AztecAddress,
+  CompleteAddress,
+  FunctionData,
+  KernelCircuitPublicInputs,
+  MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+  PrivateKey,
+  PublicCallRequest,
+} from '@aztec/circuits.js';
 import { encodeArguments } from '@aztec/foundation/abi';
+import { padArrayEnd } from '@aztec/foundation/collection';
 import { Fr } from '@aztec/foundation/fields';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import {
@@ -404,13 +413,15 @@ export class AztecRPCServer implements AztecRPC {
     const kernelProver = new KernelProver(kernelOracle);
     this.log(`Executing kernel prover...`);
     const { proof, publicInputs } = await kernelProver.prove(txExecutionRequest.toTxRequest(), executionResult);
-    this.log('Proof completed!');
 
     const newContractPublicFunctions = newContract ? getNewContractPublicFunctions(newContract) : [];
 
     const encryptedLogs = new TxL2Logs(collectEncryptedLogs(executionResult));
     const unencryptedLogs = new TxL2Logs(collectUnencryptedLogs(executionResult));
     const enqueuedPublicFunctions = collectEnqueuedPublicFunctionCalls(executionResult);
+
+    // HACK(#1639): Manually patches the ordering of the public call stack
+    await this.patchPublicCallStackOrdering(publicInputs, enqueuedPublicFunctions);
 
     return new Tx(
       publicInputs,
@@ -419,6 +430,42 @@ export class AztecRPCServer implements AztecRPC {
       unencryptedLogs,
       newContractPublicFunctions,
       enqueuedPublicFunctions,
+    );
+  }
+
+  // This is a hack to fix ordering of public calls enqueued in the call stack. Since the private kernel cannot
+  // keep track of side effects that happen after or before a nested call, we override the public call stack
+  // it emits with whatever we got from the simulator collected enqueued calls. As a sanity check, we at least verify
+  // that the elements are the same, so we are only tweaking their ordering.
+  // See yarn-project/end-to-end/src/e2e_ordering.test.ts
+  // See https://github.com/AztecProtocol/aztec-packages/issues/1615
+  private async patchPublicCallStackOrdering(
+    publicInputs: KernelCircuitPublicInputs,
+    enqueuedPublicCalls: PublicCallRequest[],
+  ) {
+    const callToHash = (call: PublicCallRequest) => call.toPublicCallStackItem().then(item => item.hash());
+    const enqueuedPublicCallsHashes = await Promise.all(enqueuedPublicCalls.map(callToHash));
+    const { publicCallStack } = publicInputs.end;
+
+    // Validate all items in enqueued public calls are in the kernel emitted stack
+    const areEqual = enqueuedPublicCallsHashes.reduce(
+      (accum, enqueued) => accum && !!publicCallStack.find(item => item.equals(enqueued)),
+      true,
+    );
+
+    if (!areEqual) {
+      throw new Error(
+        `Enqueued public function calls and public call stack do not match.\nEnqueued calls: ${enqueuedPublicCallsHashes
+          .map(h => h.toString())
+          .join(', ')}\nPublic call stack: ${publicCallStack.map(i => i.toString()).join(', ')}`,
+      );
+    }
+
+    // Override kernel output
+    publicInputs.end.publicCallStack = padArrayEnd(
+      enqueuedPublicCallsHashes,
+      Fr.ZERO,
+      MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
     );
   }
 

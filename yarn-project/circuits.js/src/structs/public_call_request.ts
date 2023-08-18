@@ -35,6 +35,10 @@ export class PublicCallRequest {
      * Function arguments.
      */
     public args: Fr[],
+    /**
+     * Optional ordering within a tx execution.
+     */
+    public order?: number,
   ) {}
 
   /**
@@ -75,7 +79,7 @@ export class PublicCallRequest {
    * @returns The array.
    */
   static getFields(fields: FieldsOf<PublicCallRequest>) {
-    return [fields.contractAddress, fields.functionData, fields.callContext, fields.args] as const;
+    return [fields.contractAddress, fields.functionData, fields.callContext, fields.args, fields.order] as const;
   }
 
   /**

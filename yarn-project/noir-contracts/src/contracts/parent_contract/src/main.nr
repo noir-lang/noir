@@ -86,6 +86,40 @@ contract Parent {
         context.finish()
     }
 
+    // Private function that enqueues two calls to a child contract: 
+    // - one through a nested call to enqueueCallToChild with value 10,
+    // - followed by one issued directly from this function with value 20.
+    fn enqueueCallsToChildWithNestedFirst(
+        inputs: PrivateContextInputs,
+        targetContract: Field,
+        targetSelector: Field,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        let mut context = PrivateContext::new(inputs, abi::hash_args([targetContract, targetSelector]));
+
+        let enqueueCallToChildSelector = 0x94015a34;
+        let _ret = context.call_private_function(context.this_address(), enqueueCallToChildSelector, [targetContract, targetSelector, 10]);
+        context.call_public_function(targetContract, targetSelector, [20]);
+
+        context.finish()
+    }
+
+    // Private function that enqueues two calls to a child contract: 
+    // - one issued directly from this function with value 20,
+    // - followed by one through a nested call to enqueueCallToChild with value 10.
+    fn enqueueCallsToChildWithNestedLast(
+        inputs: PrivateContextInputs,
+        targetContract: Field,
+        targetSelector: Field,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        let mut context = PrivateContext::new(inputs, abi::hash_args([targetContract, targetSelector]));
+
+        context.call_public_function(targetContract, targetSelector, [20]);
+        let enqueueCallToChildSelector = 0x94015a34;
+        let _ret = context.call_private_function(context.this_address(), enqueueCallToChildSelector, [targetContract, targetSelector, 10]);
+
+        context.finish()
+    }
+
     // Private function to enqueue a call to the targetContract address using the selector and argument provided
     fn enqueueCallToChildTwice(
         inputs: PrivateContextInputs,

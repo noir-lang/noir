@@ -188,8 +188,7 @@ export class KernelProver {
       functionData.functionSelectorBuffer,
     );
 
-    // TODO
-    // FIXME: https://github.com/AztecProtocol/aztec3-packages/issues/262
+    // TODO(#262): Use real acir hash
     // const acirHash = keccak(Buffer.from(bytecode, 'hex'));
     const acirHash = Fr.fromBuffer(Buffer.alloc(32, 0));
 

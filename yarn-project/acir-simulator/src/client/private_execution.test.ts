@@ -763,7 +763,7 @@ describe('Private Execution test suite', () => {
   });
 
   describe('enqueued calls', () => {
-    it.each([false, true])('parent should enqueue call to child', async isInternal => {
+    it.each([false, true])('parent should enqueue call to child (internal %p)', async isInternal => {
       const parentAbi = ParentContractAbi.functions.find(f => f.name === 'enqueueCallToChild')!;
       const childContractAbi = ParentContractAbi.functions[0];
       const childAddress = AztecAddress.random();
@@ -798,6 +798,7 @@ describe('Private Execution test suite', () => {
           isDelegateCall: false,
           isStaticCall: false,
         }),
+        order: 0,
       });
 
       const publicCallRequestHash = computeCallStackItemHash(
