@@ -12,7 +12,6 @@ use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
-        directives::LogInfo,
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
     },
     native_types::Witness,
@@ -565,13 +564,6 @@ impl GeneratedAcir {
             expr_as_witness,
         );
         &expr_squared - expr
-    }
-
-    /// Adds a log directive to print the provided witnesses.
-    ///
-    /// Logging of strings is currently unsupported.
-    pub(crate) fn call_print(&mut self, witnesses: Vec<Witness>) {
-        self.push_opcode(AcirOpcode::Directive(Directive::Log(LogInfo::WitnessOutput(witnesses))));
     }
 
     /// Adds an inversion brillig opcode.
