@@ -35,7 +35,7 @@ contract Child {
     // Returns base_value + 42.
     open fn pubGetValue(inputs: PublicContextInputs, base_value: Field) -> pub abi::PublicCircuitPublicInputs {
         let mut context = PublicContext::new(inputs, abi::hash_args([base_value]));
-        
+
         let returnValue = base_value + context.chain_id() + context.version() + context.block_number() + context.timestamp();
 
         context.return_values.push(returnValue);
@@ -62,6 +62,36 @@ contract Child {
         storage.current_value.write(old_value + new_value);
         let _hash = emit_unencrypted_log(new_value);
         context.return_values.push(new_value);
+        context.finish()
+    }
+
+    open fn setValueTwiceWithNestedFirst(
+        inputs: PublicContextInputs,
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([]));
+
+        let pubSetValueSelector = 0x5b0f91b0;
+        let _ret = context.call_public_function(context.this_address(), pubSetValueSelector, [10]);
+
+        let storage = Storage::init();
+        storage.current_value.write(20);
+        let _hash = emit_unencrypted_log(20);
+
+        context.finish()
+    }
+
+    open fn setValueTwiceWithNestedLast(
+        inputs: PublicContextInputs,
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(inputs, abi::hash_args([]));
+
+        let storage = Storage::init();
+        storage.current_value.write(20);
+        let _hash = emit_unencrypted_log(20);
+
+        let pubSetValueSelector = 0x5b0f91b0;
+        let _ret = context.call_public_function(context.this_address(), pubSetValueSelector, [10]);
+
         context.finish()
     }
 }

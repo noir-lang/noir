@@ -3,9 +3,10 @@ import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { Wallet } from '@aztec/aztec.js';
 import { Fr } from '@aztec/circuits.js';
+import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract, ParentContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, L2BlockL2Logs } from '@aztec/types';
+import { AztecRPC, L2BlockL2Logs, TxStatus } from '@aztec/types';
 
 import { setup } from './fixtures/utils.js';
 
@@ -14,9 +15,19 @@ describe('e2e_ordering', () => {
   let aztecNode: AztecNodeService | undefined;
   let aztecRpcServer: AztecRPC;
   let wallet: Wallet;
+  //let logger: DebugLogger;
+
+  const expectLogsFromLastBlockToBe = async (logMessages: bigint[]) => {
+    const l2BlockNum = await aztecRpcServer.getBlockNum();
+    const unencryptedLogs = await aztecRpcServer.getUnencryptedLogs(l2BlockNum, 1);
+    const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs);
+    const bigintLogs = unrolledLogs.map((log: Buffer) => toBigIntBE(log));
+
+    expect(bigintLogs).toStrictEqual(logMessages);
+  };
 
   beforeEach(async () => {
-    ({ aztecNode, aztecRpcServer, wallet } = await setup());
+    ({ aztecNode, aztecRpcServer, wallet /*, logger*/ } = await setup());
   }, 100_000);
 
   afterEach(async () => {
@@ -42,8 +53,8 @@ describe('e2e_ordering', () => {
       const directValue = 20n;
 
       const expectedOrders = {
-        enqueueCallsToChildWithNestedFirst: [nestedValue, directValue],
-        enqueueCallsToChildWithNestedLast: [directValue, nestedValue],
+        enqueueCallsToChildWithNestedFirst: [nestedValue, directValue] as bigint[],
+        enqueueCallsToChildWithNestedLast: [directValue, nestedValue] as bigint[],
       } as const;
 
       it.each(['enqueueCallsToChildWithNestedFirst', 'enqueueCallsToChildWithNestedLast'] as const)(
@@ -66,13 +77,48 @@ describe('e2e_ordering', () => {
           expect(enqueuedPublicCalls.map(c => c.args[0].toBigInt())).toEqual([...expectedOrder].reverse());
 
           // Logs are emitted in the expected order
-          const logs = await aztecRpcServer.getUnencryptedLogs(1, 10).then(L2BlockL2Logs.unrollLogs);
-          const expectedLogs = expectedOrder.map(x => Buffer.from([Number(x)]));
-          expect(logs).toEqual(expectedLogs);
+          await expectLogsFromLastBlockToBe(expectedOrder);
 
           // The final value of the child is the last one set
           const value = await aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)).then(x => toBigInt(x!));
-          expect(value).toEqual(expectedOrder[1]);
+          expect(value).toEqual(expectedOrder[1]); // final state should match last value set
+        },
+      );
+    });
+
+    describe('public state update ordering, and final state value check', () => {
+      const nestedValue = 10n;
+      const directValue = 20n;
+
+      const expectedOrders = {
+        setValueTwiceWithNestedFirst: [nestedValue, directValue] as bigint[],
+        setValueTwiceWithNestedLast: [directValue, nestedValue] as bigint[],
+      } as const;
+
+      // TODO(dbanks12): implement public state ordering, or...
+      // TODO(#1622): hack around this error by removing public kernel checks
+      //     that public state updates are in valid sequence
+      // Full explanation:
+      //     Setting public storage twice (first in a nested call, then directly) leads
+      //     to an error in public kernel because it sees the public state updates
+      //     in reverse order. More info in this thread: https://discourse.aztec.network/t/identifying-the-ordering-of-state-access-across-contract-calls/382/12#transition-counters-for-private-calls-2
+      //
+      // Once fixed, re-include the `setValueTwiceWithNestedFirst` test
+      //it.each(['setValueTwiceWithNestedFirst', 'setValueTwiceWithNestedLast'] as const)(
+      it.each(['setValueTwiceWithNestedLast'] as const)(
+        'orders public state updates in %s (and ensures final state value is correct)',
+        async method => {
+          const expectedOrder = expectedOrders[method];
+
+          const tx = child.methods[method]().send();
+          const receipt = await tx.wait();
+          expect(receipt.status).toBe(TxStatus.MINED);
+
+          // Logs are emitted in the expected order
+          await expectLogsFromLastBlockToBe(expectedOrder);
+
+          const value = await aztecRpcServer.getPublicStorageAt(child.address, new Fr(1)).then(x => toBigInt(x!));
+          expect(value).toEqual(expectedOrder[1]); // final state should match last value set
         },
       );
     });

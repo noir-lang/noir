@@ -100,7 +100,8 @@ export function collectUnencryptedLogs(execResult: ExecutionResult): FunctionL2L
  * @returns All enqueued public function calls.
  */
 export function collectEnqueuedPublicFunctionCalls(execResult: ExecutionResult): PublicCallRequest[] {
-  // without the reverse sort, the logs will be in a queue like fashion which is wrong as the kernel processes it like a stack.
+  // without the reverse sort, the logs will be in a queue like fashion which is wrong
+  // as the kernel processes it like a stack, popping items off and pushing them to output
   return [
     ...execResult.enqueuedPublicFunctionCalls,
     ...[...execResult.nestedExecutions].flatMap(collectEnqueuedPublicFunctionCalls),
