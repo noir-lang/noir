@@ -1,7 +1,10 @@
 use std::fmt::Display;
 
 use crate::token::{Attribute, Token};
-use crate::{Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType};
+use crate::{
+    Distinctness, Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType,
+    Visibility,
+};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Span, Spanned};
@@ -360,13 +363,13 @@ pub struct FunctionDefinition {
     pub is_unconstrained: bool,
 
     pub generics: UnresolvedGenerics,
-    pub parameters: Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)>,
+    pub parameters: Vec<(Pattern, UnresolvedType, Visibility)>,
     pub body: BlockExpression,
     pub span: Span,
     pub where_clause: Vec<TraitConstraint>,
     pub return_type: FunctionReturnType,
-    pub return_visibility: noirc_abi::AbiVisibility,
-    pub return_distinctness: noirc_abi::AbiDistinctness,
+    pub return_visibility: Visibility,
+    pub return_distinctness: Distinctness,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

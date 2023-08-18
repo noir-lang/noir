@@ -1,5 +1,5 @@
 use iter_extended::vecmap;
-use noirc_abi::{AbiDistinctness, AbiParameter, AbiType, AbiVisibility};
+use noirc_abi::{AbiParameter, AbiType};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
@@ -7,7 +7,7 @@ use super::stmt::HirPattern;
 use crate::hir::def_map::ModuleId;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attribute, FunctionKind};
-use crate::{ContractFunctionType, FunctionReturnType, Type};
+use crate::{ContractFunctionType, Distinctness, FunctionReturnType, Type, Visibility};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -37,7 +37,7 @@ impl HirFunction {
 
 /// An interned function parameter from a function definition
 #[derive(Debug, Clone)]
-pub struct Param(pub HirPattern, pub Type, pub noirc_abi::AbiVisibility);
+pub struct Param(pub HirPattern, pub Type, pub Visibility);
 
 /// Attempts to retrieve the name of this parameter. Returns None
 /// if this parameter is a tuple or struct pattern.
@@ -60,7 +60,7 @@ impl Parameters {
                 .expect("Abi for tuple and struct parameters is unimplemented")
                 .to_owned();
             let as_abi = param.1.as_abi_type();
-            AbiParameter { name: param_name, typ: as_abi, visibility: param.2 }
+            AbiParameter { name: param_name, typ: as_abi, visibility: param.2.into() }
         })
     }
 
@@ -139,9 +139,9 @@ pub struct FuncMeta {
 
     pub return_type: FunctionReturnType,
 
-    pub return_visibility: AbiVisibility,
+    pub return_visibility: Visibility,
 
-    pub return_distinctness: AbiDistinctness,
+    pub return_distinctness: Distinctness,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.

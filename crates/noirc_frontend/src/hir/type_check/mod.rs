@@ -194,7 +194,7 @@ mod test {
         },
         parse_program, FunctionKind, Path,
     };
-    use crate::{BinaryOpKind, FunctionReturnType};
+    use crate::{BinaryOpKind, Distinctness, FunctionReturnType, Visibility};
 
     #[test]
     fn basic_let() {
@@ -268,12 +268,12 @@ mod test {
                 Box::new(Type::Unit),
             ),
             parameters: vec![
-                Param(Identifier(x), Type::FieldElement, noirc_abi::AbiVisibility::Private),
-                Param(Identifier(y), Type::FieldElement, noirc_abi::AbiVisibility::Private),
+                Param(Identifier(x), Type::FieldElement, Visibility::Private),
+                Param(Identifier(y), Type::FieldElement, Visibility::Private),
             ]
             .into(),
-            return_visibility: noirc_abi::AbiVisibility::Private,
-            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
+            return_visibility: Visibility::Private,
+            return_distinctness: Distinctness::DuplicationAllowed,
             has_body: true,
             return_type: FunctionReturnType::Default(Span::default()),
         };

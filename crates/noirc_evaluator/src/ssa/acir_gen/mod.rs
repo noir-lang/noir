@@ -29,7 +29,7 @@ use acvm::{
     FieldElement,
 };
 use iter_extended::{try_vecmap, vecmap};
-use noirc_abi::AbiDistinctness;
+use noirc_frontend::Distinctness;
 
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
@@ -112,14 +112,14 @@ impl Ssa {
     pub(crate) fn into_acir(
         self,
         brillig: Brillig,
-        abi_distinctness: AbiDistinctness,
+        abi_distinctness: Distinctness,
         last_array_uses: &HashMap<ValueId, InstructionId>,
     ) -> Result<GeneratedAcir, RuntimeError> {
         let context = Context::new();
         let mut generated_acir = context.convert_ssa(self, brillig, last_array_uses)?;
 
         match abi_distinctness {
-            AbiDistinctness::Distinct => {
+            Distinctness::Distinct => {
                 // Create a witness for each return witness we have
                 // to guarantee that the return witnesses are distinct
                 let distinct_return_witness: Vec<_> = generated_acir
@@ -135,7 +135,7 @@ impl Ssa {
                 generated_acir.return_witnesses = distinct_return_witness;
                 Ok(generated_acir)
             }
-            AbiDistinctness::DuplicationAllowed => Ok(generated_acir),
+            Distinctness::DuplicationAllowed => Ok(generated_acir),
         }
     }
 }

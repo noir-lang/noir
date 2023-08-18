@@ -77,15 +77,6 @@ pub enum AbiVisibility {
     Private,
 }
 
-impl std::fmt::Display for AbiVisibility {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AbiVisibility::Public => write!(f, "pub"),
-            AbiVisibility::Private => write!(f, "priv"),
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Represents whether the return value should compromise of unique witness indices such that no
@@ -99,15 +90,6 @@ impl std::fmt::Display for AbiVisibility {
 pub enum AbiDistinctness {
     Distinct,
     DuplicationAllowed,
-}
-
-impl std::fmt::Display for AbiDistinctness {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AbiDistinctness::Distinct => write!(f, "distinct"),
-            AbiDistinctness::DuplicationAllowed => write!(f, "duplication-allowed"),
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
