@@ -603,12 +603,8 @@ impl<'a> FunctionContext<'a> {
                 LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue };
             (array_values[1], index, slice_lvalue, Some(array_values[0]))
         } else {
-            (
-                array_values[0],
-                index,
-                LValue::Index { old_array: array_values[0], index, array_lvalue },
-                None,
-            )
+            let array_lvalue = LValue::Index { old_array: array_values[0], index, array_lvalue };
+            (array_values[0], index, array_lvalue, None)
         }
     }
 
