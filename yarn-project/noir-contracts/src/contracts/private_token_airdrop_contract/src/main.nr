@@ -136,9 +136,8 @@ contract PrivateTokenAirdrop {
         let mut context = PrivateContext::new(inputs, abi::hash_args([amount, secret, owner]));
 
         // Remove the claim note if it exists in the set.
-        let mut note = ClaimNote::new(amount, secret);
-        storage.claims.assert_contains(&mut context, &mut note);
-        storage.claims.remove(&mut context, note);
+        let note = ClaimNote::new(amount, secret);
+        storage.claims.assert_contains_note_and_remove(&mut context, note);
 
         // Send the value note.
         let balance = storage.balances.at(owner);

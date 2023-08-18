@@ -30,15 +30,34 @@ impl<Note, N> Set<Note, N> {
         create_note_hash_from_public(context, self.storage_slot, note, self.note_interface);
     }
 
-    fn assert_contains(self, context: &mut PrivateContext, note: &mut Note) {
-        ensure_note_exists(context, self.storage_slot, self.note_interface, note);
+    // TODO(#1386)
+    // Should be replaced by `assert_contains_and_remove`.
+    fn assert_contains_note_and_remove(self, context: &mut PrivateContext, note: Note) {
+        let mut note_with_header = note;
+        ensure_note_exists(context, self.storage_slot, self.note_interface, &mut note_with_header);
+        self.remove(context, note_with_header);
     }
 
-    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): rename to
-    // `assert_contains` and replace function above ^ once public kernel injects
+    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386):
+    // replace function above ^ once public kernel injects
     // nonces to note hashes.
-    fn assert_contains_note_hash(self, context: &mut PrivateContext, note: &mut Note) {
-        ensure_note_hash_exists(context, self.storage_slot, self.note_interface, note)
+    fn assert_contains_and_remove(self, context: &mut PrivateContext, note: Note) {
+        let mut note_with_header = note;
+        // Modifies note with the header which is necessary for the next step (remove).
+        ensure_note_hash_exists(context, self.storage_slot, self.note_interface, &mut note_with_header);
+
+        let get_header = self.note_interface.get_header;
+        let set_header = self.note_interface.set_header;
+        let mut header = get_header(note);
+        // Set the nonce to nonzero so that the nullifier is treated as persistable
+        // (non-transient) and so the private kernel does not attempt to match it to
+        // a pending noteHash/commitment and squash them.
+        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): remove
+        // this hack once public kernel injects nonces.
+        header.nonce = 1;
+        set_header(&mut note_with_header, header);
+
+        self.remove(context, note_with_header);
     }
 
     fn remove(self, context: &mut PrivateContext, note: Note) {

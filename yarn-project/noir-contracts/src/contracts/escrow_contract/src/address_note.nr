@@ -1,3 +1,5 @@
+mod filter;
+
 use dep::std::hash::pedersen;
 use dep::aztec::note::note_interface::NoteInterface;
 use dep::aztec::note::note_header::NoteHeader;

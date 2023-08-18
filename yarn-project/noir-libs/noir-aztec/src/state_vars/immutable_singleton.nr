@@ -1,10 +1,7 @@
 use dep::std::hash::pedersen_with_separator;
 use crate::context::PrivateContext;
 use crate::note::lifecycle::create_note;
-use crate::note::note_getter::{
-    get_note,
-    ensure_note_exists,
-};
+use crate::note::note_getter::get_note;
 use crate::note::note_interface::NoteInterface;
 use crate::oracle;
 use crate::constants_gen::{
@@ -42,9 +39,5 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     fn get_note(self, context: &mut PrivateContext) -> Note {
         let storage_slot = self.storage_slot;
         get_note(context, storage_slot, self.note_interface)
-    }
-
-    fn assert_contains(self, context: &mut PrivateContext, note: &mut Note) {
-        ensure_note_exists(context, self.storage_slot, self.note_interface, note);
     }
 }

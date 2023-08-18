@@ -287,23 +287,10 @@ contract NonNativeToken {
             amount, secret, owner
         ]));
 
-        // Assert that the note exists within the tree
-        let mut public_note = TransparentNote::new_from_secret(amount, secret);
+        let public_note = TransparentNote::new_from_secret(amount, secret);
 
-        // Ensure that the note exists in the tree
-        pending_shields.assert_contains_note_hash(&mut context, &mut public_note);
-        // The above call to `assert_contains()` also returns a modified note with
-        // the header which is necessary for the next step (remove).
-
-        // Set the nonce to nonzero so that the nullifier is treated as persistable
-        // (non-transient) and so the private kernel does not attempt to match it to
-        // a pending noteHash/commitment and squash them.
-        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): remove
-        // this hack once public kernel injects nonces.
-        public_note.header.nonce = 1;
-
-        // Consume note in secret!
-        pending_shields.remove(&mut context, public_note);
+        // Ensure that the note exists in the tree and remove it.
+        pending_shields.assert_contains_and_remove(&mut context, public_note);
 
         // Mint the tokens
         let balance = storage.balances.at(owner);
