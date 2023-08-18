@@ -54,6 +54,7 @@ cd ./build
 cmake --build . --parallel --target grumpkin_srs_gen
 ./bin/grumpkin_srs_gen 8192
 echo "Generated Grumpkin SRS successfully"
+cd ../
 
 # Install wasi-sdk.
 ./scripts/install-wasi-sdk.sh
