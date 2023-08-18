@@ -520,7 +520,7 @@ fn on_did_save_text_document(
     }
 
     // We need to refresh lenses when we compile since that's the only time they can be accurately reflected
-    let _ = state.client.code_lens_refresh(());
+    std::mem::drop(state.client.code_lens_refresh(()));
 
     let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
         uri: params.text_document.uri,

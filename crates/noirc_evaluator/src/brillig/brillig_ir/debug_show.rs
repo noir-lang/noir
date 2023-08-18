@@ -1,4 +1,5 @@
-///! This module contains functions for producing a higher level view disassembler of Brillig.
+//! This module contains functions for producing a higher level view disassembler of Brillig.
+
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::{ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE};
 use acvm::acir::brillig::{
