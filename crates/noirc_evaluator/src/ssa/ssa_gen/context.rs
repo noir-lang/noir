@@ -584,8 +584,8 @@ impl<'a> FunctionContext<'a> {
     /// Compile the given `array[index]` expression as a reference.
     /// This will return a triple of (array, index, lvalue_ref, Option<max_length>) where the lvalue_ref records the
     /// structure of the lvalue expression for use by `assign_new_value`.
-    /// The optional max length is for the case where we are indexing a slice rather than an array as slices
-    /// are representing as the following tuple: (length, slice contents).
+    /// The optional max length is for indexing slices rather than arrays since slices
+    /// are represented as a tuple in the form: (length, slice contents).
     fn index_lvalue(
         &mut self,
         array: &ast::LValue,
