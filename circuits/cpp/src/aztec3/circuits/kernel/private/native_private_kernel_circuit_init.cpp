@@ -12,7 +12,6 @@ namespace {
 using NT = aztec3::utils::types::NativeTypes;
 
 using aztec3::circuits::abis::CombinedConstantData;
-using aztec3::circuits::abis::HistoricBlockData;
 using aztec3::circuits::abis::KernelCircuitPublicInputs;
 using aztec3::circuits::abis::private_kernel::PrivateKernelInputsInit;
 using aztec3::utils::array_push;
@@ -27,19 +26,11 @@ void initialise_end_values(PrivateKernelInputsInit<NT> const& private_inputs,
     // Define the constants data.
     auto const& private_call_public_inputs = private_inputs.private_call.call_stack_item.public_inputs;
     auto const constants = CombinedConstantData<NT>{
-        .block_data =
-            HistoricBlockData<NT>{
-                // TODO(dbanks12): remove historic root from app circuit public inputs and
-                // add it to PrivateCallData: https://github.com/AztecProtocol/aztec-packages/issues/778
-                // Then use this:
-                // .private_data_tree_root = private_inputs.private_call.historic_private_data_tree_root,
-                .private_data_tree_root = private_call_public_inputs.historic_private_data_tree_root,
-                .nullifier_tree_root = private_call_public_inputs.historic_nullifier_tree_root,
-                .contract_tree_root = private_call_public_inputs.historic_contract_tree_root,
-                .l1_to_l2_messages_tree_root = private_call_public_inputs.historic_l1_to_l2_messages_tree_root,
-                .public_data_tree_root = private_call_public_inputs.historic_public_data_tree_root,
-                .global_variables_hash = private_call_public_inputs.historic_global_variables_hash,
-            },
+        .block_data = private_call_public_inputs.historic_block_data,
+        // TODO(dbanks12): remove historic root from app circuit public inputs and
+        // add it to PrivateCallData: https://github.com/AztecProtocol/aztec-packages/issues/778
+        // Then use this:
+        // .private_data_tree_root = private_inputs.private_call.historic_private_data_tree_root,
         .tx_context = private_inputs.tx_request.tx_context,
     };
 

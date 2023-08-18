@@ -79,7 +79,7 @@ void pop_and_validate_this_private_call_hash(
 void validate_contract_tree_root(DummyCircuitBuilder& builder, PrivateKernelInputsInner<NT> const& private_inputs)
 {
     auto const& purported_contract_tree_root =
-        private_inputs.private_call.call_stack_item.public_inputs.historic_contract_tree_root;
+        private_inputs.private_call.call_stack_item.public_inputs.historic_block_data.contract_tree_root;
     auto const& previous_kernel_contract_tree_root =
         private_inputs.previous_kernel.public_inputs.constants.block_data.contract_tree_root;
     builder.do_assert(

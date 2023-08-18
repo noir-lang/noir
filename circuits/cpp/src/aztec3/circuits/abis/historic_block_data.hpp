@@ -54,6 +54,20 @@ template <typename NCT> struct HistoricBlockData {
                global_variables_hash == other.global_variables_hash;
     };
 
+    template <typename Builder> void assert_is_zero()
+    {
+        static_assert((std::is_same<CircuitTypes<Builder>, NCT>::value));
+
+        private_data_tree_root.assert_is_zero();
+        nullifier_tree_root.assert_is_zero();
+        contract_tree_root.assert_is_zero();
+        l1_to_l2_messages_tree_root.assert_is_zero();
+        blocks_tree_root.assert_is_zero();
+        private_kernel_vk_tree_root.assert_is_zero();
+        public_data_tree_root.assert_is_zero();
+        global_variables_hash.assert_is_zero();
+    }
+
     template <typename Builder> HistoricBlockData<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
     {
         static_assert((std::is_same<NativeTypes, NCT>::value));

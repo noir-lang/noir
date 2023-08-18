@@ -276,7 +276,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
         OptionalPrivateCircuitPublicInputs<NT> const opt_private_circuit_public_inputs = func(ctx, args_vec);
         private_circuit_public_inputs = opt_private_circuit_public_inputs.remove_optionality();
         // TODO(suyash): this should likely be handled as part of the DB/Oracle/Context infrastructure
-        private_circuit_public_inputs.historic_contract_tree_root = contract_tree_root;
+        private_circuit_public_inputs.historic_block_data.contract_tree_root = contract_tree_root;
 
         private_circuit_public_inputs.encrypted_logs_hash = encrypted_logs_hash;
         private_circuit_public_inputs.unencrypted_logs_hash = unencrypted_logs_hash;
@@ -296,10 +296,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
             .unencrypted_logs_hash = unencrypted_logs_hash,
             .encrypted_log_preimages_length = encrypted_log_preimages_length,
             .unencrypted_log_preimages_length = unencrypted_log_preimages_length,
-            .historic_private_data_tree_root = 0,
-            .historic_nullifier_tree_root = 0,
-            .historic_contract_tree_root = contract_tree_root,
-            .historic_l1_to_l2_messages_tree_root = 0,
+            .historic_block_data = HistoricBlockData<NT>{ .contract_tree_root = contract_tree_root },
             .contract_deployment_data = contract_deployment_data,
         };
     }
@@ -485,8 +482,8 @@ PrivateKernelInputsInner<NT> do_private_call_get_kernel_inputs_inner(
     mock_previous_kernel.public_inputs.constants = CombinedConstantData<NT>{
         .block_data =
             HistoricBlockData<NT>{
-                .private_data_tree_root = private_circuit_public_inputs.historic_private_data_tree_root,
-                .contract_tree_root = private_circuit_public_inputs.historic_contract_tree_root,
+                .private_data_tree_root = private_circuit_public_inputs.historic_block_data.private_data_tree_root,
+                .contract_tree_root = private_circuit_public_inputs.historic_block_data.contract_tree_root,
             },
         .tx_context = tx_context,
     };

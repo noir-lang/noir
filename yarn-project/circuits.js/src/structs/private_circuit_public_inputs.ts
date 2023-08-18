@@ -13,6 +13,7 @@ import {
 import { FieldsOf, assertMemberLength } from '../utils/jsUtils.js';
 import { serializeToBuffer } from '../utils/serialize.js';
 import { CallContext } from './call_context.js';
+import { HistoricBlockData } from './index.js';
 import { ContractDeploymentData } from './tx_context.js';
 
 /**
@@ -82,33 +83,9 @@ export class PrivateCircuitPublicInputs {
      */
     public unencryptedLogPreimagesLength: Fr,
     /**
-     * Root of the private data tree roots tree.
+     * Historic roots of the data trees, used to calculate the block hash the user is proving against.
      */
-    public historicPrivateDataTreeRoot: Fr,
-    /**
-     * Root of the nullifier tree roots tree.
-     */
-    public historicPrivateNullifierTreeRoot: Fr,
-    /**
-     * Root of the contract tree roots tree.
-     */
-    public historicContractTreeRoot: Fr,
-    /**
-     * Root of the L2 to L1 messages tree.
-     */
-    public historicL1ToL2MessagesTreeRoot: Fr,
-    /**
-     * Root of the Blocks roots tree.
-     */
-    public historicBlocksTreeRoot: Fr,
-    /**
-     * Previous blocks global variables hash.
-     */
-    public historicGlobalVariablesHash: Fr,
-    /**
-     * Root of the Public Data tree.
-     */
-    public historicPublicDataTreeRoot: Fr,
+    public historicBlockData: HistoricBlockData,
     /**
      * Deployment data of contracts being deployed in this kernel iteration.
      */
@@ -166,13 +143,7 @@ export class PrivateCircuitPublicInputs {
       frArray(NUM_FIELDS_PER_SHA256),
       Fr.ZERO,
       Fr.ZERO,
-      Fr.ZERO,
-      Fr.ZERO,
-      Fr.ZERO,
-      Fr.ZERO,
-      Fr.ZERO,
-      Fr.ZERO,
-      Fr.ZERO,
+      HistoricBlockData.empty(),
       ContractDeploymentData.empty(),
       Fr.ZERO,
       Fr.ZERO,
@@ -200,13 +171,7 @@ export class PrivateCircuitPublicInputs {
       fields.unencryptedLogsHash,
       fields.encryptedLogPreimagesLength,
       fields.unencryptedLogPreimagesLength,
-      fields.historicPrivateDataTreeRoot,
-      fields.historicPrivateNullifierTreeRoot,
-      fields.historicContractTreeRoot,
-      fields.historicL1ToL2MessagesTreeRoot,
-      fields.historicBlocksTreeRoot,
-      fields.historicGlobalVariablesHash,
-      fields.historicPublicDataTreeRoot,
+      fields.historicBlockData,
       fields.contractDeploymentData,
       fields.chainId,
       fields.version,

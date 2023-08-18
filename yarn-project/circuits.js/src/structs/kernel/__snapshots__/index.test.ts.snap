@@ -476,21 +476,23 @@ encrypted_logs_hash: [ 0x1911 0x1912 ]
 unencrypted_logs_hash: [ 0x1a11 0x1a12 ]
 encrypted_log_preimages_length: 0x1b11
 unencrypted_log_preimages_length: 0x1c11
-historic_private_data_tree_root: 0x1e11
-historic_nullifier_tree_root: 0x1f11
-historic_contract_tree_root: 0x1d11
-historic_l1_to_l2_messages_tree_root: 0x2011
-historic_blocks_tree_root: 0x2111
-historic_public_data_tree_root: 0x2211
-historic_global_variables_hash: 0x2311
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d11
+nullifier_tree_root: 0x1d12
+contract_tree_root: 0x1d13
+l1_to_l2_messages_tree_root: 0x1d14
+blocks_tree_root: 0x1d15
+private_kernel_vk_tree_root: 0x1d16
+public_data_tree_root: 0x1d17
+global_variables_hash: 0x1d18
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e11
+y: 0x1e12
+
+constructor_vk_hash: 0x1e12
+function_tree_root: 0x1e13
+contract_address_salt: 0x1e14
+portal_contract_address: 0x1515151515151515151515151515151515151515
 
 chain_id: 0x2411
 version: 0x2511
@@ -524,21 +526,23 @@ encrypted_logs_hash: [ 0x1921 0x1922 ]
 unencrypted_logs_hash: [ 0x1a21 0x1a22 ]
 encrypted_log_preimages_length: 0x1b21
 unencrypted_log_preimages_length: 0x1c21
-historic_private_data_tree_root: 0x1e21
-historic_nullifier_tree_root: 0x1f21
-historic_contract_tree_root: 0x1d21
-historic_l1_to_l2_messages_tree_root: 0x2021
-historic_blocks_tree_root: 0x2121
-historic_public_data_tree_root: 0x2221
-historic_global_variables_hash: 0x2321
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d21
+nullifier_tree_root: 0x1d22
+contract_tree_root: 0x1d23
+l1_to_l2_messages_tree_root: 0x1d24
+blocks_tree_root: 0x1d25
+private_kernel_vk_tree_root: 0x1d26
+public_data_tree_root: 0x1d27
+global_variables_hash: 0x1d28
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e21
+y: 0x1e22
+
+constructor_vk_hash: 0x1e22
+function_tree_root: 0x1e23
+contract_address_salt: 0x1e24
+portal_contract_address: 0x2525252525252525252525252525252525252525
 
 chain_id: 0x2421
 version: 0x2521
@@ -571,21 +575,23 @@ encrypted_logs_hash: [ 0x1922 0x1923 ]
 unencrypted_logs_hash: [ 0x1a22 0x1a23 ]
 encrypted_log_preimages_length: 0x1b22
 unencrypted_log_preimages_length: 0x1c22
-historic_private_data_tree_root: 0x1e22
-historic_nullifier_tree_root: 0x1f22
-historic_contract_tree_root: 0x1d22
-historic_l1_to_l2_messages_tree_root: 0x2022
-historic_blocks_tree_root: 0x2122
-historic_public_data_tree_root: 0x2222
-historic_global_variables_hash: 0x2322
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d22
+nullifier_tree_root: 0x1d23
+contract_tree_root: 0x1d24
+l1_to_l2_messages_tree_root: 0x1d25
+blocks_tree_root: 0x1d26
+private_kernel_vk_tree_root: 0x1d27
+public_data_tree_root: 0x1d28
+global_variables_hash: 0x1d29
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e22
+y: 0x1e23
+
+constructor_vk_hash: 0x1e23
+function_tree_root: 0x1e24
+contract_address_salt: 0x1e25
+portal_contract_address: 0x2626262626262626262626262626262626262626
 
 chain_id: 0x2422
 version: 0x2522
@@ -618,21 +624,23 @@ encrypted_logs_hash: [ 0x1923 0x1924 ]
 unencrypted_logs_hash: [ 0x1a23 0x1a24 ]
 encrypted_log_preimages_length: 0x1b23
 unencrypted_log_preimages_length: 0x1c23
-historic_private_data_tree_root: 0x1e23
-historic_nullifier_tree_root: 0x1f23
-historic_contract_tree_root: 0x1d23
-historic_l1_to_l2_messages_tree_root: 0x2023
-historic_blocks_tree_root: 0x2123
-historic_public_data_tree_root: 0x2223
-historic_global_variables_hash: 0x2323
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d23
+nullifier_tree_root: 0x1d24
+contract_tree_root: 0x1d25
+l1_to_l2_messages_tree_root: 0x1d26
+blocks_tree_root: 0x1d27
+private_kernel_vk_tree_root: 0x1d28
+public_data_tree_root: 0x1d29
+global_variables_hash: 0x1d2a
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e23
+y: 0x1e24
+
+constructor_vk_hash: 0x1e24
+function_tree_root: 0x1e25
+contract_address_salt: 0x1e26
+portal_contract_address: 0x2727272727272727272727272727272727272727
 
 chain_id: 0x2423
 version: 0x2523
@@ -665,21 +673,23 @@ encrypted_logs_hash: [ 0x1924 0x1925 ]
 unencrypted_logs_hash: [ 0x1a24 0x1a25 ]
 encrypted_log_preimages_length: 0x1b24
 unencrypted_log_preimages_length: 0x1c24
-historic_private_data_tree_root: 0x1e24
-historic_nullifier_tree_root: 0x1f24
-historic_contract_tree_root: 0x1d24
-historic_l1_to_l2_messages_tree_root: 0x2024
-historic_blocks_tree_root: 0x2124
-historic_public_data_tree_root: 0x2224
-historic_global_variables_hash: 0x2324
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d24
+nullifier_tree_root: 0x1d25
+contract_tree_root: 0x1d26
+l1_to_l2_messages_tree_root: 0x1d27
+blocks_tree_root: 0x1d28
+private_kernel_vk_tree_root: 0x1d29
+public_data_tree_root: 0x1d2a
+global_variables_hash: 0x1d2b
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e24
+y: 0x1e25
+
+constructor_vk_hash: 0x1e25
+function_tree_root: 0x1e26
+contract_address_salt: 0x1e27
+portal_contract_address: 0x2828282828282828282828282828282828282828
 
 chain_id: 0x2424
 version: 0x2524
@@ -985,21 +995,23 @@ encrypted_logs_hash: [ 0x1911 0x1912 ]
 unencrypted_logs_hash: [ 0x1a11 0x1a12 ]
 encrypted_log_preimages_length: 0x1b11
 unencrypted_log_preimages_length: 0x1c11
-historic_private_data_tree_root: 0x1e11
-historic_nullifier_tree_root: 0x1f11
-historic_contract_tree_root: 0x1d11
-historic_l1_to_l2_messages_tree_root: 0x2011
-historic_blocks_tree_root: 0x2111
-historic_public_data_tree_root: 0x2211
-historic_global_variables_hash: 0x2311
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d11
+nullifier_tree_root: 0x1d12
+contract_tree_root: 0x1d13
+l1_to_l2_messages_tree_root: 0x1d14
+blocks_tree_root: 0x1d15
+private_kernel_vk_tree_root: 0x1d16
+public_data_tree_root: 0x1d17
+global_variables_hash: 0x1d18
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e11
+y: 0x1e12
+
+constructor_vk_hash: 0x1e12
+function_tree_root: 0x1e13
+contract_address_salt: 0x1e14
+portal_contract_address: 0x1515151515151515151515151515151515151515
 
 chain_id: 0x2411
 version: 0x2511
@@ -1033,21 +1045,23 @@ encrypted_logs_hash: [ 0x1921 0x1922 ]
 unencrypted_logs_hash: [ 0x1a21 0x1a22 ]
 encrypted_log_preimages_length: 0x1b21
 unencrypted_log_preimages_length: 0x1c21
-historic_private_data_tree_root: 0x1e21
-historic_nullifier_tree_root: 0x1f21
-historic_contract_tree_root: 0x1d21
-historic_l1_to_l2_messages_tree_root: 0x2021
-historic_blocks_tree_root: 0x2121
-historic_public_data_tree_root: 0x2221
-historic_global_variables_hash: 0x2321
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d21
+nullifier_tree_root: 0x1d22
+contract_tree_root: 0x1d23
+l1_to_l2_messages_tree_root: 0x1d24
+blocks_tree_root: 0x1d25
+private_kernel_vk_tree_root: 0x1d26
+public_data_tree_root: 0x1d27
+global_variables_hash: 0x1d28
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e21
+y: 0x1e22
+
+constructor_vk_hash: 0x1e22
+function_tree_root: 0x1e23
+contract_address_salt: 0x1e24
+portal_contract_address: 0x2525252525252525252525252525252525252525
 
 chain_id: 0x2421
 version: 0x2521
@@ -1080,21 +1094,23 @@ encrypted_logs_hash: [ 0x1922 0x1923 ]
 unencrypted_logs_hash: [ 0x1a22 0x1a23 ]
 encrypted_log_preimages_length: 0x1b22
 unencrypted_log_preimages_length: 0x1c22
-historic_private_data_tree_root: 0x1e22
-historic_nullifier_tree_root: 0x1f22
-historic_contract_tree_root: 0x1d22
-historic_l1_to_l2_messages_tree_root: 0x2022
-historic_blocks_tree_root: 0x2122
-historic_public_data_tree_root: 0x2222
-historic_global_variables_hash: 0x2322
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d22
+nullifier_tree_root: 0x1d23
+contract_tree_root: 0x1d24
+l1_to_l2_messages_tree_root: 0x1d25
+blocks_tree_root: 0x1d26
+private_kernel_vk_tree_root: 0x1d27
+public_data_tree_root: 0x1d28
+global_variables_hash: 0x1d29
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e22
+y: 0x1e23
+
+constructor_vk_hash: 0x1e23
+function_tree_root: 0x1e24
+contract_address_salt: 0x1e25
+portal_contract_address: 0x2626262626262626262626262626262626262626
 
 chain_id: 0x2422
 version: 0x2522
@@ -1127,21 +1143,23 @@ encrypted_logs_hash: [ 0x1923 0x1924 ]
 unencrypted_logs_hash: [ 0x1a23 0x1a24 ]
 encrypted_log_preimages_length: 0x1b23
 unencrypted_log_preimages_length: 0x1c23
-historic_private_data_tree_root: 0x1e23
-historic_nullifier_tree_root: 0x1f23
-historic_contract_tree_root: 0x1d23
-historic_l1_to_l2_messages_tree_root: 0x2023
-historic_blocks_tree_root: 0x2123
-historic_public_data_tree_root: 0x2223
-historic_global_variables_hash: 0x2323
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d23
+nullifier_tree_root: 0x1d24
+contract_tree_root: 0x1d25
+l1_to_l2_messages_tree_root: 0x1d26
+blocks_tree_root: 0x1d27
+private_kernel_vk_tree_root: 0x1d28
+public_data_tree_root: 0x1d29
+global_variables_hash: 0x1d2a
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e23
+y: 0x1e24
+
+constructor_vk_hash: 0x1e24
+function_tree_root: 0x1e25
+contract_address_salt: 0x1e26
+portal_contract_address: 0x2727272727272727272727272727272727272727
 
 chain_id: 0x2423
 version: 0x2523
@@ -1174,21 +1192,23 @@ encrypted_logs_hash: [ 0x1924 0x1925 ]
 unencrypted_logs_hash: [ 0x1a24 0x1a25 ]
 encrypted_log_preimages_length: 0x1b24
 unencrypted_log_preimages_length: 0x1c24
-historic_private_data_tree_root: 0x1e24
-historic_nullifier_tree_root: 0x1f24
-historic_contract_tree_root: 0x1d24
-historic_l1_to_l2_messages_tree_root: 0x2024
-historic_blocks_tree_root: 0x2124
-historic_public_data_tree_root: 0x2224
-historic_global_variables_hash: 0x2324
-contract_deployment_data: deployer_public_key:
-x: 0x1
-y: 0x2
+historic_block_data: private_data_tree_root: 0x1d24
+nullifier_tree_root: 0x1d25
+contract_tree_root: 0x1d26
+l1_to_l2_messages_tree_root: 0x1d27
+blocks_tree_root: 0x1d28
+private_kernel_vk_tree_root: 0x1d29
+public_data_tree_root: 0x1d2a
+global_variables_hash: 0x1d2b
 
-constructor_vk_hash: 0x2
-function_tree_root: 0x3
-contract_address_salt: 0x4
-portal_contract_address: 0x505050505050505050505050505050505050505
+contract_deployment_data: deployer_public_key:
+x: 0x1e24
+y: 0x1e25
+
+constructor_vk_hash: 0x1e25
+function_tree_root: 0x1e26
+contract_address_salt: 0x1e27
+portal_contract_address: 0x2828282828282828282828282828282828282828
 
 chain_id: 0x2424
 version: 0x2524

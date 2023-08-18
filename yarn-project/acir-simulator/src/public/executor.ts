@@ -241,13 +241,7 @@ function getInitialWitness(
     callContext.isStaticCall,
     callContext.isContractDeployment,
 
-    historicBlockData.privateDataTreeRoot,
-    historicBlockData.nullifierTreeRoot,
-    historicBlockData.contractTreeRoot,
-    historicBlockData.l1ToL2MessagesTreeRoot,
-    historicBlockData.blocksTreeRoot,
-    historicBlockData.globalVariablesHash,
-    historicBlockData.publicDataTreeRoot,
+    ...historicBlockData.toArray(),
 
     globalVariables.chainId,
     globalVariables.version,
