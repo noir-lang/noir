@@ -17,35 +17,35 @@ const toFr = (value: Fr | bigint): Fr => {
 export class CheatCodes {
   constructor(
     /**
-     * The L1 cheat codes.
+     * The cheat codes for ethereum (L1).
      */
-    public l1: L1CheatCodes,
+    public eth: EthCheatCodes,
     /**
-     * The L2 cheat codes.
+     * The cheat codes for aztec.
      */
-    public l2: L2CheatCodes,
+    public aztec: AztecCheatCodes,
   ) {}
 
   static async create(rpcUrl: string, aztecRpc: AztecRPC): Promise<CheatCodes> {
-    const l1CheatCodes = new L1CheatCodes(rpcUrl);
-    const l2CheatCodes = new L2CheatCodes(aztecRpc, await CircuitsWasm.get(), l1CheatCodes);
-    return new CheatCodes(l1CheatCodes, l2CheatCodes);
+    const ethCheatCodes = new EthCheatCodes(rpcUrl);
+    const aztecCheatCodes = new AztecCheatCodes(aztecRpc, await CircuitsWasm.get(), ethCheatCodes);
+    return new CheatCodes(ethCheatCodes, aztecCheatCodes);
   }
 }
 
 /**
- * A class that provides utility functions for interacting with the L1 chain.
+ * A class that provides utility functions for interacting with ethereum (L1).
  */
-export class L1CheatCodes {
+export class EthCheatCodes {
   constructor(
     /**
      * The RPC client to use for interacting with the chain
      */
     public rpcUrl: string,
     /**
-     * The logger to use for the l1 cheatcodes
+     * The logger to use for the eth cheatcodes
      */
-    public logger = createDebugLogger('aztec:cheat_codes:l1'),
+    public logger = createDebugLogger('aztec:cheat_codes:eth'),
   ) {}
 
   async rpcCall(method: string, params: any[]) {
@@ -91,7 +91,7 @@ export class L1CheatCodes {
    * @returns The current chainId
    */
   public async mine(numberOfBlocks = 1): Promise<void> {
-    const res = await this.rpcCall('anvil_mine', [numberOfBlocks]);
+    const res = await this.rpcCall('hardhat_mine', [numberOfBlocks]);
     if (res.error) throw new Error(`Error mining: ${res.error.message}`);
     this.logger(`Mined ${numberOfBlocks} blocks`);
   }
@@ -101,7 +101,7 @@ export class L1CheatCodes {
    * @param timestamp - The timestamp to set the next block to
    */
   public async setNextBlockTimestamp(timestamp: number): Promise<void> {
-    const res = await this.rpcCall('anvil_setNextBlockTimestamp', [timestamp]);
+    const res = await this.rpcCall('evm_setNextBlockTimestamp', [timestamp]);
     if (res.error) throw new Error(`Error setting next block timestamp: ${res.error.message}`);
     this.logger(`Set next block timestamp to ${timestamp}`);
   }
@@ -111,7 +111,7 @@ export class L1CheatCodes {
    * @param fileName - The file name to dump state into
    */
   public async dumpChainState(fileName: string): Promise<void> {
-    const res = await this.rpcCall('anvil_dumpState', []);
+    const res = await this.rpcCall('hardhat_dumpState', []);
     if (res.error) throw new Error(`Error dumping state: ${res.error.message}`);
     const jsonContent = JSON.stringify(res.result);
     fs.writeFileSync(`${fileName}.json`, jsonContent, 'utf8');
@@ -124,13 +124,13 @@ export class L1CheatCodes {
    */
   public async loadChainState(fileName: string): Promise<void> {
     const data = JSON.parse(fs.readFileSync(`${fileName}.json`, 'utf8'));
-    const res = await this.rpcCall('anvil_loadState', [data]);
+    const res = await this.rpcCall('hardhat_loadState', [data]);
     if (res.error) throw new Error(`Error loading state: ${res.error.message}`);
     this.logger(`Loaded state from ${fileName}`);
   }
 
   /**
-   * Load the value at a storage slot of a contract address on L1
+   * Load the value at a storage slot of a contract address on eth
    * @param contract - The contract address
    * @param slot - The storage slot
    * @returns - The value at the storage slot
@@ -141,14 +141,14 @@ export class L1CheatCodes {
   }
 
   /**
-   * Set the value at a storage slot of a contract address on L1
+   * Set the value at a storage slot of a contract address on eth
    * @param contract - The contract address
    * @param slot - The storage slot
    * @param value - The value to set the storage slot to
    */
   public async store(contract: EthAddress, slot: bigint, value: bigint): Promise<void> {
     // for the rpc call, we need to change value to be a 32 byte hex string.
-    const res = await this.rpcCall('anvil_setStorageAt', [contract.toString(), toHex(slot), toHex(value, true)]);
+    const res = await this.rpcCall('hardhat_setStorageAt', [contract.toString(), toHex(slot), toHex(value, true)]);
     if (res.error) throw new Error(`Error setting storage for contract ${contract} at ${slot}: ${res.error.message}`);
     this.logger(`Set storage for contract ${contract} at ${slot} to ${value}`);
   }
@@ -169,9 +169,9 @@ export class L1CheatCodes {
    * Send transactions impersonating an externally owned account or contract.
    * @param who - The address to impersonate
    */
-  public async startPrank(who: EthAddress): Promise<void> {
-    const res = await this.rpcCall('anvil_impersonateAccount', [who.toString()]);
-    if (res.error) throw new Error(`Error pranking ${who}: ${res.error.message}`);
+  public async startImpersonating(who: EthAddress): Promise<void> {
+    const res = await this.rpcCall('hardhat_impersonateAccount', [who.toString()]);
+    if (res.error) throw new Error(`Error impersonating ${who}: ${res.error.message}`);
     this.logger(`Impersonating ${who}`);
   }
 
@@ -179,9 +179,9 @@ export class L1CheatCodes {
    * Stop impersonating an account that you are currently impersonating.
    * @param who - The address to stop impersonating
    */
-  public async stopPrank(who: EthAddress): Promise<void> {
-    const res = await this.rpcCall('anvil_stopImpersonatingAccount', [who.toString()]);
-    if (res.error) throw new Error(`Error pranking ${who}: ${res.error.message}`);
+  public async stopImpersonating(who: EthAddress): Promise<void> {
+    const res = await this.rpcCall('hardhat_stopImpersonatingAccount', [who.toString()]);
+    if (res.error) throw new Error(`Error when stopping the impersonation of ${who}: ${res.error.message}`);
     this.logger(`Stopped impersonating ${who}`);
   }
 
@@ -191,7 +191,7 @@ export class L1CheatCodes {
    * @param bytecode - The bytecode to set
    */
   public async etch(contract: EthAddress, bytecode: `0x${string}`): Promise<void> {
-    const res = await this.rpcCall('anvil_setCode', [contract.toString(), bytecode]);
+    const res = await this.rpcCall('hardhat_setCode', [contract.toString(), bytecode]);
     if (res.error) throw new Error(`Error setting bytecode for ${contract}: ${res.error.message}`);
     this.logger(`Set bytecode for ${contract} to ${bytecode}`);
   }
@@ -208,9 +208,9 @@ export class L1CheatCodes {
 }
 
 /**
- * A class that provides utility functions for interacting with the L2 chain.
+ * A class that provides utility functions for interacting with the aztec chain.
  */
-export class L2CheatCodes {
+export class AztecCheatCodes {
   constructor(
     /**
      * The RPC client to use for interacting with the chain
@@ -221,13 +221,13 @@ export class L2CheatCodes {
      */
     public wasm: CircuitsWasm,
     /**
-     * The L1 cheat codes.
+     * The eth cheat codes.
      */
-    public l1: L1CheatCodes,
+    public eth: EthCheatCodes,
     /**
-     * The logger to use for the l2 cheatcodes
+     * The logger to use for the aztec cheatcodes
      */
-    public logger = createDebugLogger('aztec:cheat_codes:l2'),
+    public logger = createDebugLogger('aztec:cheat_codes:aztec'),
   ) {}
 
   /**
@@ -256,16 +256,16 @@ export class L2CheatCodes {
   }
 
   /**
-   * Set time of the next execution on L2.
-   * It also modifies time on L1 for next execution and stores this time as the last rollup block on the rollup contract.
+   * Set time of the next execution on aztec.
+   * It also modifies time on eth for next execution and stores this time as the last rollup block on the rollup contract.
    * @param to - The timestamp to set the next block to (must be greater than current time)
    */
   public async warp(to: number): Promise<void> {
     const rollupContract = (await this.aztecRpc.getNodeInfo()).rollupAddress;
-    await this.l1.setNextBlockTimestamp(to);
+    await this.eth.setNextBlockTimestamp(to);
     // also store this time on the rollup contract (slot 1 tracks `lastBlockTs`).
     // This is because when the sequencer executes public functions, it uses the timestamp stored in the rollup contract.
-    await this.l1.store(rollupContract, 1n, BigInt(to));
+    await this.eth.store(rollupContract, 1n, BigInt(to));
   }
 
   /**
