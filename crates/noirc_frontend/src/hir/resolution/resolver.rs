@@ -34,9 +34,9 @@ use crate::{
     Statement,
 };
 use crate::{
-    ArrayLiteral, ContractFunctionType, Generics, LValue, NoirStruct, NoirTypeAlias, Path, Pattern,
-    Shared, StructType, Trait, Type, TypeAliasType, TypeBinding, TypeVariable, UnaryOp,
-    UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, ERROR_IDENT,
+    ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
+    Path, Pattern, Shared, StructType, Trait, Type, TypeAliasType, TypeBinding, TypeVariable,
+    UnaryOp, UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -661,7 +661,7 @@ impl<'a> Resolver<'a> {
         let mut parameter_types = vec![];
 
         for (pattern, typ, visibility) in func.parameters().iter().cloned() {
-            if visibility == noirc_abi::AbiVisibility::Public && !self.pub_allowed(func) {
+            if visibility == Visibility::Public && !self.pub_allowed(func) {
                 self.push_err(ResolverError::UnnecessaryPub {
                     ident: func.name_ident().clone(),
                     position: PubPosition::Parameter,
@@ -679,8 +679,7 @@ impl<'a> Resolver<'a> {
 
         self.declare_numeric_generics(&parameter_types, &return_type);
 
-        if !self.pub_allowed(func) && func.def.return_visibility == noirc_abi::AbiVisibility::Public
-        {
+        if !self.pub_allowed(func) && func.def.return_visibility == Visibility::Public {
             self.push_err(ResolverError::UnnecessaryPub {
                 ident: func.name_ident().clone(),
                 position: PubPosition::ReturnType,
@@ -690,13 +689,13 @@ impl<'a> Resolver<'a> {
         // 'pub_allowed' also implies 'pub' is required on return types
         if self.pub_allowed(func)
             && return_type.as_ref() != &Type::Unit
-            && func.def.return_visibility != noirc_abi::AbiVisibility::Public
+            && func.def.return_visibility != Visibility::Public
         {
             self.push_err(ResolverError::NecessaryPub { ident: func.name_ident().clone() });
         }
 
         if !self.distinct_allowed(func)
-            && func.def.return_distinctness != noirc_abi::AbiDistinctness::DuplicationAllowed
+            && func.def.return_distinctness != Distinctness::DuplicationAllowed
         {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }

@@ -23,6 +23,7 @@ use crate::{
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
+    Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -1013,7 +1014,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
         let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            Param(pattern, typ, noirc_abi::AbiVisibility::Private)
+            Param(pattern, typ, Visibility::Private)
         }));
 
         let parameters = self.parameters(parameters);
@@ -1065,7 +1066,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
         let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            Param(pattern, typ, noirc_abi::AbiVisibility::Private)
+            Param(pattern, typ, Visibility::Private)
         }));
 
         let mut converted_parameters = self.parameters(parameters);
