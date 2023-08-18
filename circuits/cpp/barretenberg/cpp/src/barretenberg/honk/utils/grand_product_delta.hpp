@@ -19,12 +19,12 @@ template <typename Flavor>
 typename Flavor::FF compute_public_input_delta(std::span<const typename Flavor::FF> public_inputs,
                                                const typename Flavor::FF& beta,
                                                const typename Flavor::FF& gamma,
-                                               const size_t domain_size,
+                                               const auto domain_size,
                                                size_t offset = 0)
 {
     using Field = typename Flavor::FF;
-    Field numerator = Field::one();
-    Field denominator = Field::one();
+    Field numerator = Field(1);
+    Field denominator = Field(1);
 
     // Let m be the number of public inputs x₀,…, xₘ₋₁.
     // Recall that we broke the permutation σ⁰ by changing the mapping
@@ -77,7 +77,7 @@ typename Flavor::FF compute_public_input_delta(std::span<const typename Flavor::
  * @return Field
  */
 template <typename Field>
-Field compute_lookup_grand_product_delta(const Field& beta, const Field& gamma, const size_t domain_size)
+Field compute_lookup_grand_product_delta(const Field& beta, const Field& gamma, const auto domain_size)
 {
     Field gamma_by_one_plus_beta = gamma * (Field(1) + beta); // γ(1 + β)
     return gamma_by_one_plus_beta.pow(domain_size);           // (γ(1 + β))^n

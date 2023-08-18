@@ -70,7 +70,7 @@ template <typename FF> class LookupRelationBase {
         const auto eta_sqr = eta * eta;
         const auto eta_cube = eta_sqr * eta;
 
-        const auto one_plus_beta = FF::one() + beta;
+        const auto one_plus_beta = FF(1) + beta;
         const auto gamma_by_one_plus_beta = gamma * one_plus_beta;
 
         auto w_1 = get_view<FF, AccumulatorTypes>(extended_edges.w_l, index);
@@ -131,7 +131,7 @@ template <typename FF> class LookupRelationBase {
         const auto& beta = relation_parameters.beta;
         const auto& gamma = relation_parameters.gamma;
 
-        const auto one_plus_beta = FF::one() + beta;
+        const auto one_plus_beta = FF(1) + beta;
         const auto gamma_by_one_plus_beta = gamma * one_plus_beta;
 
         // Contribution (1)

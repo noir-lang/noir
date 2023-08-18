@@ -24,12 +24,12 @@ namespace proof_system::plonk::stdlib::recursion::utility {
  */
 template <typename Builder> class StdlibTypesUtility {
     using field_ct = field_t<Builder>;
-    using witness_ct = witness_t<Builder>;
     using fq_ct = bigfield<Builder, barretenberg::Bn254FqParams>;
     using element_ct = element<Builder, fq_ct, field_ct, barretenberg::g1>;
     using FF = barretenberg::fr;
     using Commitment = barretenberg::g1::affine_element;
     template <size_t LENGTH> using Univariate = proof_system::honk::sumcheck::Univariate<FF, LENGTH>;
+    template <size_t LENGTH> using Univariate_ct = proof_system::honk::sumcheck::Univariate<field_ct, LENGTH>;
 
   public:
     /**
@@ -82,18 +82,53 @@ template <typename Builder> class StdlibTypesUtility {
 
     /**
      * @brief Construct field_t array from native Univariate type
-     * TODO(luke): do we need a stdlib Univariate or is std::array<field_t> good enough?
+     * TODO(luke): do we need a stdlib Univariate or is Univariate<field_t> good enough?
      * @param native_element
-     * @return std::array<field_ct, LENGTH>
+     * @return Univariate<field_ct, LENGTH>
      */
     template <size_t LENGTH>
-    static std::array<field_ct, LENGTH> from_witness(Builder* builder, Univariate<LENGTH> native_element)
+    static Univariate_ct<LENGTH> from_witness(Builder* builder, Univariate<LENGTH> native_element)
     {
-        std::array<field_ct, LENGTH> element;
+        Univariate_ct<LENGTH> element;
         for (size_t i = 0; i < LENGTH; ++i) {
-            element[i] = field_ct::from_witness(builder, native_element.value_at(i));
+            element.value_at(i) = field_ct::from_witness(builder, native_element.value_at(i));
         }
         return element;
     }
+
+    /**
+     * @brief Utility for mapping template parameter for recursive honk transcript deserialization to the
+     * corresponding template parameter for native honk transcipt deserialization.
+     * @details Data is extracted from a honk verfier transcript via a function of the form
+     * receive_from_prover<T>(label). For the recursive transcript, T is generally a stdlib type or a container of
+     * stdlib types (e.g. Univariate<field_t>). This struct and its specializations define the map T -> T_native, where
+     * T_native is the type extracted from the native transcript internal to the recursive transcipt.
+     *
+     * @tparam T
+     * @tparam LENGTH (used only for containers which specify a length, e.g. array/Univariate)
+     */
+    template <typename T, size_t LENGTH = 0> struct NativeType {
+        using type = void;
+    };
+
+    template <size_t LENGTH> struct NativeType<uint32_t, LENGTH> {
+        using type = uint32_t;
+    };
+
+    template <size_t LENGTH> struct NativeType<field_ct, LENGTH> {
+        using type = FF;
+    };
+
+    template <size_t LENGTH> struct NativeType<element_ct, LENGTH> {
+        using type = Commitment;
+    };
+
+    template <size_t LENGTH> struct NativeType<std::array<field_ct, LENGTH>, 0> {
+        using type = std::array<FF, LENGTH>;
+    };
+
+    template <size_t LENGTH> struct NativeType<Univariate_ct<LENGTH>, 0> {
+        using type = Univariate<LENGTH>;
+    };
 };
 } // namespace proof_system::plonk::stdlib::recursion::utility

@@ -9,6 +9,10 @@ namespace stdlib {
 
 template <typename CircuitBuilder> struct bn254 {
     static constexpr proof_system::CurveType type = proof_system::CurveType::BN254;
+    // TODO(#673): This flag is temporary. It is needed in the verifier classes (GeminiVerifier, etc.) while these
+    // classes are instantiated with "native" curve types. Eventually, the verifier classes will be instantiated only
+    // with stdlib types, and "native" verification will be acheived via a simulated builder.
+    static constexpr bool is_stdlib_type = true;
 
     // Corresponding native types (used exclusively for testing)
     using ScalarFieldNative = curve::BN254::ScalarField;

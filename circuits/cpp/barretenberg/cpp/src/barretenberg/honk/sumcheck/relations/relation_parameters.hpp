@@ -9,10 +9,10 @@ namespace proof_system::honk::sumcheck {
  * @tparam FF
  */
 template <typename FF> struct RelationParameters {
-    FF eta = FF::zero();                        // Lookup
-    FF beta = FF::zero();                       // Permutation + Lookup
-    FF gamma = FF::zero();                      // Permutation + Lookup
-    FF public_input_delta = FF::zero();         // Permutation
-    FF lookup_grand_product_delta = FF::zero(); // Lookup
+    FF eta = FF(0);                        // Lookup
+    FF beta = FF(0);                       // Permutation + Lookup
+    FF gamma = FF(0);                      // Permutation + Lookup
+    FF public_input_delta = FF(0);         // Permutation
+    FF lookup_grand_product_delta = FF(0); // Lookup
 };
 } // namespace proof_system::honk::sumcheck

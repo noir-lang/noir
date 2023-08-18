@@ -15,7 +15,7 @@
 namespace proof_system::plonk::stdlib::recursion::honk {
 template <typename Builder> class Transcript {
   public:
-    using field_pt = field_t<Builder>;
+    using field_ct = field_t<Builder>;
     using FF = barretenberg::fr;
     using VerifierTranscript = proof_system::honk::VerifierTranscript<FF>;
     using StdlibTypes = utility::StdlibTypesUtility<Builder>;
@@ -24,6 +24,8 @@ template <typename Builder> class Transcript {
 
     VerifierTranscript native_transcript;
     Builder* builder;
+
+    Transcript() = default;
 
     Transcript(Builder* builder, auto proof_data)
         : native_transcript(proof_data)
@@ -42,7 +44,7 @@ template <typename Builder> class Transcript {
      * @param labels Names of the challenges to be computed
      * @return std::array<FF, sizeof...(Strings)> Array of challenges
      */
-    template <typename... Strings> std::array<field_pt, sizeof...(Strings)> get_challenges(const Strings&... labels)
+    template <typename... Strings> std::array<field_ct, sizeof...(Strings)> get_challenges(const Strings&... labels)
     {
         // Compute the indicated challenges from the native transcript
         constexpr size_t num_challenges = sizeof...(Strings);
@@ -55,7 +57,7 @@ template <typename Builder> class Transcript {
          * since it's a pain and we'll be revamping our hashing anyway. For now, simply convert the native hashes to
          * stdlib types without adding any hashing constraints.
          */
-        std::array<field_pt, num_challenges> challenges;
+        std::array<field_ct, num_challenges> challenges;
         for (size_t i = 0; i < num_challenges; ++i) {
             challenges[i] = native_challenges[i];
         }
@@ -67,16 +69,16 @@ template <typename Builder> class Transcript {
      * @brief Compute the single challenge indicated by the input label
      *
      * @param label Name of challenge
-     * @return field_pt Challenge
+     * @return field_ct Challenge
      */
-    field_pt get_challenge(const std::string& label)
+    field_ct get_challenge(const std::string& label)
     {
         // Compute the indicated challenge from the native transcript
         auto native_challenge = native_transcript.get_challenge(label);
 
         // TODO(1351): Stdlib hashing here...
 
-        return field_pt(native_challenge);
+        return field_ct::from_witness(builder, native_challenge);
     }
 
     /**
@@ -88,8 +90,11 @@ template <typename Builder> class Transcript {
      */
     template <class T> auto receive_from_prover(const std::string& label)
     {
+        // Get native type corresponding to input type
+        using NativeType = typename StdlibTypes::template NativeType<T>::type;
+        
         // Extract the native element from the native transcript
-        T element = native_transcript.template receive_from_prover<T>(label);
+        NativeType element = native_transcript.template receive_from_prover<NativeType>(label);
 
         // Return the corresponding stdlib type
         return StdlibTypes::from_witness(builder, element);

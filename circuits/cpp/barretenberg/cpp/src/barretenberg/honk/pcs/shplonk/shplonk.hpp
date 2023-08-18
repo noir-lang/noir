@@ -1,8 +1,8 @@
 #pragma once
 #include "barretenberg/honk/pcs/claim.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/verification_key.hpp"
+#include "barretenberg/honk/transcript/transcript.hpp"
 
 /**
  * @brief Reduces multiple claims about commitments, each opened at a single point
@@ -162,9 +162,10 @@ template <typename Curve> class ShplonkVerifier_ {
      * @return OpeningClaim
      */
     static OpeningClaim<Curve> reduce_verification(std::shared_ptr<VK> vk,
-                                              std::span<const OpeningClaim<Curve>> claims,
-                                              VerifierTranscript<Fr>& transcript)
+                                                   std::span<const OpeningClaim<Curve>> claims,
+                                                   auto& transcript)
     {
+
         const size_t num_claims = claims.size();
 
         const Fr nu = transcript.get_challenge("Shplonk:nu");
@@ -179,21 +180,35 @@ template <typename Curve> class ShplonkVerifier_ {
         //      = [Q] - ∑ⱼ (1/zⱼ(r))[Bⱼ]  +                    G₀ [1]
 
         // G₀ = ∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ )
-        Fr G_commitment_constant{ Fr::zero() };
+        auto G_commitment_constant = Fr(0);
 
         // [G] = [Q] - ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ] + G₀⋅[1]
         //     = [Q] - [∑ⱼ ρʲ ⋅ ( fⱼ(X) − vⱼ) / ( r − xⱼ )]
         GroupElement G_commitment = Q_commitment;
 
-        // {ẑⱼ(r)}ⱼ , where ẑⱼ(r) = 1/zⱼ(r) = 1/(r - xⱼ)
-        std::vector<Fr> inverse_vanishing_evals;
-        inverse_vanishing_evals.reserve(num_claims);
+        // Compute {ẑⱼ(r)}ⱼ , where ẑⱼ(r) = 1/zⱼ(r) = 1/(r - xⱼ)
+        std::vector<Fr> vanishing_evals;
+        vanishing_evals.reserve(num_claims);
         for (const auto& claim : claims) {
-            inverse_vanishing_evals.emplace_back(z_challenge - claim.opening_pair.challenge);
+            vanishing_evals.emplace_back(z_challenge - claim.opening_pair.challenge);
         }
-        Fr::batch_invert(inverse_vanishing_evals);
+        // If recursion, invert elements individually, otherwise batch invert. (Inversion is cheap in circuits since we
+        // need only prove the correctness of a known inverse, we do not emulate its computation. Hence no need for
+        // batch inversion).
+        std::vector<Fr> inverse_vanishing_evals;
+        if constexpr (Curve::is_stdlib_type) {
+            for (const auto& val : vanishing_evals) {
+                inverse_vanishing_evals.emplace_back(val.invert());
+            }
+        } else {
+            Fr::batch_invert(vanishing_evals);
+            inverse_vanishing_evals = vanishing_evals;
+        }
 
-        Fr current_nu{ Fr::one() };
+        auto current_nu = Fr(1);
+        // Note: commitments and scalars vectors used only in recursion setting for batch mul
+        std::vector<Commitment> commitments;
+        std::vector<Fr> scalars;
         for (size_t j = 0; j < num_claims; ++j) {
             // (Cⱼ, xⱼ, vⱼ)
             const auto& [opening_pair, commitment] = claims[j];
@@ -202,18 +217,41 @@ template <typename Curve> class ShplonkVerifier_ {
 
             // G₀ += ρʲ / ( r − xⱼ ) ⋅ vⱼ
             G_commitment_constant += scaling_factor * opening_pair.evaluation;
-            // [G] -= ρʲ / ( r − xⱼ )⋅[fⱼ]
-            G_commitment -= commitment * scaling_factor;
+
+            // If recursion, store MSM inputs for batch mul, otherwise accumulate directly
+            if constexpr (Curve::is_stdlib_type) {
+                commitments.emplace_back(commitment);
+                scalars.emplace_back(scaling_factor);
+            } else {
+                // [G] -= ρʲ / ( r − xⱼ )⋅[fⱼ]
+                G_commitment -= commitment * scaling_factor;
+            }
 
             current_nu *= nu;
         }
-        // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
 
-        //  GroupElement sort_of_one{ x, y };
-        G_commitment += vk->srs->get_first_g1() * G_commitment_constant;
+        // If recursion, do batch mul to compute [G] -= ∑ⱼ ρʲ / ( r − xⱼ )⋅[fⱼ]
+        if constexpr (Curve::is_stdlib_type) {
+            G_commitment -= GroupElement::batch_mul(commitments, scalars);
+        }
+
+        // [G] += G₀⋅[1] = [G] + (∑ⱼ ρʲ ⋅ vⱼ / ( r − xⱼ ))⋅[1]
+        Fr evaluation_zero;     // 0 \in Fr
+        GroupElement group_one; // [1]
+        if constexpr (Curve::is_stdlib_type) {
+            auto ctx = transcript.builder;
+            evaluation_zero = Fr::from_witness(ctx, 0);
+            group_one = GroupElement::one(ctx);
+        } else {
+            //  GroupElement sort_of_one{ x, y };
+            evaluation_zero = Fr(0);
+            group_one = vk->srs->get_first_g1();
+        }
+
+        G_commitment += group_one * G_commitment_constant;
 
         // Return opening pair (z, 0) and commitment [G]
-        return { { z_challenge, Fr::zero() }, G_commitment };
+        return { { z_challenge, evaluation_zero }, G_commitment };
     };
 };
 } // namespace proof_system::honk::pcs::shplonk

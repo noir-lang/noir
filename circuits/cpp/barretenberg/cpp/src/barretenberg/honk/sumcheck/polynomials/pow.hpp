@@ -101,7 +101,7 @@ template <typename FF> struct PowUnivariate {
     // c_{l}, initialized as c_{0} = 1
     // c_{l} = ∏_{0 ≤ k < l-1} ( (1-u_{k}) + u_{k}⋅ζ_{k} )
     // At round d-1, equals pow(u_{0}, ..., u_{d-1}).
-    FF partial_evaluation_constant = FF::one();
+    FF partial_evaluation_constant = FF(1);
 
     // Initialize with the random zeta
     explicit PowUnivariate(FF zeta_pow)
@@ -110,7 +110,7 @@ template <typename FF> struct PowUnivariate {
     {}
 
     // Evaluate the monomial ((1−X_{l}) + X_{l}⋅ζ_{l}) in the challenge point X_{l}=u_{l}.
-    FF univariate_eval(FF challenge) const { return (FF::one() + (challenge * (zeta_pow - FF::one()))); };
+    FF univariate_eval(FF challenge) const { return (FF(1) + (challenge * (zeta_pow - FF(1)))); };
 
     /**
      * @brief Parially evaluate the polynomial in the new challenge, by updating the constant c_{l} -> c_{l+1}.
@@ -122,7 +122,9 @@ template <typename FF> struct PowUnivariate {
     {
         FF current_univariate_eval = univariate_eval(challenge);
         zeta_pow = zeta_pow_sqr;
-        zeta_pow_sqr.self_sqr();
+        // TODO(luke): for native FF, this could be self_sqr()
+        zeta_pow_sqr = zeta_pow_sqr.sqr();
+
         partial_evaluation_constant *= current_univariate_eval;
     }
 };

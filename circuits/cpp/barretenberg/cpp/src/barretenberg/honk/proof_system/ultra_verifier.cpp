@@ -111,9 +111,9 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     commitments.z_lookup = transcript.template receive_from_prover<Commitment>(commitment_labels.z_lookup);
 
     // Execute Sumcheck Verifier
-    auto sumcheck = SumcheckVerifier<Flavor>(circuit_size, transcript);
+    auto sumcheck = SumcheckVerifier<Flavor>(circuit_size);
 
-    std::optional sumcheck_output = sumcheck.verify(relation_parameters);
+    std::optional sumcheck_output = sumcheck.verify(relation_parameters, transcript);
 
     // If Sumcheck does not return an output, sumcheck verification has failed
     if (!sumcheck_output.has_value()) {
@@ -159,10 +159,10 @@ template <typename Flavor> bool UltraVerifier_<Flavor>::verify_proof(const plonk
     // - d+1 commitments [Fold_{r}^(0)], [Fold_{-r}^(0)], and [Fold^(l)], l = 1:d-1
     // - d+1 evaluations a_0_pos, and a_l, l = 0:d-1
     auto gemini_claim = Gemini::reduce_verification(multivariate_challenge,
-                                              batched_evaluation,
-                                              batched_commitment_unshifted,
-                                              batched_commitment_to_be_shifted,
-                                              transcript);
+                                                    batched_evaluation,
+                                                    batched_commitment_unshifted,
+                                                    batched_commitment_to_be_shifted,
+                                                    transcript);
 
     // Produce a Shplonk claim: commitment [Q] - [Q_z], evaluation zero (at random challenge z)
     auto shplonk_claim = Shplonk::reduce_verification(pcs_verification_key, gemini_claim, transcript);

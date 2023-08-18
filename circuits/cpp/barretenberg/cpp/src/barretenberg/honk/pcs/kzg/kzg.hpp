@@ -1,10 +1,10 @@
 #pragma once
 
 #include "../claim.hpp"
-#include "barretenberg/honk/transcript/transcript.hpp"
-#include "barretenberg/polynomials/polynomial.hpp"
 #include "barretenberg/honk/pcs/commitment_key.hpp"
 #include "barretenberg/honk/pcs/verification_key.hpp"
+#include "barretenberg/honk/transcript/transcript.hpp"
+#include "barretenberg/polynomials/polynomial.hpp"
 
 #include <memory>
 #include <utility>
@@ -46,7 +46,6 @@ template <typename Curve> class KZG {
 
     /**
      * @brief Computes the KZG verification for an opening claim of a single polynomial commitment
-     * This reduction is non-interactive and always succeeds.
      *
      * @param vk is the verification key which has a pairing check function
      * @param claim OpeningClaim ({r, v}, C)
@@ -64,6 +63,40 @@ template <typename Curve> class KZG {
         auto rhs = -quotient_commitment;
 
         return vk->pairing_check(lhs, rhs);
+    };
+
+    /**
+     * @brief Computes the input points for the pairing check needed to verify a KZG opening claim of a single
+     * polynomial commitment. This reduction is non-interactive and always succeeds.
+     * @details This is used in the recursive setting where we want to "aggregate" proofs, not verify them.
+     *
+     * @param claim OpeningClaim ({r, v}, C)
+     * @return  {P₀, P₁} where
+     *      - P₀ = C − v⋅[1]₁ + r⋅[x]₁
+     *      - P₁ = [Q(x)]₁
+     */
+    static std::array<GroupElement, 2> compute_pairing_points(const OpeningClaim<Curve>& claim,
+                                                              auto& verifier_transcript)
+    {
+        auto quotient_commitment = verifier_transcript.template receive_from_prover<Commitment>("KZG:W");
+
+        auto lhs = claim.commitment + (quotient_commitment * claim.opening_pair.challenge);
+        // Add the evaluation point contribution v⋅[1]₁.
+        // Note: In the recursive setting, we only add the contribution if it is not the point at infinity (i.e. if the
+        // evaluation is not equal to zero).
+        // TODO(luke): What is the proper way to handle this? Contraints to show scalar (evaluation) is zero?
+        if constexpr (Curve::is_stdlib_type) {
+            if (!claim.opening_pair.evaluation.get_value().is_zero()) {
+                auto ctx = verifier_transcript.builder;
+                lhs -= GroupElement::one(ctx) * claim.opening_pair.evaluation;
+            }
+        } else {
+            lhs -= GroupElement::one() * claim.opening_pair.evaluation;
+        }
+
+        auto rhs = -quotient_commitment;
+
+        return { lhs, rhs };
     };
 };
 } // namespace proof_system::honk::pcs::kzg

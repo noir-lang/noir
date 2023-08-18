@@ -329,9 +329,9 @@ TEST_F(SumcheckTests, ProverAndVerifier)
 
     auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
 
-    auto sumcheck_verifier = SumcheckVerifier<Flavor>(multivariate_n, verifier_transcript);
+    auto sumcheck_verifier = SumcheckVerifier<Flavor>(multivariate_n);
 
-    std::optional verifier_output = sumcheck_verifier.verify(relation_parameters);
+    std::optional verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
 
     ASSERT_TRUE(verifier_output.has_value());
     ASSERT_EQ(prover_output, *verifier_output);
@@ -403,9 +403,9 @@ TEST_F(SumcheckTests, ProverAndVerifierLonger)
 
         auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
 
-        auto sumcheck_verifier = SumcheckVerifier<Flavor>(multivariate_n, verifier_transcript);
+        auto sumcheck_verifier = SumcheckVerifier<Flavor>(multivariate_n);
 
-        std::optional verifier_output = sumcheck_verifier.verify(relation_parameters);
+        std::optional verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
 
         EXPECT_EQ(verifier_output.has_value(), expect_verified);
     };
@@ -489,9 +489,9 @@ TEST_F(SumcheckTests, RealCircuitStandard)
 
     auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
 
-    auto sumcheck_verifier = SumcheckVerifier<Flavor>(prover.key->circuit_size, verifier_transcript);
+    auto sumcheck_verifier = SumcheckVerifier<Flavor>(prover.key->circuit_size);
 
-    std::optional verifier_output = sumcheck_verifier.verify(relation_parameters);
+    std::optional verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
 
     ASSERT_TRUE(verifier_output.has_value());
 }
@@ -703,9 +703,9 @@ TEST_F(SumcheckTests, RealCircuitUltra)
 
     auto verifier_transcript = VerifierTranscript<FF>::init_empty(prover_transcript);
 
-    auto sumcheck_verifier = SumcheckVerifier<Flavor>(prover.key->circuit_size, verifier_transcript);
+    auto sumcheck_verifier = SumcheckVerifier<Flavor>(prover.key->circuit_size);
 
-    std::optional verifier_output = sumcheck_verifier.verify(relation_parameters);
+    std::optional verifier_output = sumcheck_verifier.verify(relation_parameters, verifier_transcript);
 
     ASSERT_TRUE(verifier_output.has_value());
 }

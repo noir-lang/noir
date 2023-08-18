@@ -340,8 +340,11 @@ template <typename Flavor> class SumcheckProverRound {
     template <typename... T>
     static constexpr void add_tuples(std::tuple<T...>& tuple_1, const std::tuple<T...>& tuple_2)
     {
-        auto add_tuples_helper = [&]<std::size_t... I>(std::index_sequence<I...>) { ((std::get<I>(tuple_1) += std::get<I>(tuple_2)), ...); };
-        
+        auto add_tuples_helper = [&]<std::size_t... I>(std::index_sequence<I...>)
+        {
+            ((std::get<I>(tuple_1) += std::get<I>(tuple_2)), ...);
+        };
+
         add_tuples_helper(std::make_index_sequence<sizeof...(T)>{});
     }
 
@@ -421,7 +424,15 @@ template <typename Flavor> class SumcheckVerifierRound {
         // S^{l}(1) = ( (1−1) + 1⋅ζ^{ 2^l } ) ⋅ T^{l}(1) = ζ^{ 2^l } ⋅ T^{l}(1)
         FF total_sum = univariate.value_at(0) + univariate.value_at(1);
         // target_total_sum = sigma_{l} =
-        bool sumcheck_round_failed = (target_total_sum != total_sum);
+        // TODO(#673): Conditionals like this can go away once native verification is is just recursive verification
+        // with a simulated builder.
+        bool sumcheck_round_failed(false);
+        if constexpr (IsRecursiveFlavor<Flavor>) {
+            sumcheck_round_failed = (target_total_sum != total_sum).get_value();
+        } else {
+            sumcheck_round_failed = (target_total_sum != total_sum);
+        }
+
         round_failed = round_failed || sumcheck_round_failed;
         return !sumcheck_round_failed;
     };
@@ -441,6 +452,7 @@ template <typename Flavor> class SumcheckVerifierRound {
         auto barycentric = BarycentricData<FF, MAX_RANDOM_RELATION_LENGTH, MAX_RANDOM_RELATION_LENGTH>();
         // Evaluate T^{l}(u_{l})
         target_total_sum = barycentric.evaluate(univariate, round_challenge);
+
         return target_total_sum;
     }
 
