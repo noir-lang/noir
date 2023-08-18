@@ -230,13 +230,9 @@ pub(super) fn simplify_call(
 fn update_slice_length(slice_len: ValueId, dfg: &mut DataFlowGraph, operator: BinaryOp) -> ValueId {
     let one = dfg.make_constant(FieldElement::one(), Type::field());
     let block = dfg.make_block();
-    dfg.insert_instruction_and_results(
-        Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one }),
-        block,
-        None,
-        dfg.get_value_call_stack(slice_len),
-    )
-    .first()
+    let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
+    let call_stack = dfg.get_value_call_stack(slice_len);
+    dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
 }
 
 /// Try to simplify this black box call. If the call can be simplified to a known value,
