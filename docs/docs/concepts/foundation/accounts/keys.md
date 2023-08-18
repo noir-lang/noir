@@ -58,9 +58,11 @@ Since there are no restrictions on the actions that an account contract may exec
 
 ## Privacy keys
 
-Each account is tied to a **privacy master key**. Unlike signing keys, privacy keys are enshrined at the protocol layer, are required to be Grumpkin keys, and are tied to their account address. These keys are used for deriving incoming and outgoing encryption keys, as well as nullifying keys, scoped to each application, in a manner similar to BIP32.
+Each account is tied to a **privacy master key**. Unlike signing keys, privacy keys are enshrined at the protocol layer, are required to be Grumpkin keys, and are tied to their account address. These keys are used for deriving encryption and nullifying keys, scoped to each application, in a manner similar to BIP32.
 
-<!-- TODO: Review APIs for calculating and registering public keys in RPC server and document here -->
+:::warning
+At the time of this writing, privacy master keys are used by applications without any derivation whatsoever. This means that the private key is used directly as a nullifier secret for all applications, and the public key is used as an encryption key for all purposes. This is highly insecure, and will change to match the specification below in an upcoming release.
+:::
 
 ### Addresses, partial addresses, and public keys
 
@@ -76,14 +78,14 @@ This public key corresponds to the privacy master key of the account. In order t
 Contracts that are not meant to represent a user who handles private state, usually non-account contracts such as applications, do not need to provide a valid public key, and can instead just use zero to denote that they are not expected to receive private notes.
 
 :::info
-A side effect of enshrining and encoding encryption keys into the account address is that these keys cannot be rotated if they are leaked. Read more about this in the [account abstraction section](./main.md#encryption-and-nullifying-keys).
+A side effect of enshrining and encoding privacy keys into the account address is that these keys cannot be rotated if they are leaked. Read more about this in the [account abstraction section](./main.md#encryption-and-nullifying-keys).
 :::
 
 ### Encryption keys
 
 The privacy master key is used to derive encryption keys. Encryption keys, as their name imply, are used for encrypting private notes for a recipient, where the public key is used for encryption and the corresponding private key used for decryption. 
 
-Encryption keys are differentiated between incoming and outgoing. When sending a note to another user, the sender will use the recipient's incoming encryption key for encrypting the data for them, and will optionally use their own outgoing encryption key for encrypting any data about the destination of that note. This is useful for reconstructing transaction history from on-chain data. For example, during a token transfer, the token contract may dictate that the sender encrypts the note with value with the recipient's incoming key, but also records the transfer with its own outgoing key for bookkeeping purposes.
+In a future version, encryption keys will be differentiated between incoming and outgoing. When sending a note to another user, the sender will use the recipient's incoming encryption key for encrypting the data for them, and will optionally use their own outgoing encryption key for encrypting any data about the destination of that note. This is useful for reconstructing transaction history from on-chain data. For example, during a token transfer, the token contract may dictate that the sender encrypts the note with value with the recipient's incoming key, but also records the transfer with its own outgoing key for bookkeeping purposes.
 
 An application in Noir can access the encryption public key for a given address using the oracle call `get_public_key`, which you can then use for calls such as `emit_encrypted_log`:
 
@@ -97,6 +99,10 @@ context = emit_encrypted_log(
     note.serialise(),
 );
 ```
+
+:::info
+In order to be able to provide the public encryption key for a given address, that public key needs to have been registered in advance. At the moment, there is no broadcasting mechanism for public keys, which means that you will need to manually register all addresses you intend to send encrypted notes to. You can do this via the `registerRecipient` method of the Aztec RPC server, callable either via aztec.js or the CLI. Note that any accounts you own that have been added to the RPC server are automatically registered.
+:::
 
 ### Nullifier secrets
 
@@ -112,6 +118,10 @@ fn compute_nullifier(self) -> Field {
 }
 ```
 ### Scoped keys
+
+:::warning
+Keys are not yet scoped at the time of this writing. This will be implemented in a future release.
+:::
 
 Even though they are all derived from the same privacy master key, all encryption and nullifier keys are scoped to the contract that requests them. This means that the encryption key used for the same user in two different application contracts will be different. The same applies to nullifier secrets.
 
