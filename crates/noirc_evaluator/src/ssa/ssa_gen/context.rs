@@ -226,10 +226,7 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
             ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _) => Type::Function,
-            ast::Type::Slice(element) => {
-                let element_types = Self::convert_type(element).flatten();
-                Type::Slice(Rc::new(element_types))
-            }
+            ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
             ast::Type::MutableReference(element) => {
                 // Recursive call to panic if element is a tuple
                 Self::convert_non_tuple_type(element);
@@ -606,7 +603,12 @@ impl<'a> FunctionContext<'a> {
                 LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue };
             (array_values[1], index, slice_lvalue, Some(array_values[0]))
         } else {
-            (array_values[0], index, LValue::Index { old_array: array_values[0], index, array_lvalue }, None)
+            (
+                array_values[0],
+                index,
+                LValue::Index { old_array: array_values[0], index, array_lvalue },
+                None,
+            )
         }
     }
 
@@ -650,33 +652,14 @@ impl<'a> FunctionContext<'a> {
         match lvalue {
             LValue::Ident => unreachable!("Cannot assign to a variable without a reference"),
             LValue::Index { old_array: mut array, index, array_lvalue } => {
-                let element_size = self.builder.field_constant(self.element_size(array));
-
-                // The actual base index is the user's index * the array element type's size
-                let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
-                let one = self.builder.field_constant(FieldElement::one());
-
-                new_value.for_each(|value| {
-                    let value = value.eval(self);
-                    array = self.builder.insert_array_set(array, index, value);
-                    index = self.builder.insert_binary(index, BinaryOp::Add, one);
-                });
+                array = self.assign_lvalue_index(new_value, array, index);
                 self.assign_new_value(*array_lvalue, array.into());
             }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue } => {
                 let mut slice_values = slice.into_value_list(self);
 
-                let element_size = self.builder.field_constant(self.element_size(slice_values[1]));
+                slice_values[1] = self.assign_lvalue_index(new_value, slice_values[1], index);
 
-                // The actual base index is the user's index * the array element type's size
-                let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
-                let one = self.builder.field_constant(FieldElement::one());
-
-                new_value.for_each(|value| {
-                    let value = value.eval(self);
-                    slice_values[1] = self.builder.insert_array_set(slice_values[1], index, value);
-                    index = self.builder.insert_binary(index, BinaryOp::Add, one);
-                });
                 // The size of the slice does not change in an assign so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
                 self.assign_new_value(*slice_lvalue, new_slice);
@@ -689,6 +672,26 @@ impl<'a> FunctionContext<'a> {
                 self.assign(reference, new_value);
             }
         }
+    }
+
+    fn assign_lvalue_index(
+        &mut self,
+        new_value: Values,
+        mut array: ValueId,
+        index: ValueId,
+    ) -> ValueId {
+        let element_size = self.builder.field_constant(self.element_size(array));
+
+        // The actual base index is the user's index * the array element type's size
+        let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
+        let one = self.builder.field_constant(FieldElement::one());
+
+        new_value.for_each(|value| {
+            let value = value.eval(self);
+            array = self.builder.insert_array_set(array, index, value);
+            index = self.builder.insert_binary(index, BinaryOp::Add, one);
+        });
+        array
     }
 
     fn element_size(&self, array: ValueId) -> FieldElement {

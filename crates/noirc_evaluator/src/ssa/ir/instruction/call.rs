@@ -75,8 +75,6 @@ pub(super) fn simplify_call(
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
                 let length = FieldElement::from(length as u128);
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
-            } else if let Some(length) = dfg.get_numeric_constant(arguments[0]) {
-                SimplifyResult::SimplifiedTo(dfg.make_constant(length, Type::field()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
             } else {
@@ -222,9 +220,13 @@ pub(super) fn simplify_call(
     }
 }
 
-// Slices have a tuple structure (slice length, slice contents) to enable logic
-// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
-// This method codegens an update to the slice length.
+/// Slices have a tuple structure (slice length, slice contents) to enable logic
+/// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
+/// This method codegens an update to the slice length.
+///
+/// The binary operation performed on the slice length is always an addition or subtraction of `1`.
+/// This is because the slice length holds the user length (length as displayed by a `.len()` call),
+/// and not a flattened length used in SSA internally to represent arrays of tuples.
 fn update_slice_length(slice_len: ValueId, dfg: &mut DataFlowGraph, operator: BinaryOp) -> ValueId {
     let one = dfg.make_constant(FieldElement::one(), Type::field());
     let block = dfg.make_block();

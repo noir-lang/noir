@@ -120,19 +120,17 @@ impl<'a> FunctionContext<'a> {
         match literal {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
-                let contents_typ = Self::convert_non_tuple_type(&array.typ);
-                
-                let typ = Self::convert_type(&array.typ);
-                if typ.count_leaves() > 1 {
-                    let slice_length = ast::Literal::Integer(
-                        (array.contents.len() as u128).into(),
-                        ast::Type::Field,
-                    );
-                    let slice_length = self.codegen_literal(&slice_length);
-                    let slice_contents = self.codegen_array(elements, contents_typ);
-                    Tree::Branch(vec![slice_length, slice_contents])
-                } else {
-                    self.codegen_array(elements, contents_typ)
+
+                let typ = Self::convert_type(&array.typ).flatten();
+                match array.typ {
+                    ast::Type::Array(_, _) => self.codegen_array(elements, typ[0].clone()),
+                    ast::Type::Slice(_) => {
+                        let slice_length =
+                            self.builder.field_constant(array.contents.len() as u128);
+                        let slice_contents = self.codegen_array(elements, typ[1].clone());
+                        Tree::Branch(vec![slice_length.into(), slice_contents])
+                    }
+                    _ => unreachable!("ICE: array literal type but an array or a slice"),
                 }
             }
             ast::Literal::Integer(value, typ) => {
@@ -290,7 +288,7 @@ impl<'a> FunctionContext<'a> {
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
         location: Location,
-        max_length: Option<super::ir::value::ValueId>,
+        length: Option<super::ir::value::ValueId>,
     ) -> Values {
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
@@ -305,29 +303,8 @@ impl<'a> FunctionContext<'a> {
 
             let array_type = &self.builder.type_of_value(array);
             match array_type {
-                // Prepare a slice access
-                // Check that the index being used is less than the dynamic slice length
                 Type::Slice(_) => {
-                    let array_len =
-                        max_length.expect("ICE: a length must be supplied for indexing slices");
-                    // Check the type of the index value for valid comparisons
-                    let array_len = match self.builder.type_of_value(index) {
-                        Type::Numeric(numeric_type) => match numeric_type {
-                            // If the index itself is an integer, keep the array length as a Field
-                            NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
-                            // If the index and the array length are both Fields we will not be able to perform a less than comparison on them.
-                            // Thus, we cast the array length to a u64 before performing the less than comparison
-                            NumericType::NativeField => self.builder.insert_cast(
-                                array_len,
-                                Type::Numeric(NumericType::Unsigned { bit_size: 64 }),
-                            ),
-                        },
-                        _ => unreachable!("ICE: array index must be a numeric type"),
-                    };
-
-                    let is_offset_out_of_bounds =
-                        self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-                    self.builder.insert_constrain(is_offset_out_of_bounds);
+                    self.codegen_slice_access_check(index, length);
                 }
                 Type::Array(..) => {
                     // Nothing needs to done to prepare an array access on an array
@@ -336,6 +313,33 @@ impl<'a> FunctionContext<'a> {
             }
             self.builder.insert_array_get(array, offset, typ).into()
         })
+    }
+
+    /// Prepare a slice access.
+    /// Check that the index being used to access a slice element
+    /// is less than the dynamic slice length.
+    fn codegen_slice_access_check(
+        &mut self,
+        index: super::ir::value::ValueId,
+        length: Option<super::ir::value::ValueId>,
+    ) {
+        let array_len = length.expect("ICE: a length must be supplied for indexing slices");
+        // Check the type of the index value for valid comparisons
+        let array_len = match self.builder.type_of_value(index) {
+            Type::Numeric(numeric_type) => match numeric_type {
+                // If the index itself is an integer, keep the array length as a Field
+                NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
+                // If the index and the array length are both Fields we will not be able to perform a less than comparison on them.
+                // Thus, we cast the array length to a u64 before performing the less than comparison
+                NumericType::NativeField => self
+                    .builder
+                    .insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 })),
+            },
+            _ => unreachable!("ICE: array index must be a numeric type"),
+        };
+
+        let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
+        self.builder.insert_constrain(is_offset_out_of_bounds);
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
