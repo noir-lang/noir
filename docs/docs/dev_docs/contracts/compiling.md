@@ -132,7 +132,6 @@ npm install @aztec/noir-compiler
 
 The compiler exposes the following functions:
 - `compileUsingNargo`: Compiles a Noir project in the target folder using the `nargo` binary available on the shell `PATH` and returns the generated ABIs.
-- `compileUsingNoirWasm`: Compiles a Noir project in the target folder using an embedded noir-wasm package and returns the generated ABIs.
 - `generateTypescriptContractInterface`: Generates a typescript class for the given contract ABI.
 - `generateNoirContractInterface`: Generates a Noir interface struct for the given contract ABI.
 

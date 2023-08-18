@@ -1,6 +1,6 @@
 # Aztec Noir compiler
 
-The Aztec noir compiler compiles noir contracts using nargo or noir_wasm and outputs Aztec formatted contract ABIs. The compiler can also generate typescript classes for each contract, as well as Noir interfaces for calling external functions.
+The Aztec noir compiler compiles noir contracts using nargo and outputs Aztec formatted contract ABIs. The compiler can also generate typescript classes for each contract, as well as Noir interfaces for calling external functions.
 
 ## Installation
 

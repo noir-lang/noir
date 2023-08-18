@@ -5,12 +5,7 @@ import { writeFileSync } from 'fs';
 import { mkdirpSync } from 'fs-extra';
 import path, { resolve } from 'path';
 
-import {
-  compileUsingNargo,
-  compileUsingNoirWasm,
-  generateNoirContractInterface,
-  generateTypescriptContractInterface,
-} from '../index.js';
+import { compileUsingNargo, generateNoirContractInterface, generateTypescriptContractInterface } from '../index.js';
 
 /**
  * Registers a 'contract' command on the given commander program that compiles a Noir contract project.
@@ -23,8 +18,6 @@ export function compileContract(program: Command, name = 'contract', log: LogFn 
     .command(name)
     .argument('<project-path>', 'Path to the noir project to compile')
     .option('-o, --outdir', 'Output folder for the binary artifacts, relative to the project path', 'target')
-    .option('--wasm', 'Use noir-wasm for compiling the contract', false)
-    .option('--nargo', 'Call to nargo binary in path for compiling the contract', true)
     .option('-ts, --typescript <path>', 'Optional output folder for generating typescript wrappers', undefined)
     .option('-i, --interface <path>', 'Optional output folder for generating noir contract interface', undefined)
     .description('Compiles the contracts in the target project')
@@ -34,21 +27,17 @@ export function compileContract(program: Command, name = 'contract', log: LogFn 
         projectPath: string,
         /* eslint-disable jsdoc/require-jsdoc */
         options: {
-          wasm: boolean;
-          nargo: boolean;
           outdir: string;
           typescript: string | undefined;
           interface: string | undefined;
         },
         /* eslint-enable jsdoc/require-jsdoc */
       ) => {
-        const { wasm, nargo, outdir, typescript, interface: noirInterface } = options;
-        if (wasm && nargo) throw new Error(`Cannot use both wasm and nargo for building`);
-        if (!wasm && !nargo) throw new Error(`Must choose either wasm or nargo for building`);
+        const { outdir, typescript, interface: noirInterface } = options;
         if (typeof projectPath !== 'string') throw new Error(`Missing project path argument`);
         const currentDir = process.cwd();
 
-        const compile = wasm ? compileUsingNoirWasm : compileUsingNargo;
+        const compile = compileUsingNargo;
         log(`Compiling contracts...`);
         const result = await compile(projectPath);
 

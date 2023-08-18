@@ -4,12 +4,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import {
-  compileUsingNargo,
-  compileUsingNoirWasm,
-  generateNoirContractInterface,
-  generateTypescriptContractInterface,
-} from './index.js';
+import { compileUsingNargo, generateNoirContractInterface, generateTypescriptContractInterface } from './index.js';
 
 function isNargoAvailable() {
   try {
@@ -30,19 +25,12 @@ describe('noir-compiler', () => {
   });
 
   describeIf(isNargoAvailable)('using nargo binary', () => {
-    it('compiles the test contract using nargo', async () => {
-      const compiled = await compileUsingNargo(projectPath);
-      expect(compiled).toMatchSnapshot();
-    });
-  });
-
-  describe('using noir wasm', () => {
     let compiled: ContractAbi[];
     beforeAll(async () => {
-      compiled = await compileUsingNoirWasm(projectPath);
+      compiled = await compileUsingNargo(projectPath);
     });
 
-    it('compiles the test contract using wasm', () => {
+    it('compiles the test contract', () => {
       expect(compiled).toMatchSnapshot();
     });
 
