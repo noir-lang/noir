@@ -5,8 +5,7 @@ version = 3
 [[package]]
 name = "acir"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9915f2895792d8d9e4f25d9e026bac35774513a97c564fa7604e80462ac19e04"
+source = "git+https://github.com/noir-lang/acvm#27a5a935849f8904e10056b08089f532a06962b8"
 dependencies = [
  "acir_field",
  "bincode",
@@ -19,8 +18,7 @@ dependencies = [
 [[package]]
 name = "acir_field"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a43a2e9419db7a1b046e763154fa67e66039e8fe08b88c13f18f81f9220ebdf"
+source = "git+https://github.com/noir-lang/acvm#27a5a935849f8904e10056b08089f532a06962b8"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -33,8 +31,7 @@ dependencies = [
 [[package]]
 name = "acvm"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38362933e2f7fcf6faf6c7c969f4c1ad2370953c35613801686259cdb8b5d194"
+source = "git+https://github.com/noir-lang/acvm#27a5a935849f8904e10056b08089f532a06962b8"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -70,8 +67,7 @@ dependencies = [
 [[package]]
 name = "acvm_blackbox_solver"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa2d887ed2c7203f08efb6661d8f30ecfd69b453fe2965393d7e99664afc7558"
+source = "git+https://github.com/noir-lang/acvm#27a5a935849f8904e10056b08089f532a06962b8"
 dependencies = [
  "acir",
  "blake2",
@@ -85,8 +81,7 @@ dependencies = [
 [[package]]
 name = "acvm_stdlib"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7958693ac099e257b1791dc71f0296b0cc5e97764e55d67efc06f25191ecbaf"
+source = "git+https://github.com/noir-lang/acvm#27a5a935849f8904e10056b08089f532a06962b8"
 dependencies = [
  "acir",
 ]
@@ -537,8 +532,7 @@ dependencies = [
 [[package]]
 name = "brillig"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d24f35009f581a810c74628ab6bf03eb717b0e55d2c27994694b11ae98ff950"
+source = "git+https://github.com/noir-lang/acvm#27a5a935849f8904e10056b08089f532a06962b8"
 dependencies = [
  "acir_field",
  "serde",
@@ -547,8 +541,7 @@ dependencies = [
 [[package]]
 name = "brillig_vm"
 version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1534e2b03604d08a586ef735fa704f692c468c7e0e6663210fd414bac5382040"
+source = "git+https://github.com/noir-lang/acvm#27a5a935849f8904e10056b08089f532a06962b8"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -661,7 +654,8 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
- "time",
+ "serde",
+ "time 0.1.45",
  "wasm-bindgen",
  "winapi",
 ]
@@ -1102,6 +1096,7 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
+ "strsim",
  "syn 2.0.26",
 ]
 
@@ -1133,6 +1128,15 @@ checksum = "f1a467a65c5e759bce6e65eaf91cc29f466cdc57cb65777bd646872a8a1fd4de"
 dependencies = [
  "const-oid",
  "zeroize",
+]
+
+[[package]]
+name = "deranged"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7684a49fb1af197853ef7b2ee694bc1f5b4179556f1e5710e1760c5db6f5e929"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -1875,6 +1879,7 @@ checksum = "d5477fe2230a79769d8dc68e0eabf5437907c0457a5614a9e8dddb67f65eb65d"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.0",
+ "serde",
 ]
 
 [[package]]
@@ -2338,11 +2343,13 @@ dependencies = [
 name = "noirc_errors"
 version = "0.10.3"
 dependencies = [
+ "acvm",
  "chumsky",
  "codespan",
  "codespan-reporting",
  "fm",
  "serde",
+ "serde_with",
 ]
 
 [[package]]
@@ -3375,6 +3382,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_with"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1402f54f9a3b9e2efe71c1cea24e648acce55887983553eeb858cf3115acfd49"
+dependencies = [
+ "base64",
+ "chrono",
+ "hex",
+ "indexmap 1.9.3",
+ "indexmap 2.0.0",
+ "serde",
+ "serde_json",
+ "serde_with_macros",
+ "time 0.3.25",
+]
+
+[[package]]
+name = "serde_with_macros"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9197f1ad0e3c173a0222d3c4404fb04c3afe87e962bcb327af73e8301fa203c7"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.26",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3712,6 +3748,34 @@ dependencies = [
  "libc",
  "wasi 0.10.0+wasi-snapshot-preview1",
  "winapi",
+]
+
+[[package]]
+name = "time"
+version = "0.3.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0fdd63d58b18d663fbdf70e049f00a22c8e42be082203be7f26589213cd75ea"
+dependencies = [
+ "deranged",
+ "itoa",
+ "serde",
+ "time-core",
+ "time-macros",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7300fbefb4dadc1af235a9cef3737cea692a9d97e1b9cbcd4ebdae6f8868e6fb"
+
+[[package]]
+name = "time-macros"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb71511c991639bb078fd5bf97757e03914361c48100d52878b8e52b46fb92cd"
+dependencies = [
+ "time-core",
 ]
 
 [[package]]

@@ -7,8 +7,10 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+acvm.workspace = true
 codespan-reporting.workspace = true
 codespan.workspace = true
 fm.workspace = true
 chumsky.workspace = true
 serde.workspace = true
+serde_with = "3.2.0"
