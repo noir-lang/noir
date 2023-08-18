@@ -780,7 +780,15 @@ impl AcirContext {
             limb_vars.reverse();
         }
 
-        Ok(vec![AcirValue::Array(limb_vars.into())])
+        // `Intrinsic::ToRadix` returns slices which are represented
+        // by tuples with the structure (length, slice contents)
+        Ok(vec![
+            AcirValue::Var(
+                self.add_constant(FieldElement::from(limb_vars.len() as u128)),
+                AcirType::field(),
+            ),
+            AcirValue::Array(limb_vars.into()),
+        ])
     }
 
     /// Returns `AcirVar`s constrained to be the bit decomposition of the provided input

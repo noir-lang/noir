@@ -940,18 +940,27 @@ impl Context {
         dfg: &DataFlowGraph,
     ) -> Result<AcirVar, RuntimeError> {
         let mut var = self.convert_numeric_value(value_id, dfg)?;
-        let truncation_target = match &dfg[value_id] {
-            Value::Instruction { instruction, .. } => &dfg[*instruction],
-            _ => unreachable!("ICE: Truncates are only ever applied to the result of a binary op"),
+        match &dfg[value_id] {
+            Value::Instruction { instruction, .. } => {
+                if matches!(
+                    &dfg[*instruction],
+                    Instruction::Binary(Binary { operator: BinaryOp::Sub, .. })
+                ) {
+                    // Subtractions must first have the integer modulus added before truncation can be
+                    // applied. This is done in order to prevent underflow.
+                    let integer_modulus =
+                        self.acir_context.add_constant(FieldElement::from(2_u128.pow(bit_size)));
+                    var = self.acir_context.add_var(var, integer_modulus)?;
+                }
+            }
+            Value::Param { .. } => {
+                // Binary operations on params may have been entirely simplified if the operation
+                // results in the identity of the parameter
+            }
+            _ => unreachable!(
+                "ICE: Truncates are only ever applied to the result of a binary op or a param"
+            ),
         };
-        if matches!(truncation_target, Instruction::Binary(Binary { operator: BinaryOp::Sub, .. }))
-        {
-            // Subtractions must first have the integer modulus added before truncation can be
-            // applied. This is done in order to prevent underflow.
-            let integer_modulus =
-                self.acir_context.add_constant(FieldElement::from(2_u128.pow(bit_size)));
-            var = self.acir_context.add_var(var, integer_modulus)?;
-        }
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
@@ -982,14 +991,16 @@ impl Context {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let radix = self.convert_value(arguments[1], dfg).into_var()?;
                 let limb_size = self.convert_value(arguments[2], dfg).into_var()?;
-                let result_type = Self::array_element_type(dfg, result_ids[0]);
+
+                let result_type = Self::array_element_type(dfg, result_ids[1]);
 
                 self.acir_context.radix_decompose(endian, field, radix, limb_size, result_type)
             }
             Intrinsic::ToBits(endian) => {
                 let field = self.convert_value(arguments[0], dfg).into_var()?;
                 let bit_size = self.convert_value(arguments[1], dfg).into_var()?;
-                let result_type = Self::array_element_type(dfg, result_ids[0]);
+
+                let result_type = Self::array_element_type(dfg, result_ids[1]);
 
                 self.acir_context.bit_decompose(endian, field, bit_size, result_type)
             }
