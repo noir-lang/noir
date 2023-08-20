@@ -1,5 +1,5 @@
 use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap, Backend};
-use iter_extended::try_vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use nargo::artifacts::contract::PreprocessedContractFunction;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::artifacts::program::PreprocessedProgram;
@@ -19,13 +19,8 @@ use clap::Args;
 
 use crate::errors::{CliError, CompileError};
 
-use super::fs::program::save_debug_artifact_to_file;
-use super::fs::{
-    common_reference_string::{
-        read_cached_common_reference_string, update_common_reference_string,
-        write_cached_common_reference_string,
-    },
-    program::{save_contract_to_file, save_program_to_file},
+use super::fs::program::{
+    save_contract_to_file, save_debug_artifact_to_file, save_program_to_file,
 };
 use super::NargoConfig;
 
@@ -67,8 +62,6 @@ pub(crate) fn run<B: Backend>(
     let workspace = resolve_workspace_from_toml(&toml_path, selection)?;
     let circuit_dir = workspace.target_directory_path();
 
-    let mut common_reference_string = read_cached_common_reference_string();
-
     for package in &workspace {
         let (mut context, crate_id) = prepare_package(package);
         // If `contract` package type, we're compiling every function in a 'contract' rather than just 'main'.
@@ -82,44 +75,35 @@ pub(crate) fn run<B: Backend>(
             // As can be seen here, It seems like a leaky abstraction where ContractFunctions (essentially CompiledPrograms)
             // are compiled via nargo-core and then the PreprocessedContract is constructed here.
             // This is due to EACH function needing it's own CRS, PKey, and VKey from the backend.
-            let preprocessed_contracts: Result<
-                Vec<(PreprocessedContract, Vec<DebugInfo>)>,
-                CliError<B>,
-            > = try_vecmap(optimized_contracts, |contract| {
-                let preprocess_result = try_vecmap(contract.functions, |func| {
-                    common_reference_string = update_common_reference_string(
-                        backend,
-                        &common_reference_string,
-                        &func.bytecode,
-                    )
-                    .map_err(CliError::CommonReferenceStringError)?;
+            let preprocessed_contracts: Vec<(PreprocessedContract, Vec<DebugInfo>)> =
+                vecmap(optimized_contracts, |contract| {
+                    let preprocess_result = vecmap(contract.functions, |func| {
+                        (
+                            PreprocessedContractFunction {
+                                name: func.name,
+                                function_type: func.function_type,
+                                is_internal: func.is_internal,
+                                abi: func.abi,
 
-                    Ok::<_, CliError<B>>((
-                        PreprocessedContractFunction {
-                            name: func.name,
-                            function_type: func.function_type,
-                            is_internal: func.is_internal,
-                            abi: func.abi,
+                                bytecode: func.bytecode,
+                            },
+                            func.debug,
+                        )
+                    });
 
-                            bytecode: func.bytecode,
+                    let (preprocessed_contract_functions, debug_infos): (Vec<_>, Vec<_>) =
+                        preprocess_result.into_iter().unzip();
+
+                    (
+                        PreprocessedContract {
+                            name: contract.name,
+                            backend: String::from(BACKEND_IDENTIFIER),
+                            functions: preprocessed_contract_functions,
                         },
-                        func.debug,
-                    ))
-                })?;
-
-                let (preprocessed_contract_functions, debug_infos): (Vec<_>, Vec<_>) =
-                    preprocess_result.into_iter().unzip();
-
-                Ok((
-                    PreprocessedContract {
-                        name: contract.name,
-                        backend: String::from(BACKEND_IDENTIFIER),
-                        functions: preprocessed_contract_functions,
-                    },
-                    debug_infos,
-                ))
-            });
-            for (contract, debug_infos) in preprocessed_contracts? {
+                        debug_infos,
+                    )
+                });
+            for (contract, debug_infos) in preprocessed_contracts {
                 save_contract_to_file(
                     &contract,
                     &format!("{}-{}", package.name, contract.name),
@@ -138,10 +122,6 @@ pub(crate) fn run<B: Backend>(
         } else {
             let (context, program) = compile_package(backend, package, &args.compile_options)?;
 
-            common_reference_string =
-                update_common_reference_string(backend, &common_reference_string, &program.circuit)
-                    .map_err(CliError::CommonReferenceStringError)?;
-
             let preprocessed_program = PreprocessedProgram {
                 backend: String::from(BACKEND_IDENTIFIER),
                 abi: program.abi,
@@ -157,8 +137,6 @@ pub(crate) fn run<B: Backend>(
             }
         }
     }
-
-    write_cached_common_reference_string(&common_reference_string);
 
     Ok(())
 }

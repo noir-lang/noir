@@ -57,3 +57,6 @@ url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
+
+[patch.crates-io]
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", branch = "kw/dyn-backends" }

@@ -3,15 +3,7 @@ use std::path::PathBuf;
 use super::NargoConfig;
 use super::{
     compile_cmd::compile_package,
-    fs::{
-        common_reference_string::{
-            read_cached_common_reference_string, update_common_reference_string,
-            write_cached_common_reference_string,
-        },
-        create_named_dir,
-        program::read_program_from_file,
-        write_to_file,
-    },
+    fs::{create_named_dir, program::read_program_from_file, write_to_file},
 };
 use crate::errors::CliError;
 use acvm::Backend;
@@ -90,27 +82,8 @@ fn smart_contract_for_package<B: Backend>(
         }
     };
 
-    let common_reference_string = read_cached_common_reference_string();
-    let common_reference_string = update_common_reference_string(
-        backend,
-        &common_reference_string,
-        &preprocessed_program.bytecode,
-    )
-    .map_err(CliError::CommonReferenceStringError)?;
-
-    let (_, verification_key) = backend
-        .preprocess(&common_reference_string, &preprocessed_program.bytecode)
-        .map_err(CliError::ProofSystemCompilerError)?;
-
-    let smart_contract_string = codegen_verifier(
-        backend,
-        &common_reference_string,
-        &preprocessed_program.bytecode,
-        &verification_key,
-    )
-    .map_err(CliError::SmartContractError)?;
-
-    write_cached_common_reference_string(&common_reference_string);
+    let smart_contract_string = codegen_verifier(backend, &preprocessed_program.bytecode)
+        .map_err(CliError::SmartContractError)?;
 
     Ok(smart_contract_string)
 }
