@@ -525,9 +525,7 @@ impl AcirContext {
         let (q, r) =
             self.acir_ir.signed_division(&l_witness.into(), &r_witness.into(), bit_size)?;
 
-        let q_vd = AcirVarData::from(q);
-        let r_vd = AcirVarData::from(r);
-        Ok((self.add_data(q_vd), self.add_data(r_vd)))
+        Ok((self.add_data(q.into()), self.add_data(r.into())))
     }
 
     /// Returns a variable which is constrained to be `lhs mod rhs`
