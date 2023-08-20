@@ -1,3 +1,5 @@
+use dep::std;
+
 fn main(x : Field, y : pub Field) {
-    assert(x == y);
+    std::assert_eq(x, y);
 }

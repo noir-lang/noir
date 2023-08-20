@@ -29,11 +29,11 @@ fn ret_lambda() -> fn(Field) -> Field {
 
 fn main(x : Field) {
     let result_fn = ret_fn();
-    assert(result_fn(x) == x + 1);
+    std::assert_eq(result_fn(x), x + 1);
 
     // let result_closure = ret_closure();
-    // assert(result_closure(x) == x + 1);
+    // std::assert_eq(result_closure(x), x + 1);
 
     let result_lambda = ret_lambda();
-    assert(result_lambda(x) == x + 1);
+    std::assert_eq(result_lambda(x), x + 1);
 }

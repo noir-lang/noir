@@ -1,3 +1,5 @@
+use dep::std;
+
 struct Header {
     params: [Field; 3],
 }
@@ -21,6 +23,6 @@ unconstrained fn create_inside_brillig(values: [Field; 6]) -> [MyNote; 2] {
 
 fn main(values: [Field; 6]) {
     let notes = create_inside_brillig(values);
-    assert(access_nested(notes) == (2 + 4 + 3 + 1));
+    std::assert_eq(access_nested(notes), (2 + 4 + 3 + 1));
 }
 

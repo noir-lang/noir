@@ -1,6 +1,8 @@
+use dep::std;
+
 fn main(x: Field, y: Field) {
     let mut z = x + y;
-    assert(z == 3);
+    std::assert_eq(z, 3);
     z = x * y;
-    assert(z == 2);
+    std::assert_eq(z, 2);
 }

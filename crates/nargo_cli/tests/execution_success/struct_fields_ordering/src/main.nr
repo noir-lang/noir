@@ -8,7 +8,7 @@ struct myStruct {
 }
 
 fn main(y : pub myStruct) {
-    assert(y.foo == 5);
-    assert(y.bar == 7);
+    std::assert_eq(y.foo, 5);
+    std::assert_eq(y.bar, 7);
 }
 

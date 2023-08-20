@@ -12,9 +12,9 @@ fn main(x: [u8; 5], result: pub [u8; 32]) {
     let mut digest = std::hash::sha256(x);
     digest[0] = 5 as u8;
     digest = std::hash::sha256(x);
-    assert(digest == result);
+    std::assert_eq(digest, result);
 
     let y = [12,45,78,41];
     let h = std::hash::mimc_bn254(y);
-   assert(h == 18226366069841799622585958305961373004333097209608110160936134895615261821931);
+   std::assert_eq(h, 18226366069841799622585958305961373004333097209608110160936134895615261821931);
 }

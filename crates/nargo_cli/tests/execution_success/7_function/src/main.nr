@@ -15,20 +15,20 @@ fn f2(mut x: Field) -> Field{
 // Simple example
 fn test0(mut a: Field) {
     a = f2(a);
-    assert(a == 3);
+    std::assert_eq(a, 3);
 }
 
 // Nested call
 fn test1(mut a: Field) {
     a = f1(a);
-    assert(a == 4);
+    std::assert_eq(a, 4);
 }
 
 fn test2(z: Field, t: u32 ) { 
     let a = z + t as Field;
-    assert(a == 64);
+    std::assert_eq(a, 64);
     let e = pow(z, t as Field);
-    assert(e == 714924299);
+    std::assert_eq(e, 714924299);
 }
 
 fn pow(base: Field, exponent: Field) -> Field {
@@ -46,7 +46,7 @@ fn test3(x: [u8; 3]) -> [u8; 3] {
     for i in 0..3 {
         buffer[i] = x[i];
     }
-    assert(buffer == x);
+    std::assert_eq(buffer, x);
     buffer
 }
 
@@ -59,7 +59,7 @@ fn test_multiple2() -> my_struct {
 }
 
 fn test_multiple3(x: u32, y: u32) {
-    assert(x == y);
+    std::assert_eq(x, y);
 }
 
 struct my_struct {
@@ -73,18 +73,18 @@ struct my2 {
 }
 
 fn test_multiple4(s: my_struct) {
-    assert(s.a == s.b+2);
+    std::assert_eq(s.a, s.b+2);
 }
 
 fn test_multiple5(a: (u32, u32)) {
-    assert(a.0 == a.1+2);
+    std::assert_eq(a.0, a.1+2);
 }
 
 
 fn test_multiple6(a: my2, b: my_struct, c: (my2, my_struct)) {
     test_multiple4(a.aa);
     test_multiple5((b.a, b.b));
-    assert(c.0.aa.a == c.1.a);
+    std::assert_eq(c.0.aa.a, c.1.a);
 }
 
 
@@ -113,28 +113,28 @@ fn main(x: u32 , y: u32 , a: Field, arr1: [u32; 9], arr2: [u32; 9]) {
         ab = ab + a;
         (x,ab)
     };
-    assert(my_block.1 == 4);
+    std::assert_eq(my_block.1, 4);
     
     test0(a);
     test1(a);
     test2(x as Field, y);
-    assert(bar()[0] == 0);
+    std::assert_eq(bar()[0], 0);
 
     let mut b = [0 as u8, 5 as u8, 2 as u8];
     let c = test3(b);
-    assert(b == c);
+    std::assert_eq(b, c);
     b[0] = 1 as u8;
     let cc = test3(b);
     assert(c != cc);
     let e = test_multiple(x, y);
-    assert(e.1 == e.0 + 54 as u32);
+    std::assert_eq(e.1, e.0 + 54 as u32);
     let d = test_multiple2();
-    assert(d.b == d.a + 2 as u32);
+    std::assert_eq(d.b, d.a + 2 as u32);
     test_multiple3(y, y);
 
     //Regression test for issue #628:
     let result = first(arr_to_field(arr1), arr_to_field(arr2));
-    assert(result[0] == arr1[0] as Field);
+    std::assert_eq(result[0], arr1[0] as Field);
 }
 
 // Issue #628

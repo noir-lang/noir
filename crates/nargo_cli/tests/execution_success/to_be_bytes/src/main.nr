@@ -7,8 +7,8 @@ fn main(x : Field) -> pub [u8; 31] {
     for i in 0..31 {
         bytes[i] = byte_array[i];
     }
-    assert(bytes[30] == 60);
-    assert(bytes[29] == 33);
-    assert(bytes[28] == 31);
+    std::assert_eq(bytes[30], 60);
+    std::assert_eq(bytes[29], 33);
+    std::assert_eq(bytes[28], 31);
     bytes
 }

@@ -1,3 +1,5 @@
+use dep::std;
+
 mod foo;
 mod baz;
 
@@ -22,15 +24,15 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
      let test_struct = Dummy { x: d, y: c };
 
      for i in 0..foo::MAGIC_NUMBER {
-          assert(c[i] == foo::MAGIC_NUMBER);
-          assert(test_struct.y[i] == foo::MAGIC_NUMBER);
+          std::assert_eq(c[i], foo::MAGIC_NUMBER);
+          std::assert_eq(test_struct.y[i], foo::MAGIC_NUMBER);
           assert(test_struct.y[i] != NESTED[1][0].v);
      }
 
      assert(N != M);
      
      let expected: u32 = 42;
-     assert(foo::TYPE_INFERRED == expected);
+     std::assert_eq(foo::TYPE_INFERRED, expected);
 
      let mut y = 5;
      let mut x = M;
@@ -40,27 +42,27 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
           
           y = i;
      }
-     assert(y == 24);
-     assert(x == 10);
+     std::assert_eq(y, 24);
+     std::assert_eq(x, 10);
 
      let q = multiplyByM(3);
-     assert(q == 96);
+     std::assert_eq(q, 96);
 
      arrays_neq(a, b);
 
      let t: [Field; T_LEN] = [N, M];
-     assert(t[1] == 32);
+     std::assert_eq(t[1], 32);
 
-     assert(15 == mysubmodule::my_helper());
+     std::assert_eq(15, mysubmodule::my_helper());
      
      let add_submodules_N = mysubmodule::N + foo::bar::N;
-     assert(15 == add_submodules_N);
+     std::assert_eq(15, add_submodules_N);
      let add_from_bar_N = mysubmodule::N + foo::bar::from_bar(1);
-     assert(15 == add_from_bar_N);
+     std::assert_eq(15, add_from_bar_N);
 
      // Example showing an array filled with (mysubmodule::N + 2) 0's
      let sugared = [0; mysubmodule::N + 2];
-     assert(sugared[mysubmodule::N + 1] == 0);
+     std::assert_eq(sugared[mysubmodule::N + 1], 0);
 
      let arr: [Field; mysubmodule::N] = [N; 10];
      assert((arr[0] == 5) & (arr[9] == 5));
@@ -84,7 +86,7 @@ mod mysubmodule {
     global L: Field = 50;
 
     fn my_bool_or(x: u1, y: u1) {
-        assert(x | y == 1);
+        std::assert_eq(x | y, 1);
     }
 
     fn my_helper() -> Field {
