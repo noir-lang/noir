@@ -1,3 +1,5 @@
+use dep::std;
+
 fn main(x: Field) {
-    assert(x == 1);
+    std::assert_eq(x, 1);
 }

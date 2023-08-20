@@ -2,10 +2,10 @@ use dep::std;
 
 fn main() -> pub Field {
     let f = if 3 * 7 > 200 as u32 { foo } else { bar };
-    assert(f()[1] == 2);
+    std::assert_eq(f()[1], 2);
     // Lambdas:
-    assert(twice(|x| x * 2, 5) == 20);
-    assert((|x, y| x + y + 1)(2, 3) == 6);
+    std::assert_eq(twice(|x| x * 2, 5), 20);
+    std::assert_eq((|x, y| x + y + 1)(2, 3), 6);
 
     // nested lambdas
     assert((|a, b| {
@@ -16,7 +16,7 @@ fn main() -> pub Field {
     // Closures:
     let a = 42;
     let g = || a;
-    assert(g() == 42);
+    std::assert_eq(g(), 42);
 
     // When you copy mutable variables,
     // the capture of the copies shouldn't change:
@@ -27,14 +27,14 @@ fn main() -> pub Field {
     // Add extra mutations to ensure we can mutate x without the
     // captured z changing.
     x = x + 1;
-    assert((|y| y + z)(1) == 4);
+    std::assert_eq((|y| y + z)(1), 4);
 
     // When you capture mutable variables,
     // again, the captured variable doesn't change: 
     let closure_capturing_mutable = (|y| y + x);
-    assert(closure_capturing_mutable(1) == 5);
+    std::assert_eq(closure_capturing_mutable(1), 5);
     x += 1;
-    assert(closure_capturing_mutable(1) == 5);
+    std::assert_eq(closure_capturing_mutable(1), 5);
 
     regression_2154();
 
@@ -52,8 +52,8 @@ fn test_array_functions() {
     let evens: [i32; 3] = [2, 4, 6];
     assert(evens.all(|n| n > 1));
 
-    assert(evens.fold(0, |a, b| a + b) == 12);
-    assert(evens.reduce(|a, b| a + b) == 12);
+    std::assert_eq(evens.fold(0, |a, b| a + b), 12);
+    std::assert_eq(evens.reduce(|a, b| a + b), 12);
 
     // TODO: is this a sort_via issue with the new backend,
     // or something more general?
@@ -67,9 +67,9 @@ fn test_array_functions() {
     // https://github.com/noir-lang/noir/issues/2121
 
     // let descending = myarray.sort_via(|a, b| a > b);
-    // assert(descending == [3, 2, 1]);
+    // std::assert_eq(descending, [3, 2, 1]);
 
-    assert(evens.map(|n| n / 2) == myarray);
+    std::assert_eq(evens.map(|n| n / 2), myarray);
 }
 
 fn foo() -> [u32; 2] {
@@ -103,5 +103,5 @@ fn regression_2154() {
         || x + 2342
     };
 
-    assert(closure_if_else() == 32);
+    std::assert_eq(closure_if_else(), 32);
 }

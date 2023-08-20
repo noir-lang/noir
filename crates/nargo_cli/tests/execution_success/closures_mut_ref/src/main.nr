@@ -12,9 +12,9 @@ fn main(mut x: Field) {
     };
 
     add1(&mut x);
-    assert(x == 1);
+    std::assert_eq(x, 1);
 
     add2(&mut x);
-    assert(x == 3);
+    std::assert_eq(x, 3);
 
 }

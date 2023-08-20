@@ -1,3 +1,5 @@
+use dep::std;
+
 fn matrix_mul_2(a: [u32; 4], b: [u32; 4]) ->[u32; 4] {
     let mut c = [0 as u32; 4];
     for i in 0..2 {
@@ -105,7 +107,7 @@ fn iterate3( mut hash: [u32; 8]) -> [u32; 8] {
         g = f;
         a = t1+t2;
     }
-    assert(a == 2470696267);
+    std::assert_eq(a, 2470696267);
     hash[0] = hash[0] + a;
     hash[1] = hash[1] + b;
     hash[2] = hash[2] + c;
@@ -126,7 +128,7 @@ fn test5() {
 
     sha_hash = iterate2(sha_hash);
 
-    assert(sha_hash[0] == 9);
+    std::assert_eq(sha_hash[0], 9);
 }
 
 
@@ -244,31 +246,31 @@ fn sig1(x: u32) -> u32 {
 
 fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u8; 32]) {  
     let e = matrix_mul_10(a,b);
-    assert(e[6] == 1866842232);
+    std::assert_eq(e[6], 1866842232);
     let f = matrix_mul_2(c,d);
-    assert(f[3] == 2082554100);
+    std::assert_eq(f[3], 2082554100);
 
     let mut a = [1 as u32, 2, 3, 4];
     a = test4(a);
-    assert(a[3] == 20);
+    std::assert_eq(a[3], 20);
     a = test4(c);
-    assert(a[3] == c[1] * 10);
+    std::assert_eq(a[3], c[1] * 10);
 
     d[0] += c[0];
     d[0] += c[1];
-    assert(d[0] == 2739986880);
+    std::assert_eq(d[0], 2739986880);
 
     let h = iterate1(1);
-    assert(h == 4);
+    std::assert_eq(h, 4);
 
     let x = d;
     array_noteq(x, [d[0], d[1], d[2], 0]);
 
     let mut h5 = [d[0] as Field, d[1] as Field, d[2] as Field, d[3] as Field];
     let t5 = test3(h5);
-    assert(t5[3] == 3);
+    std::assert_eq(t5[3], 3);
     h5 = test3(h5);
-    assert(h5[3] == 3);
+    std::assert_eq(h5[3], 3);
 
     test5();
 

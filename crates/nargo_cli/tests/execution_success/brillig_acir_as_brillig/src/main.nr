@@ -1,8 +1,9 @@
+use dep::std;
 
 fn main(x: u32)  {
-    assert(entry_point(x) == 2);
+    std::assert_eq(entry_point(x), 2);
     swap_entry_point(x, x + 1);
-    assert(deep_entry_point(x) == 4);
+    std::assert_eq(deep_entry_point(x), 4);
 }
 
 fn inner(x : u32) -> u32 {

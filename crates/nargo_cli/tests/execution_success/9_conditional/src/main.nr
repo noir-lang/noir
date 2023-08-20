@@ -17,11 +17,11 @@ fn call_intrinsic(x: [u8; 5], result: [u8; 32]) {
     let mut digest = std::hash::sha256(x);
     digest[0] = 5 as u8;
     digest = std::hash::sha256(x);
-    assert(digest == result);
+    std::assert_eq(digest, result);
 }
 
 fn must_be_zero(x: u8) {
-    assert(x == 0);
+    std::assert_eq(x, 0);
 }
 
 fn test3 (x: u8) {
@@ -47,13 +47,13 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
 
     //Issue reported in #421
     if a == c[0] {
-        assert(c[0] == 0);
+        std::assert_eq(c[0], 0);
     } else {
         if a == c[1] {
-            assert(c[1] == 0);
+            std::assert_eq(c[1], 0);
         } else  {
             if a == c[2] {
-                assert(c[2] == 0);
+                std::assert_eq(c[2], 0);
             }
         }
     }
@@ -67,13 +67,13 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         c1 = c1 + as_bits[0] as Field;
 
         if i == 0 {
-            assert(arr[i] == 1);// 1
+            std::assert_eq(arr[i], 1);// 1
             for k in 0..2 {
-                assert(as_bits_hardcode_1[k] == as_bits[k]);
+                std::assert_eq(as_bits_hardcode_1[k], as_bits[k]);
             }
         }
         if i == 1 {
-            assert(arr[i] == 2);//2
+            std::assert_eq(arr[i], 2);//2
             for k in 0..2 {
                 assert(as_bits_hardcode_1[k] != as_bits[k]);
             }
@@ -83,9 +83,9 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
 
     //Regression for Issue #579
     let result1_true = test(true);
-    assert(result1_true.array_param[0] == 1);
+    std::assert_eq(result1_true.array_param[0], 1);
     let result1_false = test(false);
-    assert(result1_false.array_param[0] == 0);
+    std::assert_eq(result1_false.array_param[0], 0);
 
     //Test case for short-circuit
     let mut data = [0 as u32; 32];
@@ -104,7 +104,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
             }
         }
     }
-    assert(data[31] == 0);
+    std::assert_eq(data[31], 0);
     assert(ba != 13);
     //regression for short-circuit2
     if 35 == a {
@@ -120,7 +120,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
 
     //Test case for conditional with arrays from function parameters
     let b = sort([1,2,3,4]);
-    assert(b[0] == 1);
+    std::assert_eq(b[0], 1);
 
     if a == 0 {
         must_be_zero(0);
@@ -132,7 +132,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
         let f1 = a as Field;
         assert(10/f1 != 0);
     }
-    assert(c[0] == 3);
+    std::assert_eq(c[0], 3);
 
     let mut y = 0;
     if a == 0 {
@@ -141,7 +141,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     } else {
         y = 5;
     }
-    assert(y == result[0]);
+    std::assert_eq(y, result[0]);
     c = sort(c);
     assert(c[0]==0);
 
@@ -153,16 +153,16 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
             x = 6;
         } else {
             x = 2;
-            assert(x == 2);
+            std::assert_eq(x, 2);
         }
     } else {
         x = 5;
-        assert(x == 5);
+        std::assert_eq(x, 5);
     }
     if c[0] == 0 {
         x = 3;
     }
-    assert(x == 2);
+    std::assert_eq(x, 2);
 
     //test2: loops!
     x = 0;
@@ -172,7 +172,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
             x = i as u32 +2;
         }
     }
-    assert(x == 0);
+    std::assert_eq(x, 0);
 
     test3(1);
 
@@ -184,7 +184,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     if false {
         c[1] = 5;
     }
-    assert(c[1] == 2);
+    std::assert_eq(c[1], 2);
 
     test5(4);
 
@@ -204,7 +204,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
     } else {
         c_sync = foo2() + foo2();
     }
-    assert(c_sync == 6);
+    std::assert_eq(c_sync, 6);
     
     // Regression for predicate simplification
     safe_inverse(0);
@@ -213,7 +213,7 @@ fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]){
 fn test5(a : u32) {
     if a > 1 {
         let q = a / 2;
-        assert(q == 2);
+        std::assert_eq(q, 2);
     }
 }
 

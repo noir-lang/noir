@@ -1,33 +1,36 @@
 // Tests arithmetic operations on integers
+
+use dep::std;
+
 fn main()  {
     let x: u32 = 6;
     let y: u32 = 2;
 
-    assert((x + y) == add(x, y));
+    std::assert_eq((x + y), add(x, y));
 
-    assert((x - y) == sub(x, y));
+    std::assert_eq((x - y), sub(x, y));
 
-    assert((x * y) == mul(x, y));
+    std::assert_eq((x * y), mul(x, y));
 
-    assert((x / y) == div(x, y));
+    std::assert_eq((x / y), div(x, y));
 
     // TODO SSA => ACIR has some issues with i32 ops
     assert(check_signed_div(6, 2, 3));
 
-    assert(eq(1, 2) == false);
+    std::assert_eq(eq(1, 2), false);
     assert(eq(1, 1));
 
-    assert(lt(x, y) == false);
+    std::assert_eq(lt(x, y), false);
     assert(lt(y, x));
 
-    assert((x & y) == and(x, y));
-    assert((x | y) == or(x, y));
+    std::assert_eq((x & y), and(x, y));
+    std::assert_eq((x | y), or(x, y));
 
     // TODO SSA => ACIR has some issues with xor ops
 
     assert(check_xor(x, y, 4));
-    assert((x >> y) == shr(x, y));
-    assert((x << y) == shl(x, y));
+    std::assert_eq((x >> y), shr(x, y));
+    std::assert_eq((x << y), shl(x, y));
 }
 
 unconstrained fn add(x : u32, y : u32) -> u32 {

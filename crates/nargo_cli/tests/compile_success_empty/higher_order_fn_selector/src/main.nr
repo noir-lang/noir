@@ -28,12 +28,12 @@ fn main() {
     let returned_func = selector(&mut flag);
     returned_func(&mut x);
 
-    assert(x == 200);
+    std::assert_eq(x, 200);
 
     let mut y: Field = 100;
     let returned_func2 = selector(&mut flag);
     returned_func2(&mut y);
 
-    assert(y == 300);
+    std::assert_eq(y, 300);
 
 }
