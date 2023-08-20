@@ -7,7 +7,7 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::FieldElement;
+use acvm::acir::native_types::Expression;
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
@@ -20,7 +20,7 @@ pub enum RuntimeError {
     // and 1 respectively. This would confuse users if a constraint such as
     // assert(foo < bar) fails with "failed constraint: 0 = 1."
     #[error("Failed constraint")]
-    FailedConstraint { lhs: FieldElement, rhs: FieldElement, call_stack: CallStack },
+    FailedConstraint { lhs: Box<Expression>, rhs: Box<Expression>, call_stack: CallStack },
     #[error(transparent)]
     InternalError(#[from] InternalError),
     #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]

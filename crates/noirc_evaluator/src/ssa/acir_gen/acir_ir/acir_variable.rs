@@ -327,28 +327,29 @@ impl AcirContext {
 
     /// Constrains the `lhs` and `rhs` to be equal.
     pub(crate) fn assert_eq_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<(), RuntimeError> {
-        // TODO: could use sub_var and then assert_eq_zero
-        let lhs_data = &self.vars[&lhs];
-        let rhs_data = &self.vars[&rhs];
-        if let (AcirVarData::Const(lhs_const), AcirVarData::Const(rhs_const)) = (lhs_data, rhs_data)
-        {
-            if lhs_const == rhs_const {
-                // Constraint is always true and need not be added
-                Ok(())
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+
+        // `lhs == rhs` => `lhs - rhs == 0`
+        let diff_expr = &lhs_expr - &rhs_expr;
+
+        // Check to see if equality can be determined at compile-time.
+        if diff_expr.is_const() {
+            if diff_expr.is_zero() {
+                // Constraint is always true - assertion is unnecessary.
+                return Ok(());
             } else {
-                // Constraint is always false - this program is unprovable
-                Err(RuntimeError::FailedConstraint {
-                    lhs: *lhs_const,
-                    rhs: *rhs_const,
+                // Constraint is always false - this program is unprovable.
+                return Err(RuntimeError::FailedConstraint {
+                    lhs: Box::new(lhs_expr),
+                    rhs: Box::new(rhs_expr),
                     call_stack: self.get_call_stack(),
-                })
-            }
-        } else {
-            self.acir_ir.assert_is_zero(
-                lhs_data.to_expression().as_ref() - rhs_data.to_expression().as_ref(),
-            );
-            Ok(())
+                });
+            };
         }
+
+        self.acir_ir.assert_is_zero(diff_expr);
+        Ok(())
     }
 
     /// Adds a new Variable to context whose value will
@@ -441,17 +442,16 @@ impl AcirContext {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the addition of `lhs` and `rhs`
     pub(crate) fn add_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
-        let lhs_data = &self.vars[&lhs];
-        let rhs_data = &self.vars[&rhs];
-        let result_data = if let (AcirVarData::Const(lhs_const), AcirVarData::Const(rhs_const)) =
-            (lhs_data, rhs_data)
-        {
-            AcirVarData::Const(*lhs_const + *rhs_const)
-        } else {
-            let sum = lhs_data.to_expression().as_ref() + rhs_data.to_expression().as_ref();
-            AcirVarData::Expr(sum)
-        };
-        Ok(self.add_data(result_data))
+        let lhs_expr = self.var_to_expression(lhs)?;
+        let rhs_expr = self.var_to_expression(rhs)?;
+        let sum_expr = &lhs_expr + &rhs_expr;
+
+        if let Some(constant) = sum_expr.to_const() {
+            let result = self.add_constant(constant);
+            return Ok(result);
+        }
+
+        Ok(self.add_data(AcirVarData::from(sum_expr)))
     }
 
     /// Adds a new variable that is constrained to be the logical NOT of `x`.
@@ -525,8 +525,8 @@ impl AcirContext {
         let (q, r) =
             self.acir_ir.signed_division(&l_witness.into(), &r_witness.into(), bit_size)?;
 
-        let q_vd = AcirVarData::Expr(q);
-        let r_vd = AcirVarData::Expr(r);
+        let q_vd = AcirVarData::from(q);
+        let r_vd = AcirVarData::from(r);
         Ok((self.add_data(q_vd), self.add_data(r_vd)))
     }
 
@@ -618,7 +618,7 @@ impl AcirContext {
             &Expression::one(),
         )?;
 
-        Ok(self.add_data(AcirVarData::Expr(Expression::from(remainder))))
+        Ok(self.add_data(AcirVarData::from(remainder)))
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
@@ -1175,6 +1175,31 @@ impl AcirVarData {
             AcirVarData::Witness(witness) => Cow::Owned(Expression::from(*witness)),
             AcirVarData::Expr(expr) => Cow::Borrowed(expr),
             AcirVarData::Const(constant) => Cow::Owned(Expression::from(*constant)),
+        }
+    }
+}
+
+impl From<FieldElement> for AcirVarData {
+    fn from(constant: FieldElement) -> Self {
+        AcirVarData::Const(constant)
+    }
+}
+
+impl From<Witness> for AcirVarData {
+    fn from(witness: Witness) -> Self {
+        AcirVarData::Witness(witness)
+    }
+}
+
+impl From<Expression> for AcirVarData {
+    fn from(expr: Expression) -> Self {
+        // Prefer simpler variants if possible.
+        if let Some(constant) = expr.to_const() {
+            AcirVarData::from(constant)
+        } else if let Some(witness) = expr.to_witness() {
+            AcirVarData::from(witness)
+        } else {
+            AcirVarData::Expr(expr)
         }
     }
 }
