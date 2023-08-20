@@ -771,18 +771,6 @@ impl<'f> Context<'f> {
 
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
-                Instruction::Constrain(value) => {
-                    // Replace constraint `value == 1` with `condition * value == condition`.
-                    let mul = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, value, condition),
-                        call_stack.clone(),
-                    );
-                    let eq = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Eq, mul, condition),
-                        call_stack,
-                    );
-                    Instruction::Constrain(eq)
-                }
                 Instruction::Call { func, arguments } if func == assert_eq_id => {
                     // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
 
@@ -1378,12 +1366,16 @@ mod test {
         builder.insert_constrain(v_false); // should not be removed
         builder.terminate_with_return(vec![]);
 
+        let assert_eq_id = builder.import_intrinsic_id(Intrinsic::AssertEq);
+
         let ssa = builder.finish().flatten_cfg();
         let main = ssa.main();
 
         // Assert we have not incorrectly removed a constraint:
-        use Instruction::Constrain;
-        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_)));
+        let constrain_count = count_instruction(
+            main,
+            |ins| matches!(ins, Instruction::Call { func, .. } if *func == assert_eq_id),
+        );
         assert_eq!(constrain_count, 1);
     }
 
@@ -1461,17 +1453,24 @@ mod test {
         builder.insert_constrain(v12);
         builder.terminate_with_return(vec![]);
 
+        let assert_eq_id = builder.import_intrinsic_id(Intrinsic::AssertEq);
+
         let ssa = builder.finish().flatten_cfg();
         let main = ssa.main();
 
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
-            if let Instruction::Constrain(value) = main.dfg[*instruction] {
-                if let Some(constant) = main.dfg.get_numeric_constant(value) {
-                    assert!(constant.is_one());
+            match &main.dfg[*instruction] {
+                Instruction::Call { func, arguments } if *func == assert_eq_id => {
+                    let lhs = main.dfg.get_numeric_constant(arguments[0]);
+                    let rhs = main.dfg.get_numeric_constant(arguments[1]);
+                    if let (Some(lhs), Some(rhs)) = (lhs, rhs) {
+                        assert_eq!(lhs, rhs);
+                    }
+                    constrain_count += 1;
                 }
-                constrain_count += 1;
+                _ => (),
             }
         }
         assert_eq!(constrain_count, 1);

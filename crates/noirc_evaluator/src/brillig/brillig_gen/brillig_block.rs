@@ -212,10 +212,6 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
-            Instruction::Constrain(value) => {
-                let condition = self.convert_ssa_register_value(*value, dfg);
-                self.brillig_context.constrain_instruction(condition);
-            }
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
                 let address_register = self.function_context.create_register_variable(

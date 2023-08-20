@@ -239,7 +239,9 @@ impl FunctionBuilder {
 
     /// Insert a constrain instruction at the end of the current block.
     pub(crate) fn insert_constrain(&mut self, boolean: ValueId) {
-        self.insert_instruction(Instruction::Constrain(boolean), None);
+        let assert_eq = self.import_intrinsic_id(Intrinsic::AssertEq);
+        let true_constant = self.numeric_constant(FieldElement::one(), Type::bool());
+        self.insert_call(assert_eq, vec![boolean, true_constant], Vec::new());
     }
 
     /// Insert a call instruction at the end of the current block and return
