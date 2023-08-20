@@ -268,6 +268,14 @@ impl AcirContext {
         let lhs_expr = self.var_to_expression(lhs)?;
         let rhs_expr = self.var_to_expression(rhs)?;
 
+        // `lhs == rhs` => `lhs - rhs == 0`
+        let diff_expr = &lhs_expr - &rhs_expr;
+
+        // Check to see if equality can be determined at compile-time.
+        if diff_expr.is_const() {
+            return Ok(self.add_constant(diff_expr.is_zero().into()));
+        }
+
         let is_equal_witness = self.acir_ir.is_equal(&lhs_expr, &rhs_expr);
         let result_var = self.add_data(AcirVarData::Witness(is_equal_witness));
         Ok(result_var)
