@@ -140,21 +140,14 @@ pub(crate) fn prove_package<B: Backend>(
         Format::Toml,
     )?;
 
-    let proof =
-        prove_execution(backend, &common_reference_string, &bytecode, solved_witness, &proving_key)
-            .map_err(CliError::ProofSystemCompilerError)?;
+    let proof = prove_execution(backend, &common_reference_string, &bytecode, solved_witness)
+        .map_err(CliError::ProofSystemCompilerError)?;
 
     if check_proof {
         let public_inputs = public_abi.encode(&public_inputs, return_value)?;
-        let valid_proof = verify_proof(
-            backend,
-            &common_reference_string,
-            &bytecode,
-            &proof,
-            public_inputs,
-            &verification_key,
-        )
-        .map_err(CliError::ProofSystemCompilerError)?;
+        let valid_proof =
+            verify_proof(backend, &common_reference_string, &bytecode, &proof, public_inputs)
+                .map_err(CliError::ProofSystemCompilerError)?;
 
         if !valid_proof {
             return Err(CliError::InvalidProof("".into()));

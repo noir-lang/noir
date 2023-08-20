@@ -113,15 +113,9 @@ fn verify_package<B: Backend>(
     let public_inputs = public_abi.encode(&public_inputs_map, return_value)?;
     let proof = load_hex_data(proof_path)?;
 
-    let valid_proof = verify_proof(
-        backend,
-        &common_reference_string,
-        &bytecode,
-        &proof,
-        public_inputs,
-        &verification_key,
-    )
-    .map_err(CliError::ProofSystemCompilerError)?;
+    let valid_proof =
+        verify_proof(backend, &common_reference_string, &bytecode, &proof, public_inputs)
+            .map_err(CliError::ProofSystemCompilerError)?;
 
     if valid_proof {
         Ok(())
