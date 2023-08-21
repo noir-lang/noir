@@ -1,17 +1,17 @@
 use dep::std;
 
-fn main(index: [Field;5], index2: [Field;5], offset: Field, sublen: Field) {
-    // let idx = (z - 5*t - 5) as Field;
-    // //dynamic array test
-    // dyn_array(x, idx, idx - 3); 
+fn main(x: [u32; 5], mut z: u32, t: u32, index: [Field;5], index2: [Field;5], offset: Field, sublen: Field) {
+    let idx = (z - 5*t - 5) as Field;
+    //dynamic array test
+    dyn_array(x, idx, idx - 3); 
 
-    // //regression for issue 1283
-    // let mut s = 0;
-    // let x3 = [246,159,32,176,8];
-    // for i in 0..5 {
-    //   s += x3[index[i]];
-    // }
-    // assert(s!=0);
+    //regression for issue 1283
+    let mut s = 0;
+    let x3 = [246,159,32,176,8];
+    for i in 0..5 {
+      s += x3[index[i]];
+    }
+    assert(s!=0);
 
     if 3 < (sublen as u32) {
       std::assert_eq(index[offset + 3], index2[3]);
