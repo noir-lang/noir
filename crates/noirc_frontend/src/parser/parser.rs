@@ -2142,10 +2142,10 @@ mod test {
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
-            ("constrain", 2, "constrain Error"),
-            ("assert", 1, "constrain Error"),
-            ("constrain x ==", 2, "constrain (plain::x == Error)"),
-            ("assert(x ==)", 1, "constrain (plain::x == Error)"),
+            ("constrain", 2, "constrain Error == true"),
+            ("assert", 1, "constrain Error == true"),
+            ("constrain x ==", 2, "constrain (plain::x == Error) == true"),
+            ("assert(x ==)", 1, "constrain (plain::x == Error) == true"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
