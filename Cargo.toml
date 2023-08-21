@@ -25,7 +25,7 @@ edition = "2021"
 rust-version = "1.66"
 
 [workspace.dependencies]
-acvm = "0.21.0"
+acvm = "0.22.0"
 arena = { path = "crates/arena" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
