@@ -67,6 +67,7 @@
     "resolve-typescript-plugin": "^2.0.1",
     "ts-jest": "^29.1.0",
     "ts-loader": "^9.4.2",
+    "tslib": "^2.6.2",
     "tsconfig-paths-webpack-plugin": "^4.0.1",
     "typescript": "^5.0.4",
     "webpack": "^5.82.1",

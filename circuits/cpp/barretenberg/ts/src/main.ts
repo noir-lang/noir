@@ -85,7 +85,7 @@ export async function proveAndVerify(bytecodePath: string, witnessPath: string, 
 
     debug(`verifying...`);
     const verified = await api.acirVerifyProof(acirComposer, proof, isRecursive);
-    console.log(`verified: ${verified}`);
+    process.stdout.write(`${verified}`);
     return verified;
   } finally {
     await api.destroy();
@@ -107,8 +107,10 @@ export async function prove(
     const proof = await api.acirCreateProof(acirComposer, bytecode, witness, isRecursive);
     debug(`done.`);
 
+    process.stdout.write(proof);
     writeFileSync(outputPath, proof);
-    console.log(`proof written to: ${outputPath}`);
+
+    debug(`proof written to: ${outputPath}`);
   } finally {
     await api.destroy();
   }
@@ -117,7 +119,7 @@ export async function prove(
 export async function gateCount(bytecodePath: string) {
   const api = await newBarretenbergApiAsync(1);
   try {
-    console.log(`gates: ${await getGates(bytecodePath, api)}`);
+    process.stdout.write(`${await getGates(bytecodePath, api)}`);
   } finally {
     await api.destroy();
   }
@@ -128,7 +130,8 @@ export async function verify(proofPath: string, isRecursive: boolean, vkPath: st
   try {
     await api.acirLoadVerificationKey(acirComposer, new RawBuffer(readFileSync(vkPath)));
     const verified = await api.acirVerifyProof(acirComposer, readFileSync(proofPath), isRecursive);
-    console.log(`verified: ${verified}`);
+
+    process.stdout.write(`${verified}`);
     return verified;
   } finally {
     await api.destroy();
@@ -140,12 +143,11 @@ export async function contract(outputPath: string, vkPath: string) {
   try {
     await api.acirLoadVerificationKey(acirComposer, new RawBuffer(readFileSync(vkPath)));
     const contract = await api.acirGetSolidityVerifier(acirComposer);
-    if (outputPath === '-') {
-      console.log(contract);
-    } else {
-      writeFileSync(outputPath, contract);
-      console.log(`contract written to: ${outputPath}`);
-    }
+
+    process.stdout.write(contract);
+    writeFileSync(outputPath, contract);
+
+    debug(`contract written to: ${outputPath}`);
   } finally {
     await api.destroy();
   }
@@ -160,12 +162,11 @@ export async function writeVk(bytecodePath: string, crsPath: string, outputPath:
 
     debug('initing verification key...');
     const vk = await api.acirGetVerificationKey(acirComposer);
-    if (outputPath === '-') {
-      process.stdout.write(vk);
-    } else {
-      writeFileSync(outputPath, vk);
-      console.log(`vk written to: ${outputPath}`);
-    }
+
+    process.stdout.write(vk);
+    writeFileSync(outputPath, vk);
+
+    debug(`vk written to: ${outputPath}`);
   } finally {
     await api.destroy();
   }
@@ -181,8 +182,11 @@ export async function proofAsFields(proofPath: string, numInnerPublicInputs: num
       readFileSync(proofPath),
       numInnerPublicInputs,
     );
+    const jsonProofAsFields = JSON.stringify(proofAsFields.map(f => f.toString()));
 
-    writeFileSync(outputPath, JSON.stringify(proofAsFields.map(f => f.toString())));
+    process.stdout.write(jsonProofAsFields);
+    writeFileSync(outputPath, jsonProofAsFields);
+
     debug('done.');
   } finally {
     await api.destroy();
@@ -197,7 +201,11 @@ export async function vkAsFields(vkPath: string, vkeyOutputPath: string) {
     await api.acirLoadVerificationKey(acirComposer, new RawBuffer(readFileSync(vkPath)));
     const [vkAsFields, vkHash] = await api.acirSerializeVerificationKeyIntoFields(acirComposer);
     const output = [vkHash, ...vkAsFields].map(f => f.toString());
-    writeFileSync(vkeyOutputPath, JSON.stringify(output));
+    const jsonVKAsFields = JSON.stringify(output);
+
+    process.stdout.write(jsonVKAsFields);
+    writeFileSync(vkeyOutputPath, jsonVKAsFields);
+
     debug('done.');
   } finally {
     await api.destroy();
