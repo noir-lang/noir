@@ -186,6 +186,10 @@ export class PublicDataRead {
      * Returned value from the public data tree.
      */
     public readonly value: Fr,
+    /**
+     * Optional side effect counter tracking position of this event in tx execution.
+     */
+    public readonly sideEffectCounter?: number,
   ) {}
 
   static from(args: {
@@ -236,6 +240,10 @@ export class PublicDataUpdateRequest {
      * New value of the leaf.
      */
     public readonly newValue: Fr,
+    /**
+     * Optional side effect counter tracking position of this event in tx execution.
+     */
+    public readonly sideEffectCounter?: number,
   ) {}
 
   static from(args: {

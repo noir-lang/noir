@@ -798,7 +798,7 @@ describe('Private Execution test suite', () => {
           isDelegateCall: false,
           isStaticCall: false,
         }),
-        order: 0,
+        sideEffectCounter: 0,
       });
 
       const publicCallRequestHash = computeCallStackItemHash(

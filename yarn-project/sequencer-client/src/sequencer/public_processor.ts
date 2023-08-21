@@ -1,4 +1,11 @@
-import { PublicExecution, PublicExecutionResult, PublicExecutor, isPublicExecutionResult } from '@aztec/acir-simulator';
+import {
+  PublicExecution,
+  PublicExecutionResult,
+  PublicExecutor,
+  collectPublicDataReads,
+  collectPublicDataUpdateRequests,
+  isPublicExecutionResult,
+} from '@aztec/acir-simulator';
 import {
   AztecAddress,
   CircuitsWasm,
@@ -13,20 +20,24 @@ import {
   MAX_NEW_NULLIFIERS_PER_CALL,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,
   MAX_PUBLIC_DATA_READS_PER_CALL,
+  MAX_PUBLIC_DATA_READS_PER_TX,
   MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,
+  MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
   MembershipWitness,
   PreviousKernelData,
   Proof,
   PublicCallData,
   PublicCallStackItem,
   PublicCircuitPublicInputs,
+  PublicDataRead,
+  PublicDataUpdateRequest,
   PublicKernelInputs,
   PublicKernelPublicInputs,
   RETURN_VALUES_LENGTH,
   VK_TREE_HEIGHT,
 } from '@aztec/circuits.js';
 import { computeCallStackItemHash, computeVarArgsHash } from '@aztec/circuits.js/abis';
-import { isArrayEmpty, padArrayEnd, padArrayStart } from '@aztec/foundation/collection';
+import { arrayNonEmptyLength, isArrayEmpty, padArrayEnd, padArrayStart } from '@aztec/foundation/collection';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { Tuple, mapTuple, to2Fields } from '@aztec/foundation/serialize';
 import { ContractDataSource, FunctionL2Logs, L1ToL2MessageSource, MerkleTreeId, Tx } from '@aztec/types';
@@ -138,24 +149,42 @@ export class PublicProcessor {
     this.log(`Executing enqueued public calls for tx ${await tx.getTxHash()}`);
     if (!tx.enqueuedPublicFunctionCalls) throw new Error(`Missing preimages for enqueued public calls`);
 
-    const executionStack: (PublicExecution | PublicExecutionResult)[] = [...tx.enqueuedPublicFunctionCalls];
-
     let kernelOutput = tx.data;
     let kernelProof = tx.proof;
     const newUnencryptedFunctionLogs: FunctionL2Logs[] = [];
 
-    while (executionStack.length) {
-      const current = executionStack.pop()!;
-      const isExecutionRequest = !isPublicExecutionResult(current);
-      const result = isExecutionRequest ? await this.publicExecutor.execute(current, this.globalVariables) : current;
-      newUnencryptedFunctionLogs.push(result.unencryptedLogs);
-      const functionSelector = result.execution.functionData.functionSelectorBuffer.toString('hex');
-      this.log(`Running public kernel circuit for ${functionSelector}@${result.execution.contractAddress.toString()}`);
-      executionStack.push(...result.nestedExecutions);
-      const preimages = await this.getPublicCallStackPreimages(result);
-      const callData = await this.getPublicCallData(result, preimages, isExecutionRequest);
+    // TODO(#1684): Should multiple separately enqueued public calls be treated as
+    // separate public callstacks to be proven by separate public kernel sequences
+    // and submitted separately to the base rollup?
 
-      [kernelOutput, kernelProof] = await this.runKernelCircuit(callData, kernelOutput, kernelProof);
+    // TODO(dbanks12): why must these be reversed?
+    const enqueuedCallsReversed = tx.enqueuedPublicFunctionCalls.slice().reverse();
+    for (const enqueuedCall of enqueuedCallsReversed) {
+      const executionStack: (PublicExecution | PublicExecutionResult)[] = [enqueuedCall];
+
+      // Keep track of which result is for the top/enqueued call
+      let enqueuedExecutionResult: PublicExecutionResult | undefined;
+
+      while (executionStack.length) {
+        const current = executionStack.pop()!;
+        const isExecutionRequest = !isPublicExecutionResult(current);
+        const result = isExecutionRequest ? await this.publicExecutor.execute(current, this.globalVariables) : current;
+        newUnencryptedFunctionLogs.push(result.unencryptedLogs);
+        const functionSelector = result.execution.functionData.functionSelectorBuffer.toString('hex');
+        this.log(
+          `Running public kernel circuit for ${functionSelector}@${result.execution.contractAddress.toString()}`,
+        );
+        executionStack.push(...result.nestedExecutions);
+        const preimages = await this.getPublicCallStackPreimages(result);
+        const callData = await this.getPublicCallData(result, preimages, isExecutionRequest);
+
+        [kernelOutput, kernelProof] = await this.runKernelCircuit(callData, kernelOutput, kernelProof);
+
+        if (!enqueuedExecutionResult) enqueuedExecutionResult = result;
+      }
+      // HACK(#1622): Manually patches the ordering of public state actions
+      // TODO(#757): Enforce proper ordering of public state actions
+      await this.patchPublicStorageActionOrdering(kernelOutput, enqueuedExecutionResult!);
     }
 
     return [kernelOutput, kernelProof, newUnencryptedFunctionLogs];
@@ -285,5 +314,97 @@ export class PublicProcessor {
     const portalContractAddress = result.execution.callContext.portalContractAddress.toField();
     const proof = await this.publicProver.getPublicCircuitProof(callStackItem.publicInputs);
     return new PublicCallData(callStackItem, preimages, proof, portalContractAddress, bytecodeHash);
+  }
+
+  // HACK(#1622): this is a hack to fix ordering of public state in the call stack. Since the private kernel
+  // cannot keep track of side effects that happen after or before a nested call, we override the public
+  // state actions it emits with whatever we got from the simulator. As a sanity check, we at least verify
+  // that the elements are the same, so we are only tweaking their ordering.
+  // See yarn-project/end-to-end/src/e2e_ordering.test.ts
+  // See https://github.com/AztecProtocol/aztec-packages/issues/1616
+  // TODO(#757): Enforce proper ordering of public state actions
+  /**
+   * Patch the ordering of storage actions output from the public kernel.
+   * @param publicInputs - to be patched here: public inputs to the kernel iteration up to this point
+   * @param execResult - result of the top/first execution for this enqueued public call
+   */
+  private async patchPublicStorageActionOrdering(
+    publicInputs: KernelCircuitPublicInputs,
+    execResult: PublicExecutionResult,
+  ) {
+    // Convert ContractStorage* objects to PublicData* objects and sort them in execution order
+    const wasm = await CircuitsWasm.get();
+    const simPublicDataReads = collectPublicDataReads(wasm, execResult);
+    const simPublicDataUpdateRequests = collectPublicDataUpdateRequests(wasm, execResult);
+
+    const { publicDataReads, publicDataUpdateRequests } = publicInputs.end; // from kernel
+
+    // Validate all items in enqueued public calls are in the kernel emitted stack
+    const readsAreEqual = simPublicDataReads.reduce(
+      (accum, read) =>
+        accum && !!publicDataReads.find(item => item.leafIndex.equals(read.leafIndex) && item.value.equals(read.value)),
+      true,
+    );
+    const updatesAreEqual = simPublicDataUpdateRequests.reduce(
+      (accum, update) =>
+        accum &&
+        !!publicDataUpdateRequests.find(
+          item =>
+            item.leafIndex.equals(update.leafIndex) &&
+            item.oldValue.equals(update.oldValue) &&
+            item.newValue.equals(update.newValue),
+        ),
+      true,
+    );
+
+    if (!readsAreEqual) {
+      throw new Error(
+        `Public data reads from simulator do not match those from public kernel.\nFrom simulator: ${simPublicDataReads
+          .map(p => p.toFriendlyJSON())
+          .join(', ')}\nFrom public kernel: ${publicDataReads.map(i => i.toFriendlyJSON()).join(', ')}`,
+      );
+    }
+    if (!updatesAreEqual) {
+      throw new Error(
+        `Public data update requests from simulator do not match those from public kernel.\nFrom simulator: ${simPublicDataUpdateRequests
+          .map(p => p.toFriendlyJSON())
+          .join(', ')}\nFrom public kernel: ${publicDataUpdateRequests.map(i => i.toFriendlyJSON()).join(', ')}`,
+      );
+    }
+
+    // Assume that kernel public inputs has the right number of items.
+    // We only want to reorder the items from the public inputs of the
+    // most recently processed top/enqueued call.
+    const numTotalReadsInKernel = arrayNonEmptyLength(
+      publicInputs.end.publicDataReads,
+      f => f.leafIndex.equals(Fr.ZERO) && f.value.equals(Fr.ZERO),
+    );
+    const numTotalUpdatesInKernel = arrayNonEmptyLength(
+      publicInputs.end.publicDataUpdateRequests,
+      f => f.leafIndex.equals(Fr.ZERO) && f.oldValue.equals(Fr.ZERO) && f.newValue.equals(Fr.ZERO),
+    );
+    const numReadsBeforeThisEnqueuedCall = numTotalReadsInKernel - simPublicDataReads.length;
+    const numUpdatesBeforeThisEnqueuedCall = numTotalUpdatesInKernel - simPublicDataUpdateRequests.length;
+
+    // Override kernel output
+    publicInputs.end.publicDataReads = padArrayEnd(
+      [
+        // do not mess with items from previous top/enqueued calls in kernel output
+        ...publicDataReads.slice(0, numReadsBeforeThisEnqueuedCall),
+        ...simPublicDataReads,
+      ],
+      PublicDataRead.empty(),
+      MAX_PUBLIC_DATA_READS_PER_TX,
+    );
+    // Override kernel output
+    publicInputs.end.publicDataUpdateRequests = padArrayEnd(
+      [
+        // do not mess with items from previous top/enqueued calls in kernel output
+        ...publicDataUpdateRequests.slice(0, numUpdatesBeforeThisEnqueuedCall),
+        ...simPublicDataUpdateRequests,
+      ],
+      PublicDataUpdateRequest.empty(),
+      MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_TX,
+    );
   }
 }

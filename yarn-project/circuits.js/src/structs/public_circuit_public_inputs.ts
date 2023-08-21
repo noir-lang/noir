@@ -34,6 +34,10 @@ export class ContractStorageRead {
      * Value read from the storage slot.
      */
     public readonly currentValue: Fr,
+    /**
+     * Optional side effect counter tracking position of this event in tx execution.
+     */
+    public readonly sideEffectCounter?: number,
   ) {}
 
   static from(args: {
@@ -91,24 +95,11 @@ export class ContractStorageUpdateRequest {
      * New value of the storage slot.
      */
     public readonly newValue: Fr,
+    /**
+     * Optional side effect counter tracking position of this event in tx execution.
+     */
+    public readonly sideEffectCounter?: number,
   ) {}
-
-  static from(args: {
-    /**
-     * Storage slot we are updating.
-     */
-    storageSlot: Fr;
-    /**
-     * Old value of the storage slot.
-     */
-    oldValue: Fr;
-    /**
-     * New value of the storage slot.
-     */
-    newValue: Fr;
-  }) {
-    return new ContractStorageUpdateRequest(args.storageSlot, args.oldValue, args.newValue);
-  }
 
   toBuffer() {
     return serializeToBuffer(this.storageSlot, this.oldValue, this.newValue);
@@ -117,6 +108,24 @@ export class ContractStorageUpdateRequest {
   static fromBuffer(buffer: Buffer | BufferReader) {
     const reader = BufferReader.asReader(buffer);
     return new ContractStorageUpdateRequest(reader.readFr(), reader.readFr(), reader.readFr());
+  }
+
+  /**
+   * Create PublicCallRequest from a fields dictionary.
+   * @param fields - The dictionary.
+   * @returns A PublicCallRequest object.
+   */
+  static from(fields: FieldsOf<ContractStorageUpdateRequest>): ContractStorageUpdateRequest {
+    return new ContractStorageUpdateRequest(...ContractStorageUpdateRequest.getFields(fields));
+  }
+
+  /**
+   * Serialize into a field array. Low-level utility.
+   * @param fields - Object with fields.
+   * @returns The array.
+   */
+  static getFields(fields: FieldsOf<ContractStorageUpdateRequest>) {
+    return [fields.storageSlot, fields.oldValue, fields.newValue, fields.sideEffectCounter] as const;
   }
 
   static empty() {

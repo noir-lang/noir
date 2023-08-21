@@ -224,7 +224,7 @@ void perform_static_call_checks(Builder& builder, KernelInput const& public_kern
 }
 
 /**
- * @brief Proagates valid (i.e. non-empty) update requests from this iteration to the circuit output
+ * @brief Propagates valid (i.e. non-empty) update requests from this iteration to the circuit output
  * @tparam The type of kernel input
  * @param public_kernel_inputs The inputs to this iteration of the kernel circuit
  * @param circuit_outputs The circuit outputs to be populated

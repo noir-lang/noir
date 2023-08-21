@@ -9,6 +9,8 @@ import {
   abisComputeBlockHashWithGlobals,
   abisComputeCommitmentNonce,
   abisComputeGlobalsHash,
+  abisComputePublicDataTreeIndex,
+  abisComputePublicDataTreeValue,
   abisComputeUniqueCommitment,
   abisSiloCommitment,
   abisSiloNullifier,
@@ -375,6 +377,31 @@ export function computeBlockHash(
 export function computeGlobalsHash(wasm: IWasmModule, globals: GlobalVariables): Fr {
   wasm.call('pedersen__init');
   return abisComputeGlobalsHash(wasm, globals);
+}
+
+/**
+ * Computes a public data tree value ready for insertion.
+ * @param wasm - A module providing low-level wasm access.
+ * @param value - Raw public data tree value to hash into a tree-insertion-ready value.
+ * @returns Value hash into a tree-insertion-ready value.
+
+ */
+export function computePublicDataTreeValue(wasm: IWasmModule, value: Fr): Fr {
+  wasm.call('pedersen__init');
+  return abisComputePublicDataTreeValue(wasm, value);
+}
+
+/**
+ * Computes a public data tree index from contract address and storage slot.
+ * @param wasm - A module providing low-level wasm access.
+ * @param contractAddress - Contract where insertion is occurring.
+ * @param storageSlot - Storage slot where insertion is occuring.
+ * @returns Public data tree index computed from contract address and storage slot.
+
+ */
+export function computePublicDataTreeIndex(wasm: IWasmModule, contractAddress: Fr, storageSlot: Fr): Fr {
+  wasm.call('pedersen__init');
+  return abisComputePublicDataTreeIndex(wasm, contractAddress, storageSlot);
 }
 
 const ARGS_HASH_CHUNK_SIZE = 32;

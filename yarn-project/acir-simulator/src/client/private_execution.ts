@@ -28,9 +28,6 @@ import { AcirSimulator, ExecutionResult, NewNoteData, NewNullifierData } from '.
 import { ClientTxExecutionContext } from './client_execution_context.js';
 import { acvmFieldMessageToString, oracleDebugCallToFormattedStr } from './debug.js';
 
-/** Orderings of side effects */
-type Orderings = { /** Public call stack execution requests */ publicCall: number };
-
 /**
  * The private function execution class.
  */
@@ -43,7 +40,7 @@ export class PrivateFunctionExecution {
     private argsHash: Fr,
     private callContext: CallContext,
     private curve: Grumpkin,
-    private orderings: Orderings = { publicCall: 0 },
+    private sideEffectCounter: number = 0,
     private log = createDebugLogger('aztec:simulator:secret_execution'),
   ) {}
 
@@ -142,11 +139,10 @@ export class PrivateFunctionExecution {
           frToSelector(fromACVMField(acvmFunctionSelector)),
           this.context.packedArgsCache.unpack(fromACVMField(acvmArgsHash)),
           this.callContext,
-          this.orderings,
         );
 
         this.log(
-          `Enqueued call to public function #${enqueuedRequest.order} ${acvmContractAddress}:${acvmFunctionSelector}`,
+          `Enqueued call to public function (with side-effect counter #${enqueuedRequest.sideEffectCounter}) ${acvmContractAddress}:${acvmFunctionSelector}`,
         );
         enqueuedPublicFunctionCalls.push(enqueuedRequest);
         return toAcvmEnqueuePublicFunctionResult(enqueuedRequest);
@@ -279,7 +275,7 @@ export class PrivateFunctionExecution {
       targetArgsHash,
       derivedCallContext,
       curve,
-      this.orderings,
+      this.sideEffectCounter,
       this.log,
     );
 
@@ -294,7 +290,6 @@ export class PrivateFunctionExecution {
    * @param targetFunctionSelector - The function selector of the function to call.
    * @param targetArgs - The arguments to pass to the function.
    * @param callerContext - The call context of the caller.
-   * @param orderings - Orderings.
    * @returns The public call stack item with the request information.
    */
   private async enqueuePublicFunctionCall(
@@ -302,19 +297,22 @@ export class PrivateFunctionExecution {
     targetFunctionSelector: Buffer,
     targetArgs: Fr[],
     callerContext: CallContext,
-    orderings: Orderings,
   ): Promise<PublicCallRequest> {
     const targetAbi = await this.context.db.getFunctionABI(targetContractAddress, targetFunctionSelector);
     const derivedCallContext = await this.deriveCallContext(callerContext, targetContractAddress, false, false);
-    const order = orderings.publicCall++;
 
     return PublicCallRequest.from({
       args: targetArgs,
       callContext: derivedCallContext,
       functionData: FunctionData.fromAbi(targetAbi),
       contractAddress: targetContractAddress,
-      order,
+      sideEffectCounter: this.sideEffectCounter++, // update after assigning current value to call
     });
+
+    // TODO($846): if enqueued public calls are associated with global
+    // side-effect counter, that will leak info about how many other private
+    // side-effects occurred in the TX. Ultimately the private kernel should
+    // just outut everything in the proper order without any counters.
   }
 
   /**

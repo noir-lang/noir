@@ -1557,6 +1557,12 @@ export function abisComputeBlockHashWithGlobals(
 export function abisComputeGlobalsHash(wasm: IWasmModule, arg0: GlobalVariables): Fr {
   return Fr.fromBuffer(callCbind(wasm, 'abis__compute_globals_hash', [fromGlobalVariables(arg0)]));
 }
+export function abisComputePublicDataTreeValue(wasm: IWasmModule, arg0: Fr): Fr {
+  return Fr.fromBuffer(callCbind(wasm, 'abis__compute_public_data_tree_value', [toBuffer(arg0)]));
+}
+export function abisComputePublicDataTreeIndex(wasm: IWasmModule, arg0: Fr, arg1: Fr): Fr {
+  return Fr.fromBuffer(callCbind(wasm, 'abis__compute_public_data_tree_index', [toBuffer(arg0), toBuffer(arg1)]));
+}
 export function privateKernelDummyPreviousKernel(wasm: IWasmModule): PreviousKernelData {
   return toPreviousKernelData(callCbind(wasm, 'private_kernel__dummy_previous_kernel', []));
 }

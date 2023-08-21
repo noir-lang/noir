@@ -105,5 +105,5 @@ export function collectEnqueuedPublicFunctionCalls(execResult: ExecutionResult):
   return [
     ...execResult.enqueuedPublicFunctionCalls,
     ...[...execResult.nestedExecutions].flatMap(collectEnqueuedPublicFunctionCalls),
-  ].sort((a, b) => b.order! - a.order!);
+  ].sort((a, b) => b.sideEffectCounter! - a.sideEffectCounter!); // REVERSE SORT!
 }

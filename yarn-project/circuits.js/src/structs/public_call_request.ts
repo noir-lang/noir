@@ -36,9 +36,9 @@ export class PublicCallRequest {
      */
     public args: Fr[],
     /**
-     * Optional ordering within a tx execution.
+     * Optional side effect counter tracking position of this event in tx execution.
      */
-    public order?: number,
+    public sideEffectCounter?: number,
   ) {}
 
   /**
@@ -79,7 +79,13 @@ export class PublicCallRequest {
    * @returns The array.
    */
   static getFields(fields: FieldsOf<PublicCallRequest>) {
-    return [fields.contractAddress, fields.functionData, fields.callContext, fields.args, fields.order] as const;
+    return [
+      fields.contractAddress,
+      fields.functionData,
+      fields.callContext,
+      fields.args,
+      fields.sideEffectCounter,
+    ] as const;
   }
 
   /**

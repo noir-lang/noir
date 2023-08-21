@@ -43,7 +43,7 @@ export class PublicExecutor {
     private readonly contractsDb: PublicContractsDB,
     private readonly commitmentsDb: CommitmentsDB,
     private readonly blockData: HistoricBlockData,
-
+    private sideEffectCounter: number = 0,
     private log = createDebugLogger('aztec:simulator:public-executor'),
   ) {}
 
@@ -97,7 +97,7 @@ export class PublicExecutor {
         const values = [];
         for (let i = 0; i < Number(numberOfElements); i++) {
           const storageSlot = new Fr(startStorageSlot.value + BigInt(i));
-          const value = await storageActions.read(storageSlot);
+          const value = await storageActions.read(storageSlot, this.sideEffectCounter++); // update the sideEffectCounter after assigning its current value to storage action
           this.log(`Oracle storage read: slot=${storageSlot.toString()} value=${value.toString()}`);
           values.push(value);
         }
@@ -109,7 +109,7 @@ export class PublicExecutor {
         for (let i = 0; i < values.length; i++) {
           const storageSlot = new Fr(startStorageSlot.value + BigInt(i));
           const newValue = fromACVMField(values[i]);
-          await storageActions.write(storageSlot, newValue);
+          await storageActions.write(storageSlot, newValue, this.sideEffectCounter++); // update the sideEffectCounter after assigning its current value to storage action
           await this.stateDb.storageWrite(execution.contractAddress, storageSlot, newValue);
           this.log(`Oracle storage write: slot=${storageSlot.toString()} value=${newValue.toString()}`);
           newValues.push(newValue);
@@ -164,6 +164,11 @@ export class PublicExecutor {
     const { returnValues } = extractPublicCircuitPublicInputs(partialWitness, acir);
 
     const [contractStorageReads, contractStorageUpdateRequests] = storageActions.collect();
+    this.log(
+      `Contract storage reads: ${contractStorageReads
+        .map(r => r.toFriendlyJSON() + ` - sec: ${r.sideEffectCounter}`)
+        .join(', ')}`,
+    );
 
     return {
       execution,

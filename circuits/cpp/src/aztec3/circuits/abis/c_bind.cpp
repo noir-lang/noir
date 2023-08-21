@@ -453,6 +453,16 @@ CBIND(abis__compute_block_hash_with_globals, aztec3::circuits::compute_block_has
 CBIND(abis__compute_globals_hash, aztec3::circuits::compute_globals_hash<NT>);
 
 /**
+ * @brief Compute the value to be inserted into the public data tree
+ */
+CBIND(abis__compute_public_data_tree_value, aztec3::circuits::compute_public_data_tree_value<NT>);
+
+/**
+ * @brief Compute the index for inserting a value into the public data tree
+ */
+CBIND(abis__compute_public_data_tree_index, aztec3::circuits::compute_public_data_tree_index<NT>);
+
+/**
  * @brief Generates a signed tx request hash from it's pre-image
  * This is a WASM-export that can be called from Typescript.
  *
