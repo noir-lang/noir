@@ -124,7 +124,7 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 trait_name,
                 impl_ident,
             } => {
-                let span = impl_ident.span().clone();
+                let span = impl_ident.span();
                 let method_name = impl_ident.0.contents;
                 Diagnostic::simple_error(
                     format!("Mismatch return type of method with name {method_name} that implements trait {trait_name}"),

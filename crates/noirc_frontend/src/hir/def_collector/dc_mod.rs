@@ -73,7 +73,7 @@ pub fn collect_defs(
 fn check_trait_method_implementation_parameters(
     expected_parameters: &Vec<(Ident, UnresolvedType)>,
     impl_method: &NoirFunction,
-    trait_name: &String,
+    trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
     let expected_num_parameters = expected_parameters.len();
     let actual_num_parameters = impl_method.def.parameters.len();
@@ -81,7 +81,7 @@ fn check_trait_method_implementation_parameters(
         return Err(DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
             actual_num_parameters,
             expected_num_parameters,
-            trait_name: trait_name.clone(),
+            trait_name: trait_name.to_owned(),
             impl_ident: impl_method.name_ident().clone(),
         });
     }
@@ -89,7 +89,7 @@ fn check_trait_method_implementation_parameters(
         let (_expected_name, expected_type) = &expected_parameters[count];
         if typ != expected_type {
             return Err(DefCollectorErrorKind::MismatchTraitImlementationParameter {
-                trait_name: trait_name.clone(),
+                trait_name: trait_name.to_owned(),
                 expected_type: expected_type.clone(),
                 impl_method: impl_method.name().to_string(),
                 parameter: parameter.name_ident().clone(),
@@ -102,14 +102,14 @@ fn check_trait_method_implementation_parameters(
 fn check_trait_method_implementation_return_type(
     expected_return_type: &FunctionReturnType,
     impl_method: &NoirFunction,
-    trait_name: &String,
+    trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
     match expected_return_type {
         FunctionReturnType::Default(_span) => match &impl_method.def.return_type {
             FunctionReturnType::Default(_span) => Ok(()),
             FunctionReturnType::Ty(_found_type, _span) => {
                 Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
-                    trait_name: trait_name.clone(),
+                    trait_name: trait_name.to_owned(),
                     impl_ident: impl_method.name_ident().clone(),
                 })
             }
@@ -117,7 +117,7 @@ fn check_trait_method_implementation_return_type(
         FunctionReturnType::Ty(expected_type, _span) => {
             if expected_type != &impl_method.return_type() {
                 Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
-                    trait_name: trait_name.clone(),
+                    trait_name: trait_name.to_owned(),
                     impl_ident: impl_method.name_ident().clone(),
                 })
             } else {
