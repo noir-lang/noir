@@ -454,11 +454,6 @@ impl AcirContext {
         let rhs_expr = self.var_to_expression(rhs)?;
         let sum_expr = &lhs_expr + &rhs_expr;
 
-        if let Some(constant) = sum_expr.to_const() {
-            let result = self.add_constant(constant);
-            return Ok(result);
-        }
-
         Ok(self.add_data(AcirVarData::from(sum_expr)))
     }
 
