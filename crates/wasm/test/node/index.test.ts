@@ -1,13 +1,18 @@
-import { expect } from "@esm-bundle/chai";
-import { compileNoirSource, nargoArtifactPath, noirSourcePath } from "../shared";
+import { expect } from "chai";
+import {
+  compileNoirSource,
+  nargoArtifactPath,
+  noirSourcePath,
+} from "../shared";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 async function getFileContent(path: string): Promise<string> {
-  return readFileSync(path).toString()
+  return readFileSync(join(__dirname, path)).toString();
 }
 
 async function getSource(): Promise<string> {
-  return getFileContent(noirSourcePath)
+  return getFileContent(noirSourcePath);
 }
 
 async function getPrecompiledSource(): Promise<string> {
@@ -27,7 +32,10 @@ describe("noir wasm compilation", () => {
 
     console.log("cli", cliCircuitBase64);
 
-    console.log("Compilation is a match? ", wasmCircuitBase64 === cliCircuitBase64);
+    console.log(
+      "Compilation is a match? ",
+      wasmCircuitBase64 === cliCircuitBase64,
+    );
 
     expect(wasmCircuitBase64).to.equal(cliCircuitBase64);
   }).timeout(10e3);
