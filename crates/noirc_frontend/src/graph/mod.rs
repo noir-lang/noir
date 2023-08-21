@@ -130,6 +130,13 @@ impl CrateGraph {
             .expect("ICE: A root crate should exist in the CrateGraph")
     }
 
+    pub fn stdlib_crate_id(&self) -> &CrateId {
+        self.arena
+            .keys()
+            .find(|crate_id| crate_id.is_stdlib())
+            .expect("Something about no crates in graph")
+    }
+
     pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
         for (crate_id, crate_data) in self.arena.iter() {
             if crate_id.is_root() {
