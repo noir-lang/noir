@@ -17,7 +17,7 @@ export function compileContract(program: Command, name = 'contract', log: LogFn 
   return program
     .command(name)
     .argument('<project-path>', 'Path to the noir project to compile')
-    .option('-o, --outdir', 'Output folder for the binary artifacts, relative to the project path', 'target')
+    .option('-o, --outdir <path>', 'Output folder for the binary artifacts, relative to the project path', 'target')
     .option('-ts, --typescript <path>', 'Optional output folder for generating typescript wrappers', undefined)
     .option('-i, --interface <path>', 'Optional output folder for generating noir contract interface', undefined)
     .description('Compiles the contracts in the target project')
