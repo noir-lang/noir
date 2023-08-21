@@ -25,9 +25,6 @@ mod serialization;
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
 
-/// A tuple of the arguments to a function along with its return value.
-pub type FunctionSignature = (Vec<AbiParameter>, Option<AbiType>);
-
 pub const MAIN_RETURN_NAME: &str = "return";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
