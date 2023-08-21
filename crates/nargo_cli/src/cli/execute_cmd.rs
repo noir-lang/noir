@@ -90,26 +90,6 @@ fn execute_package<B: Backend>(
     Ok((return_value, solved_witness))
 }
 
-fn report_unsatisfied_constraint_error(
-    opcode_err_info: Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)>,
-    debug: &DebugInfo,
-    context: &Context,
-) {
-    if let Some((opcode_location, _)) = opcode_err_info {
-        if let Some(locations) = debug.opcode_location(&opcode_location) {
-            // The location of the error itself will be the location at the top
-            // of the call stack (the last item in the Vec).
-            if let Some(location) = locations.last() {
-                let message = "Failed constraint".into();
-                CustomDiagnostic::simple_error(message, String::new(), location.span)
-                    .in_file(location.file)
-                    .with_call_stack(locations)
-                    .report(&context.file_manager, false);
-            }
-        }
-    }
-}
-
 fn extract_opcode_error_from_nargo_error(
     nargo_err: &NargoError,
 ) -> Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)> {
@@ -135,27 +115,41 @@ fn extract_opcode_error_from_nargo_error(
     }
 }
 
-fn report_index_out_of_bounds_error(
+fn report_opcode_error(
     opcode_err_info: Option<(OpcodeLocation, &acvm::pwg::OpcodeResolutionError)>,
     debug: &DebugInfo,
     context: &Context,
 ) {
     if let Some((
         opcode_location,
-        acvm::pwg::OpcodeResolutionError::IndexOutOfBounds { index, array_size, .. },
+        opcode_err,    
     )) = opcode_err_info
     {
         if let Some(locations) = debug.opcode_location(&opcode_location) {
-            // The location of the error itself will be the location at the top
-            // of the call stack (the last item in the Vec).
-            if let Some(location) = locations.last() {
-                let message = format!(
-                    "Index out of bounds, array has size {array_size:?}, but index was {index:?}"
-                );
-                CustomDiagnostic::simple_error(message, String::new(), location.span)
-                    .in_file(location.file)
-                    .with_call_stack(locations)
-                    .report(&context.file_manager, false);
+            match opcode_err {
+                // The location of the error itself will be the location at the top
+                // of the call stack (the last item in the Vec).
+                acvm::pwg::OpcodeResolutionError::IndexOutOfBounds { index, array_size, .. } => {
+                    if let Some(location) = locations.last() {
+                        let message = format!(
+                            "Index out of bounds, array has size {array_size:?}, but index was {index:?}"
+                        );
+                        CustomDiagnostic::simple_error(message, String::new(), location.span)
+                            .in_file(location.file)
+                            .with_call_stack(locations)
+                            .report(&context.file_manager, false);
+                    }
+                }
+                acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { .. } => {
+                    if let Some(location) = locations.last() {
+                        let message = "Failed constraint".into();
+                        CustomDiagnostic::simple_error(message, String::new(), location.span)
+                            .in_file(location.file)
+                            .with_call_stack(locations)
+                            .report(&context.file_manager, false);
+                    }
+                }
+                _ => (),
             }
         }
     }
@@ -175,8 +169,7 @@ pub(crate) fn execute_program<B: Backend>(
         Err(err) => {
             if let Some((debug, context)) = debug_data {
                 let opcode_err_info = extract_opcode_error_from_nargo_error(&err);
-                report_unsatisfied_constraint_error(opcode_err_info, &debug, &context);
-                report_index_out_of_bounds_error(opcode_err_info, &debug, &context);
+                report_opcode_error(opcode_err_info, &debug, &context);
             }
 
             Err(crate::errors::CliError::NargoError(err))
