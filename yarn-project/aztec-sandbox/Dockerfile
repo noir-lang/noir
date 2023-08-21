@@ -1,5 +1,6 @@
 FROM 278380418400.dkr.ecr.eu-west-2.amazonaws.com/yarn-project-base AS builder
 
+RUN rm -rf /usr/src/circuits/cpp/barretenberg/cpp/srs_db/ignition/monomial
 COPY . .
 
 WORKDIR /usr/src/yarn-project/aztec-sandbox
