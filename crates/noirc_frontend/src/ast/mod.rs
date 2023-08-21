@@ -116,7 +116,7 @@ impl std::fmt::Display for UnresolvedType {
             Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
 
-                match &**env {
+                match env.as_ref() {
                     UnresolvedType::Unit => {
                         write!(f, "fn({}) -> {ret}", args.join(", "))
                     }
