@@ -127,7 +127,7 @@ impl CrateGraph {
         self.arena
             .keys()
             .find(|crate_id| crate_id.is_root())
-            .expect("ICE: A root crate should exist in the CrateCraph")
+            .expect("ICE: A root crate should exist in the CrateGraph")
     }
 
     pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
