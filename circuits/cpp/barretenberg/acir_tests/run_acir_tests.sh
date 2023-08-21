@@ -61,7 +61,7 @@ function test() {
   else
     echo -e "\033[31mFAILED\033[0m"
     # Run again verbose.
-    $BB prove_and_verify -v -c $CRS_PATH
+    $BB prove_and_verify -v -c $CRS_PATH -b ./target/$dir_name.bytecode
     exit 1
   fi
 
