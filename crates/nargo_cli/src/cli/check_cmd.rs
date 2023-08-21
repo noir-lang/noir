@@ -135,7 +135,7 @@ mod tests {
             typed_param(
                 "d",
                 AbiType::Struct {
-                    name: String::from("MyStruct"),
+                    path: String::from("MyStruct"),
                     fields: vec![
                         (String::from("d1"), AbiType::Field),
                         (

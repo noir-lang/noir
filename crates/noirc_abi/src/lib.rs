@@ -12,7 +12,7 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_frontend::{Signedness, Type, TypeBinding, TypeVariableKind, Visibility};
+use noirc_frontend::{hir::Context, Signedness, Type, TypeBinding, TypeVariableKind, Visibility};
 use serde::{Deserialize, Serialize};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -53,7 +53,7 @@ pub enum AbiType {
     },
     Boolean,
     Struct {
-        name: String,
+        path: String,
         #[serde(
             serialize_with = "serialization::serialize_struct_fields",
             deserialize_with = "serialization::deserialize_struct_fields"
@@ -116,8 +116,7 @@ pub enum Sign {
 }
 
 impl AbiType {
-    // TODO: Add `Context` argument for resolving fully qualified struct paths
-    pub fn from_type(typ: &Type) -> Self {
+    pub fn from_type(context: &Context, typ: &Type) -> Self {
         // Note; use strict_eq instead of partial_eq when comparing field types
         // in this method, you most likely want to distinguish between public and private
         match typ {
@@ -127,7 +126,7 @@ impl AbiType {
                     .evaluate_to_u64()
                     .expect("Cannot have variable sized arrays as a parameter to main");
                 let typ = typ.as_ref();
-                Self::Array { length, typ: Box::new(Self::from_type(typ)) }
+                Self::Array { length, typ: Box::new(Self::from_type(context, typ)) }
             }
             Type::Integer(sign, bit_width) => {
                 let sign = match sign {
@@ -139,8 +138,8 @@ impl AbiType {
             }
             Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
                 match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => Self::from_type(typ),
-                    TypeBinding::Unbound(_) => Self::from_type(&Type::default_int_type()),
+                    TypeBinding::Bound(typ) => Self::from_type(context, typ),
+                    TypeBinding::Unbound(_) => Self::from_type(context, &Type::default_int_type()),
                 }
             }
             Type::Bool => Self::Boolean,
@@ -157,8 +156,11 @@ impl AbiType {
             Type::Struct(def, ref args) => {
                 let struct_type = def.borrow();
                 let fields = struct_type.get_fields(args);
-                let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(&typ)));
-                Self::Struct { fields, name: struct_type.name.to_string() }
+                let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(context, &typ)));
+                // For the ABI, we always want to resolve the struct paths from the root crate
+                let path =
+                    context.fully_qualified_struct_name(context.root_crate_id(), struct_type.id);
+                Self::Struct { fields, path }
             }
             Type::Tuple(_) => todo!("AbiType::from_type not yet implemented for tuple types"),
             Type::TypeVariable(_, _) => unreachable!(),

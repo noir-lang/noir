@@ -141,8 +141,8 @@ pub fn compute_function_abi(
     let func_meta = context.def_interner.function_meta(&main_function);
 
     let (parameters, return_type) = func_meta.into_function_signature();
-    let parameters = into_abi_params(parameters, &context.def_interner);
-    let return_type = return_type.map(|typ| AbiType::from_type(&typ));
+    let parameters = into_abi_params(context, parameters);
+    let return_type = return_type.map(|typ| AbiType::from_type(context, &typ));
     Some((parameters, return_type))
 }
 
