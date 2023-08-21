@@ -409,9 +409,10 @@ impl<'interner> Monomorphizer<'interner> {
         match self.interner.statement(&id) {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
             HirStatement::Constrain(constrain) => {
-                let expr = self.expr(constrain.0);
+                let lhs = self.expr(constrain.0);
+                let rhs = self.expr(constrain.1);
                 let location = self.interner.expr_location(&constrain.0);
-                ast::Expression::Constrain(Box::new(expr), location)
+                ast::Expression::Constrain(Box::new(lhs), Box::new(rhs), location)
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::Expression(expr) => self.expr(expr),

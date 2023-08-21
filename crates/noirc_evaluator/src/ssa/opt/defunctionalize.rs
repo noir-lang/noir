@@ -305,7 +305,8 @@ fn create_apply_function(
                 function_builder.switch_to_block(executor_block);
             } else {
                 // Else just constrain the condition
-                function_builder.insert_constrain(condition);
+                let one = function_builder.numeric_constant(FieldElement::from(true), Type::bool());
+                function_builder.insert_constrain(condition, one);
             }
             // Find the target block or build it if necessary
             let current_block = function_builder.current_block();

@@ -422,7 +422,7 @@ impl<'block> BrilligBlock<'block> {
                     self.brillig_context.deallocate_register(radix);
                 }
                 Value::Intrinsic(Intrinsic::AssertEq) => {
-                    // Decompose `std::assert_eq(x, y)` into `assert(x == y)`
+                    // Decompose `assert_eq(x, y)` into `assert(x == y)`
                     let condition = self.brillig_context.allocate_register();
 
                     self.convert_ssa_binary(

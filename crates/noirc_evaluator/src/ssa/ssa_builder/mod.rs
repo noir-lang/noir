@@ -238,9 +238,8 @@ impl FunctionBuilder {
     }
 
     /// Insert a constrain instruction at the end of the current block.
-    pub(crate) fn insert_constrain(&mut self, boolean: ValueId) {
-        let one = self.numeric_constant(FieldElement::one(), Type::bool());
-        self.insert_instruction(Instruction::Constrain(boolean, one), None);
+    pub(crate) fn insert_constrain(&mut self, lhs: ValueId, rhs: ValueId) {
+        self.insert_instruction(Instruction::Constrain(lhs, rhs), None);
     }
 
     /// Insert a call instruction at the end of the current block and return

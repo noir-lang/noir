@@ -669,6 +669,7 @@ where
     choice((
         constrain(expr_parser.clone()),
         assertion(expr_parser.clone()),
+        assertion_eq(expr_parser.clone()),
         declaration(expr_parser.clone()),
         assignment(expr_parser.clone()),
         return_statement(expr_parser.clone()),
@@ -684,7 +685,12 @@ where
         keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
         expr_parser,
     )
-    .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+    .map(|expr| {
+        Statement::Constrain(ConstrainStatement(
+            expr,
+            Expression::new(ExpressionKind::Literal(Literal::Bool(true)), Span::default()),
+        ))
+    })
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
         expr
@@ -697,7 +703,24 @@ where
 {
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+        .map(|expr| {
+            Statement::Constrain(ConstrainStatement(
+                expr,
+                Expression::new(ExpressionKind::Literal(Literal::Bool(true)), Span::default()),
+            ))
+        })
+}
+
+fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
+where
+    P: ExprParser + 'a,
+{
+    ignore_then_commit(
+        keyword(Keyword::AssertEq),
+        parenthesized(expr_parser.separated_by(just(Token::Comma)).exactly(2)),
+    )
+    .labelled(ParsingRuleLabel::Statement)
+    .map(|args| Statement::Constrain(ConstrainStatement(args[0].clone(), args[1].clone())))
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a

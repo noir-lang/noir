@@ -401,7 +401,7 @@ pub enum LValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement(pub Expression);
+pub struct ConstrainStatement(pub Expression, pub Expression);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
@@ -480,7 +480,7 @@ impl Display for LetStatement {
 
 impl Display for ConstrainStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "constrain {}", self.0)
+        write!(f, "constrain {} == {}", self.0, self.1)
     }
 }
 

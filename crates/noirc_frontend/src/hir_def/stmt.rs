@@ -46,7 +46,7 @@ pub struct HirAssignStatement {
 /// originates from. This is used later in the SSA pass to issue
 /// an error if a constrain is found to be always false.
 #[derive(Debug, Clone)]
-pub struct HirConstrainStatement(pub ExprId, pub FileId);
+pub struct HirConstrainStatement(pub ExprId, pub ExprId, pub FileId);
 
 #[derive(Debug, Clone)]
 pub enum HirPattern {

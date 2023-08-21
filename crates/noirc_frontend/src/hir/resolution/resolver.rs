@@ -896,8 +896,10 @@ impl<'a> Resolver<'a> {
                 })
             }
             Statement::Constrain(constrain_stmt) => {
-                let expr_id = self.resolve_expression(constrain_stmt.0);
-                HirStatement::Constrain(HirConstrainStatement(expr_id, self.file))
+                let lhs_id = self.resolve_expression(constrain_stmt.0);
+                let rhs_id = self.resolve_expression(constrain_stmt.1);
+
+                HirStatement::Constrain(HirConstrainStatement(lhs_id, rhs_id, self.file))
             }
             Statement::Expression(expr) => HirStatement::Expression(self.resolve_expression(expr)),
             Statement::Semi(expr) => HirStatement::Semi(self.resolve_expression(expr)),
