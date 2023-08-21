@@ -120,17 +120,17 @@ fn report_opcode_error(
     debug: &DebugInfo,
     context: &Context,
 ) {
-    if let Some((
-        opcode_location,
-        opcode_err,    
-    )) = opcode_err_info
-    {
+    if let Some((opcode_location, opcode_err)) = opcode_err_info {
         if let Some(locations) = debug.opcode_location(&opcode_location) {
-            match opcode_err {
-                // The location of the error itself will be the location at the top
-                // of the call stack (the last item in the Vec).
-                acvm::pwg::OpcodeResolutionError::IndexOutOfBounds { index, array_size, .. } => {
-                    if let Some(location) = locations.last() {
+            // The location of the error itself will be the location at the top
+            // of the call stack (the last item in the Vec).
+            if let Some(location) = locations.last() {
+                match opcode_err {
+                    acvm::pwg::OpcodeResolutionError::IndexOutOfBounds {
+                        index,
+                        array_size,
+                        ..
+                    } => {
                         let message = format!(
                             "Index out of bounds, array has size {array_size:?}, but index was {index:?}"
                         );
@@ -139,17 +139,15 @@ fn report_opcode_error(
                             .with_call_stack(locations)
                             .report(&context.file_manager, false);
                     }
-                }
-                acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { .. } => {
-                    if let Some(location) = locations.last() {
+                    acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { .. } => {
                         let message = "Failed constraint".into();
                         CustomDiagnostic::simple_error(message, String::new(), location.span)
                             .in_file(location.file)
                             .with_call_stack(locations)
                             .report(&context.file_manager, false);
                     }
+                    _ => (),
                 }
-                _ => (),
             }
         }
     }
