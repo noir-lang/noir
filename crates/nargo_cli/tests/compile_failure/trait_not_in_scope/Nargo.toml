@@ -1,5 +1,5 @@
 [package]
-name = "trait_not_exists"
+name = "trait_not_in_scope"
 type = "bin"
 authors = [""]
 compiler_version = "0.9.0"
