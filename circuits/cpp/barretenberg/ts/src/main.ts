@@ -294,7 +294,7 @@ program
 
 program
   .command('vk_as_fields')
-  .description('Return the verifiation key represented as fields elements. Also return the verification key hash.')
+  .description('Return the verification key represented as fields elements. Also return the verification key hash.')
   .requiredOption('-i, --input-path <path>', 'Specifies the vk path (output from write_vk)')
   .requiredOption('-o, --output-path <path>', 'Specify the JSON path to write the verification key fields and key hash')
   .action(async ({ inputPath, outputPath }) => {
