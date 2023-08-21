@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use noirc_errors::Span;
+
 use crate::{token::Attribute, FunctionReturnType, Ident, Pattern, Visibility};
 
 use super::{FunctionDefinition, UnresolvedType};
@@ -66,6 +68,9 @@ impl NoirFunction {
     }
     pub fn number_of_statements(&self) -> usize {
         self.def.body.0.len()
+    }
+    pub fn span(&self) -> Span {
+        self.def.span
     }
 
     pub fn foreign(&self) -> Option<&FunctionDefinition> {

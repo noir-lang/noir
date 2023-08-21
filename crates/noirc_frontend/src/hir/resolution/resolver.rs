@@ -92,6 +92,10 @@ pub struct Resolver<'a> {
     /// that are captured. We do this in order to create the hidden environment
     /// parameter for the lambda function.
     lambda_stack: Vec<LambdaContext>,
+
+    /// UnresolvedTypes currently don't have Spans, so if we hit an error while resolving a type
+    /// the best we can do is show the expression where the type is used
+    current_expr_span: Option<Span>,
 }
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -119,6 +123,7 @@ impl<'a> Resolver<'a> {
             errors: Vec::new(),
             lambda_stack: Vec::new(),
             file,
+            current_expr_span: None,
         }
     }
 
@@ -365,7 +370,19 @@ impl<'a> Resolver<'a> {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 let env = Box::new(self.resolve_type_inner(*env, new_variables));
-                Type::Function(args, ret, env)
+
+                match *env {
+                    Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_, _) => {
+                        Type::Function(args, ret, env)
+                    }
+                    _ => {
+                        self.push_err(ResolverError::InvalidClosureEnvironment {
+                            typ: *env,
+                            span: self.current_expr_span.unwrap(),
+                        });
+                        Type::Error
+                    }
+                }
             }
             UnresolvedType::MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
@@ -675,6 +692,7 @@ impl<'a> Resolver<'a> {
             parameter_types.push(typ);
         }
 
+        self.current_expr_span = Some(func.span());
         let return_type = Box::new(self.resolve_type(func.return_type()));
 
         self.declare_numeric_generics(&parameter_types, &return_type);
@@ -975,6 +993,8 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_expression(&mut self, expr: Expression) -> ExprId {
+        self.current_expr_span = Some(expr.span);
+
         let hir_expr = match expr.kind {
             ExpressionKind::Literal(literal) => HirExpression::Literal(match literal {
                 Literal::Bool(b) => HirLiteral::Bool(b),

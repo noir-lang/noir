@@ -969,23 +969,13 @@ fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
 where
     T: NoirParser<UnresolvedType>,
 {
-    let types = type_parser.clone().separated_by(just(Token::Comma)).allow_trailing();
-    let args = parenthesized(types.clone());
+    let args = parenthesized(type_parser.clone().separated_by(just(Token::Comma)).allow_trailing());
 
     let env = just(Token::LeftBracket)
-        .ignore_then(types)
+        .ignore_then(type_parser.clone())
         .then_ignore(just(Token::RightBracket))
         .or_not()
-        .map(|args| match args {
-            Some(args) => {
-                if args.is_empty() {
-                    UnresolvedType::Unit
-                } else {
-                    UnresolvedType::Tuple(args)
-                }
-            }
-            None => UnresolvedType::Unit,
-        });
+        .map(|t| t.unwrap_or(UnresolvedType::Unit));
 
     keyword(Keyword::Fn)
         .ignore_then(env)
