@@ -55,7 +55,7 @@ async function init(bytecodePath: string, crsPath: string) {
   await api.commonInitSlabAllocator(subgroupSize);
 
   // Load CRS into wasm global CRS state.
-  // TODO: Make RawBuffer be default behaviour, and have a specific Vector type for when wanting length prefixed.
+  // TODO: Make RawBuffer be default behavior, and have a specific Vector type for when wanting length prefixed.
   await api.srsInitSrs(new RawBuffer(crs.getG1Data()), crs.numPoints, new RawBuffer(crs.getG2Data()));
 
   const acirComposer = await api.acirNewAcirComposer(subgroupSize);
