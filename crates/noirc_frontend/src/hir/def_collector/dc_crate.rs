@@ -73,7 +73,6 @@ pub struct DefCollector {
     pub(crate) collected_globals: Vec<UnresolvedGlobal>,
     pub(crate) collected_impls: ImplMap,
     pub(crate) collected_traits_impls: ImplMap,
-
 }
 
 /// Maps the type and the module id in which the impl is defined to the functions contained in that
@@ -403,8 +402,8 @@ fn resolve_traits(
     _crate_id: CrateId,
     _errors: &mut [FileDiagnostic],
 ) {
-    for (type_id, typ) in &traits {
-        context.def_interner.push_empty_trait(*type_id, typ);
+    for (trait_id, unresolved_trait) in &traits {
+        context.def_interner.push_empty_trait(*trait_id, unresolved_trait);
     }
 }
 

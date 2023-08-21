@@ -7,7 +7,7 @@ use crate::{
     node_interner::{StructId, TraitId},
     parser::SubModule,
     FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
-    ParsedModule, TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnresolvedType,
+    ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnresolvedType,
 };
 
 use super::{
@@ -70,59 +70,32 @@ pub fn collect_defs(
     collector.collect_impls(context, ast.impls);
 }
 
-fn check_trait_method_implementation_generics(
-    _generics: &[Ident],
-    _noir_function: &NoirFunction,
-    _trait_name: &str,
-) -> Result<(), DefCollectorErrorKind> {
-    // TODO
-    Ok(())
-}
-
 fn check_trait_method_implementation_parameters(
-    parameters: &Vec<(Ident, UnresolvedType)>,
+    expected_parameters: &Vec<(Ident, UnresolvedType)>,
     noir_function: &NoirFunction,
     trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
-    let expected_num_parameters = parameters.len();
+    let expected_num_parameters = expected_parameters.len();
     let actual_num_parameters = noir_function.def.parameters.len();
     if actual_num_parameters != expected_num_parameters {
-        let method_name = noir_function.name();
-        let primary_message = format!(
-            "Mismatch - expected {expected_num_parameters} arguments, but got {actual_num_parameters} of trait `{trait_name}` implementation `{method_name}`");
-        return Err(DefCollectorErrorKind::MismatchTraitSignature {
-            primary_message,
-            secondary_message: "".to_string(),
-            span: noir_function.name_ident().span(),
+        return Err(DefCollectorErrorKind::MismatchTraitImplementationNumParameters {
+            actual_num_parameters,
+            expected_num_parameters,
+            trait_name: trait_name.clone(),
+            impl_ident: noir_function.name_ident().clone(),
         });
     }
-    for (count, (pattern, typ, _abi_vis)) in noir_function.def.parameters.iter().enumerate() {
-        let (_expected_name, expected_type) = &parameters[count];
+    for (count, (parameter, typ, _abi_vis)) in noir_function.def.parameters.iter().enumerate() {
+        let (_expected_name, expected_type) = &expected_parameters[count];
         if typ != expected_type {
-            return Err(DefCollectorErrorKind::MismatchTraitSignature {
-                primary_message: format!(
-                    "Mismatch signature of method {} that implemtns trait {}",
-                    noir_function.name(),
-                    trait_name,
-                ),
-                secondary_message: format!(
-                    "`{}: {}` expected",
-                    pattern.name_ident().0.contents,
-                    expected_type,
-                ),
-                span: pattern.name_ident().span(),
+            return Err(DefCollectorErrorKind::MismatchTraitImlementationParameter {
+                trait_name: trait_name.clone(),
+                expected_type: expected_type.clone(),
+                impl_method: noir_function.name().to_string(),
+                parameter: parameter.name_ident().clone(),
             });
         }
     }
-    Ok(())
-}
-
-fn check_trait_method_implementation_trait_constains(
-    _where_clause: &[TraitConstraint],
-    _noir_function: &NoirFunction,
-    _trait_name: &str,
-) -> Result<(), DefCollectorErrorKind> {
-    // TODO
     Ok(())
 }
 
@@ -134,15 +107,10 @@ fn check_trait_method_implementation_return_type(
     match return_type {
         FunctionReturnType::Default(_span) => Ok(()),
         FunctionReturnType::Ty(typ, _span) => {
-            if !(typ == &noir_function.return_type()) {
-                Err(DefCollectorErrorKind::MismatchTraitSignature {
-                    primary_message: format!(
-                        "Mismatch return type of method with name {} that implements trait {}",
-                        noir_function.name(),
-                        trait_name
-                    ),
-                    secondary_message: "".to_string(),
-                    span: noir_function.name_ident().span(),
+            if typ != &noir_function.return_type() {
+                Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
+                    trait_name: trait_name.clone(),
+                    impl_ident: noir_function.name_ident().clone(),
                 })
             } else {
                 Ok(())
@@ -158,27 +126,17 @@ fn check_trait_method_implementation(
     for item in &r#trait.items {
         if let TraitItem::Function {
             name,
-            generics,
+            generics: _,
             parameters,
             return_type,
-            where_clause,
+            where_clause: _,
             body: _,
         } = item
         {
             if name.0.contents == noir_function.def.name.0.contents {
-                // name matches, check for parameters, return type and where clause
-                check_trait_method_implementation_generics(
-                    generics,
-                    noir_function,
-                    &r#trait.name.0.contents,
-                )?;
+                // name matches, check for parameters - count and type, return type
                 check_trait_method_implementation_parameters(
                     parameters,
-                    noir_function,
-                    &r#trait.name.0.contents,
-                )?;
-                check_trait_method_implementation_trait_constains(
-                    where_clause,
                     noir_function,
                     &r#trait.name.0.contents,
                 )?;
@@ -193,10 +151,8 @@ fn check_trait_method_implementation(
     }
 
     Err(DefCollectorErrorKind::MethodNotInTrait {
-        trait_name: r#trait.name.0.contents.to_string(),
-        trait_span: r#trait.name.span(),
-        impl_method_name: noir_function.name().to_string(),
-        impl_method_span: noir_function.name_ident().span(),
+        trait_name: r#trait.name.clone(),
+        impl_method: noir_function.def.name.clone(),
     })
 }
 
@@ -310,14 +266,7 @@ impl<'a> ModCollector<'a> {
                 collected_implementations,
             ));
         } else {
-            let error = DefCollectorErrorKind::NotATrait {
-                primary_message: format!(
-                    "{} is not a trait, therefore it can't be implemented",
-                    trait_name
-                ),
-                secondary_message: "".to_string(),
-                span: trait_name.span(),
-            };
+            let error = DefCollectorErrorKind::NotATrait { not_a_trait_name: trait_name.clone() };
             errors.push(error.into_file_diagnostic(self.file_id));
         }
     }
@@ -333,13 +282,17 @@ impl<'a> ModCollector<'a> {
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
         for item in &trait_impl.items {
             if let TraitImplItem::Function(noir_function) = item {
-                match check_trait_method_implementation(trait_def, &noir_function) {
+                match check_trait_method_implementation(trait_def, noir_function) {
                     Ok(()) => {
                         let func_id = context.def_interner.push_empty_fn();
                         context
                             .def_interner
                             .push_function_definition(noir_function.name().to_owned(), func_id);
-                        unresolved_functions.push_fn(self.module_id, func_id, noir_function.clone());
+                        unresolved_functions.push_fn(
+                            self.module_id,
+                            func_id,
+                            noir_function.clone(),
+                        );
                     }
                     Err(error) => {
                         errors.push(error.into_file_diagnostic(self.file_id));
