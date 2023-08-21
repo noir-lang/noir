@@ -105,7 +105,15 @@ fn check_trait_method_implementation_return_type(
     trait_name: &String,
 ) -> Result<(), DefCollectorErrorKind> {
     match expected_return_type {
-        FunctionReturnType::Default(_span) => Ok(()),
+        FunctionReturnType::Default(_span) => match &impl_method.def.return_type {
+            FunctionReturnType::Default(_span) => Ok(()),
+            FunctionReturnType::Ty(_found_type, _span) => {
+                Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
+                    trait_name: trait_name.clone(),
+                    impl_ident: impl_method.name_ident().clone(),
+                })
+            }
+        },
         FunctionReturnType::Ty(expected_type, _span) => {
             if expected_type != &impl_method.return_type() {
                 Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
@@ -288,11 +296,7 @@ impl<'a> ModCollector<'a> {
                         context
                             .def_interner
                             .push_function_definition(impl_method.name().to_owned(), func_id);
-                        unresolved_functions.push_fn(
-                            self.module_id,
-                            func_id,
-                            impl_method.clone(),
-                        );
+                        unresolved_functions.push_fn(self.module_id, func_id, impl_method.clone());
                     }
                     Err(error) => {
                         errors.push(error.into_file_diagnostic(self.file_id));
