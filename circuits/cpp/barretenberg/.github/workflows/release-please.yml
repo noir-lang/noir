@@ -73,24 +73,6 @@ jobs:
           cd ts
           yarn install && yarn && yarn build
 
-      - name: Checkout destination repository
-        uses: actions/checkout@v3
-        with:
-          repository: AztecProtocol/dev-bb.js
-          path: ./dev-bb.js
-          token: ${{ secrets.AZTEC_BOT_GITHUB_TOKEN }}
-
-      - name: Push to destination repository
-        run: |
-          cd ./dev-bb.js
-          cp -R ../ts/dest/* .
-          git config --global user.name AztecBot
-          git config --global user.email tech@aztecprotocol.com
-          git checkout -b dev || git checkout dev
-          git add .
-          git commit -m "Tracking changes"
-          git push origin dev
-
       - name: Tar and GZip barretenberg.wasm
         run: tar -cvzf barretenberg.wasm.tar.gz cpp/build-wasm/bin/barretenberg.wasm
 
