@@ -121,7 +121,7 @@ fn check_trait_method_implementation_return_type(
 
 fn check_trait_method_implementation(
     r#trait: &NoirTrait,
-    noir_function: &NoirFunction,
+    impl_method: &NoirFunction,
 ) -> Result<(), DefCollectorErrorKind> {
     for item in &r#trait.items {
         if let TraitItem::Function {
@@ -133,16 +133,16 @@ fn check_trait_method_implementation(
             body: _,
         } = item
         {
-            if name.0.contents == noir_function.def.name.0.contents {
+            if name.0.contents == impl_method.def.name.0.contents {
                 // name matches, check for parameters - count and type, return type
                 check_trait_method_implementation_parameters(
                     parameters,
-                    noir_function,
+                    impl_method,
                     &r#trait.name.0.contents,
                 )?;
                 check_trait_method_implementation_return_type(
                     return_type,
-                    noir_function,
+                    impl_method,
                     &r#trait.name.0.contents,
                 )?;
                 return Ok(());
@@ -152,7 +152,7 @@ fn check_trait_method_implementation(
 
     Err(DefCollectorErrorKind::MethodNotInTrait {
         trait_name: r#trait.name.clone(),
-        impl_method: noir_function.def.name.clone(),
+        impl_method: impl_method.def.name.clone(),
     })
 }
 
@@ -281,24 +281,23 @@ impl<'a> ModCollector<'a> {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
         for item in &trait_impl.items {
-            if let TraitImplItem::Function(noir_function) = item {
-                match check_trait_method_implementation(trait_def, noir_function) {
+            if let TraitImplItem::Function(impl_method) = item {
+                match check_trait_method_implementation(trait_def, impl_method) {
                     Ok(()) => {
                         let func_id = context.def_interner.push_empty_fn();
                         context
                             .def_interner
-                            .push_function_definition(noir_function.name().to_owned(), func_id);
+                            .push_function_definition(impl_method.name().to_owned(), func_id);
                         unresolved_functions.push_fn(
                             self.module_id,
                             func_id,
-                            noir_function.clone(),
+                            impl_method.clone(),
                         );
                     }
                     Err(error) => {
                         errors.push(error.into_file_diagnostic(self.file_id));
                     }
                 }
-            } else {
             }
         }
         unresolved_functions
