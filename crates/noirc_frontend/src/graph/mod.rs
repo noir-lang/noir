@@ -127,17 +127,17 @@ impl CrateGraph {
         self.arena
             .keys()
             .find(|crate_id| crate_id.is_root())
-            .expect("Something about no crates in graph")
+            .expect("ICE: A root crate should exist in the CrateCraph")
     }
 
     pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
         for (crate_id, crate_data) in self.arena.iter() {
             if crate_id.is_root() {
-                panic!("Cannot add two crate roots to a graph. Use `add_crate` instead.");
+                panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
             }
 
             if crate_data.root_file_id == file_id {
-                return *crate_id;
+                panic!("ICE: This FileId was already added to the CrateGraph")
             }
         }
 
@@ -149,28 +149,40 @@ impl CrateGraph {
     }
 
     pub fn add_crate(&mut self, file_id: FileId) -> CrateId {
+        // Should this also be asserted that it only has exactly one match?
         let mut roots_with_file_id =
             self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
 
-        let next_file_id = roots_with_file_id.next();
-        if let Some(file_id) = next_file_id {
-            return *file_id.0;
+        match roots_with_file_id.next() {
+            Some((crate_id @ CrateId::Crate(_), _)) => *crate_id,
+            Some((CrateId::Root(_), _)) => {
+                panic!("ICE: Tried to re-add the root crate as a regular crate")
+            }
+            Some((CrateId::Stdlib(_), _)) => {
+                panic!("ICE: Tried to re-add the stdlib crate as a regular crate")
+            }
+            Some((CrateId::Dummy, _)) => {
+                panic!("ICE: A dummy CrateId should not exist in the CrateGraph")
+            }
+            None => {
+                let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
+                let crate_id = CrateId::Crate(self.arena.len());
+                let prev = self.arena.insert(crate_id, data);
+                assert!(prev.is_none());
+                crate_id
+            }
         }
-
-        let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
-        let crate_id = CrateId::Crate(self.arena.len());
-        let prev = self.arena.insert(crate_id, data);
-        assert!(prev.is_none());
-        crate_id
     }
 
     pub fn add_stdlib(&mut self, file_id: FileId) -> CrateId {
-        let mut roots_with_file_id =
-            self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
+        for (crate_id, crate_data) in self.arena.iter() {
+            if crate_id.is_stdlib() {
+                panic!("ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead");
+            }
 
-        let next_file_id = roots_with_file_id.next();
-        if let Some(file_id) = next_file_id {
-            return *file_id.0;
+            if crate_data.root_file_id == file_id {
+                panic!("ICE: This FileId was already added to the CrateGraph")
+            }
         }
 
         let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
@@ -329,5 +341,62 @@ mod tests {
         let crate3 = graph.add_crate(file_id_2);
         let crate3_2 = graph.add_crate(file_id_2);
         assert_eq!(crate3, crate3_2);
+    }
+
+    #[test]
+    #[should_panic = "ICE: Cannot add two crate roots to a graph - use `add_crate` instead"]
+    fn panics_if_adding_two_roots() {
+        let file_ids = dummy_file_ids(2);
+        let mut graph = CrateGraph::default();
+        let _ = graph.add_crate_root(file_ids[0]);
+        let _ = graph.add_crate_root(file_ids[1]);
+    }
+
+    #[test]
+    #[should_panic = "ICE: This FileId was already added to the CrateGraph"]
+    fn panics_if_adding_existing_file_as_root() {
+        let file_ids = dummy_file_ids(1);
+        let mut graph = CrateGraph::default();
+        let file_id_0 = file_ids[0];
+        let _ = graph.add_crate(file_id_0);
+        let _ = graph.add_crate_root(file_id_0);
+    }
+
+    #[test]
+    #[should_panic = "ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead"]
+    fn panics_if_adding_two_stdlib() {
+        let file_ids = dummy_file_ids(2);
+        let mut graph = CrateGraph::default();
+        let _ = graph.add_stdlib(file_ids[0]);
+        let _ = graph.add_stdlib(file_ids[1]);
+    }
+
+    #[test]
+    #[should_panic = "ICE: This FileId was already added to the CrateGraph"]
+    fn panics_if_adding_existing_file_as_stdlib() {
+        let file_ids = dummy_file_ids(1);
+        let mut graph = CrateGraph::default();
+        let file_id_0 = file_ids[0];
+        let _ = graph.add_crate(file_id_0);
+        let _ = graph.add_stdlib(file_id_0);
+    }
+
+    #[test]
+    #[should_panic = "ICE: Tried to re-add the root crate as a regular crate"]
+    fn panics_if_adding_root_as_regular() {
+        let file_ids = dummy_file_ids(1);
+        let mut graph = CrateGraph::default();
+        let file_id_0 = file_ids[0];
+        let _ = graph.add_crate_root(file_id_0);
+        let _ = graph.add_crate(file_id_0);
+    }
+    #[test]
+    #[should_panic = "ICE: Tried to re-add the stdlib crate as a regular crate"]
+    fn panics_if_adding_stdlib_as_regular() {
+        let file_ids = dummy_file_ids(1);
+        let mut graph = CrateGraph::default();
+        let file_id_0 = file_ids[0];
+        let _ = graph.add_stdlib(file_id_0);
+        let _ = graph.add_crate(file_id_0);
     }
 }
