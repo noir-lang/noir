@@ -941,12 +941,11 @@ fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
     recursive(|expr| {
         expression_with_precedence(
             Precedence::lowest_type_precedence(),
+            expr,
             nothing(),
-            expr.clone(),
             true,
             false,
         )
-        .or(parenthesized(expr))
     })
     .labelled(ParsingRuleLabel::TypeExpression)
     .try_map(UnresolvedTypeExpression::from_expr)
@@ -1057,13 +1056,13 @@ where
     P2: ExprParser + 'a,
 {
     if precedence == Precedence::Highest {
-        let expr_parser = if is_type_expression {
-            type_expression_term(expr_parser).boxed()
+        if is_type_expression {
+            type_expression_term(expr_parser).boxed().labelled(ParsingRuleLabel::Term)
         } else {
-            term(expr_parser, expr_no_constructors, allow_constructors).boxed()
-        };
-
-        expr_parser.clone().or(parenthesized(expr_parser)).boxed().labelled(ParsingRuleLabel::Term)
+            term(expr_parser, expr_no_constructors, allow_constructors)
+                .boxed()
+                .labelled(ParsingRuleLabel::Term)
+        }
     } else {
         let next_precedence =
             if is_type_expression { precedence.next_type_precedence() } else { precedence.next() };
@@ -1648,7 +1647,7 @@ mod test {
 
     #[test]
     fn parse_type_expression() {
-        parse_all(type_expression(), vec!["(123)", "123", "((1 + 1))", "(1 + (1))"]);
+        parse_all(type_expression(), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
     }
 
     #[test]
