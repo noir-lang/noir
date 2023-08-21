@@ -1,5 +1,3 @@
-use dep::std;
-
 struct Bar<T> {
     one: Field,
     two: Field,
@@ -7,7 +5,7 @@ struct Bar<T> {
 }
 
 fn foo<T>(bar: Bar<T>) {
-    std::assert_eq(bar.one, bar.two);
+    assert_eq(bar.one, bar.two);
 }
 
 struct BigInt<N> {
@@ -44,18 +42,18 @@ fn main(x: Field, y: Field) {
     let int1 = BigInt { limbs: [1] };
     let int2 = BigInt { limbs: [2] };
     let BigInt { limbs } = int1.second(int2).first(int1);
-    std::assert_eq(limbs, int2.limbs);
+    assert_eq(limbs, int2.limbs);
 
     // Test impl exclusively for Bar<Field>
-    std::assert_eq(bar1.get_other(), bar1.other);
+    assert_eq(bar1.get_other(), bar1.other);
 
     // Expected type error
-    // std::assert_eq(bar2.get_other(), bar2.other);
+    // assert_eq(bar2.get_other(), bar2.other);
 
     let one = x;
     let two = y;
     let nested_generics: Bar<Bar<Field>> = Bar { one, two, other: Bar { one, two, other: 0 } };
-    std::assert_eq(nested_generics.other.other, bar1.get_other());
+    assert_eq(nested_generics.other.other, bar1.get_other());
 
     let _ = regression_2055([1, 2, 3]);
 }

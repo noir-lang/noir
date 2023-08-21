@@ -9,11 +9,12 @@
 //
 // Not yet here: For R1CS, it is more about manipulating arithmetic gates to get performance
 // This can be done in ACIR!
+
 use dep::std;
 
 fn main(x: Field, result: [u8; 32]) {
     // We use the `as` keyword here to denote the fact that we want to take just the first byte from the x Field
     // The padding is taken care of by the program
     let digest = std::hash::sha256([x as u8]);
-    std::assert_eq(digest, result);
+    assert_eq(digest, result);
 }

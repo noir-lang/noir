@@ -1,8 +1,9 @@
-use dep::std;
-
 // Tests a very simple program.
 // 
 // The features being tested is blake2s in brillig
+
+use dep::std;
+
 fn main(x: [u8; 5], result: [u8; 32]) {
     assert(blake2s(x) == result);
 }

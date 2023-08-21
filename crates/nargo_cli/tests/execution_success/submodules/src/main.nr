@@ -7,10 +7,8 @@ fn main(x: u1, y: u1) {
 }
 
 mod mysubmodule {
-    use dep::std;
-
-    fn my_bool_or(x: u1, y: u1) {
-        std::assert_eq(x | y, 1);
+        fn my_bool_or(x: u1, y: u1) {
+        assert_eq(x | y, 1);
     }
 
     fn my_helper() {}

@@ -1,4 +1,3 @@
-use dep::std;
 use dep::std::option::Option;
 
 fn main() {
@@ -8,22 +7,22 @@ fn main() {
     assert(none.is_none());
     assert(some.is_some());
 
-    std::assert_eq(some.unwrap(), 3);
+    assert_eq(some.unwrap(), 3);
 
-    std::assert_eq(none.unwrap_or(2), 2);
-    std::assert_eq(some.unwrap_or(2), 3);
+    assert_eq(none.unwrap_or(2), 2);
+    assert_eq(some.unwrap_or(2), 3);
 
-    std::assert_eq(none.unwrap_or_else(|| 5), 5);
-    std::assert_eq(some.unwrap_or_else(|| 5), 3);
+    assert_eq(none.unwrap_or_else(|| 5), 5);
+    assert_eq(some.unwrap_or_else(|| 5), 3);
 
     assert(none.map(|x| x * 2).is_none());
-    std::assert_eq(some.map(|x| x * 2).unwrap(), 6);
+    assert_eq(some.map(|x| x * 2).unwrap(), 6);
 
-    std::assert_eq(none.map_or(0, |x| x * 2), 0);
-    std::assert_eq(some.map_or(0, |x| x * 2), 6);
+    assert_eq(none.map_or(0, |x| x * 2), 0);
+    assert_eq(some.map_or(0, |x| x * 2), 6);
 
-    std::assert_eq(none.map_or_else(|| 0, |x| x * 2), 0);
-    std::assert_eq(some.map_or_else(|| 0, |x| x * 2), 6);
+    assert_eq(none.map_or_else(|| 0, |x| x * 2), 0);
+    assert_eq(some.map_or_else(|| 0, |x| x * 2), 6);
 
     assert(none.and(none).is_none());
     assert(none.and(some).is_none());
@@ -35,7 +34,7 @@ fn main() {
     assert(none.and_then(|_value| Option::none()).is_none());
     assert(none.and_then(add1_u64).is_none());
     assert(some.and_then(|_value| Option::none()).is_none());
-    std::assert_eq(some.and_then(add1_u64).unwrap(), 4);
+    assert_eq(some.and_then(add1_u64).unwrap(), 4);
 
     assert(none.or(none).is_none());
     assert(none.or(some).is_some());

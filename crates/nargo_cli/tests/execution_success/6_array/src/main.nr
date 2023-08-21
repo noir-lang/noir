@@ -44,7 +44,7 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
 
     //Test 5:
     let cc = if z < 1 { x } else { y };
-    std::assert_eq(cc[0], y[0]);
+    assert_eq(cc[0], y[0]);
 
     // Test 6: for-each loops
     for y_elem in y {
@@ -56,5 +56,5 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
     // Test 7: Arrays of tuples/structs
     let mut tuple_array = [(1, 2), (3, 4), (5, 6)];
     tuple_array[1] = (7, 8);
-    std::assert_eq(tuple_array[1].1, 8);
+    assert_eq(tuple_array[1].1, 8);
 }

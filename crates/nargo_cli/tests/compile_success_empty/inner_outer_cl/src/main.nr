@@ -1,4 +1,3 @@
-use dep::std;
 
 fn main() {
     let z1 = 0;
@@ -10,5 +9,5 @@ fn main() {
         cl_inner(1) + z1
     };
     let result = cl_outer(1);
-    std::assert_eq(result, 3);
+    assert_eq(result, 3);
 }

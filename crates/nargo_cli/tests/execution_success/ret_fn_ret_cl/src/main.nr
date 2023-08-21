@@ -1,5 +1,3 @@
-use dep::std;
-
 fn f(x: Field) -> Field {
     x + 1
 }
@@ -29,11 +27,11 @@ fn ret_lambda() -> fn(Field) -> Field {
 
 fn main(x : Field) {
     let result_fn = ret_fn();
-    std::assert_eq(result_fn(x), x + 1);
+    assert_eq(result_fn(x), x + 1);
 
     // let result_closure = ret_closure();
-    // std::assert_eq(result_closure(x), x + 1);
+    // assert_eq(result_closure(x), x + 1);
 
     let result_lambda = ret_lambda();
-    std::assert_eq(result_lambda(x), x + 1);
+    assert_eq(result_lambda(x), x + 1);
 }

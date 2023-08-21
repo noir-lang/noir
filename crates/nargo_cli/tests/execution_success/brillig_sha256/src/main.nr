@@ -1,8 +1,9 @@
-use dep::std;
-
 // Tests a very simple program.
 // 
 // The features being tested is sha256 in brillig
+
+use dep::std;
+
 fn main(x: Field, result: [u8; 32]) {
     assert(result == sha256(x));
 }

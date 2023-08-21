@@ -1,5 +1,3 @@
-use dep::std;
-
 mod foo;
 mod baz;
 
@@ -24,15 +22,15 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
      let test_struct = Dummy { x: d, y: c };
 
      for i in 0..foo::MAGIC_NUMBER {
-          std::assert_eq(c[i], foo::MAGIC_NUMBER);
-          std::assert_eq(test_struct.y[i], foo::MAGIC_NUMBER);
+          assert_eq(c[i], foo::MAGIC_NUMBER);
+          assert_eq(test_struct.y[i], foo::MAGIC_NUMBER);
           assert(test_struct.y[i] != NESTED[1][0].v);
      }
 
      assert(N != M);
      
      let expected: u32 = 42;
-     std::assert_eq(foo::TYPE_INFERRED, expected);
+     assert_eq(foo::TYPE_INFERRED, expected);
 
      let mut y = 5;
      let mut x = M;
@@ -42,27 +40,27 @@ fn main(a: [Field; M + N - N], b: [Field; 30 + N / 2], c : pub [Field; foo::MAGI
           
           y = i;
      }
-     std::assert_eq(y, 24);
-     std::assert_eq(x, 10);
+     assert_eq(y, 24);
+     assert_eq(x, 10);
 
      let q = multiplyByM(3);
-     std::assert_eq(q, 96);
+     assert_eq(q, 96);
 
      arrays_neq(a, b);
 
      let t: [Field; T_LEN] = [N, M];
-     std::assert_eq(t[1], 32);
+     assert_eq(t[1], 32);
 
-     std::assert_eq(15, mysubmodule::my_helper());
+     assert_eq(15, mysubmodule::my_helper());
      
      let add_submodules_N = mysubmodule::N + foo::bar::N;
-     std::assert_eq(15, add_submodules_N);
+     assert_eq(15, add_submodules_N);
      let add_from_bar_N = mysubmodule::N + foo::bar::from_bar(1);
-     std::assert_eq(15, add_from_bar_N);
+     assert_eq(15, add_from_bar_N);
 
      // Example showing an array filled with (mysubmodule::N + 2) 0's
      let sugared = [0; mysubmodule::N + 2];
-     std::assert_eq(sugared[mysubmodule::N + 1], 0);
+     assert_eq(sugared[mysubmodule::N + 1], 0);
 
      let arr: [Field; mysubmodule::N] = [N; 10];
      assert((arr[0] == 5) & (arr[9] == 5));
@@ -80,13 +78,11 @@ fn arrays_neq(a: [Field; M], b: [Field; M]) {
 }
 
 mod mysubmodule {
-    use dep::std;
-
-    global N: Field = 10;
+        global N: Field = 10;
     global L: Field = 50;
 
     fn my_bool_or(x: u1, y: u1) {
-        std::assert_eq(x | y, 1);
+        assert_eq(x | y, 1);
     }
 
     fn my_helper() -> Field {

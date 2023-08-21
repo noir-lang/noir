@@ -1,5 +1,3 @@
-use dep::std;
-
 global ARRAY_LEN: u32 = 3;
 
 fn main(arr: [Field; ARRAY_LEN], x: u32) -> pub Field {

@@ -1,4 +1,3 @@
-use dep::std;
 
 fn main() {
     let field = 1000;
@@ -8,7 +7,7 @@ fn main() {
     for i in 0..16 {
         let x = be_bits[i];
         let y = le_bits[15-i];
-        std::assert_eq(x, y);
+        assert_eq(x, y);
     }
 
     let x = 3;
@@ -18,7 +17,7 @@ fn main() {
     for i in 0..4 {
         let be_bit = be_bits_x[i];
         let le_bit = le_bits_x[3-i];
-        std::assert_eq(be_bit, le_bit);
+        assert_eq(be_bit, le_bit);
     }
 
 }

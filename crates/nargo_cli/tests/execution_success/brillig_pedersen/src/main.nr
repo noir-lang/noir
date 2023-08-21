@@ -1,3 +1,4 @@
+
 use dep::std;
 
 unconstrained fn main(x: Field, y: Field, salt: Field, out_x: Field, out_y: Field ) {

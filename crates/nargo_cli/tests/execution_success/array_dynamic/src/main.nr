@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main(x: [u32; 5], mut z: u32, t: u32, index: [Field;5], index2: [Field;5], offset: Field, sublen: Field) {
     let idx = (z - 5*t - 5) as Field;
     //dynamic array test
@@ -14,20 +12,20 @@ fn main(x: [u32; 5], mut z: u32, t: u32, index: [Field;5], index2: [Field;5], of
     assert(s!=0);
 
     if 3 < (sublen as u32) {
-      std::assert_eq(index[offset + 3], index2[3]);
+      assert_eq(index[offset + 3], index2[3]);
     }
 }
 
 fn dyn_array(mut x: [u32; 5], y: Field, z: Field) {
-    std::assert_eq(x[y], 111);
-    std::assert_eq(x[z], 101);
+    assert_eq(x[y], 111);
+    assert_eq(x[z], 101);
     x[z] = 0;
-    std::assert_eq(x[y], 111);
-    std::assert_eq(x[1], 0);
+    assert_eq(x[y], 111);
+    assert_eq(x[1], 0);
     if y as u32 < 10 {
       x[y] = x[y] - 2;
     } else {
       x[y] = 0;
     }
-    std::assert_eq(x[4], 109);
+    assert_eq(x[4], 109);
 }

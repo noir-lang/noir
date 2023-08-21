@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main(mut x: Field) {
     let one = 1;
     let add1 = |z| {
@@ -12,9 +10,9 @@ fn main(mut x: Field) {
     };
 
     add1(&mut x);
-    std::assert_eq(x, 1);
+    assert_eq(x, 1);
 
     add2(&mut x);
-    std::assert_eq(x, 3);
+    assert_eq(x, 3);
 
 }
