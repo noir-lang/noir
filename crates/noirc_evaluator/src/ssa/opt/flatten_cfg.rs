@@ -143,7 +143,7 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
         value::{Value, ValueId},
     },
@@ -767,8 +767,6 @@ impl<'f> Context<'f> {
         instruction: Instruction,
         call_stack: CallStack,
     ) -> Instruction {
-        let assert_eq_id = self.inserter.function.dfg.import_intrinsic(Intrinsic::AssertEq);
-
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
                 Instruction::Constrain(lhs, rhs) => {
@@ -790,26 +788,6 @@ impl<'f> Context<'f> {
                         call_stack,
                     );
                     Instruction::Constrain(lhs, rhs)
-                }
-                Instruction::Call { func, arguments } if func == assert_eq_id => {
-                    // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
-
-                    // Condition needs to be cast to argument type in order to multiply them together.
-                    let argument_type = self.inserter.function.dfg.type_of_value(arguments[0]);
-                    let casted_condition = self.insert_instruction(
-                        Instruction::Cast(condition, argument_type),
-                        call_stack.clone(),
-                    );
-
-                    let lhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, arguments[0], casted_condition),
-                        call_stack.clone(),
-                    );
-                    let rhs = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, arguments[1], casted_condition),
-                        call_stack,
-                    );
-                    Instruction::Call { func, arguments: vec![lhs, rhs] }
                 }
                 Instruction::Store { address, value } => {
                     self.remember_store(address, value);

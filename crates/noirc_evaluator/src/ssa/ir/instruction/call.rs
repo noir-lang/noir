@@ -30,20 +30,6 @@ pub(super) fn simplify_call(
         arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
 
     match intrinsic {
-        Intrinsic::AssertEq => {
-            if let Some(constant_args) = constant_args {
-                if constant_args[0] == constant_args[1] {
-                    SimplifyResult::Remove
-                } else {
-                    SimplifyResult::None
-                }
-            } else if dfg.resolve(arguments[0]) == dfg.resolve(arguments[1]) {
-                // Remove trivial case `assert_eq(x, x)`
-                SimplifyResult::Remove
-            } else {
-                SimplifyResult::None
-            }
-        }
         Intrinsic::ToBits(endian) => {
             if let Some(constant_args) = constant_args {
                 let field = constant_args[0];
