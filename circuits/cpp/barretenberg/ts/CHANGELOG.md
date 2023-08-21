@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.4.0...barretenberg.js-v0.4.1) (2023-08-21)
+
+
+### Bug Fixes
+
+* **bb:** Fix Typo ([#1709](https://github.com/AztecProtocol/barretenberg/issues/1709)) ([286d64e](https://github.com/AztecProtocol/barretenberg/commit/286d64e6036336314114f1d2a25273f4dabe36f4))
+
 ## [0.4.0](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.6...barretenberg.js-v0.4.0) (2023-08-21)
 
 
