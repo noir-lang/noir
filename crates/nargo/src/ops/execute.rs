@@ -6,13 +6,13 @@ use crate::NargoError;
 
 use super::foreign_calls::ForeignCall;
 
-pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
-    _backend: &B,
+pub fn execute_circuit<B: BlackBoxFunctionSolver>(
+    backend: &B,
     circuit: Circuit,
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<WitnessMap, NargoError> {
-    let mut acvm = ACVM::new(B::default(), circuit.opcodes, initial_witness);
+    let mut acvm = ACVM::new(backend, circuit.opcodes, initial_witness, circuit.assert_messages);
 
     loop {
         let solver_status = acvm.solve();

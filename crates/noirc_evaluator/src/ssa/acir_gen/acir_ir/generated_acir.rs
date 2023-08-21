@@ -3,13 +3,12 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    brillig::brillig_gen::brillig_directive,
+    brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::BrilligCode},
     errors::{InternalError, RuntimeError},
     ssa::ir::dfg::CallStack,
 };
 
 use acvm::acir::{
-    brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
@@ -45,12 +44,15 @@ pub(crate) struct GeneratedAcir {
     /// All witness indices which are inputs to the main function
     pub(crate) input_witnesses: Vec<Witness>,
 
-    /// Correspondance between an opcode index (in opcodes) and the source code call stack which generated it
+    /// Correspondence between an opcode index (in opcodes) and the source code call stack which generated it
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
     pub(crate) call_stack: CallStack,
+
+    /// Correspondence between an opcode index and the error message associated with it.
+    pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
 }
 
 impl GeneratedAcir {
@@ -63,8 +65,7 @@ impl GeneratedAcir {
     fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
         if !self.call_stack.is_empty() {
-            self.locations
-                .insert(OpcodeLocation::Acir(self.opcodes.len() - 1), self.call_stack.clone());
+            self.locations.insert(self.last_acir_opcode_location(), self.call_stack.clone());
         }
     }
 
@@ -784,7 +785,7 @@ impl GeneratedAcir {
     pub(crate) fn brillig(
         &mut self,
         predicate: Option<Expression>,
-        code: Vec<BrilligOpcode>,
+        code: BrilligCode,
         inputs: Vec<BrilligInputs>,
         outputs: Vec<BrilligOutputs>,
     ) {
@@ -792,10 +793,16 @@ impl GeneratedAcir {
             inputs,
             outputs,
             foreign_call_results: Vec::new(),
-            bytecode: code,
+            bytecode: code.byte_code,
             predicate,
         });
         self.push_opcode(opcode);
+        code.assert_messages.into_iter().for_each(|(brillig_index, message)| {
+            self.assert_messages.insert(
+                OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
+                message,
+            );
+        });
     }
 
     /// Generate gates and control bits witnesses which ensure that out_expr is a permutation of in_expr
@@ -830,6 +837,10 @@ impl GeneratedAcir {
             self.push_opcode(AcirOpcode::Arithmetic(b - o));
         }
         Ok(())
+    }
+
+    pub(crate) fn last_acir_opcode_location(&self) -> OpcodeLocation {
+        OpcodeLocation::Acir(self.opcodes.len() - 1)
     }
 }
 

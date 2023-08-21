@@ -20,12 +20,13 @@ use super::{
     },
     ssa_gen::Ssa,
 };
+use crate::brillig::brillig_ir::artifact::BrilligCode;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, RuntimeError};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
-    acir::{brillig::Opcode, circuit::opcodes::BlockId, native_types::Expression},
+    acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
 use iter_extended::{try_vecmap, vecmap};
@@ -327,9 +328,9 @@ impl Context {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
                 self.define_result_var(dfg, instruction_id, result_acir_var);
             }
-            Instruction::Constrain(value_id) => {
+            Instruction::Constrain(value_id, assert_message) => {
                 let constrain_condition = self.convert_numeric_value(*value_id, dfg)?;
-                self.acir_context.assert_eq_one(constrain_condition)?;
+                self.acir_context.assert_eq_one(constrain_condition, assert_message.clone())?;
             }
             Instruction::Cast(value_id, typ) => {
                 let result_acir_var = self.convert_ssa_cast(value_id, typ, dfg)?;
@@ -435,7 +436,7 @@ impl Context {
         &self,
         func: &Function,
         brillig: &Brillig,
-    ) -> Result<Vec<Opcode>, InternalError> {
+    ) -> Result<BrilligCode, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             BrilligFunctionContext::parameters(func),

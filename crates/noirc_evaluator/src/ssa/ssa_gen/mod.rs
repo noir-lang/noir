@@ -77,8 +77,8 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
-            Expression::Constrain(constrain, location) => {
-                self.codegen_constrain(constrain, *location)
+            Expression::Constrain(constrain, location, assert_message) => {
+                self.codegen_constrain(constrain, *location, assert_message.clone())
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
@@ -130,7 +130,10 @@ impl<'a> FunctionContext<'a> {
                         let slice_contents = self.codegen_array(elements, typ[1].clone());
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
-                    _ => unreachable!("ICE: array literal type must be an array or a slice, but got {}", array.typ),
+                    _ => unreachable!(
+                        "ICE: array literal type must be an array or a slice, but got {}",
+                        array.typ
+                    ),
                 }
             }
             ast::Literal::Integer(value, typ) => {
@@ -334,7 +337,7 @@ impl<'a> FunctionContext<'a> {
         };
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-        self.builder.insert_constrain(is_offset_out_of_bounds);
+        self.builder.insert_constrain(is_offset_out_of_bounds, None);
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
@@ -507,9 +510,14 @@ impl<'a> FunctionContext<'a> {
         Self::unit_value()
     }
 
-    fn codegen_constrain(&mut self, expr: &Expression, location: Location) -> Values {
+    fn codegen_constrain(
+        &mut self,
+        expr: &Expression,
+        location: Location,
+        assert_message: Option<String>,
+    ) -> Values {
         let boolean = self.codegen_non_tuple_expression(expr);
-        self.builder.set_location(location).insert_constrain(boolean);
+        self.builder.set_location(location).insert_constrain(boolean, assert_message);
         Self::unit_value()
     }
 

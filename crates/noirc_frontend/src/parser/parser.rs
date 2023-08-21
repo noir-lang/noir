@@ -684,7 +684,7 @@ where
         keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
         expr_parser,
     )
-    .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+    .map(|expr| Statement::Constrain(ConstrainStatement(expr, None)))
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
         expr
@@ -695,9 +695,29 @@ fn assertion<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
+    ignore_then_commit(keyword(Keyword::Assert), parenthesized(expression_list(expr_parser)))
         .labelled(ParsingRuleLabel::Statement)
-        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
+        .validate(|expressions, span, emit| {
+            let condition = expressions.get(0);
+            if condition.is_none() {
+                emit(ParserError::with_reason(ParserErrorReason::EmptyAssert, span));
+            }
+
+            let mut message_str = None;
+
+            if let Some(message) = expressions.get(1) {
+                if let ExpressionKind::Literal(Literal::Str(message)) = &message.kind {
+                    message_str = Some(message.clone());
+                } else {
+                    emit(ParserError::with_reason(ParserErrorReason::AssertMessageNotString, span));
+                }
+            }
+
+            (condition.unwrap().clone(), message_str)
+        })
+        .map(|(condition_expression, message)| {
+            Statement::Constrain(ConstrainStatement(condition_expression, message))
+        })
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a

@@ -93,27 +93,31 @@ fn execute_package<B: Backend>(
 
 fn extract_unsatisfied_constraint_from_nargo_error(
     nargo_err: &NargoError,
-) -> Option<OpcodeLocation> {
+) -> (Option<OpcodeLocation>, Option<String>) {
     let solving_err = match nargo_err {
         nargo::NargoError::SolvingError(err) => err,
-        _ => return None,
+        _ => return (None, None),
     };
 
     match solving_err {
         acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: error_location,
+            assert_message,
         } => match error_location {
             ErrorLocation::Unresolved => {
                 unreachable!("Cannot resolve index for unsatisfied constraint")
             }
-            ErrorLocation::Resolved(opcode_location) => Some(*opcode_location),
+            ErrorLocation::Resolved(opcode_location) => {
+                (Some(*opcode_location), assert_message.clone())
+            }
         },
-        _ => None,
+        _ => (None, None),
     }
 }
 
 fn report_unsatisfied_constraint_error(
     opcode_location: Option<OpcodeLocation>,
+    assert_message: Option<String>,
     debug: &DebugInfo,
     context: &Context,
 ) {
@@ -122,11 +126,17 @@ fn report_unsatisfied_constraint_error(
             // The location of the error itself will be the location at the top
             // of the call stack (the last item in the Vec).
             if let Some(location) = locations.last() {
-                let message = "Failed constraint".into();
-                CustomDiagnostic::simple_error(message, String::new(), location.span)
-                    .in_file(location.file)
-                    .with_call_stack(locations)
-                    .report(&context.file_manager, false);
+                CustomDiagnostic::simple_error(
+                    assert_message.map_or_else(
+                        || "Assertion failed".into(),
+                        |msg| format!("Assertion failed '{}'", msg),
+                    ),
+                    String::new(),
+                    location.span,
+                )
+                .in_file(location.file)
+                .with_call_stack(locations)
+                .report(&context.file_manager, false);
             }
         }
     }
@@ -145,8 +155,14 @@ pub(crate) fn execute_program<B: Backend>(
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {
             if let Some((debug, context)) = debug_data {
-                let opcode_location = extract_unsatisfied_constraint_from_nargo_error(&err);
-                report_unsatisfied_constraint_error(opcode_location, &debug, &context);
+                let (opcode_location, assert_message): (Option<OpcodeLocation>, Option<String>) =
+                    extract_unsatisfied_constraint_from_nargo_error(&err);
+                report_unsatisfied_constraint_error(
+                    opcode_location,
+                    assert_message,
+                    &debug,
+                    &context,
+                );
             }
 
             Err(crate::errors::CliError::NargoError(err))

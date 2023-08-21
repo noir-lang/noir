@@ -92,6 +92,7 @@ pub fn create_circuit(
         return_witnesses,
         locations,
         input_witnesses,
+        assert_messages,
         ..
     } = optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
 
@@ -113,6 +114,7 @@ pub fn create_circuit(
         private_parameters,
         public_parameters,
         return_values,
+        assert_messages,
     };
 
     // This converts each im::Vector in the BTreeMap to a Vec

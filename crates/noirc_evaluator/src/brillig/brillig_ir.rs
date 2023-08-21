@@ -104,7 +104,7 @@ impl BrilligContext {
 
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
-        self.obj.byte_code.push(opcode);
+        self.obj.push_opcode(opcode);
     }
 
     /// Returns the artifact
@@ -359,13 +359,20 @@ impl BrilligContext {
 impl BrilligContext {
     /// Emits brillig bytecode to jump to a trap condition if `condition`
     /// is false.
-    pub(crate) fn constrain_instruction(&mut self, condition: RegisterIndex) {
+    pub(crate) fn constrain_instruction(
+        &mut self,
+        condition: RegisterIndex,
+        assert_message: Option<String>,
+    ) {
         self.debug_show.constrain_instruction(condition);
         self.add_unresolved_jump(
             BrilligOpcode::JumpIf { condition, location: 0 },
             self.next_section_label(),
         );
         self.push_opcode(BrilligOpcode::Trap);
+        if let Some(assert_message) = assert_message {
+            self.obj.add_assert_message_to_last_opcode(assert_message);
+        }
         self.enter_next_section();
     }
 
@@ -970,7 +977,7 @@ pub(crate) mod tests {
 
     use crate::brillig::brillig_ir::BrilligContext;
 
-    use super::artifact::BrilligParameter;
+    use super::artifact::{BrilligCode, BrilligParameter};
     use super::{BrilligOpcode, ReservedRegisters};
 
     pub(crate) struct DummyBlackBoxSolver;
@@ -1010,7 +1017,7 @@ pub(crate) mod tests {
         context: BrilligContext,
         arguments: Vec<BrilligParameter>,
         returns: Vec<BrilligParameter>,
-    ) -> Vec<BrilligOpcode> {
+    ) -> BrilligCode {
         let artifact = context.artifact();
         let mut entry_point_artifact =
             BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
@@ -1028,7 +1035,7 @@ pub(crate) mod tests {
         let mut vm = VM::new(
             Registers { inner: param_registers },
             memory,
-            create_entry_point_bytecode(context, arguments, returns),
+            create_entry_point_bytecode(context, arguments, returns).byte_code,
             vec![],
             &DummyBlackBoxSolver,
         );

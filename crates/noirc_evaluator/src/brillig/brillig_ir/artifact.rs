@@ -1,5 +1,5 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Represents a parameter or a return value of a function.
 #[derive(Debug, Clone)]
@@ -9,11 +9,20 @@ pub(crate) enum BrilligParameter {
     Slice(Vec<BrilligParameter>),
 }
 
+/// Compiled, linked and ready to run brillig code.
+#[derive(Debug, Clone)]
+pub(crate) struct BrilligCode {
+    pub(crate) byte_code: Vec<BrilligOpcode>,
+    pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
+}
+
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
-/// Currently it is just the brillig bytecode of the function.
+/// It includes the bytecode of the function and all the metadata that allows linking with other functions.
 pub(crate) struct BrilligArtifact {
     pub(crate) byte_code: Vec<BrilligOpcode>,
+    /// A map of bytecode positions to assertion messages
+    pub(crate) assert_messages: BTreeMap<OpcodeLocation, String>,
     /// The set of jumps that need to have their locations
     /// resolved.
     unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
@@ -52,9 +61,9 @@ pub(crate) type UnresolvedJumpLocation = Label;
 
 impl BrilligArtifact {
     /// Resolves all jumps and generates the final bytecode
-    pub(crate) fn finish(mut self) -> Vec<BrilligOpcode> {
+    pub(crate) fn finish(mut self) -> BrilligCode {
         self.resolve_jumps();
-        self.byte_code
+        BrilligCode { byte_code: self.byte_code, assert_messages: self.assert_messages }
     }
 
     /// Gets the first unresolved function call of this artifact.
@@ -116,11 +125,20 @@ impl BrilligArtifact {
             self.unresolved_external_call_labels
                 .push((position_in_bytecode + offset, label_id.clone()));
         }
+
+        for (position_in_bytecode, message) in &obj.assert_messages {
+            self.assert_messages.insert(position_in_bytecode + offset, message.clone());
+        }
     }
 
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
         self.byte_code.push(opcode);
+    }
+
+    pub(crate) fn add_assert_message_to_last_opcode(&mut self, message: String) {
+        let position = self.index_of_next_opcode() - 1;
+        self.assert_messages.insert(position, message);
     }
 
     /// Adds a unresolved jump to be fixed at the end of bytecode processing.

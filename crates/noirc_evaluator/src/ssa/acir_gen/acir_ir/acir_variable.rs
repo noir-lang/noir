@@ -1,16 +1,14 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
+use crate::brillig::brillig_ir::artifact::BrilligCode;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::types::Type as SsaType;
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
+use acvm::acir::circuit::brillig::{BrilligInputs, BrilligOutputs};
 use acvm::acir::circuit::opcodes::{BlockId, MemOp};
 use acvm::acir::circuit::Opcode;
-use acvm::acir::{
-    brillig::Opcode as BrilligOpcode,
-    circuit::brillig::{BrilligInputs, BrilligOutputs},
-};
 use acvm::brillig_vm::{brillig::Value, Registers, VMStatus, VM};
 use acvm::{
     acir::{
@@ -233,9 +231,17 @@ impl AcirContext {
     }
 
     // Constrains `var` to be equal to the constant value `1`
-    pub(crate) fn assert_eq_one(&mut self, var: AcirVar) -> Result<(), RuntimeError> {
+    pub(crate) fn assert_eq_one(
+        &mut self,
+        var: AcirVar,
+        assert_message: Option<String>,
+    ) -> Result<(), RuntimeError> {
         let one = self.add_constant(FieldElement::one());
-        self.assert_eq_var(var, one)
+        self.assert_eq_var(var, one)?;
+        if let Some(message) = assert_message {
+            self.acir_ir.assert_messages.insert(self.acir_ir.last_acir_opcode_location(), message);
+        }
+        Ok(())
     }
 
     // Constrains `var` to be equal to predicate if the predicate is true
@@ -847,7 +853,7 @@ impl AcirContext {
     pub(crate) fn brillig(
         &mut self,
         predicate: AcirVar,
-        code: Vec<BrilligOpcode>,
+        code: BrilligCode,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
     ) -> Result<Vec<AcirValue>, InternalError> {
@@ -963,7 +969,7 @@ impl AcirContext {
 
     fn execute_brillig(
         &mut self,
-        code: Vec<BrilligOpcode>,
+        code: BrilligCode,
         inputs: &[BrilligInputs],
         outputs_types: &[AcirType],
     ) -> Option<Vec<AcirValue>> {
@@ -1188,10 +1194,7 @@ pub(crate) struct AcirVar(usize);
 /// Returns the finished state of the Brillig VM if execution can complete.
 ///
 /// Returns `None` if complete execution of the Brillig bytecode is not possible.
-fn execute_brillig(
-    code: Vec<BrilligOpcode>,
-    inputs: &[BrilligInputs],
-) -> Option<(Registers, Vec<Value>)> {
+fn execute_brillig(code: BrilligCode, inputs: &[BrilligInputs]) -> Option<(Registers, Vec<Value>)> {
     struct NullBbSolver;
 
     impl BlackBoxFunctionSolver for NullBbSolver {
@@ -1244,7 +1247,7 @@ fn execute_brillig(
 
     // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
     let input_registers = Registers::load(input_register_values);
-    let mut vm = VM::new(input_registers, input_memory, code, Vec::new(), &NullBbSolver);
+    let mut vm = VM::new(input_registers, input_memory, code.byte_code, Vec::new(), &NullBbSolver);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
     let vm_status = vm.process_opcodes();

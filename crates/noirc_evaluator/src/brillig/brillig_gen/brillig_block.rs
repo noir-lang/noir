@@ -212,9 +212,9 @@ impl<'block> BrilligBlock<'block> {
                 );
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
-            Instruction::Constrain(value) => {
+            Instruction::Constrain(value, assert_message) => {
                 let condition = self.convert_ssa_register_value(*value, dfg);
-                self.brillig_context.constrain_instruction(condition);
+                self.brillig_context.constrain_instruction(condition, assert_message.clone());
             }
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];

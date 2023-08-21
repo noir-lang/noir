@@ -769,7 +769,7 @@ impl<'f> Context<'f> {
     ) -> Instruction {
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
-                Instruction::Constrain(value) => {
+                Instruction::Constrain(value, message) => {
                     let mul = self.insert_instruction(
                         Instruction::binary(BinaryOp::Mul, value, condition),
                         call_stack.clone(),
@@ -778,7 +778,7 @@ impl<'f> Context<'f> {
                         Instruction::binary(BinaryOp::Eq, mul, condition),
                         call_stack,
                     );
-                    Instruction::Constrain(eq)
+                    Instruction::Constrain(eq, message)
                 }
                 Instruction::Store { address, value } => {
                     self.remember_store(address, value);
@@ -894,7 +894,7 @@ mod test {
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        builder.insert_constrain(v1);
+        builder.insert_constrain(v1, None);
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
@@ -1352,7 +1352,7 @@ mod test {
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
-        builder.insert_constrain(v_false); // should not be removed
+        builder.insert_constrain(v_false, None); // should not be removed
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1360,7 +1360,7 @@ mod test {
 
         // Assert we have not incorrectly removed a constraint:
         use Instruction::Constrain;
-        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_)));
+        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(..)));
         assert_eq!(constrain_count, 1);
     }
 
@@ -1435,7 +1435,7 @@ mod test {
         builder.switch_to_block(b3);
         let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
         let v12 = builder.insert_binary(v9, BinaryOp::Eq, b_true);
-        builder.insert_constrain(v12);
+        builder.insert_constrain(v12, None);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1444,7 +1444,7 @@ mod test {
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
-            if let Instruction::Constrain(value) = main.dfg[*instruction] {
+            if let Instruction::Constrain(value, None) = main.dfg[*instruction] {
                 if let Some(constant) = main.dfg.get_numeric_constant(value) {
                     assert!(constant.is_one());
                 }

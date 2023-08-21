@@ -238,8 +238,8 @@ impl FunctionBuilder {
     }
 
     /// Insert a constrain instruction at the end of the current block.
-    pub(crate) fn insert_constrain(&mut self, boolean: ValueId) {
-        self.insert_instruction(Instruction::Constrain(boolean), None);
+    pub(crate) fn insert_constrain(&mut self, boolean: ValueId, assert_message: Option<String>) {
+        self.insert_instruction(Instruction::Constrain(boolean, assert_message), None);
     }
 
     /// Insert a call instruction at the end of the current block and return

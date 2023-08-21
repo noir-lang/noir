@@ -31,6 +31,10 @@ pub enum ParserErrorReason {
     ExperimentalFeature(&'static str),
     #[error("Where clauses are allowed only on functions with generic parameters")]
     WhereClauseOnNonGenericFunction,
+    #[error("Assert statements need a boolean expression")]
+    EmptyAssert,
+    #[error("Assert statements can only accept literal string messages")]
+    AssertMessageNotString,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

@@ -145,9 +145,10 @@ pub(crate) fn display_instruction(
             let value = show(*value);
             writeln!(f, "truncate {value} to {bit_size} bits, max_bit_size: {max_bit_size}",)
         }
-        Instruction::Constrain(value) => {
-            writeln!(f, "constrain {}", show(*value))
-        }
+        Instruction::Constrain(value, message) => match message {
+            Some(message) => writeln!(f, "constrain {} '{message}'", show(*value)),
+            None => writeln!(f, "constrain {}", show(*value)),
+        },
         Instruction::Call { func, arguments } => {
             writeln!(f, "call {}({})", show(*func), value_list(function, arguments))
         }
