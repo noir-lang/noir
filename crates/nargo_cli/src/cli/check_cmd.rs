@@ -5,7 +5,7 @@ use iter_extended::btree_map;
 use nargo::{package::Package, prepare_package};
 use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::{check_crate, compute_function_signature, CompileOptions};
+use noirc_driver::{check_crate, compute_function_abi, CompileOptions};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::Context,
@@ -56,7 +56,7 @@ fn check_package(package: &Package, compile_options: &CompileOptions) -> Result<
         Ok(())
     } else {
         // XXX: We can have a --overwrite flag to determine if you want to overwrite the Prover/Verifier.toml files
-        if let Some((parameters, return_type)) = compute_function_signature(&context, &crate_id) {
+        if let Some((parameters, return_type)) = compute_function_abi(&context, &crate_id) {
             let path_to_prover_input = package.prover_input_path();
             let path_to_verifier_input = package.verifier_input_path();
 
