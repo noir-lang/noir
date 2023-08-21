@@ -382,8 +382,7 @@ pub enum FunctionReturnType {
 
 /// Describes the types of smart contract functions that are allowed.
 /// - All Noir programs in the non-contract context can be seen as `Secret`.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ContractFunctionType {
     /// This function will be executed in a private
     /// context.
