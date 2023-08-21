@@ -69,6 +69,7 @@ fn main() {
     let z: u64 = 40;
     assert(accepts_closure3(|| y as u64 + z) == 70);
 
+    let w = 50;
     assert(add_results(|| 100, || x ) == 150);
     assert(add_results(|| x + 100, || w + x ) == 250);
 
