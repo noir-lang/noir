@@ -189,7 +189,7 @@ impl AcirContext {
 
             (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
                 if lhs_expr.is_linear() && rhs_expr.is_linear() {
-                    // If both expressions are linear, choose the one with the fewest terms
+                    // If both expressions are linear, choose the one with the fewest terms.
                     let expr = if lhs_expr.linear_combinations.len()
                         <= rhs_expr.linear_combinations.len()
                     {
