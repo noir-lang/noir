@@ -771,17 +771,25 @@ impl<'f> Context<'f> {
 
         if let Some((_, condition)) = self.conditions.last().copied() {
             match instruction {
-                Instruction::Constrain(value) => {
-                    // Replace constraint `value == 1` with `condition * value == condition`.
-                    let mul = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Mul, value, condition),
+                Instruction::Constrain(lhs, rhs) => {
+                    // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
+
+                    // Condition needs to be cast to argument type in order to multiply them together.
+                    let argument_type = self.inserter.function.dfg.type_of_value(lhs);
+                    let casted_condition = self.insert_instruction(
+                        Instruction::Cast(condition, argument_type),
                         call_stack.clone(),
                     );
-                    let eq = self.insert_instruction(
-                        Instruction::binary(BinaryOp::Eq, mul, condition),
+
+                    let lhs = self.insert_instruction(
+                        Instruction::binary(BinaryOp::Mul, lhs, casted_condition),
+                        call_stack.clone(),
+                    );
+                    let rhs = self.insert_instruction(
+                        Instruction::binary(BinaryOp::Mul, rhs, casted_condition),
                         call_stack,
                     );
-                    Instruction::Constrain(eq)
+                    Instruction::Constrain(lhs, rhs)
                 }
                 Instruction::Call { func, arguments } if func == assert_eq_id => {
                     // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
@@ -1383,7 +1391,7 @@ mod test {
 
         // Assert we have not incorrectly removed a constraint:
         use Instruction::Constrain;
-        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_)));
+        let constrain_count = count_instruction(main, |ins| matches!(ins, Constrain(_, _)));
         assert_eq!(constrain_count, 1);
     }
 
@@ -1467,9 +1475,11 @@ mod test {
         // Now assert that there is not an always-false constraint after flattening:
         let mut constrain_count = 0;
         for instruction in main.dfg[main.entry_block()].instructions() {
-            if let Instruction::Constrain(value) = main.dfg[*instruction] {
-                if let Some(constant) = main.dfg.get_numeric_constant(value) {
-                    assert!(constant.is_one());
+            if let Instruction::Constrain(lhs, rhs) = main.dfg[*instruction] {
+                if let (Some(lhs), Some(rhs)) =
+                    (main.dfg.get_numeric_constant(lhs), main.dfg.get_numeric_constant(rhs))
+                {
+                    assert_eq!(lhs, rhs);
                 }
                 constrain_count += 1;
             }
