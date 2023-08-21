@@ -161,7 +161,7 @@ fn convert_diagnostic(
             .iter()
             .map(|sl| {
                 let start_span = sl.span.start() as usize;
-                let end_span = sl.span.end() as usize + 1;
+                let end_span = sl.span.end() as usize;
                 Label::secondary(file_id.as_usize(), start_span..end_span).with_message(&sl.message)
             })
             .collect()

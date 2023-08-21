@@ -67,7 +67,7 @@ impl<'a> Lexer<'a> {
         if self.peek_char_is('&') {
             // When we issue this error the first '&' will already be consumed
             // and the next token issued will be the next '&'.
-            let span = Span::new(self.position..self.position + 1);
+            let span = Span::inclusive(self.position, self.position + 1);
             Err(LexerErrorKind::LogicalAnd { span })
         } else {
             self.single_char_token(Token::Ampersand)
@@ -331,7 +331,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn parse_block_comment(&mut self) -> SpannedTokenResult {
-        let span = Span::new(self.position..self.position + 1);
+        let start = self.position;
         let mut depth = 1usize;
 
         while let Some(ch) = self.next_char() {
@@ -358,6 +358,7 @@ impl<'a> Lexer<'a> {
         if depth == 0 {
             self.next_token()
         } else {
+            let span = Span::inclusive(start, self.position);
             Err(LexerErrorKind::UnterminatedBlockComment { span })
         }
     }

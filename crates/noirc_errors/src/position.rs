@@ -33,7 +33,7 @@ impl<T: Hash> Hash for Spanned<T> {
 
 impl<T> Spanned<T> {
     pub fn from_position(start: Position, end: Position, contents: T) -> Spanned<T> {
-        Spanned { span: Span(ByteSpan::new(start, end)), contents }
+        Spanned { span: Span::inclusive(start, end), contents }
     }
 
     pub const fn from(t_span: Span, contents: T) -> Spanned<T> {
