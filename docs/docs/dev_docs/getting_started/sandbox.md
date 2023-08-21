@@ -24,7 +24,9 @@ Well, you can find instructions [at the website](https://up.aztec.network).
 
 Or you can just curl the site instead like this:
 
-`/bin/bash -c "$(curl -fsSL 'https://up.aztec.network')"`
+```sh
+/bin/bash -c "$(curl -fsSL 'https://up.aztec.network')"
+```
 
 It will download and execute a script invoking docker compose with 2 containers:
 
@@ -33,11 +35,11 @@ It will download and execute a script invoking docker compose with 2 containers:
 
 It will need to create servers on localhost ports 8545 (Anvil) and 8080 (Sandbox) so you will need to ensure nothing conflicts with this.
 
-Within a few seconds the Sandbox should be ready for use!
+Within a few seconds the Sandbox should be up and running!
 
 <Image img={require("/img/sandbox.png")} />
 
-## Great, but I want to know more about it
+## Great, but what can I do with it?
 
 Aztec's Layer 2 network is a fully programmable combined private/public ZK rollup. To achieve this, the network contains the following primary components:
 
@@ -60,18 +62,29 @@ With the help of Aztec.js you will be able to:
 
 ## I have the Sandbox running, show me how to use it!
 
-Let's have a complete walkthrough from start to finish. I'm using WSL2 Ubuntu under Windows but the following should work under regular Linux or MacOS. We will deploy and use a private token contract on our Sandbox. Writing the contract itself is out of scope for this tutorial, we will use the Private Token Contract supplied as one of the example contracts.
+We will deploy a private token contract, and send tokens privately, using the Sandbox.
 
-Let's create an empty project called `private-token`. If you are familiar with setting up Typescript projects then you can fast-forward the next couple of steps.
+Writing the contract itself is out of scope for this tutorial, so we will use a Private Token Contract which has been pre-supplied as an example. See [here](../contracts/main.md) for more information on how to write contracts for Aztec.
 
-Also, although I am using `yarn`, vanilla `npm` would work just as well.
+The following should work for MacOS, Linux or even WSL2 Ubuntu under Windows. 
 
+Let's create an empty project called `private-token`. If you are familiar with setting up Typescript projects then you can skip to step 6.
+
+Although both `yarn` and `npm` would work, this example uses `yarn`. Open the terminal and do the following
+
+1. Ensure node version is 18 or more by running
+```sh
+node -v 
 ```
-~$ node -v
-v18.8.0
-~$ mkdir private-token
-~$ cd private-token
-~/private-token$ yarn init
+
+2. Initialize a yarn project
+```sh
+mkdir private-token
+cd private-token
+yarn init
+```
+This should ask a series of questions that you can fill like so:
+```
 yarn init v1.22.19
 question name (private-token):
 question version (1.0.0):
@@ -83,18 +96,21 @@ question license (MIT):
 question private:
 success Saved package.json
 Done in 23.60s.
-~/private-token$ mkdir src
 ```
 
-We use Typescript here at Aztec, so lets add this to the project.
-
+3. Create a `src` folder inside your new `private-token` directory:
+```sh
+mkdir src
 ```
-~/private-token yarn add typescript @types/node --dev
+
+4. Add typescript to the yarn project
+```sh
+yarn add typescript @types/node --dev
 ```
 
 Add a `tsconfig.json` file into the project root, here is an example:
 
-```
+```json
 {
   "compilerOptions": {
     "outDir": "dest",
@@ -120,9 +136,9 @@ Add a `tsconfig.json` file into the project root, here is an example:
 }
 ```
 
-Add a `scripts` section to `package.json` and set `"type": "module"`:
+5. Add a `scripts` section to `package.json` and set `"type": "module"`:
 
-```
+```json
 {
 	"name": "private-token",
 	"version": "1.0.0",
@@ -144,17 +160,21 @@ Add a `scripts` section to `package.json` and set `"type": "module"`:
 }
 ```
 
-Now we want to install 2 Aztec packages from npm:
-
-```
+6. Next, install Aztec related dependencies
+```sh
 yarn add @aztec/aztec.js @aztec/noir-contracts
 ```
 
-Create an `index.ts` under the `src` directory:
+7. Create an `index.ts` file in the `src` directory and add the following snippet
 
 #include_code index /docs/src/code_examples/sandbox_example.ts typescript
 
-Running `yarn start` should give:
+8. Finally, run the package:
+```sh
+yarn start
+```
+
+A successful run should show:
 
 ```
   private-token Aztec Sandbox Info  { version: 1, chainId: 31337 } +0ms
@@ -164,12 +184,12 @@ Great!. The Sandbox is running and we are able to interact with it.
 
 ## Account Creation/Deployment
 
-The next step is to create some accounts. I won't go into detail about accounts as that is covered [here](../../concepts/foundation/accounts/main.md). But creating an account on the Sandbox does 2 things:
+The next step is to create some accounts. An in-depth explaining about accounts on aztec can be found [here](../../concepts/foundation/accounts/main.md). But creating an account on the Sandbox does 2 things:
 
 1. Deploys an account contract reprepresenting you allowing you to perform actions on the network (deploy contracts, call functions etc).
 2. Adds your encryption keys to the RPC Server allowing it to decrypt and manage your private state.
 
-Continue with adding the following to our example:
+Continue with adding the following to the `index.ts` file in our example:
 
 #include_code Accounts /docs/src/code_examples/sandbox_example.ts typescript
 
