@@ -1175,7 +1175,7 @@ mod tests {
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
-        assert_eq!(acir.opcodes, expected_opcodes);
+        assert_eq!(acir.opcodes(), expected_opcodes);
         assert_eq!(acir.return_witnesses, vec![Witness(1)]);
     }
 }

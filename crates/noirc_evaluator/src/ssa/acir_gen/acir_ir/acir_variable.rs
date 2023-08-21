@@ -1081,7 +1081,7 @@ impl AcirContext {
 
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
-        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
     }
@@ -1102,7 +1102,8 @@ impl AcirContext {
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
-        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+
         Ok(())
     }
 
@@ -1128,7 +1129,7 @@ impl AcirContext {
             })?,
         };
 
-        self.acir_ir.opcodes.push(Opcode::MemoryInit { block_id, init: initialized_values });
+        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
         Ok(())
     }
 }
