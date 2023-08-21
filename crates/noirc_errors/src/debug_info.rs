@@ -23,10 +23,11 @@ impl DebugInfo {
         DebugInfo { locations }
     }
 
-    /// Updates the locations map when the circuit is modified.
-    /// The OpcodeLocations are generated with the ACIR, but passing the ACIR through a transformation step
-    /// renders the old OpcodeLocations invalid. The AcirTransformationMap is able to map the old OpcodeLocation to the new ones.
-    /// Note: One old OpcodeLocation might have transformed into more than one new OpcodeLocation.
+    /// Updates the locations map when the [`Circuit`][acvm::acir::circuit::Circuit] is modified.
+    ///
+    /// The [`OpcodeLocation`]s are generated with the ACIR, but passing the ACIR through a transformation step
+    /// renders the old `OpcodeLocation`s invalid. The AcirTransformationMap is able to map the old `OpcodeLocation` to the new ones.
+    /// Note: One old `OpcodeLocation` might have transformed into more than one new `OpcodeLocation`.
     pub fn update_acir(&mut self, update_map: AcirTransformationMap) {
         let mut new_locations_map = BTreeMap::new();
 
