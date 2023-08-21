@@ -239,11 +239,12 @@ impl<'interner> TypeChecker<'interner> {
         let lhs_span = self.interner.expr_span(&stmt.0);
 
         let rhs_type = self.check_expression(&stmt.1);
+        let rhs_span = self.interner.expr_span(&stmt.1);
 
         self.unify(&lhs_type, &rhs_type, || TypeCheckError::TypeMismatch {
             expr_typ: lhs_type.to_string(),
             expected_typ: rhs_type.to_string(),
-            expr_span: lhs_span,
+            expr_span: lhs_span.merge(rhs_span),
         });
     }
 
