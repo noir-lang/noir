@@ -941,8 +941,8 @@ fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
     recursive(|expr| {
         expression_with_precedence(
             Precedence::lowest_type_precedence(),
-            nothing(),
             expr,
+            nothing(),
             true,
             false,
         )
@@ -1643,6 +1643,11 @@ mod test {
             array_expr(expression()),
             vec!["0,1,2,3,4]", "[[0,1,2,3,4]", "[0,1,2,,]", "[0,1,2,3,4"],
         );
+    }
+
+    #[test]
+    fn parse_type_expression() {
+        parse_all(type_expression(), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
     }
 
     #[test]
