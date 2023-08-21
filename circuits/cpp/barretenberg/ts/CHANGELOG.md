@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.6...barretenberg.js-v0.4.0) (2023-08-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Barretenberg binaries now take in the encoded circuit instead of a json file ([#1618](https://github.com/AztecProtocol/barretenberg/issues/1618))
+
+### Bug Fixes
+
+* Barretenberg binaries now take in the encoded circuit instead of a json file ([#1618](https://github.com/AztecProtocol/barretenberg/issues/1618)) ([180cdc9](https://github.com/AztecProtocol/barretenberg/commit/180cdc9ac7cf9aa793d9774dc866ceb4e6ec3fbc))
+* Bin reference when installing package ([#678](https://github.com/AztecProtocol/barretenberg/issues/678)) ([c734295](https://github.com/AztecProtocol/barretenberg/commit/c734295a10d2c40ede773519664170880f28b2b7))
+* Sync aztec master ([#680](https://github.com/AztecProtocol/barretenberg/issues/680)) ([3afc243](https://github.com/AztecProtocol/barretenberg/commit/3afc2438053f530e49fbebbdbadd8db8a630bb8c))
+
 ## [0.3.6](https://github.com/AztecProtocol/barretenberg/compare/barretenberg.js-v0.3.5...barretenberg.js-v0.3.6) (2023-08-08)
 
 
