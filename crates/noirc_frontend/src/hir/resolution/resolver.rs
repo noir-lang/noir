@@ -674,6 +674,7 @@ impl<'a> Resolver<'a> {
                 }
             });
 
+        self.current_expr_span = Some(func.span());
         let mut parameters = vec![];
         let mut parameter_types = vec![];
 
@@ -692,7 +693,6 @@ impl<'a> Resolver<'a> {
             parameter_types.push(typ);
         }
 
-        self.current_expr_span = Some(func.span());
         let return_type = Box::new(self.resolve_type(func.return_type()));
 
         self.declare_numeric_generics(&parameter_types, &return_type);
