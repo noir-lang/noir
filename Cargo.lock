@@ -50,7 +50,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?branch=kw/dyn-backends#65ef893a1e99a19566b0f5c0b16f53968af8352f"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?branch=kw/dyn-backends#c405e37ff7b932b1b1fc18803c6898810b7ad2d4"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -64,7 +64,6 @@ dependencies = [
  "reqwest",
  "rust-embed",
  "tar",
- "tempdir",
  "tempfile",
  "thiserror",
  "wasmer",
