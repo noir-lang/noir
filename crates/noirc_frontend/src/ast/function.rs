@@ -86,6 +86,7 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(Attribute::Test) => FunctionKind::Normal,
             Some(Attribute::Oracle(_)) => FunctionKind::Oracle,
             Some(Attribute::Deprecated(_)) | None => FunctionKind::Normal,
+            Some(Attribute::Custom(_)) => FunctionKind::Normal,
         };
 
         NoirFunction { def: fd, kind }
