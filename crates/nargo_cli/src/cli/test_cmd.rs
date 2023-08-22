@@ -42,7 +42,7 @@ pub(crate) struct TestCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
+pub(crate) fn run<B: Backend + acvm::BlackBoxFunctionSolver>(
     backend: &B,
     args: TestCommand,
     config: NargoConfig,
@@ -71,7 +71,7 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn run_tests<B: Backend>(
+fn run_tests<B: Backend + acvm::BlackBoxFunctionSolver>(
     backend: &B,
     package: &Package,
     test_name: FunctionNameMatch,
@@ -120,7 +120,7 @@ fn run_tests<B: Backend>(
     Ok(())
 }
 
-fn run_test<B: Backend>(
+fn run_test<B: Backend + acvm::BlackBoxFunctionSolver>(
     backend: &B,
     test_name: &str,
     main: FuncId,

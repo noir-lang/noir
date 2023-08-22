@@ -566,7 +566,11 @@ impl Context {
         }
 
         let index_var = self.convert_value(index, dfg).into_var()?;
-        let read = self.acir_context.read_from_memory(block_id, &index_var, &self.current_side_effects_enabled_var)?;
+        let read = self.acir_context.read_from_memory(
+            block_id,
+            &index_var,
+            &self.current_side_effects_enabled_var,
+        )?;
         let typ = match dfg.type_of_value(array) {
             Type::Array(typ, _) => {
                 if typ.len() != 1 {
@@ -647,7 +651,11 @@ impl Context {
                     AcirType::NumericType(NumericType::NativeField),
                 );
                 let var = index.into_var()?;
-                let read = self.acir_context.read_from_memory(block_id, &var, &self.current_side_effects_enabled_var)?;
+                let read = self.acir_context.read_from_memory(
+                    block_id,
+                    &var,
+                    &self.current_side_effects_enabled_var,
+                )?;
                 Ok(AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField)))
             })?;
             self.initialize_array(result_block_id, len, Some(&init_values))?;
@@ -656,7 +664,12 @@ impl Context {
         // Write the new value into the new array at the specified index
         let index_var = self.convert_value(index, dfg).into_var()?;
         let value_var = self.convert_value(store_value, dfg).into_var()?;
-        self.acir_context.write_to_memory(result_block_id, &index_var, &value_var, &self.current_side_effects_enabled_var)?;
+        self.acir_context.write_to_memory(
+            result_block_id,
+            &index_var,
+            &value_var,
+            &self.current_side_effects_enabled_var,
+        )?;
 
         let result_value =
             AcirValue::DynamicArray(AcirDynamicArray { block_id: result_block_id, len });
@@ -739,7 +752,7 @@ impl Context {
         if let Some(acir_value) = self.ssa_values.get(&value_id) {
             return acir_value.clone();
         }
-        
+
         let acir_value = match value {
             Value::NumericConstant { constant, typ } => {
                 AcirValue::Var(self.acir_context.add_constant(*constant), typ.into())

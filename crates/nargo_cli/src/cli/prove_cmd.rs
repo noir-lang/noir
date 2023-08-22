@@ -51,7 +51,7 @@ pub(crate) struct ProveCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
+pub(crate) fn run<B: Backend + acvm::BlackBoxFunctionSolver>(
     backend: &B,
     args: ProveCommand,
     config: NargoConfig,
@@ -82,7 +82,7 @@ pub(crate) fn run<B: Backend>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn prove_package<B: Backend>(
+pub(crate) fn prove_package<B: Backend + acvm::BlackBoxFunctionSolver>(
     backend: &B,
     package: &Package,
     prover_name: &str,

@@ -12,7 +12,8 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver + Default>(
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<WitnessMap, NargoError> {
-    let mut acvm = ACVM::new(B::default(), circuit.opcodes, initial_witness);
+    let backend = B::default();
+    let mut acvm = ACVM::new(&backend, circuit.opcodes, initial_witness);
 
     loop {
         let solver_status = acvm.solve();

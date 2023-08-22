@@ -41,7 +41,7 @@ pub(crate) struct ExecuteCommand {
     compile_options: CompileOptions,
 }
 
-pub(crate) fn run<B: Backend>(
+pub(crate) fn run<B: Backend + acvm::BlackBoxFunctionSolver>(
     backend: &B,
     args: ExecuteCommand,
     config: NargoConfig,
@@ -70,7 +70,7 @@ pub(crate) fn run<B: Backend>(
     Ok(())
 }
 
-fn execute_package<B: Backend>(
+fn execute_package<B: Backend + acvm::BlackBoxFunctionSolver>(
     backend: &B,
     package: &Package,
     prover_name: &str,
@@ -153,7 +153,7 @@ fn report_opcode_error(
     }
 }
 
-pub(crate) fn execute_program<B: Backend>(
+pub(crate) fn execute_program<B: Backend + acvm::BlackBoxFunctionSolver>(
     backend: &B,
     circuit: Circuit,
     abi: &Abi,

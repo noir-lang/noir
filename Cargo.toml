@@ -59,5 +59,5 @@ wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
 
 [patch.crates-io]
-acvm = { path = "/mnt/user-data/maxim/acvm/acvm" }
-acvm-backend-barretenberg = { path = "/mnt/user-data/maxim/noir-lang/acvm-backend-barretenberg" }
+acvm = { git = "https://github.com/noir-lang/acvm.git", rev = "4b4e8a6a25b27e82bddbfe58caa3d421285b4a82" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg.git", rev = "c80aee4434a2db502ed8b17ddd0b555f8f3e7c4b" }
