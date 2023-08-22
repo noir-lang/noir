@@ -143,7 +143,7 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction, Intrinsic},
         types::Type,
         value::{Value, ValueId},
     },
@@ -386,12 +386,15 @@ impl<'f> Context<'f> {
     ) -> ValueId {
         match self.inserter.function.dfg.type_of_value(then_value) {
             Type::Numeric(_) => {
+                dbg!("merging numeric values");
                 self.merge_numeric_values(then_condition, else_condition, then_value, else_value)
             }
             typ @ Type::Array(_, _) => {
+                dbg!("merging array values");
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
             typ @ Type::Slice(_) => {
+                dbg!("merging slice values");
                 self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
             }
             Type::Reference => panic!("Cannot return references from an if expression"),
@@ -416,6 +419,8 @@ impl<'f> Context<'f> {
 
         let then_value = self.inserter.function.dfg[then_value_id].clone();
         let else_value = self.inserter.function.dfg[else_value_id].clone();
+        dbg!(then_value.clone());
+        dbg!(else_value.clone());
 
         let len = match then_value {
             Value::Array { array, .. } => array.len(),
@@ -424,6 +429,24 @@ impl<'f> Context<'f> {
 
         let else_len = match else_value {
             Value::Array { array, .. } => array.len(),
+            Value::Instruction { instruction, typ, .. } => {
+                match &typ {
+                    Type::Slice(_) => (),
+                    _ => panic!("ICE: Expected slice type, but got {typ}"),
+                };
+                // let instruction = &self.inserter.function.dfg[instruction];
+                // dbg!(instruction.clone());
+                match self.inserter.function.dfg[instruction] {
+                    Instruction::ArraySet { array, index, value, length } => {
+                        let array_len_func = self.inserter.function.dfg.import_intrinsic(Intrinsic::ArrayLen);
+                        let call_array_len = Instruction::Call { func: array_len_func, arguments: vec![array] };
+                        let array_len = self.insert_instruction_with_typevars(call_array_len, Some(vec![Type::field()])).first();
+                        dbg!(array_len);
+                    }
+                    _ => unreachable!("ahh expected array set but got {:?}", instruction),
+                }
+                panic!("ah got instruction");
+            }
             _ => panic!("Expected array value"),
         };
 

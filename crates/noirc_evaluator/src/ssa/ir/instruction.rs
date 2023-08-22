@@ -170,7 +170,9 @@ pub(crate) enum Instruction {
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId },
+    /// 
+    /// An optional length can be provided to enabling handling of dynamic slice indices
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, length: Option<ValueId> },
 }
 
 impl Instruction {
@@ -269,8 +271,8 @@ impl Instruction {
             Instruction::ArrayGet { array, index } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
-            Instruction::ArraySet { array, index, value } => {
-                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value) }
+            Instruction::ArraySet { array, index, value, length } => {
+                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value), length: length.map(|l| f(l)) }
             }
         }
     }
@@ -304,10 +306,11 @@ impl Instruction {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value } => {
+            Instruction::ArraySet { array, index, value, length } => {
                 f(*array);
                 f(*index);
                 f(*value);
+                length.map(|l| f(l));
             }
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);
@@ -365,7 +368,7 @@ impl Instruction {
                 }
                 None
             }
-            Instruction::ArraySet { array, index, value } => {
+            Instruction::ArraySet { array, index, value, .. } => {
                 let array = dfg.get_array_constant(*array);
                 let index = dfg.get_numeric_constant(*index);
                 if let (Some((array, element_type)), Some(index)) = (array, index) {

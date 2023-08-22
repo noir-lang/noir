@@ -407,7 +407,7 @@ impl Context {
                     last_array_uses,
                 )?;
             }
-            Instruction::ArraySet { array, index, value } => {
+            Instruction::ArraySet { array, index, value, length } => {
                 self.handle_array_operation(
                     instruction_id,
                     *array,
