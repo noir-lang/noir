@@ -122,10 +122,11 @@ impl BasicBlock {
 
     /// Return the jmp arguments, if any, of this block's TerminatorInstruction.
     ///
-    /// If this block has no terminator, or a Return terminator this will be empty.
+    /// If this block has no terminator, this will be empty.
     pub(crate) fn terminator_arguments(&self) -> &[ValueId] {
         match &self.terminator {
             Some(TerminatorInstruction::Jmp { arguments, .. }) => arguments,
+            Some(TerminatorInstruction::Return { return_values, .. }) => return_values,
             _ => &[],
         }
     }
