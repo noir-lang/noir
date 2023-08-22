@@ -168,12 +168,12 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(parenthesized(function_parameters(allow_self)))
         .then(function_return_type())
         .then(where_clause())
-        .then(block(expression()))
-        .validate(|(((args, ret), where_clause), body), span, emit| {
+        .then(spanned(block(expression())))
+        .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
             let ((((attribute, modifiers), name), generics), parameters) = args;
             validate_where_clause(&generics, &where_clause, span, emit);
             FunctionDefinition {
-                span: name.0.span(),
+                span: body_span,
                 name,
                 attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
                 is_unconstrained: modifiers.0,
