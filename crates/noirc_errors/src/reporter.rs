@@ -119,9 +119,9 @@ pub fn report_all(
     let mut ordered_errors = Vec::new();
     for diagnostic in diagnostics {
         if diagnostic.diagnostic.is_warning() {
-            ordered_diagonostics.push(diagnostic)
+            ordered_diagonostics.push(diagnostic);
         } else {
-            ordered_errors.push(diagnostic)
+            ordered_errors.push(diagnostic);
         }
     }
     ordered_diagonostics.append(&mut ordered_errors);
