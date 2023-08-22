@@ -1,26 +1,13 @@
 #!/bin/bash
-set -u
+set -eu
 
 # Get the clang version string
-clang_version_string=$(clang --version 2>/dev/null)
+major_version=$(clang --version | grep 'version' | awk '{ for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+(\.[0-9]+)*$/) print $i }' | cut -d'.' -f1)
 
-# Check if clang is installed
-if [ $? -ne 0 ]; then
-  echo "Error: clang is not installed."
-  exit 1
-fi
-
-# Extract the major version number
-major_version=$(echo $clang_version_string | awk -F' ' '/clang version/{print $3}' | awk -F'.' '{print $1}')
-
-if [ "$major_version" -ge 16 ]; then
-  echo "clang version $major_version is good."
-else
+if ! [ "$major_version" -ge 16 ]; then
   echo "Error: clang version 16 or greater is required."
   exit 1
 fi
-
-set -e
 
 # Clean.
 rm -rf ./build
