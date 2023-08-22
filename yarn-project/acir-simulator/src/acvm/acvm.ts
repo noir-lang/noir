@@ -1,3 +1,4 @@
+import { FunctionDebugMetadata } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -72,6 +73,74 @@ export interface ACIRExecutionResult {
 }
 
 /**
+ * Extracts the opcode location from an ACVM error string.
+ */
+function extractOpcodeLocationFromError(err: string): string | undefined {
+  const match = err.match(/^Cannot satisfy constraint (?<opcodeLocation>[0-9]+(?:\.[0-9]+)?)/);
+  return match?.groups?.opcodeLocation;
+}
+
+/**
+ * The data for a call in the call stack.
+ */
+interface SourceCodeLocation {
+  /**
+   * The path to the source file.
+   */
+  filePath: string;
+  /**
+   * The line number of the call.
+   */
+  line: number;
+  /**
+   * The source code of the file.
+   */
+  fileSource: string;
+  /**
+   * The source code text of the failed constraint.
+   */
+  assertionText: string;
+}
+
+/**
+ * Extracts the call stack from the location of a failing opcode and the debug metadata.
+ */
+function getCallStackFromOpcodeLocation(opcodeLocation: string, debug: FunctionDebugMetadata): SourceCodeLocation[] {
+  const { debugSymbols, files } = debug;
+
+  const callStack = debugSymbols.locations[opcodeLocation] || [];
+  return callStack.map(call => {
+    const { file: fileId, span } = call;
+
+    const { path, source } = files[fileId];
+
+    const assertionText = source.substring(span.start, span.end + 1);
+    const precedingText = source.substring(0, span.start);
+    const line = precedingText.split('\n').length;
+
+    return {
+      filePath: path,
+      line,
+      fileSource: source,
+      assertionText,
+    };
+  });
+}
+
+/**
+ * Creates a formatted string for an error stack
+ * @param callStack - The error stack
+ * @returns - The formatted string
+ */
+function printErrorStack(callStack: SourceCodeLocation[]): string {
+  // TODO experiment with formats of reporting this for better error reporting
+  return [
+    'Error: Assertion failed',
+    callStack.map(call => `  at ${call.filePath}:${call.line} '${call.assertionText}'`),
+  ].join('\n');
+}
+
+/**
  * The function call that executes an ACIR.
  */
 export async function acvm(
@@ -79,8 +148,13 @@ export async function acvm(
   acir: Buffer,
   initialWitness: ACVMWitness,
   callback: ACIRCallback,
+  debug?: FunctionDebugMetadata,
 ): Promise<ACIRExecutionResult> {
   const logger = createDebugLogger('aztec:simulator:acvm');
+  // This is a workaround to avoid the ACVM removing the information about the underlying error.
+  // We should probably update the ACVM to let proper errors through.
+  let oracleError: Error | undefined = undefined;
+
   const partialWitness = await executeCircuitWithBlackBoxSolver(
     solver,
     acir,
@@ -95,12 +169,32 @@ export async function acvm(
 
         const result = await oracleFunction.call(callback, ...args);
         return [result];
-      } catch (err: any) {
-        logger.error(`Error in oracle callback ${name}: ${err.message ?? err ?? 'Unknown'}`);
-        throw err;
+      } catch (err) {
+        let typedError: Error;
+        if (err instanceof Error) {
+          typedError = err;
+        } else {
+          typedError = new Error(`Error in oracle callback ${err}`);
+        }
+        oracleError = typedError;
+        logger.error(`Error in oracle callback ${name}: ${typedError.message}`);
+        throw typedError;
       }
     },
-  );
+  ).catch((acvmError: string) => {
+    if (oracleError) {
+      throw oracleError;
+    }
+    const opcodeLocation = extractOpcodeLocationFromError(acvmError);
+    if (!opcodeLocation || !debug) {
+      throw new Error(acvmError);
+    }
+
+    const callStack = getCallStackFromOpcodeLocation(opcodeLocation, debug);
+    logger(printErrorStack(callStack));
+    throw new Error(`Assertion failed: '${callStack.pop()?.assertionText ?? 'Unknown'}'`);
+  });
+
   return Promise.resolve({ partialWitness });
 }
 

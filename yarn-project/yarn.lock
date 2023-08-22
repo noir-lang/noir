@@ -80,7 +80,7 @@ __metadata:
     "@rushstack/eslint-patch": ^1.1.4
     "@types/jest": ^29.5.0
     "@types/node": ^18.7.23
-    acvm_js: "github:noir-lang/acvm-js-wasm#db/init-sim-backend"
+    acvm_js: "github:noir-lang/acvm-js-wasm#arv/0.22+init-pedersen"
     jest: ^29.5.0
     jest-mock-extended: ^3.0.4
     levelup: ^5.1.1
@@ -4010,10 +4010,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"acvm_js@github:noir-lang/acvm-js-wasm#db/init-sim-backend":
-  version: 0.21.0
-  resolution: "acvm_js@https://github.com/noir-lang/acvm-js-wasm.git#commit=b2cc89d9a67c11ad6cb59c9b9acad1e2be4bd938"
-  checksum: a65383c053fc59ef55e65f181277a5edc4ac22c4c0180fc5b05788121360f03fa24fe176da78de51d36892bce76893178c79d1c0284f834d1d6ed5e8209ff1b4
+"acvm_js@github:noir-lang/acvm-js-wasm#arv/0.22+init-pedersen":
+  version: 0.22.0
+  resolution: "acvm_js@https://github.com/noir-lang/acvm-js-wasm.git#commit=4ccaee804a9bbb5c8e3bb2adc74382a8fcff0d42"
+  checksum: 8f4802a4af520957a512266e3c7fb106af893209feb807d68991d374bc30d9899cdf09e3d9967d152a78e6bc8eb58e4ad397bff94f2e4b99d324b7fbfdcfbeab
   languageName: node
   linkType: hard
 

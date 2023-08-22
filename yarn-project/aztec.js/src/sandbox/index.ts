@@ -25,7 +25,7 @@ export const INITIAL_SANDBOX_ACCOUNT_CONTRACT_ABI = SchnorrAccountContractAbi;
 export async function getSandboxAccountsWallet(aztecRpc: AztecRPC) {
   return await getAccountWallets(
     aztecRpc,
-    INITIAL_SANDBOX_ACCOUNT_CONTRACT_ABI as ContractAbi,
+    INITIAL_SANDBOX_ACCOUNT_CONTRACT_ABI as unknown as ContractAbi,
     INITIAL_SANDBOX_ENCRYPTION_KEYS,
     INITIAL_SANDBOX_SIGNING_KEYS,
     INITIAL_SANDBOX_SALTS,

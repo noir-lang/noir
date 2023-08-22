@@ -1,4 +1,9 @@
-import { CommitmentDataOracleInputs, DBOracle, MessageLoadOracleInputs } from '@aztec/acir-simulator';
+import {
+  CommitmentDataOracleInputs,
+  DBOracle,
+  FunctionAbiWithDebugMetadata,
+  MessageLoadOracleInputs,
+} from '@aztec/acir-simulator';
 import {
   AztecAddress,
   CircuitsWasm,
@@ -10,7 +15,6 @@ import {
   PublicKey,
 } from '@aztec/circuits.js';
 import { siloCommitment } from '@aztec/circuits.js/abis';
-import { FunctionAbi } from '@aztec/foundation/abi';
 import { DataCommitmentProvider, KeyStore, L1ToL2MessageProvider } from '@aztec/types';
 
 import { ContractDataOracle } from '../contract_data_oracle/index.js';
@@ -54,8 +58,13 @@ export class SimulatorOracle implements DBOracle {
     }));
   }
 
-  async getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbi> {
-    return await this.contractDataOracle.getFunctionAbi(contractAddress, functionSelector);
+  async getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbiWithDebugMetadata> {
+    const abi = await this.contractDataOracle.getFunctionAbi(contractAddress, functionSelector);
+    const debug = await this.contractDataOracle.getFunctionDebugMetadata(contractAddress, functionSelector);
+    return {
+      ...abi,
+      debug,
+    };
   }
 
   async getPortalContractAddress(contractAddress: AztecAddress): Promise<EthAddress> {

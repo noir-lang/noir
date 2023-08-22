@@ -1,7 +1,7 @@
-import { ContractAbi, FunctionAbi, FunctionType } from '@aztec/foundation/abi';
+import { ContractAbi, DebugMetadata, FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 
 import { mockVerificationKey } from '../mocked_keys.js';
-import { NoirCompiledContract, NoirFunctionEntry } from '../noir_artifact.js';
+import { NoirCompilationArtifacts, NoirFunctionEntry } from '../noir_artifact.js';
 
 /**
  * Generates an Aztec ABI for a Noir function build artifact. Replaces verification key with a mock value.
@@ -35,9 +35,25 @@ function generateAbiFunction(fn: NoirFunctionEntry): FunctionAbi {
  * @param compiled - Noir build output.
  * @returns An Aztec valid ABI.
  */
-export function generateAztecAbi(compiled: NoirCompiledContract): ContractAbi {
+export function generateAztecAbi({ contract, debug }: NoirCompilationArtifacts): ContractAbi {
+  const originalFunctions = contract.functions;
+  // TODO why sort? we should have idempotent compilation so this should not be needed.
+  const sortedFunctions = [...contract.functions].sort((fnA, fnB) => fnA.name.localeCompare(fnB.name));
+  let parsedDebug: DebugMetadata | undefined = undefined;
+
+  if (debug) {
+    parsedDebug = {
+      debugSymbols: sortedFunctions.map(fn => {
+        const originalIndex = originalFunctions.indexOf(fn);
+        return debug.debug_symbols[originalIndex];
+      }),
+      fileMap: debug.file_map,
+    };
+  }
+
   return {
-    name: compiled.name,
-    functions: compiled.functions.sort((fnA, fnB) => fnA.name.localeCompare(fnB.name)).map(generateAbiFunction),
+    name: contract.name,
+    functions: sortedFunctions.map(generateAbiFunction),
+    debug: parsedDebug,
   };
 }

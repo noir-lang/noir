@@ -50,11 +50,26 @@ const main = () => {
   const projectDirPath = `src/contracts/${projectName}`;
 
   const contractName = upperFirst(camelCase(name));
-  const buildJsonFilePath = `${projectDirPath}/target/${projectName}-${contractName}.json`;
+  const artifactFile = `${projectName}-${contractName}.json`;
+
+  const buildJsonFilePath = `${projectDirPath}/target/${artifactFile}`;
   const buildJson = JSON.parse(readFileSync(buildJsonFilePath).toString());
 
+  const debugArtifactFile = `debug_${artifactFile}`;
+  let debug = undefined;
+
+  try {
+    const debugJsonFilePath = `${projectDirPath}/target/${debugArtifactFile}`;
+    const debugJson = JSON.parse(readFileSync(debugJsonFilePath).toString());
+    if (debugJson) {
+      debug = debugJson;
+    }
+  } catch (err) {
+    // Ignore
+  }
+
   // Remove extraneous information from the buildJson (which was output by Nargo) to hone in on the function data we actually care about:
-  const artifactJson: ContractAbi = generateAztecAbi(buildJson);
+  const artifactJson: ContractAbi = generateAztecAbi({ contract: buildJson, debug });
 
   // Write the artifact:
   const artifactsDir = 'src/artifacts';

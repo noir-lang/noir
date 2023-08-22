@@ -1,7 +1,7 @@
 import { CallContext, CircuitsWasm, FunctionData, TxContext } from '@aztec/circuits.js';
 import { computeTxHash } from '@aztec/circuits.js/abis';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { ArrayType, FunctionAbi, FunctionType, encodeArguments } from '@aztec/foundation/abi';
+import { ArrayType, FunctionType, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -12,7 +12,7 @@ import { WasmBlackBoxFunctionSolver, createBlackBoxSolver } from 'acvm_js';
 
 import { PackedArgsCache } from '../packed_args_cache.js';
 import { ClientTxExecutionContext } from './client_execution_context.js';
-import { DBOracle } from './db_oracle.js';
+import { DBOracle, FunctionAbiWithDebugMetadata } from './db_oracle.js';
 import { ExecutionResult } from './execution_result.js';
 import { computeNoteHashAndNullifierSelector, computeNoteHashAndNullifierSignature } from './function_selectors.js';
 import { PrivateFunctionExecution } from './private_execution.js';
@@ -60,7 +60,7 @@ export class AcirSimulator {
    */
   public async run(
     request: TxExecutionRequest,
-    entryPointABI: FunctionAbi,
+    entryPointABI: FunctionAbiWithDebugMetadata,
     contractAddress: AztecAddress,
     portalContractAddress: EthAddress,
   ): Promise<ExecutionResult> {
@@ -118,7 +118,7 @@ export class AcirSimulator {
   public async runUnconstrained(
     request: FunctionCall,
     origin: AztecAddress,
-    entryPointABI: FunctionAbi,
+    entryPointABI: FunctionAbiWithDebugMetadata,
     contractAddress: AztecAddress,
     portalContractAddress: EthAddress,
     aztecNode?: AztecNode,

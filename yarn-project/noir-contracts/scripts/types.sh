@@ -47,7 +47,7 @@ write_export() {
 
 
     # artifacts
-    echo "export const ${NAME}ContractAbi = ${NAME}Json as ContractAbi;"  >> "$artifacts_dir/index.ts";
+    echo "export const ${NAME}ContractAbi = ${NAME}Json as unknown as ContractAbi;"  >> "$artifacts_dir/index.ts";
     echo "Written typescript for $NAME"
 
     # types

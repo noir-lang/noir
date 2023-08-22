@@ -249,9 +249,8 @@ describe('ACIR public execution simulator', () => {
         const globalVariables = new GlobalVariables(new Fr(69), new Fr(420), new Fr(1), new Fr(7));
 
         if (isInternal === undefined) {
-          // The error is don't seem to be propagated, but can see it in the logger.
-          await expect(executor.execute(execution, globalVariables)).rejects.toBe(
-            'Error awaiting `foreign_call_handler`: Unknown',
+          await expect(executor.execute(execution, globalVariables)).rejects.toThrowError(
+            /ContractsDb don't contain isInternal for/,
           );
         } else {
           const result = await executor.execute(execution, globalVariables);

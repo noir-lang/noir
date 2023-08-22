@@ -22,6 +22,6 @@ import { AccountContract } from './index.js';
   }
 
   public getContractAbi(): ContractAbi {
-    return EcdsaAccountContractAbi as ContractAbi;
+    return EcdsaAccountContractAbi as unknown as ContractAbi;
   }
 }

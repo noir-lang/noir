@@ -137,6 +137,81 @@ export interface FunctionAbi {
 }
 
 /**
+ * A file ID. It's assigned during compilation.
+ */
+export type FileId = number;
+
+/**
+ * A pointer to a specific section of the source code.
+ */
+export interface SourceCodeLocation {
+  /**
+   * The section of the source code.
+   */
+  span: {
+    /**
+     * The byte where the section starts.
+     */
+    start: number;
+    /**
+     * The byte where the section ends.
+     */
+    end: number;
+  };
+  /**
+   * The source code file pointed to.
+   */
+  file: FileId;
+}
+
+/**
+ * The location of an opcode in the bytecode.
+ * It's a string of the form `{acirIndex}` or `{acirIndex}:{brilligIndex}`.
+ */
+export type OpcodeLocation = string;
+
+/**
+ * The debug information for a given function.
+ */
+export interface DebugInfo {
+  /**
+   * A map of the opcode location to the source code location.
+   */
+  locations: Record<OpcodeLocation, SourceCodeLocation[]>;
+}
+
+/**
+ * Maps a file ID to its metadata for debugging purposes.
+ */
+export type DebugFileMap = Record<
+  FileId,
+  {
+    /**
+     * The source code of the file.
+     */
+    source: string;
+    /**
+     * The path of the file.
+     */
+    path: string;
+  }
+>;
+
+/**
+ * The debug metadata of an ABI.
+ */
+export interface DebugMetadata {
+  /**
+   * The debug information for each function.
+   */
+  debugSymbols: DebugInfo[];
+  /**
+   * The map of file ID to the source code and path of the file.
+   */
+  fileMap: DebugFileMap;
+}
+
+/**
  * Defines ABI of a contract.
  */
 export interface ContractAbi {
@@ -148,4 +223,43 @@ export interface ContractAbi {
    * The functions of the contract.
    */
   functions: FunctionAbi[];
+
+  /**
+   * The debug metadata of the contract.
+   * It's used to include the relevant source code section when a constraint is not met during simulation.
+   */
+  debug?: DebugMetadata;
+}
+
+/**
+ * Debug metadata for a function.
+ */
+export interface FunctionDebugMetadata {
+  /**
+   * Maps opcodes to source code pointers
+   */
+  debugSymbols: DebugInfo;
+  /**
+   * Maps the file IDs to the file contents to resolve pointers
+   */
+  files: DebugFileMap;
+}
+
+/**
+ * Gets the debug metadata of a given function from the contract abi
+ * @param abi - The contract abi
+ * @param functionName - The name of the function
+ * @returns The debug metadata of the function
+ */
+export function getFunctionDebugMetadata(abi: ContractAbi, functionName: string): FunctionDebugMetadata | undefined {
+  const functionIndex = abi.functions.findIndex(f => f.name === functionName);
+  if (abi.debug && functionIndex !== -1) {
+    const debugSymbols = abi.debug.debugSymbols[functionIndex];
+    const files = abi.debug.fileMap;
+    return {
+      debugSymbols,
+      files,
+    };
+  }
+  return undefined;
 }

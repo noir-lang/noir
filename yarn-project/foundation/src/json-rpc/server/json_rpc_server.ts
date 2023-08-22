@@ -48,7 +48,11 @@ export class JsonRpcServer {
       this.log.error(`Error on API handler: ${error}`);
     });
     app.use(compress({ br: false } as any));
-    app.use(bodyParser());
+    app.use(
+      bodyParser({
+        jsonLimit: '10mb',
+      }),
+    );
     app.use(cors());
     app.use(exceptionHandler);
     app.use(router.routes());

@@ -48,7 +48,7 @@ import { MockProxy, mock } from 'jest-mock-extended';
 import { default as levelup } from 'levelup';
 import { type MemDown, default as memdown } from 'memdown';
 
-import { buildL1ToL2Message } from '../test/utils.js';
+import { buildL1ToL2Message, getFunctionAbi } from '../test/utils.js';
 import { computeSlotForMapping } from '../utils.js';
 import { DBOracle } from './db_oracle.js';
 import { AcirSimulator } from './simulator.js';
@@ -154,7 +154,7 @@ describe('Private Execution test suite', () => {
 
   describe('empty constructor', () => {
     it('should run the empty constructor', async () => {
-      const abi = TestContractAbi.functions[0];
+      const abi = getFunctionAbi(TestContractAbi, 'constructor');
       const contractDeploymentData = makeContractDeploymentData(100);
       const txContext = { isContractDeploymentTx: true, contractDeploymentData };
       const result = await runSimulator({ abi, txContext });
@@ -251,7 +251,7 @@ describe('Private Execution test suite', () => {
     });
 
     it('should a constructor with arguments that inserts notes', async () => {
-      const abi = PrivateTokenAirdropContractAbi.functions.find(f => f.name === 'constructor')!;
+      const abi = getFunctionAbi(PrivateTokenAirdropContractAbi, 'constructor');
 
       const result = await runSimulator({ args: [140, owner], abi });
 
@@ -269,7 +269,7 @@ describe('Private Execution test suite', () => {
     });
 
     it('should run the mint function', async () => {
-      const abi = PrivateTokenAirdropContractAbi.functions.find(f => f.name === 'mint')!;
+      const abi = getFunctionAbi(PrivateTokenAirdropContractAbi, 'mint');
 
       const result = await runSimulator({ args: [140, owner], abi });
 
@@ -288,7 +288,7 @@ describe('Private Execution test suite', () => {
 
     it('should run the transfer function', async () => {
       const amountToTransfer = 100n;
-      const abi = PrivateTokenAirdropContractAbi.functions.find(f => f.name === 'transfer')!;
+      const abi = getFunctionAbi(PrivateTokenAirdropContractAbi, 'transfer');
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
       const recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient.toField(), circuitsWasm);
@@ -333,7 +333,7 @@ describe('Private Execution test suite', () => {
     it('should be able to transfer with dummy notes', async () => {
       const amountToTransfer = 100n;
       const balance = 160n;
-      const abi = PrivateTokenAirdropContractAbi.functions.find(f => f.name === 'transfer')!;
+      const abi = getFunctionAbi(PrivateTokenAirdropContractAbi, 'transfer');
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
 
@@ -360,7 +360,7 @@ describe('Private Execution test suite', () => {
     it('Should be able to claim a note by providing the correct secret', async () => {
       const amount = 100n;
       const secret = Fr.random();
-      const abi = PrivateTokenAirdropContractAbi.functions.find(f => f.name === 'claim')!;
+      const abi = getFunctionAbi(PrivateTokenAirdropContractAbi, 'claim');
       const storageSlot = new Fr(2n);
       // choose nonzero nonce otherwise reads will be interpreted as transient (inner note hash instead of unique+siloed)
       const nonce = new Fr(1n);
@@ -479,7 +479,7 @@ describe('Private Execution test suite', () => {
     });
 
     it('should a constructor with arguments that inserts notes', async () => {
-      const abi = PrivateTokenContractAbi.functions.find(f => f.name === 'constructor')!;
+      const abi = getFunctionAbi(PrivateTokenContractAbi, 'constructor');
 
       const result = await runSimulator({ args: [140, owner], abi });
 
@@ -497,7 +497,7 @@ describe('Private Execution test suite', () => {
     });
 
     it('should run the mint function', async () => {
-      const abi = PrivateTokenContractAbi.functions.find(f => f.name === 'mint')!;
+      const abi = getFunctionAbi(PrivateTokenContractAbi, 'mint');
 
       const result = await runSimulator({ args: [140, owner], abi });
 
@@ -516,7 +516,7 @@ describe('Private Execution test suite', () => {
 
     it('should run the transfer function', async () => {
       const amountToTransfer = 100n;
-      const abi = PrivateTokenContractAbi.functions.find(f => f.name === 'transfer')!;
+      const abi = getFunctionAbi(PrivateTokenContractAbi, 'transfer');
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
       const recipientStorageSlot = computeSlotForMapping(new Fr(1n), recipient.toField(), circuitsWasm);
@@ -561,7 +561,7 @@ describe('Private Execution test suite', () => {
     it('should be able to transfer with dummy notes', async () => {
       const amountToTransfer = 100n;
       const balance = 160n;
-      const abi = PrivateTokenContractAbi.functions.find(f => f.name === 'transfer')!;
+      const abi = getFunctionAbi(PrivateTokenContractAbi, 'transfer');
 
       const storageSlot = computeSlotForMapping(new Fr(1n), owner.toField(), circuitsWasm);
 
@@ -591,15 +591,15 @@ describe('Private Execution test suite', () => {
 
     it('child function should be callable', async () => {
       const initialValue = 100n;
-      const abi = ChildContractAbi.functions.find(f => f.name === 'value')!;
+      const abi = getFunctionAbi(ChildContractAbi, 'value');
       const result = await runSimulator({ args: [initialValue], abi });
 
       expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(initialValue + privateIncrement));
     });
 
     it('parent should call child', async () => {
-      const childAbi = ChildContractAbi.functions.find(f => f.name === 'value')!;
-      const parentAbi = ParentContractAbi.functions.find(f => f.name === 'entryPoint')!;
+      const childAbi = getFunctionAbi(ChildContractAbi, 'value');
+      const parentAbi = getFunctionAbi(ParentContractAbi, 'entryPoint');
       const parentAddress = AztecAddress.random();
       const childAddress = AztecAddress.random();
       const childSelector = generateFunctionSelector(childAbi.name, childAbi.parameters);
@@ -686,7 +686,7 @@ describe('Private Execution test suite', () => {
 
     it('Should be able to consume a dummy cross chain message', async () => {
       const bridgedAmount = 100n;
-      const abi = NonNativeTokenContractAbi.functions.find(f => f.name === 'mint')!;
+      const abi = getFunctionAbi(NonNativeTokenContractAbi, 'mint');
 
       const secret = new Fr(1n);
       const canceller = EthAddress.random();
@@ -720,7 +720,7 @@ describe('Private Execution test suite', () => {
 
     it('Should be able to consume a dummy public to private message', async () => {
       const amount = 100n;
-      const abi = NonNativeTokenContractAbi.functions.find(f => f.name === 'redeemShield')!;
+      const abi = getFunctionAbi(NonNativeTokenContractAbi, 'redeemShield');
 
       const wasm = await CircuitsWasm.get();
       const secret = new Fr(1n);
@@ -998,7 +998,7 @@ describe('Private Execution test suite', () => {
   describe('get public key', () => {
     it('gets the public key for an address', async () => {
       // Tweak the contract ABI so we can extract return values
-      const abi = TestContractAbi.functions.find(f => f.name === 'getPublicKey')!;
+      const abi = getFunctionAbi(TestContractAbi, 'getPublicKey');
       abi.returnTypes = [{ kind: 'array', length: 2, type: { kind: 'field' } }];
 
       // Generate a partial address, pubkey, and resulting address
@@ -1018,7 +1018,7 @@ describe('Private Execution test suite', () => {
       const aztecAddressToQuery = AztecAddress.random();
 
       // Tweak the contract ABI so we can extract return values
-      const abi = TestContractAbi.functions.find(f => f.name === 'getPortalContractAddress')!;
+      const abi = getFunctionAbi(TestContractAbi, 'getPortalContractAddress');
       abi.returnTypes = [{ kind: 'field' }];
 
       const args = [aztecAddressToQuery.toField()];
@@ -1033,7 +1033,7 @@ describe('Private Execution test suite', () => {
       const contractAddress = AztecAddress.random();
 
       // Tweak the contract ABI so we can extract return values
-      const abi = TestContractAbi.functions.find(f => f.name === 'getThisAddress')!;
+      const abi = getFunctionAbi(TestContractAbi, 'getThisAddress');
       abi.returnTypes = [{ kind: 'field' }];
 
       // Overwrite the oracle return value
@@ -1045,7 +1045,7 @@ describe('Private Execution test suite', () => {
       const portalContractAddress = EthAddress.random();
 
       // Tweak the contract ABI so we can extract return values
-      const abi = TestContractAbi.functions.find(f => f.name === 'getThisPortalAddress')!;
+      const abi = getFunctionAbi(TestContractAbi, 'getThisPortalAddress');
       abi.returnTypes = [{ kind: 'field' }];
 
       // Overwrite the oracle return value

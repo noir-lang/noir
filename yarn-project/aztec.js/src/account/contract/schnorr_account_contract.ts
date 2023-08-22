@@ -23,6 +23,6 @@ export class SchnorrAccountContract implements AccountContract {
   }
 
   public getContractAbi(): ContractAbi {
-    return SchnorrAccountContractAbi as ContractAbi;
+    return SchnorrAccountContractAbi as unknown as ContractAbi;
   }
 }

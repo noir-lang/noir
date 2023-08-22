@@ -29,6 +29,6 @@ export class SingleKeyAccountContract implements AccountContract {
   }
 
   public getContractAbi(): ContractAbi {
-    return SchnorrSingleKeyAccountContractAbi as ContractAbi;
+    return SchnorrSingleKeyAccountContractAbi as unknown as ContractAbi;
   }
 }
