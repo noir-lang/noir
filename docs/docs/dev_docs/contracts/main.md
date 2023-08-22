@@ -56,3 +56,5 @@ In keeping with the origins of blockchain, here's an example of a simple token c
 Please note that any example contract set out herein is provided solely for informational purposes only and does not constitute any inducement to use or deploy. Any implementation of any such contract with an interface or any other infrastructure should be used in accordance with applicable laws and regulations.
 :::
 
+## Next steps
+You can read more about writing contracts [here](./syntax.md), and then move to compiling it which is detailed [here](./compiling.md).
