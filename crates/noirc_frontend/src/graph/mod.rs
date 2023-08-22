@@ -149,11 +149,18 @@ impl CrateGraph {
     }
 
     pub fn add_crate(&mut self, file_id: FileId) -> CrateId {
-        // Should this also be asserted that it only has exactly one match?
-        let mut roots_with_file_id =
-            self.arena.iter().filter(|(_, crate_data)| crate_data.root_file_id == file_id);
+        let mut crates_with_file_id = self
+            .arena
+            .iter()
+            .filter(|(_, crate_data)| crate_data.root_file_id == file_id)
+            .peekable();
 
-        match roots_with_file_id.next() {
+        let matching_id = crates_with_file_id.next();
+        if crates_with_file_id.peek().is_some() {
+            panic!("ICE: Found multiple crates with the same FileId");
+        }
+
+        match matching_id {
             Some((crate_id @ CrateId::Crate(_), _)) => *crate_id,
             Some((CrateId::Root(_), _)) => {
                 panic!("ICE: Tried to re-add the root crate as a regular crate")
