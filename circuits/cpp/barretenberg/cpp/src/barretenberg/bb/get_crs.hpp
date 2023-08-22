@@ -20,10 +20,10 @@ inline std::vector<uint8_t> download_g1_data(size_t num_points)
 
 inline std::vector<uint8_t> download_g2_data()
 {
-    size_t g2_start = 28 + 5040000 * 64;
+    size_t g2_start = 28 + 5040001 * 64;
     size_t g2_end = g2_start + 128 - 1;
     std::string command = "curl -s -H \"Range: bytes=" + std::to_string(g2_start) + "-" + std::to_string(g2_end) +
-                          "\" 'https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat'";
+                          "\" 'https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/monomial/transcript00.dat'";
 
     return exec_pipe(command);
 }

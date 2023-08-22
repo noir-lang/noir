@@ -38,10 +38,10 @@ export class NetCrs {
    * Download the G2 points data.
    */
   async downloadG2Data() {
-    const g2Start = 28 + 5040000 * 64;
+    const g2Start = 28 + 5040001 * 64;
     const g2End = g2Start + 128 - 1;
 
-    const response2 = await fetch('https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/sealed/transcript00.dat', {
+    const response2 = await fetch('https://aztec-ignition.s3.amazonaws.com/MAIN%20IGNITION/monomial/transcript00.dat', {
       headers: {
         Range: `bytes=${g2Start}-${g2End}`,
       },
