@@ -9,6 +9,9 @@ edition.workspace = true
 [dependencies]
 acvm.workspace = true
 iter-extended.workspace = true
+regex = "1.9.1"
 serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]

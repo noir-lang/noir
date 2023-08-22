@@ -2235,10 +2235,8 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
- "regex",
  "rustc_version",
  "serde",
- "serde_json",
  "thiserror",
 ]
 
@@ -2434,7 +2432,10 @@ version = "0.10.3"
 dependencies = [
  "acvm",
  "iter-extended",
+ "regex",
  "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
