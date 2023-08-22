@@ -856,13 +856,13 @@ impl AcirContext {
             AcirValue::Array(vars) => {
                 let mut var_expressions: Vec<Expression> = Vec::new();
                 for var in vars {
-                    self.brillig_array_input(&mut var_expressions, var)?;
+                    self.brillig_array_input(&mut var_expressions, var, predicate)?;
                 }
                 Ok(BrilligInputs::Array(var_expressions))
             }
             AcirValue::DynamicArray(_) => {
                 let mut var_expressions = Vec::new();
-                self.brillig_array_input(&mut var_expressions, i)?;
+                self.brillig_array_input(&mut var_expressions, i, predicate)?;
                 Ok(BrilligInputs::Array(var_expressions))
             }
         })?;
@@ -899,6 +899,7 @@ impl AcirContext {
         &mut self,
         var_expressions: &mut Vec<Expression>,
         input: AcirValue,
+        predicate: AcirVar
     ) -> Result<(), InternalError> {
         match input {
             AcirValue::Var(var, _) => {
@@ -906,7 +907,7 @@ impl AcirContext {
             }
             AcirValue::Array(vars) => {
                 for var in vars {
-                    self.brillig_array_input(var_expressions, var)?;
+                    self.brillig_array_input(var_expressions, var, predicate)?;
                 }
             }
             AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
@@ -918,13 +919,13 @@ impl AcirContext {
                     );
                     let index_var = index.into_var()?;
 
-                    let value_read_var = self.read_from_memory(block_id, &index_var)?;
+                    let value_read_var = self.read_from_memory(block_id, &index_var, &predicate)?;
                     let value_read = AcirValue::Var(
                         value_read_var,
                         AcirType::NumericType(NumericType::NativeField),
                     );
 
-                    self.brillig_array_input(var_expressions, value_read)?;
+                    self.brillig_array_input(var_expressions, value_read, predicate)?;
                 }
             }
         }
@@ -1071,6 +1072,7 @@ impl AcirContext {
         &mut self,
         block_id: BlockId,
         index: &AcirVar,
+        predicate: &AcirVar,
     ) -> Result<AcirVar, InternalError> {
         // Fetch the witness corresponding to the index
         let index_witness = self.var_to_witness(*index)?;
@@ -1079,9 +1081,12 @@ impl AcirContext {
         let value_read_var = self.add_variable();
         let value_read_witness = self.var_to_witness(value_read_var)?;
 
+        // Fetch the witness corresponding to the predicate
+        let predicate_witness = self.var_to_witness(*predicate)?;
+
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: Some(predicate_witness.into()) });
 
         Ok(value_read_var)
     }
@@ -1092,6 +1097,7 @@ impl AcirContext {
         block_id: BlockId,
         index: &AcirVar,
         value: &AcirVar,
+        predicate: &AcirVar,
     ) -> Result<(), InternalError> {
         // Fetch the witness corresponding to the index
         //
@@ -1100,9 +1106,12 @@ impl AcirContext {
         // Fetch the witness corresponding to the value to be written
         let value_write_witness = self.var_to_witness(*value)?;
 
+        // Fetch the witness corresponding to the predicate
+        let predicate_witness = self.var_to_witness(*predicate)?;
+
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: Some(predicate_witness.into()) });
 
         Ok(())
     }

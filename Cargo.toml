@@ -57,3 +57,7 @@ url = "2.2.0"
 wasm-bindgen = { version = "=0.2.86", features = ["serde-serialize"] }
 wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
+
+[patch.crates-io]
+acvm = { path = "/mnt/user-data/maxim/acvm/acvm" }
+acvm-backend-barretenberg = { path = "/mnt/user-data/maxim/noir-lang/acvm-backend-barretenberg" }
