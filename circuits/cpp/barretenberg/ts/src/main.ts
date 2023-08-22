@@ -8,8 +8,8 @@ import { Command } from 'commander';
 createDebug.log = console.error.bind(console);
 const debug = createDebug('bb.js');
 
-// Maximum we support.
-const MAX_CIRCUIT_SIZE = 2 ** 19;
+// Maximum we support natively. It is 2^19 for browser.
+const MAX_CIRCUIT_SIZE = 2 ** 23;
 
 function getBytecode(bytecodePath: string) {
   const encodedCircuit = readFileSync(bytecodePath, 'utf-8');

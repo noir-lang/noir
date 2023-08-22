@@ -11,8 +11,11 @@
 #include <vector>
 
 using namespace barretenberg;
-
-uint32_t MAX_CIRCUIT_SIZE = 1 << 19;
+// The maximum size that we can do in the browser is 2^19
+// based on memory constraints for UltraPlonk.
+// However, since this will be ran natively, we can increase the
+// size.
+uint32_t MAX_CIRCUIT_SIZE = 1 << 23;
 std::string CRS_PATH = "./crs";
 bool verbose = false;
 
