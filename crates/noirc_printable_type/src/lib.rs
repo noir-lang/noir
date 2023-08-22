@@ -71,7 +71,7 @@ pub enum ForeignCallError {
     #[error("Foreign call inputs needed for execution are missing")]
     MissingForeignCallInputs,
 
-    #[error("Could not parse PrintableType argumen. {0}")]
+    #[error("Could not parse PrintableType argument. {0}")]
     ParsingError(#[from] serde_json::Error),
 }
 
