@@ -8,7 +8,6 @@ use dep::aztec::oracle::{
     get_secret_key::get_secret_key,
     get_public_key::get_public_key,
 };
-use dep::aztec::types::point::Point;
 
 global VALUE_NOTE_LEN: Field = 3; // 3 plus a header.
 

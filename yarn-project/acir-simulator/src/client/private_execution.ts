@@ -73,8 +73,19 @@ export class PrivateFunctionExecution {
         const { publicKey, partialAddress } = await this.context.db.getCompleteAddress(address);
         return [publicKey.x, publicKey.y, partialAddress].map(toACVMField);
       },
-      getNotes: ([slot], sortBy, sortOrder, [limit], [offset], [returnSize]) =>
-        this.context.getNotes(this.contractAddress, slot, sortBy, sortOrder, +limit, +offset, +returnSize),
+      getNotes: ([slot], [numSelects], selectBy, selectValues, sortBy, sortOrder, [limit], [offset], [returnSize]) =>
+        this.context.getNotes(
+          this.contractAddress,
+          slot,
+          +numSelects,
+          selectBy,
+          selectValues,
+          sortBy,
+          sortOrder,
+          +limit,
+          +offset,
+          +returnSize,
+        ),
       getRandomField: () => Promise.resolve(toACVMField(Fr.random())),
       notifyCreatedNote: ([storageSlot], preimage, [innerNoteHash]) => {
         this.context.pushNewNote(

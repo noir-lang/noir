@@ -8,9 +8,10 @@ use crate::constants_gen::{
 };
 use crate::context::PrivateContext;
 use crate::note::{
-    note_getter_options::NoteGetterOptions,
+    note_getter_options::{NoteGetterOptions, Select, Sort},
     note_interface::NoteInterface,
     note_header::NoteHeader,
+    note_viewer_options::NoteViewerOptions,
     utils::compute_note_hash_for_read_or_nullify,
     utils::compute_unique_siloed_note_hash,
     utils::compute_inner_note_hash,
@@ -18,6 +19,7 @@ use crate::note::{
 };
 use crate::messaging::get_commitment_getter_data::make_commitment_getter_data;
 use crate::oracle;
+use crate::types::vec::BoundedVec;
 
 fn check_note_header<Note, N>(
     context: PrivateContext,
@@ -112,12 +114,12 @@ fn get_note<Note, N>(
     note
 }
 
-fn get_notes<Note, N, S, P>(
+fn get_notes<Note, N, FILTER_ARGS>(
     context: &mut PrivateContext,
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
-    options: NoteGetterOptions<Note, N, S, P>,
-) -> [Option<Note>; S] {
+    options: NoteGetterOptions<Note, N, FILTER_ARGS>,
+) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {
     let opt_notes = get_notes_internal(storage_slot, note_interface, options);
     for i in 0..opt_notes.len() {
         let opt_note = opt_notes[i];
@@ -148,6 +150,9 @@ unconstrained fn get_note_internal<Note, N>(
     oracle::notes::get_notes(
         storage_slot,
         note_interface,
+        0,
+        [],
+        [],
         [],
         [],
         1, // limit
@@ -157,26 +162,23 @@ unconstrained fn get_note_internal<Note, N>(
     )[0].unwrap() // Notice: we don't allow dummies to be returned from get_note (singular).
 }
 
-unconstrained fn get_notes_internal<Note, N, S, P>(
+unconstrained fn get_notes_internal<Note, N, FILTER_ARGS>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
-    options: NoteGetterOptions<Note, N, S, P>,
+    options: NoteGetterOptions<Note, N, FILTER_ARGS>,
 ) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {
-    let sort_by = options.sort_by;
-    let mut sort_by_indices = [0; N];
-    let mut sort_order = [0; N];
-    for i in 0..sort_by.len() {
-        sort_by_indices[i] = sort_by[i].field_index;
-        sort_order[i] = sort_by[i].order;
-    };
+    let (num_selects, select_by, select_values, sort_by, sort_order) = flatten_options(options.selects, options.sorts);
     let placeholder_opt_notes = [Option::none(); MAX_READ_REQUESTS_PER_CALL];
     let placeholder_fields = [0; GET_NOTES_ORACLE_RETURN_LENGTH];
     oracle::notes::get_notes(
         storage_slot,
         note_interface,
-        sort_by_indices,
+        num_selects,
+        select_by,
+        select_values,
+        sort_by,
         sort_order,
-        MAX_READ_REQUESTS_PER_CALL as u32,
+        options.limit,
         options.offset,
         placeholder_opt_notes,
         placeholder_fields,
@@ -186,12 +188,51 @@ unconstrained fn get_notes_internal<Note, N, S, P>(
 unconstrained fn view_notes<Note, N>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
-    limit: u32,
-    offset: u32,
+    options: NoteViewerOptions<Note, N>,
 ) -> [Option<Note>; MAX_NOTES_PER_PAGE] {
-    let sort_by = [0; N];
-    let sort_order = [0; N];
+    let (num_selects, select_by, select_values, sort_by, sort_order) = flatten_options(options.selects, options.sorts);
     let placeholder_opt_notes = [Option::none(); MAX_NOTES_PER_PAGE];
     let placeholder_fields = [0; VIEW_NOTE_ORACLE_RETURN_LENGTH];
-    oracle::notes::get_notes(storage_slot, note_interface, sort_by, sort_order, limit, offset, placeholder_opt_notes, placeholder_fields)
+    oracle::notes::get_notes(
+        storage_slot,
+        note_interface,
+        num_selects,
+        select_by,
+        select_values,
+        sort_by,
+        sort_order,
+        options.limit,
+        options.offset,
+        placeholder_opt_notes,
+        placeholder_fields,
+    )
+}
+
+unconstrained fn flatten_options<Note, N>(
+    selects: BoundedVec<Option<Select>, N>,
+    sorts: BoundedVec<Option<Sort>, N>,
+) -> (u8, [u8; N], [Field; N], [u8; N], [u2; N]) {
+    let mut num_selects = 0;
+    let mut select_by = [0; N];
+    let mut select_values = [0; N];
+    for i in 0..selects.len {
+        let select = selects.get(i);
+        if select.is_some() {
+            select_by[num_selects] = select.unwrap_unchecked().field_index;
+            select_values[num_selects] = select.unwrap_unchecked().value;
+            num_selects += 1;
+        };
+    };
+
+    let mut sort_by = [0; N];
+    let mut sort_order = [0; N];
+    for i in 0..sorts.len {
+        let sort = sorts.get(i);
+        if sort.is_some() {
+            sort_by[i] = sort.unwrap_unchecked().field_index;
+            sort_order[i] = sort.unwrap_unchecked().order;
+        };
+    };
+
+    (num_selects, select_by, select_values, sort_by, sort_order)
 }

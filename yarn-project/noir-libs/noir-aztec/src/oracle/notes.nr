@@ -40,8 +40,11 @@ unconstrained fn notify_nullified_note<N>(
 #[oracle(getNotes)]
 fn get_notes_oracle<N, S>(
     _storage_slot: Field,
+    _num_selects: u8,
+    _select_by: [u8; N],
+    _select_values: [Field; N],
     _sort_by: [u8; N],
-    _sort_order: [u8; N],
+    _sort_order: [u2; N],
     _limit: u32,
     _offset: u32,
     _return_size: u32,
@@ -50,27 +53,33 @@ fn get_notes_oracle<N, S>(
 
 unconstrained fn get_notes_oracle_wrapper<N, S>(
     storage_slot: Field,
+    num_selects: u8,
+    select_by: [u8; N],
+    select_values: [Field; N],
     sort_by: [u8; N],
-    sort_order: [u8; N],
+    sort_order: [u2; N],
     limit: u32,
     offset: u32,
     mut placeholder_fields: [Field; S],
 )-> [Field; S] {
     let return_size = placeholder_fields.len() as u32;
-    get_notes_oracle(storage_slot, sort_by, sort_order, limit, offset, return_size, placeholder_fields)
+    get_notes_oracle(storage_slot, num_selects, select_by, select_values, sort_by, sort_order, limit, offset, return_size, placeholder_fields)
 }
 
 unconstrained fn get_notes<Note, N, M, S, NS>(
     storage_slot: Field,
     note_interface: NoteInterface<Note, N>,
+    num_selects: u8,
+    select_by: [u8; M],
+    select_values: [Field; M],
     sort_by: [u8; M],
-    sort_order: [u8; M],
+    sort_order: [u2; M],
     limit: u32,
     offset: u32,
     mut placeholder_opt_notes: [Option<Note>; S], // TODO: Remove it and use `limit` to initialise the note array.
     placeholder_fields: [Field; NS], // TODO: Remove it and use `limit` to initialise the note array.
 ) -> [Option<Note>; S] {
-    let fields = get_notes_oracle_wrapper(storage_slot, sort_by, sort_order, limit, offset, placeholder_fields);
+    let fields = get_notes_oracle_wrapper(storage_slot, num_selects, select_by, select_values, sort_by, sort_order, limit, offset, placeholder_fields);
     let num_notes = fields[0] as u32;
     let contract_address = fields[1];
     let deserialise = note_interface.deserialise;

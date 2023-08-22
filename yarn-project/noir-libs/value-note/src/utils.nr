@@ -5,7 +5,7 @@ use dep::aztec::oracle::get_public_key::get_public_key;
 use dep::aztec::state_vars::set::Set;
 use dep::aztec::types::point::Point;
 use crate::{
-    filter::{get_1_note, filter_notes_min_sum},
+    filter::filter_notes_min_sum,
     value_note::{ValueNote, VALUE_NOTE_LEN},
 };
 
@@ -71,7 +71,7 @@ fn spend_one_note(
     owner: Field,
     spend_note_offset: u32,
 ) {
-    let options = NoteGetterOptions::with_filter_and_offset(get_1_note, 0, spend_note_offset);
+    let options = NoteGetterOptions::new().set_limit(1).set_offset(spend_note_offset);
     let opt_notes = balance.get_notes(context, options);
 
     // The note should always exist.

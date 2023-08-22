@@ -6,8 +6,9 @@ use crate::note::{
         create_note,
         destroy_note,
     },
-    note_getter::get_note,
+    note_getter::{get_note, view_notes},
     note_interface::NoteInterface,
+    note_viewer_options::NoteViewerOptions,
 };
 use crate::constants_gen::{
     GENERATOR_INDEX__INITIALISATION_NULLIFIER,
@@ -62,5 +63,10 @@ impl<Note, N> Singleton<Note, N> {
         create_note(context, self.storage_slot, &mut note, self.note_interface);
 
         note
+    }
+
+    unconstrained fn view_note(self) -> Note {
+        let options = NoteViewerOptions::new().set_limit(1);
+        view_notes(self.storage_slot, self.note_interface, options)[0].unwrap()
     }
 }

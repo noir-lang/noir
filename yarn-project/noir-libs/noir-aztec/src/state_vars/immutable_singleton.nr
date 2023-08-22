@@ -1,8 +1,11 @@
 use dep::std::hash::pedersen_with_separator;
 use crate::context::PrivateContext;
-use crate::note::lifecycle::create_note;
-use crate::note::note_getter::get_note;
-use crate::note::note_interface::NoteInterface;
+use crate::note::{
+    lifecycle::create_note,
+    note_getter::{get_note, view_notes},
+    note_interface::NoteInterface,
+    note_viewer_options::NoteViewerOptions,
+};
 use crate::oracle;
 use crate::constants_gen::{
     GENERATOR_INDEX__INITIALISATION_NULLIFIER,
@@ -39,5 +42,10 @@ impl<Note, N> ImmutableSingleton<Note, N> {
     fn get_note(self, context: &mut PrivateContext) -> Note {
         let storage_slot = self.storage_slot;
         get_note(context, storage_slot, self.note_interface)
+    }
+
+    unconstrained fn view_note(self) -> Note {
+        let options = NoteViewerOptions::new().set_limit(1);
+        view_notes(self.storage_slot, self.note_interface, options)[0].unwrap()
     }
 }

@@ -348,7 +348,7 @@ contract NonNativeToken {
         let storage = Storage::init();
         let owner_balance = storage.balances.at(owner);
 
-        balance_utils::get_balance(owner_balance.storage_slot)
+        balance_utils::get_balance(owner_balance)
     }
 
     // Computes note hash and nullifier.

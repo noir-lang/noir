@@ -7,7 +7,6 @@ contract PokeableToken {
         balance_utils,
         utils::{send_note, spend_notes},
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods, ValueNote},
-        filter::get_max_notes,
     };
     use dep::aztec::abi;
     use dep::aztec::abi::PrivateContextInputs;
@@ -71,7 +70,7 @@ contract PokeableToken {
         // Pick from the set of sender's notes.
         let sender_balance = storage.balances.at(sender);
 
-        let options = NoteGetterOptions::with_filter(get_max_notes, 0);
+        let options = NoteGetterOptions::new();
         let maybe_notes = sender_balance.get_notes(&mut context, options);
         let mut note_sum = 0;
         for i in 0..maybe_notes.len() {
@@ -107,7 +106,7 @@ contract PokeableToken {
         let sender_balance = storage.balances.at(sender);
 
         // Return the sum of all notes in the set.
-        balance_utils::get_balance(sender_balance.storage_slot)
+        balance_utils::get_balance(sender_balance)
     }
 
     // Computes note hash and nullifier.

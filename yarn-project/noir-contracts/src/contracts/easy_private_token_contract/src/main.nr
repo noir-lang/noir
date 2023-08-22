@@ -98,7 +98,7 @@ contract EasyPrivateToken {
         let balances = storage.balances;
 
         // Return the sum of all notes in the set.
-        balance_utils::get_balance(balances.at(owner).storage_slot)
+        balance_utils::get_balance(balances.at(owner).set)
     }
 
     // Computes note hash and nullifier.

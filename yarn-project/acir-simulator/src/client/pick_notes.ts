@@ -1,6 +1,20 @@
 import { Fr } from '@aztec/foundation/fields';
 
 /**
+ * Configuration for selecting values.
+ */
+export interface Select {
+  /**
+   * Index of the field to select and match.
+   */
+  index: number;
+  /**
+   * Required value of the field.
+   */
+  value: Fr;
+}
+
+/**
  * The order to sort an array.
  */
 export enum SortOrder {
@@ -10,19 +24,33 @@ export enum SortOrder {
 }
 
 /**
- * Options for selecting items from the database.
+ * Configuration for sorting values.
+ */
+export interface Sort {
+  /**
+   * Index of the field to sort.
+   */
+  index: number;
+  /**
+   * Order to sort the field.
+   */
+  order: SortOrder;
+}
+
+/**
+ * Options for picking items from an array of BasicNoteData.
  */
 interface GetOptions {
   /**
-   * An array of indices of the fields to sort.
+   * Configurations for selecting items.
    * Default: empty array.
    */
-  sortBy?: number[];
+  selects?: Select[];
   /**
-   * The order of the corresponding index in sortBy. (1: DESC, 2: ASC, 0: Do nothing)
+   * Configurations for sorting items.
    * Default: empty array.
    */
-  sortOrder?: SortOrder[];
+  sorts?: Sort[];
   /**
    * The number of items to retrieve per query.
    * Default: 0. No limit.
@@ -45,16 +73,18 @@ interface BasicNoteData {
   preimage: Fr[];
 }
 
-const sortNotes = (a: Fr[], b: Fr[], sortBy: number[], sortOrder: number[], level = 0): number => {
-  const index = sortBy[level];
-  if (sortBy[level] === undefined) return 0;
+const selectNotes = <T extends BasicNoteData>(notes: T[], selects: Select[]): T[] =>
+  notes.filter(note => selects.every(({ index, value }) => note.preimage[index]?.equals(value)));
 
-  const order = sortOrder[level] ?? 1; // Default: Descending.
+const sortNotes = (a: Fr[], b: Fr[], sorts: Sort[], level = 0): number => {
+  if (sorts[level] === undefined) return 0;
+
+  const { index, order } = sorts[level];
   if (order === 0) return 0;
 
   const dir = order === 1 ? [-1, 1] : [1, -1];
   return a[index].value === b[index].value
-    ? sortNotes(a, b, sortBy, sortOrder, level + 1)
+    ? sortNotes(a, b, sorts, level + 1)
     : a[index].value > b[index].value
     ? dir[0]
     : dir[1];
@@ -65,9 +95,9 @@ const sortNotes = (a: Fr[], b: Fr[], sortBy: number[], sortOrder: number[], leve
  */
 export function pickNotes<T extends BasicNoteData>(
   notes: T[],
-  { sortBy = [], sortOrder = [], limit = 0, offset = 0 }: GetOptions,
+  { selects = [], sorts = [], limit = 0, offset = 0 }: GetOptions,
 ) {
-  return notes
-    .sort((a, b) => sortNotes(a.preimage, b.preimage, sortBy, sortOrder))
+  return selectNotes(notes, selects)
+    .sort((a, b) => sortNotes(a.preimage, b.preimage, sorts))
     .slice(offset, limit ? offset + limit : undefined);
 }

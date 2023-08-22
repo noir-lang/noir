@@ -109,7 +109,7 @@ contract PrivateToken {
         let owner_balance = storage.balances.at(owner);
 
         // Return the sum of all notes in the set.
-        balance_utils::get_balance(owner_balance.storage_slot)
+        balance_utils::get_balance(owner_balance)
     }
     // docs:end:getBalance
 
