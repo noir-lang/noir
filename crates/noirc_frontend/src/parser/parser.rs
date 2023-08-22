@@ -35,7 +35,7 @@ use crate::ast::{
 };
 use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
-use crate::token::{Attribute, Keyword, Token, TokenKind};
+use crate::token::{Attribute, Attributes, Keyword, Token, TokenKind};
 use crate::{
     BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
@@ -161,7 +161,7 @@ fn contract(module_parser: impl NoirParser<ParsedModule>) -> impl NoirParser<Top
 /// function_definition: attribute function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 ///                      function_modifiers 'fn' ident generics '(' function_parameters ')' function_return_type block
 fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
-    attribute()
+    attributes()
         .or_not()
         .then(function_modifiers())
         .then_ignore(keyword(Keyword::Fn))
@@ -172,12 +172,15 @@ fn function_definition(allow_self: bool) -> impl NoirParser<NoirFunction> {
         .then(where_clause())
         .then(spanned(block(expression())))
         .validate(|(((args, ret), where_clause), (body, body_span)), span, emit| {
-            let ((((attribute, modifiers), name), generics), parameters) = args;
+            let ((((attributes, modifiers), name), generics), parameters) = args;
+
+            // This sorts between primary and secondary attributes
+            let sorted_attributes = validate_attributes(attributes, span, emit);
             validate_where_clause(&generics, &where_clause, span, emit);
             FunctionDefinition {
                 span: body_span,
                 name,
-                attribute, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
+                attributes: sorted_attributes, // XXX: Currently we only have one attribute defined. If more attributes are needed per function, we can make this a vector and make attribute definition more expressive
                 is_unconstrained: modifiers.0,
                 is_open: modifiers.1,
                 is_internal: modifiers.2,
@@ -281,6 +284,10 @@ fn attribute() -> impl NoirParser<Attribute> {
         Token::Attribute(attribute) => attribute,
         _ => unreachable!(),
     })
+}
+
+fn attributes() -> impl NoirParser<Vec<Attribute>> {
+    attribute().repeated()
 }
 
 fn struct_fields() -> impl NoirParser<Vec<(Ident, UnresolvedType)>> {
@@ -416,6 +423,39 @@ fn trait_function_declaration() -> impl NoirParser<TraitItem> {
                 TraitItem::Function { name, generics, parameters, return_type, where_clause, body }
             },
         )
+}
+
+// TODO: clean this up massively
+fn validate_attributes(
+    attributes: Option<Vec<Attribute>>,
+    span: Span,
+    emit: &mut dyn FnMut(ParserError),
+) -> Attributes {
+    if attributes.is_none() {
+        return Attributes::empty();
+    }
+    // TODO: zero copy possilbe?
+    let attrs = attributes.unwrap().clone();
+
+    let mut primary = None;
+    let mut secondary = Vec::new();
+
+    for attribute in attrs {
+        match attribute {
+            Attribute::Primary(attr) => {
+                if primary.is_some() {
+                    emit(ParserError::with_reason(
+                        ParserErrorReason::MultiplePrimaryAttributesFound,
+                        span,
+                    ));
+                }
+                primary = Some(attr)
+            }
+            Attribute::Secondary(attr) => secondary.push(attr),
+        }
+    }
+
+    Attributes { primary, secondary }
 }
 
 fn validate_where_clause(

@@ -287,6 +287,7 @@ impl<'a> ModCollector<'a> {
         }
 
         for item in &trait_def.items {
+            // TODO(Maddiaa): Should traits have a notion of attributes? -> I have a feeling they should
             if let TraitItem::Function {
                 name,
                 generics,

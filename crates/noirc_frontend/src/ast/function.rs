@@ -2,7 +2,10 @@ use std::fmt::Display;
 
 use noirc_errors::Span;
 
-use crate::{token::Attribute, FunctionReturnType, Ident, Pattern, Visibility};
+use crate::{
+    token::{Attributes, PrimaryAttribute, SecondaryAttribute},
+    FunctionReturnType, Ident, Pattern, Visibility,
+};
 
 use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
 
@@ -59,8 +62,14 @@ impl NoirFunction {
     pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, Visibility)> {
         &self.def.parameters
     }
-    pub fn attribute(&self) -> Option<&Attribute> {
-        self.def.attribute.as_ref()
+    pub fn attributes(&self) -> &Attributes {
+        &self.def.attributes
+    }
+    pub fn primary_attribute(&self) -> Option<&PrimaryAttribute> {
+        self.def.attributes.primary.as_ref()
+    }
+    pub fn secondary_attributes(&self) -> &Vec<SecondaryAttribute> {
+        self.def.attributes.secondary.as_ref()
     }
     pub fn def(&self) -> &FunctionDefinition {
         &self.def
@@ -80,20 +89,20 @@ impl NoirFunction {
             FunctionKind::LowLevel => {}
             _ => return None,
         }
-        assert!(self.attribute().unwrap().is_foreign());
+        assert!(self.primary_attribute().unwrap().is_foreign());
         Some(&self.def)
     }
 }
 
 impl From<FunctionDefinition> for NoirFunction {
     fn from(fd: FunctionDefinition) -> Self {
-        let kind = match fd.attribute {
-            Some(Attribute::Builtin(_)) => FunctionKind::Builtin,
-            Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
-            Some(Attribute::Test { .. }) => FunctionKind::Normal,
-            Some(Attribute::Oracle(_)) => FunctionKind::Oracle,
-            Some(Attribute::Deprecated(_)) | None => FunctionKind::Normal,
-            Some(Attribute::Custom(_)) => FunctionKind::Normal,
+        // The function type is determined by the existence of a primary attribute
+        let kind = match fd.attributes.primary {
+            Some(PrimaryAttribute::Builtin(_)) => FunctionKind::Builtin,
+            Some(PrimaryAttribute::Foreign(_)) => FunctionKind::LowLevel,
+            Some(PrimaryAttribute::Test { .. }) => FunctionKind::Normal,
+            Some(PrimaryAttribute::Oracle(_)) => FunctionKind::Oracle,
+            None => FunctionKind::Normal,
         };
 
         NoirFunction { def: fd, kind }

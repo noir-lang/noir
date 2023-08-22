@@ -17,7 +17,7 @@ use crate::hir_def::expr::{
     HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
     HirMemberAccess, HirMethodCallExpression, HirPrefixExpression,
 };
-use crate::token::Attribute;
+use crate::token::PrimaryAttribute;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -669,7 +669,7 @@ impl<'a> Resolver<'a> {
         let id = self.interner.function_definition_id(func_id);
         let name_ident = HirIdent { id, location };
 
-        let attributes = func.attribute().cloned();
+        let attributes = func.attributes().clone();
 
         let mut generics =
             vecmap(self.generics.clone(), |(name, typevar, _)| match &*typevar.borrow() {
@@ -722,7 +722,9 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }
 
-        if matches!(attributes, Some(Attribute::Test { .. })) && !parameters.is_empty() {
+        if matches!(attributes.primary, Some(PrimaryAttribute::Test { .. }))
+            && !parameters.is_empty()
+        {
             self.push_err(ResolverError::TestFunctionHasParameters {
                 span: func.name_ident().span(),
             });

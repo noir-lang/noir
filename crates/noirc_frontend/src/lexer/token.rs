@@ -350,25 +350,41 @@ impl fmt::Display for TestScope {
 // Attributes are special language markers in the target language
 // An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
 // Calls to functions which have the foreign attribute are executed in the host language
+pub struct Attributes {
+    // Each function can have a single Primary Attribute
+    pub primary: Option<PrimaryAttribute>,
+    // Each function can have many Secondary Attributes
+    pub secondary: Vec<SecondaryAttribute>,
+}
+
+impl Attributes {
+    pub fn empty() -> Self {
+        Self { primary: None, secondary: Vec::new() }
+    }
+
+    /// Returns note if a deprecated secondary attribute is found
+    pub fn get_deprecated_note(&self) -> Option<String> {
+        self.secondary.iter().find_map(|attr| match attr {
+            SecondaryAttribute::Deprecated(note) => note.clone(),
+            _ => None,
+        })
+    }
+}
+
+/// An Attribute can be either a Primary Attribute or a Secondary Attribute
+/// A Primary Attribute can alter the function type, thus there can only be one
+/// A secondary attribute has no effect and is either consumed by a library or used as a notice for the developer
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Attribute {
-    Foreign(String),
-    Builtin(String),
-    Oracle(String),
-    Deprecated(Option<String>),
-    Test(TestScope),
-    Custom(String),
+    Primary(PrimaryAttribute),
+    Secondary(SecondaryAttribute),
 }
 
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
-            Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
-            Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
-            Attribute::Test(scope) => write!(f, "#[test{}]", scope),
-            Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
-            Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
-            Attribute::Custom(ref k) => write!(f, "#[{k}]"),
+            Attribute::Primary(attribute) => write!(f, "{}", attribute),
+            Attribute::Secondary(attribute) => write!(f, "{}", attribute),
         }
     }
 }
@@ -398,19 +414,31 @@ impl Attribute {
         };
 
         let attribute = match &word_segments[..] {
+            // Primary Attributes
             ["foreign", name] => {
                 validate(name)?;
-                Attribute::Foreign(name.to_string())
+                Attribute::Primary(PrimaryAttribute::Foreign(name.to_string()))
             }
             ["builtin", name] => {
                 validate(name)?;
-                Attribute::Builtin(name.to_string())
+                Attribute::Primary(PrimaryAttribute::Builtin(name.to_string()))
             }
             ["oracle", name] => {
                 validate(name)?;
-                Attribute::Oracle(name.to_string())
+                Attribute::Primary(PrimaryAttribute::Oracle(name.to_string()))
             }
-            ["deprecated"] => Attribute::Deprecated(None),
+            ["test"] => Attribute::Primary(PrimaryAttribute::Test(TestScope::None)),
+            ["test", name] => {
+                validate(name)?;
+                let malformed_scope =
+                    LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() };
+                match TestScope::lookup_str(name) {
+                    Some(scope) => Attribute::Primary(PrimaryAttribute::Test(scope)),
+                    None => return Err(malformed_scope),
+                }
+            }
+            // Secondary attributes
+            ["deprecated"] => Attribute::Secondary(SecondaryAttribute::Deprecated(None)),
             ["deprecated", name] => {
                 if !name.starts_with('"') && !name.ends_with('"') {
                     return Err(LexerErrorKind::MalformedFuncAttribute {
@@ -419,64 +447,107 @@ impl Attribute {
                     });
                 }
 
-                Attribute::Deprecated(name.trim_matches('"').to_string().into())
-            }
-            ["test"] => Attribute::Test(TestScope::None),
-            ["test", name] => {
-                validate(name)?;
-                let malformed_scope =
-                    LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() };
-                match TestScope::lookup_str(name) {
-                    Some(scope) => Attribute::Test(scope),
-                    None => return Err(malformed_scope),
-                }
+                Attribute::Secondary(SecondaryAttribute::Deprecated(
+                    name.trim_matches('"').to_string().into(),
+                ))
             }
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
-                Attribute::Custom(word.to_owned())
+                Attribute::Secondary(SecondaryAttribute::Custom(word.to_owned()))
             }
         };
 
         Ok(Token::Attribute(attribute))
     }
+}
 
+/// Primary Attributes are those which a function can only have one off
+/// They change the FunctionKind and thus have direct impact on the IR output
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum PrimaryAttribute {
+    Foreign(String),
+    Builtin(String),
+    Oracle(String),
+    Test(TestScope),
+}
+
+impl PrimaryAttribute {
     pub fn builtin(self) -> Option<String> {
         match self {
-            Attribute::Builtin(name) => Some(name),
+            PrimaryAttribute::Builtin(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn foreign(self) -> Option<String> {
         match self {
-            Attribute::Foreign(name) => Some(name),
+            PrimaryAttribute::Foreign(name) => Some(name),
             _ => None,
         }
     }
 
     pub fn is_foreign(&self) -> bool {
-        matches!(self, Attribute::Foreign(_))
+        matches!(self, PrimaryAttribute::Foreign(_))
     }
 
     pub fn is_low_level(&self) -> bool {
-        matches!(self, Attribute::Foreign(_) | Attribute::Builtin(_))
+        matches!(self, PrimaryAttribute::Foreign(_) | PrimaryAttribute::Builtin(_))
     }
 }
 
-impl AsRef<str> for Attribute {
-    fn as_ref(&self) -> &str {
+impl fmt::Display for PrimaryAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Attribute::Foreign(string) => string,
-            Attribute::Builtin(string) => string,
-            Attribute::Oracle(string) => string,
-            Attribute::Deprecated(Some(string)) => string,
-            Attribute::Test { .. } | Attribute::Deprecated(None) => "",
-            Attribute::Custom(string) => string,
+            PrimaryAttribute::Test(scope) => write!(f, "#[test{}]", scope),
+            PrimaryAttribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
+            PrimaryAttribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
+            PrimaryAttribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
         }
     }
 }
 
-/// All keywords in Noir.
+/// Secondary attributes are those which a function can have many off
+/// They do not change the FunctionKind and thus do not have direct impact on the IR output
+/// They are often consumed by libraries or used as notices for the developer
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum SecondaryAttribute {
+    Deprecated(Option<String>),
+    Custom(String),
+}
+
+impl fmt::Display for SecondaryAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SecondaryAttribute::Deprecated(None) => write!(f, "#[deprecated]"),
+            SecondaryAttribute::Deprecated(Some(ref note)) => {
+                write!(f, r#"#[deprecated("{note}")]"#)
+            }
+            SecondaryAttribute::Custom(ref k) => write!(f, "#[{k}]"),
+        }
+    }
+}
+
+impl AsRef<str> for PrimaryAttribute {
+    fn as_ref(&self) -> &str {
+        match self {
+            PrimaryAttribute::Foreign(string) => string,
+            PrimaryAttribute::Builtin(string) => string,
+            PrimaryAttribute::Oracle(string) => string,
+            PrimaryAttribute::Test { .. } => "",
+        }
+    }
+}
+
+impl AsRef<str> for SecondaryAttribute {
+    fn as_ref(&self) -> &str {
+        match self {
+            SecondaryAttribute::Deprecated(Some(string)) => string,
+            SecondaryAttribute::Deprecated(None) => "",
+            SecondaryAttribute::Custom(string) => string,
+        }
+    }
+}
+
 /// Note that `self` is not present - it is a contextual keyword rather than a true one as it is
 /// only special within `impl`s. Otherwise `self` functions as a normal identifier.
 #[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
