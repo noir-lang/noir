@@ -686,10 +686,8 @@ where
         expr_parser,
     )
     .map(|expr| {
-        Statement::Constrain(ConstrainStatement(
-            expr,
-            Expression::new(ExpressionKind::Literal(Literal::Bool(true)), Span::default()),
-        ))
+        let true_literal = Expression::new(ExpressionKind::Literal(Literal::Bool(true)), expr.span);
+        Statement::Constrain(ConstrainStatement(expr, true_literal))
     })
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
@@ -704,10 +702,9 @@ where
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
         .labelled(ParsingRuleLabel::Statement)
         .map(|expr| {
-            Statement::Constrain(ConstrainStatement(
-                expr,
-                Expression::new(ExpressionKind::Literal(Literal::Bool(true)), Span::default()),
-            ))
+            let true_literal =
+                Expression::new(ExpressionKind::Literal(Literal::Bool(true)), expr.span);
+            Statement::Constrain(ConstrainStatement(expr, true_literal))
         })
 }
 
