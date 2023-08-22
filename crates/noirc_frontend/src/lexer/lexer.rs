@@ -102,7 +102,7 @@ impl<'a> Lexer<'a> {
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
-            Some('"') => self.eat_string_literal(false),
+            Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
@@ -316,15 +316,28 @@ impl<'a> Lexer<'a> {
         Ok(integer_token.into_span(start, end))
     }
 
-    fn eat_string_literal(&mut self, is_format_string: bool) -> SpannedTokenResult {
+    fn eat_string_literal(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+
+        let str_literal = self.eat_while(None, |ch| ch != '"');
+
+        let str_literal_token = Token::Str(str_literal);
+
+        self.next_char(); // Advance past the closing quote
+
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
+
+    // This differs from `eat_string_literal` in that we want the leading `f` to be captured in the Span
+    fn eat_fmt_string(&mut self) -> SpannedTokenResult {
         let start = self.position;
 
         self.next_char();
 
         let str_literal = self.eat_while(None, |ch| ch != '"');
 
-        let str_literal_token =
-            if is_format_string { Token::FmtStr(str_literal) } else { Token::Str(str_literal) };
+        let str_literal_token = Token::FmtStr(str_literal);
 
         self.next_char(); // Advance past the closing quote
 
@@ -334,7 +347,7 @@ impl<'a> Lexer<'a> {
 
     fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
         if self.peek_char_is('"') {
-            self.eat_string_literal(true)
+            self.eat_fmt_string()
         } else {
             self.eat_alpha_numeric('f')
         }
