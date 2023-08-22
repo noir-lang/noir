@@ -160,7 +160,7 @@ impl AbiType {
                 let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(&typ)));
                 Self::Struct { fields, name: struct_type.name.to_string() }
             }
-            Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
+            Type::Tuple(_) => todo!("AbiType::from_type not yet implemented for tuple types"),
             Type::TypeVariable(_, _) => unreachable!(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),

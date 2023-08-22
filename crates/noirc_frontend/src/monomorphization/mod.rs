@@ -883,7 +883,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
         let printable_type: PrintableType = typ.into();
         let abi_as_string =
-            serde_json::to_string(&printable_type).expect("ICE: expected Abi type to serialize");
+            serde_json::to_string(&printable_type).expect("ICE: expected PrintableType to serialize");
 
         arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
     }

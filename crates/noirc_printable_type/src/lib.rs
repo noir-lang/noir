@@ -57,7 +57,7 @@ pub enum PrintableValue {
     Struct(BTreeMap<String, PrintableValue>),
 }
 
-/// In order to display an `PrintableValue` we need an `PrintableType` to accurately
+/// In order to display a `PrintableValue` we need a `PrintableType` to accurately
 /// convert the value into a human-readable format.
 pub struct PrintableValueDisplay<'a> {
     value: &'a PrintableValue,
