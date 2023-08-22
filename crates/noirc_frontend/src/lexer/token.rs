@@ -326,6 +326,7 @@ pub enum Attribute {
     Oracle(String),
     Deprecated(Option<String>),
     Test,
+    Custom(String),
 }
 
 impl fmt::Display for Attribute {
@@ -337,6 +338,7 @@ impl fmt::Display for Attribute {
             Attribute::Test => write!(f, "#[test]"),
             Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
             Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
+            Attribute::Custom(ref k) => write!(f, "#[{k}]"),
         }
     }
 }
@@ -390,8 +392,9 @@ impl Attribute {
                 Attribute::Deprecated(name.trim_matches('"').to_string().into())
             }
             ["test"] => Attribute::Test,
-            _ => {
-                return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
+            tokens => {
+                tokens.iter().try_for_each(|token| validate(token))?;
+                Attribute::Custom(word.to_owned())
             }
         };
 
@@ -429,6 +432,7 @@ impl AsRef<str> for Attribute {
             Attribute::Oracle(string) => string,
             Attribute::Deprecated(Some(string)) => string,
             Attribute::Test | Attribute::Deprecated(None) => "",
+            Attribute::Custom(string) => string,
         }
     }
 }

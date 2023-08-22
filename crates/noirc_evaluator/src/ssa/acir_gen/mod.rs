@@ -1231,11 +1231,11 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
+        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
-        assert_eq!(acir.opcodes, expected_opcodes);
+        assert_eq!(acir.take_opcodes(), expected_opcodes);
         assert_eq!(acir.return_witnesses, vec![Witness(1)]);
     }
 }

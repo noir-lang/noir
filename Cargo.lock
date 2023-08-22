@@ -2417,7 +2417,6 @@ dependencies = [
  "noirc_errors",
  "regex",
  "rustc-hash",
- "serde",
  "serde_json",
  "small-ord-set",
  "smol_str",

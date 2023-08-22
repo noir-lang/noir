@@ -454,6 +454,18 @@ fn deprecated_attribute_with_note() {
 }
 
 #[test]
+fn custom_attribute() {
+    let input = r#"#[custom(hello)]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(
+        token.token(),
+        &Token::Attribute(Attribute::Custom("custom(hello)".to_string().into()))
+    );
+}
+
+#[test]
 fn test_custom_gate_syntax() {
     let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
 
