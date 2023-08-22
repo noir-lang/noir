@@ -77,7 +77,7 @@ impl<'a> std::fmt::Display for PrintableValueDisplay<'a> {
             (
                 PrintableValue::Field(f),
                 PrintableType::Field
-                // TODO: We should print the sign for these and probably print normal integers instead of field strings
+                // TODO(#2401): We should print the sign for these and probably print normal integers instead of field strings
                 | PrintableType::SignedInteger { .. }
                 | PrintableType::UnsignedInteger { .. },
             ) => {
