@@ -15,12 +15,12 @@ import {
   getL1ContractAddresses,
   getSandboxAccountsWallet,
   getUnsafeSchnorrAccount,
+  makeFetch,
 } from '@aztec/aztec.js';
 import { CompleteAddress, PrivateKey, PublicKey } from '@aztec/circuits.js';
 import { DeployL1Contracts, deployL1Contract, deployL1Contracts } from '@aztec/ethereum';
 import { ContractAbi } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
-import { mustSucceedFetch } from '@aztec/foundation/json-rpc/client';
 import { DebugLogger, createDebugLogger } from '@aztec/foundation/log';
 import { retryUntil } from '@aztec/foundation/retry';
 import { PortalERC20Abi, PortalERC20Bytecode, TokenPortalAbi, TokenPortalBytecode } from '@aztec/l1-artifacts';
@@ -80,7 +80,7 @@ const createRpcServer = async (
 ): Promise<AztecRPC> => {
   if (SANDBOX_URL) {
     logger(`Creating JSON RPC client to remote host ${SANDBOX_URL}`);
-    const jsonClient = createJsonRpcClient(SANDBOX_URL, mustSucceedFetch);
+    const jsonClient = createJsonRpcClient(SANDBOX_URL, makeFetch([1, 2, 3], false));
     await waitForRPCServer(jsonClient, logger);
     logger('JSON RPC client connected to RPC Server');
     return jsonClient;

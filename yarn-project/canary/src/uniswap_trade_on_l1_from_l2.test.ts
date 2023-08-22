@@ -10,7 +10,7 @@ import {
   createDebugLogger,
   getL1ContractAddresses,
   getSandboxAccountsWallet,
-  mustSucceedFetch,
+  makeFetch,
   sleep,
   waitForSandbox,
 } from '@aztec/aztec.js';
@@ -53,7 +53,7 @@ const ethRpcUrl = ETHEREUM_HOST;
 const hdAccount = mnemonicToAccount(MNEMONIC);
 const privateKey = new PrivateKey(Buffer.from(hdAccount.getHdKey().privateKey!));
 
-const aztecRpcClient = createAztecRpcClient(aztecRpcUrl, mustSucceedFetch);
+const aztecRpcClient = createAztecRpcClient(aztecRpcUrl, makeFetch([1, 2, 3], false));
 let wallet: Wallet;
 
 /**

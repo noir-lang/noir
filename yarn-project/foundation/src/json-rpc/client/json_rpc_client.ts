@@ -66,13 +66,6 @@ export async function defaultFetch(
 }
 
 /**
- * A fetch function with retries.
- */
-export async function mustSucceedFetch(host: string, rpcMethod: string, body: any, useApiEndpoints: boolean) {
-  return await retry(() => defaultFetch(host, rpcMethod, body, useApiEndpoints), 'JsonRpcClient request');
-}
-
-/**
  * Makes a fetch function that retries based on the given attempts.
  * @param retries - Sequence of intervals (in seconds) to retry.
  * @param noRetry - Whether to stop retries on server errors.
@@ -88,19 +81,6 @@ export function makeFetch(retries: number[], noRetry: boolean, log?: DebugLogger
       log,
     );
   };
-}
-
-/**
- * A fetch function with retries unless the error is a NoRetryError.
- */
-export async function mustSucceedFetchUnlessNoRetry(
-  host: string,
-  rpcMethod: string,
-  body: any,
-  useApiEndpoints: boolean,
-) {
-  const noRetry = true;
-  return await retry(() => defaultFetch(host, rpcMethod, body, useApiEndpoints, noRetry), 'JsonRpcClient request');
 }
 
 /**
