@@ -34,7 +34,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) current_witness_index: u32,
 
     /// The opcodes of which the compiled ACIR will comprise.
-    pub(crate) opcodes: Vec<AcirOpcode>,
+    opcodes: Vec<AcirOpcode>,
 
     /// All witness indices that comprise the final return value of the program
     ///
@@ -60,12 +60,16 @@ impl GeneratedAcir {
     }
 
     /// Adds a new opcode into ACIR.
-    fn push_opcode(&mut self, opcode: AcirOpcode) {
+    pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
         if !self.call_stack.is_empty() {
             self.locations
                 .insert(OpcodeLocation::Acir(self.opcodes.len() - 1), self.call_stack.clone());
         }
+    }
+
+    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode> {
+        std::mem::take(&mut self.opcodes)
     }
 
     /// Updates the witness index counter and returns
@@ -228,7 +232,7 @@ impl GeneratedAcir {
             }
         };
 
-        self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
+        self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
 
         Ok(outputs_clone)
     }
