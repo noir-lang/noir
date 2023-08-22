@@ -21,6 +21,7 @@ contract PrivateToken {
     use crate::storage::Storage;
     // docs:end:storage-import
 
+    // docs:start:constructor
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
     fn constructor(
         //*********************************/
@@ -43,7 +44,9 @@ contract PrivateToken {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
     }
+    // docs:end:constructor
 
+    // docs:start:mint
     // Mints `amount` of tokens to `owner`.
     fn mint(
         //*********************************/
@@ -64,7 +67,9 @@ contract PrivateToken {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
     }
+    // docs:end:mint
 
+    // docs:start:transfer
     // Transfers `amount` of tokens from `sender` to a `recipient`.
     fn transfer(
         //*********************************/
@@ -91,7 +96,9 @@ contract PrivateToken {
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
     }
+    // docs:end:transfer
 
+    // docs:start:getBalance
     // Helper function to get the balance of a user ("unconstrained" is a Noir alternative of Solidity's "view" function).
     unconstrained fn getBalance(
         owner: Field,
@@ -104,6 +111,7 @@ contract PrivateToken {
         // Return the sum of all notes in the set.
         balance_utils::get_balance(owner_balance.storage_slot)
     }
+    // docs:end:getBalance
 
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.

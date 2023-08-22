@@ -26,4 +26,9 @@ jobs:
             fix
             feat
             chore
-            refactor 
+            refactor
+            docs
+            ci
+            build
+            perf
+            test

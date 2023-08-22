@@ -3,7 +3,6 @@ title: Aztec Sandbox
 ---
 
 import Image from "@theme/IdealImage";
-import GithubCode from '../../../src/components/GithubCode';
 
 ## Introduction
 
@@ -66,24 +65,28 @@ We will deploy a private token contract, and send tokens privately, using the Sa
 
 Writing the contract itself is out of scope for this tutorial, so we will use a Private Token Contract which has been pre-supplied as an example. See [here](../contracts/main.md) for more information on how to write contracts for Aztec.
 
-The following should work for MacOS, Linux or even WSL2 Ubuntu under Windows. 
+The following should work for MacOS, Linux or even WSL2 Ubuntu under Windows.
 
 Let's create an empty project called `private-token`. If you are familiar with setting up Typescript projects then you can skip to step 6.
 
 Although both `yarn` and `npm` would work, this example uses `yarn`. Open the terminal and do the following
 
 1. Ensure node version is 18 or more by running
+
 ```sh
-node -v 
+node -v
 ```
 
 2. Initialize a yarn project
+
 ```sh
 mkdir private-token
 cd private-token
 yarn init
 ```
+
 This should ask a series of questions that you can fill like so:
+
 ```
 yarn init v1.22.19
 question name (private-token):
@@ -99,11 +102,13 @@ Done in 23.60s.
 ```
 
 3. Create a `src` folder inside your new `private-token` directory:
+
 ```sh
 mkdir src
 ```
 
 4. Add typescript to the yarn project
+
 ```sh
 yarn add typescript @types/node --dev
 ```
@@ -140,27 +145,28 @@ Add a `tsconfig.json` file into the project root, here is an example:
 
 ```json
 {
-	"name": "private-token",
-	"version": "1.0.0",
-	"description": "My first private token contract",
-	"main": "index.js",
-	"author": "Phil",
-	"license": "MIT",
-	"type": "module",
-	"scripts": {
-		"build": "yarn clean && tsc -b",
-		"build:dev": "tsc -b --watch",
-		"clean": "rm -rf ./dest tsconfig.tsbuildinfo",
-		"start": "yarn build && export DEBUG='private-token' && node ./dest/index.js"
-	},
-	"devDependencies": {
-		"@types/node": "^20.4.9",
-		"typescript": "^5.1.6"
-	}
+  "name": "private-token",
+  "version": "1.0.0",
+  "description": "My first private token contract",
+  "main": "index.js",
+  "author": "Phil",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "yarn clean && tsc -b",
+    "build:dev": "tsc -b --watch",
+    "clean": "rm -rf ./dest tsconfig.tsbuildinfo",
+    "start": "yarn build && export DEBUG='private-token' && node ./dest/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.9",
+    "typescript": "^5.1.6"
+  }
 }
 ```
 
 6. Next, install Aztec related dependencies
+
 ```sh
 yarn add @aztec/aztec.js @aztec/noir-contracts
 ```
@@ -170,6 +176,7 @@ yarn add @aztec/aztec.js @aztec/noir-contracts
 #include_code index /docs/src/code_examples/sandbox_example.ts typescript
 
 8. Finally, run the package:
+
 ```sh
 yarn start
 ```
@@ -241,7 +248,7 @@ We can break this down as follows:
 
 The Private Token Contract emits an unencrypted log message during construction:
 
-<GithubCode owner="AztecProtocol" language="rust" repo="aztec-packages" branch="master" filePath="yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr" startLine={25} endLine={45} />
+#include_code constructor /yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr rust
 
 We can retrieve this emitted log using the `getUnencryptedLogs()` api:
 
@@ -267,7 +274,7 @@ Note how we used the `getBlockNum()` api to retrieve the number of the last mine
 
 A token contract wouldn't be very useful if you aren't able to query the balance of an account. As part of the deployment, tokens were minted to Alice. We can now call the contract's `getBalance()` function to retrieve the balances of the accounts.
 
-<GithubCode owner="AztecProtocol" language="rust" repo="aztec-packages" branch="master" filePath="yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr" startLine={96} endLine={106} />
+#include_code getBalance /yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr rust
 
 Call this function using the following code:
 
@@ -301,7 +308,7 @@ Now lets transfer some funds from Alice to Bob by calling the `transfer` functio
 2. The sender.
 3. The recipient.
 
-<GithubCode owner="AztecProtocol" language="rust" repo="aztec-packages" branch="master" filePath="yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr" startLine={69} endLine={93} />
+#include_code transfer /yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr rust
 
 We will again view the unencrypted logs emitted by the function and check the balances after the transfer:
 
@@ -335,7 +342,7 @@ Finally, the contract has a `mint` function that can be used to generate new tok
 1. The quantity of tokens to be minted.
 2. The recipient of the new tokens.
 
-<GithubCode owner="AztecProtocol" language="rust" repo="aztec-packages" branch="master" filePath="yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr" startLine={48} endLine={66} />
+#include_code mint /yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr rust
 
 Let's mint some tokens to Bob's account:
 
