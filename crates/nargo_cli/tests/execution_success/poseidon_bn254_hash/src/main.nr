@@ -1,4 +1,3 @@
-use dep::std;
 use dep::std::hash::poseidon;
 
 fn main(x1: [Field; 2], y1: pub Field, x2: [Field; 4], y2: pub Field)

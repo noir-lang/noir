@@ -1,8 +1,6 @@
 // Tests a very simple program.
 // 
 // The features being tested is modulo operations on brillig
-
-
 fn main() {
     assert_eq(modulo(47, 3), 2);
     assert_eq(modulo(2, 3), 2);

@@ -1,3 +1,4 @@
+
 fn main(x: u32)  {
     assert_eq(entry_point(x), 2);
     swap_entry_point(x, x + 1);

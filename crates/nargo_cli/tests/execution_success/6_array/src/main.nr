@@ -1,5 +1,3 @@
-use dep::std;
-
 //Basic tests for arrays 
 fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {  
     let mut c = 2301;

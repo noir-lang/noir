@@ -1,7 +1,6 @@
-// Test global string literals
-
 use dep::std;
 
+// Test global string literals
 global HELLO_WORLD = "hello world";
 
 fn main(message : pub str<11>, y : Field, hex_as_string : str<4>, hex_as_field : Field) {

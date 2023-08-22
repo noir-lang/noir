@@ -1,5 +1,4 @@
 // Test Noir implementations of SHA256 and SHA512 on one- and two-block (padded) messages.
-
 use dep::std;
 
 fn main(x: [u8; 3], result256: [u8; 32], result512: [u8; 64])

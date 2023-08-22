@@ -1,4 +1,3 @@
-use dep::std;
 use mysubmodule::my_helper;
 
 fn main(x: u1, y: u1) {

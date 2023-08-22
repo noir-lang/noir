@@ -1,5 +1,4 @@
 // Test Noir implementations of SHA256 and SHA512 on a one-byte message.
-
 use dep::std;
 
 fn main(x: Field, result256: [u8; 32], result512: [u8; 64])

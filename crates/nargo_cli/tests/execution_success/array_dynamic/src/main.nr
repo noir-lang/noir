@@ -1,3 +1,4 @@
+
 fn main(x: [u32; 5], mut z: u32, t: u32, index: [Field;5], index2: [Field;5], offset: Field, sublen: Field) {
     let idx = (z - 5*t - 5) as Field;
     //dynamic array test

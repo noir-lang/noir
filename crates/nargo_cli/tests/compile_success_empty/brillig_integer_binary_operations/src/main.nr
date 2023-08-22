@@ -1,5 +1,4 @@
 // Tests arithmetic operations on integers
-
 fn main()  {
     let x: u32 = 6;
     let y: u32 = 2;

@@ -1,4 +1,3 @@
-
 fn main() {
     let z1 = 0;
     let z2 = 1;

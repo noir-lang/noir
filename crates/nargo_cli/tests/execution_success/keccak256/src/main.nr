@@ -1,5 +1,5 @@
 // Keccak256 example
-
+//
 use dep::std;
 
 fn main(x: Field, result: [u8; 32]) {

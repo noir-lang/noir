@@ -1,4 +1,3 @@
-use dep::std;
 use dep::std::hash::poseidon;
 
 fn main(x: [Field; 7])

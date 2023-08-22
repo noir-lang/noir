@@ -9,7 +9,6 @@
 //
 // Not yet here: For R1CS, it is more about manipulating arithmetic gates to get performance
 // This can be done in ACIR!
-
 use dep::std;
 
 fn main(x: Field, result: [u8; 32]) {

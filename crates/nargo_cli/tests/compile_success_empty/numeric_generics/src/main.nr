@@ -1,4 +1,3 @@
-
 fn main() {
     let a = id([1, 2]);
     let b = id([1, 2, 3]);
