@@ -92,10 +92,10 @@ export class AztecRPCServer implements AztecRPC {
 
   public async registerAccount(privKey: PrivateKey, account: CompleteAddress) {
     const pubKey = this.keyStore.addAccount(privKey);
-    // TODO: Re-enable this check once https://github.com/AztecProtocol/aztec-packages/issues/1556 is solved
-    // if (!pubKey.equals(account.publicKey)) {
-    //   throw new Error(`Public key mismatch: ${pubKey.toString()} != ${account.publicKey.toString()}`);
-    // }
+    if (!pubKey.equals(account.publicKey)) {
+      // The derived public key must match the one provided in the complete address
+      throw new Error(`Public key mismatch: ${pubKey.toString()} != ${account.publicKey.toString()}`);
+    }
     await this.db.addCompleteAddress(account);
     this.synchroniser.addAccount(pubKey, this.keyStore);
   }
