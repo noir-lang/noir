@@ -1,7 +1,4 @@
-// it's the trick to provide mocha testing. The module `@noir-lang/noir-source-resolver` has no typings to resolve
-// import { initialiseResolver } from "@noir-lang/noir-source-resolver";
-const initialiseResolver =
-    require("@noir-lang/noir-source-resolver").initialiseResolver;
+import { initialiseResolver } from "@noir-lang/noir-source-resolver";
 import { compile } from "../result/";
 
 export const noirSourcePath = "../../noir-script/src/main.nr";
@@ -11,7 +8,7 @@ export const nargoArtifactPath =
 export async function compileNoirSource(noir_source: string): Promise<any> {
   console.log("Compiling Noir source...");
 
-  initialiseResolver((id: string) => {
+  initialiseResolver((id: String) => {
     console.log(`Resolving source ${id}`);
 
     const source = noir_source;
