@@ -56,11 +56,18 @@ pub fn compile_file(
     compile_main(context, crate_id, &CompileOptions::default())
 }
 
-/// Adds the file from the file system at `Path` to the crate graph
+/// Adds the file from the file system at `Path` to the crate graph as a root file
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
     context.crate_graph.add_crate_root(root_file_id)
+}
+
+// Adds the file from the file system at `Path` to the crate graph
+pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
+    let root_file_id = context.file_manager.add_file(file_name).unwrap();
+
+    context.crate_graph.add_crate(root_file_id)
 }
 
 /// Adds a edge in the crate graph for two crates
