@@ -213,16 +213,31 @@ impl<'block> BrilligBlock<'block> {
                 self.convert_ssa_binary(binary, dfg, result_register);
             }
             Instruction::Constrain(lhs, rhs) => {
-                let condition = self.brillig_context.allocate_register();
+                // If either value is a constant value of 1 then we can apply the constrain instruction to the other value directly.
+                match (dfg.get_numeric_constant(*lhs), dfg.get_numeric_constant(*rhs)) {
+                    (Some(lhs_constant), _) if lhs_constant == FieldElement::one() => {
+                        let condition = self.convert_ssa_register_value(*rhs, dfg);
 
-                self.convert_ssa_binary(
-                    &Binary { lhs: *lhs, rhs: *rhs, operator: BinaryOp::Eq },
-                    dfg,
-                    condition,
-                );
+                        self.brillig_context.constrain_instruction(condition);
+                    }
+                    (_, Some(rhs_constant)) if rhs_constant == FieldElement::one() => {
+                        let condition = self.convert_ssa_register_value(*lhs, dfg);
 
-                self.brillig_context.constrain_instruction(condition);
-                self.brillig_context.deallocate_register(condition);
+                        self.brillig_context.constrain_instruction(condition);
+                    }
+                    (_, _) => {
+                        let condition = self.brillig_context.allocate_register();
+
+                        self.convert_ssa_binary(
+                            &Binary { lhs: *lhs, rhs: *rhs, operator: BinaryOp::Eq },
+                            dfg,
+                            condition,
+                        );
+
+                        self.brillig_context.constrain_instruction(condition);
+                        self.brillig_context.deallocate_register(condition);
+                    }
+                }
             }
             Instruction::Allocate => {
                 let result_value = dfg.instruction_results(instruction_id)[0];
