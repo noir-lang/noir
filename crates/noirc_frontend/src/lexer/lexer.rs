@@ -461,7 +461,7 @@ fn custom_attribute() {
     let token = lexer.next().unwrap().unwrap();
     assert_eq!(
         token.token(),
-        &Token::Attribute(Attribute::Custom("custom__hello".to_string().into()))
+        &Token::Attribute(Attribute::Custom("custom(hello)".to_string().into()))
     );
 }
 
