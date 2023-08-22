@@ -392,12 +392,9 @@ impl Attribute {
                 Attribute::Deprecated(name.trim_matches('"').to_string().into())
             }
             ["test"] => Attribute::Test,
-            [name] => {
-                validate(name)?;
-                Attribute::Custom(name.to_string())
-            }
-            _ => {
-                return Err(LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() })
+            tokens => {
+                tokens.iter().try_for_each(|token| validate(token))?;
+                Attribute::Custom(tokens.join("__").to_string())
             }
         };
 
