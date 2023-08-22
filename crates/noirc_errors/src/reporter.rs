@@ -115,18 +115,18 @@ pub fn report_all(
     diagnostics: &[FileDiagnostic],
     deny_warnings: bool,
 ) -> ReportedErrors {
-    let mut ordered_diagonostics = Vec::new();
+    let mut ordered_diagnostics = Vec::new();
     let mut ordered_errors = Vec::new();
     for diagnostic in diagnostics {
         if diagnostic.diagnostic.is_warning() {
-            ordered_diagonostics.push(diagnostic);
+            ordered_diagnostics.push(diagnostic);
         } else {
             ordered_errors.push(diagnostic);
         }
     }
-    ordered_diagonostics.append(&mut ordered_errors);
+    ordered_diagnostics.append(&mut ordered_errors);
     let error_count =
-        ordered_diagonostics.iter().map(|error| error.report(files, deny_warnings) as u32).sum();
+        ordered_diagnostics.iter().map(|error| error.report(files, deny_warnings) as u32).sum();
 
     ReportedErrors { error_count }
 }
