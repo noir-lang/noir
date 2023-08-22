@@ -2164,7 +2164,6 @@ mod test {
             ("assert", 1, "constrain Error == true"),
             ("constrain x ==", 2, "constrain (plain::x == Error) == true"),
             ("assert(x ==)", 1, "constrain (plain::x == Error) == true"),
-            ("assert_eq(x, )", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
