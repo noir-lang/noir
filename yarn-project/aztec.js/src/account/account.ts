@@ -84,7 +84,7 @@ export class Account {
    */
   public async register(): Promise<AccountWallet> {
     const completeAddress = await this.getCompleteAddress();
-    await this.rpc.registerAccount(this.encryptionPrivateKey, completeAddress);
+    await this.rpc.registerAccount(this.encryptionPrivateKey, completeAddress.partialAddress);
     return this.getWallet();
   }
 

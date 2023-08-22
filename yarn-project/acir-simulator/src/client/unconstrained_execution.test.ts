@@ -30,7 +30,7 @@ describe('Unconstrained Execution test suite', () => {
     };
 
     beforeEach(async () => {
-      const ownerCompleteAddress = await CompleteAddress.fromPrivateKey(ownerPk);
+      const ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
       owner = ownerCompleteAddress.address;
 
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {

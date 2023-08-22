@@ -19,9 +19,12 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
 
     it('registers an account and returns it as an account only and not as a recipient', async () => {
       const keyPair = ConstantKeyPair.random(await Grumpkin.new());
-      const completeAddress = await CompleteAddress.fromPrivateKey(await keyPair.getPrivateKey());
+      const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(
+        await keyPair.getPrivateKey(),
+        Fr.random(),
+      );
 
-      await rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress);
+      await rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
 
       // Check that the account is correctly registered using the getAccounts and getRecipients methods
       const accounts = await rpc.getAccounts();
@@ -56,12 +59,15 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
 
     it('cannot register the same account twice', async () => {
       const keyPair = ConstantKeyPair.random(await Grumpkin.new());
-      const completeAddress = await CompleteAddress.fromPrivateKey(await keyPair.getPrivateKey());
-
-      await rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress);
-      await expect(async () => rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress)).rejects.toThrow(
-        `Complete address corresponding to ${completeAddress.address} already exists`,
+      const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(
+        await keyPair.getPrivateKey(),
+        Fr.random(),
       );
+
+      await rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
+      await expect(async () =>
+        rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress),
+      ).rejects.toThrow(`Complete address corresponding to ${completeAddress.address} already exists`);
     });
 
     it('cannot register the same recipient twice', async () => {

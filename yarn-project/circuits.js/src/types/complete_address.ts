@@ -51,11 +51,10 @@ export class CompleteAddress {
     return new CompleteAddress(address, pubKey, partialAddress);
   }
 
-  static async fromPrivateKey(privateKey: PrivateKey): Promise<CompleteAddress> {
+  static async fromPrivateKeyAndPartialAddress(privateKey: PrivateKey, partialAddress: Fr): Promise<CompleteAddress> {
     const wasm = await CircuitsWasm.get();
     const grumpkin = new Grumpkin(wasm);
     const pubKey = grumpkin.mul(Grumpkin.generator, privateKey);
-    const partialAddress = Fr.random();
     const address = computeContractAddressFromPartial(wasm, pubKey, partialAddress);
     return new CompleteAddress(address, pubKey, partialAddress);
   }

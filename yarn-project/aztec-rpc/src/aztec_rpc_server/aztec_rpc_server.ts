@@ -10,6 +10,7 @@ import {
   FunctionData,
   KernelCircuitPublicInputs,
   MAX_PUBLIC_CALL_STACK_LENGTH_PER_TX,
+  PartialAddress,
   PrivateKey,
   PublicCallRequest,
 } from '@aztec/circuits.js';
@@ -90,13 +91,10 @@ export class AztecRPCServer implements AztecRPC {
     this.log.info('Stopped');
   }
 
-  public async registerAccount(privKey: PrivateKey, account: CompleteAddress) {
+  public async registerAccount(privKey: PrivateKey, partialAddress: PartialAddress) {
     const pubKey = this.keyStore.addAccount(privKey);
-    if (!pubKey.equals(account.publicKey)) {
-      // The derived public key must match the one provided in the complete address
-      throw new Error(`Public key mismatch: ${pubKey.toString()} != ${account.publicKey.toString()}`);
-    }
-    await this.db.addCompleteAddress(account);
+    const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(privKey, partialAddress);
+    await this.db.addCompleteAddress(completeAddress);
     this.synchroniser.addAccount(pubKey, this.keyStore);
   }
 

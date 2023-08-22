@@ -196,8 +196,8 @@ describe('Private Execution test suite', () => {
     };
 
     beforeEach(async () => {
-      const ownerCompleteAddress = await CompleteAddress.fromPrivateKey(ownerPk);
-      const recipientCompleteAddress = await CompleteAddress.fromPrivateKey(recipientPk);
+      const ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
+      const recipientCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(recipientPk, Fr.random());
 
       owner = ownerCompleteAddress.address;
       recipient = recipientCompleteAddress.address;
@@ -426,8 +426,8 @@ describe('Private Execution test suite', () => {
     };
 
     beforeEach(async () => {
-      const ownerCompleteAddress = await CompleteAddress.fromPrivateKey(ownerPk);
-      const recipientCompleteAddress = await CompleteAddress.fromPrivateKey(recipientPk);
+      const ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
+      const recipientCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(recipientPk, Fr.random());
 
       owner = ownerCompleteAddress.address;
       recipient = recipientCompleteAddress.address;
@@ -676,7 +676,7 @@ describe('Private Execution test suite', () => {
     let recipient: AztecAddress;
 
     beforeEach(async () => {
-      const recipientCompleteAddress = await CompleteAddress.fromPrivateKey(recipientPk);
+      const recipientCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(recipientPk, Fr.random());
       recipient = recipientCompleteAddress.address;
       oracle.getCompleteAddress.mockImplementation((address: AztecAddress) => {
         if (address.equals(recipient)) return Promise.resolve(recipientCompleteAddress);
@@ -816,7 +816,7 @@ describe('Private Execution test suite', () => {
     let owner: AztecAddress;
 
     beforeEach(async () => {
-      const ownerCompleteAddress = await CompleteAddress.fromPrivateKey(ownerPk);
+      const ownerCompleteAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(ownerPk, Fr.random());
 
       owner = ownerCompleteAddress.address;
 
