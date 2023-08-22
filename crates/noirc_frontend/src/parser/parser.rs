@@ -1809,6 +1809,29 @@ mod test {
         );
     }
 
+    /// This is the standard way to assert that two expressions are equivalent
+    #[test]
+    fn parse_assert_eq() {
+        parse_with(assertion_eq(expression()), "assert_eq(x, y)").unwrap();
+
+        // These are general cases which should always work.
+        //
+        // The first case is the most noteworthy. It contains two `==`
+        // The first (inner) `==` is a predicate which returns 0/1
+        // The outer layer is an infix `==` which is
+        // associated with the Constrain statement
+        parse_all(
+            assertion_eq(expression()),
+            vec![
+                "assert_eq(((x + y) == k) + z, y)",
+                "assert_eq(x + !y, y)",
+                "assert_eq(x ^ y, y)",
+                "assert_eq(x ^ y, y + m)",
+                "assert_eq(x + x ^ x, y | m)",
+            ],
+        );
+    }
+
     #[test]
     fn parse_let() {
         // Why is it valid to specify a let declaration as having type u8?
@@ -2148,6 +2171,7 @@ mod test {
             ("assert", 1, "constrain Error == true"),
             ("constrain x ==", 2, "constrain (plain::x == Error) == true"),
             ("assert(x ==)", 1, "constrain (plain::x == Error) == true"),
+            ("assert_eq(x, )", 1, "constrain (plain::x == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
