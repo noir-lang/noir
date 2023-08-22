@@ -24,9 +24,6 @@ pub enum FunctionKind {
     Builtin,
     Normal,
     Oracle,
-
-    // TODO: not sure i like this being in the function kind, i just want this to be a macro
-    Aztec,
 }
 
 impl NoirFunction {
@@ -88,7 +85,6 @@ impl From<FunctionDefinition> for NoirFunction {
             Some(Attribute::Foreign(_)) => FunctionKind::LowLevel,
             Some(Attribute::Test) => FunctionKind::Normal,
             Some(Attribute::Oracle(_)) => FunctionKind::Oracle,
-            Some(Attribute::Aztec(_)) => FunctionKind::Aztec,
             Some(Attribute::Deprecated(_)) | None => FunctionKind::Normal,
             Some(Attribute::Custom(_)) => FunctionKind::Normal,
         };

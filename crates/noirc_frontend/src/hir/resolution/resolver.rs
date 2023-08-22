@@ -323,13 +323,6 @@ impl<'a> Resolver<'a> {
                 self.interner.push_expr_location(expr_id, func.def.span, self.file);
                 HirFunction::unchecked_from_expr(expr_id)
             }
-            // TODO: this is messy, ideally we need to remove this from the function type, it just needs to be annotated to
-            // do some more codegen
-            FunctionKind::Aztec => {
-                let expr_id = self.intern_block(func.def.body);
-                self.interner.push_expr_location(expr_id, func.def.span, self.file);
-                HirFunction::unchecked_from_expr(expr_id)
-            }
         };
 
         (hir_func, func_meta)

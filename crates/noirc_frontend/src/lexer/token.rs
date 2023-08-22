@@ -324,25 +324,9 @@ pub enum Attribute {
     Foreign(String),
     Builtin(String),
     Oracle(String),
-    Aztec(AztecAttribute),
     Deprecated(Option<String>),
     Test,
     Custom(String),
-}
-
-#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
-pub enum AztecAttribute {
-    Private,
-    Public,
-}
-
-impl fmt::Display for AztecAttribute {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            AztecAttribute::Private => write!(f, "#[private]"),
-            AztecAttribute::Public => write!(f, "#[public]"),
-        }
-    }
 }
 
 impl fmt::Display for Attribute {
@@ -351,7 +335,6 @@ impl fmt::Display for Attribute {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
-            Attribute::Aztec(ref k) => write!(f, "#[oracle({k})]"),
             Attribute::Test => write!(f, "#[test]"),
             Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
             Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
@@ -397,23 +380,6 @@ impl Attribute {
                 validate(name)?;
                 Attribute::Oracle(name.to_string())
             }
-            // TODO: this should then trigger the aztec sub classifier
-            ["aztec", name] => {
-                validate(name)?;
-                // TODO: more idiomatic way to do this;
-                let aztec_type = match *name {
-                    "private" => AztecAttribute::Private,
-                    "public" => AztecAttribute::Public,
-                    _ => {
-                        // TODO: cleanup
-                        return Err(LexerErrorKind::MalformedFuncAttribute {
-                            span,
-                            found: word.to_owned(),
-                        });
-                    }
-                };
-                Attribute::Aztec(aztec_type)
-            }
             ["deprecated"] => Attribute::Deprecated(None),
             ["deprecated", name] => {
                 if !name.starts_with('"') && !name.ends_with('"') {
@@ -449,37 +415,12 @@ impl Attribute {
         }
     }
 
-    pub fn aztec(self) -> Option<String> {
-        match self {
-            Attribute::Aztec(a_type) => match a_type {
-                AztecAttribute::Private => Some("private".to_owned()),
-                AztecAttribute::Public => Some("public".to_owned()),
-            },
-            _ => None,
-        }
-    }
-
     pub fn is_foreign(&self) -> bool {
         matches!(self, Attribute::Foreign(_))
     }
 
-    // TODO: maybe all of this aztec stuff should be under a feature flag
-    pub fn is_aztec(&self) -> bool {
-        matches!(self, Attribute::Aztec(_))
-    }
-
     pub fn is_low_level(&self) -> bool {
         matches!(self, Attribute::Foreign(_) | Attribute::Builtin(_))
-    }
-}
-
-// TODO: no idea if this is correct, kinna just vibin wid it
-impl AsRef<str> for AztecAttribute {
-    fn as_ref(&self) -> &str {
-        match self {
-            AztecAttribute::Private => "private",
-            AztecAttribute::Public => "public",
-        }
     }
 }
 
@@ -489,8 +430,6 @@ impl AsRef<str> for Attribute {
             Attribute::Foreign(string) => string,
             Attribute::Builtin(string) => string,
             Attribute::Oracle(string) => string,
-            // TODO: clean
-            Attribute::Aztec(func_type) => func_type.as_ref(),
             Attribute::Deprecated(Some(string)) => string,
             Attribute::Test | Attribute::Deprecated(None) => "",
             Attribute::Custom(string) => string,
