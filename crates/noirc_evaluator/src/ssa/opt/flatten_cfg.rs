@@ -145,7 +145,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -391,11 +391,76 @@ impl<'f> Context<'f> {
             typ @ Type::Array(_, _) => {
                 self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
             }
-            // TODO(#1889)
-            Type::Slice(_) => panic!("Cannot return slices from an if expression"),
+            typ @ Type::Slice(_) => {
+                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
+            }
             Type::Reference => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
         }
+    }
+
+    fn merge_slice_values(
+        &mut self,
+        typ: Type,
+        then_condition: ValueId,
+        else_condition: ValueId,
+        then_value_id: ValueId,
+        else_value_id: ValueId,
+    ) -> ValueId {
+        let mut merged = im::Vector::new();
+
+        let element_types = match &typ {
+            Type::Slice(elements) => elements,
+            _ => panic!("Expected slice type"),
+        };
+
+        let then_value = self.inserter.function.dfg[then_value_id].clone();
+        let else_value = self.inserter.function.dfg[else_value_id].clone();
+
+        let len = match then_value {
+            Value::Array { array, .. } => array.len(),
+            _ => panic!("Expected array value"),
+        };
+
+        let else_len = match else_value {
+            Value::Array { array, .. } => array.len(),
+            _ => panic!("Expected array value"),
+        };
+
+        let len = len.max(else_len);
+
+        for i in 0..len {
+            for (element_index, element_type) in element_types.iter().enumerate() {
+                let index_value = ((i * element_types.len() + element_index) as u128).into();
+                let index = self.inserter.function.dfg.make_constant(index_value, Type::field());
+
+                let typevars = Some(vec![element_type.clone()]);
+
+                let mut get_element = |array, typevars, len| {
+                    // The smaller slice is filled with placeholder data. Codegen for slice accesses must
+                    // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
+                    if (len - 1) < index_value.to_u128() as usize {
+                        let zero = FieldElement::zero();
+                        self.inserter.function.dfg.make_constant(zero, Type::field())
+                    } else {
+                        let get = Instruction::ArrayGet { array, index };
+                        self.insert_instruction_with_typevars(get, typevars).first()
+                    }
+                };
+
+                let then_element = get_element(then_value_id, typevars.clone(), len);
+                let else_element = get_element(else_value_id, typevars, else_len);
+
+                merged.push_back(self.merge_values(
+                    then_condition,
+                    else_condition,
+                    then_element,
+                    else_element,
+                ));
+            }
+        }
+
+        self.inserter.function.dfg.make_array(merged, typ)
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -1000,8 +1065,8 @@ mod test {
         // will store values. Other blocks do not store values so that we can test
         // how these existing values are merged at each join point.
         //
-        // For debugging purposes, each block also has a call to println with two
-        // arguments. The first is the block the println was originally in, and the
+        // For debugging purposes, each block also has a call to test_function with two
+        // arguments. The first is the block the test_function was originally in, and the
         // second is the current value stored in the reference.
         //
         //         b0   (0 stored)
@@ -1040,54 +1105,56 @@ mod test {
             builder.insert_store(r1, value);
         };
 
-        let println = builder.import_intrinsic_id(Intrinsic::Println);
+        let test_function = Id::test_new(1);
 
-        let call_println = |builder: &mut FunctionBuilder, block: u128| {
+        let call_test_function = |builder: &mut FunctionBuilder, block: u128| {
             let block = builder.field_constant(block);
             let load = builder.insert_load(r1, Type::field());
-            builder.insert_call(println, vec![block, load], Vec::new());
+            builder.insert_call(test_function, vec![block, load], Vec::new());
         };
 
-        let switch_store_and_print = |builder: &mut FunctionBuilder, block, block_number: u128| {
-            builder.switch_to_block(block);
-            store_value(builder, block_number);
-            call_println(builder, block_number);
-        };
+        let switch_store_and_test_function =
+            |builder: &mut FunctionBuilder, block, block_number: u128| {
+                builder.switch_to_block(block);
+                store_value(builder, block_number);
+                call_test_function(builder, block_number);
+            };
 
-        let switch_and_print = |builder: &mut FunctionBuilder, block, block_number: u128| {
-            builder.switch_to_block(block);
-            call_println(builder, block_number);
-        };
+        let switch_and_test_function =
+            |builder: &mut FunctionBuilder, block, block_number: u128| {
+                builder.switch_to_block(block);
+                call_test_function(builder, block_number);
+            };
 
         store_value(&mut builder, 0);
-        call_println(&mut builder, 0);
+        call_test_function(&mut builder, 0);
         builder.terminate_with_jmp(b1, vec![]);
 
-        switch_store_and_print(&mut builder, b1, 1);
+        switch_store_and_test_function(&mut builder, b1, 1);
         builder.terminate_with_jmpif(c1, b2, b3);
 
-        switch_store_and_print(&mut builder, b2, 2);
+        switch_store_and_test_function(&mut builder, b2, 2);
         builder.terminate_with_jmp(b4, vec![]);
 
-        switch_store_and_print(&mut builder, b3, 3);
+        switch_store_and_test_function(&mut builder, b3, 3);
         builder.terminate_with_jmp(b8, vec![]);
 
-        switch_and_print(&mut builder, b4, 4);
+        switch_and_test_function(&mut builder, b4, 4);
         builder.terminate_with_jmpif(c4, b5, b6);
 
-        switch_store_and_print(&mut builder, b5, 5);
+        switch_store_and_test_function(&mut builder, b5, 5);
         builder.terminate_with_jmp(b7, vec![]);
 
-        switch_store_and_print(&mut builder, b6, 6);
+        switch_store_and_test_function(&mut builder, b6, 6);
         builder.terminate_with_jmp(b7, vec![]);
 
-        switch_and_print(&mut builder, b7, 7);
+        switch_and_test_function(&mut builder, b7, 7);
         builder.terminate_with_jmp(b9, vec![]);
 
-        switch_and_print(&mut builder, b8, 8);
+        switch_and_test_function(&mut builder, b8, 8);
         builder.terminate_with_jmp(b9, vec![]);
 
-        switch_and_print(&mut builder, b9, 9);
+        switch_and_test_function(&mut builder, b9, 9);
         let load = builder.insert_load(r1, Type::field());
         builder.terminate_with_return(vec![load]);
 
@@ -1097,18 +1164,18 @@ mod test {
         //
         // fn main f0 {
         //   b0(v0: u1, v1: u1):
-        //     call println(Field 0, Field 0)
-        //     call println(Field 1, Field 1)
+        //     call test_function(Field 0, Field 0)
+        //     call test_function(Field 1, Field 1)
         //     enable_side_effects v0
-        //     call println(Field 2, Field 2)
-        //     call println(Field 4, Field 2)
+        //     call test_function(Field 2, Field 2)
+        //     call test_function(Field 4, Field 2)
         //     v29 = and v0, v1
         //     enable_side_effects v29
-        //     call println(Field 5, Field 5)
+        //     call test_function(Field 5, Field 5)
         //     v32 = not v1
         //     v33 = and v0, v32
         //     enable_side_effects v33
-        //     call println(Field 6, Field 6)
+        //     call test_function(Field 6, Field 6)
         //     enable_side_effects v0
         //     v36 = mul v1, Field 5
         //     v37 = mul v32, Field 2
@@ -1116,12 +1183,12 @@ mod test {
         //     v39 = mul v1, Field 5
         //     v40 = mul v32, Field 6
         //     v41 = add v39, v40
-        //     call println(Field 7, v42)
+        //     call test_function(Field 7, v42)
         //     v43 = not v0
         //     enable_side_effects v43
         //     store Field 3 at v2
-        //     call println(Field 3, Field 3)
-        //     call println(Field 8, Field 3)
+        //     call test_function(Field 3, Field 3)
+        //     call test_function(Field 8, Field 3)
         //     enable_side_effects Field 1
         //     v47 = mul v0, v41
         //     v48 = mul v43, Field 1
@@ -1129,7 +1196,7 @@ mod test {
         //     v50 = mul v0, v44
         //     v51 = mul v43, Field 3
         //     v52 = add v50, v51
-        //     call println(Field 9, v53)
+        //     call test_function(Field 9, v53)
         //     return v54
         // }
 

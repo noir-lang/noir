@@ -63,33 +63,28 @@ pub fn type_check_func(interner: &mut NodeInterner, func_id: FuncId) -> Vec<Type
         let (expr_span, empty_function) = function_info(interner, function_body_id);
 
         let func_span = interner.expr_span(function_body_id); // XXX: We could be more specific and return the span of the last stmt, however stmts do not have spans yet
+        function_last_type.unify_with_coercions(
+            &declared_return_type,
+            *function_body_id,
+            interner,
+            &mut errors,
+            || {
+                let mut error = TypeCheckError::TypeMismatchWithSource {
+                    expected: declared_return_type.clone(),
+                    actual: function_last_type.clone(),
+                    span: func_span,
+                    source: Source::Return(meta.return_type, expr_span),
+                };
 
-        let result = function_last_type.try_unify_allow_incompat_lambdas(&declared_return_type);
+                if empty_function {
+                    error = error.add_context(
+                        "implicitly returns `()` as its body has no tail or `return` expression",
+                    );
+                }
 
-        if result.is_err() {
-            function_last_type.unify_with_coercions(
-                &declared_return_type,
-                *function_body_id,
-                interner,
-                &mut errors,
-                || {
-                    let mut error = TypeCheckError::TypeMismatchWithSource {
-                        lhs: declared_return_type.clone(),
-                        rhs: function_last_type.clone(),
-                        span: func_span,
-                        source: Source::Return(meta.return_type, expr_span),
-                    };
-
-                    if empty_function {
-                        error = error.add_context(
-                            "implicitly returns `()` as its body has no tail or `return` expression",
-                        );
-                    }
-
-                    error
-                },
-            );
-        }
+                error
+            },
+        );
     }
 
     errors
@@ -188,7 +183,7 @@ mod test {
     use crate::hir_def::types::Type;
     use crate::hir_def::{
         expr::{HirBinaryOp, HirBlockExpression, HirExpression, HirInfixExpression},
-        function::{FuncMeta, HirFunction, Param},
+        function::{FuncMeta, HirFunction},
         stmt::HirStatement,
     };
     use crate::node_interner::{DefinitionKind, FuncId, NodeInterner};
@@ -199,7 +194,7 @@ mod test {
         },
         parse_program, FunctionKind, Path,
     };
-    use crate::{BinaryOpKind, FunctionReturnType};
+    use crate::{BinaryOpKind, Distinctness, FunctionReturnType, Visibility};
 
     #[test]
     fn basic_let() {
@@ -273,12 +268,12 @@ mod test {
                 Box::new(Type::Unit),
             ),
             parameters: vec![
-                Param(Identifier(x), Type::FieldElement, noirc_abi::AbiVisibility::Private),
-                Param(Identifier(y), Type::FieldElement, noirc_abi::AbiVisibility::Private),
+                (Identifier(x), Type::FieldElement, Visibility::Private),
+                (Identifier(y), Type::FieldElement, Visibility::Private),
             ]
             .into(),
-            return_visibility: noirc_abi::AbiVisibility::Private,
-            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
+            return_visibility: Visibility::Private,
+            return_distinctness: Distinctness::DuplicationAllowed,
             has_body: true,
             return_type: FunctionReturnType::Default(Span::default()),
         };

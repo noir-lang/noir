@@ -10,19 +10,19 @@
 //! function, will monomorphize the entire reachable program.
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::FunctionSignature;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
     hir_def::{
         expr::*,
-        function::{FuncMeta, Param, Parameters},
+        function::{FuncMeta, FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId},
     token::Attribute,
     ContractFunctionType, FunctionKind, Type, TypeBinding, TypeBindings, TypeVariableKind,
+    Visibility,
 };
 
 use self::ast::{Definition, FuncId, Function, LocalId, Program};
@@ -189,7 +189,7 @@ impl<'interner> Monomorphizer<'interner> {
         self.function(main_id, new_main_id);
 
         let main_meta = self.interner.function_meta(&main_id);
-        main_meta.into_function_signature(self.interner)
+        main_meta.into_function_signature()
     }
 
     fn function(&mut self, f: node_interner::FuncId, id: FuncId) {
@@ -784,15 +784,27 @@ impl<'interner> Monomorphizer<'interner> {
 
         let is_closure = self.is_function_closure(call.func);
         if is_closure {
-            let extracted_func: ast::Expression;
-            let hir_call_func = self.interner.expression(&call.func);
-            if let HirExpression::Lambda(l) = hir_call_func {
-                let (setup, closure_variable) = self.lambda_with_setup(l, call.func);
-                block_expressions.push(setup);
-                extracted_func = closure_variable;
-            } else {
-                extracted_func = *original_func;
-            }
+            let local_id = self.next_local_id();
+
+            // store the function in a temporary variable before calling it
+            // this is needed for example if call.func is of the form `foo()()`
+            // without this, we would translate it to `foo().1(foo().0)`
+            let let_stmt = ast::Expression::Let(ast::Let {
+                id: local_id,
+                mutable: false,
+                name: "tmp".to_string(),
+                expression: Box::new(*original_func),
+            });
+            block_expressions.push(let_stmt);
+
+            let extracted_func = ast::Expression::Ident(ast::Ident {
+                location: None,
+                definition: Definition::Local(local_id),
+                mutable: false,
+                name: "tmp".to_string(),
+                typ: Self::convert_type(&self.interner.id_type(call.func)),
+            });
+
             func = Box::new(ast::Expression::ExtractTupleField(
                 Box::new(extracted_func.clone()),
                 1usize,
@@ -1012,9 +1024,8 @@ impl<'interner> Monomorphizer<'interner> {
         let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            Param(pattern, typ, noirc_abi::AbiVisibility::Private)
-        }));
+        let parameters =
+            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
 
         let parameters = self.parameters(parameters);
         let body = self.expr(lambda.body);
@@ -1064,9 +1075,8 @@ impl<'interner> Monomorphizer<'interner> {
         let parameter_types = vecmap(&lambda.parameters, |(_, typ)| Self::convert_type(typ));
 
         // Manually convert to Parameters type so we can reuse the self.parameters method
-        let parameters = Parameters(vecmap(lambda.parameters, |(pattern, typ)| {
-            Param(pattern, typ, noirc_abi::AbiVisibility::Private)
-        }));
+        let parameters =
+            vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
 
         let mut converted_parameters = self.parameters(parameters);
 
@@ -1435,7 +1445,7 @@ mod tests {
     #[test]
     fn simple_closure_with_no_captured_variables() {
         let src = r#"
-        fn main() -> Field {
+        fn main() -> pub Field {
             let x = 1;
             let closure = || x;
             closure()
@@ -1451,7 +1461,10 @@ mod tests {
         };
         closure_variable$l2
     };
-    closure$l3.1(closure$l3.0)
+    {
+        let tmp$4 = closure$l3;
+        tmp$l4.1(tmp$l4.0)
+    }
 }
 fn lambda$f1(mut env$l1: (Field)) -> Field {
     env$l1.0

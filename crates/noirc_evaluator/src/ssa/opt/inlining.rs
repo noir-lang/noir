@@ -721,7 +721,7 @@ mod test {
         // fn main f0 {
         //   b0(v0: u1):
         //     v2 = call f1(v0)
-        //     call println(v2)
+        //     call assert_constant(v2)
         //     return
         // }
         // fn inner1 f1 {
@@ -746,8 +746,8 @@ mod test {
         let inner1_id = Id::test_new(1);
         let inner1 = builder.import_function(inner1_id);
         let main_v2 = builder.insert_call(inner1, vec![main_cond], vec![Type::field()])[0];
-        let println = builder.import_intrinsic_id(Intrinsic::Println);
-        builder.insert_call(println, vec![main_v2], vec![]);
+        let assert_constant = builder.import_intrinsic_id(Intrinsic::AssertConstant);
+        builder.insert_call(assert_constant, vec![main_v2], vec![]);
         builder.terminate_with_return(vec![]);
 
         builder.new_function("inner1".into(), inner1_id);
@@ -781,7 +781,7 @@ mod test {
         //   b1():
         //     jmp b3(Field 1)
         //   b3(v3: Field):
-        //     call println(v3)
+        //     call assert_constant(v3)
         //     return
         //   b2():
         //     jmp b3(Field 2)

@@ -12,8 +12,8 @@ use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
-        directives::LogInfo,
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+        OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
@@ -46,7 +46,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) input_witnesses: Vec<Witness>,
 
     /// Correspondance between an opcode index (in opcodes) and the source code call stack which generated it
-    pub(crate) locations: BTreeMap<usize, CallStack>,
+    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
@@ -63,7 +63,8 @@ impl GeneratedAcir {
     fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
         if !self.call_stack.is_empty() {
-            self.locations.insert(self.opcodes.len() - 1, self.call_stack.clone());
+            self.locations
+                .insert(OpcodeLocation::Acir(self.opcodes.len() - 1), self.call_stack.clone());
         }
     }
 
@@ -565,13 +566,6 @@ impl GeneratedAcir {
             expr_as_witness,
         );
         &expr_squared - expr
-    }
-
-    /// Adds a log directive to print the provided witnesses.
-    ///
-    /// Logging of strings is currently unsupported.
-    pub(crate) fn call_print(&mut self, witnesses: Vec<Witness>) {
-        self.push_opcode(AcirOpcode::Directive(Directive::Log(LogInfo::WitnessOutput(witnesses))));
     }
 
     /// Adds an inversion brillig opcode.

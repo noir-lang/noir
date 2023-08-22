@@ -41,7 +41,6 @@ pub(crate) enum Intrinsic {
     SliceInsert,
     SliceRemove,
     StrAsBytes,
-    Println,
     ToBits(Endian),
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
@@ -50,7 +49,6 @@ pub(crate) enum Intrinsic {
 impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Intrinsic::Println => write!(f, "println"),
             Intrinsic::Sort => write!(f, "arraysort"),
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
@@ -76,7 +74,7 @@ impl Intrinsic {
     /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
     pub(crate) fn has_side_effects(&self) -> bool {
         match self {
-            Intrinsic::Println | Intrinsic::AssertConstant => true,
+            Intrinsic::AssertConstant => true,
 
             Intrinsic::Sort
             | Intrinsic::ArrayLen
@@ -99,7 +97,6 @@ impl Intrinsic {
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
-            "println" => Some(Intrinsic::Println),
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "assert_constant" => Some(Intrinsic::AssertConstant),
