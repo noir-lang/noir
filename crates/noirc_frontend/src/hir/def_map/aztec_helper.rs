@@ -14,11 +14,10 @@ pub(crate) fn aztec_contracts_macros(ast: &mut ParsedModule) {
     // can be added at will
     // NOTE: only one attribute can be applied per function at the moment
 
-    // Also do this for each submodule
+    // This should cover all functions in the ast
     for func in ast.functions.iter_mut() {
         transform_function(func);
     }
-    // Also for each submodule
     for submodule in ast.submodules.iter_mut() {
         for func in submodule.contents.functions.iter_mut() {
             transform_function(func);
@@ -27,20 +26,19 @@ pub(crate) fn aztec_contracts_macros(ast: &mut ParsedModule) {
 }
 
 fn transform_function(func: &mut NoirFunction) {
-    dbg!(func.def.attribute.as_ref());
     if let Some(Attribute::Custom(custom_attribute)) = func.def.attribute.as_ref() {
+        // TODO: this can just become the one function!!!
+        // match based on the custom attribute
         match custom_attribute.as_str() {
             "aztec(private)" => {
                 // Edit the ast to inject the private context into the function
-                // TODO: clean
-
                 // Create the context using the current params
-                let create_context = create_private_context(&func.def.parameters);
+                let create_context = create_context("PrivateContext", &func.def.parameters);
                 // Insert the context creation as the first action
                 func.def.body.0.insert(0, create_context);
 
                 // Add the inputs to the params
-                let private_input = create_private_inputs();
+                let private_input = create_inputs("PrivateContextInputs");
                 func.def.parameters.insert(0, private_input);
 
                 // Push the finish method call to the end of the function
@@ -48,12 +46,30 @@ fn transform_function(func: &mut NoirFunction) {
                 // dbg!(&finish_def);
                 func.def.body.0.push(finish_def);
 
-                let return_type = create_private_return_type();
+                let return_type = create_return_type("PrivateCircuitPublicInputs");
                 func.def.return_type = return_type;
                 func.def.return_visibility = Visibility::Public;
                 func.def.return_distinctness = Distinctness::Distinct;
             }
-            "aztec(public)" => {}
+            "aztec(public)" => {
+                let create_context = create_context("PublicContext", &func.def.parameters);
+                // Insert the context creation as the first action
+                func.def.body.0.insert(0, create_context);
+
+                // Add the inputs to the params
+                let private_input = create_inputs("PublicContextInputs");
+                func.def.parameters.insert(0, private_input);
+
+                // Push the finish method call to the end of the function
+                let finish_def = create_context_finish();
+                // dbg!(&finish_def);
+                func.def.body.0.push(finish_def);
+
+                let return_type = create_return_type("PublicCircuitPublicInputs");
+                func.def.return_type = return_type;
+                func.def.return_visibility = Visibility::Public;
+                // func.def.return_distinctness = Distinctness::Distinct;
+            }
             _ => return,
         }
         dbg!(&func);
@@ -62,19 +78,18 @@ fn transform_function(func: &mut NoirFunction) {
 
 /// Helper function that returns what the private context would look like in the ast
 /// This should make it available to be consumed within aztec private annotated functions.
-pub(crate) fn create_private_inputs() -> (Pattern, UnresolvedType, Visibility) {
+pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
     let context_ident = Ident::new("inputs".to_string(), Span::default());
     let context_patt = Pattern::Identifier(context_ident);
-    let context_type_ident = Ident::new("PrivateContextInputs".to_string(), Span::default());
+    let context_type_ident = Ident::new(ty.to_string(), Span::default());
     let context_type = UnresolvedType::Named(crate::Path::from_ident(context_type_ident), vec![]);
     let visibility = Visibility::Private;
 
     (context_patt, context_type, visibility)
 }
 
-/// Creates the private context object to be accessed within the function, the parameters need to be extracted to be
-/// appended into the args hash object
-pub(crate) fn create_private_context(
+pub(crate) fn create_context(
+    ty: &str, // type
     params: &Vec<(Pattern, UnresolvedType, Visibility)>,
 ) -> Statement {
     let hash_args = create_hash_args(params);
@@ -82,7 +97,7 @@ pub(crate) fn create_private_context(
     let context_ident = Ident::new("context".to_string(), Span::default());
     let context_patt = Pattern::Identifier(context_ident);
     let context_mut = Pattern::Mutable(Box::new(context_patt.clone()), Span::default());
-    let context_type_ident = Ident::new("PrivateContext".to_string(), Span::default());
+    let context_type_ident = Ident::new(ty.to_string(), Span::default());
     let mut context_path = crate::Path::from_ident(context_type_ident);
     let context_type = UnresolvedType::Named(context_path.clone(), vec![]);
 
@@ -115,6 +130,8 @@ pub(crate) fn create_private_context(
     Statement::Let(let_expression)
 }
 
+/// Creates the private context object to be accessed within the function, the parameters need to be extracted to be
+/// appended into the args hash object
 fn create_hash_args(params: &Vec<(Pattern, UnresolvedType, Visibility)>) -> CallExpression {
     let mut hash_path = crate::Path::from_ident(Ident::new("abi".to_string(), Span::default()));
     hash_path.segments.push(Ident::new("hash_args".to_string(), Span::default()));
@@ -124,10 +141,19 @@ fn create_hash_args(params: &Vec<(Pattern, UnresolvedType, Visibility)>) -> Call
         .map(|param| {
             let param_pattern = &param.0;
             match param_pattern {
-                Pattern::Identifier(ident) => Expression::new(
-                    ExpressionKind::Variable(crate::Path::from_ident(ident.clone())),
-                    Span::default(),
-                ),
+                Pattern::Identifier(ident) => {
+                    // Converts each type to a Field Element before hashing
+                    let variable = Expression::new(
+                        ExpressionKind::Variable(crate::Path::from_ident(ident.clone())),
+                        Span::default(),
+                    );
+                    let cast_expression = ExpressionKind::Cast(Box::new(crate::CastExpression {
+                        lhs: variable,
+                        r#type: UnresolvedType::FieldElement,
+                    }));
+
+                    Expression::new(cast_expression, Span::default())
+                }
                 _ => todo!(),
             }
         })
@@ -149,9 +175,9 @@ fn create_hash_args(params: &Vec<(Pattern, UnresolvedType, Visibility)>) -> Call
     return call_expression;
 }
 
-pub(crate) fn create_private_return_type() -> FunctionReturnType {
+pub(crate) fn create_return_type(ty: &str) -> FunctionReturnType {
     let return_ident_base = Ident::new("abi".to_string(), Span::default());
-    let return_ident = Ident::new("PrivateCircuitPublicInputs".to_string(), Span::default());
+    let return_ident = Ident::new(ty.to_string(), Span::default());
     let mut return_path = crate::Path::from_ident(return_ident_base);
     return_path.segments.push(return_ident);
 
@@ -174,7 +200,3 @@ pub(crate) fn create_context_finish() -> Statement {
     let expression = Expression::new(method_call, Span::default());
     Statement::Expression(expression)
 }
-
-/// Helper function that returns what the public context would look like in the ast
-/// This should make it available to be consumed within aztec public annotated functions.
-pub(crate) fn create_public_context() {}
