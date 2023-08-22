@@ -118,7 +118,7 @@ pub fn report_all(
     // Report warnings before any errors
     let (mut diagnostics, mut errors): (Vec<_>, _) = diagnostics.into_iter()
         .partition(|item| item.diagnostic.is_warning());
-    ordered_diagnostics.append(&mut ordered_errors);
+    diagnostics.append(&mut errors);
     let error_count =
         diagnostics.iter().map(|error| error.report(files, deny_warnings) as u32).sum();
 
