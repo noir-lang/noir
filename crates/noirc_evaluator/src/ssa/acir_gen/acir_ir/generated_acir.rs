@@ -5,14 +5,15 @@ use std::collections::BTreeMap;
 use crate::{
     brillig::brillig_gen::brillig_directive,
     errors::{InternalError, RuntimeError},
+    ssa::ir::dfg::CallStack,
 };
 
 use acvm::acir::{
     brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
-        directives::LogInfo,
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
+        OpcodeLocation,
     },
     native_types::Witness,
     BlackBoxFunc,
@@ -22,7 +23,6 @@ use acvm::{
     FieldElement,
 };
 use iter_extended::vecmap;
-use noirc_errors::Location;
 use num_bigint::BigUint;
 
 #[derive(Debug, Default)]
@@ -45,12 +45,12 @@ pub(crate) struct GeneratedAcir {
     /// All witness indices which are inputs to the main function
     pub(crate) input_witnesses: Vec<Witness>,
 
-    /// Correspondance between an opcode index (in opcodes) and the source code location which generated it
-    pub(crate) locations: BTreeMap<usize, Location>,
+    /// Correspondance between an opcode index (in opcodes) and the source code call stack which generated it
+    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
 
     /// Source code location of the current instruction being processed
     /// None if we do not know the location
-    pub(crate) current_location: Option<Location>,
+    pub(crate) call_stack: CallStack,
 }
 
 impl GeneratedAcir {
@@ -62,8 +62,9 @@ impl GeneratedAcir {
     /// Adds a new opcode into ACIR.
     fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
-        if let Some(location) = self.current_location {
-            self.locations.insert(self.opcodes.len() - 1, location);
+        if !self.call_stack.is_empty() {
+            self.locations
+                .insert(OpcodeLocation::Acir(self.opcodes.len() - 1), self.call_stack.clone());
         }
     }
 
@@ -195,7 +196,7 @@ impl GeneratedAcir {
                         return Err(InternalError::MissingArg {
                             name: "".to_string(),
                             arg: "message_size".to_string(),
-                            location: self.current_location,
+                            call_stack: self.call_stack.clone(),
                         });
                     }
                 };
@@ -567,13 +568,6 @@ impl GeneratedAcir {
         &expr_squared - expr
     }
 
-    /// Adds a log directive to print the provided witnesses.
-    ///
-    /// Logging of strings is currently unsupported.
-    pub(crate) fn call_print(&mut self, witnesses: Vec<Witness>) {
-        self.push_opcode(AcirOpcode::Directive(Directive::Log(LogInfo::WitnessOutput(witnesses))));
-    }
-
     /// Adds an inversion brillig opcode.
     ///
     /// This code will invert `expr` without applying constraints
@@ -706,7 +700,7 @@ impl GeneratedAcir {
         if num_bits >= FieldElement::max_num_bits() {
             return Err(RuntimeError::InvalidRangeConstraint {
                 num_bits: FieldElement::max_num_bits(),
-                location: self.current_location,
+                call_stack: self.call_stack.clone(),
             });
         };
 

@@ -1,7 +1,0 @@
-[package]
-name = "contracts"
-type = "contract"
-authors = [""]
-compiler_version = "0.1"
-
-[dependencies]

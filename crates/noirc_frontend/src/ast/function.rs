@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{token::Attribute, Ident, Pattern};
+use crate::{token::Attribute, FunctionReturnType, Ident, Pattern, Visibility};
 
 use super::{FunctionDefinition, UnresolvedType};
 
@@ -41,7 +41,10 @@ impl NoirFunction {
     }
 
     pub fn return_type(&self) -> UnresolvedType {
-        self.def.return_type.clone()
+        match &self.def.return_type {
+            FunctionReturnType::Default(_) => UnresolvedType::Unit,
+            FunctionReturnType::Ty(ty, _) => ty.clone(),
+        }
     }
     pub fn name(&self) -> &str {
         &self.name_ident().0.contents
@@ -49,7 +52,7 @@ impl NoirFunction {
     pub fn name_ident(&self) -> &Ident {
         &self.def.name
     }
-    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, noirc_abi::AbiVisibility)> {
+    pub fn parameters(&self) -> &Vec<(Pattern, UnresolvedType, Visibility)> {
         &self.def.parameters
     }
     pub fn attribute(&self) -> Option<&Attribute> {

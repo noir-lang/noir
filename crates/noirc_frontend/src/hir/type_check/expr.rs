@@ -231,19 +231,21 @@ impl<'interner> TypeChecker<'interner> {
                 for (i, stmt) in statements.iter().enumerate() {
                     let expr_type = self.check_statement(stmt);
 
-                    if i + 1 < statements.len() {
-                        let id = match self.interner.statement(stmt) {
-                            crate::hir_def::stmt::HirStatement::Expression(expr) => expr,
-                            _ => *expr_id,
-                        };
+                    if let crate::hir_def::stmt::HirStatement::Semi(expr) =
+                        self.interner.statement(stmt)
+                    {
+                        let inner_expr_type = self.interner.id_type(expr);
+                        let span = self.interner.expr_span(&expr);
 
-                        let span = self.interner.expr_span(&id);
-                        self.unify(&expr_type, &Type::Unit, || TypeCheckError::TypeMismatch {
-                            expected_typ: Type::Unit.to_string(),
-                            expr_typ: expr_type.to_string(),
-                            expr_span: span,
+                        self.unify(&inner_expr_type, &Type::Unit, || {
+                            TypeCheckError::UnusedResultError {
+                                expr_type: inner_expr_type.clone(),
+                                expr_span: span,
+                            }
                         });
-                    } else {
+                    }
+
+                    if i + 1 == statements.len() {
                         block_type = expr_type;
                     }
                 }
@@ -684,8 +686,8 @@ impl<'interner> TypeChecker<'interner> {
                     Ok(Bool)
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
-                        rhs: lhs_type.clone(),
-                        lhs: rhs_type.clone(),
+                        expected: lhs_type.clone(),
+                        actual: rhs_type.clone(),
                         span,
                         source: Source::Binary,
                     })
@@ -730,15 +732,15 @@ impl<'interner> TypeChecker<'interner> {
                 if matches!(op.kind, Equal | NotEqual) =>
             {
                 self.unify(x_type, y_type, || TypeCheckError::TypeMismatchWithSource {
-                    rhs: lhs_type.clone(),
-                    lhs: rhs_type.clone(),
+                    expected: lhs_type.clone(),
+                    actual: rhs_type.clone(),
                     source: Source::ArrayElements,
                     span: op.location.span,
                 });
 
                 self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    rhs: lhs_type.clone(),
-                    lhs: rhs_type.clone(),
+                    expected: lhs_type.clone(),
+                    actual: rhs_type.clone(),
                     source: Source::ArrayLen,
                     span: op.location.span,
                 });
@@ -750,16 +752,16 @@ impl<'interner> TypeChecker<'interner> {
                     return Ok(Bool);
                 }
                 Err(TypeCheckError::TypeMismatchWithSource {
-                    rhs: lhs.clone(),
-                    lhs: rhs.clone(),
+                    expected: lhs.clone(),
+                    actual: rhs.clone(),
                     source: Source::Comparison,
                     span,
                 })
             }
             (String(x_size), String(y_size)) => {
                 self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    rhs: *x_size.clone(),
-                    lhs: *y_size.clone(),
+                    expected: *x_size.clone(),
+                    actual: *y_size.clone(),
                     span: op.location.span,
                     source: Source::StringLen,
                 });
@@ -767,8 +769,8 @@ impl<'interner> TypeChecker<'interner> {
                 Ok(Bool)
             }
             (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
-                rhs: lhs.clone(),
-                lhs: rhs.clone(),
+                expected: lhs.clone(),
+                actual: rhs.clone(),
                 source: Source::Comparison,
                 span,
             }),
@@ -932,8 +934,8 @@ impl<'interner> TypeChecker<'interner> {
                     Ok(other.clone())
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
-                        rhs: lhs_type.clone(),
-                        lhs: rhs_type.clone(),
+                        expected: lhs_type.clone(),
+                        actual: rhs_type.clone(),
                         source: Source::Binary,
                         span,
                     })
@@ -992,8 +994,8 @@ impl<'interner> TypeChecker<'interner> {
             (Bool, Bool) => Ok(Bool),
 
             (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
-                rhs: lhs.clone(),
-                lhs: rhs.clone(),
+                expected: lhs.clone(),
+                actual: rhs.clone(),
                 source: Source::BinOp,
                 span,
             }),

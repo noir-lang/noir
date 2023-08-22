@@ -7,9 +7,12 @@
 //! An Error of the former is a user Error
 //!
 //! An Error of the latter is an error in the implementation of the compiler
-use acvm::FieldElement;
-use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic, Location};
+use acvm::acir::native_types::Expression;
+use iter_extended::vecmap;
+use noirc_errors::{CustomDiagnostic as Diagnostic, FileDiagnostic};
 use thiserror::Error;
+
+use crate::ssa::ir::dfg::CallStack;
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
@@ -17,86 +20,93 @@ pub enum RuntimeError {
     // and 1 respectively. This would confuse users if a constraint such as
     // assert(foo < bar) fails with "failed constraint: 0 = 1."
     #[error("Failed constraint")]
-    FailedConstraint { lhs: FieldElement, rhs: FieldElement, location: Option<Location> },
+    FailedConstraint { lhs: Box<Expression>, rhs: Box<Expression>, call_stack: CallStack },
     #[error(transparent)]
     InternalError(#[from] InternalError),
     #[error("Index out of bounds, array has size {index:?}, but index was {array_size:?}")]
-    IndexOutOfBounds { index: usize, array_size: usize, location: Option<Location> },
+    IndexOutOfBounds { index: usize, array_size: usize, call_stack: CallStack },
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
-    InvalidRangeConstraint { num_bits: u32, location: Option<Location> },
+    InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
     #[error("Expected array index to fit into a u64")]
-    TypeConversion { from: String, into: String, location: Option<Location> },
+    TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error("{name:?} is not initialized")]
-    UnInitialized { name: String, location: Option<Location> },
+    UnInitialized { name: String, call_stack: CallStack },
     #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
-    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, location: Option<Location> },
+    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
     #[error("Could not determine loop bound at compile-time")]
-    UnknownLoopBound { location: Option<Location> },
+    UnknownLoopBound { call_stack: CallStack },
     #[error("Argument is not constant")]
-    AssertConstantFailed { location: Option<Location> },
+    AssertConstantFailed { call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum InternalError {
     #[error("ICE: Both expressions should have degree<=1")]
-    DegreeNotReduced { location: Option<Location> },
+    DegreeNotReduced { call_stack: CallStack },
     #[error("Try to get element from empty array")]
-    EmptyArray { location: Option<Location> },
+    EmptyArray { call_stack: CallStack },
     #[error("ICE: {message:?}")]
-    General { message: String, location: Option<Location> },
+    General { message: String, call_stack: CallStack },
     #[error("ICE: {name:?} missing {arg:?} arg")]
-    MissingArg { name: String, arg: String, location: Option<Location> },
+    MissingArg { name: String, arg: String, call_stack: CallStack },
     #[error("ICE: {name:?} should be a constant")]
-    NotAConstant { name: String, location: Option<Location> },
+    NotAConstant { name: String, call_stack: CallStack },
     #[error("ICE: Undeclared AcirVar")]
-    UndeclaredAcirVar { location: Option<Location> },
+    UndeclaredAcirVar { call_stack: CallStack },
     #[error("ICE: Expected {expected:?}, found {found:?}")]
-    UnExpected { expected: String, found: String, location: Option<Location> },
+    UnExpected { expected: String, found: String, call_stack: CallStack },
 }
 
 impl RuntimeError {
-    fn location(&self) -> Option<Location> {
+    fn call_stack(&self) -> &CallStack {
         match self {
             RuntimeError::InternalError(
-                InternalError::DegreeNotReduced { location }
-                | InternalError::EmptyArray { location }
-                | InternalError::General { location, .. }
-                | InternalError::MissingArg { location, .. }
-                | InternalError::NotAConstant { location, .. }
-                | InternalError::UndeclaredAcirVar { location }
-                | InternalError::UnExpected { location, .. },
+                InternalError::DegreeNotReduced { call_stack }
+                | InternalError::EmptyArray { call_stack }
+                | InternalError::General { call_stack, .. }
+                | InternalError::MissingArg { call_stack, .. }
+                | InternalError::NotAConstant { call_stack, .. }
+                | InternalError::UndeclaredAcirVar { call_stack }
+                | InternalError::UnExpected { call_stack, .. },
             )
-            | RuntimeError::FailedConstraint { location, .. }
-            | RuntimeError::IndexOutOfBounds { location, .. }
-            | RuntimeError::InvalidRangeConstraint { location, .. }
-            | RuntimeError::TypeConversion { location, .. }
-            | RuntimeError::UnInitialized { location, .. }
-            | RuntimeError::UnknownLoopBound { location }
-            | RuntimeError::AssertConstantFailed { location }
-            | RuntimeError::UnsupportedIntegerSize { location, .. } => *location,
+            | RuntimeError::FailedConstraint { call_stack, .. }
+            | RuntimeError::IndexOutOfBounds { call_stack, .. }
+            | RuntimeError::InvalidRangeConstraint { call_stack, .. }
+            | RuntimeError::TypeConversion { call_stack, .. }
+            | RuntimeError::UnInitialized { call_stack, .. }
+            | RuntimeError::UnknownLoopBound { call_stack }
+            | RuntimeError::AssertConstantFailed { call_stack }
+            | RuntimeError::UnsupportedIntegerSize { call_stack, .. } => call_stack,
         }
     }
 }
 
 impl From<RuntimeError> for FileDiagnostic {
-    fn from(error: RuntimeError) -> Self {
-        let file_id = error.location().map(|loc| loc.file).unwrap();
-        FileDiagnostic { file_id, diagnostic: error.into() }
+    fn from(error: RuntimeError) -> FileDiagnostic {
+        let call_stack = vecmap(error.call_stack(), |location| *location);
+        let diagnostic = error.into_diagnostic();
+        let file_id = call_stack.last().map(|location| location.file).unwrap_or_default();
+
+        diagnostic.in_file(file_id).with_call_stack(call_stack)
     }
 }
 
-impl From<RuntimeError> for Diagnostic {
-    fn from(error: RuntimeError) -> Diagnostic {
-        match error {
-            RuntimeError::InternalError(_) => Diagnostic::simple_error(
-                "Internal Consistency Evaluators Errors: \n 
-                This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
-                "".to_string(),
-                noirc_errors::Span::new(0..0)
-            ),
+impl RuntimeError {
+    fn into_diagnostic(self) -> Diagnostic {
+        match self {
+            RuntimeError::InternalError(_) => {
+                Diagnostic::simple_error(
+                    "Internal Consistency Evaluators Errors: \n 
+                    This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
+                    "".to_string(),
+                    noirc_errors::Span::new(0..0)
+                )
+            }
             _ => {
-                let span = if let Some(loc) = error.location() { loc.span } else { noirc_errors::Span::new(0..0) };
-                Diagnostic::simple_error("".to_owned(), error.to_string(), span)
+                let message = self.to_string();
+                let location = self.call_stack().back().expect("Expected RuntimeError to have a location");
+
+                Diagnostic::simple_error(message, String::new(), location.span)
             }
         }
     }

@@ -1,11 +1,10 @@
 use acvm::{acir::BlackBoxFunc, FieldElement};
 use iter_extended::vecmap;
-use noirc_errors::Location;
 use num_bigint::BigUint;
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::DataFlowGraph,
+    dfg::{CallStack, DataFlowGraph},
     map::Id,
     types::{NumericType, Type},
     value::{Value, ValueId},
@@ -41,7 +40,7 @@ pub(crate) enum Intrinsic {
     SlicePopFront,
     SliceInsert,
     SliceRemove,
-    Println,
+    StrAsBytes,
     ToBits(Endian),
     ToRadix(Endian),
     BlackBox(BlackBoxFunc),
@@ -50,7 +49,6 @@ pub(crate) enum Intrinsic {
 impl std::fmt::Display for Intrinsic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Intrinsic::Println => write!(f, "println"),
             Intrinsic::Sort => write!(f, "arraysort"),
             Intrinsic::ArrayLen => write!(f, "array_len"),
             Intrinsic::AssertConstant => write!(f, "assert_constant"),
@@ -60,6 +58,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::SlicePopFront => write!(f, "slice_pop_front"),
             Intrinsic::SliceInsert => write!(f, "slice_insert"),
             Intrinsic::SliceRemove => write!(f, "slice_remove"),
+            Intrinsic::StrAsBytes => write!(f, "str_as_bytes"),
             Intrinsic::ToBits(Endian::Big) => write!(f, "to_be_bits"),
             Intrinsic::ToBits(Endian::Little) => write!(f, "to_le_bits"),
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
@@ -70,11 +69,34 @@ impl std::fmt::Display for Intrinsic {
 }
 
 impl Intrinsic {
+    /// Returns whether the `Intrinsic` has side effects.
+    ///
+    /// If there are no side effects then the `Intrinsic` can be removed if the result is unused.
+    pub(crate) fn has_side_effects(&self) -> bool {
+        match self {
+            Intrinsic::AssertConstant => true,
+
+            Intrinsic::Sort
+            | Intrinsic::ArrayLen
+            | Intrinsic::SlicePushBack
+            | Intrinsic::SlicePushFront
+            | Intrinsic::SlicePopBack
+            | Intrinsic::SlicePopFront
+            | Intrinsic::SliceInsert
+            | Intrinsic::SliceRemove
+            | Intrinsic::StrAsBytes
+            | Intrinsic::ToBits(_)
+            | Intrinsic::ToRadix(_) => false,
+
+            // Some black box functions have side-effects
+            Intrinsic::BlackBox(func) => matches!(func, BlackBoxFunc::RecursiveAggregation),
+        }
+    }
+
     /// Lookup an Intrinsic by name and return it if found.
     /// If there is no such intrinsic by that name, None is returned.
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
         match name {
-            "println" => Some(Intrinsic::Println),
             "arraysort" => Some(Intrinsic::Sort),
             "array_len" => Some(Intrinsic::ArrayLen),
             "assert_constant" => Some(Intrinsic::AssertConstant),
@@ -84,6 +106,7 @@ impl Intrinsic {
             "slice_pop_front" => Some(Intrinsic::SlicePopFront),
             "slice_insert" => Some(Intrinsic::SliceInsert),
             "slice_remove" => Some(Intrinsic::SliceRemove),
+            "str_as_bytes" => Some(Intrinsic::StrAsBytes),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
             "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
@@ -179,6 +202,38 @@ impl Instruction {
     /// inserting this instruction into a DataFlowGraph.
     pub(crate) fn requires_ctrl_typevars(&self) -> bool {
         matches!(self.result_type(), InstructionResultType::Unknown)
+    }
+
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            Binary(_)
+            | Cast(_, _)
+            | Not(_)
+            | Truncate { .. }
+            | Allocate
+            | Load { .. }
+            | ArrayGet { .. }
+            | ArraySet { .. } => false,
+
+            Constrain(_) | Store { .. } | EnableSideEffects { .. } => true,
+
+            // Some `Intrinsic`s have side effects so we must check what kind of `Call` this is.
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+
+                // All foreign functions are treated as having side effects.
+                // This is because they can be used to pass information
+                // from the ACVM to the external world during execution.
+                Value::ForeignFunction(_) => true,
+
+                // We must assume that functions contain a side effect as we cannot inspect more deeply.
+                Value::Function(_) => true,
+
+                _ => false,
+            },
+        }
     }
 
     /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
@@ -424,9 +479,9 @@ pub(crate) enum TerminatorInstruction {
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`.
-    /// The optional Location here is expected to be used to issue an error when the start range of
+    /// The CallStack here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
-    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, location: Option<Location> },
+    Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStack },
 
     /// Return from the current function with the given return values.
     ///
@@ -451,10 +506,10 @@ impl TerminatorInstruction {
                 then_destination: *then_destination,
                 else_destination: *else_destination,
             },
-            Jmp { destination, arguments, location } => Jmp {
+            Jmp { destination, arguments, call_stack } => Jmp {
                 destination: *destination,
                 arguments: vecmap(arguments, |value| f(*value)),
-                location: *location,
+                call_stack: call_stack.clone(),
             },
             Return { return_values } => {
                 Return { return_values: vecmap(return_values, |value| f(*value)) }

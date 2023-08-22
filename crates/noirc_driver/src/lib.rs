@@ -5,9 +5,9 @@
 
 use clap::Args;
 use fm::FileId;
-use noirc_abi::FunctionSignature;
+use noirc_abi::{AbiParameter, AbiType};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use noirc_evaluator::create_circuit;
+use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -125,15 +125,18 @@ pub fn check_crate(
     }
 }
 
-pub fn compute_function_signature(
+pub fn compute_function_abi(
     context: &Context,
     crate_id: &CrateId,
-) -> Option<FunctionSignature> {
+) -> Option<(Vec<AbiParameter>, Option<AbiType>)> {
     let main_function = context.get_main_function(crate_id)?;
 
     let func_meta = context.def_interner.function_meta(&main_function);
 
-    Some(func_meta.into_function_signature(&context.def_interner))
+    let (parameters, return_type) = func_meta.into_function_signature();
+    let parameters = into_abi_params(parameters, &context.def_interner);
+    let return_type = return_type.map(|typ| typ.as_abi_type());
+    Some((parameters, return_type))
 }
 
 /// Run the frontend to check the crate for errors then compile the main function if there were none
@@ -151,12 +154,10 @@ pub fn compile_main(
         Some(m) => m,
         None => {
             // TODO(#2155): This error might be a better to exist in Nargo
-            let err = FileDiagnostic {
-                file_id: FileId::default(),
-                diagnostic: CustomDiagnostic::from_message(
-                    "cannot compile crate into a program as it does not contain a `main` function",
-                ),
-            };
+            let err = CustomDiagnostic::from_message(
+                "cannot compile crate into a program as it does not contain a `main` function",
+            )
+            .in_file(FileId::default());
             return Err(vec![err]);
         }
     };
@@ -226,13 +227,13 @@ fn compile_contract(
     options: &CompileOptions,
 ) -> Result<CompiledContract, Vec<FileDiagnostic>> {
     let mut functions = Vec::new();
-    let mut errs = Vec::new();
+    let mut errors = Vec::new();
     for function_id in &contract.functions {
         let name = context.function_name(function_id).to_owned();
         let function = match compile_no_check(context, options, *function_id) {
             Ok(function) => function,
-            Err(err) => {
-                errs.push(err);
+            Err(new_error) => {
+                errors.push(new_error);
                 continue;
             }
         };
@@ -253,10 +254,10 @@ fn compile_contract(
         });
     }
 
-    if errs.is_empty() {
+    if errors.is_empty() {
         Ok(CompiledContract { name: contract.name, functions })
     } else {
-        Err(errs)
+        Err(errors)
     }
 }
 
@@ -272,7 +273,8 @@ pub fn compile_no_check(
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) = create_circuit(program, options.show_ssa, options.show_brillig)?;
+    let (circuit, debug, abi) =
+        create_circuit(context, program, options.show_ssa, options.show_brillig)?;
 
     Ok(CompiledProgram { circuit, debug, abi })
 }

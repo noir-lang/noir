@@ -23,6 +23,7 @@
 //! prevent other parsers from being tried afterward since there is no longer an error. Thus, they should
 //! be limited to cases like the above `fn` example where it is clear we shouldn't back out of the
 //! current parser to try alternative parsers in a `choice` expression.
+use super::spanned;
 use super::{
     foldl_with_span, labels::ParsingRuleLabel, parameter_name_recovery, parameter_recovery,
     parenthesized, then_commit, then_commit_ignore, top_level_statement_recovery, ExprParser,
@@ -34,15 +35,15 @@ use crate::lexer::Lexer;
 use crate::parser::{force, ignore_then_commit, statement_recovery};
 use crate::token::{Attribute, Keyword, Token, TokenKind};
 use crate::{
-    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, FunctionDefinition, Ident,
-    IfExpression, InfixExpression, LValue, Lambda, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, Path, PathKind, Pattern, Recoverable, TraitConstraint, TraitImpl, TraitImplItem,
-    TraitItem, TypeImpl, UnaryOp, UnresolvedTypeExpression, UseTree, UseTreeKind,
+    BinaryOp, BinaryOpKind, BlockExpression, ConstrainStatement, Distinctness, FunctionDefinition,
+    FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
+    NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable,
+    TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
 };
 
 use chumsky::prelude::*;
 use iter_extended::vecmap;
-use noirc_abi::{AbiDistinctness, AbiVisibility};
 use noirc_errors::{CustomDiagnostic, Span, Spanned};
 
 /// Entry function for the parser - also handles lexing internally.
@@ -258,17 +259,18 @@ fn lambda_return_type() -> impl NoirParser<UnresolvedType> {
         .map(|ret| ret.unwrap_or(UnresolvedType::Unspecified))
 }
 
-fn function_return_type() -> impl NoirParser<((AbiDistinctness, AbiVisibility), UnresolvedType)> {
+fn function_return_type() -> impl NoirParser<((Distinctness, Visibility), FunctionReturnType)> {
     just(Token::Arrow)
         .ignore_then(optional_distinctness())
         .then(optional_visibility())
-        .then(parse_type())
+        .then(spanned(parse_type()))
         .or_not()
-        .map(|ret| {
-            ret.unwrap_or((
-                (AbiDistinctness::DuplicationAllowed, AbiVisibility::Private),
-                UnresolvedType::Unit,
-            ))
+        .map_with_span(|ret, span| match ret {
+            Some((head, (ty, span))) => (head, FunctionReturnType::Ty(ty, span)),
+            None => (
+                (Distinctness::DuplicationAllowed, Visibility::Private),
+                FunctionReturnType::Default(span),
+            ),
         })
 }
 
@@ -303,7 +305,7 @@ fn lambda_parameters() -> impl NoirParser<Vec<(Pattern, UnresolvedType)>> {
 
 fn function_parameters<'a>(
     allow_self: bool,
-) -> impl NoirParser<Vec<(Pattern, UnresolvedType, AbiVisibility)>> + 'a {
+) -> impl NoirParser<Vec<(Pattern, UnresolvedType, Visibility)>> + 'a {
     let typ = parse_type().recover_via(parameter_recovery());
 
     let full_parameter = pattern()
@@ -328,7 +330,7 @@ fn nothing<T>() -> impl NoirParser<T> {
     one_of([]).map(|_| unreachable!())
 }
 
-fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)> {
+fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
     let refmut_pattern = just(Token::Ampersand).then_ignore(keyword(Keyword::Mut));
     let mut_pattern = keyword(Keyword::Mut);
 
@@ -356,7 +358,7 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, AbiVisibility)>
                 _ => (),
             }
 
-            (pattern, self_type, AbiVisibility::Private)
+            (pattern, self_type, Visibility::Private)
         })
 }
 
@@ -834,17 +836,17 @@ fn parse_type_inner(
     ))
 }
 
-fn optional_visibility() -> impl NoirParser<AbiVisibility> {
+fn optional_visibility() -> impl NoirParser<Visibility> {
     keyword(Keyword::Pub).or_not().map(|opt| match opt {
-        Some(_) => AbiVisibility::Public,
-        None => AbiVisibility::Private,
+        Some(_) => Visibility::Public,
+        None => Visibility::Private,
     })
 }
 
-fn optional_distinctness() -> impl NoirParser<AbiDistinctness> {
+fn optional_distinctness() -> impl NoirParser<Distinctness> {
     keyword(Keyword::Distinct).or_not().map(|opt| match opt {
-        Some(_) => AbiDistinctness::Distinct,
-        None => AbiDistinctness::DuplicationAllowed,
+        Some(_) => Distinctness::Distinct,
+        None => Distinctness::DuplicationAllowed,
     })
 }
 
@@ -939,8 +941,8 @@ fn type_expression() -> impl NoirParser<UnresolvedTypeExpression> {
     recursive(|expr| {
         expression_with_precedence(
             Precedence::lowest_type_precedence(),
-            nothing(),
             expr,
+            nothing(),
             true,
             false,
         )
@@ -967,12 +969,30 @@ fn function_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
 where
     T: NoirParser<UnresolvedType>,
 {
-    let args = parenthesized(type_parser.clone().separated_by(just(Token::Comma)).allow_trailing());
+    let types = type_parser.clone().separated_by(just(Token::Comma)).allow_trailing();
+    let args = parenthesized(types.clone());
+
+    let env = just(Token::LeftBracket)
+        .ignore_then(types)
+        .then_ignore(just(Token::RightBracket))
+        .or_not()
+        .map(|args| match args {
+            Some(args) => {
+                if args.is_empty() {
+                    UnresolvedType::Unit
+                } else {
+                    UnresolvedType::Tuple(args)
+                }
+            }
+            None => UnresolvedType::Unit,
+        });
+
     keyword(Keyword::Fn)
-        .ignore_then(args)
+        .ignore_then(env)
+        .then(args)
         .then_ignore(just(Token::Arrow))
         .then(type_parser)
-        .map(|(args, ret)| UnresolvedType::Function(args, Box::new(ret)))
+        .map(|((env, args), ret)| UnresolvedType::Function(args, Box::new(ret), Box::new(env)))
 }
 
 fn mutable_reference_type<T>(type_parser: T) -> impl NoirParser<UnresolvedType>
@@ -1626,6 +1646,11 @@ mod test {
     }
 
     #[test]
+    fn parse_type_expression() {
+        parse_all(type_expression(), vec!["(123)", "123", "(1 + 1)", "(1 + (1))"]);
+    }
+
+    #[test]
     fn parse_array_sugar() {
         let valid = vec!["[0;7]", "[(1, 2); 4]", "[0;Four]", "[2;1+3-a]"];
         parse_all(array_expr(expression()), valid);
@@ -1719,7 +1744,7 @@ mod test {
         assert_eq!(errors.len(), 5);
         assert!(errors
             .iter()
-            .all(|err| { err.is_warning() && format!("{}", err).contains("deprecated") }))
+            .all(|err| { err.is_warning() && err.to_string().contains("deprecated") }));
     }
 
     /// This is the standard way to declare an assert statement

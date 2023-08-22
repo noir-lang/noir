@@ -1,11 +1,12 @@
-use acvm::acir::circuit::OpcodeLabel;
+use acvm::acir::circuit::OpcodeLocation;
 use acvm::acir::{circuit::Circuit, native_types::WitnessMap};
+use acvm::pwg::ErrorLocation;
 use acvm::Backend;
 use clap::Args;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::package::Package;
 use nargo::NargoError;
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
+use nargo_toml::{get_package_manifest, resolve_workspace_from_toml, PackageSelection};
 use noirc_abi::input_parser::{Format, InputValue};
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, CompiledProgram};
@@ -45,7 +46,7 @@ pub(crate) fn run<B: Backend>(
     args: ExecuteCommand,
     config: NargoConfig,
 ) -> Result<(), CliError<B>> {
-    let toml_path = find_package_manifest(&config.program_dir)?;
+    let toml_path = get_package_manifest(&config.program_dir)?;
     let default_selection =
         if args.workspace { PackageSelection::All } else { PackageSelection::DefaultOrAll };
     let selection = args.package.map_or(default_selection, PackageSelection::Selected);
@@ -90,41 +91,43 @@ fn execute_package<B: Backend>(
     Ok((return_value, solved_witness))
 }
 
-fn extract_unsatisfied_constraint_from_nargo_error(nargo_err: &NargoError) -> Option<usize> {
+fn extract_unsatisfied_constraint_from_nargo_error(
+    nargo_err: &NargoError,
+) -> Option<OpcodeLocation> {
     let solving_err = match nargo_err {
         nargo::NargoError::SolvingError(err) => err,
         _ => return None,
     };
 
     match solving_err {
-        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain { opcode_label } => {
-            match opcode_label {
-                OpcodeLabel::Unresolved => {
-                    unreachable!("Cannot resolve index for unsatisfied constraint")
-                }
-                OpcodeLabel::Resolved(opcode_index) => Some(*opcode_index as usize),
+        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain {
+            opcode_location: error_location,
+        } => match error_location {
+            ErrorLocation::Unresolved => {
+                unreachable!("Cannot resolve index for unsatisfied constraint")
             }
-        }
+            ErrorLocation::Resolved(opcode_location) => Some(*opcode_location),
+        },
         _ => None,
     }
 }
+
 fn report_unsatisfied_constraint_error(
-    opcode_idx: Option<usize>,
+    opcode_location: Option<OpcodeLocation>,
     debug: &DebugInfo,
     context: &Context,
 ) {
-    if let Some(opcode_index) = opcode_idx {
-        if let Some(loc) = debug.opcode_location(opcode_index) {
-            noirc_errors::reporter::report(
-                &context.file_manager,
-                &CustomDiagnostic::simple_error(
-                    "Unsatisfied constraint".to_string(),
-                    "Constraint failed".to_string(),
-                    loc.span,
-                ),
-                Some(loc.file),
-                false,
-            );
+    if let Some(opcode_location) = opcode_location {
+        if let Some(locations) = debug.opcode_location(&opcode_location) {
+            // The location of the error itself will be the location at the top
+            // of the call stack (the last item in the Vec).
+            if let Some(location) = locations.last() {
+                let message = "Failed constraint".into();
+                CustomDiagnostic::simple_error(message, String::new(), location.span)
+                    .in_file(location.file)
+                    .with_call_stack(locations)
+                    .report(&context.file_manager, false);
+            }
         }
     }
 }
@@ -142,8 +145,8 @@ pub(crate) fn execute_program<B: Backend>(
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {
             if let Some((debug, context)) = debug_data {
-                let opcode_idx = extract_unsatisfied_constraint_from_nargo_error(&err);
-                report_unsatisfied_constraint_error(opcode_idx, &debug, &context);
+                let opcode_location = extract_unsatisfied_constraint_from_nargo_error(&err);
+                report_unsatisfied_constraint_error(opcode_location, &debug, &context);
             }
 
             Err(crate::errors::CliError::NargoError(err))
