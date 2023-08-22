@@ -1812,17 +1812,10 @@ mod test {
     /// This is the standard way to assert that two expressions are equivalent
     #[test]
     fn parse_assert_eq() {
-        parse_with(assertion_eq(expression()), "assert_eq(x, y)").unwrap();
-
-        // These are general cases which should always work.
-        //
-        // The first case is the most noteworthy. It contains two `==`
-        // The first (inner) `==` is a predicate which returns 0/1
-        // The outer layer is an infix `==` which is
-        // associated with the Constrain statement
         parse_all(
             assertion_eq(expression()),
             vec![
+                "assert_eq(x, y)",
                 "assert_eq(((x + y) == k) + z, y)",
                 "assert_eq(x + !y, y)",
                 "assert_eq(x ^ y, y)",
