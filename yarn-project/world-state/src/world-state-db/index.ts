@@ -123,7 +123,7 @@ export interface MerkleTreeOperations {
    * @param treeId - The tree to be queried for a sibling path.
    * @param index - The index of the leaf for which a sibling path should be returned.
    */
-  getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath<number>>;
+  getSiblingPath<N extends number>(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath<N>>;
 
   /**
    * Returns the previous index for a given value in an indexed tree.

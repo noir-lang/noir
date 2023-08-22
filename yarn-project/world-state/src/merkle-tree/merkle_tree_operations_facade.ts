@@ -44,8 +44,9 @@ export class MerkleTreeOperationsFacade implements MerkleTreeOperations {
    * @param index - The index of the leaf for which a sibling path is required.
    * @returns A promise with the sibling path of the specified leaf index.
    */
-  getSiblingPath(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath<number>> {
-    return this.trees.getSiblingPath(treeId, index, this.includeUncommitted);
+  async getSiblingPath<N extends number>(treeId: MerkleTreeId, index: bigint): Promise<SiblingPath<N>> {
+    const path = await this.trees.getSiblingPath(treeId, index, this.includeUncommitted);
+    return path as unknown as SiblingPath<N>;
   }
 
   /**

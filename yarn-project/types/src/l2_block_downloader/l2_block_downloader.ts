@@ -1,4 +1,4 @@
-import { MemoryFifo, Semaphore } from '@aztec/foundation/fifo';
+import { MemoryFifo, Semaphore, SerialQueue } from '@aztec/foundation/fifo';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { InterruptableSleep } from '@aztec/foundation/sleep';
 
@@ -18,7 +18,8 @@ export class L2BlockDownloader {
   private from = 0;
   private interruptableSleep = new InterruptableSleep();
   private semaphore: Semaphore;
-  private queue = new MemoryFifo<L2Block[]>();
+  private jobQueue = new SerialQueue();
+  private blockQueue = new MemoryFifo<L2Block[]>();
 
   constructor(private l2BlockSource: L2BlockSource, maxQueueSize: number, private pollIntervalMS = 10000) {
     this.semaphore = new Semaphore(maxQueueSize);
@@ -29,37 +30,45 @@ export class L2BlockDownloader {
    * @param from - The block number to start downloading from. Defaults to INITIAL_L2_BLOCK_NUM.
    */
   public start(from = INITIAL_L2_BLOCK_NUM) {
-    this.from = from;
-
     if (this.running) {
       this.interruptableSleep.interrupt();
       return;
     }
-
+    this.from = from;
     this.running = true;
 
     const fn = async () => {
       while (this.running) {
         try {
-          const blocks = await this.l2BlockSource.getL2Blocks(this.from, 10);
-
-          if (!blocks.length) {
-            await this.interruptableSleep.sleep(this.pollIntervalMS);
-            continue;
-          }
-
-          // Blocks if there are maxQueueSize results in the queue, until released after the callback.
-          await this.semaphore.acquire();
-          this.queue.put(blocks);
-          this.from += blocks.length;
+          await this.jobQueue.put(() => this.collectBlocks());
+          await this.interruptableSleep.sleep(this.pollIntervalMS);
         } catch (err) {
           log.error(err);
           await this.interruptableSleep.sleep(this.pollIntervalMS);
         }
       }
     };
-
+    this.jobQueue.start();
     this.runningPromise = fn();
+  }
+
+  /**
+   * Repeatedly queries the block source and adds the received blocks to the block queue.
+   * Stops when no further blocks are received.
+   * @returns The total number of blocks added to the block queue.
+   */
+  private async collectBlocks() {
+    let totalBlocks = 0;
+    while (true) {
+      const blocks = await this.l2BlockSource.getL2Blocks(this.from, 10);
+      if (!blocks.length) {
+        return totalBlocks;
+      }
+      await this.semaphore.acquire();
+      this.blockQueue.put(blocks);
+      this.from += blocks.length;
+      totalBlocks += blocks.length;
+    }
   }
 
   /**
@@ -68,20 +77,35 @@ export class L2BlockDownloader {
   public async stop() {
     this.running = false;
     this.interruptableSleep.interrupt();
-    this.queue.cancel();
+    await this.jobQueue.cancel();
+    this.blockQueue.cancel();
     await this.runningPromise;
   }
 
   /**
    * Gets the next batch of blocks from the queue.
+   * @param timeout - optional timeout value to prevent permanent blocking
    * @returns The next batch of blocks from the queue.
    */
-  public async getL2Blocks() {
-    const blocks = await this.queue.get();
-    if (!blocks) {
+  public async getL2Blocks(timeout?: number) {
+    try {
+      const blocks = await this.blockQueue.get(timeout);
+      if (!blocks) {
+        return [];
+      }
+      this.semaphore.release();
+      return blocks;
+    } catch (err) {
+      // nothing to do
       return [];
     }
-    this.semaphore.release();
-    return blocks;
+  }
+
+  /**
+   * Forces an immediate request for blocks.
+   * @returns A promise that fulfills once the poll is complete
+   */
+  public pollImmediate(): Promise<number> {
+    return this.jobQueue.put(() => this.collectBlocks());
   }
 }

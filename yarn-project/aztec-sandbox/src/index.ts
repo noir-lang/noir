@@ -98,7 +98,7 @@ async function main() {
       accountStrings.push(` Public Key: ${completeAddress.publicKey.toString()}\n\n`);
     }
   }
-  logger.info(`${splash}\n${github}\n\n`.concat(...accountStrings));
+  logger.info(`${splash}\n${github}\n\n`.concat(...accountStrings).concat(`\nAztec Sandbox now ready for use!`));
 }
 
 main().catch(err => {
