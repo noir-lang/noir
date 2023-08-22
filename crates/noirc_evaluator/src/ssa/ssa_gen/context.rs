@@ -693,7 +693,6 @@ impl<'a> FunctionContext<'a> {
         // The actual base index is the user's index * the array element type's size
         let mut index =
             self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
-        // let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
         let one = self.builder.field_constant(FieldElement::one());
 
         new_value.for_each(|value| {

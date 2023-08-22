@@ -87,8 +87,9 @@ pub fn create_circuit(
     enable_brillig_logging: bool,
 ) -> Result<(Circuit, DebugInfo, Abi), RuntimeError> {
     let func_sig = program.main_function_signature.clone();
-    let generated_acir = optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
-    let opcodes = generated_acir.opcodes().to_vec();
+    let mut generated_acir =
+        optimize_into_acir(program, enable_ssa_logging, enable_brillig_logging)?;
+    let opcodes = generated_acir.take_opcodes();
     let GeneratedAcir {
         current_witness_index, return_witnesses, locations, input_witnesses, ..
     } = generated_acir;
