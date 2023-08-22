@@ -551,7 +551,9 @@ impl<'a> FunctionContext<'a> {
                     LValue::Ident
                 }
             }
-            ast::LValue::Index { array, index, location, .. } => self.index_lvalue(array, index, location).2,
+            ast::LValue::Index { array, index, location, .. } => {
+                self.index_lvalue(array, index, location).2
+            }
             ast::LValue::MemberAccess { object, field_index } => {
                 let (old_object, object_lvalue) = self.extract_current_value_recursive(object);
                 let object_lvalue = Box::new(object_lvalue);
@@ -601,11 +603,16 @@ impl<'a> FunctionContext<'a> {
         // A slice is represented as a tuple (length, slice contents).
         // We need to fetch the second value.
         if array_values.len() > 1 {
-            let slice_lvalue =
-                LValue::SliceIndex { old_slice: old_array, index, slice_lvalue: array_lvalue, location };
+            let slice_lvalue = LValue::SliceIndex {
+                old_slice: old_array,
+                index,
+                slice_lvalue: array_lvalue,
+                location,
+            };
             (array_values[1], index, slice_lvalue, Some(array_values[0]))
         } else {
-            let array_lvalue = LValue::Index { old_array: array_values[0], index, array_lvalue, location };
+            let array_lvalue =
+                LValue::Index { old_array: array_values[0], index, array_lvalue, location };
             (array_values[0], index, array_lvalue, None)
         }
     }
@@ -622,7 +629,8 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             ast::LValue::Index { array, index, element_type, location } => {
-                let (old_array, index, index_lvalue, max_length) = self.index_lvalue(array, index, location);
+                let (old_array, index, index_lvalue, max_length) =
+                    self.index_lvalue(array, index, location);
                 let element =
                     self.codegen_array_index(old_array, index, element_type, *location, max_length);
                 (element, index_lvalue)
@@ -656,7 +664,8 @@ impl<'a> FunctionContext<'a> {
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
 
-                slice_values[1] = self.assign_lvalue_index(new_value, slice_values[1], index, location);
+                slice_values[1] =
+                    self.assign_lvalue_index(new_value, slice_values[1], index, location);
 
                 // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);
@@ -682,7 +691,8 @@ impl<'a> FunctionContext<'a> {
         let element_size = self.builder.field_constant(self.element_size(array));
 
         // The actual base index is the user's index * the array element type's size
-        let mut index = self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
+        let mut index =
+            self.builder.set_location(location).insert_binary(index, BinaryOp::Mul, element_size);
         // let mut index = self.builder.insert_binary(index, BinaryOp::Mul, element_size);
         let one = self.builder.field_constant(FieldElement::one());
 

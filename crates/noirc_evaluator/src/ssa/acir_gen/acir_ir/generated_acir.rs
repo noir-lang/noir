@@ -68,8 +68,8 @@ impl GeneratedAcir {
         }
     }
 
-    pub(crate) fn opcodes(&self) -> &[AcirOpcode] {
-        &self.opcodes
+    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode> {
+        std::mem::take(&mut self.opcodes)
     }
 
     /// Updates the witness index counter and returns
