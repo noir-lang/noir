@@ -130,7 +130,10 @@ impl<'a> FunctionContext<'a> {
                         let slice_contents = self.codegen_array(elements, typ[1].clone());
                         Tree::Branch(vec![slice_length.into(), slice_contents])
                     }
-                    _ => unreachable!("ICE: array literal type must be an array or a slice, but got {}", array.typ),
+                    _ => unreachable!(
+                        "ICE: array literal type must be an array or a slice, but got {}",
+                        array.typ
+                    ),
                 }
             }
             ast::Literal::Integer(value, typ) => {
