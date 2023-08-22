@@ -210,6 +210,24 @@ fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
     Some(output)
 }
 
+// Taken from Regex docs directly
+fn replace_all<E>(
+    re: &Regex,
+    haystack: &str,
+    mut replacement: impl FnMut(&Captures) -> Result<String, E>,
+) -> Result<String, E> {
+    let mut new = String::with_capacity(haystack.len());
+    let mut last_match = 0;
+    for caps in re.captures_iter(haystack) {
+        let m = caps.get(0).unwrap();
+        new.push_str(&haystack[last_match..m.start()]);
+        new.push_str(&replacement(&caps)?);
+        last_match = m.end();
+    }
+    new.push_str(&haystack[last_match..]);
+    Ok(new)
+}
+
 impl std::fmt::Display for PrintableValueDisplay {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -219,15 +237,12 @@ impl std::fmt::Display for PrintableValueDisplay {
             }
             Self::FmtString(template, values) => {
                 let mut display_iter = values.iter();
-                let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}")
-                    .expect("ICE: an invalid regex pattern was used for checking format strings");
+                let re = Regex::new(r"\{([a-zA-Z0-9_]+)\}").map_err(|_| std::fmt::Error)?;
 
-                let formatted_str = re.replace_all(template, |_: &Captures| {
-                    let (value, typ) = display_iter.next().expect(
-                        "ICE: there are more regex matches than fields supplied to the format string",
-                    );
-                    to_string(value, typ).expect("ICE: Cannot convert display value into string")
-                });
+                let formatted_str = replace_all(&re, template, |_: &Captures| {
+                    let (value, typ) = display_iter.next().ok_or(std::fmt::Error)?;
+                    to_string(value, typ).ok_or(std::fmt::Error)
+                })?;
 
                 write!(fmt, "{formatted_str}")
             }
