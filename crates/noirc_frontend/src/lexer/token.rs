@@ -394,7 +394,7 @@ impl Attribute {
             ["test"] => Attribute::Test,
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
-                Attribute::Custom(tokens.join("__").to_string())
+                Attribute::Custom(tokens.join("__"))
             }
         };
 
