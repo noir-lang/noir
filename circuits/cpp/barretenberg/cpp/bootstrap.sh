@@ -1,14 +1,6 @@
 #!/bin/bash
 set -eu
 
-# Get the clang version string
-major_version=$(clang --version | grep 'version' | awk '{ for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+(\.[0-9]+)*$/) print $i }' | cut -d'.' -f1)
-
-if ! [ "$major_version" -ge 16 ]; then
-  echo "Error: clang version 16 or greater is required."
-  exit 1
-fi
-
 # Clean.
 rm -rf ./build
 rm -rf ./build-wasm
