@@ -787,7 +787,7 @@ impl GeneratedAcir {
     pub(crate) fn brillig(
         &mut self,
         predicate: Option<Expression>,
-        code: GeneratedBrillig,
+        generated_brillig: GeneratedBrillig,
         inputs: Vec<BrilligInputs>,
         outputs: Vec<BrilligOutputs>,
     ) {
@@ -795,11 +795,11 @@ impl GeneratedAcir {
             inputs,
             outputs,
             foreign_call_results: Vec::new(),
-            bytecode: code.byte_code,
+            bytecode: generated_brillig.byte_code,
             predicate,
         });
         self.push_opcode(opcode);
-        for (brillig_index, call_stack) in code.locations {
+        for (brillig_index, call_stack) in generated_brillig.locations {
             self.locations.insert(
                 OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
                 call_stack,

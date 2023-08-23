@@ -948,6 +948,7 @@ impl BrilligContext {
         }
     }
 
+    /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
         self.obj.set_call_stack(call_stack);
     }
