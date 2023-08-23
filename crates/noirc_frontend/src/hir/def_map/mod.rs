@@ -135,11 +135,15 @@ impl CrateDefMap {
                 .value_definitions()
                 .filter_map(|id| id.as_function())
                 .filter(|id| {
-                    interner.function_meta(id).attributes == Some(Attribute::Test(true))
-                        || interner.function_meta(id).attributes == Some(Attribute::Test(false))
+                    interner.function_meta(id).attributes
+                        == Some(Attribute::Test { expect_failure: true })
+                        || interner.function_meta(id).attributes
+                            == Some(Attribute::Test { expect_failure: true })
                 })
                 .map(|id| {
-                    if interner.function_meta(&id).attributes == Some(Attribute::Test(true)) {
+                    if interner.function_meta(&id).attributes
+                        == Some(Attribute::Test { expect_failure: true })
+                    {
                         (id, true)
                     } else {
                         (id, false)
