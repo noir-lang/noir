@@ -325,7 +325,7 @@ pub enum Attribute {
     Builtin(String),
     Oracle(String),
     Deprecated(Option<String>),
-    Test(/* should fail: */ bool),
+    Test(/* expect failure: */ bool),
     Custom(String),
 }
 
