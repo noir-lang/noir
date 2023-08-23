@@ -336,7 +336,7 @@ impl fmt::Display for Attribute {
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
             Attribute::Test { expect_failure } => {
-                if expect_failure == false {
+                if !expect_failure {
                     write!(f, "#[test]")
                 } else {
                     write!(f, "#[test(should_fail)]")
