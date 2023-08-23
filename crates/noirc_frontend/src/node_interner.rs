@@ -138,6 +138,8 @@ impl FuncId {
     }
 }
 
+pub type TestFunc = (FuncId, /* should fail */ bool);
+
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct StructId(pub ModuleId);
 

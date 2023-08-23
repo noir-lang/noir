@@ -1,7 +1,7 @@
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner};
+use crate::node_interner::{FuncId, NodeInterner, TestFunc};
 use crate::parser::{parse_program, ParsedModule};
 use crate::token::Attribute;
 use arena::{Arena, Index};
@@ -129,7 +129,7 @@ impl CrateDefMap {
     pub fn get_all_test_functions<'a>(
         &'a self,
         interner: &'a NodeInterner,
-    ) -> impl Iterator<Item = (FuncId, bool)> + 'a {
+    ) -> impl Iterator<Item = TestFunc> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
             module
                 .value_definitions()
