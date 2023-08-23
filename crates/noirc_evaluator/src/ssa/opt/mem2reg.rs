@@ -373,7 +373,7 @@ impl Block {
                 self.expressions.insert(result, Expression::Other(known_address));
             } else {
                 let expression = Expression::Dereference(Box::new(Expression::Other(address)));
-                self.expressions.insert(result, expression.clone());
+                self.expressions.insert(result, expression);
                 // No known aliases to insert for this expression... can we find an alias
                 // even if we don't have a known address? If not we'll have to invalidate all
                 // known references if this reference is ever stored to.
