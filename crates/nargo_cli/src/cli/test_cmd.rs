@@ -137,6 +137,10 @@ fn run_test<B: Backend>(
     show_output: bool,
     config: &CompileOptions,
 ) -> Result<(), CliError<B>> {
+    let report_error = |err| {
+        noirc_errors::reporter::report_all(&context.file_manager, &[err], config.deny_warnings);
+        Err(CliError::Generic(format!("Test '{test_name}' failed to compile")))
+    };
     let program = compile_no_check(context, config, main);
     match program {
         Ok(mut program) => {
@@ -166,22 +170,12 @@ fn run_test<B: Backend>(
         Err(err) => {
             if should_fail {
                 if !err.diagnostic.message.contains("Failed constraint") {
-                    noirc_errors::reporter::report_all(
-                        &context.file_manager,
-                        &[err],
-                        config.deny_warnings,
-                    );
-                    Err(CliError::Generic(format!("Test '{test_name}' failed to compile")))
+                    report_error(err)
                 } else {
                     Ok(())
                 }
             } else {
-                noirc_errors::reporter::report_all(
-                    &context.file_manager,
-                    &[err],
-                    config.deny_warnings,
-                );
-                Err(CliError::Generic(format!("Test '{test_name}' failed to compile")))
+                report_error(err)
             }
         }
     }
