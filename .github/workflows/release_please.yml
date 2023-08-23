@@ -16,7 +16,9 @@ jobs:
       - uses: google-github-actions/release-please-action@v3
         with:
           release-type: simple
-          package-name: release-please-action
+          package-name: aztec-packages
           prerelease: true
           default-branch: master
+          versioning-strategy: prerelease
+          pull-request-header: ":robot: I have created a new Aztec Packages release"
           changelog-types: '[{"type":"feat","section":"Features","hidden":false},{"type":"fix","section":"Bug Fixes","hidden":false},{"type":"chore","section":"Miscellaneous","hidden":false},{"type":"test","section":"Miscellaneous","hidden":false},{"type":"refactor","section":"Miscellaneous","hidden":false},{"type":"perf","section":"Miscellaneous","hidden":false},{"type":"docs","section":"Documentation","hidden":false},{"type":"ci","section":"Build","hidden":false},{"type":"build","section":"Build","hidden":false}]'
