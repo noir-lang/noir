@@ -31,7 +31,7 @@ use iter_extended::vecmap;
 /// require name resolution to resolve any type names used
 /// for structs within, but are otherwise identical to Types.
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum UnresolvedType {
+pub enum UnresolvedTypeData {
     FieldElement,
     Array(Option<UnresolvedTypeExpression>, Box<UnresolvedType>), // [4]Witness = Array(4, Witness)
     Integer(Signedness, u32),                                     // u32 = Integer(unsigned, 32)
@@ -60,6 +60,12 @@ pub enum UnresolvedType {
     Error,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct UnresolvedType {
+    pub typ: UnresolvedTypeData,
+    pub span: Option<Span>,
+}
+
 /// The precursor to TypeExpression, this is the type that the parser allows
 /// to be used in the length position of an array type. Only constants, variables,
 /// and numeric binary operators are allowed here.
@@ -76,14 +82,14 @@ pub enum UnresolvedTypeExpression {
 }
 
 impl Recoverable for UnresolvedType {
-    fn error(_: Span) -> Self {
-        UnresolvedType::Error
+    fn error(span: Span) -> Self {
+        UnresolvedType { typ: UnresolvedTypeData::Error, span: Some(span) }
     }
 }
 
-impl std::fmt::Display for UnresolvedType {
+impl std::fmt::Display for UnresolvedTypeData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use UnresolvedType::*;
+        use UnresolvedTypeData::*;
         match self {
             FieldElement => write!(f, "Field"),
             Array(len, typ) => match len {
@@ -95,7 +101,7 @@ impl std::fmt::Display for UnresolvedType {
                 Signedness::Unsigned => write!(f, "u{num_bits}"),
             },
             Named(s, args) => {
-                let args = vecmap(args, ToString::to_string);
+                let args = vecmap(args, |arg| ToString::to_string(&arg.typ));
                 if args.is_empty() {
                     write!(f, "{s}")
                 } else {
@@ -116,12 +122,12 @@ impl std::fmt::Display for UnresolvedType {
             Function(args, ret, env) => {
                 let args = vecmap(args, ToString::to_string);
 
-                match env.as_ref() {
-                    UnresolvedType::Unit => {
+                match &env.as_ref().typ {
+                    UnresolvedTypeData::Unit => {
                         write!(f, "fn({}) -> {ret}", args.join(", "))
                     }
-                    UnresolvedType::Tuple(env_types) => {
-                        let env_types = vecmap(env_types, ToString::to_string);
+                    UnresolvedTypeData::Tuple(env_types) => {
+                        let env_types = vecmap(env_types, |arg| ToString::to_string(&arg.typ));
                         write!(f, "fn[{}]({}) -> {ret}", env_types.join(", "), args.join(", "))
                     }
                     _ => unreachable!(),
@@ -132,6 +138,12 @@ impl std::fmt::Display for UnresolvedType {
             Error => write!(f, "error"),
             Unspecified => write!(f, "unspecified"),
         }
+    }
+}
+
+impl std::fmt::Display for UnresolvedType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.typ.fmt(f)
     }
 }
 
@@ -148,12 +160,26 @@ impl std::fmt::Display for UnresolvedTypeExpression {
 }
 
 impl UnresolvedType {
-    pub fn from_int_token(token: IntType) -> UnresolvedType {
-        use {IntType::*, UnresolvedType::Integer};
+    pub fn without_span(typ: UnresolvedTypeData) -> UnresolvedType {
+        UnresolvedType { typ, span: None }
+    }
+
+    pub fn unspecified() -> UnresolvedType {
+        UnresolvedType { typ: UnresolvedTypeData::Unspecified, span: None }
+    }
+}
+
+impl UnresolvedTypeData {
+    pub fn from_int_token(token: IntType) -> UnresolvedTypeData {
+        use {IntType::*, UnresolvedTypeData::Integer};
         match token {
             Signed(num_bits) => Integer(Signedness::Signed, num_bits),
             Unsigned(num_bits) => Integer(Signedness::Unsigned, num_bits),
         }
+    }
+
+    pub fn with_span(&self, span: Span) -> UnresolvedType {
+        UnresolvedType { typ: self.clone(), span: Some(span) }
     }
 }
 

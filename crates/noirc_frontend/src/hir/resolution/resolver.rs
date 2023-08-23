@@ -36,7 +36,8 @@ use crate::{
 use crate::{
     ArrayLiteral, ContractFunctionType, Distinctness, Generics, LValue, NoirStruct, NoirTypeAlias,
     Path, Pattern, Shared, StructType, Trait, Type, TypeAliasType, TypeBinding, TypeVariable,
-    UnaryOp, UnresolvedGenerics, UnresolvedType, UnresolvedTypeExpression, Visibility, ERROR_IDENT,
+    UnaryOp, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    Visibility, ERROR_IDENT,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -336,9 +337,11 @@ impl<'a> Resolver<'a> {
     /// Translates an UnresolvedType into a Type and appends any
     /// freshly created TypeVariables created to new_variables.
     fn resolve_type_inner(&mut self, typ: UnresolvedType, new_variables: &mut Generics) -> Type {
-        match typ {
-            UnresolvedType::FieldElement => Type::FieldElement,
-            UnresolvedType::Array(size, elem) => {
+        use UnresolvedTypeData::*;
+
+        match typ.typ {
+            FieldElement => Type::FieldElement,
+            Array(size, elem) => {
                 let elem = Box::new(self.resolve_type_inner(*elem, new_variables));
                 let size = if size.is_none() {
                     Type::NotConstant
@@ -347,26 +350,26 @@ impl<'a> Resolver<'a> {
                 };
                 Type::Array(Box::new(size), elem)
             }
-            UnresolvedType::Expression(expr) => self.convert_expression_type(expr),
-            UnresolvedType::Integer(sign, bits) => Type::Integer(sign, bits),
-            UnresolvedType::Bool => Type::Bool,
-            UnresolvedType::String(size) => {
+            Expression(expr) => self.convert_expression_type(expr),
+            Integer(sign, bits) => Type::Integer(sign, bits),
+            Bool => Type::Bool,
+            String(size) => {
                 let resolved_size = self.resolve_array_size(size, new_variables);
                 Type::String(Box::new(resolved_size))
             }
-            UnresolvedType::FormatString(size, fields) => {
+            FormatString(size, fields) => {
                 let resolved_size = self.convert_expression_type(size);
                 let fields = self.resolve_type_inner(*fields, new_variables);
                 Type::FmtString(Box::new(resolved_size), Box::new(fields))
             }
-            UnresolvedType::Unit => Type::Unit,
-            UnresolvedType::Unspecified => Type::Error,
-            UnresolvedType::Error => Type::Error,
-            UnresolvedType::Named(path, args) => self.resolve_named_type(path, args, new_variables),
-            UnresolvedType::Tuple(fields) => {
+            Unit => Type::Unit,
+            Unspecified => Type::Error,
+            Error => Type::Error,
+            Named(path, args) => self.resolve_named_type(path, args, new_variables),
+            Tuple(fields) => {
                 Type::Tuple(vecmap(fields, |field| self.resolve_type_inner(field, new_variables)))
             }
-            UnresolvedType::Function(args, ret, env) => {
+            Function(args, ret, env) => {
                 let args = vecmap(args, |arg| self.resolve_type_inner(arg, new_variables));
                 let ret = Box::new(self.resolve_type_inner(*ret, new_variables));
                 let env = Box::new(self.resolve_type_inner(*env, new_variables));
@@ -384,7 +387,7 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
-            UnresolvedType::MutableReference(element) => {
+            MutableReference(element) => {
                 Type::MutableReference(Box::new(self.resolve_type_inner(*element, new_variables)))
             }
         }
@@ -593,9 +596,9 @@ impl<'a> Resolver<'a> {
     /// Translates a (possibly Unspecified) UnresolvedType to a Type.
     /// Any UnresolvedType::Unspecified encountered are replaced with fresh type variables.
     fn resolve_inferred_type(&mut self, typ: UnresolvedType) -> Type {
-        match typ {
-            UnresolvedType::Unspecified => self.interner.next_type_variable(),
-            other => self.resolve_type_inner(other, &mut vec![]),
+        match &typ.typ {
+            UnresolvedTypeData::Unspecified => self.interner.next_type_variable(),
+            _ => self.resolve_type_inner(typ, &mut vec![]),
         }
     }
 
