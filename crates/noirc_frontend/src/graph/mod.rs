@@ -134,7 +134,7 @@ impl CrateGraph {
         self.arena
             .keys()
             .find(|crate_id| crate_id.is_stdlib())
-            .expect("Something about no crates in graph")
+            .expect("ICE: The stdlib should exist in the CrateGraph")
     }
 
     pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
