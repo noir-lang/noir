@@ -247,7 +247,7 @@ impl TestFunc {
         self.id
     }
 
-    pub fn get_expecte_failure_flag(&self) -> bool {
+    pub fn get_expect_failure_flag(&self) -> bool {
         self.expect_failure
     }
 }
