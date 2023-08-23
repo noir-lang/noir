@@ -353,7 +353,7 @@ fn self_parameter() -> impl NoirParser<(Pattern, UnresolvedType, Visibility)> {
             match pattern_keyword {
                 Some((Token::Ampersand, _)) => {
                     self_type =
-                        UnresolvedTypeData::MutableReference(Box::new(self_type)).with_span(span)
+                        UnresolvedTypeData::MutableReference(Box::new(self_type)).with_span(span);
                 }
                 Some((Token::Keyword(_), span)) => {
                     pattern = Pattern::Mutable(Box::new(pattern), span);
