@@ -1,0 +1,164 @@
+name: Publish Barretenberg
+on:
+  workflow_dispatch:
+    # Allow pushing a manual nightly release
+    inputs:
+      tag:
+        description: The tag to build from (leave empty to build a nightly release from master)
+        required: false
+      publish:
+        description: Whether to publish the build artifacts
+        type: boolean
+        default: false
+  schedule:
+    # Run a nightly release at 2 AM UTC
+    - cron: "0 2 * * *"
+
+permissions:
+  # Necessary to upload new release artifacts
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build on Linux
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
+
+      - name: Install bleeding edge cmake
+        run: |
+          sudo apt -y remove --purge cmake
+          sudo snap install cmake --classic
+
+      - name: Create Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install ninja-build yarn
+      
+      - name: Install Clang16
+        run: |
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-16.0.0/clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+          tar -xvf clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+          sudo cp clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/bin/* /usr/local/bin/
+          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/include/* /usr/local/include/
+          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/lib/* /usr/local/lib/
+          sudo cp -r clang+llvm-16.0.0-x86_64-linux-gnu-ubuntu-18.04/share/* /usr/local/share/
+      
+      - name: Install yarn
+        run: |
+          curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+          echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+          sudo apt -y update && sudo apt -y install yarn
+      - name: Compile Barretenberg
+        run: |
+          cd cpp
+
+          cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
+          cmake --build --preset default --target bb
+
+      - name: Install WASI-SDK
+        run: |
+          cd cpp
+
+          ./scripts/install-wasi-sdk.sh
+
+      - name: Compile Typescript
+        run: |
+          cd ts
+          yarn install && yarn && yarn build
+
+      - name: Tar and GZip barretenberg.wasm
+        run: tar -cvzf barretenberg.wasm.tar.gz cpp/build-wasm/bin/barretenberg.wasm
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Deploy Typescript to NPM
+        run: |
+          cd ts
+          yarn deploy
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+
+      - name: Tar and GZip bb Binary (Ubuntu)
+        run: tar -cvzf bb-ubuntu.tar.gz cpp/build/bin/bb
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: release-linux-wasm
+          path: |
+            barretenberg.wasm.tar.gz
+            bb-ubuntu.tar.gz
+
+  build-mac:
+    name: Build on Mac
+    runs-on: macos-13
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.tag || env.GITHUB_REF }}
+
+      #         We need clang 14.0.3 or higher, as lower versions do not seem
+      #         to be spec conformant. In particular std::span does not seem
+      #         to follow the specifications.
+      - name: Select Xcode version
+        run: |
+          sudo xcode-select -switch /Applications/Xcode_14.3.1.app
+
+      - name: Create Mac Build Environment
+        run: |
+          brew install cmake ninja
+
+      - name: Compile Barretenberg
+        working-directory: cpp
+        run: |
+          cmake --preset default -DCMAKE_BUILD_TYPE=RelWithAssert
+          cmake --build --preset default --target bb
+          
+      - name: Package barretenberg artifact
+        working-directory: cpp/build/bin
+        run: |
+          mkdir dist
+          cp ./bb ./dist/bb
+          7z a -ttar -so -an ./dist/* | 7z a -si ./barretenberg-x86_64-apple-darwin.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: barretenberg-x86_64-apple-darwin
+          path: ./cpp/build/bin/barretenberg-x86_64-apple-darwin.tar.gz
+          retention-days: 3
+
+  release:
+    name: Publish
+    needs: [build-linux, build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download files from Linux Runner
+        uses: actions/download-artifact@v2
+        with:
+          name: release-linux-wasm
+
+      - name: Download files from Mac Runner
+        uses: actions/download-artifact@v2
+        with:
+          name: barretenberg-x86_64-apple-darwin
+
+      - name: Publish to GitHub
+        uses: softprops/action-gh-release@v1
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        with:
+          tag_name: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+          prerelease: true
+          files: |
+            barretenberg.wasm.tar.gz
+            bb-ubuntu.tar.gz
+            barretenberg-x86_64-apple-darwin.tar.gz
