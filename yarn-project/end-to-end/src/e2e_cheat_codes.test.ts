@@ -2,8 +2,8 @@ import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecAddress, AztecRPCServer, EthAddress } from '@aztec/aztec-rpc';
 import { CheatCodes, Wallet } from '@aztec/aztec.js';
 import { RollupAbi } from '@aztec/l1-artifacts';
-import { LendingContract } from '@aztec/noir-contracts/types';
-import { AztecRPC } from '@aztec/types';
+import { TestContract } from '@aztec/noir-contracts/types';
+import { AztecRPC, TxStatus } from '@aztec/types';
 
 import { Account, Chain, HttpTransport, PublicClient, WalletClient, getAddress, getContract, parseEther } from 'viem';
 
@@ -143,11 +143,10 @@ describe('e2e_cheat_codes', () => {
     });
 
     it('can modify L2 block time', async () => {
-      // deploy lending contract
-      const tx = LendingContract.deploy(aztecRpcServer).send();
+      const tx = TestContract.deploy(aztecRpcServer).send();
       await tx.isMined({ interval: 0.1 });
       const receipt = await tx.getReceipt();
-      const contract = await LendingContract.at(receipt.contractAddress!, wallet);
+      const contract = await TestContract.at(receipt.contractAddress!, wallet);
 
       // now update time:
       const timestamp = await cc.eth.timestamp();
@@ -158,19 +157,15 @@ describe('e2e_cheat_codes', () => {
       const rollup = getContract({ address: getAddress(rollupAddress.toString()), abi: RollupAbi, publicClient });
       expect(Number(await rollup.read.lastBlockTs())).toEqual(newTimestamp);
 
-      // initialize contract -> this updates `lastUpdatedTs` to the current timestamp of the rollup
-      // this should be the new timestamp
-      const txInit = contract.methods.init().send({ origin: recipient });
-      await txInit.isMined({ interval: 0.1 });
+      const txIsTimeEqual = contract.methods.isTimeEqual(newTimestamp).send({ origin: recipient });
+      await txIsTimeEqual.isMined({ interval: 0.1 });
+      const isTimeEqualReceipt = await txIsTimeEqual.getReceipt();
+      expect(isTimeEqualReceipt.status).toBe(TxStatus.MINED);
 
-      // fetch last updated ts from L2 contract and expect it to me same as new timestamp
-      const lastUpdatedTs = Number((await contract.methods.getTot(0).view())['last_updated_ts']);
-      expect(lastUpdatedTs).toEqual(newTimestamp);
-      // ensure anvil is correctly updated
-      expect(await cc.eth.timestamp()).toEqual(newTimestamp);
-      // ensure rollup contract is correctly updated
-      expect(Number(await rollup.read.lastBlockTs())).toEqual(newTimestamp);
-      expect;
+      const txTimeNotEqual = contract.methods.isTimeEqual(0).send({ origin: recipient });
+      await txTimeNotEqual.isMined({ interval: 0.1 });
+      const isTimeNotEqualReceipt = await txTimeNotEqual.getReceipt();
+      expect(isTimeNotEqualReceipt.status).toBe(TxStatus.DROPPED);
     }, 50_000);
 
     it('should throw if setting L2 block time to a past timestamp', async () => {

@@ -132,6 +132,18 @@ contract Test {
         context.finish()
     }
 
+    open fn isTimeEqual(
+        input: PublicContextInputs,
+        time: Field,
+    ) -> pub abi::PublicCircuitPublicInputs {
+        let mut context = PublicContext::new(input, abi::hash_args([time]));
+
+        assert(context.timestamp() == time);
+
+        context.return_values.push(time);
+        context.finish()
+    }
+
     // Purely exists for testing
     unconstrained fn getRandom(
         kindaSeed: Field

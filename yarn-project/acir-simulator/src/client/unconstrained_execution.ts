@@ -81,7 +81,7 @@ export class UnconstrainedFunctionExecution {
           }
 
           const makeLogMsg = (slot: bigint, value: string) =>
-            `Oracle storage read: slot=${slot.toString()} value=${value}`;
+            `Oracle storage read: slot=${slot.toString(16)} value=${value}`;
 
           const startStorageSlot = fromACVMField(slot);
           const values = [];

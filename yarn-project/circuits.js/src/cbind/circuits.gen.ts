@@ -479,8 +479,8 @@ interface MsgpackCombinedAccumulatedData {
   unencrypted_log_preimages_length: Buffer;
   new_contracts: Tuple<MsgpackNewContractData, 1>;
   optionally_revealed_data: Tuple<MsgpackOptionallyRevealedData, 4>;
-  public_data_update_requests: Tuple<MsgpackPublicDataUpdateRequest, 8>;
-  public_data_reads: Tuple<MsgpackPublicDataRead, 8>;
+  public_data_update_requests: Tuple<MsgpackPublicDataUpdateRequest, 16>;
+  public_data_reads: Tuple<MsgpackPublicDataRead, 16>;
 }
 
 export function toCombinedAccumulatedData(o: MsgpackCombinedAccumulatedData): CombinedAccumulatedData {
@@ -1235,8 +1235,8 @@ interface MsgpackPublicCircuitPublicInputs {
   call_context: MsgpackCallContext;
   args_hash: Buffer;
   return_values: Tuple<Buffer, 4>;
-  contract_storage_update_requests: Tuple<MsgpackContractStorageUpdateRequest, 8>;
-  contract_storage_reads: Tuple<MsgpackContractStorageRead, 8>;
+  contract_storage_update_requests: Tuple<MsgpackContractStorageUpdateRequest, 16>;
+  contract_storage_reads: Tuple<MsgpackContractStorageRead, 16>;
   public_call_stack: Tuple<Buffer, 4>;
   new_commitments: Tuple<Buffer, 4>;
   new_nullifiers: Tuple<Buffer, 4>;

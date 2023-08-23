@@ -23,6 +23,30 @@ new_value: 0x404
  storage_slot: 0x403
 old_value: 0x404
 new_value: 0x405
+ storage_slot: 0x404
+old_value: 0x405
+new_value: 0x406
+ storage_slot: 0x405
+old_value: 0x406
+new_value: 0x407
+ storage_slot: 0x406
+old_value: 0x407
+new_value: 0x408
+ storage_slot: 0x407
+old_value: 0x408
+new_value: 0x409
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -44,6 +68,22 @@ current_value: 0x502
 current_value: 0x503
  storage_slot: 0x503
 current_value: 0x504
+ storage_slot: 0x504
+current_value: 0x505
+ storage_slot: 0x505
+current_value: 0x506
+ storage_slot: 0x506
+current_value: 0x507
+ storage_slot: 0x507
+current_value: 0x508
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0

@@ -166,6 +166,30 @@ new_value: 0xd09
  leaf_index: 0xd08
 old_value: 0xd09
 new_value: 0xd0a
+ leaf_index: 0xd09
+old_value: 0xd0a
+new_value: 0xd0b
+ leaf_index: 0xd0a
+old_value: 0xd0b
+new_value: 0xd0c
+ leaf_index: 0xd0b
+old_value: 0xd0c
+new_value: 0xd0d
+ leaf_index: 0xd0c
+old_value: 0xd0d
+new_value: 0xd0e
+ leaf_index: 0xd0d
+old_value: 0xd0e
+new_value: 0xd0f
+ leaf_index: 0xd0e
+old_value: 0xd0f
+new_value: 0xd10
+ leaf_index: 0xd0f
+old_value: 0xd10
+new_value: 0xd11
+ leaf_index: 0xd10
+old_value: 0xd11
+new_value: 0xd12
  ]
 public_data_reads: [ leaf_index: 0xe01
 value: 0xe02
@@ -183,6 +207,22 @@ value: 0xe07
 value: 0xe08
  leaf_index: 0xe08
 value: 0xe09
+ leaf_index: 0xe09
+value: 0xe0a
+ leaf_index: 0xe0a
+value: 0xe0b
+ leaf_index: 0xe0b
+value: 0xe0c
+ leaf_index: 0xe0c
+value: 0xe0d
+ leaf_index: 0xe0d
+value: 0xe0e
+ leaf_index: 0xe0e
+value: 0xe0f
+ leaf_index: 0xe0f
+value: 0xe10
+ leaf_index: 0xe10
+value: 0xe11
  ]
 "
 `;
@@ -357,6 +397,30 @@ new_value: 0xd09
  leaf_index: 0xd08
 old_value: 0xd09
 new_value: 0xd0a
+ leaf_index: 0xd09
+old_value: 0xd0a
+new_value: 0xd0b
+ leaf_index: 0xd0a
+old_value: 0xd0b
+new_value: 0xd0c
+ leaf_index: 0xd0b
+old_value: 0xd0c
+new_value: 0xd0d
+ leaf_index: 0xd0c
+old_value: 0xd0d
+new_value: 0xd0e
+ leaf_index: 0xd0d
+old_value: 0xd0e
+new_value: 0xd0f
+ leaf_index: 0xd0e
+old_value: 0xd0f
+new_value: 0xd10
+ leaf_index: 0xd0f
+old_value: 0xd10
+new_value: 0xd11
+ leaf_index: 0xd10
+old_value: 0xd11
+new_value: 0xd12
  ]
 public_data_reads: [ leaf_index: 0xe01
 value: 0xe02
@@ -374,6 +438,22 @@ value: 0xe07
 value: 0xe08
  leaf_index: 0xe08
 value: 0xe09
+ leaf_index: 0xe09
+value: 0xe0a
+ leaf_index: 0xe0a
+value: 0xe0b
+ leaf_index: 0xe0b
+value: 0xe0c
+ leaf_index: 0xe0c
+value: 0xe0d
+ leaf_index: 0xe0d
+value: 0xe0e
+ leaf_index: 0xe0e
+value: 0xe0f
+ leaf_index: 0xe0f
+value: 0xe10
+ leaf_index: 0xe10
+value: 0xe11
  ]
 
 constants:
@@ -904,6 +984,30 @@ new_value: 0xd09
  leaf_index: 0xd08
 old_value: 0xd09
 new_value: 0xd0a
+ leaf_index: 0xd09
+old_value: 0xd0a
+new_value: 0xd0b
+ leaf_index: 0xd0a
+old_value: 0xd0b
+new_value: 0xd0c
+ leaf_index: 0xd0b
+old_value: 0xd0c
+new_value: 0xd0d
+ leaf_index: 0xd0c
+old_value: 0xd0d
+new_value: 0xd0e
+ leaf_index: 0xd0d
+old_value: 0xd0e
+new_value: 0xd0f
+ leaf_index: 0xd0e
+old_value: 0xd0f
+new_value: 0xd10
+ leaf_index: 0xd0f
+old_value: 0xd10
+new_value: 0xd11
+ leaf_index: 0xd10
+old_value: 0xd11
+new_value: 0xd12
  ]
 public_data_reads: [ leaf_index: 0xe01
 value: 0xe02
@@ -921,6 +1025,22 @@ value: 0xe07
 value: 0xe08
  leaf_index: 0xe08
 value: 0xe09
+ leaf_index: 0xe09
+value: 0xe0a
+ leaf_index: 0xe0a
+value: 0xe0b
+ leaf_index: 0xe0b
+value: 0xe0c
+ leaf_index: 0xe0c
+value: 0xe0d
+ leaf_index: 0xe0d
+value: 0xe0e
+ leaf_index: 0xe0e
+value: 0xe0f
+ leaf_index: 0xe0f
+value: 0xe10
+ leaf_index: 0xe10
+value: 0xe11
  ]
 
 constants:
@@ -1421,6 +1541,30 @@ new_value: 0xd09
  leaf_index: 0xd08
 old_value: 0xd09
 new_value: 0xd0a
+ leaf_index: 0xd09
+old_value: 0xd0a
+new_value: 0xd0b
+ leaf_index: 0xd0a
+old_value: 0xd0b
+new_value: 0xd0c
+ leaf_index: 0xd0b
+old_value: 0xd0c
+new_value: 0xd0d
+ leaf_index: 0xd0c
+old_value: 0xd0d
+new_value: 0xd0e
+ leaf_index: 0xd0d
+old_value: 0xd0e
+new_value: 0xd0f
+ leaf_index: 0xd0e
+old_value: 0xd0f
+new_value: 0xd10
+ leaf_index: 0xd0f
+old_value: 0xd10
+new_value: 0xd11
+ leaf_index: 0xd10
+old_value: 0xd11
+new_value: 0xd12
  ]
 public_data_reads: [ leaf_index: 0xe01
 value: 0xe02
@@ -1438,6 +1582,22 @@ value: 0xe07
 value: 0xe08
  leaf_index: 0xe08
 value: 0xe09
+ leaf_index: 0xe09
+value: 0xe0a
+ leaf_index: 0xe0a
+value: 0xe0b
+ leaf_index: 0xe0b
+value: 0xe0c
+ leaf_index: 0xe0c
+value: 0xe0d
+ leaf_index: 0xe0d
+value: 0xe0e
+ leaf_index: 0xe0e
+value: 0xe0f
+ leaf_index: 0xe0f
+value: 0xe10
+ leaf_index: 0xe10
+value: 0xe11
  ]
 
 constants:
@@ -1641,6 +1801,30 @@ new_value: 0xd09
  leaf_index: 0xd08
 old_value: 0xd09
 new_value: 0xd0a
+ leaf_index: 0xd09
+old_value: 0xd0a
+new_value: 0xd0b
+ leaf_index: 0xd0a
+old_value: 0xd0b
+new_value: 0xd0c
+ leaf_index: 0xd0b
+old_value: 0xd0c
+new_value: 0xd0d
+ leaf_index: 0xd0c
+old_value: 0xd0d
+new_value: 0xd0e
+ leaf_index: 0xd0d
+old_value: 0xd0e
+new_value: 0xd0f
+ leaf_index: 0xd0e
+old_value: 0xd0f
+new_value: 0xd10
+ leaf_index: 0xd0f
+old_value: 0xd10
+new_value: 0xd11
+ leaf_index: 0xd10
+old_value: 0xd11
+new_value: 0xd12
  ]
 public_data_reads: [ leaf_index: 0xe01
 value: 0xe02
@@ -1658,6 +1842,22 @@ value: 0xe07
 value: 0xe08
  leaf_index: 0xe08
 value: 0xe09
+ leaf_index: 0xe09
+value: 0xe0a
+ leaf_index: 0xe0a
+value: 0xe0b
+ leaf_index: 0xe0b
+value: 0xe0c
+ leaf_index: 0xe0c
+value: 0xe0d
+ leaf_index: 0xe0d
+value: 0xe0e
+ leaf_index: 0xe0e
+value: 0xe0f
+ leaf_index: 0xe0f
+value: 0xe10
+ leaf_index: 0xe10
+value: 0xe11
  ]
 
 constants:
@@ -1733,6 +1933,30 @@ new_value: 0x1415
  storage_slot: 0x1414
 old_value: 0x1415
 new_value: 0x1416
+ storage_slot: 0x1415
+old_value: 0x1416
+new_value: 0x1417
+ storage_slot: 0x1416
+old_value: 0x1417
+new_value: 0x1418
+ storage_slot: 0x1417
+old_value: 0x1418
+new_value: 0x1419
+ storage_slot: 0x1418
+old_value: 0x1419
+new_value: 0x141a
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -1754,6 +1978,22 @@ current_value: 0x1513
 current_value: 0x1514
  storage_slot: 0x1514
 current_value: 0x1515
+ storage_slot: 0x1515
+current_value: 0x1516
+ storage_slot: 0x1516
+current_value: 0x1517
+ storage_slot: 0x1517
+current_value: 0x1518
+ storage_slot: 0x1518
+current_value: 0x1519
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0
@@ -1763,7 +2003,7 @@ current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  ]
-public_call_stack: [ 0x969e86085622075da29cdba0432a18b67fbcf164a5dda8785cba8f4bf5cdd8d 0xe8aef22899a38f44f2b48fc12f51d0f0bd3146f15aae6a4e3de529e9daccf0b 0xb87bacccf7202cd576213b03d15dd98585c697de6571d5c37e915b8a35460c1 0x2f4095e46083b42757f0f7aabedc690037044e8ad4464d02a27ebd89d2ddf464 ]
+public_call_stack: [ 0x27af4efc36aac835e983ad9260648df64542a6522d5c8e8c22c89837897ee36b 0x2b29ad02f22800007608ee029ebdec89254794651628fc2497b462ab68a9d5e7 0x259cba5b82a2126429506d138c5905de6c0854e8135f8ccf9876c12da9cbaadb 0x6034ca46f5601bb8fb9af885e4ba748e8ff38c0fa747b17d63de339d241698a ]
 new_commitments: [ 0x1711 0x1712 0x0 0x0 ]
 new_nullifiers: [ 0x1811 0x1812 0x0 0x0 ]
 new_l2_to_l1_msgs: [ 0x1911 0x0 ]
@@ -1810,6 +2050,30 @@ new_value: 0x1715
  storage_slot: 0x1714
 old_value: 0x1715
 new_value: 0x1716
+ storage_slot: 0x1715
+old_value: 0x1716
+new_value: 0x1717
+ storage_slot: 0x1716
+old_value: 0x1717
+new_value: 0x1718
+ storage_slot: 0x1717
+old_value: 0x1718
+new_value: 0x1719
+ storage_slot: 0x1718
+old_value: 0x1719
+new_value: 0x171a
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -1831,6 +2095,22 @@ current_value: 0x1813
 current_value: 0x1814
  storage_slot: 0x1814
 current_value: 0x1815
+ storage_slot: 0x1815
+current_value: 0x1816
+ storage_slot: 0x1816
+current_value: 0x1817
+ storage_slot: 0x1817
+current_value: 0x1818
+ storage_slot: 0x1818
+current_value: 0x1819
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0
@@ -1886,6 +2166,30 @@ new_value: 0x1716
  storage_slot: 0x1715
 old_value: 0x1716
 new_value: 0x1717
+ storage_slot: 0x1716
+old_value: 0x1717
+new_value: 0x1718
+ storage_slot: 0x1717
+old_value: 0x1718
+new_value: 0x1719
+ storage_slot: 0x1718
+old_value: 0x1719
+new_value: 0x171a
+ storage_slot: 0x1719
+old_value: 0x171a
+new_value: 0x171b
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -1907,6 +2211,22 @@ current_value: 0x1814
 current_value: 0x1815
  storage_slot: 0x1815
 current_value: 0x1816
+ storage_slot: 0x1816
+current_value: 0x1817
+ storage_slot: 0x1817
+current_value: 0x1818
+ storage_slot: 0x1818
+current_value: 0x1819
+ storage_slot: 0x1819
+current_value: 0x181a
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0
@@ -1962,6 +2282,30 @@ new_value: 0x1717
  storage_slot: 0x1716
 old_value: 0x1717
 new_value: 0x1718
+ storage_slot: 0x1717
+old_value: 0x1718
+new_value: 0x1719
+ storage_slot: 0x1718
+old_value: 0x1719
+new_value: 0x171a
+ storage_slot: 0x1719
+old_value: 0x171a
+new_value: 0x171b
+ storage_slot: 0x171a
+old_value: 0x171b
+new_value: 0x171c
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -1983,6 +2327,22 @@ current_value: 0x1815
 current_value: 0x1816
  storage_slot: 0x1816
 current_value: 0x1817
+ storage_slot: 0x1817
+current_value: 0x1818
+ storage_slot: 0x1818
+current_value: 0x1819
+ storage_slot: 0x1819
+current_value: 0x181a
+ storage_slot: 0x181a
+current_value: 0x181b
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0
@@ -2038,6 +2398,30 @@ new_value: 0x1718
  storage_slot: 0x1717
 old_value: 0x1718
 new_value: 0x1719
+ storage_slot: 0x1718
+old_value: 0x1719
+new_value: 0x171a
+ storage_slot: 0x1719
+old_value: 0x171a
+new_value: 0x171b
+ storage_slot: 0x171a
+old_value: 0x171b
+new_value: 0x171c
+ storage_slot: 0x171b
+old_value: 0x171c
+new_value: 0x171d
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
+ storage_slot: 0x0
+old_value: 0x1
+new_value: 0x2
  storage_slot: 0x0
 old_value: 0x1
 new_value: 0x2
@@ -2059,6 +2443,22 @@ current_value: 0x1816
 current_value: 0x1817
  storage_slot: 0x1817
 current_value: 0x1818
+ storage_slot: 0x1818
+current_value: 0x1819
+ storage_slot: 0x1819
+current_value: 0x181a
+ storage_slot: 0x181a
+current_value: 0x181b
+ storage_slot: 0x181b
+current_value: 0x181c
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
+ storage_slot: 0x0
+current_value: 0x1
  storage_slot: 0x0
 current_value: 0x1
  storage_slot: 0x0

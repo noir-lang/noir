@@ -109,6 +109,18 @@ impl TestContractInterface {
   }
   
 
+  fn isTimeEqual(
+    self,
+    context: &mut PrivateContext,
+    time: Field
+  ) {
+    let mut serialised_args = [0; 1];
+    serialised_args[0] = time;
+
+    context.call_public_function(self.address, 0x57587e4d, serialised_args)
+  }
+  
+
   fn testCodeGen(
     self,
     context: &mut PrivateContext,

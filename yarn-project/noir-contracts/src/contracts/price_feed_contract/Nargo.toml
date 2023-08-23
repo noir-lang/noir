@@ -1,0 +1,8 @@
+[package]
+name = "price_feed_contract"
+authors = [""]
+compiler_version = "0.1"
+type = "contract"
+
+[dependencies]
+aztec = { path = "../../../../noir-libs/noir-aztec" }

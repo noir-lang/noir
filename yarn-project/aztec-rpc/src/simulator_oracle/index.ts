@@ -101,7 +101,7 @@ export class SimulatorOracle implements DBOracle {
   async getCommitmentOracle(contractAddress: AztecAddress, innerCommitment: Fr): Promise<CommitmentDataOracleInputs> {
     const siloedCommitment = siloCommitment(await CircuitsWasm.get(), contractAddress, innerCommitment);
     const index = await this.dataTreeProvider.findCommitmentIndex(siloedCommitment.toBuffer());
-    if (!index) throw new Error('Commitment not found');
+    if (!index) throw new Error(`Commitment not found ${siloedCommitment.toString()}`);
 
     const siblingPath = await this.dataTreeProvider.getDataTreePath(index);
     return await Promise.resolve({
