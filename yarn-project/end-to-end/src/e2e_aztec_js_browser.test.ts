@@ -57,7 +57,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
   let page: Page;
 
   beforeAll(async () => {
-    testClient = AztecJs.createAztecRpcClient(SANDBOX_URL!, AztecJs.makeFetch([1, 2, 3], false));
+    testClient = AztecJs.createAztecRpcClient(SANDBOX_URL!, AztecJs.makeFetch([1, 2, 3], true));
     await AztecJs.waitForSandbox(testClient);
 
     app = new Koa();
@@ -111,7 +111,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
     const result = await page.evaluate(
       async (rpcUrl, privateKeyString) => {
         const { PrivateKey, createAztecRpcClient, makeFetch, getUnsafeSchnorrAccount } = window.AztecJs;
-        const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], false));
+        const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], true));
         const privateKey = PrivateKey.fromString(privateKeyString);
         const account = getUnsafeSchnorrAccount(client, privateKey);
         await account.waitDeploy();
@@ -136,7 +136,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
     const result = await page.evaluate(
       async (rpcUrl, contractAddress, PrivateTokenContractAbi) => {
         const { Contract, AztecAddress, createAztecRpcClient, makeFetch } = window.AztecJs;
-        const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], false));
+        const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], true));
         const owner = (await client.getAccounts())[0].address;
         const wallet = await AztecJs.getSandboxAccountsWallet(client);
         const contract = await Contract.at(AztecAddress.fromString(contractAddress), PrivateTokenContractAbi, wallet);
@@ -156,7 +156,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
       async (rpcUrl, contractAddress, transferAmount, PrivateTokenContractAbi) => {
         console.log(`Starting transfer tx`);
         const { AztecAddress, Contract, createAztecRpcClient, makeFetch } = window.AztecJs;
-        const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], false));
+        const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], true));
         const accounts = await client.getAccounts();
         const owner = accounts[0].address;
         const receiver = accounts[1].address;
@@ -178,7 +178,7 @@ conditionalDescribe()('e2e_aztec.js_browser', () => {
     const txHash = await page.evaluate(
       async (rpcUrl, privateKeyString, initialBalance, PrivateTokenContractAbi) => {
         const { PrivateKey, DeployMethod, createAztecRpcClient, makeFetch, getUnsafeSchnorrAccount } = window.AztecJs;
-        const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], false));
+        const client = createAztecRpcClient(rpcUrl!, makeFetch([1, 2, 3], true));
         let accounts = await client.getAccounts();
         if (accounts.length === 0) {
           // This test needs an account for deployment. We create one in case there is none available in the RPC server.

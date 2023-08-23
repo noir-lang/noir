@@ -121,15 +121,19 @@ export class MemoryDB extends MemoryContractDatabase implements Database {
     });
   }
 
-  public addCompleteAddress(completeAddress: CompleteAddress): Promise<void> {
+  public addCompleteAddress(completeAddress: CompleteAddress): Promise<boolean> {
     const accountIndex = this.addresses.findIndex(r => r.address.equals(completeAddress.address));
     if (accountIndex !== -1) {
+      if (this.addresses[accountIndex].equals(completeAddress)) {
+        return Promise.resolve(false);
+      }
+
       throw new Error(
-        `Complete address corresponding to ${completeAddress.address.toString()} already exists in memory database`,
+        `Complete address with aztec address ${completeAddress.address.toString()} but different public key or partial key already exists in memory database`,
       );
     }
     this.addresses.push(completeAddress);
-    return Promise.resolve();
+    return Promise.resolve(true);
   }
 
   public getCompleteAddress(address: AztecAddress): Promise<CompleteAddress | undefined> {

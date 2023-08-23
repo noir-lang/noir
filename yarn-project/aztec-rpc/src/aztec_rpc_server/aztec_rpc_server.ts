@@ -92,10 +92,15 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   public async registerAccount(privKey: PrivateKey, partialAddress: PartialAddress) {
-    const pubKey = this.keyStore.addAccount(privKey);
     const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(privKey, partialAddress);
-    await this.db.addCompleteAddress(completeAddress);
-    this.synchroniser.addAccount(pubKey, this.keyStore);
+    const wasAdded = await this.db.addCompleteAddress(completeAddress);
+    if (wasAdded) {
+      const pubKey = this.keyStore.addAccount(privKey);
+      this.synchroniser.addAccount(pubKey, this.keyStore);
+      this.log.info(`Added account: ${completeAddress.toReadableString()}`);
+    } else {
+      this.log.info(`Account "${completeAddress.toReadableString()}" already registered.`);
+    }
   }
 
   public async getAccounts(): Promise<CompleteAddress[]> {
@@ -114,8 +119,12 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   public async registerRecipient(recipient: CompleteAddress): Promise<void> {
-    await this.db.addCompleteAddress(recipient);
-    this.log.info(`Added recipient: ${recipient.toString()}`);
+    const wasAdded = await this.db.addCompleteAddress(recipient);
+    if (wasAdded) {
+      this.log.info(`Added recipient: ${recipient.toReadableString()}`);
+    } else {
+      this.log.info(`Recipient "${recipient.toReadableString()}" already registered.`);
+    }
   }
 
   public async getRecipients(): Promise<CompleteAddress[]> {

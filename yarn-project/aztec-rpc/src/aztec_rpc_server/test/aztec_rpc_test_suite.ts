@@ -1,4 +1,4 @@
-import { AztecAddress, CompleteAddress, Fr, FunctionData, TxContext } from '@aztec/circuits.js';
+import { AztecAddress, CompleteAddress, Fr, FunctionData, Point, TxContext } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
 import { ConstantKeyPair } from '@aztec/key-store';
 import {
@@ -57,7 +57,7 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
       expect(recipient).toEqual(completeAddress);
     });
 
-    it('cannot register the same account twice', async () => {
+    it('does not throw when registering the same account twice (just ignores the second attempt)', async () => {
       const keyPair = ConstantKeyPair.random(await Grumpkin.new());
       const completeAddress = await CompleteAddress.fromPrivateKeyAndPartialAddress(
         await keyPair.getPrivateKey(),
@@ -65,18 +65,24 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
       );
 
       await rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
-      await expect(async () =>
-        rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress),
-      ).rejects.toThrow(`Complete address corresponding to ${completeAddress.address} already exists`);
+      await rpc.registerAccount(await keyPair.getPrivateKey(), completeAddress.partialAddress);
     });
 
-    it('cannot register the same recipient twice', async () => {
+    it('cannot register a recipient with the same aztec address but different pub key or partial address', async () => {
+      const recipient1 = await CompleteAddress.random();
+      const recipient2 = new CompleteAddress(recipient1.address, Point.random(), Fr.random());
+
+      await rpc.registerRecipient(recipient1);
+      await expect(() => rpc.registerRecipient(recipient2)).rejects.toThrow(
+        `Complete address with aztec address ${recipient1.address}`,
+      );
+    });
+
+    it('does not throw when registering the same recipient twice (just ignores the second attempt)', async () => {
       const completeAddress = await CompleteAddress.random();
 
       await rpc.registerRecipient(completeAddress);
-      await expect(() => rpc.registerRecipient(completeAddress)).rejects.toThrow(
-        `Complete address corresponding to ${completeAddress.address} already exists`,
-      );
+      await rpc.registerRecipient(completeAddress);
     });
 
     it('successfully adds a contract', async () => {

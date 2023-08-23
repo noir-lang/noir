@@ -81,7 +81,6 @@ export interface AztecRPC {
    *          This is because we don't have the associated private key and for this reason we can't decrypt
    *          the recipient's notes. We can send notes to this account because we can encrypt them with the recipient's
    *          public key.
-   * @throws If the recipient is already registered.
    */
   registerRecipient(recipient: CompleteAddress): Promise<void>;
 

@@ -127,9 +127,11 @@ export interface Database extends ContractDatabase {
   /**
    * Adds complete address to the database.
    * @param address - The complete address to add.
-   * @returns Empty promise.
+   * @returns A promise resolving to true if the address was added, false if it already exists.
+   * @throws If we try to add a CompleteAddress with the same AztecAddress but different public key or partial
+   * address.
    */
-  addCompleteAddress(address: CompleteAddress): Promise<void>;
+  addCompleteAddress(address: CompleteAddress): Promise<boolean>;
 
   /**
    * Retrieves the complete address corresponding to the provided aztec address.
