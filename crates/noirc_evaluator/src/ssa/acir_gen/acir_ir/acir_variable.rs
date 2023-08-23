@@ -458,45 +458,51 @@ impl AcirContext {
     /// Adds a new Variable to context whose value will
     /// be constrained to be the multiplication of `lhs` and `rhs`
     pub(crate) fn mul_var(&mut self, lhs: AcirVar, rhs: AcirVar) -> Result<AcirVar, RuntimeError> {
-        let lhs_data = &self.vars[&lhs];
-        let rhs_data = &self.vars[&rhs];
+        let lhs_data = self.vars[&lhs].clone();
+        let rhs_data = self.vars[&rhs].clone();
         let result = match (lhs_data, rhs_data) {
-            (AcirVarData::Witness(witness), AcirVarData::Expr(expr))
-            | (AcirVarData::Expr(expr), AcirVarData::Witness(witness)) => {
-                let expr_as_witness = self.acir_ir.get_or_create_witness(expr);
-                let mut expr = Expression::default();
-                expr.push_multiplication_term(FieldElement::one(), *witness, expr_as_witness);
+            (AcirVarData::Expr(expr), AcirVarData::Witness(_)) => {
+                let expr_as_witness = self.acir_ir.get_or_create_witness(&expr);
+                let expr_as_witness = self.add_data(AcirVarData::Witness(expr_as_witness));
+                self.mark_variables_equivalent(lhs, expr_as_witness)?;
 
-                self.add_data(AcirVarData::Expr(expr))
+                self.mul_var(expr_as_witness, rhs)?
+            }
+            (AcirVarData::Witness(_), AcirVarData::Expr(expr)) => {
+                let expr_as_witness = self.acir_ir.get_or_create_witness(&expr);
+                let expr_as_witness = self.add_data(AcirVarData::Witness(expr_as_witness));
+                self.mark_variables_equivalent(rhs, expr_as_witness)?;
+
+                self.mul_var(lhs, expr_as_witness)?
             }
             (AcirVarData::Witness(witness), AcirVarData::Const(constant))
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
                 let mut expr = Expression::default();
-                expr.push_addition_term(*constant, *witness);
+                expr.push_addition_term(constant, witness);
                 self.add_data(AcirVarData::Expr(expr))
             }
             (AcirVarData::Const(constant), AcirVarData::Expr(expr))
             | (AcirVarData::Expr(expr), AcirVarData::Const(constant)) => {
-                self.add_data(AcirVarData::Expr(expr * *constant))
+                self.add_data(AcirVarData::Expr(&expr * constant))
             }
             (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
                 let mut expr = Expression::default();
-                expr.push_multiplication_term(FieldElement::one(), *lhs_witness, *rhs_witness);
+                expr.push_multiplication_term(FieldElement::one(), lhs_witness, rhs_witness);
                 self.add_data(AcirVarData::Expr(expr))
             }
             (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
-                self.add_data(AcirVarData::Const(*lhs_constant * *rhs_constant))
+                self.add_data(AcirVarData::Const(lhs_constant * rhs_constant))
             }
             (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
-                let lhs_expr_as_witness = self.acir_ir.get_or_create_witness(lhs_expr);
-                let rhs_expr_as_witness = self.acir_ir.get_or_create_witness(rhs_expr);
-                let mut expr = Expression::default();
-                expr.push_multiplication_term(
-                    FieldElement::one(),
-                    lhs_expr_as_witness,
-                    rhs_expr_as_witness,
-                );
-                self.add_data(AcirVarData::Expr(expr))
+                let lhs_expr_as_witness = self.acir_ir.get_or_create_witness(&lhs_expr);
+                let lhs_expr_as_witness = self.add_data(AcirVarData::Witness(lhs_expr_as_witness));
+                self.mark_variables_equivalent(lhs, lhs_expr_as_witness)?;
+
+                let rhs_expr_as_witness = self.acir_ir.get_or_create_witness(&rhs_expr);
+                let rhs_expr_as_witness = self.add_data(AcirVarData::Witness(rhs_expr_as_witness));
+                self.mark_variables_equivalent(rhs, rhs_expr_as_witness)?;
+
+                self.mul_var(lhs_expr_as_witness, rhs_expr_as_witness)?
             }
         };
         Ok(result)
