@@ -39,7 +39,7 @@ use crate::{
     FunctionReturnType, Ident, IfExpression, InfixExpression, LValue, Lambda, Literal,
     NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias, Path, PathKind, Pattern, Recoverable,
     TraitConstraint, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnaryOp,
-    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility,
+    UnresolvedTypeExpression, UseTree, UseTreeKind, Visibility, TraitBound,
 };
 
 use chumsky::prelude::*;
@@ -526,17 +526,29 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
 fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
     let constraints = ident()
         .then_ignore(just(Token::Colon))
-        .then(ident())
-        .then(generic_type_args(parse_type()))
-        .validate(|((generic_type_name, trait_name), trait_generics), span, emit| {
+        .then(where_trait_bounds())
+        .validate(|(generic_type_name, trait_bounds), span, emit| {
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
-            TraitConstraint { generic_type_name, trait_name, trait_generics }
+            TraitConstraint { generic_type_name, trait_bounds }
         });
 
     keyword(Keyword::Where)
         .ignore_then(constraints.separated_by(just(Token::Comma)))
         .or_not()
         .map(|option| option.unwrap_or_default())
+}
+
+fn where_trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
+    where_trait_bound()
+        .separated_by(just(Token::Plus))
+        .at_least(1)
+        .allow_trailing()
+}
+
+fn where_trait_bound() -> impl NoirParser<TraitBound> {
+    ident()
+        .then(generic_type_args(parse_type()))
+        .map(|(trait_name, trait_generics)| TraitBound { trait_name, trait_generics })
 }
 
 fn block_expr<'a, P>(expr_parser: P) -> impl NoirParser<Expression> + 'a
@@ -1838,6 +1850,14 @@ mod test {
                 "fn f(f: pub Field, y : Field, z : comptime Field) -> u8 { x + a }",
                 "fn f<T>(f: pub Field, y : T, z : comptime Field) -> u8 { x + a }",
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait {}",
+                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2 {}",
+                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A> + SomeTrait2 {}",
+                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A, B> + SomeTrait2 {}",
+                "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A, B> + SomeTrait2<C> {}",
+                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> {}",
+                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> + TraitY {}",
+                // A trailing plus is allowed by Rust, so we support it as well.
+                "fn func_name<T>(f: Field, y : T) where T: SomeTrait + {}",
                 // The following should produce compile error on later stage. From the parser's perspective it's fine
                 "fn func_name<A>(f: Field, y : Field, z : Field) where T: SomeTrait {}",
             ],
@@ -1855,6 +1875,9 @@ mod test {
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) SomeTrait {}",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) where T: SomeTrait {}",
                 "fn func_name<T>(f: Field, y : T) where u32: SomeTrait {}",
+                // A leading plus is not allowed.
+                "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
+                "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",
             ],
         );
     }
