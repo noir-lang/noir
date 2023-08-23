@@ -63,6 +63,10 @@ pub enum UnresolvedTypeData {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct UnresolvedType {
     pub typ: UnresolvedTypeData,
+
+    // The span is None in the cases where the User omitted a type:
+    //  fn Foo() {}  --- return type is UnresolvedType::Unit without a span
+    //  let x = 100; --- type is UnresolvedType::Unspecified without a span
     pub span: Option<Span>,
 }
 
