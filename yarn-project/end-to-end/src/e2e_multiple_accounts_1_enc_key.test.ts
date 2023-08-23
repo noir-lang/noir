@@ -96,7 +96,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     }
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
-    await expectUnencryptedLogsFromLastBlockToBe(aztecNode, ['Coins transferred']);
+    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Coins transferred']);
 
     logger(`Transfer ${transferAmount} from ${sender} to ${receiver} successful`);
   };

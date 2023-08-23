@@ -58,7 +58,7 @@ describe('e2e_private_token_contract', () => {
     await expectBalance(receiver, 0n);
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
-    await expectUnencryptedLogsFromLastBlockToBe(aztecNode, ['Balance set in constructor']);
+    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Balance set in constructor']);
   }, 30_000);
 
   /**
@@ -81,7 +81,7 @@ describe('e2e_private_token_contract', () => {
     await expectBalance(owner, mintAmount);
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
-    await expectUnencryptedLogsFromLastBlockToBe(aztecNode, ['Coins minted']);
+    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Coins minted']);
   }, 60_000);
 
   /**
@@ -97,7 +97,7 @@ describe('e2e_private_token_contract', () => {
     await expectBalance(receiver, 0n);
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
-    await expectUnencryptedLogsFromLastBlockToBe(aztecNode, ['Balance set in constructor']);
+    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Balance set in constructor']);
 
     const tx = contract.methods.transfer(transferAmount, owner, receiver).send({ origin: owner });
 
@@ -110,6 +110,6 @@ describe('e2e_private_token_contract', () => {
     await expectBalance(receiver, transferAmount);
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
-    await expectUnencryptedLogsFromLastBlockToBe(aztecNode, ['Coins transferred']);
+    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Coins transferred']);
   }, 60_000);
 });
