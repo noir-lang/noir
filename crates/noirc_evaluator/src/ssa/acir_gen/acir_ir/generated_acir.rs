@@ -3,13 +3,12 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    brillig::brillig_gen::brillig_directive,
+    brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
     errors::{InternalError, RuntimeError},
     ssa::ir::dfg::CallStack,
 };
 
 use acvm::acir::{
-    brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
@@ -788,7 +787,7 @@ impl GeneratedAcir {
     pub(crate) fn brillig(
         &mut self,
         predicate: Option<Expression>,
-        code: Vec<BrilligOpcode>,
+        code: GeneratedBrillig,
         inputs: Vec<BrilligInputs>,
         outputs: Vec<BrilligOutputs>,
     ) {
@@ -796,7 +795,7 @@ impl GeneratedAcir {
             inputs,
             outputs,
             foreign_call_results: Vec::new(),
-            bytecode: code,
+            bytecode: code.byte_code,
             predicate,
         });
         self.push_opcode(opcode);

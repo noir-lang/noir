@@ -1,6 +1,11 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
 use std::collections::HashMap;
 
+#[derive(Debug, Clone)]
+pub(crate) struct GeneratedBrillig {
+    pub(crate) byte_code: Vec<BrilligOpcode>,
+}
+
 /// Represents a parameter or a return value of a function.
 #[derive(Debug, Clone)]
 pub(crate) enum BrilligParameter {
@@ -52,9 +57,9 @@ pub(crate) type UnresolvedJumpLocation = Label;
 
 impl BrilligArtifact {
     /// Resolves all jumps and generates the final bytecode
-    pub(crate) fn finish(mut self) -> Vec<BrilligOpcode> {
+    pub(crate) fn finish(mut self) -> GeneratedBrillig {
         self.resolve_jumps();
-        self.byte_code
+        GeneratedBrillig { byte_code: self.byte_code }
     }
 
     /// Gets the first unresolved function call of this artifact.

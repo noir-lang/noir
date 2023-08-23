@@ -970,7 +970,7 @@ pub(crate) mod tests {
 
     use crate::brillig::brillig_ir::BrilligContext;
 
-    use super::artifact::BrilligParameter;
+    use super::artifact::{BrilligParameter, GeneratedBrillig};
     use super::{BrilligOpcode, ReservedRegisters};
 
     pub(crate) struct DummyBlackBoxSolver;
@@ -1010,7 +1010,7 @@ pub(crate) mod tests {
         context: BrilligContext,
         arguments: Vec<BrilligParameter>,
         returns: Vec<BrilligParameter>,
-    ) -> Vec<BrilligOpcode> {
+    ) -> GeneratedBrillig {
         let artifact = context.artifact();
         let mut entry_point_artifact =
             BrilligContext::new_entry_point_artifact(arguments, returns, "test".to_string());
@@ -1028,7 +1028,7 @@ pub(crate) mod tests {
         let mut vm = VM::new(
             Registers { inner: param_registers },
             memory,
-            create_entry_point_bytecode(context, arguments, returns),
+            create_entry_point_bytecode(context, arguments, returns).byte_code,
             vec![],
             &DummyBlackBoxSolver,
         );
