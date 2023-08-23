@@ -59,6 +59,10 @@ impl Context {
         self.crate_graph.iter_keys()
     }
 
+    pub fn root_crate_id(&self) -> &CrateId {
+        self.crate_graph.root_crate_id()
+    }
+
     // TODO: Decide if we actually need `function_name` and `fully_qualified_function_name`
     pub fn function_name(&self, id: &FuncId) -> &str {
         self.def_interner.function_name(id)

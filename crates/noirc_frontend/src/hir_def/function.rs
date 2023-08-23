@@ -1,5 +1,4 @@
 use iter_extended::vecmap;
-use noirc_abi::{AbiDistinctness, AbiParameter, AbiType, AbiVisibility};
 use noirc_errors::{Location, Span};
 
 use super::expr::{HirBlockExpression, HirExpression, HirIdent};
@@ -7,7 +6,7 @@ use super::stmt::HirPattern;
 use crate::hir::def_map::ModuleId;
 use crate::node_interner::{ExprId, NodeInterner};
 use crate::{token::Attribute, FunctionKind};
-use crate::{ContractFunctionType, FunctionReturnType, Type};
+use crate::{ContractFunctionType, Distinctness, FunctionReturnType, Type, Visibility};
 
 /// A Hir function is a block expression
 /// with a list of statements
@@ -36,34 +35,12 @@ impl HirFunction {
 }
 
 /// An interned function parameter from a function definition
-#[derive(Debug, Clone)]
-pub struct Param(pub HirPattern, pub Type, pub noirc_abi::AbiVisibility);
-
-/// Attempts to retrieve the name of this parameter. Returns None
-/// if this parameter is a tuple or struct pattern.
-fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> Option<&'a str> {
-    match pattern {
-        HirPattern::Identifier(ident) => Some(interner.definition_name(ident.id)),
-        HirPattern::Mutable(pattern, _) => get_param_name(pattern, interner),
-        HirPattern::Tuple(_, _) => None,
-        HirPattern::Struct(_, _, _) => None,
-    }
-}
+pub type Param = (HirPattern, Type, Visibility);
 
 #[derive(Debug, Clone)]
 pub struct Parameters(pub Vec<Param>);
 
 impl Parameters {
-    fn into_abi_params(self, interner: &NodeInterner) -> Vec<AbiParameter> {
-        vecmap(self.0, |param| {
-            let param_name = get_param_name(&param.0, interner)
-                .expect("Abi for tuple and struct parameters is unimplemented")
-                .to_owned();
-            let as_abi = param.1.as_abi_type();
-            AbiParameter { name: param_name, typ: as_abi, visibility: param.2 }
-        })
-    }
-
     pub fn span(&self) -> Span {
         assert!(!self.is_empty());
         let mut spans = vecmap(&self.0, |param| match &param.0 {
@@ -108,6 +85,8 @@ impl From<Vec<Param>> for Parameters {
     }
 }
 
+pub type FunctionSignature = (Vec<Param>, Option<Type>);
+
 /// A FuncMeta contains the signature of the function and any associated meta data like
 /// the function's Location, FunctionKind, and attributes. If the function's body is
 /// needed, it can be retrieved separately via `NodeInterner::function(&self, &FuncId)`.
@@ -139,9 +118,9 @@ pub struct FuncMeta {
 
     pub return_type: FunctionReturnType,
 
-    pub return_visibility: AbiVisibility,
+    pub return_visibility: Visibility,
 
-    pub return_distinctness: AbiDistinctness,
+    pub return_distinctness: Distinctness,
 
     /// The type of this function. Either a Type::Function
     /// or a Type::Forall for generic functions.
@@ -165,18 +144,22 @@ impl FuncMeta {
         }
     }
 
-    pub fn into_function_signature(
-        self,
-        interner: &NodeInterner,
-    ) -> (Vec<AbiParameter>, Option<AbiType>) {
-        let return_type = match self.return_type() {
+    pub fn into_function_signature(self) -> FunctionSignature {
+        // Doesn't use `self.return_type()` so we aren't working with references and don't need a `clone()`
+        let return_type = match self.typ {
+            Type::Function(_, ret, _env) => *ret,
+            Type::Forall(_, typ) => match *typ {
+                Type::Function(_, ret, _env) => *ret,
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        };
+        let return_type = match return_type {
             Type::Unit => None,
-            typ => Some(typ.as_abi_type()),
+            typ => Some(typ),
         };
 
-        let params = self.parameters.into_abi_params(interner);
-
-        (params, return_type)
+        (self.parameters.0, return_type)
     }
 
     /// Gives the (uninstantiated) return type of this function.

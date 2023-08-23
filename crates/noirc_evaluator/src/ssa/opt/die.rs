@@ -155,7 +155,7 @@ mod test {
         //     v9 = add v7, Field 2
         //     v10 = add v7, Field 3
         //     v11 = add v10, v10
-        //     call println(v8)
+        //     call assert_constant(v8)
         //     return v9
         // }
         let main_id = Id::test_new(0);
@@ -187,8 +187,8 @@ mod test {
         let v10 = builder.insert_binary(v7, BinaryOp::Add, three);
         let _v11 = builder.insert_binary(v10, BinaryOp::Add, v10);
 
-        let println_id = builder.import_intrinsic_id(Intrinsic::Println);
-        builder.insert_call(println_id, vec![v8], vec![]);
+        let assert_constant_id = builder.import_intrinsic_id(Intrinsic::AssertConstant);
+        builder.insert_call(assert_constant_id, vec![v8], vec![]);
         builder.terminate_with_return(vec![v9]);
 
         let ssa = builder.finish();
@@ -210,7 +210,7 @@ mod test {
         //     v7 = load v6
         //     v8 = add v7, Field 1
         //     v9 = add v7, Field 2
-        //     call println(v8)
+        //     call assert_constant(v8)
         //     return v9
         // }
         let ssa = ssa.dead_instruction_elimination();

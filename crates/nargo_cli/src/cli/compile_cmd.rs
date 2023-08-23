@@ -1,7 +1,5 @@
-use acvm::acir::circuit::OpcodeLabel;
-use acvm::{acir::circuit::Circuit, Backend};
+use acvm::{acir::circuit::Circuit, compiler::AcirTransformationMap, Backend};
 use iter_extended::try_vecmap;
-use iter_extended::vecmap;
 use nargo::artifacts::debug::DebugArtifact;
 use nargo::package::Package;
 use nargo::prepare_package;
@@ -171,19 +169,12 @@ pub(crate) fn compile_package<B: Backend>(
     let result = compile_main(&mut context, crate_id, compile_options);
     let mut program = report_errors(result, &context, compile_options.deny_warnings)?;
     // Apply backend specific optimizations.
-    let (optimized_circuit, opcode_labels) = optimize_circuit(backend, program.circuit)
+    let (optimized_circuit, location_map) = optimize_circuit(backend, program.circuit)
         .expect("Backend does not support an opcode that is in the IR");
-
     // TODO(#2110): Why does this set `program.circuit` to `optimized_circuit` instead of the function taking ownership
     // and requiring we use `optimized_circuit` everywhere after
     program.circuit = optimized_circuit;
-    let opcode_ids = vecmap(opcode_labels, |label| match label {
-        OpcodeLabel::Unresolved => {
-            unreachable!("Compiled circuit opcodes must resolve to some index")
-        }
-        OpcodeLabel::Resolved(index) => index as usize,
-    });
-    program.debug.update_acir(opcode_ids);
+    program.debug.update_acir(location_map);
 
     Ok((context, program))
 }
@@ -191,7 +182,7 @@ pub(crate) fn compile_package<B: Backend>(
 pub(super) fn optimize_circuit<B: Backend>(
     backend: &B,
     circuit: Circuit,
-) -> Result<(Circuit, Vec<OpcodeLabel>), CliError<B>> {
+) -> Result<(Circuit, AcirTransformationMap), CliError<B>> {
     let result = acvm::compiler::compile(circuit, backend.np_language(), |opcode| {
         backend.supports_opcode(opcode)
     })
@@ -205,16 +196,9 @@ pub(super) fn optimize_contract<B: Backend>(
     contract: CompiledContract,
 ) -> Result<CompiledContract, CliError<B>> {
     let functions = try_vecmap(contract.functions, |mut func| {
-        let (optimized_bytecode, opcode_labels) = optimize_circuit(backend, func.bytecode)?;
-        let opcode_ids = vecmap(opcode_labels, |label| match label {
-            OpcodeLabel::Unresolved => {
-                unreachable!("Compiled circuit opcodes must resolve to some index")
-            }
-            OpcodeLabel::Resolved(index) => index as usize,
-        });
-
+        let (optimized_bytecode, location_map) = optimize_circuit(backend, func.bytecode)?;
         func.bytecode = optimized_bytecode;
-        func.debug.update_acir(opcode_ids);
+        func.debug.update_acir(location_map);
         Ok::<_, CliError<B>>(func)
     })?;
 

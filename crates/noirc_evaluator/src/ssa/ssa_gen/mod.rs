@@ -9,6 +9,8 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_frontend::monomorphization::ast::{self, Expression, Program};
 
+use crate::ssa::ir::types::NumericType;
+
 use self::{
     context::FunctionContext,
     value::{Tree, Values},
@@ -118,8 +120,21 @@ impl<'a> FunctionContext<'a> {
         match literal {
             ast::Literal::Array(array) => {
                 let elements = vecmap(&array.contents, |element| self.codegen_expression(element));
-                let typ = Self::convert_non_tuple_type(&array.typ);
-                self.codegen_array(elements, typ)
+
+                let typ = Self::convert_type(&array.typ).flatten();
+                match array.typ {
+                    ast::Type::Array(_, _) => self.codegen_array(elements, typ[0].clone()),
+                    ast::Type::Slice(_) => {
+                        let slice_length =
+                            self.builder.field_constant(array.contents.len() as u128);
+                        let slice_contents = self.codegen_array(elements, typ[1].clone());
+                        Tree::Branch(vec![slice_length.into(), slice_contents])
+                    }
+                    _ => unreachable!(
+                        "ICE: array literal type must be an array or a slice, but got {}",
+                        array.typ
+                    ),
+                }
             }
             ast::Literal::Integer(value, typ) => {
                 let typ = Self::convert_non_tuple_type(typ);
@@ -241,9 +256,22 @@ impl<'a> FunctionContext<'a> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
-        let array = self.codegen_non_tuple_expression(&index.collection);
+        let array_or_slice = self.codegen_expression(&index.collection).into_value_list(self);
         let index_value = self.codegen_non_tuple_expression(&index.index);
-        self.codegen_array_index(array, index_value, &index.element_type, index.location)
+        // Slices are represented as a tuple in the form: (length, slice contents).
+        // Thus, slices require two value ids for their representation.
+        let (array, slice_length) = if array_or_slice.len() > 1 {
+            (array_or_slice[1], Some(array_or_slice[0]))
+        } else {
+            (array_or_slice[0], None)
+        };
+        self.codegen_array_index(
+            array,
+            index_value,
+            &index.element_type,
+            index.location,
+            slice_length,
+        )
     }
 
     /// This is broken off from codegen_index so that it can also be
@@ -258,6 +286,7 @@ impl<'a> FunctionContext<'a> {
         index: super::ir::value::ValueId,
         element_type: &ast::Type,
         location: Location,
+        length: Option<super::ir::value::ValueId>,
     ) -> Values {
         // base_index = index * type_size
         let type_size = Self::convert_type(element_type).size_of_type();
@@ -269,8 +298,46 @@ impl<'a> FunctionContext<'a> {
         Self::map_type(element_type, |typ| {
             let offset = self.make_offset(base_index, field_index);
             field_index += 1;
+
+            let array_type = &self.builder.type_of_value(array);
+            match array_type {
+                Type::Slice(_) => {
+                    self.codegen_slice_access_check(index, length);
+                }
+                Type::Array(..) => {
+                    // Nothing needs to done to prepare an array access on an array
+                }
+                _ => unreachable!("must have array or slice but got {array_type}"),
+            }
             self.builder.insert_array_get(array, offset, typ).into()
         })
+    }
+
+    /// Prepare a slice access.
+    /// Check that the index being used to access a slice element
+    /// is less than the dynamic slice length.
+    fn codegen_slice_access_check(
+        &mut self,
+        index: super::ir::value::ValueId,
+        length: Option<super::ir::value::ValueId>,
+    ) {
+        let array_len = length.expect("ICE: a length must be supplied for indexing slices");
+        // Check the type of the index value for valid comparisons
+        let array_len = match self.builder.type_of_value(index) {
+            Type::Numeric(numeric_type) => match numeric_type {
+                // If the index itself is an integer, keep the array length as a Field
+                NumericType::Unsigned { .. } | NumericType::Signed { .. } => array_len,
+                // If the index and the array length are both Fields we will not be able to perform a less than comparison on them.
+                // Thus, we cast the array length to a u64 before performing the less than comparison
+                NumericType::NativeField => self
+                    .builder
+                    .insert_cast(array_len, Type::Numeric(NumericType::Unsigned { bit_size: 64 })),
+            },
+            _ => unreachable!("ICE: array index must be a numeric type"),
+        };
+
+        let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
+        self.builder.insert_constrain(is_offset_out_of_bounds);
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {

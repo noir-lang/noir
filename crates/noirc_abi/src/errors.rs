@@ -10,8 +10,6 @@ pub enum InputParserError {
     ParseStr(String),
     #[error("Could not parse hex value {0}")]
     ParseHexStr(String),
-    #[error("duplicate variable name {0}")]
-    DuplicateVariableName(String),
     #[error("cannot parse value into {0:?}")]
     AbiTypeMismatch(AbiType),
     #[error("Expected argument `{0}`, but none was found")]
@@ -38,8 +36,6 @@ impl From<serde_json::Error> for InputParserError {
 
 #[derive(Debug, Error)]
 pub enum AbiError {
-    #[error("{0}")]
-    Generic(String),
     #[error("Received parameters not expected by ABI: {0:?}")]
     UnexpectedParams(Vec<String>),
     #[error("The parameter {} is expected to be a {:?} but found incompatible value {value:?}", .param.name, .param.typ)]

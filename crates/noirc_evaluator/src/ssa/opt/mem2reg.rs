@@ -455,7 +455,7 @@ mod tests {
         let one = builder.field_constant(FieldElement::one());
         builder.insert_store(v0, one);
         let v1 = builder.insert_load(v0, Type::field());
-        let f0 = builder.import_intrinsic_id(Intrinsic::Println);
+        let f0 = builder.import_intrinsic_id(Intrinsic::AssertConstant);
         builder.insert_call(f0, vec![v0], vec![]);
         builder.terminate_with_return(vec![v1]);
 
