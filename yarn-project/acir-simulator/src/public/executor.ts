@@ -63,9 +63,6 @@ export class PublicExecutor {
 
     const initialWitness = getInitialWitness(execution.args, execution.callContext, this.blockData, globalVariables);
     const storageActions = new ContractStorageActionsCollector(this.stateDb, execution.contractAddress);
-    const newCommitments: Fr[] = [];
-    const newL2ToL1Messages: Fr[] = [];
-    const newNullifiers: Fr[] = [];
     const nestedExecutions: PublicExecutionResult[] = [];
     const unencryptedLogs = new FunctionL2Logs([]);
     // Functions can request to pack arguments before calling other functions.
@@ -116,21 +113,6 @@ export class PublicExecutor {
         }
         return newValues.map(v => toACVMField(v));
       },
-      createCommitment: async ([commitment]) => {
-        this.log('Creating commitment: ' + commitment.toString());
-        newCommitments.push(fromACVMField(commitment));
-        return await Promise.resolve(ZERO_ACVM_FIELD);
-      },
-      createL2ToL1Message: async ([message]) => {
-        this.log('Creating L2 to L1 message: ' + message.toString());
-        newL2ToL1Messages.push(fromACVMField(message));
-        return await Promise.resolve(ZERO_ACVM_FIELD);
-      },
-      createNullifier: async ([nullifier]) => {
-        this.log('Creating nullifier: ' + nullifier.toString());
-        newNullifiers.push(fromACVMField(nullifier));
-        return await Promise.resolve(ZERO_ACVM_FIELD);
-      },
       callPublicFunction: async ([address], [functionSelector], [argsHash]) => {
         const args = packedArgs.unpack(fromACVMField(argsHash));
         this.log(`Public function call: addr=${address} selector=${functionSelector} args=${args.join(',')}`);
@@ -161,7 +143,16 @@ export class PublicExecutor {
       },
     });
 
-    const { returnValues } = extractPublicCircuitPublicInputs(partialWitness, acir);
+    const {
+      returnValues,
+      newL2ToL1Msgs,
+      newCommitments: newCommitmentsPadded,
+      newNullifiers: newNullifiersPadded,
+    } = extractPublicCircuitPublicInputs(partialWitness, acir);
+
+    const newL2ToL1Messages = newL2ToL1Msgs.filter(v => !v.isZero());
+    const newCommitments = newCommitmentsPadded.filter(v => !v.isZero());
+    const newNullifiers = newNullifiersPadded.filter(v => !v.isZero());
 
     const [contractStorageReads, contractStorageUpdateRequests] = storageActions.collect();
     this.log(

@@ -495,8 +495,8 @@ impl PublicContext {
         self.new_nullifiers.push(nullifier);
     }
 
-    fn message_portal(&mut self, msg: Field) {
-        self.new_l2_to_l1_msgs.push(msg);
+    fn message_portal(&mut self, content: Field) {
+        self.new_l2_to_l1_msgs.push(content);
     }
 
     // PrivateContextInputs must be temporarily passed in to prevent too many unknowns

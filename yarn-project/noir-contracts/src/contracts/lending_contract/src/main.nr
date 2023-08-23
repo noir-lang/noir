@@ -11,10 +11,7 @@ contract Lending {
         PrivateContext,
         PublicContext
     };
-    use dep::aztec::oracle::{
-        logs::emit_unencrypted_log,
-        create_nullifier::create_nullifier,
-    };
+    use dep::aztec::oracle::{logs::emit_unencrypted_log};
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
     use crate::storage::{Storage, Tot, Account};
 

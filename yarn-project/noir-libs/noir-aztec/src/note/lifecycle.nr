@@ -9,7 +9,6 @@ use crate::note::{
     note_interface::NoteInterface,
     utils::compute_inner_note_hash,
 };
-use crate::oracle::create_commitment::create_commitment;
 use crate::oracle::notes::{notify_created_note, notify_nullified_note};
 use crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;
 
@@ -34,19 +33,19 @@ fn create_note<Note, N>(
 }
 
 fn create_note_hash_from_public<Note, N>(
-    context: PublicContext,
+    context: &mut PublicContext,
     storage_slot: Field,
     note: &mut Note,
     note_interface: NoteInterface<Note, N>,
 ) {
-    let contract_address = context.this_address();
+    let contract_address = (*context).this_address();
 
     let header = NoteHeader { contract_address, storage_slot, nonce: 0 };
     let set_header = note_interface.set_header;
     set_header(note, header);
     let inner_note_hash = compute_inner_note_hash(note_interface, *note);
 
-    create_commitment(inner_note_hash);
+    context.push_new_note_hash(inner_note_hash);
 }
 
 fn destroy_note<Note, N>(

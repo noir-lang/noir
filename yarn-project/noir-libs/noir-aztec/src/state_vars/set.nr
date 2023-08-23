@@ -28,7 +28,7 @@ impl<Note, N> Set<Note, N> {
         create_note(context, self.storage_slot, note, self.note_interface);
     }
 
-    fn insert_from_public(self, context: PublicContext, note: &mut Note) {
+    fn insert_from_public(self, context: &mut PublicContext, note: &mut Note) {
         create_note_hash_from_public(context, self.storage_slot, note, self.note_interface);
     }
 

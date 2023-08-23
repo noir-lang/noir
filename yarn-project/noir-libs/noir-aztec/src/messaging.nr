@@ -5,16 +5,7 @@ mod l1_to_l2_message_getter_data;
 use l1_to_l2_message_getter_data::make_l1_to_l2_message_getter_data;
 
 use crate::abi::PublicContextInputs;
-use crate::oracle::create_nullifier::create_nullifier;
 use crate::oracle::get_l1_to_l2_message::get_l1_to_l2_message_call;
-
-// TODO(Maddiaa): Where to put this code?, a context would make sense but public calls dont _really_ have one? - come back to.
-fn consume_l1_to_l2_message_public(pub_context: PublicContextInputs, msg_key: Field, content: Field, secret: Field) {
-    let nullifier = process_l1_to_l2_message(pub_context.block_data.l1_to_l2_messages_tree_root, pub_context.call_context.storage_contract_address, msg_key, content, secret);
-
-    // Push nullifier
-    create_nullifier(nullifier);
-}
 
 
 // Returns the nullifier for the message

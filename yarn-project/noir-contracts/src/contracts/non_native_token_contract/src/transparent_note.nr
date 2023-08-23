@@ -5,9 +5,6 @@ use dep::aztec::note::{
     note_interface::NoteInterface,
     utils::compute_siloed_note_hash,
 };
-use dep::aztec::oracle::{
-    create_l2_to_l1_message::create_l2_to_l1_message,
-};
 use dep::aztec::constants_gen::GENERATOR_INDEX__L1_TO_L2_MESSAGE_SECRET;
 
 global TRANSPARENT_NOTE_LEN: Field = 2;

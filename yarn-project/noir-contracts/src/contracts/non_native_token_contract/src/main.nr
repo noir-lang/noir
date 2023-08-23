@@ -50,16 +50,7 @@ contract NonNativeToken {
         },
     };
 
-    // oracles
-    use dep::aztec::oracle::{
-        create_l2_to_l1_message::create_l2_to_l1_message,
-    };
-
-    // public messaging
-    use dep::aztec::messaging::consume_l1_to_l2_message_public;
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
-
-    use dep::aztec::oracle::create_commitment::create_commitment;
 
     fn constructor(
         //*********************************/
@@ -164,7 +155,7 @@ contract NonNativeToken {
         let content_hash = get_mint_content_hash(amount, owner_address, canceller);
 
         // Consume message and emit nullifier
-        consume_l1_to_l2_message_public(inputs, msg_key, content_hash, secret);
+        context.consume_l1_to_l2_message(msg_key, content_hash, secret);
 
         // Update the public balance
         let recipient_balance = public_balances.at(owner_address);
@@ -206,8 +197,7 @@ contract NonNativeToken {
         let content = get_withdraw_content_hash(amount, recipient, callerOnL1);
 
         // Emit the l2 to l1 message
-        // TODO: make in the context
-        create_l2_to_l1_message(content);
+        context.message_portal(content);
 
         // Push the return value into the context
         context.finish()
@@ -267,7 +257,7 @@ contract NonNativeToken {
         // and insert it into the set of "pending_shields" and therefore
         // (eventually) the private data tree.
         let mut note = TransparentNote::new(amount, secretHash);
-        pending_shields.insert_from_public(context, &mut note);
+        pending_shields.insert_from_public(&mut context, &mut note);
 
         context.finish()
     }
