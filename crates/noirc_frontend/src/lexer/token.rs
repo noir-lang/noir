@@ -325,8 +325,7 @@ pub enum Attribute {
     Builtin(String),
     Oracle(String),
     Deprecated(Option<String>),
-    // Boolean flag that represents if the test should fail
-    Test(bool),
+    Test(/* should fail: */ bool),
     Custom(String),
 }
 
