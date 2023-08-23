@@ -161,14 +161,26 @@ fn run_test<B: Backend>(
         }
     } else {
         let program = compile_no_check(context, config, main);
-        if program.is_err() {
-            return Ok(());
-        }
-        let mut program = program.unwrap();
-        program.circuit = optimize_circuit(backend, program.circuit).unwrap().0;
-        match execute_circuit(backend, program.circuit, WitnessMap::new(), show_output) {
-            Ok(_) => Err(CliError::Generic(format!("Test '{test_name}' should fail"))),
-            Err(_) => Ok(()),
+        match program {
+            Ok(mut program) => {
+                program.circuit = optimize_circuit(backend, program.circuit).unwrap().0;
+                match execute_circuit(backend, program.circuit, WitnessMap::new(), show_output) {
+                    Ok(_) => Err(CliError::Generic(format!("Test '{test_name}' should fail"))),
+                    Err(_) => Ok(()),
+                }
+            }
+            Err(err) => {
+                if !err.diagnostic.message.contains("Failed constraint") {
+                    noirc_errors::reporter::report_all(
+                        &context.file_manager,
+                        &[err],
+                        config.deny_warnings,
+                    );
+                    Err(CliError::Generic(format!("Test '{test_name}' failed to compile")))
+                } else {
+                    Ok(())
+                }
+            }
         }
     }
 }
