@@ -9,8 +9,8 @@ use crate::{
     node_interner::{ExprId, NodeInterner, TypeAliasId},
 };
 use iter_extended::vecmap;
-use noirc_abi::AbiType;
 use noirc_errors::Span;
+use noirc_printable_type::PrintableType;
 
 use crate::{node_interner::StructId, node_interner::TraitId, Ident, Signedness};
 
@@ -1012,58 +1012,6 @@ impl Type {
         }
     }
 
-    // Note; use strict_eq instead of partial_eq when comparing field types
-    // in this method, you most likely want to distinguish between public and private
-    pub fn as_abi_type(&self) -> AbiType {
-        match self {
-            Type::FieldElement => AbiType::Field,
-            Type::Array(size, typ) => {
-                let length = size
-                    .evaluate_to_u64()
-                    .expect("Cannot have variable sized arrays as a parameter to main");
-                AbiType::Array { length, typ: Box::new(typ.as_abi_type()) }
-            }
-            Type::Integer(sign, bit_width) => {
-                let sign = match sign {
-                    Signedness::Unsigned => noirc_abi::Sign::Unsigned,
-                    Signedness::Signed => noirc_abi::Sign::Signed,
-                };
-
-                AbiType::Integer { sign, width: *bit_width }
-            }
-            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
-                match &*binding.borrow() {
-                    TypeBinding::Bound(typ) => typ.as_abi_type(),
-                    TypeBinding::Unbound(_) => Type::default_int_type().as_abi_type(),
-                }
-            }
-            Type::Bool => AbiType::Boolean,
-            Type::String(size) => {
-                let size = size
-                    .evaluate_to_u64()
-                    .expect("Cannot have variable sized strings as a parameter to main");
-                AbiType::String { length: size }
-            }
-            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
-            Type::Error => unreachable!(),
-            Type::Unit => unreachable!(),
-            Type::Constant(_) => unreachable!(),
-            Type::Struct(def, args) => {
-                let struct_type = def.borrow();
-                let fields = struct_type.get_fields(args);
-                let fields = vecmap(fields, |(name, typ)| (name, typ.as_abi_type()));
-                AbiType::Struct { fields, name: struct_type.name.to_string() }
-            }
-            Type::Tuple(_) => todo!("as_abi_type not yet implemented for tuple types"),
-            Type::TypeVariable(_, _) => unreachable!(),
-            Type::NamedGeneric(..) => unreachable!(),
-            Type::Forall(..) => unreachable!(),
-            Type::Function(_, _, _) => unreachable!(),
-            Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
-            Type::NotConstant => unreachable!(),
-        }
-    }
-
     /// Iterate over the fields of this type.
     /// Panics if the type is not a struct or tuple.
     pub fn iter_fields(&self) -> impl Iterator<Item = (String, Type)> {
@@ -1331,6 +1279,59 @@ impl TypeVariableKind {
         match self {
             TypeVariableKind::IntegerOrField | TypeVariableKind::Normal => Type::default_int_type(),
             TypeVariableKind::Constant(length) => Type::Constant(*length),
+        }
+    }
+}
+
+impl From<Type> for PrintableType {
+    fn from(value: Type) -> Self {
+        Self::from(&value)
+    }
+}
+
+impl From<&Type> for PrintableType {
+    fn from(value: &Type) -> Self {
+        // Note; use strict_eq instead of partial_eq when comparing field types
+        // in this method, you most likely want to distinguish between public and private
+        match value {
+            Type::FieldElement => PrintableType::Field,
+            Type::Array(size, typ) => {
+                let length = size.evaluate_to_u64().expect("Cannot print variable sized arrays");
+                let typ = typ.as_ref();
+                PrintableType::Array { length, typ: Box::new(typ.into()) }
+            }
+            Type::Integer(sign, bit_width) => match sign {
+                Signedness::Unsigned => PrintableType::UnsignedInteger { width: *bit_width },
+                Signedness::Signed => PrintableType::SignedInteger { width: *bit_width },
+            },
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(typ) => typ.into(),
+                    TypeBinding::Unbound(_) => Type::default_int_type().into(),
+                }
+            }
+            Type::Bool => PrintableType::Boolean,
+            Type::String(size) => {
+                let size = size.evaluate_to_u64().expect("Cannot print variable sized strings");
+                PrintableType::String { length: size }
+            }
+            Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
+            Type::Error => unreachable!(),
+            Type::Unit => unreachable!(),
+            Type::Constant(_) => unreachable!(),
+            Type::Struct(def, ref args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args);
+                let fields = vecmap(fields, |(name, typ)| (name, typ.into()));
+                PrintableType::Struct { fields, name: struct_type.name.to_string() }
+            }
+            Type::Tuple(_) => todo!("printing tuple types is not yet implemented"),
+            Type::TypeVariable(_, _) => unreachable!(),
+            Type::NamedGeneric(..) => unreachable!(),
+            Type::Forall(..) => unreachable!(),
+            Type::Function(_, _, _) => unreachable!(),
+            Type::MutableReference(_) => unreachable!("cannot print &mut"),
+            Type::NotConstant => unreachable!(),
         }
     }
 }

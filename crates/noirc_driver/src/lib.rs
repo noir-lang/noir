@@ -142,7 +142,7 @@ pub fn compute_function_abi(
 
     let (parameters, return_type) = func_meta.into_function_signature();
     let parameters = into_abi_params(parameters, &context.def_interner);
-    let return_type = return_type.map(|typ| typ.as_abi_type());
+    let return_type = return_type.map(|typ| AbiType::from_type(&typ));
     Some((parameters, return_type))
 }
 

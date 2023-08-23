@@ -175,13 +175,3 @@ impl InputValue {
         Ok(input_value)
     }
 }
-
-impl std::fmt::Display for JsonTypes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // From the docs: https://doc.rust-lang.org/std/fmt/struct.Error.html
-        // This type does not support transmission of an error other than that an error
-        // occurred. Any extra information must be arranged to be transmitted through
-        // some other means.
-        write!(f, "{}", serde_json::to_string(&self).map_err(|_| std::fmt::Error)?)
-    }
-}
