@@ -91,33 +91,15 @@ fn execute_package<B: Backend>(
     Ok((return_value, solved_witness))
 }
 
-fn extract_unsatisfied_constraint_from_nargo_error(
-    nargo_err: &NargoError,
-) -> (Option<OpcodeLocation>, Option<String>) {
-    let solving_err = match nargo_err {
-        nargo::NargoError::SolvingError(err) => err,
-        _ => return (None, None),
-    };
-
-    match solving_err {
-        acvm::pwg::OpcodeResolutionError::UnsatisfiedConstrain {
-            opcode_location: error_location,
-            assert_message,
-        } => match error_location {
-            ErrorLocation::Unresolved => {
-                unreachable!("Cannot resolve index for unsatisfied constraint")
-            }
-            ErrorLocation::Resolved(opcode_location) => {
-                (Some(*opcode_location), assert_message.clone())
-            }
-        },
-        _ => (None, None),
+fn extract_opcode_location_from_nargo_error(nargo_err: &NargoError) -> Option<OpcodeLocation> {
+    match nargo_err {
+        NargoError::UnsatisfiedConstrain(_, ErrorLocation::Resolved(location)) => Some(*location),
+        _ => None,
     }
 }
 
 fn report_unsatisfied_constraint_error(
     opcode_location: Option<OpcodeLocation>,
-    assert_message: Option<String>,
     debug: &DebugInfo,
     context: &Context,
 ) {
@@ -127,10 +109,7 @@ fn report_unsatisfied_constraint_error(
             // of the call stack (the last item in the Vec).
             if let Some(location) = locations.last() {
                 CustomDiagnostic::simple_error(
-                    assert_message.map_or_else(
-                        || "Assertion failed".into(),
-                        |msg| format!("Assertion failed '{}'", msg),
-                    ),
+                    "Assertion failed".into(),
                     String::new(),
                     location.span,
                 )
@@ -155,14 +134,8 @@ pub(crate) fn execute_program<B: Backend>(
         Ok(solved_witness) => Ok(solved_witness),
         Err(err) => {
             if let Some((debug, context)) = debug_data {
-                let (opcode_location, assert_message): (Option<OpcodeLocation>, Option<String>) =
-                    extract_unsatisfied_constraint_from_nargo_error(&err);
-                report_unsatisfied_constraint_error(
-                    opcode_location,
-                    assert_message,
-                    &debug,
-                    &context,
-                );
+                let opcode_location = extract_opcode_location_from_nargo_error(&err);
+                report_unsatisfied_constraint_error(opcode_location, &debug, &context);
             }
 
             Err(crate::errors::CliError::NargoError(err))

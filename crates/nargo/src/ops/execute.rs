@@ -1,4 +1,4 @@
-use acvm::pwg::{ACVMStatus, ACVM};
+use acvm::pwg::{ACVMStatus, ErrorLocation, OpcodeResolutionError, ACVM};
 use acvm::BlackBoxFunctionSolver;
 use acvm::{acir::circuit::Circuit, acir::native_types::WitnessMap};
 
@@ -12,7 +12,7 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
     initial_witness: WitnessMap,
     show_output: bool,
 ) -> Result<WitnessMap, NargoError> {
-    let mut acvm = ACVM::new(backend, circuit.opcodes, initial_witness, circuit.assert_messages);
+    let mut acvm = ACVM::new(backend, circuit.opcodes, initial_witness);
 
     loop {
         let solver_status = acvm.solve();
@@ -22,7 +22,20 @@ pub fn execute_circuit<B: BlackBoxFunctionSolver>(
             ACVMStatus::InProgress => {
                 unreachable!("Execution should not stop while in `InProgress` state.")
             }
-            ACVMStatus::Failure(error) => return Err(error.into()),
+            ACVMStatus::Failure(error) => {
+                return Err(match error {
+                    OpcodeResolutionError::UnsatisfiedConstrain { opcode_location } => {
+                        let assert_message = match opcode_location {
+                            ErrorLocation::Resolved(opcode_location) => {
+                                circuit.assert_messages.get(&opcode_location).cloned()
+                            }
+                            _ => None,
+                        };
+                        NargoError::UnsatisfiedConstrain(assert_message, opcode_location)
+                    }
+                    _ => NargoError::SolvingError(error),
+                })
+            }
             ACVMStatus::RequiresForeignCall(foreign_call) => {
                 let foreign_call_result = ForeignCall::execute(&foreign_call, show_output)?;
                 acvm.resolve_pending_foreign_call(foreign_call_result);
