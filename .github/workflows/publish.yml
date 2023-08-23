@@ -114,7 +114,7 @@ jobs:
         with:
           path: ${{ env.CACHED_PATHS }}
           key: ${{ steps.cache.outputs.cache-primary-key }}
-      
+
       - name: Package artifacts
         run: |
           mkdir dist
@@ -137,6 +137,11 @@ jobs:
           yarn install
           yarn test
 
+      - name: Get formatted date
+        id: date
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
@@ -146,7 +151,7 @@ jobs:
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
-          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+          tag: ${{ inputs.tag || format('{0}-{1}', 'nightly', steps.date.outputs.date) }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
   build-linux:
     needs: [build-barretenberg]
@@ -229,6 +234,11 @@ jobs:
           yarn install
           yarn test
 
+      - name: Get formatted date
+        id: date
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
@@ -238,7 +248,7 @@ jobs:
           file: ./nargo-${{ matrix.target }}.tar.gz
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
-          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+          tag: ${{ inputs.tag || format('{0}-{1}', 'nightly', steps.date.outputs.date) }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 
   build-windows:
     needs: [build-barretenberg]
@@ -313,6 +323,11 @@ jobs:
           yarn install
           yarn test
 
+      - name: Get formatted date
+        id: date
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
+
       - name: Upload binaries to release tag
         uses: svenstaro/upload-release-action@v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
@@ -322,4 +337,4 @@ jobs:
           file: ./nargo-${{ matrix.target }}.zip
           asset_name: nargo-${{ matrix.target }}.zip
           overwrite: true
-          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+          tag: ${{ inputs.tag || format('{0}-{1}', 'nightly', steps.date.outputs.date) }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
