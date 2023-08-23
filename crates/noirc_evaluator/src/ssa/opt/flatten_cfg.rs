@@ -444,7 +444,7 @@ impl<'f> Context<'f> {
                             Value::NumericConstant { constant, .. } => {
                                 constant.to_u128() as usize
                             }
-                            _ => unreachable!("ahh expected array set but got {:?}", &self.inserter.function.dfg[length]),
+                            _ => unreachable!("ahh expected numeric constants but got {:?}", &self.inserter.function.dfg[length]),
                         };
                         len
                     }
@@ -477,6 +477,7 @@ impl<'f> Context<'f> {
                         len.to_u128() as usize
                     }
                     Instruction::Load { address } => {
+                        // This match is all for debugging
                         println!("LOAD address: {address}");
                         let resolved_address = self.inserter.function.dfg.resolve(address);
                         println!("resolved address: {resolved_address}");
@@ -484,8 +485,6 @@ impl<'f> Context<'f> {
                         match &self.inserter.function.dfg[address] {
                             Value::Instruction { instruction, .. } => {
                                 dbg!(&self.inserter.function.dfg[*instruction]);
-                                let res = self.inserter.function.dfg.instruction_results(*instruction).first().expect("expected a result");
-                                dbg!(&self.inserter.function.dfg[*res]);
                             }
                             _ => panic!("ahh expected instr"),
                         }
