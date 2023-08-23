@@ -71,7 +71,7 @@ pub struct TraitImpl {
 /// Represents a trait constraint such as `where Foo: Display`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitConstraint {
-    pub typ: UnresolvedType,
+    pub generic_type_name: Ident,
     pub trait_name: Ident,
     pub trait_generics: Vec<UnresolvedType>,
 }
@@ -160,7 +160,7 @@ impl Display for TraitItem {
 impl Display for TraitConstraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.trait_generics, |generic| generic.to_string());
-        write!(f, "{}: {}<{}>", self.typ, self.trait_name, generics.join(", "))
+        write!(f, "{}: {}<{}>", self.generic_type_name, self.trait_name, generics.join(", "))
     }
 }
 

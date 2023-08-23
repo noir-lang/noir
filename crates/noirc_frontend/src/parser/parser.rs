@@ -524,13 +524,13 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
 }
 
 fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
-    let constraints = parse_type()
+    let constraints = ident()
         .then_ignore(just(Token::Colon))
         .then(ident())
         .then(generic_type_args(parse_type()))
-        .validate(|((typ, trait_name), trait_generics), span, emit| {
+        .validate(|((generic_type_name, trait_name), trait_generics), span, emit| {
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
-            TraitConstraint { typ, trait_name, trait_generics }
+            TraitConstraint { generic_type_name, trait_name, trait_generics }
         });
 
     keyword(Keyword::Where)
@@ -1854,6 +1854,7 @@ mod test {
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where SomeTrait {}",
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) SomeTrait {}",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) where T: SomeTrait {}",
+                "fn func_name<T>(f: Field, y : T) where u32: SomeTrait {}",
             ],
         );
     }
