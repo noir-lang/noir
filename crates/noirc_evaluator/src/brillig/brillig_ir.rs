@@ -10,6 +10,8 @@ pub(crate) mod registers;
 
 mod entry_point;
 
+use crate::ssa::ir::dfg::CallStack;
+
 use self::{
     artifact::{BrilligArtifact, UnresolvedJumpLocation},
     registers::BrilligRegistersContext,
@@ -104,7 +106,7 @@ impl BrilligContext {
 
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
-        self.obj.byte_code.push(opcode);
+        self.obj.push_opcode(opcode);
     }
 
     /// Returns the artifact
@@ -945,6 +947,10 @@ impl BrilligContext {
             _ => unreachable!("ICE: Expected vector, got {variable:?}"),
         }
     }
+
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+        self.obj.set_call_stack(call_stack);
+    }
 }
 
 /// Type to encapsulate the binary operation types in Brillig
@@ -1079,7 +1085,7 @@ pub(crate) mod tests {
 
         context.stop_instruction();
 
-        let bytecode = context.artifact().byte_code;
+        let bytecode = context.artifact().finish().byte_code;
         let number_sequence: Vec<Value> = (0_usize..12_usize).map(Value::from).collect();
         let mut vm = VM::new(
             Registers { inner: vec![] },

@@ -799,6 +799,12 @@ impl GeneratedAcir {
             predicate,
         });
         self.push_opcode(opcode);
+        for (brillig_index, call_stack) in code.locations {
+            self.locations.insert(
+                OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
+                call_stack,
+            );
+        }
     }
 
     /// Generate gates and control bits witnesses which ensure that out_expr is a permutation of in_expr
