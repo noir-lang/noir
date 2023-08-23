@@ -700,9 +700,7 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }
 
-        if ((attributes == Some(Attribute::Test { expect_failure: true }))
-            || (attributes == Some(Attribute::Test { expect_failure: false })))
-            && !parameters.is_empty()
+        if matches!(attributes, Some(Attribute::Test { .. })) && !parameters.is_empty()
         {
             self.push_err(ResolverError::TestFunctionHasParameters {
                 span: func.name_ident().span(),
