@@ -207,7 +207,7 @@ impl<'a> FunctionContext<'a> {
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
-                self.builder.insert_binary(zero, BinaryOp::Sub, rhs).into()
+                self.insert_binary(zero, noirc_frontend::BinaryOpKind::Subtract, rhs, None).into()
             }
             noirc_frontend::UnaryOp::MutableReference => {
                 self.codegen_reference(&unary.rhs).map(|rhs| {
@@ -252,7 +252,7 @@ impl<'a> FunctionContext<'a> {
     fn codegen_binary(&mut self, binary: &ast::Binary) -> Values {
         let lhs = self.codegen_non_tuple_expression(&binary.lhs);
         let rhs = self.codegen_non_tuple_expression(&binary.rhs);
-        self.insert_binary(lhs, binary.operator, rhs, binary.location)
+        self.insert_binary(lhs, binary.operator, rhs, Some(binary.location))
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Values {
