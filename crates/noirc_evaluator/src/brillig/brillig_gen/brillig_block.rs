@@ -461,7 +461,7 @@ impl<'block> BrilligBlock<'block> {
                     destination_variable,
                 );
             }
-            Instruction::ArraySet { array, index, value } => {
+            Instruction::ArraySet { array, index, value, .. } => {
                 let source_variable = self.convert_ssa_value(*array, dfg);
                 let index_register = self.convert_ssa_register_value(*index, dfg);
                 let value_variable = self.convert_ssa_value(*value, dfg);

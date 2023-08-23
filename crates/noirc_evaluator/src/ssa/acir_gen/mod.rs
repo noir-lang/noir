@@ -405,6 +405,7 @@ impl Context {
                     None,
                     dfg,
                     last_array_uses,
+                    None
                 )?;
             }
             Instruction::ArraySet { array, index, value, length } => {
@@ -415,6 +416,7 @@ impl Context {
                     Some(*value),
                     dfg,
                     last_array_uses,
+                    *length
                 )?;
             }
             Instruction::Allocate => {
@@ -463,6 +465,7 @@ impl Context {
     /// Handles an ArrayGet or ArraySet instruction.
     /// To set an index of the array (and create a new array in doing so), pass Some(value) for
     /// store_value. To just retrieve an index of the array, pass None for store_value.
+    #[allow(clippy::too_many_arguments)]
     fn handle_array_operation(
         &mut self,
         instruction: InstructionId,
@@ -471,6 +474,7 @@ impl Context {
         store_value: Option<ValueId>,
         dfg: &DataFlowGraph,
         last_array_uses: &HashMap<ValueId, InstructionId>,
+        length: Option<ValueId>,
     ) -> Result<(), RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
 
@@ -531,7 +535,7 @@ impl Context {
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
         if let Some(store) = store_value {
-            self.array_set(instruction, array, index, store, dfg, map_array)?;
+            self.array_set(instruction, array, index, store, dfg, map_array, length)?;
         } else {
             self.array_get(instruction, array, index, dfg)?;
         }
@@ -576,6 +580,14 @@ impl Context {
                 }
                 typ[0].clone()
             }
+            Type::Slice(typ) => {
+                if typ.len() != 1 {
+                    unimplemented!(
+                        "Non-const array indices is not implemented for non-homogenous array"
+                    );
+                }
+                typ[0].clone()
+            }
             _ => unreachable!("ICE - expected an array"),
         };
         let typ = AcirType::from(typ);
@@ -586,6 +598,7 @@ impl Context {
     /// Copy the array and generates a write opcode on the new array
     ///
     /// Note: Copying the array is inefficient and is not the way we want to do it in the end.
+    #[allow(clippy::too_many_arguments)]
     fn array_set(
         &mut self,
         instruction: InstructionId,
@@ -594,6 +607,7 @@ impl Context {
         store_value: ValueId,
         dfg: &DataFlowGraph,
         map_array: bool,
+        length: Option<ValueId>
     ) -> Result<(), InternalError> {
         // Fetch the internal SSA ID for the array
         let array = dfg.resolve(array);
@@ -605,8 +619,25 @@ impl Context {
         // the SSA IR.
         let len = match dfg.type_of_value(array) {
             Type::Array(_, len) => len,
+            Type::Slice(_) => {
+                // let value = &dfg[array];
+                // match value {
+                //     Value::Array { array, .. } => {
+                //         dbg!(array.len());
+                //     }
+                //     Value::Instruction { instruction, position, typ } => {
+                //         let instruction = &dfg[*instruction];
+                //         dbg!(instruction.clone());
+                //     }
+                //     _ => unreachable!("ICE - expected value with slice type to be an array but got {:?}", value),
+                // }
+                let length = length.expect("ICE: array set on slice must have a length associated with the call");
+                let len = dfg.get_numeric_constant(length).expect("ICE: slice length should be fully tracked and constant by ACIR gen");
+                len.to_u128() as usize
+            }
             _ => unreachable!("ICE - expected an array"),
         };
+        dbg!(len);
 
         // Check if the array has already been initialized in ACIR gen
         // if not, we initialize it using the values from SSA

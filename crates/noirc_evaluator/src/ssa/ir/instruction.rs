@@ -272,7 +272,7 @@ impl Instruction {
                 Instruction::ArrayGet { array: f(*array), index: f(*index) }
             }
             Instruction::ArraySet { array, index, value, length } => {
-                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value), length: length.map(|l| f(l)) }
+                Instruction::ArraySet { array: f(*array), index: f(*index), value: f(*value), length: length.map(f) }
             }
         }
     }
@@ -310,7 +310,7 @@ impl Instruction {
                 f(*array);
                 f(*index);
                 f(*value);
-                length.map(|l| f(l));
+                length.map(&mut f);
             }
             Instruction::EnableSideEffects { condition } => {
                 f(*condition);

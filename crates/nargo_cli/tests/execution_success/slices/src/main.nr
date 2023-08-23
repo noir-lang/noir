@@ -2,13 +2,22 @@ use dep::std::slice;
 use dep::std;
 
 fn main(x : Field, y : pub Field) {
-    // let mut new_slice = [];
+    // Dynamic indexing works on slice with constant length
+    // let mut slice = [0, 1, 2, 3, 4];
+
+    // Need to implement flattening on a dynamic length
+    // let mut slice = [];
     // for i in 0..5 {
-    //     new_slice = new_slice.push_back(i + 10);
+    //     slice = slice.push_back(i);
     // }
-    // assert(new_slice.len() == 5);
-    let mut slice = [104, 101, 108, 108, 111];
-    regression_dynamic_slice_index(slice, x - 1, x - 4);
+    // let mut slice = [0, 1];
+    // if x != y {
+    //     slice = slice.push_back(y);
+    // } else {
+    //     slice = slice.push_back(x);
+    // }
+    // assert(slice.len() == 3);
+    // assert(slice[2] == 10);
 
 
     // let mut slice = [0; 2];
@@ -58,23 +67,53 @@ fn main(x : Field, y : pub Field) {
     // regression_2083();
     // // The parameters to this function must come from witness values (inputs to main)
     // regression_merge_slices(x, y);
+    regression_dynamic_slice_index(x - 1, x - 4);
 }
 
-fn regression_dynamic_slice_index(mut slice: [Field], x: Field, y: Field) {
-    assert(slice[x] == 111);
-    assert(slice[y] == 101);
+fn regression_dynamic_slice_index(x: Field, y: Field) {
+    let mut slice = [];
+    for i in 0..5 {
+        slice = slice.push_back(i);
+    }
+    assert(slice.len() == 5);
+    dynamic_slice_index_set_if(slice, x, y);
+    dynamic_slice_index_set_if(slice, x, y);
+    // dynamic_slice_index_set_else(slice, x, y);
+}
+
+fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
+    assert(slice[x] == 4);
+    assert(slice[y] == 1);
     slice[y] = 0;
-    assert(slice[x] == 111);
+    assert(slice[x] == 4);
     assert(slice[1] == 0);
     if x as u32 < 10 {
-    //   slice[x] = slice[x] - 2;
-        // assert(slice[x] == 2);
+      slice[x] = slice[x] - 2;
     } else {
-    //   slice[x] = 0;
-        // assert(slice[x] == 0);
+      slice[x] = 0;
     }
-    // assert(slice[4] == 109);
+    assert(slice[4] == 2);
 }
+
+fn dynamic_slice_index_set_else(mut slice: [Field], x: Field, y: Field) {
+    assert(slice[x] == 4);
+    assert(slice[y] == 1);
+    slice[y] = 0;
+    assert(slice[x] == 4);
+    assert(slice[1] == 0);
+    if x as u32 > 10 {
+      slice[x] = slice[x] - 2;
+    } else {
+      slice[x] = 0;
+    }
+    assert(slice[4] == 0);
+}
+
+// fn dynamic_slice_index_get(mut slice: [Field], x: Field, y: Field) {
+//     if x as u32 < 10 {
+
+//     }
+// }
 
 // Ensure that slices of struct/tuple values work.
 fn regression_2083() {

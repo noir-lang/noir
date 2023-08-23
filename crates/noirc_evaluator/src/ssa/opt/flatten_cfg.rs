@@ -143,7 +143,7 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction, Intrinsic},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
         types::Type,
         value::{Value, ValueId},
     },
@@ -419,36 +419,72 @@ impl<'f> Context<'f> {
 
         let then_value = self.inserter.function.dfg[then_value_id].clone();
         let else_value = self.inserter.function.dfg[else_value_id].clone();
-        dbg!(then_value.clone());
-        dbg!(else_value.clone());
+        // dbg!(then_value.clone());
+        // dbg!(else_value.clone());
+
+        // let len = self.recursively_get_slice_length(then_value_id);
+        // dbg!(len);
 
         let len = match then_value {
             Value::Array { array, .. } => array.len(),
-            _ => panic!("Expected array value"),
-        };
-
-        let else_len = match else_value {
-            Value::Array { array, .. } => array.len(),
-            Value::Instruction { instruction, typ, .. } => {
-                match &typ {
-                    Type::Slice(_) => (),
-                    _ => panic!("ICE: Expected slice type, but got {typ}"),
-                };
-                // let instruction = &self.inserter.function.dfg[instruction];
-                // dbg!(instruction.clone());
+            Value::Instruction { instruction, .. } => {
                 match self.inserter.function.dfg[instruction] {
-                    Instruction::ArraySet { array, index, value, length } => {
-                        let array_len_func = self.inserter.function.dfg.import_intrinsic(Intrinsic::ArrayLen);
-                        let call_array_len = Instruction::Call { func: array_len_func, arguments: vec![array] };
-                        let array_len = self.insert_instruction_with_typevars(call_array_len, Some(vec![Type::field()])).first();
-                        dbg!(array_len);
+                    Instruction::ArraySet { array: _, index: _, value: _, length } => {
+                        let length = length.expect("ICE: array set on a slice must have a length");
+                        dbg!(&self.inserter.function.dfg[length]);
+
+                        let length = match &self.inserter.function.dfg[length] {
+                            Value::Instruction { instruction, .. } => {
+                                let length_instr = &self.inserter.function.dfg[*instruction];
+                                let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
+                                dbg!(&self.inserter.function.dfg[x]);
+                                x
+                            }
+                            _ => length,
+                        };
+                        // let len = &self.inserter.function.dfg.get_numeric_constant(length).expect("ICE: length should be numeric constant at this point");
+                        let len = match &self.inserter.function.dfg[length] {
+                            Value::NumericConstant { constant, .. } => {
+                                constant.to_u128() as usize
+                            }
+                            _ => unreachable!("ahh expected array set but got {:?}", &self.inserter.function.dfg[length]),
+                        };
+                        len
+                        // len.to_u128() as usize
                     }
-                    _ => unreachable!("ahh expected array set but got {:?}", instruction),
+                    _ => unreachable!("ahh expected array set but got {:?}", self.inserter.function.dfg[instruction]),
                 }
-                panic!("ah got instruction");
             }
             _ => panic!("Expected array value"),
         };
+        dbg!(len);
+
+        let else_len = match else_value {
+            Value::Array { array, .. } => array.len(),
+            Value::Instruction { instruction, .. } => {
+                match self.inserter.function.dfg[instruction] {
+                    Instruction::ArraySet { array: _, index: _, value: _, length } => {
+                        let length = length.expect("ICE: array set on a slice must have a length");
+                        dbg!(&self.inserter.function.dfg[length]);
+
+                        let length = match &self.inserter.function.dfg[length] {
+                            Value::Instruction { instruction, .. } => {
+                                let length_instr = &self.inserter.function.dfg[*instruction];
+                                let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
+                                dbg!(&self.inserter.function.dfg[x]);
+                                x
+                            }
+                            _ => length,
+                        };
+                        let len = &self.inserter.function.dfg.get_numeric_constant(length).expect("ICE: length should be numeric constant at this point");
+                        len.to_u128() as usize
+                    }
+                    _ => unreachable!("ahh expected array set but got {:?}", self.inserter.function.dfg[instruction]),
+                }
+            }
+            _ => panic!("Expected array value"),
+        };
+        dbg!(else_len);
 
         let len = len.max(else_len);
 
@@ -485,6 +521,51 @@ impl<'f> Context<'f> {
 
         self.inserter.function.dfg.make_array(merged, typ)
     }
+
+    // fn recursively_get_slice_length(
+    //     &mut self,
+    //     value: ValueId
+    // ) -> usize {
+    //     match &self.inserter.function.dfg[value] {
+    //         Value::Array { array, .. } => return array.len(),
+    //         Value::Instruction { instruction, typ, .. } => {
+    //             match &typ {
+    //                 Type::Slice(_) => (),
+    //                 _ => panic!("ICE: Expected slice type, but got {typ}"),
+    //             };
+    //             match self.inserter.function.dfg[*instruction] {
+    //                 Instruction::ArraySet { array, index: _, value: _, length } => {
+    //                     let length = length.expect("ICE: array set on a slice must have a length");
+    //                     dbg!(&self.inserter.function.dfg[length]);
+
+    //                     let length = match &self.inserter.function.dfg[length] {
+    //                         Value::Instruction { instruction, position, typ } => {
+    //                             let length_instr = &self.inserter.function.dfg[*instruction];
+    //                             let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
+    //                             dbg!(&self.inserter.function.dfg[x]);
+    //                             x
+    //                         }
+    //                         _ => length,
+    //                     };
+    //                     // Handle non-numeric constants later
+    //                     // However, I don't think the length should ever not be a dynamic constant at this point
+    //                     let len = &self.inserter.function.dfg.get_numeric_constant(length);
+    //                     if let Some(len) = len {
+    //                         len.to_u128() as usize
+    //                     } else {
+    //                         self.recursively_get_slice_length(array)
+    //                     }
+    //                     // len.to_u128() as usize
+
+    //                     // panic!("ahhh")
+    //                 }
+    //                 _ => unreachable!("ahh expected array set but got {:?}", self.inserter.function.dfg[*instruction]),
+    //             }
+    //             // panic!("ah got instruction");
+    //         }
+    //         _ => panic!("Expected array value"),
+    //     }
+    // }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
     /// this function will recursively merge array1 and array2 into a single resulting array
