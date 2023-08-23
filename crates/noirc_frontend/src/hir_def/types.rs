@@ -12,7 +12,7 @@ use iter_extended::vecmap;
 use noirc_abi::AbiType;
 use noirc_errors::Span;
 
-use crate::{node_interner::StructId, Ident, Signedness};
+use crate::{node_interner::StructId, node_interner::TraitId, Ident, Signedness};
 
 use super::expr::{HirCallExpression, HirExpression, HirIdent};
 
@@ -54,8 +54,7 @@ pub enum Type {
     /// TypeVariables are stand-in variables for some type which is not yet known.
     /// They are not to be confused with NamedGenerics. While the later mostly works
     /// as with normal types (ie. for two NamedGenerics T and U, T != U), TypeVariables
-    /// will be automatically rebound as necessary to satisfy any calls to unify
-    /// and make_subtype_of.
+    /// will be automatically rebound as necessary to satisfy any calls to unify.
     ///
     /// TypeVariables are often created when a generic function is instantiated. This
     /// is a process that replaces each NamedGeneric in a generic function with a TypeVariable.
@@ -124,6 +123,39 @@ pub struct StructType {
     pub span: Span,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum TraitItemType {
+    /// A function declaration in a trait.
+    Function {
+        name: Ident,
+        generics: Generics,
+        arguments: Vec<Type>,
+        return_type: Type,
+        span: Span,
+    },
+
+    /// A constant declaration in a trait.
+    Constant { name: Ident, ty: Type, span: Span },
+
+    /// A type declaration in a trait.
+    Type { name: Ident, ty: Type, span: Span },
+}
+/// Represents a trait type in the type system. Each instance of this
+/// rust struct will be shared across all Type::Trait variants that represent
+/// the same trait type.
+#[derive(Debug, Eq)]
+pub struct Trait {
+    /// A unique id representing this trait type. Used to check if two
+    /// struct traits are equal.
+    pub id: TraitId,
+
+    pub items: Vec<TraitItemType>,
+
+    pub name: Ident,
+    pub generics: Generics,
+    pub span: Span,
+}
+
 /// Corresponds to generic lists such as `<T, U>` in the source
 /// program. The `TypeVariableId` portion is used to match two
 /// type variables to check for equality, while the `TypeVariable` is
@@ -139,6 +171,36 @@ impl std::hash::Hash for StructType {
 impl PartialEq for StructType {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+impl std::hash::Hash for Trait {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
+}
+
+impl PartialEq for Trait {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Trait {
+    pub fn new(
+        id: TraitId,
+        name: Ident,
+        span: Span,
+        items: Vec<TraitItemType>,
+        generics: Generics,
+    ) -> Trait {
+        Trait { id, name, span, items, generics }
+    }
+}
+
+impl std::fmt::Display for Trait {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 
@@ -885,7 +947,7 @@ impl Type {
         }
     }
 
-    /// Similar to `make_subtype_of` but if the check fails this will attempt to coerce the
+    /// Similar to `unify` but if the check fails this will attempt to coerce the
     /// argument to the target type. When this happens, the given expression is wrapped in
     /// a new expression to convert its type. E.g. `array` -> `array.as_slice()`
     ///
@@ -923,7 +985,7 @@ impl Type {
             // If we have an array and our target is a slice
             if matches!(size1, Type::Constant(_)) && matches!(size2, Type::NotConstant) {
                 // Still have to ensure the element types match.
-                // Don't need to issue an error here if not, it will be done in make_subtype_of_with_coercions
+                // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 if element1.try_unify(element2).is_ok() {
                     convert_array_expression_to_slice(expression, this, target, interner);
                     return true;

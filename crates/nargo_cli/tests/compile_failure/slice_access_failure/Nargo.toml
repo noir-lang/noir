@@ -1,0 +1,7 @@
+[package]
+name = "slice_access_failure"
+type = "bin"
+authors = [""]
+compiler_version = "0.10.2"
+
+[dependencies]

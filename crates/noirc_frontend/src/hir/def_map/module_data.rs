@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use noirc_errors::Location;
 
 use crate::{
-    node_interner::{FuncId, StmtId, StructId, TypeAliasId},
+    node_interner::{FuncId, StmtId, StructId, TraitId, TypeAliasId},
     Ident,
 };
 
@@ -67,6 +67,10 @@ impl ModuleData {
         id: TypeAliasId,
     ) -> Result<(), (Ident, Ident)> {
         self.declare(name, id.into())
+    }
+
+    pub fn declare_trait(&mut self, name: Ident, id: TraitId) -> Result<(), (Ident, Ident)> {
+        self.declare(name, ModuleDefId::TraitId(id))
     }
 
     pub fn declare_child_module(
