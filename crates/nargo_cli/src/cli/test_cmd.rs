@@ -97,8 +97,8 @@ fn run_tests<B: Backend>(
         match run_test(
             backend,
             &test_name,
-            test_function.0,
-            test_function.1,
+            test_function.get_id(),
+            test_function.get_expecte_failure_flag(),
             &context,
             show_output,
             compile_options,

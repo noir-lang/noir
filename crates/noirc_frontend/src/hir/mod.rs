@@ -6,10 +6,12 @@ pub mod type_check;
 
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, NodeInterner, TestFunc};
+use crate::node_interner::{FuncId, NodeInterner};
 use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use std::collections::HashMap;
+
+use self::def_map::TestFunc;
 
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
@@ -113,15 +115,16 @@ impl Context {
 
         def_map
             .get_all_test_functions(interner)
-            .filter_map(|(id, not_fail)| {
-                let fully_qualified_name = self.fully_qualified_function_name(crate_id, &id);
+            .filter_map(|test_function| {
+                let fully_qualified_name =
+                    self.fully_qualified_function_name(crate_id, &test_function.get_id());
                 match &pattern {
-                    FunctionNameMatch::Anything => Some((fully_qualified_name, (id, not_fail))),
+                    FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
                     FunctionNameMatch::Exact(pattern) => (&fully_qualified_name == pattern)
-                        .then_some((fully_qualified_name, (id, not_fail))),
+                        .then_some((fully_qualified_name, test_function)),
                     FunctionNameMatch::Contains(pattern) => fully_qualified_name
                         .contains(pattern)
-                        .then_some((fully_qualified_name, (id, not_fail))),
+                        .then_some((fully_qualified_name, test_function)),
                 }
             })
             .collect()

@@ -1,7 +1,7 @@
 use crate::graph::CrateId;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
-use crate::node_interner::{FuncId, NodeInterner, TestFunc};
+use crate::node_interner::{FuncId, NodeInterner};
 use crate::parser::{parse_program, ParsedModule};
 use crate::token::Attribute;
 use arena::{Arena, Index};
@@ -141,9 +141,9 @@ impl CrateDefMap {
                     if interner.function_meta(&id).attributes
                         == Some(Attribute::Test { expect_failure: true })
                     {
-                        (id, true)
+                        TestFunc::new(id, true)
                     } else {
-                        (id, false)
+                        TestFunc::new(id, false)
                     }
                 })
         })
@@ -230,5 +230,24 @@ impl std::ops::Index<LocalModuleId> for CrateDefMap {
 impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
     fn index_mut(&mut self, local_module_id: LocalModuleId) -> &mut ModuleData {
         &mut self.modules[local_module_id.0]
+    }
+}
+
+pub struct TestFunc {
+    id: FuncId,
+    expect_failure: bool,
+}
+
+impl TestFunc {
+    fn new(id: FuncId, expect_failure: bool) -> Self {
+        TestFunc { id, expect_failure }
+    }
+
+    pub fn get_id(&self) -> FuncId {
+        self.id
+    }
+
+    pub fn get_expecte_failure_flag(&self) -> bool {
+        self.expect_failure
     }
 }
