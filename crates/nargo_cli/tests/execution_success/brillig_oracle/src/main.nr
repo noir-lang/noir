@@ -17,13 +17,13 @@ unconstrained fn get_reverse_number_sequence(_size: Field) -> [Field] {}
 unconstrained fn get_number_sequence_wrapper(size: Field) {
     let slice = get_number_sequence(size);
     for i in 0..19 as u32 {
-        assert(slice[i] == i as Field);
+        assert_eq(slice[i], i as Field);
     }
 
     let reversed_slice = get_reverse_number_sequence(size);
     // Regression test that we have not overwritten memory
     for i in 0..19 as u32 {
-        assert(slice[i] == reversed_slice[19 - i]);
+        assert_eq(slice[i], reversed_slice[19 - i]);
     }
 }
 

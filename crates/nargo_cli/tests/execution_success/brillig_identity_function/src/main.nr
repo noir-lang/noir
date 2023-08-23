@@ -7,17 +7,17 @@ struct myStruct {
 // 
 // The features being tested is the identity function in Brillig
 fn main(x : Field)  {
-    assert(x == identity(x));
+    assert_eq(x, identity(x));
     // TODO: add support for array comparison
     let arr = identity_array([x, x]);
-    assert(x == arr[0]);
-    assert(x == arr[1]);
+    assert_eq(x, arr[0]);
+    assert_eq(x, arr[1]);
 
     let s = myStruct { foo: x, foo_arr: [x, x] };
     let identity_struct = identity_struct(s);
-    assert(x == identity_struct.foo);
-    assert(x == identity_struct.foo_arr[0]);
-    assert(x == identity_struct.foo_arr[1]);
+    assert_eq(x, identity_struct.foo);
+    assert_eq(x, identity_struct.foo_arr[0]);
+    assert_eq(x, identity_struct.foo_arr[1]);
 }
 
 unconstrained fn identity(x : Field) -> Field {

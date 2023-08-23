@@ -1,21 +1,21 @@
 unconstrained fn main(mut x: Field) {
     add1(&mut x);
-    assert(x == 3);
+    assert_eq(x, 3);
 
     // https://github.com/noir-lang/noir/issues/1899
     // let mut s = S { y: x };
     // s.add2();
-    // assert(s.y == 5);
+    // assert_eq(s.y, 5);
 
     // Test that normal mutable variables are still copied
     let mut a = 0;
     mutate_copy(a);
-    assert(a == 0);
+    assert_eq(a, 0);
 
     // Test something 3 allocations deep
     let mut nested_allocations = Nested { y: &mut &mut 0 };
     add1(*nested_allocations.y);
-    assert(**nested_allocations.y == 1);
+    assert_eq(**nested_allocations.y, 1);
 
     // Test nested struct allocations with a mutable reference to an array.
     let mut c = C {
@@ -26,8 +26,8 @@ unconstrained fn main(mut x: Field) {
     };
     *c.bar.array = [3, 4];
     let arr: [Field; 2] = *c.bar.array;
-    assert(arr[0] == 3);
-    assert(arr[1] == 4);
+    assert_eq(arr[0], 3);
+    assert_eq(arr[1], 4);
 }
 
 unconstrained fn add1(x: &mut Field) {

@@ -2,8 +2,8 @@
 // 
 // The features being tested is basic looping on brillig
 fn main(sum: u32){
-    assert(loop(4) == sum);
-    assert(plain_loop() == sum);
+    assert_eq(loop(4), sum);
+    assert_eq(plain_loop(), sum);
 }
 
 unconstrained fn loop(x: u32) -> u32 {

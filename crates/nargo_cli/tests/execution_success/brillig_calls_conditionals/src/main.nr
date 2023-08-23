@@ -2,10 +2,10 @@
 // 
 // The features being tested is brillig calls with conditionals
 fn main(x: [u32; 3])  {
-    assert(entry_point(x[0]) == 7);
-    assert(entry_point(x[1]) == 8);
-    assert(entry_point(x[2]) == 9);
-    assert(entry_point(42) == 0);
+    assert_eq(entry_point(x[0]), 7);
+    assert_eq(entry_point(x[1]), 8);
+    assert_eq(entry_point(x[2]), 9);
+    assert_eq(entry_point(42), 0);
 }
 
 unconstrained fn inner_1() -> u32 {

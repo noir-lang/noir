@@ -19,11 +19,11 @@ fn swap(x: u32, y:u32) -> (u32, u32) {
 
 unconstrained fn swap_entry_point(x: u32, y: u32) {
     let swapped = swap(x, y);
-    assert(swapped.0 == y);
-    assert(swapped.1 == x);
+    assert_eq(swapped.0, y);
+    assert_eq(swapped.1, x);
     let swapped_twice = swap(swapped.0, swapped.1);
-    assert(swapped_twice.0 == x);
-    assert(swapped_twice.1 == y);
+    assert_eq(swapped_twice.0, x);
+    assert_eq(swapped_twice.1, y);
 }
 
 fn level_3(x : u32) -> u32 {

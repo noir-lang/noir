@@ -279,5 +279,5 @@ fn main(a: [u32; 100], b: [u32; 100], c: [u32; 4], mut d: [u32; 4], m: [u8; 32])
     sha_hash = iterate3(sha_hash);
 
     let h6 = test6(m);
-    assert(h6[0]== 523008072); //31.. 3800709683
+    assert_eq(h6[0], 523008072); //31.. 3800709683
 }

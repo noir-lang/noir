@@ -2,7 +2,7 @@
 // 
 // The feature being tested is brillig recursion
 fn main(x: u32)  {
-    assert(fibonacci(x) == 55);
+    assert_eq(fibonacci(x), 55);
 }
 
 unconstrained fn fibonacci(x : u32) -> u32 {

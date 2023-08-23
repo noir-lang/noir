@@ -7,7 +7,7 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
        c = z*z*y[i];
        z -= c;
     }
-    assert(z==0);    //y[4]=0, so c and z are always 0
+    assert_eq(z, 0);    //y[4]=0, so c and z are always 0
 
     //Test 2:
     c = 2301 as u32;
@@ -16,7 +16,7 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
        c = z*z*x[i];
        z += x[i]*y[i] - c;
     }
-    assert(z==3814912846);
+    assert_eq(z, 3814912846);
 
     //Test 3:
     c = 2300001 as u32;
@@ -28,7 +28,7 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
             z *= c;
         }
     }
-    assert(z==41472);
+    assert_eq(z, 41472);
 
     //Test 4:
     z = y[4];
@@ -38,7 +38,7 @@ fn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {
           z += x[i+j] - y[i+j];
        }
     }
-    assert(z ==11539);
+    assert_eq(z, 11539);
 
     //Test 5:
     let cc = if z < 1 { x } else { y };

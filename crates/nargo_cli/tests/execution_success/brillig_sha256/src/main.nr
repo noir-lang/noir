@@ -4,7 +4,7 @@ use dep::std;
 // 
 // The features being tested is sha256 in brillig
 fn main(x: Field, result: [u8; 32]) {
-    assert(result == sha256(x));
+    assert_eq(result, sha256(x));
 }
 
 unconstrained fn sha256(x: Field) -> [u8; 32] {
