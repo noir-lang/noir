@@ -3,18 +3,20 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::ssa::ir::dfg::CallStack;
 
-#[derive(Debug, Clone)]
-pub(crate) struct GeneratedBrillig {
-    pub(crate) byte_code: Vec<BrilligOpcode>,
-    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
-}
-
 /// Represents a parameter or a return value of a function.
 #[derive(Debug, Clone)]
 pub(crate) enum BrilligParameter {
     Simple,
     Array(Vec<BrilligParameter>, usize),
     Slice(Vec<BrilligParameter>),
+}
+
+/// The result of compiling and linking brillig artifacts.
+/// This is ready to run bytecode with attached metadata.
+#[derive(Debug, Clone)]
+pub(crate) struct GeneratedBrillig {
+    pub(crate) byte_code: Vec<BrilligOpcode>,
+    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -34,9 +36,9 @@ pub(crate) struct BrilligArtifact {
     /// TODO: perhaps we should combine this with the `unresolved_jumps` field
     /// TODO: and have an enum which indicates whether the jump is internal or external
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
-
+    /// Maps the opcodes that are associated with a callstack to it.
     locations: BTreeMap<OpcodeLocation, CallStack>,
-
+    /// The current call stack. All opcodes that are pushed will be associated with this call stack.
     call_stack: CallStack,
 }
 
@@ -237,6 +239,7 @@ impl BrilligArtifact {
         }
     }
 
+    /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
         self.call_stack = call_stack;
     }
