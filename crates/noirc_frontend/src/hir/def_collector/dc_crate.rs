@@ -3,6 +3,8 @@ use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::graph::CrateId;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
+//use crate::hir::resolution::errors::ResolverError::PathResolutionError;
+use crate::hir::resolution::import::PathResolutionError;
 use crate::hir::resolution::resolver::Resolver;
 use crate::hir::resolution::{
     import::{resolve_imports, ImportDirective},
@@ -12,9 +14,9 @@ use crate::hir::type_check::{type_check_func, TypeChecker};
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner, StmtId, StructId, TraitId, TypeAliasId};
 use crate::{
-    ExpressionKind, Generics, Ident, LetStatement, Literal, NoirFunction, NoirStruct, NoirTrait,
-    NoirTypeAlias, ParsedModule, Shared, StructType, Type, TypeBinding, UnresolvedGenerics,
-    UnresolvedType,
+    ExpressionKind, FunctionReturnType, Generics, Ident, LetStatement, Literal, NoirFunction,
+    NoirStruct, NoirTrait, NoirTypeAlias, ParsedModule, Shared, StructType, TraitItem,
+    TraitItemType, Type, TypeBinding, UnresolvedGenerics, UnresolvedType,
 };
 use fm::FileId;
 use iter_extended::vecmap;
@@ -22,6 +24,7 @@ use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::vec;
 
 /// Stores all of the unresolved functions in a particular file/mod
 pub struct UnresolvedFunctions {
@@ -183,8 +186,8 @@ impl DefCollector {
 
         resolve_type_aliases(context, def_collector.collected_type_aliases, crate_id, errors);
 
-        // Must resolve structs before we resolve globals.
         resolve_traits(context, def_collector.collected_traits, crate_id, errors);
+        // Must resolve structs before we resolve globals.
         resolve_structs(context, def_collector.collected_types, crate_id, errors);
 
         // We must wait to resolve non-integer globals until after we resolve structs since structs
@@ -394,16 +397,116 @@ fn resolve_structs(
     }
 }
 
+fn resolve_trait_types(
+    _context: &mut Context,
+    _crate_id: CrateId,
+    _unresolved_trait: &UnresolvedTrait,
+    _errors: &mut [FileDiagnostic],
+) -> Vec<TraitItemType> {
+    // TODO
+    vec![]
+}
+fn resolve_trait_constants(
+    _context: &mut Context,
+    _crate_id: CrateId,
+    _unresolved_trait: &UnresolvedTrait,
+    _errors: &mut [FileDiagnostic],
+) -> Vec<TraitItemType> {
+    // TODO
+    vec![]
+}
+fn resolve_trait_methods(
+    context: &mut Context,
+    crate_id: CrateId,
+    unresolved_trait: &UnresolvedTrait,
+    errors: &mut Vec<FileDiagnostic>,
+) -> Vec<TraitItemType> {
+    let interner = &mut context.def_interner;
+    let def_maps = &mut context.def_maps;
+
+    let path_resolver = StandardPathResolver::new(ModuleId {
+        local_id: unresolved_trait.module_id,
+        krate: crate_id,
+    });
+    let file = def_maps[&crate_id].file_id(unresolved_trait.module_id);
+
+    let mut res = vec![];
+
+    for item in &unresolved_trait.trait_def.items {
+        if let TraitItem::Function {
+            name,
+            generics: _,
+            parameters,
+            return_type,
+            where_clause: _,
+            body: _,
+        } = item
+        {
+            let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
+
+            //let self_type = resolver.resolve_type(unresolved_trait.clone());
+            //resolver.set_self_type(self_type.clone());
+
+            let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
+            let resolved_return_type = match return_type {
+                FunctionReturnType::Default(_) => None,
+                FunctionReturnType::Ty(unresolved_type, _span) => {
+                    Some(resolver.resolve_type(unresolved_type.clone()))
+                }
+            };
+            let name = name.clone();
+            // TODO
+            let generics: Generics = vec![];
+            let span: Span = name.span();
+            let f = TraitItemType::Function {
+                name,
+                generics,
+                arguments,
+                return_type: resolved_return_type,
+                span,
+            };
+            res.push(f);
+            // TODO, this is HACK and it should be removed when we implement a resolution of Self type in trait
+            let new_errors: Vec<ResolverError> = resolver
+                .take_errors()
+                .iter()
+                .cloned()
+                .filter(|resolution_error| match resolution_error {
+                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident)) => {
+                        &ident.0.contents != "Self"
+                    }
+                    _ => true,
+                })
+                .collect();
+            extend_errors(errors, file, new_errors);
+        }
+    }
+    res
+}
+
 /// Create the mappings from TypeId -> TraitType
 /// so that expressions can access the elements of traits
 fn resolve_traits(
     context: &mut Context,
     traits: HashMap<TraitId, UnresolvedTrait>,
-    _crate_id: CrateId,
-    _errors: &mut [FileDiagnostic],
+    crate_id: CrateId,
+    errors: &mut Vec<FileDiagnostic>,
 ) {
     for (trait_id, unresolved_trait) in &traits {
         context.def_interner.push_empty_trait(*trait_id, unresolved_trait);
+    }
+    for (trait_id, unresolved_trait) in traits {
+        let mut items: Vec<TraitItemType> = vec![];
+        // Resolve order
+        // 1. Trait Types ( Trait contants can have a trait type, therefore types before constants)
+        items.append(&mut resolve_trait_types(context, crate_id, &unresolved_trait, errors));
+        // 2. Trait Constants ( Trait's methods can use trait types & constants, threfore they should be after)
+        items.append(&mut resolve_trait_constants(context, crate_id, &unresolved_trait, errors));
+        // 3. Trait Methods
+        items.append(&mut resolve_trait_methods(context, crate_id, &unresolved_trait, errors));
+        context.def_interner.update_trait(trait_id, |trait_def| {
+            trait_def.set_items(items);
+        });
     }
 }
 

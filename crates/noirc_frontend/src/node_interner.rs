@@ -389,6 +389,11 @@ impl NodeInterner {
         f(&mut value);
     }
 
+    pub fn update_trait(&mut self, trait_id: TraitId, f: impl FnOnce(&mut Trait)) {
+        let mut value = self.traits.get_mut(&trait_id).unwrap().borrow_mut();
+        f(&mut value);
+    }
+
     pub fn set_type_alias(&mut self, type_id: TypeAliasId, typ: Type, generics: Generics) {
         let type_alias_type = &mut self.type_aliases[type_id.0];
         type_alias_type.set_type_and_generics(typ, generics);
