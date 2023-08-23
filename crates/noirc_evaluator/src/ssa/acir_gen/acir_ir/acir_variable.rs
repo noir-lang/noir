@@ -220,6 +220,20 @@ impl AcirContext {
         self.acir_ir.call_stack = call_stack;
     }
 
+    fn get_or_create_witness_var(&mut self, var: AcirVar) -> Result<AcirVar, InternalError> {
+        if self.var_to_expression(var)?.to_witness().is_some() {
+            // If called with a variable which is already a witness then return the same variable.
+            return Ok(var);
+        }
+
+        let var_as_witness = self.var_to_witness(var)?;
+
+        let witness_var = self.add_data(AcirVarData::Witness(var_as_witness));
+        self.mark_variables_equivalent(var, witness_var)?;
+
+        Ok(witness_var)
+    }
+
     /// Converts an [`AcirVar`] to a [`Witness`]
     fn var_to_witness(&mut self, var: AcirVar) -> Result<Witness, InternalError> {
         let expression = self.var_to_expression(var)?;
@@ -461,20 +475,6 @@ impl AcirContext {
         let lhs_data = self.vars[&lhs].clone();
         let rhs_data = self.vars[&rhs].clone();
         let result = match (lhs_data, rhs_data) {
-            (AcirVarData::Expr(expr), AcirVarData::Witness(_)) => {
-                let expr_as_witness = self.acir_ir.get_or_create_witness(&expr);
-                let expr_as_witness = self.add_data(AcirVarData::Witness(expr_as_witness));
-                self.mark_variables_equivalent(lhs, expr_as_witness)?;
-
-                self.mul_var(expr_as_witness, rhs)?
-            }
-            (AcirVarData::Witness(_), AcirVarData::Expr(expr)) => {
-                let expr_as_witness = self.acir_ir.get_or_create_witness(&expr);
-                let expr_as_witness = self.add_data(AcirVarData::Witness(expr_as_witness));
-                self.mark_variables_equivalent(rhs, expr_as_witness)?;
-
-                self.mul_var(lhs, expr_as_witness)?
-            }
             (AcirVarData::Witness(witness), AcirVarData::Const(constant))
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
                 let mut expr = Expression::default();
@@ -493,16 +493,14 @@ impl AcirContext {
             (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
                 self.add_data(AcirVarData::Const(lhs_constant * rhs_constant))
             }
-            (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
-                let lhs_expr_as_witness = self.acir_ir.get_or_create_witness(&lhs_expr);
-                let lhs_expr_as_witness = self.add_data(AcirVarData::Witness(lhs_expr_as_witness));
-                self.mark_variables_equivalent(lhs, lhs_expr_as_witness)?;
+            (
+                AcirVarData::Expr(_) | AcirVarData::Witness(_),
+                AcirVarData::Expr(_) | AcirVarData::Witness(_),
+            ) => {
+                let lhs = self.get_or_create_witness_var(lhs)?;
+                let rhs = self.get_or_create_witness_var(rhs)?;
 
-                let rhs_expr_as_witness = self.acir_ir.get_or_create_witness(&rhs_expr);
-                let rhs_expr_as_witness = self.add_data(AcirVarData::Witness(rhs_expr_as_witness));
-                self.mark_variables_equivalent(rhs, rhs_expr_as_witness)?;
-
-                self.mul_var(lhs_expr_as_witness, rhs_expr_as_witness)?
+                self.mul_var(lhs, rhs)?
             }
         };
         Ok(result)
