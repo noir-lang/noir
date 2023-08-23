@@ -216,6 +216,13 @@ pub(super) fn simplify_call(
         }
         Intrinsic::BlackBox(bb_func) => simplify_black_box_func(bb_func, arguments, dfg),
         Intrinsic::Sort => simplify_sort(dfg, arguments),
+        Intrinsic::SliceAsArray => {
+            if let Some((slice, index)) = dfg.get_array_constant(arguments[1]) {
+                SimplifyResult::SimplifiedTo(dfg.make_array(slice, index))
+            } else {
+                SimplifyResult::None
+            }
+        }
     }
 }
 

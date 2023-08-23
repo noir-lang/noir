@@ -83,3 +83,11 @@ impl<T, N> [T; N] {
         ret
     }
 }
+
+fn repeated<T>(element: T, length: Field) -> [T] {
+    let mut result = [];
+    for _ in 0..length {
+        result = result.push_back(element);
+    }
+    result
+}

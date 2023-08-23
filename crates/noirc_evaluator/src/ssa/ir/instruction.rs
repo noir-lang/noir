@@ -40,6 +40,7 @@ pub(crate) enum Intrinsic {
     SlicePopFront,
     SliceInsert,
     SliceRemove,
+    SliceAsArray,
     StrAsBytes,
     ToBits(Endian),
     ToRadix(Endian),
@@ -64,6 +65,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
             Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
+            Intrinsic::SliceAsArray => write!(f, "unsafe_slice_as_array"),
         }
     }
 }
@@ -84,6 +86,7 @@ impl Intrinsic {
             | Intrinsic::SlicePopFront
             | Intrinsic::SliceInsert
             | Intrinsic::SliceRemove
+            | Intrinsic::SliceAsArray
             | Intrinsic::StrAsBytes
             | Intrinsic::ToBits(_)
             | Intrinsic::ToRadix(_) => false,
@@ -106,6 +109,7 @@ impl Intrinsic {
             "slice_pop_front" => Some(Intrinsic::SlicePopFront),
             "slice_insert" => Some(Intrinsic::SliceInsert),
             "slice_remove" => Some(Intrinsic::SliceRemove),
+            "unsafe_slice_as_array" => Some(Intrinsic::SliceAsArray),
             "str_as_bytes" => Some(Intrinsic::StrAsBytes),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
