@@ -6,7 +6,6 @@ use dep::aztec::note::{
 use dep::aztec::oracle::{
     rand::rand,
     get_secret_key::get_secret_key,
-    get_public_key::get_public_key,
 };
 
 global VALUE_NOTE_LEN: Field = 3; // 3 plus a header.
@@ -51,17 +50,18 @@ impl ValueNote {
         ])[0]
     }
 
+    // docs:start:nullifier
+
     fn compute_nullifier(self) -> Field {
         let note_hash_for_nullify = compute_note_hash_for_read_or_nullify(ValueNoteMethods, self);
-        let owner_nullifying_public_key = get_public_key(self.owner);
-        // TODO: get_secret_key should just accept an address
-        // TODO!
-        let secret = get_secret_key(owner_nullifying_public_key);
+        let secret = get_secret_key(self.owner);
         dep::std::hash::pedersen([
             note_hash_for_nullify,
             secret,
         ])[0]
     }
+
+    // docs:end:nullifier
 
     fn set_header(&mut self, header: NoteHeader) {
         self.header = header;

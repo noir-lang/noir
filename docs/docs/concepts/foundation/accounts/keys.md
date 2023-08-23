@@ -8,29 +8,11 @@ Typically, each account in Aztec is backed by two separate keys:
 
 Signing keys allow their holder to act as their corresponding account in Aztec, similarly to the keys used for an Ethereum account. If a signing key is leaked, the user can potentially lose all their funds. 
 
-Since Aztec implements full [signature abstraction](./main.md), signing keys depend on the account contract implementation for each user. Usually, an account contract will validate a signature of the incoming payload against a known public key. 
+Since Aztec implements full [signature abstraction](./main.md), signing keys depend on the account contract implementation for each user. Usually, an account contract will validate a signature of the incoming payload against a known public key.
 
-```noir
-fn entrypoint(
-    inputs: pub PrivateContextInputs,
-    payload: pub EntrypointPayload,
-    signature: pub [u8;64],
-) -> distinct pub abi::PrivateCircuitPublicInputs {
-    // Initialize context and load public key
-    // ...
+This is a snippet of our Schnorr Account contract implementation, which uses Schnorr signatures for authentication:
 
-    // Verify payload signature
-    let payload_bytes: [u8; entrypoint::ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = payload.to_be_bytes();
-    let payload_hash: [u8; 32] = std::hash::sha256(payload_bytes);
-
-    // Verify signature of the payload hash
-    let verification = std::schnorr::verify_signature(public_key.x, public_key.y, signature, payload_hash);
-    assert(verification == true);
-
-    // Execute calls and return
-    // ...
-}
-```
+#include_code entrypoint /yarn-project/noir-contracts/src/contracts/schnorr_account_contract/src/main.nr rust
 
 Still, different accounts may use different signing schemes, may require multi-factor authentication, or _may not even use signing keys_ and instead rely on other authentication mechanisms. Read [how to write an account contract](../../../dev_docs/wallets/writing_an_account_contract.md) for a full example of how to manage authentication.
 
@@ -89,16 +71,7 @@ In a future version, encryption keys will be differentiated between incoming and
 
 An application in Noir can access the encryption public key for a given address using the oracle call `get_public_key`, which you can then use for calls such as `emit_encrypted_log`:
 
-```noir
-let encryption_public_key = get_public_key(recipient);
-context = emit_encrypted_log(
-    context,
-    application_contract_address,
-    storage_slot,
-    encryption_public_key,
-    note.serialise(),
-);
-```
+#include_code encrypted /yarn-project/noir-libs/value-note/src/utils.nr rust
 
 :::info
 In order to be able to provide the public encryption key for a given address, that public key needs to have been registered in advance. At the moment, there is no broadcasting mechanism for public keys, which means that you will need to manually register all addresses you intend to send encrypted notes to. You can do this via the `registerRecipient` method of the Aztec RPC server, callable either via aztec.js or the CLI. Note that any accounts you own that have been added to the RPC server are automatically registered.
@@ -110,13 +83,8 @@ In addition to deriving encryption keys, the privacy master key is used for deri
 
 An application in Noir can request a nullifier from the current user for computing the nullifier of a note via the `get_secret_key` oracle call:
 
-```noir
-fn compute_nullifier(self) -> Field {
-    let siloed_note_hash = compute_siloed_note_hash(ValueNoteMethods, self);
-    let secret = get_secret_key(self.owner);
-    dep::std::hash::pedersen([siloed_note_hash, secret])[0]
-}
-```
+#include_code nullifier /yarn-project/noir-libs/value-note/src/value_note.nr rust
+
 ### Scoped keys
 
 :::warning

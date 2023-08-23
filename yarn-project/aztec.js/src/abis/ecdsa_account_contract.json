@@ -48,7 +48,7 @@
           }
         }
       ],
-      "bytecode": "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",
+      "bytecode": "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",
       "verificationKey": "0000000200000800000000740000000f00000003515f3109623eb3c25aa5b16a1a79fd558bac7a7ce62c4560a8c537c77ce80dd339128d1d37b6582ee9e6df9567efb64313471dfa18f520f9ce53161b50dbf7731bc5f900000003515f322bc4cce83a486a92c92fd59bd84e0f92595baa639fc2ed86b00ffa0dfded2a092a669a3bdb7a273a015eda494457cc7ed5236f26cee330c290d45a33b9daa94800000003515f332729426c008c085a81bd34d8ef12dd31e80130339ef99d50013a89e4558eee6d0fa4ffe2ee7b7b62eb92608b2251ac31396a718f9b34978888789042b790a30100000003515f342be6b6824a913eb7a57b03cb1ee7bfb4de02f2f65fe8a4e97baa7766ddb353a82a8a25c49dc63778cd9fe96173f12a2bc77f3682f4c4448f98f1df82c75234a100000003515f351f85760d6ab567465aadc2f180af9eae3800e6958fec96aef53fd8a7b195d7c000c6267a0dd5cfc22b3fe804f53e266069c0e36f51885baec1e7e67650c62e170000000c515f41524954484d455449430d9d0f8ece2aa12012fa21e6e5c859e97bd5704e5c122064a66051294bc5e04213f61f54a0ebdf6fee4d4a6ecf693478191de0c2899bcd8e86a636c8d3eff43400000003515f43224a99d02c86336737c8dd5b746c40d2be6aead8393889a76a18d664029096e90f7fe81adcc92a74350eada9622ac453f49ebac24a066a1f83b394df54dfa0130000000c515f46495845445f42415345060e8a013ed289c2f9fd7473b04f6594b138ddb4b4cf6b901622a14088f04b8d2c83ff74fce56e3d5573b99c7b26d85d5046ce0c6559506acb7a675e7713eb3a00000007515f4c4f4749430721a91cb8da4b917e054f72147e1760cfe0ef3d45090ac0f4961d84ec1996961a25e787b26bd8b50b1a99450f77a424a83513c2b33af268cd253b0587ff50c700000003515f4d05dbd8623b8652511e1eb38d38887a69eceb082f807514f09e127237c5213b401b9325b48c6c225968002318095f89d0ef9cf629b2b7f0172e03bc39aacf6ed800000007515f52414e474504b57a3805e41df328f5ca9aefa40fad5917391543b7b65c6476e60b8f72e9ad07c92f3b3e11c8feae96dedc4b14a6226ef3201244f37cfc1ee5b96781f48d2b000000075349474d415f3125001d1954a18571eaa007144c5a567bb0d2be4def08a8be918b8c05e3b27d312c59ed41e09e144eab5de77ca89a2fd783be702a47c951d3112e3de02ce6e47c000000075349474d415f3223994e6a23618e60fa01c449a7ab88378709197e186d48d604bfb6931ffb15ad11c5ec7a0700570f80088fd5198ab5d5c227f2ad2a455a6edeec024156bb7beb000000075349474d415f3300cda5845f23468a13275d18bddae27c6bb189cf9aa95b6a03a0cb6688c7e8d829639b45cf8607c525cc400b55ebf90205f2f378626dc3406cc59b2d1b474fba000000075349474d415f342d299e7928496ea2d37f10b43afd6a80c90a33b483090d18069ffa275eedb2fc2f82121e8de43dc036d99b478b6227ceef34248939987a19011f065d8b5cef5c0000000010000000000000000100000002000000030000000400000005000000060000000700000008000000090000000a0000000b0000000c0000000d0000000e0000000f"
     },
     {
@@ -442,8 +442,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -486,8 +486,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -530,8 +530,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -574,8 +574,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -618,8 +618,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -662,8 +662,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -706,8 +706,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -750,8 +750,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -794,8 +794,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -838,8 +838,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -882,8 +882,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -926,8 +926,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -970,8 +970,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1014,8 +1014,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1058,8 +1058,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1102,8 +1102,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1146,8 +1146,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1190,8 +1190,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1234,8 +1234,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1278,8 +1278,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1322,8 +1322,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1366,8 +1366,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1410,8 +1410,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1454,8 +1454,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1498,8 +1498,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1542,8 +1542,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1586,8 +1586,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1630,8 +1630,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1674,8 +1674,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1718,8 +1718,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1762,8 +1762,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1806,8 +1806,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1850,8 +1850,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1894,8 +1894,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1938,8 +1938,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -1982,8 +1982,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2026,8 +2026,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2070,8 +2070,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2114,8 +2114,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2158,8 +2158,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2202,8 +2202,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2246,8 +2246,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2290,8 +2290,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2334,8 +2334,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2378,8 +2378,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2422,8 +2422,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2466,8 +2466,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2510,8 +2510,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2554,8 +2554,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2598,8 +2598,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2642,8 +2642,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2686,8 +2686,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2730,8 +2730,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2774,8 +2774,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2818,8 +2818,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2862,8 +2862,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2906,8 +2906,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2950,8 +2950,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -2994,8 +2994,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -3038,8 +3038,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4289,8 +4289,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4340,8 +4340,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4391,8 +4391,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4442,8 +4442,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4493,8 +4493,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4544,8 +4544,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4595,8 +4595,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4646,8 +4646,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4697,8 +4697,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4748,8 +4748,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4799,8 +4799,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4850,8 +4850,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4901,8 +4901,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -4952,8 +4952,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5003,8 +5003,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5054,8 +5054,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5105,8 +5105,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5156,8 +5156,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5207,8 +5207,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5258,8 +5258,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5309,8 +5309,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5360,8 +5360,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5411,8 +5411,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5462,8 +5462,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5513,8 +5513,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5564,8 +5564,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5615,8 +5615,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5666,8 +5666,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5717,8 +5717,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5768,8 +5768,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5819,8 +5819,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5870,8 +5870,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5921,8 +5921,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -5972,8 +5972,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6023,8 +6023,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6074,8 +6074,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6125,8 +6125,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6176,8 +6176,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6227,8 +6227,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6278,8 +6278,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6329,8 +6329,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6380,8 +6380,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6431,8 +6431,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6482,8 +6482,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6533,8 +6533,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6584,8 +6584,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6635,8 +6635,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6686,8 +6686,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6737,8 +6737,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6788,8 +6788,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6839,8 +6839,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6890,8 +6890,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6941,8 +6941,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -6992,8 +6992,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -7043,8 +7043,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -7094,8 +7094,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -7145,8 +7145,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -7196,8 +7196,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -7247,8 +7247,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -7298,8 +7298,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -7363,8 +7363,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -7428,8 +7428,8 @@
             },
             {
               "span": {
-                "start": 2895,
-                "end": 2936
+                "start": 2752,
+                "end": 2793
               },
               "file": 81
             },
@@ -26182,7 +26182,7 @@
     "fileMap": {
       "0": {
         "source": "mod storage;\nmod ecdsa_public_key_note;\n\n// Account contract that uses ECDSA signatures for authentication on the same curve as Ethereum.\n// The signing key is stored in an immutable private note and should be different from the signing key.\ncontract EcdsaAccount {\n    use dep::std;\n    use dep::aztec::entrypoint;\n    use dep::aztec::entrypoint::EntrypointPayload;\n    use dep::aztec::abi;\n    use dep::aztec::abi::PrivateContextInputs;\n    use dep::aztec::abi::CallContext;\n    use dep::aztec::context::PrivateContext;\n    use dep::aztec::log::emit_encrypted_log;\n    use dep::aztec::oracle::get_public_key::get_public_key;\n    use dep::aztec::types::vec::BoundedVec;\n    use dep::aztec::types::point::Point;\n    use dep::aztec::constants_gen::GENERATOR_INDEX__SIGNATURE_PAYLOAD;\n\n    use dep::aztec::constants_gen::MAX_NOTE_FIELDS_LENGTH;\n    use dep::aztec::note::{\n        note_header::{NoteHeader},\n        utils as note_utils,\n    };\n\n    use crate::storage::Storage;\n    use crate::ecdsa_public_key_note::EcdsaPublicKeyNote;\n    use crate::ecdsa_public_key_note::EcdsaPublicKeyNoteInterface;\n    use crate::ecdsa_public_key_note::ECDSA_PUBLIC_KEY_NOTE_LEN;\n\n    // All calls made by this account will be routed through this entrypoint\n    fn entrypoint(  \n        inputs: pub PrivateContextInputs,\n        payload: pub EntrypointPayload, // contains a set of arguments, selectors, targets and a nonce\n        signature: pub [u8;64],\n    ) -> distinct pub abi::PrivateCircuitPublicInputs {\n        \n        // Initialise context\n        // ENTRYPOINT_PAYLOAD_SIZE(13) + 64\n        let mut args: BoundedVec<Field, 77> = BoundedVec::new(0);\n        args.push_array(payload.serialize());\n        for byte in signature { args.push(byte as Field); }\n        let mut context = PrivateContext::new(inputs, abi::hash_args(args.storage));\n\n        // Load public key from storage\n        let storage = Storage::init();\n        let public_key = storage.public_key.get_note(&mut context);\n\n        // Verify payload signature using Ethereum's signing scheme\n        // Note that noir expects the hash of the message/challenge as input to the ECDSA verification.\n        let payload_fields: [Field; entrypoint::ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();\n        let message_field: Field = std::hash::pedersen_with_separator(payload_fields, GENERATOR_INDEX__SIGNATURE_PAYLOAD)[0];\n        let message_bytes = message_field.to_be_bytes(32);\n        let hashed_message: [u8; 32] = std::hash::sha256(message_bytes);\n        let verification = std::ecdsa_secp256k1::verify_signature(public_key.x, public_key.y, signature, hashed_message);\n        assert(verification == true);\n\n        payload.execute_calls(&mut context);\n\n        context.finish()\n    }\n\n    // Creates a new account out of an ECDSA public key to use for signature verification\n    fn constructor(\n        inputs: pub PrivateContextInputs,\n        signing_pub_key_x: pub [u8;32],\n        signing_pub_key_y: pub [u8;32],\n    ) -> distinct pub abi::PrivateCircuitPublicInputs {\n        let storage = Storage::init();\n        \n        let mut args: BoundedVec<Field, 64> = BoundedVec::new(0);\n        for byte in signing_pub_key_x { args.push(byte as Field); }\n        for byte in signing_pub_key_y { args.push(byte as Field); }\n        let mut context = PrivateContext::new(inputs, abi::hash_args(args.storage));\n        \n        let this = context.this_address();\n        let mut pub_key_note = EcdsaPublicKeyNote::new(signing_pub_key_x, signing_pub_key_y, this);\n        storage.public_key.initialise(&mut context, &mut pub_key_note);\n        \n        emit_encrypted_log(\n            &mut context,\n            this,\n            storage.public_key.storage_slot,\n            get_public_key(this),\n            pub_key_note.serialise(),\n        );\n\n        context.finish()\n    }\n\n    // Computes note hash and nullifier.\n    // Note 1: Needs to be defined by every contract producing logs.\n    // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.\n    unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; ECDSA_PUBLIC_KEY_NOTE_LEN]) -> [Field; 4] {\n        assert(storage_slot == 1);\n        let note_header = NoteHeader { contract_address, nonce, storage_slot };\n        note_utils::compute_note_hash_and_nullifier(EcdsaPublicKeyNoteInterface, note_header, preimage)\n    }\n}\n",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-contracts/src/contracts/ecdsa_account_contract/src/main"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-contracts/src/contracts/ecdsa_account_contract/src/main"
       },
       "3": {
         "source": "mod poseidon;\n\n#[foreign(sha256)]\nfn sha256<N>(_input : [u8; N]) -> [u8; 32] {}\n\n#[foreign(blake2s)]\nfn blake2s<N>(_input : [u8; N]) -> [u8; 32] {}\n\nfn pedersen<N>(input : [Field; N]) -> [Field; 2] {\n    pedersen_with_separator(input, 0)\n}\n\n#[foreign(pedersen)]\nfn pedersen_with_separator<N>(_input : [Field; N], _separator : u32) -> [Field; 2] {}\n\n#[foreign(hash_to_field_128_security)]\nfn hash_to_field<N>(_input : [Field; N]) -> Field {}\n\n#[foreign(keccak256)]\nfn keccak256<N>(_input : [u8; N], _message_size: u32) -> [u8; 32] {}\n\n// mimc-p/p implementation\n// constants are (publicly generated) random numbers, for instance using keccak as a ROM.\n// You must use constants generated for the native field\n// Rounds number should be ~ log(p)/log(exp)\n// For 254 bit primes, exponent 7 and 91 rounds seems to be recommended\nfn mimc<N>(x: Field, k: Field, constants: [Field; N], exp : Field) -> Field {\n    //round 0\n    let mut t = x + k;\n    let mut h = t.pow_32(exp);\n    //next rounds\n    for i in 1 .. constants.len() {\n        t = h + k + constants[i];\n        h = t.pow_32(exp);\n    };\n    h + k\n}\n\nglobal MIMC_BN254_ROUNDS = 91;\n\n//mimc implementation with hardcoded parameters for BN254 curve.\nfn mimc_bn254<N>(array: [Field; N]) -> Field {\n    //mimc parameters\n    let exponent = 7;\n    //generated from seed \"mimc\" using keccak256 \n    let constants: [Field; MIMC_BN254_ROUNDS] = [\n        0, \n        20888961410941983456478427210666206549300505294776164667214940546594746570981,\n        15265126113435022738560151911929040668591755459209400716467504685752745317193,\n        8334177627492981984476504167502758309043212251641796197711684499645635709656,\n        1374324219480165500871639364801692115397519265181803854177629327624133579404,\n        11442588683664344394633565859260176446561886575962616332903193988751292992472,\n        2558901189096558760448896669327086721003508630712968559048179091037845349145,\n        11189978595292752354820141775598510151189959177917284797737745690127318076389,\n        3262966573163560839685415914157855077211340576201936620532175028036746741754,\n        17029914891543225301403832095880481731551830725367286980611178737703889171730,\n        4614037031668406927330683909387957156531244689520944789503628527855167665518,\n        19647356996769918391113967168615123299113119185942498194367262335168397100658,\n        5040699236106090655289931820723926657076483236860546282406111821875672148900,\n        2632385916954580941368956176626336146806721642583847728103570779270161510514,\n        17691411851977575435597871505860208507285462834710151833948561098560743654671,\n        11482807709115676646560379017491661435505951727793345550942389701970904563183,\n        8360838254132998143349158726141014535383109403565779450210746881879715734773,\n        12663821244032248511491386323242575231591777785787269938928497649288048289525,\n        3067001377342968891237590775929219083706800062321980129409398033259904188058,\n        8536471869378957766675292398190944925664113548202769136103887479787957959589,\n        19825444354178182240559170937204690272111734703605805530888940813160705385792,\n        16703465144013840124940690347975638755097486902749048533167980887413919317592,\n        13061236261277650370863439564453267964462486225679643020432589226741411380501,\n        10864774797625152707517901967943775867717907803542223029967000416969007792571,\n        10035653564014594269791753415727486340557376923045841607746250017541686319774,\n        3446968588058668564420958894889124905706353937375068998436129414772610003289,\n        4653317306466493184743870159523234588955994456998076243468148492375236846006,\n        8486711143589723036499933521576871883500223198263343024003617825616410932026,\n        250710584458582618659378487568129931785810765264752039738223488321597070280,\n        2104159799604932521291371026105311735948154964200596636974609406977292675173,\n        16313562605837709339799839901240652934758303521543693857533755376563489378839,\n        6032365105133504724925793806318578936233045029919447519826248813478479197288,\n        14025118133847866722315446277964222215118620050302054655768867040006542798474,\n        7400123822125662712777833064081316757896757785777291653271747396958201309118,\n        1744432620323851751204287974553233986555641872755053103823939564833813704825,\n        8316378125659383262515151597439205374263247719876250938893842106722210729522,\n        6739722627047123650704294650168547689199576889424317598327664349670094847386,\n        21211457866117465531949733809706514799713333930924902519246949506964470524162,\n        13718112532745211817410303291774369209520657938741992779396229864894885156527,\n        5264534817993325015357427094323255342713527811596856940387954546330728068658,\n        18884137497114307927425084003812022333609937761793387700010402412840002189451,\n        5148596049900083984813839872929010525572543381981952060869301611018636120248,\n        19799686398774806587970184652860783461860993790013219899147141137827718662674,\n        19240878651604412704364448729659032944342952609050243268894572835672205984837,\n        10546185249390392695582524554167530669949955276893453512788278945742408153192,\n        5507959600969845538113649209272736011390582494851145043668969080335346810411,\n        18177751737739153338153217698774510185696788019377850245260475034576050820091,\n        19603444733183990109492724100282114612026332366576932662794133334264283907557,\n        10548274686824425401349248282213580046351514091431715597441736281987273193140,\n        1823201861560942974198127384034483127920205835821334101215923769688644479957,\n        11867589662193422187545516240823411225342068709600734253659804646934346124945,\n        18718569356736340558616379408444812528964066420519677106145092918482774343613,\n        10530777752259630125564678480897857853807637120039176813174150229243735996839,\n        20486583726592018813337145844457018474256372770211860618687961310422228379031,\n        12690713110714036569415168795200156516217175005650145422920562694422306200486,\n        17386427286863519095301372413760745749282643730629659997153085139065756667205,\n        2216432659854733047132347621569505613620980842043977268828076165669557467682,\n        6309765381643925252238633914530877025934201680691496500372265330505506717193,\n        20806323192073945401862788605803131761175139076694468214027227878952047793390,\n        4037040458505567977365391535756875199663510397600316887746139396052445718861,\n        19948974083684238245321361840704327952464170097132407924861169241740046562673,\n        845322671528508199439318170916419179535949348988022948153107378280175750024,\n        16222384601744433420585982239113457177459602187868460608565289920306145389382,\n        10232118865851112229330353999139005145127746617219324244541194256766741433339,\n        6699067738555349409504843460654299019000594109597429103342076743347235369120,\n        6220784880752427143725783746407285094967584864656399181815603544365010379208,\n        6129250029437675212264306655559561251995722990149771051304736001195288083309,\n        10773245783118750721454994239248013870822765715268323522295722350908043393604,\n        4490242021765793917495398271905043433053432245571325177153467194570741607167,\n        19596995117319480189066041930051006586888908165330319666010398892494684778526,\n        837850695495734270707668553360118467905109360511302468085569220634750561083,\n        11803922811376367215191737026157445294481406304781326649717082177394185903907,\n        10201298324909697255105265958780781450978049256931478989759448189112393506592,\n        13564695482314888817576351063608519127702411536552857463682060761575100923924,\n        9262808208636973454201420823766139682381973240743541030659775288508921362724,\n        173271062536305557219323722062711383294158572562695717740068656098441040230,\n        18120430890549410286417591505529104700901943324772175772035648111937818237369,\n        20484495168135072493552514219686101965206843697794133766912991150184337935627,\n        19155651295705203459475805213866664350848604323501251939850063308319753686505,\n        11971299749478202793661982361798418342615500543489781306376058267926437157297,\n        18285310723116790056148596536349375622245669010373674803854111592441823052978,\n        7069216248902547653615508023941692395371990416048967468982099270925308100727,\n        6465151453746412132599596984628739550147379072443683076388208843341824127379,\n        16143532858389170960690347742477978826830511669766530042104134302796355145785,\n        19362583304414853660976404410208489566967618125972377176980367224623492419647,\n        1702213613534733786921602839210290505213503664731919006932367875629005980493,\n        10781825404476535814285389902565833897646945212027592373510689209734812292327,\n        4212716923652881254737947578600828255798948993302968210248673545442808456151,\n        7594017890037021425366623750593200398174488805473151513558919864633711506220,\n        18979889247746272055963929241596362599320706910852082477600815822482192194401,\n        13602139229813231349386885113156901793661719180900395818909719758150455500533,\n    ];\n\n    let mut r = 0;\n    for elem in array {\n        let h = mimc(elem, r, constants, exponent);\n        r = r + elem + h;\n    }\n    r\n}\n",
@@ -26194,47 +26194,47 @@
       },
       "31": {
         "source": "use crate::constants_gen::{\n    RETURN_VALUES_LENGTH,\n    MAX_READ_REQUESTS_PER_CALL,\n    MAX_NEW_COMMITMENTS_PER_CALL,\n    MAX_NEW_NULLIFIERS_PER_CALL,\n    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,\n    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,\n    MAX_NEW_L2_TO_L1_MSGS_PER_CALL,\n    NUM_FIELDS_PER_SHA256,\n    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,\n    MAX_PUBLIC_DATA_READS_PER_CALL,\n    GENERATOR_INDEX__FUNCTION_ARGS,\n    HISTORIC_BLOCK_DATA_LENGTH,\n    CONTRACT_DEPLOYMENT_DATA_LENGTH,\n    CALL_CONTEXT_LENGTH,\n    PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH,\n    PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,\n    CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH,\n    CONTRACT_STORAGE_READ_LENGTH,\n    PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH,\n    PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH,\n    GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS,\n    GENERATOR_INDEX__FUNCTION_DATA,\n    GENERATOR_INDEX__PUBLIC_DATA_READ,\n    GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST,\n    GENERATOR_INDEX__CALL_CONTEXT,\n    GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS,\n    GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA,\n};\n\nuse crate::oracle::debug_log;\nuse crate::types::vec::BoundedVec;\nuse crate::types::point::Point;\n\nstruct PrivateGlobalVariables {\n    chain_id: Field,\n    version: Field,\n}\n\nimpl PrivateGlobalVariables {\n    fn serialize(self) -> [Field; 2] {\n        [self.chain_id, self.version]\n    }\n}\n\nstruct PublicGlobalVariables {\n    chain_id: Field,\n    version: Field,\n    block_number: Field,\n    timestamp: Field,\n}\n\nimpl PublicGlobalVariables {\n    fn serialize(self) -> [Field; 4] {\n        [self.chain_id, self.version, self.block_number, self.timestamp]\n    }\n}\n\nstruct ContractDeploymentData {\n    deployer_public_key: Point,\n    constructor_vk_hash : Field,\n    function_tree_root : Field,\n    contract_address_salt : Field,\n    portal_contract_address : Field,\n}\n\nimpl ContractDeploymentData {\n    fn serialize(self) -> [Field; CONTRACT_DEPLOYMENT_DATA_LENGTH] {\n        [\n            self.deployer_public_key.x,\n            self.deployer_public_key.y,\n            self.constructor_vk_hash,\n            self.function_tree_root,\n            self.contract_address_salt,\n            self.portal_contract_address,\n        ]\n    }\n\n    fn hash(self) -> Field {\n        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__CONTRACT_DEPLOYMENT_DATA)[0]\n    }\n}\n\n// PrivateContextInputs are expected to be provided to each private function\nstruct PrivateContextInputs {\n    call_context : CallContext,\n    block_data: HistoricBlockData,\n\n    contract_deployment_data: ContractDeploymentData,\n\n    private_global_variables: PrivateGlobalVariables,\n}\n\n// PublicContextInputs are expected to be provided to each public function\nstruct PublicContextInputs {\n    call_context: CallContext,\n    block_data: HistoricBlockData,\n\n    public_global_variables: PublicGlobalVariables,\n}\n\nstruct CallContext {\n    msg_sender : Field,\n    storage_contract_address : Field,\n    portal_contract_address : Field,\n\n    is_delegate_call : bool,\n    is_static_call : bool,\n    is_contract_deployment: bool,\n}\n\nimpl CallContext {\n    fn serialize(self) -> [Field; CALL_CONTEXT_LENGTH] {\n        [\n            self.msg_sender,\n            self.storage_contract_address,\n            self.portal_contract_address,\n            self.is_delegate_call as Field,\n            self.is_static_call as Field,\n            self.is_contract_deployment as Field,\n        ]\n    }\n\n    fn hash(self) -> Field {\n        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__CALL_CONTEXT)[0]\n    }\n}\n\nstruct HistoricBlockData {\n    private_data_tree_root : Field,\n    nullifier_tree_root : Field,\n    contract_tree_root : Field,\n    l1_to_l2_messages_tree_root : Field,\n    blocks_tree_root: Field,\n    public_data_tree_root: Field,\n    global_variables_hash: Field,\n}\n\nimpl HistoricBlockData {\n    // NOTE: this order must match the order in `private_circuit_public_inputs.hpp`\n    fn serialize(self) -> [Field; HISTORIC_BLOCK_DATA_LENGTH] {\n        [\n            self.private_data_tree_root,\n            self.nullifier_tree_root,\n            self.contract_tree_root,\n            self.l1_to_l2_messages_tree_root,\n            self.blocks_tree_root,\n            self.public_data_tree_root,\n            self.global_variables_hash,\n        ]\n    }\n\n    fn empty() -> Self {\n        Self { private_data_tree_root: 0, nullifier_tree_root: 0, contract_tree_root: 0, l1_to_l2_messages_tree_root: 0, blocks_tree_root: 0, public_data_tree_root: 0, global_variables_hash: 0 }\n    }\n}\n\nstruct FunctionData {\n    function_selector: Field,\n    is_internal: bool,\n    is_private: bool,\n    is_constructor: bool,\n}\n\nimpl FunctionData {\n    fn hash(self) -> Field {\n        dep::std::hash::pedersen_with_separator([\n            self.function_selector,\n            self.is_internal as Field,\n            self.is_private as Field,\n            self.is_constructor as Field,\n        ], GENERATOR_INDEX__FUNCTION_DATA)[0]\n    }\n}\n\nstruct PrivateCircuitPublicInputs {\n    call_context: CallContext,\n    args_hash: Field,\n    return_values: [Field; RETURN_VALUES_LENGTH],\n    read_requests: [Field; crate::abi::MAX_READ_REQUESTS_PER_CALL],\n    new_commitments: [Field; MAX_NEW_COMMITMENTS_PER_CALL],\n    new_nullifiers: [Field; MAX_NEW_NULLIFIERS_PER_CALL],\n    nullified_commitments: [Field; MAX_NEW_NULLIFIERS_PER_CALL],\n    private_call_stack: [Field; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL],\n    public_call_stack: [Field; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],\n    new_l2_to_l1_msgs: [Field; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],\n    // Explore introducing a new type like uint256 (similar to Point), so it's more explicit that\n    // we're talking about a single number backed by two field elements.\n    encrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],\n    unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],\n    encrypted_log_preimages_length: Field,\n    unencrypted_log_preimages_length: Field,\n    block_data: HistoricBlockData,\n    contract_deployment_data: ContractDeploymentData,\n    chain_id: Field,\n    version: Field,\n}\n\nimpl PrivateCircuitPublicInputs {\n    fn hash(self) -> Field {\n        let mut fields: BoundedVec<Field, PRIVATE_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0); \n        fields.push(self.call_context.hash());\n        fields.push(self.args_hash);\n        fields.push_array(self.return_values);\n        fields.push_array(self.read_requests);\n        fields.push_array(self.new_commitments);\n        fields.push_array(self.new_nullifiers);\n        fields.push_array(self.nullified_commitments);\n        fields.push_array(self.private_call_stack);\n        fields.push_array(self.public_call_stack);\n        fields.push_array(self.new_l2_to_l1_msgs);\n        fields.push_array(self.encrypted_logs_hash);\n        fields.push_array(self.unencrypted_logs_hash);\n        fields.push(self.encrypted_log_preimages_length);\n        fields.push(self.unencrypted_log_preimages_length);\n        fields.push_array(self.block_data.serialize());\n        fields.push(self.contract_deployment_data.hash());\n        fields.push(self.chain_id);\n        fields.push(self.version);\n\n        dep::std::hash::pedersen_with_separator(fields.storage, GENERATOR_INDEX__PRIVATE_CIRCUIT_PUBLIC_INPUTS)[0]\n    }\n\n    fn serialize(self) -> [Field; PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH] {\n        let mut fields: BoundedVec<Field, PRIVATE_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); \n        fields.push_array(self.call_context.serialize());\n        fields.push(self.args_hash);\n        fields.push_array(self.return_values);\n        fields.push_array(self.read_requests);\n        fields.push_array(self.new_commitments);\n        fields.push_array(self.new_nullifiers);\n        fields.push_array(self.private_call_stack);\n        fields.push_array(self.public_call_stack);\n        fields.push_array(self.new_l2_to_l1_msgs);\n        fields.push_array(self.encrypted_logs_hash);\n        fields.push_array(self.unencrypted_logs_hash);\n        fields.push(self.encrypted_log_preimages_length);\n        fields.push(self.unencrypted_log_preimages_length);\n        fields.push_array(self.block_data.serialize());\n        fields.push_array(self.contract_deployment_data.serialize());\n        fields.push(self.chain_id);\n        fields.push(self.version);\n        fields.storage\n    }\n}\n\nstruct ContractStorageRead {\n    storage_slot: Field,\n    value: Field,\n}\n\nimpl ContractStorageRead {\n    fn serialize(self) -> [Field; CONTRACT_STORAGE_READ_LENGTH] {\n        [self.storage_slot, self.value]\n    }\n\n    fn hash(self) -> Field {\n        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_DATA_READ)[0]\n    }\n\n    fn empty() -> Self {\n        Self { storage_slot: 0, value: 0 }\n    }\n}\n\nstruct ContractStorageUpdateRequest {\n    storage_slot: Field,\n    old_value: Field,\n    new_value: Field,\n}\n\nimpl ContractStorageUpdateRequest {\n    fn serialize(self) -> [Field; CONTRACT_STORAGE_UPDATE_REQUEST_LENGTH] {\n        [self.storage_slot, self.old_value, self.new_value]\n    }\n\n    fn hash(self) -> Field {\n        dep::std::hash::pedersen_with_separator(self.serialize(), GENERATOR_INDEX__PUBLIC_DATA_UPDATE_REQUEST)[0]\n    }\n\n    fn empty() -> Self {\n        Self { storage_slot: 0, old_value: 0, new_value: 0 }\n    }\n}\n\n\nstruct PublicCircuitPublicInputs {\n    call_context: CallContext,\n    args_hash: Field,\n    return_values: [Field; RETURN_VALUES_LENGTH],\n    contract_storage_update_requests: [ContractStorageUpdateRequest; MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL],\n    contract_storage_read: [ContractStorageRead; MAX_PUBLIC_DATA_READS_PER_CALL],\n    public_call_stack: [Field; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],\n    new_commitments: [Field; MAX_NEW_COMMITMENTS_PER_CALL],\n    new_nullifiers: [Field; crate::abi::MAX_NEW_NULLIFIERS_PER_CALL],\n    new_l2_to_l1_msgs: [Field; crate::abi::MAX_NEW_L2_TO_L1_MSGS_PER_CALL],\n    unencrypted_logs_hash: [Field; NUM_FIELDS_PER_SHA256],\n    unencrypted_log_preimages_length: Field,\n    block_data: HistoricBlockData,\n    prover_address: Field,\n\n    // TODO: include globals in here and check them elsewhere\n    // https://github.com/AztecProtocol/aztec-packages/issues/1567\n}\n\nimpl PublicCircuitPublicInputs {\n    \n    fn hash(self) -> Field {\n        let mut inputs: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_HASH_INPUT_LENGTH> = BoundedVec::new(0);\n        inputs.push(self.call_context.hash());\n        inputs.push(self.args_hash);\n        inputs.push_array(self.return_values);\n        for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {\n            inputs.push(self.contract_storage_update_requests[i].hash());\n        }\n        for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {\n            inputs.push(self.contract_storage_read[i].hash());\n        }\n        inputs.push_array(self.public_call_stack);\n        inputs.push_array(self.new_commitments);\n        inputs.push_array(self.new_nullifiers);\n        inputs.push_array(self.new_l2_to_l1_msgs);\n\n        // We do not include block_data since it's not in the cpp hash\n\n        inputs.push_array(self.unencrypted_logs_hash);\n        inputs.push(self.unencrypted_log_preimages_length);\n        inputs.push_array(self.block_data.serialize()); // see https://github.com/AztecProtocol/aztec-packages/issues/1473\n        inputs.push(self.prover_address);\n\n        dep::std::hash::pedersen_with_separator(inputs.storage, GENERATOR_INDEX__PUBLIC_CIRCUIT_PUBLIC_INPUTS)[0]\n    }\n\n    fn serialize(self) -> [Field; PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH] {\n        let mut fields: BoundedVec<Field, PUBLIC_CIRCUIT_PUBLIC_INPUTS_LENGTH> = BoundedVec::new(0); \n        fields.push_array(self.call_context.serialize());   \n        fields.push(self.args_hash);\n        fields.push_array(self.return_values);\n        for i in 0..MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL {\n            fields.push_array(self.contract_storage_update_requests[i].serialize());\n        }\n        for i in 0..MAX_PUBLIC_DATA_READS_PER_CALL {\n            fields.push_array(self.contract_storage_read[i].serialize());\n        }\n        fields.push_array(self.public_call_stack);\n        fields.push_array(self.new_commitments);\n        fields.push_array(self.new_nullifiers);\n        fields.push_array(self.new_l2_to_l1_msgs);\n        fields.push_array(self.unencrypted_logs_hash);\n        fields.push(self.unencrypted_log_preimages_length);\n        fields.push_array(self.block_data.serialize());\n        fields.push(self.prover_address);\n        fields.storage\n    }\n}\n\nglobal ARGS_HASH_CHUNK_LENGTH: u32 = 32;\nglobal ARGS_HASH_CHUNK_COUNT: u32 = 16;\n\nfn hash_args<N>(args: [Field; N]) -> Field {\n    if args.len() == 0 {\n        0\n    } else {\n        let mut chunks_hashes = [0; ARGS_HASH_CHUNK_COUNT];\n        for i in 0..ARGS_HASH_CHUNK_COUNT {\n            let mut chunk_hash = 0;\n            let start_chunk_index = i * ARGS_HASH_CHUNK_LENGTH;\n            if start_chunk_index < (args.len() as u32) {\n                let mut chunk_args = [0; ARGS_HASH_CHUNK_LENGTH];\n                for j in 0..ARGS_HASH_CHUNK_LENGTH {\n                    let item_index = i * ARGS_HASH_CHUNK_LENGTH + j;\n                    if item_index < (args.len() as u32) {\n                        chunk_args[j] = args[item_index];\n                    }\n                }\n                chunk_hash = dep::std::hash::pedersen_with_separator(chunk_args, GENERATOR_INDEX__FUNCTION_ARGS)[0];\n            }\n            chunks_hashes[i] = chunk_hash;\n        }\n        dep::std::hash::pedersen_with_separator(chunks_hashes, GENERATOR_INDEX__FUNCTION_ARGS)[0]\n    }\n}\n",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/abi"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/abi"
       },
       "32": {
         "source": "use crate::constants_gen::{\n    EMPTY_NULLIFIED_COMMITMENT,\n    MAX_NEW_COMMITMENTS_PER_CALL,\n    MAX_NEW_L2_TO_L1_MSGS_PER_CALL,\n    MAX_NEW_NULLIFIERS_PER_CALL,\n    MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL,\n    MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL,\n    MAX_PUBLIC_DATA_READS_PER_CALL,\n    MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL,\n    MAX_READ_REQUESTS_PER_CALL,\n    NUM_FIELDS_PER_SHA256,\n    RETURN_VALUES_LENGTH,\n};\n\nuse crate::abi;\n\nuse crate::abi::{\n    hash_args,\n    CallContext,\n    ContractDeploymentData,\n    HistoricBlockData,\n    FunctionData,\n    PrivateCircuitPublicInputs,\n    PublicCircuitPublicInputs,\n};\n\n// TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n// use dep::std::collections::vec::Vec;\n\n// l1 to l2 messaging\nuse crate::messaging::process_l1_to_l2_message;\nuse crate::private_call_stack_item::PrivateCallStackItem;\nuse crate::public_call_stack_item::PublicCallStackItem;\n\nuse crate::types::{\n    vec::BoundedVec,\n    point::Point,\n};\n\nuse crate::utils::arr_copy_slice;\n\nuse crate::oracle::{\n    arguments,\n    call_private_function::call_private_function_internal,\n    public_call::call_public_function_internal,\n    enqueue_public_function_call::enqueue_public_function_call_internal,\n    context::get_portal_address,\n};\n\n\n// When finished, one can call .finish() to convert back to the abi\nstruct PrivateContext {\n    inputs: abi::PrivateContextInputs,\n\n    args_hash : Field,\n    return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,\n\n    read_requests: BoundedVec<Field, MAX_READ_REQUESTS_PER_CALL>,\n\n    new_commitments: BoundedVec<Field, MAX_NEW_COMMITMENTS_PER_CALL>,\n    new_nullifiers: BoundedVec<Field, MAX_NEW_NULLIFIERS_PER_CALL>,\n    nullified_commitments: BoundedVec<Field, MAX_NEW_NULLIFIERS_PER_CALL>,\n\n    private_call_stack : BoundedVec<Field, MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL>,\n    public_call_stack : BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,\n    new_l2_to_l1_msgs : BoundedVec<Field, MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,\n\n    block_data: HistoricBlockData,\n\n    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n    // encrypted_logs_preimages: Vec<Field>,\n    // unencrypted_logs_preimages: Vec<Field>,\n}\n\nimpl PrivateContext {\n    fn new(inputs: abi::PrivateContextInputs, args_hash: Field) -> PrivateContext {\n        PrivateContext {\n            inputs: inputs,\n\n            args_hash: args_hash,\n            return_values: BoundedVec::new(0),\n\n            read_requests: BoundedVec::new(0),\n\n            new_commitments: BoundedVec::new(0),\n            new_nullifiers: BoundedVec::new(0),\n            nullified_commitments: BoundedVec::new(0),\n\n            block_data: inputs.block_data,\n\n            private_call_stack: BoundedVec::new(0),\n            public_call_stack: BoundedVec::new(0),\n            new_l2_to_l1_msgs: BoundedVec::new(0),\n\n            // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n            // encrypted_logs_preimages: Vec::new(),\n            // unencrypted_logs_preimages: Vec::new(),\n        }\n    }\n\n    fn msg_sender(self) -> Field {\n        self.inputs.call_context.msg_sender\n    }\n\n    fn this_address(self) -> Field {\n        self.inputs.call_context.storage_contract_address\n    }\n\n    fn this_portal_address(self) -> Field {\n        self.inputs.call_context.portal_contract_address\n    }\n\n    fn chain_id(self) -> Field {\n        self.inputs.private_global_variables.chain_id\n    }\n\n    fn version(self) -> Field {\n        self.inputs.private_global_variables.version\n    }\n\n    fn finish(self) -> abi::PrivateCircuitPublicInputs {\n        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n        let encrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];\n        let unencrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];\n        let encrypted_log_preimages_length = 0;\n        let unencrypted_log_preimages_length = 0;\n\n        let priv_circuit_pub_inputs = abi::PrivateCircuitPublicInputs {\n            call_context: self.inputs.call_context,\n            args_hash: self.args_hash,\n            return_values: self.return_values.storage,\n            read_requests: self.read_requests.storage,\n            new_commitments: self.new_commitments.storage,\n            new_nullifiers: self.new_nullifiers.storage,\n            nullified_commitments: self.nullified_commitments.storage,\n            private_call_stack: self.private_call_stack.storage,\n            public_call_stack: self.public_call_stack.storage,\n            new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,\n            encrypted_logs_hash: encrypted_logs_hash,\n            unencrypted_logs_hash: unencrypted_logs_hash,\n            encrypted_log_preimages_length: encrypted_log_preimages_length,\n            unencrypted_log_preimages_length: unencrypted_log_preimages_length,\n            block_data: self.block_data,\n            contract_deployment_data: self.inputs.contract_deployment_data,\n            chain_id: self.inputs.private_global_variables.chain_id,\n            version: self.inputs.private_global_variables.version,\n        };\n        priv_circuit_pub_inputs\n    }\n\n    fn push_read_request(&mut self, read_request: Field) {\n        self.read_requests.push(read_request);\n    }\n\n    fn push_new_note_hash(&mut self, note_hash: Field) {\n        self.new_commitments.push(note_hash);\n    }\n\n    fn push_new_nullifier(&mut self, nullifier: Field, nullified_commitment: Field) {\n        self.new_nullifiers.push(nullifier);\n        self.nullified_commitments.push(nullified_commitment);\n    }\n\n    fn message_portal(&mut self, content: Field) {\n        self.new_l2_to_l1_msgs.push(content);\n    }\n\n    // PrivateContextInputs must be temporarily passed in to prevent too many unknowns\n    // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned\n    fn consume_l1_to_l2_message(&mut self, inputs: abi::PrivateContextInputs, msg_key: Field, content: Field, secret: Field) {\n        let nullifier = process_l1_to_l2_message(inputs.block_data.l1_to_l2_messages_tree_root, inputs.call_context.storage_contract_address, msg_key, content, secret);\n\n        // Push nullifier (and the \"commitment\" corresponding to this can be \"empty\")\n        self.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT)\n    }\n\n    fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]) {\n        let _void1 = self.inputs;\n        let _void2 = log;\n        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n    }\n\n    fn accumulate_unencrypted_logs<T>(&mut self, log: T) {\n        let _void1 = self.inputs;\n        let _void2 = log;\n        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n    }\n\n    fn call_private_function<ARGS_COUNT>(\n        &mut self,\n        contract_address: Field, \n        function_selector: Field, \n        args: [Field; ARGS_COUNT]\n    ) -> [Field; RETURN_VALUES_LENGTH] {\n        let args_hash = hash_args(args);\n        assert(args_hash == arguments::pack_arguments(args));\n        self.call_private_function_with_packed_args(contract_address, function_selector, args_hash)\n    }\n\n    fn call_private_function_no_args(\n        &mut self,\n        contract_address: Field, \n        function_selector: Field, \n    ) -> [Field; RETURN_VALUES_LENGTH] {\n        self.call_private_function_with_packed_args(contract_address, function_selector, 0)\n    }\n\n    fn call_private_function_with_packed_args(\n        &mut self,\n        contract_address: Field,\n        function_selector: Field,\n        args_hash: Field\n    ) -> [Field; RETURN_VALUES_LENGTH] {\n        let fields = call_private_function_internal(\n            contract_address, \n            function_selector, \n            args_hash\n        );\n        let item = PrivateCallStackItem {\n            contract_address: fields[0],\n            function_data: FunctionData {\n                function_selector: fields[1],\n                is_internal: fields[2] as bool,\n                is_private: fields[3] as bool,\n                is_constructor: fields[4] as bool,\n            },\n            public_inputs: PrivateCircuitPublicInputs {\n                call_context: CallContext {\n                    msg_sender : fields[5],\n                    storage_contract_address : fields[6],\n                    portal_contract_address : fields[7],\n                    \n                    is_delegate_call : fields[8] as bool,\n                    is_static_call : fields[9] as bool,\n                    is_contract_deployment: fields[10] as bool,\n                },\n                // TODO handle the offsets as a variable incremented during extraction?\n                args_hash: fields[11],\n                return_values: arr_copy_slice(fields, [0; RETURN_VALUES_LENGTH], 12),\n                read_requests: arr_copy_slice(fields, [0; MAX_READ_REQUESTS_PER_CALL], 16),\n                new_commitments: arr_copy_slice(fields, [0; MAX_NEW_COMMITMENTS_PER_CALL], 20),\n                new_nullifiers: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 24),\n                nullified_commitments: arr_copy_slice(fields, [0; MAX_NEW_NULLIFIERS_PER_CALL], 28),\n                private_call_stack: arr_copy_slice(fields, [0; MAX_PRIVATE_CALL_STACK_LENGTH_PER_CALL], 32),\n                public_call_stack: arr_copy_slice(fields, [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL], 36),\n                new_l2_to_l1_msgs: arr_copy_slice(fields, [0; MAX_NEW_L2_TO_L1_MSGS_PER_CALL], 40),\n                encrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 42),\n                unencrypted_logs_hash: arr_copy_slice(fields, [0; NUM_FIELDS_PER_SHA256], 44),\n                encrypted_log_preimages_length: fields[46],\n                unencrypted_log_preimages_length: fields[47],\n                block_data: HistoricBlockData {\n                    // Must match order in `private_circuit_public_inputs.hpp`\n                    private_data_tree_root : fields[48],\n                    nullifier_tree_root : fields[49],\n                    contract_tree_root : fields[50],\n                    l1_to_l2_messages_tree_root : fields[51],\n                    blocks_tree_root : fields[52],\n                    public_data_tree_root: fields[53],\n                    global_variables_hash: fields[54],\n                },\n                contract_deployment_data: ContractDeploymentData {\n                    deployer_public_key: Point::new(fields[55], fields[56]),\n                    constructor_vk_hash : fields[57],\n                    function_tree_root : fields[58],\n                    contract_address_salt : fields[59],\n                    portal_contract_address : fields[60],\n                },\n                chain_id: fields[61],\n                version: fields[62],\n            },\n            is_execution_request: fields[63] as bool,\n        };\n        assert(contract_address == item.contract_address);\n        assert(function_selector == item.function_data.function_selector);\n\n        assert(args_hash == item.public_inputs.args_hash);\n\n        assert(item.is_execution_request == false);\n\n        // Assert that the call context of the enqueued call generated by the oracle matches our request.\n        // We are issuing a regular call which is not delegate, static, or deployment. We also constrain\n        // the msg_sender in the nested call to be equal to our address, and the execution context address\n        // for the nested call to be equal to the address we actually called.\n        assert(item.public_inputs.call_context.is_delegate_call == false);\n        assert(item.public_inputs.call_context.is_static_call == false);\n        assert(item.public_inputs.call_context.is_contract_deployment == false);\n        assert(item.public_inputs.call_context.msg_sender == self.inputs.call_context.storage_contract_address);\n        assert(item.public_inputs.call_context.storage_contract_address == contract_address);\n\n        self.private_call_stack.push(item.hash());\n\n        item.public_inputs.return_values\n    }\n\n    fn call_public_function<ARGS_COUNT>(\n        &mut self,\n        contract_address: Field, \n        function_selector: Field, \n        args: [Field; ARGS_COUNT]\n    ) {\n        let args_hash = hash_args(args);\n        assert(args_hash == arguments::pack_arguments(args));\n        self.call_public_function_with_packed_args(contract_address, function_selector, args_hash)\n    }\n\n    fn call_public_function_no_args(\n        &mut self,\n        contract_address: Field, \n        function_selector: Field,\n    ) {\n        self.call_public_function_with_packed_args(contract_address, function_selector, 0)\n    }\n\n    fn call_public_function_with_packed_args(\n        &mut self,\n        contract_address: Field,\n        function_selector: Field,\n        args_hash: Field\n    ) {\n        let fields = enqueue_public_function_call_internal(\n            contract_address, \n            function_selector, \n            args_hash\n        );\n        let item = PublicCallStackItem {\n            contract_address: fields[0],\n            function_data: FunctionData {\n                function_selector: fields[1],\n                is_internal: fields[2] as bool,\n                is_private: fields[3] as bool,\n                is_constructor: fields[4] as bool,\n            },\n            public_inputs: PublicCircuitPublicInputs {\n                call_context: CallContext {\n                    msg_sender : fields[5],\n                    storage_contract_address : fields[6],\n                    portal_contract_address : fields[7],\n                    \n                    is_delegate_call : fields[8] as bool,\n                    is_static_call : fields[9] as bool,\n                    is_contract_deployment: fields[10] as bool,\n                },\n                args_hash: fields[11],\n                return_values: [0; RETURN_VALUES_LENGTH],\n                contract_storage_update_requests: [ContractStorageUpdateRequest::empty(); MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL],\n                contract_storage_read: [ContractStorageRead::empty(); MAX_PUBLIC_DATA_READS_PER_CALL],\n                public_call_stack: [0; MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL],\n                new_commitments: [0; MAX_NEW_COMMITMENTS_PER_CALL],\n                new_nullifiers: [0; MAX_NEW_NULLIFIERS_PER_CALL],\n                new_l2_to_l1_msgs:[0; MAX_NEW_L2_TO_L1_MSGS_PER_CALL],\n                unencrypted_logs_hash:[0; NUM_FIELDS_PER_SHA256],\n                unencrypted_log_preimages_length: 0,\n                block_data: HistoricBlockData::empty(),\n                prover_address: 0,\n            },\n            is_execution_request: true,\n        };\n\n        assert(contract_address == item.contract_address);\n        assert(function_selector == item.function_data.function_selector);\n        \n        assert(args_hash == item.public_inputs.args_hash);\n\n        // Assert that the call context of the enqueued call generated by the oracle matches our request.\n        // We are issuing a regular call which is not delegate, static, or deployment. We also constrain\n        // the msg_sender in the nested call to be equal to our address, and the execution context address\n        // for the nested call to be equal to the address we actually called.\n        assert(item.public_inputs.call_context.is_delegate_call == false);\n        assert(item.public_inputs.call_context.is_static_call == false);\n        assert(item.public_inputs.call_context.is_contract_deployment == false);\n        assert(item.public_inputs.call_context.msg_sender == self.inputs.call_context.storage_contract_address);\n        assert(item.public_inputs.call_context.storage_contract_address == contract_address);\n\n        self.public_call_stack.push(item.hash());\n    }\n}\n\nuse crate::abi::{\n    ContractStorageRead,\n    ContractStorageUpdateRequest\n};\n\nstruct PublicContext {\n    inputs: abi::PublicContextInputs,\n\n    args_hash : Field,\n    return_values : BoundedVec<Field, RETURN_VALUES_LENGTH>,\n\n    contract_storage_update_requests: BoundedVec<ContractStorageUpdateRequest, MAX_PUBLIC_DATA_UPDATE_REQUESTS_PER_CALL>,\n    contract_storage_read: BoundedVec<ContractStorageRead, MAX_PUBLIC_DATA_READS_PER_CALL>,\n    public_call_stack: BoundedVec<Field, MAX_PUBLIC_CALL_STACK_LENGTH_PER_CALL>,\n\n    new_commitments: BoundedVec<Field, MAX_NEW_COMMITMENTS_PER_CALL>,\n    new_nullifiers: BoundedVec<Field, crate::abi::MAX_NEW_NULLIFIERS_PER_CALL>,\n\n    new_l2_to_l1_msgs: BoundedVec<Field, crate::abi::MAX_NEW_L2_TO_L1_MSGS_PER_CALL>,\n\n    unencrypted_logs_hash: BoundedVec<Field, NUM_FIELDS_PER_SHA256>,\n    unencrypted_logs_preimages_length: Field,\n\n    block_data: HistoricBlockData,\n    prover_address: Field,\n}\n\nimpl PublicContext {\n    fn new(inputs: abi::PublicContextInputs, args_hash: Field) -> PublicContext {\n        let empty_storage_read = ContractStorageRead::empty();\n        let empty_storage_update = ContractStorageUpdateRequest::empty();\n        PublicContext {\n            inputs: inputs,\n\n            args_hash: args_hash,\n            return_values: BoundedVec::new(0),\n\n            contract_storage_update_requests: BoundedVec::new(empty_storage_update),\n            contract_storage_read: BoundedVec::new(empty_storage_read),\n            public_call_stack: BoundedVec::new(0),\n\n            new_commitments: BoundedVec::new(0),\n            new_nullifiers: BoundedVec::new(0),\n\n            new_l2_to_l1_msgs: BoundedVec::new(0),\n\n            \n            unencrypted_logs_hash: BoundedVec::new(0),\n            unencrypted_logs_preimages_length: 0,\n\n            block_data: inputs.block_data,\n            prover_address: 0,\n\n            // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n            // encrypted_logs_preimages: Vec::new(),\n            // unencrypted_logs_preimages: Vec::new(),\n        }\n    }\n\n    fn msg_sender(self) -> Field {\n        self.inputs.call_context.msg_sender\n    }\n\n    fn this_address(self) -> Field {\n        self.inputs.call_context.storage_contract_address\n    }\n\n    fn this_portal_address(self) -> Field {\n        self.inputs.call_context.portal_contract_address\n    }\n\n    fn chain_id(self) -> Field {\n        self.inputs.public_global_variables.chain_id\n    }\n\n    fn version(self) -> Field {\n        self.inputs.public_global_variables.version\n    }\n\n    fn block_number(self) -> Field {\n        self.inputs.public_global_variables.block_number\n    }\n\n    fn timestamp(self) -> Field {\n        self.inputs.public_global_variables.timestamp\n    }\n\n    fn finish(self) -> abi::PublicCircuitPublicInputs {\n        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n        let unencrypted_logs_hash = [0; NUM_FIELDS_PER_SHA256];\n        let unencrypted_log_preimages_length = 0;\n\n\n        // Compute the public call stack hashes\n        let pub_circuit_pub_inputs = abi::PublicCircuitPublicInputs {\n            call_context: self.inputs.call_context, // Done\n            args_hash: self.args_hash, // Done\n            contract_storage_update_requests: self.contract_storage_update_requests.storage,\n            contract_storage_read: self.contract_storage_read.storage,\n            return_values: self.return_values.storage,\n            new_commitments: self.new_commitments.storage,\n            new_nullifiers: self.new_nullifiers.storage,\n            public_call_stack: self.public_call_stack.storage,\n            new_l2_to_l1_msgs: self.new_l2_to_l1_msgs.storage,\n            unencrypted_logs_hash: unencrypted_logs_hash,\n            unencrypted_log_preimages_length: unencrypted_log_preimages_length,\n            block_data: self.inputs.block_data,\n            prover_address: self.prover_address,\n        };\n        pub_circuit_pub_inputs\n    }\n\n    fn push_new_note_hash(&mut self, note_hash: Field) {\n        self.new_commitments.push(note_hash);\n    }\n\n    fn push_new_nullifier(&mut self, nullifier: Field, _nullified_commitment: Field) {\n        self.new_nullifiers.push(nullifier);\n    }\n\n    fn message_portal(&mut self, content: Field) {\n        self.new_l2_to_l1_msgs.push(content);\n    }\n\n    // PrivateContextInputs must be temporarily passed in to prevent too many unknowns\n    // Note this returns self to get around an issue where mutable structs do not maintain mutations unless reassigned\n    fn consume_l1_to_l2_message(&mut self, msg_key: Field, content: Field, secret: Field) {\n        let this = (*self).this_address();\n        let nullifier = process_l1_to_l2_message(self.block_data.l1_to_l2_messages_tree_root, this, msg_key, content, secret);\n\n        // Push nullifier (and the \"commitment\" corresponding to this can be \"empty\")\n        self.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT)\n    }\n\n    fn accumulate_encrypted_logs<N>(&mut self, log: [Field; N]) {\n        let _void1 = self;\n        let _void2 = log;\n        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n    }\n\n    fn accumulate_unencrypted_logs<T>(&mut self, log: T) {\n        let _void1 = self;\n        let _void2 = log;\n        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1165)\n    }\n\n    fn call_public_function<ARGS_COUNT>(\n        _self: Self,\n        contract_address: Field, \n        function_selector: Field,\n        args: [Field; ARGS_COUNT],\n    ) -> [Field; RETURN_VALUES_LENGTH] {\n        let args_hash = abi::hash_args(args);\n        assert(args_hash == arguments::pack_arguments(args));\n        call_public_function_internal(\n            contract_address, \n            function_selector, \n            args_hash,\n        )\n    }\n\n    fn call_public_function_no_args(\n        _self: Self,\n        contract_address: Field, \n        function_selector: Field,\n    ) -> [Field; RETURN_VALUES_LENGTH] {\n        call_public_function_internal(\n            contract_address, \n            function_selector, \n            0,\n        )\n    }\n\n}",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/context"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/context"
       },
       "33": {
         "source": "use crate::context::PrivateContext;\nuse crate::oracle;\nuse crate::types::point::Point;\n\nfn emit_encrypted_log<N>(\n    context: &mut PrivateContext,\n    contract_address: Field,\n    storage_slot: Field,\n    encryption_pub_key: Point,\n    log: [Field; N],\n) {\n    let _ = oracle::logs::emit_encrypted_log(contract_address, storage_slot, encryption_pub_key, log);\n    context.accumulate_encrypted_logs(log);\n}\n\nfn emit_unencrypted_log<T>(\n    context: &mut PrivateContext,\n    log: T,\n) {\n    let _ = oracle::logs::emit_unencrypted_log(log);\n    context.accumulate_unencrypted_logs(log);\n}\n",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/log"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/log"
       },
       "39": {
         "source": "use dep::std::option::Option;\nuse crate::abi::PublicContextInputs;\nuse crate::context::{\n    PrivateContext,\n    PublicContext,\n};\nuse crate::note::{\n    note_header::NoteHeader,\n    note_interface::NoteInterface,\n    utils::compute_inner_note_hash,\n};\nuse crate::oracle::notes::{notify_created_note, notify_nullified_note};\nuse crate::constants_gen::EMPTY_NULLIFIED_COMMITMENT;\n\nfn create_note<Note, N>(\n    context: &mut PrivateContext,\n    storage_slot: Field,\n    note: &mut Note,\n    note_interface: NoteInterface<Note, N>,\n) {\n    let contract_address = (*context).this_address();\n\n    let header = NoteHeader { contract_address, storage_slot, nonce: 0 };\n    let set_header = note_interface.set_header;\n    set_header(note, header);\n    let inner_note_hash = compute_inner_note_hash(note_interface, *note);\n\n    let serialise = note_interface.serialise;\n    let preimage = serialise(*note);\n    assert(notify_created_note(storage_slot, preimage, inner_note_hash) == 0);\n\n    context.push_new_note_hash(inner_note_hash);\n}\n\nfn create_note_hash_from_public<Note, N>(\n    context: &mut PublicContext,\n    storage_slot: Field,\n    note: &mut Note,\n    note_interface: NoteInterface<Note, N>,\n) {\n    let contract_address = (*context).this_address();\n\n    let header = NoteHeader { contract_address, storage_slot, nonce: 0 };\n    let set_header = note_interface.set_header;\n    set_header(note, header);\n    let inner_note_hash = compute_inner_note_hash(note_interface, *note);\n\n    context.push_new_note_hash(inner_note_hash);\n}\n\nfn destroy_note<Note, N>(\n    context: &mut PrivateContext,\n    storage_slot: Field,\n    note: Note,\n    note_interface: NoteInterface<Note, N>,\n) {\n    let mut nullifier = 0;\n    let mut nullified_commitment: Field = EMPTY_NULLIFIED_COMMITMENT;\n    let compute_nullifier = note_interface.compute_nullifier;\n    nullifier = compute_nullifier(note);\n\n    let serialise = note_interface.serialise;\n    let preimage = serialise(note);\n\n    // We also need the note commitment corresponding to the \"nullifier\"\n    let get_header = note_interface.get_header;\n    let header = get_header(note);\n    // 0 nonce implies \"transient\" nullifier (must nullify a commitment in this TX).\n    // `nullified_commitment` is used to inform the kernel which pending commitment\n    // the nullifier corresponds to so they can be matched and both squashed/deleted.\n    // nonzero nonce implies \"persistable\" nullifier (nullifies a persistent/in-tree\n    // commitment) in which case `nullified_commitment` is not used since the kernel\n    // just siloes and forwards the nullier to its output.\n    if (header.nonce == 0) {\n        // TODO(suyash): Can we reuse the note commitment computed in `compute_nullifier`?\n        nullified_commitment = compute_inner_note_hash(note_interface, note);\n    }\n    assert(notify_nullified_note(storage_slot, nullifier, preimage, nullified_commitment) == 0);\n\n    context.push_new_nullifier(nullifier, nullified_commitment)\n}",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/note/lifecycle"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/note/lifecycle"
       },
       "40": {
         "source": "use dep::std::option::Option;\nuse crate::constants_gen::{\n    MAX_READ_REQUESTS_PER_CALL,\n    GET_NOTE_ORACLE_RETURN_LENGTH,\n    GET_NOTES_ORACLE_RETURN_LENGTH,\n    MAX_NOTES_PER_PAGE,\n    VIEW_NOTE_ORACLE_RETURN_LENGTH,\n};\nuse crate::context::PrivateContext;\nuse crate::note::{\n    note_getter_options::{NoteGetterOptions, Select, Sort},\n    note_interface::NoteInterface,\n    note_header::NoteHeader,\n    note_viewer_options::NoteViewerOptions,\n    utils::compute_note_hash_for_read_or_nullify,\n    utils::compute_unique_siloed_note_hash,\n    utils::compute_inner_note_hash,\n    utils::compute_siloed_note_hash,\n};\nuse crate::messaging::get_commitment_getter_data::make_commitment_getter_data;\nuse crate::oracle;\nuse crate::types::vec::BoundedVec;\n\nfn check_note_header<Note, N>(\n    context: PrivateContext,\n    storage_slot: Field,\n    note_interface: NoteInterface<Note, N>,\n    note: Note,\n) {\n    let get_header = note_interface.get_header;\n    let header = get_header(note);\n    let contract_address = context.this_address();\n    assert(header.contract_address == contract_address);\n    assert(header.storage_slot == storage_slot);\n}\n\nfn ensure_note_exists<Note, N>(\n    context: &mut PrivateContext,\n    storage_slot: Field,\n    note_interface: NoteInterface<Note, N>,\n    note: &mut Note,\n) {\n    let saved_note = get_note_internal(storage_slot, note_interface);\n\n    // Only copy over the header to the original note to make sure the preimage is the same.\n    let get_header = note_interface.get_header;\n    let set_header = note_interface.set_header;\n    let note_header = get_header(saved_note);\n    set_header(note, note_header);\n\n    check_note_header(*context, storage_slot, note_interface, *note);\n\n    let note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, *note);\n    context.push_read_request(note_hash_for_read_request);\n}\n\n// Ensure a note's hash exists in the tree without retrieving the entire\n// notes via the oracle.\n// Modifies the note by populating it with header info.\nfn ensure_note_hash_exists<Note, N>(\n    context: &mut PrivateContext,\n    storage_slot: Field,\n    note_interface: NoteInterface<Note, N>,\n    note: &mut Note,\n) {\n    // Initialize header of note. Must be done before computing note hashes as it initializes the:\n    // - storage slot (used in inner note hash)\n    // - the contract address (used in siloed note hash)\n    // - and the nonce (used in the unique siloed note hash)\n    let set_header = note_interface.set_header;\n    let note_header = NoteHeader {\n        contract_address: (*context).this_address(),\n        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): should be\n        // real nonce (once public kernel applies nonces).\n        nonce: 0,\n        storage_slot\n    };\n    set_header(note, note_header);\n\n    // Get a note from oracle and early out if it doesn't exist.\n    let inner_note_hash = compute_inner_note_hash(note_interface, *note);\n\n    let raw_oracle_ret = oracle::get_commitment::get_commitment(inner_note_hash);\n    let deserialized_oracle_ret = make_commitment_getter_data(raw_oracle_ret, 0);\n    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): should be\n    // unique_siloed_note_hash once public kernel applies nonces\n    let saved_siloed_note_hash = deserialized_oracle_ret.message;\n\n    assert(saved_siloed_note_hash != 0); // TODO(dbanks12): necessary?\n\n    check_note_header(*context, storage_slot, note_interface, *note);\n\n    // Ensure that the note hash retrieved from oracle matches the one computed from note.\n    let computed_siloed_note_hash = compute_siloed_note_hash(note_interface, *note);\n    // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): should be\n    // compute_note_hash_for_read_or_nullify once public kernel applies nonces\n    assert(computed_siloed_note_hash == saved_siloed_note_hash);\n\n    context.push_read_request(computed_siloed_note_hash);\n}\n\nfn get_note<Note, N>(\n    context: &mut PrivateContext,\n    storage_slot: Field,\n    note_interface: NoteInterface<Note, N>,\n) -> Note {\n    let note = get_note_internal(storage_slot, note_interface);\n\n    check_note_header(*context, storage_slot, note_interface, note);\n\n    let note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, note);\n\n    context.push_read_request(note_hash_for_read_request);\n    note\n}\n\nfn get_notes<Note, N, FILTER_ARGS>(\n    context: &mut PrivateContext,\n    storage_slot: Field,\n    note_interface: NoteInterface<Note, N>,\n    options: NoteGetterOptions<Note, N, FILTER_ARGS>,\n) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {\n    let opt_notes = get_notes_internal(storage_slot, note_interface, options);\n    for i in 0..opt_notes.len() {\n        let opt_note = opt_notes[i];\n        let mut note_hash_for_read_request = 0;\n        if opt_note.is_some() {\n            let note = opt_note.unwrap_unchecked();\n            check_note_header(*context, storage_slot, note_interface, note);\n            note_hash_for_read_request = compute_note_hash_for_read_or_nullify(note_interface, note);\n        };\n        // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1410): test to ensure\n        // failure if malicious oracle injects 0 nonce here for a \"pre-existing\" note.\n        context.push_read_request(note_hash_for_read_request);\n    };\n\n    // TODO(#1660)\n    // Move it back to get_notes_internal and only make read request for selected notes.\n    let filter = options.filter;\n    let filter_args = options.filter_args;\n    filter(opt_notes, filter_args)\n}\n\nunconstrained fn get_note_internal<Note, N>(\n    storage_slot: Field,\n    note_interface: NoteInterface<Note, N>,\n) -> Note {\n    let placeholder_note = [Option::none()];\n    let placeholder_fields = [0; GET_NOTE_ORACLE_RETURN_LENGTH];\n    oracle::notes::get_notes(\n        storage_slot,\n        note_interface,\n        0,\n        [],\n        [],\n        [],\n        [],\n        1, // limit\n        0, // offset\n        placeholder_note,\n        placeholder_fields,\n    )[0].unwrap() // Notice: we don't allow dummies to be returned from get_note (singular).\n}\n\nunconstrained fn get_notes_internal<Note, N, FILTER_ARGS>(\n    storage_slot: Field,\n    note_interface: NoteInterface<Note, N>,\n    options: NoteGetterOptions<Note, N, FILTER_ARGS>,\n) -> [Option<Note>; MAX_READ_REQUESTS_PER_CALL] {\n    let (num_selects, select_by, select_values, sort_by, sort_order) = flatten_options(options.selects, options.sorts);\n    let placeholder_opt_notes = [Option::none(); MAX_READ_REQUESTS_PER_CALL];\n    let placeholder_fields = [0; GET_NOTES_ORACLE_RETURN_LENGTH];\n    oracle::notes::get_notes(\n        storage_slot,\n        note_interface,\n        num_selects,\n        select_by,\n        select_values,\n        sort_by,\n        sort_order,\n        options.limit,\n        options.offset,\n        placeholder_opt_notes,\n        placeholder_fields,\n    )\n}\n\nunconstrained fn view_notes<Note, N>(\n    storage_slot: Field,\n    note_interface: NoteInterface<Note, N>,\n    options: NoteViewerOptions<Note, N>,\n) -> [Option<Note>; MAX_NOTES_PER_PAGE] {\n    let (num_selects, select_by, select_values, sort_by, sort_order) = flatten_options(options.selects, options.sorts);\n    let placeholder_opt_notes = [Option::none(); MAX_NOTES_PER_PAGE];\n    let placeholder_fields = [0; VIEW_NOTE_ORACLE_RETURN_LENGTH];\n    oracle::notes::get_notes(\n        storage_slot,\n        note_interface,\n        num_selects,\n        select_by,\n        select_values,\n        sort_by,\n        sort_order,\n        options.limit,\n        options.offset,\n        placeholder_opt_notes,\n        placeholder_fields,\n    )\n}\n\nunconstrained fn flatten_options<Note, N>(\n    selects: BoundedVec<Option<Select>, N>,\n    sorts: BoundedVec<Option<Sort>, N>,\n) -> (u8, [u8; N], [Field; N], [u8; N], [u2; N]) {\n    let mut num_selects = 0;\n    let mut select_by = [0; N];\n    let mut select_values = [0; N];\n    for i in 0..selects.len {\n        let select = selects.get(i);\n        if select.is_some() {\n            select_by[num_selects] = select.unwrap_unchecked().field_index;\n            select_values[num_selects] = select.unwrap_unchecked().value;\n            num_selects += 1;\n        };\n    };\n\n    let mut sort_by = [0; N];\n    let mut sort_order = [0; N];\n    for i in 0..sorts.len {\n        let sort = sorts.get(i);\n        if sort.is_some() {\n            sort_by[i] = sort.unwrap_unchecked().field_index;\n            sort_order[i] = sort.unwrap_unchecked().order;\n        };\n    };\n\n    (num_selects, select_by, select_values, sort_by, sort_order)\n}",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/note/note_getter"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/note/note_getter"
       },
       "42": {
         "source": "use dep::std::hash::{pedersen, pedersen_with_separator};\nuse crate::constants_gen::{GENERATOR_INDEX__UNIQUE_COMMITMENT, GENERATOR_INDEX__SILOED_COMMITMENT};\n\nfn compute_inner_hash(storage_slot: Field, note_hash: Field) -> Field {\n    // TODO(#1205) Do we need a generator index here?\n    pedersen([storage_slot, note_hash])[0]\n}\n\nfn compute_siloed_hash(contract_address: Field, inner_note_hash: Field) -> Field {\n    let inputs = [contract_address, inner_note_hash];\n    pedersen_with_separator(inputs, GENERATOR_INDEX__SILOED_COMMITMENT)[0]\n}\n\nfn compute_unique_hash(nonce: Field, siloed_note_hash: Field) -> Field {\n    let inputs = [nonce, siloed_note_hash];\n    pedersen_with_separator(inputs, GENERATOR_INDEX__UNIQUE_COMMITMENT)[0]\n}\n",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/note/note_hash"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/note/note_hash"
       },
       "46": {
         "source": "use crate::note::{\n    note_hash::{compute_inner_hash, compute_siloed_hash, compute_unique_hash},\n    note_header::NoteHeader,\n    note_interface::NoteInterface,\n};\nuse crate::utils::arr_copy_slice;\n\nfn compute_inner_note_hash<Note, N>(\n    note_interface: NoteInterface<Note, N>,\n    note: Note,\n) -> Field {\n    let get_header = note_interface.get_header;\n    let header = get_header(note);\n\n    let compute_note_hash = note_interface.compute_note_hash;\n    let note_hash = compute_note_hash(note);\n\n    compute_inner_hash(header.storage_slot, note_hash)\n}\n\nfn compute_siloed_note_hash<Note, N>(\n    note_interface: NoteInterface<Note, N>,\n    note_with_header: Note,\n) -> Field {\n    let get_header = note_interface.get_header;\n    let header = get_header(note_with_header);\n\n    let inner_note_hash = compute_inner_note_hash(note_interface, note_with_header);\n\n    compute_siloed_hash(header.contract_address, inner_note_hash)\n}\n\nfn compute_unique_siloed_note_hash<Note, N>(\n    note_interface: NoteInterface<Note, N>,\n    note_with_header: Note,\n) -> Field {\n    let get_header = note_interface.get_header;\n    let header = get_header(note_with_header);\n\n    let siloed_note_hash = compute_siloed_note_hash(note_interface, note_with_header);\n\n    compute_unique_hash(header.nonce, siloed_note_hash)\n}\n\nfn compute_note_hash_for_read_or_nullify<Note, N>(\n    note_interface: NoteInterface<Note, N>,\n    note_with_header: Note,\n) -> Field {\n    let get_header = note_interface.get_header;\n    let header = get_header(note_with_header);\n\n    if (header.nonce == 0) {\n        // when nonce is zero, that means we are reading a pending note (doesn't have a nonce yet),\n        // so we just read the inner_note_hash (kernel will silo by contract address)\n        compute_inner_note_hash(note_interface, note_with_header)\n    } else {\n        // When nonce is nonzero, that means we are reading a settled note (from tree) created in a\n        // previous TX. So we need the unique_siloed_note_hash which has already been hashed with\n        // contract address and then nonce. This hash will match the existing leaf in the private\n        // data tree, so the kernel can just perform a membership check directly on this hash/leaf.\n        compute_unique_siloed_note_hash(note_interface, note_with_header)\n    }\n\n}\n\nfn compute_note_hash_and_nullifier<Note, N, S>(\n    note_interface: NoteInterface<Note, N>,\n    note_header: NoteHeader,\n    preimage: [Field; S],\n) -> [Field; 4] {\n    let deserialise = note_interface.deserialise;\n    let set_header = note_interface.set_header;\n    let mut note = deserialise(arr_copy_slice(preimage, [0; N], 0));\n    set_header(&mut note, note_header);\n\n    let compute_note_hash = note_interface.compute_note_hash;\n    let note_hash = compute_note_hash(note);\n    let inner_note_hash = compute_inner_hash(note_header.storage_slot, note_hash);\n\n    let siloed_note_hash = compute_siloed_hash(note_header.contract_address, inner_note_hash);\n\n    let unique_siloed_note_hash = compute_unique_hash(note_header.nonce, siloed_note_hash);\n\n    let compute_nullifier = note_interface.compute_nullifier;\n    let inner_nullifier = compute_nullifier(note);\n\n    [inner_note_hash, siloed_note_hash, unique_siloed_note_hash, inner_nullifier]\n}\n",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/note/utils"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/note/utils"
       },
       "48": {
         "source": "use dep::std::hash::pedersen_with_separator;\nuse crate::context::PrivateContext;\nuse crate::note::{\n    lifecycle::create_note,\n    note_getter::{get_note, view_notes},\n    note_interface::NoteInterface,\n    note_viewer_options::NoteViewerOptions,\n};\nuse crate::oracle;\nuse crate::constants_gen::{\n    GENERATOR_INDEX__INITIALISATION_NULLIFIER,\n    EMPTY_NULLIFIED_COMMITMENT,\n};\n\nstruct ImmutableSingleton<Note, N> {\n    storage_slot: Field,\n    note_interface: NoteInterface<Note, N>,\n}\n\nimpl<Note, N> ImmutableSingleton<Note, N> {\n    fn new(storage_slot: Field, note_interface: NoteInterface<Note, N>) -> Self {\n        ImmutableSingleton { storage_slot, note_interface }\n    }\n\n    unconstrained fn is_initialised(self) -> bool {\n        let nullifier = self.compute_initialisation_nullifier();\n        oracle::notes::is_nullifier_emitted(nullifier)\n    }\n\n    fn initialise(self, context: &mut PrivateContext, note: &mut Note) {\n        // Nullify the storage slot.\n        let nullifier = self.compute_initialisation_nullifier();\n        context.push_new_nullifier(nullifier, EMPTY_NULLIFIED_COMMITMENT);\n\n        create_note(context, self.storage_slot, note, self.note_interface);\n    }\n\n    fn compute_initialisation_nullifier(self) -> Field {\n        pedersen_with_separator([self.storage_slot], GENERATOR_INDEX__INITIALISATION_NULLIFIER)[0]\n    }\n    \n    fn get_note(self, context: &mut PrivateContext) -> Note {\n        let storage_slot = self.storage_slot;\n        get_note(context, storage_slot, self.note_interface)\n    }\n\n    unconstrained fn view_note(self) -> Note {\n        let options = NoteViewerOptions::new().set_limit(1);\n        view_notes(self.storage_slot, self.note_interface, options)[0].unwrap()\n    }\n}",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/state_vars/immutable_singleton"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/state_vars/immutable_singleton"
       },
       "55": {
         "source": "\nstruct BoundedVec<T, MaxLen> {\n    storage: [T; MaxLen],\n    len: Field,\n}\n\nimpl<T, MaxLen> BoundedVec<T, MaxLen> {\n    fn new(initial_value: T) -> Self {\n        BoundedVec { storage: [initial_value; MaxLen], len: 0 }\n    }\n\n    fn get(mut self: Self, index: Field) -> T {\n        assert(index as u64 < self.len as u64);\n        self.storage[index]\n    }\n\n    fn push(&mut self, elem: T) {\n        assert(self.len as u64 < MaxLen as u64);\n\n        self.storage[self.len] = elem;\n        self.len += 1;\n    }\n\n    fn push_array<Len>(&mut self, array: [T; Len]) {\n        let newLen = self.len + array.len();\n        assert(newLen as u64 <= MaxLen as u64);\n        for i in 0..array.len() {\n            self.storage[self.len + i] = array[i];\n        }\n        self.len = newLen;\n    }\n\n    fn pop(&mut self) -> T {\n        assert(self.len as u64 > 0);\n\n        let elem = self.storage[self.len - 1];\n        self.len -= 1;\n        elem\n    }\n}\n\n// #[test]\n// fn test_vec() {\n//     let vec: BoundedVec<Field, 2> = BoundedVec::new(0);\n//     assert(vec.len == 0);\n//     let vec1 = vec.push(1);\n//     assert(vec1.len == 1);\n//     let vec2 = vec1.push(1);\n//     assert(vec2.len == 2);\n//     let vec3 = vec2.push(1);\n//     assert(vec3.len == 3);\n//     let x = vec3.pop();\n//     assert(x == 1);\n// }",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/types/vec"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/types/vec"
       },
       "70": {
         "source": "use crate::types::point::Point;\nuse dep::std::hash;\nuse crate::constants_gen::GENERATOR_INDEX__CONTRACT_ADDRESS;\n\n#[oracle(getPublicKey)]\nfn get_public_key_oracle(_address: Field) -> [Field; 3] {}\n\nunconstrained fn get_public_key_internal(address: Field) -> [Field; 3] {\n  get_public_key_oracle(address)\n}\n\nfn get_public_key(address: Field) -> Point {\n  let result = get_public_key_internal(address);\n  let pub_key_x = result[0];\n  let pub_key_y = result[1];\n  let partial_address = result[2];\n  \n  let calculated_address = hash::pedersen_with_separator([pub_key_x, pub_key_y, partial_address], GENERATOR_INDEX__CONTRACT_ADDRESS)[0];\n  assert(calculated_address == address);\n  \n  Point::new(pub_key_x, pub_key_y)\n}\n",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/oracle/get_public_key"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/oracle/get_public_key"
       },
       "78": {
         "source": "use crate::abi;\nuse crate::types::vec::BoundedVec;\nuse crate::context::PrivateContext;\nuse crate::private_call_stack_item::PrivateCallStackItem;\nuse crate::public_call_stack_item::PublicCallStackItem;    \n\nglobal ACCOUNT_MAX_PRIVATE_CALLS: Field = 2;\nglobal ACCOUNT_MAX_PUBLIC_CALLS: Field = 2;\nglobal ACCOUNT_MAX_CALLS: Field = 4;\n// 1 (ARGS_HASH) + 1 (FUNCTION_SELECTOR) + 1 (TARGET_ADDRESS)\nglobal FUNCTION_CALL_SIZE: Field = 3;\n\nstruct FunctionCall {\n  args_hash: Field,\n  function_selector: Field,\n  target_address: Field,\n}\n\nimpl FunctionCall {\n  fn serialize(self) -> [Field; FUNCTION_CALL_SIZE] {\n    [self.args_hash, self.function_selector, self.target_address]\n  }\n}\n\n// FUNCTION_CALL_SIZE * (ACCOUNT_MAX_PUBLIC_CALLS + ACCOUNT_MAX_PRIVATE_CALLS) + 1\nglobal ENTRYPOINT_PAYLOAD_SIZE: Field = 13;\nglobal ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: Field = 416;\n\nstruct EntrypointPayload {\n  // Noir doesnt support nested arrays or structs yet so we flatten everything\n  flattened_args_hashes: [Field; ACCOUNT_MAX_CALLS],\n  flattened_selectors: [Field; ACCOUNT_MAX_CALLS],\n  flattened_targets: [Field; ACCOUNT_MAX_CALLS],\n  nonce: Field,\n}\n\nimpl EntrypointPayload {\n  // TODO(#1207) Do we need a generator index?\n  fn hash(self) -> Field {\n    dep::std::hash::pedersen(self.serialize())[0]\n  }\n\n  // Serializes the entrypoint struct\n  fn serialize(self) -> [Field; ENTRYPOINT_PAYLOAD_SIZE] {\n    let mut fields: BoundedVec<Field, ENTRYPOINT_PAYLOAD_SIZE> = BoundedVec::new(0); \n    fields.push_array(self.flattened_args_hashes);\n    fields.push_array(self.flattened_selectors);\n    fields.push_array(self.flattened_targets);\n    fields.push(self.nonce);\n    fields.storage\n  }\n\n  // Serializes the payload as an array of bytes. Useful for hashing with sha256.\n  fn to_be_bytes(self) -> [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] {\n    let mut bytes: [u8; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES] = [0; ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES];\n\n    let args_len = self.flattened_args_hashes.len();\n    let selectors_len = self.flattened_selectors.len();\n    let targets_len = self.flattened_targets.len();\n\n    for i in 0..args_len {\n      let item_bytes = self.flattened_args_hashes[i].to_be_bytes(32);\n      for j in 0..32 { \n        bytes[i * 32 + j] = item_bytes[j];\n      }\n    }\n\n    for i in 0..selectors_len {\n      let item_bytes = self.flattened_selectors[i].to_be_bytes(32);\n      for j in 0..32 { \n        bytes[args_len * 32 + i * 32 + j] = item_bytes[j];\n      }\n    }\n\n    for i in 0..targets_len {\n      let item_bytes = self.flattened_targets[i].to_be_bytes(32);\n      for j in 0..32 { \n        bytes[(args_len + selectors_len) * 32 + i * 32 + j] = item_bytes[j];\n      }\n    }\n    \n    let item_bytes = self.nonce.to_be_bytes(32);\n    for j in 0..32 { \n      bytes[(args_len + selectors_len + targets_len) * 32 + j] = item_bytes[j];\n    }\n\n    bytes\n  }\n\n  // Executes all private and public calls \n  fn execute_calls(self, context: &mut PrivateContext) {\n    for i in 0..ACCOUNT_MAX_PRIVATE_CALLS {\n        let target_address = self.flattened_targets[i];\n        if target_address != 0 {\n            let function_selector = self.flattened_selectors[i];\n            let args_hash = self.flattened_args_hashes[i];\n            let _callStackItem = context.call_private_function_with_packed_args(target_address, function_selector, args_hash);\n        }\n    }\n    for i in ACCOUNT_MAX_PRIVATE_CALLS..ACCOUNT_MAX_CALLS {\n        let target_address = self.flattened_targets[i];\n        if target_address != 0 {\n            let function_selector = self.flattened_selectors[i];\n            let args_hash = self.flattened_args_hashes[i];\n            let _callStackItem = context.call_public_function_with_packed_args(target_address, function_selector, args_hash);\n        }\n    }\n  }\n}",
-        "path": "/mnt/user-data/lasse/aztec3-packages/yarn-project/noir-libs/noir-aztec/src/entrypoint"
+        "path": "/mnt/user-data/jan/aztec-packages/yarn-project/noir-libs/noir-aztec/src/entrypoint"
       }
     }
   }

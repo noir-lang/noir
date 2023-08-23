@@ -28,6 +28,8 @@ contract SchnorrAccount {
     use crate::public_key_note::PublicKeyNoteMethods;
     use crate::public_key_note::PUBLIC_KEY_NOTE_LEN;
 
+    // docs:start:entrypoint
+
     fn entrypoint(
         inputs: pub PrivateContextInputs,
         payload: pub EntrypointPayload, // contains a set of arguments, selectors, targets and a nonce
@@ -52,6 +54,8 @@ contract SchnorrAccount {
         // Verify signature of the payload bytes
         let verification = std::schnorr::verify_signature(public_key.x, public_key.y, signature, message_bytes);
         assert(verification == true);
+
+        // docs:end:entrypoint
 
         // Execute calls
         payload.execute_calls(&mut context);
