@@ -1,6 +1,7 @@
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext, BRILLIG_INTEGER_ARITHMETIC_BIT_SIZE,
 };
+use crate::ssa::ir::dfg::CallStack;
 use crate::ssa::ir::{
     basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
@@ -202,6 +203,7 @@ impl<'block> BrilligBlock<'block> {
     /// Converts an SSA instruction into a sequence of Brillig opcodes.
     fn convert_ssa_instruction(&mut self, instruction_id: InstructionId, dfg: &DataFlowGraph) {
         let instruction = &dfg[instruction_id];
+        self.brillig_context.set_call_stack(dfg.get_call_stack(instruction_id));
 
         match instruction {
             Instruction::Binary(binary) => {
@@ -502,6 +504,8 @@ impl<'block> BrilligBlock<'block> {
             }
             _ => todo!("ICE: Instruction not supported {instruction:?}"),
         };
+
+        self.brillig_context.set_call_stack(CallStack::new());
     }
 
     fn convert_ssa_function_call(

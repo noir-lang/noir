@@ -3,8 +3,8 @@ use fm::FileManager;
 use gloo_utils::format::JsValueSerdeExt;
 use log::debug;
 use noirc_driver::{
-    check_crate, compile_contracts, compile_no_check, prepare_crate, propagate_dep, CompileOptions,
-    CompiledContract,
+    check_crate, compile_contracts, compile_no_check, prepare_crate, prepare_dependency,
+    propagate_dep, CompileOptions, CompiledContract,
 };
 use noirc_frontend::{graph::CrateGraph, hir::Context};
 use serde::{Deserialize, Serialize};
@@ -60,7 +60,7 @@ impl Default for WASMCompileOptions {
 
 fn add_noir_lib(context: &mut Context, crate_name: &str) {
     let path_to_lib = Path::new(&crate_name).join("lib.nr");
-    let library_crate = prepare_crate(context, &path_to_lib);
+    let library_crate = prepare_dependency(context, &path_to_lib);
 
     propagate_dep(context, library_crate, &crate_name.parse().unwrap());
 }

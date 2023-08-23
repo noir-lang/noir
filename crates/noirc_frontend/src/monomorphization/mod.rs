@@ -10,6 +10,7 @@
 //! function, will monomorphize the entire reachable program.
 use acvm::FieldElement;
 use iter_extended::{btree_map, vecmap};
+use noirc_printable_type::PrintableType;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use crate::{
@@ -776,7 +777,7 @@ impl<'interner> Monomorphizer<'interner> {
                 if name.as_str() == "println" {
                     // Oracle calls are required to be wrapped in an unconstrained function
                     // Thus, the only argument to the `println` oracle is expected to always be an ident
-                    self.append_abi_arg(&hir_arguments[0], &mut arguments);
+                    self.append_printable_type_info(&hir_arguments[0], &mut arguments);
                 }
             }
         }
@@ -829,17 +830,16 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Adds a function argument that contains type metadata that is required to tell
-    /// a caller (such as nargo) how to convert values passed to an foreign call
-    /// back to a human-readable string.
+    /// `println` how to convert values passed to an foreign call  back to a human-readable string.
     /// The values passed to an foreign call will be a simple list of field elements,
     /// thus requiring extra metadata to correctly decode this list of elements.
     ///
-    /// The Noir compiler has an `AbiType` that handles encoding/decoding a list
+    /// The Noir compiler has a `PrintableType` that handles encoding/decoding a list
     /// of field elements to/from JSON. The type metadata attached in this method
-    /// is the serialized `AbiType` for the argument passed to the function.
-    /// The caller that is running a Noir program should then deserialize the `AbiType`,
+    /// is the serialized `PrintableType` for the argument passed to the function.
+    /// The caller that is running a Noir program should then deserialize the `PrintableType`,
     /// and accurately decode the list of field elements passed to the foreign call.
-    fn append_abi_arg(
+    fn append_printable_type_info(
         &mut self,
         hir_argument: &HirExpression,
         arguments: &mut Vec<ast::Expression>,
@@ -855,7 +855,7 @@ impl<'interner> Monomorphizer<'interner> {
                         match *elements {
                             Type::Tuple(element_types) => {
                                 for typ in element_types {
-                                    Self::append_abi_arg_inner(&typ, arguments);
+                                    Self::append_printable_type_info_inner(&typ, arguments);
                                 }
                             }
                             _ => unreachable!(
@@ -865,7 +865,7 @@ impl<'interner> Monomorphizer<'interner> {
                         true
                     }
                     _ => {
-                        Self::append_abi_arg_inner(&typ, arguments);
+                        Self::append_printable_type_info_inner(&typ, arguments);
                         false
                     }
                 };
@@ -876,15 +876,15 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn append_abi_arg_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
+    fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
         if let HirType::Array(size, _) = typ {
             if let HirType::NotConstant = **size {
                 unreachable!("println does not support slices. Convert the slice to an array before passing it to println");
             }
         }
-        let abi_type = typ.as_abi_type();
+        let printable_type: PrintableType = typ.into();
         let abi_as_string =
-            serde_json::to_string(&abi_type).expect("ICE: expected Abi type to serialize");
+            serde_json::to_string(&printable_type).expect("ICE: expected PrintableType to serialize");
 
         arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string)));
     }
