@@ -199,7 +199,7 @@ fn on_code_lens_request(
         let tests = context
             .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
 
-        for (func_name, func_id) in tests {
+        for (func_name, func_id, _should_fail) in tests {
             let location = context.function_meta(&func_id).name.location;
             let file_id = location.file;
 

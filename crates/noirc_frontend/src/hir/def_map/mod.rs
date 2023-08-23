@@ -129,12 +129,22 @@ impl CrateDefMap {
     pub fn get_all_test_functions<'a>(
         &'a self,
         interner: &'a NodeInterner,
-    ) -> impl Iterator<Item = FuncId> + 'a {
+    ) -> impl Iterator<Item = (FuncId, bool)> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
             module
                 .value_definitions()
                 .filter_map(|id| id.as_function())
-                .filter(|id| interner.function_meta(id).attributes == Some(Attribute::Test))
+                .filter(|id| {
+                    interner.function_meta(id).attributes == Some(Attribute::Test(true))
+                        || interner.function_meta(id).attributes == Some(Attribute::Test(false))
+                })
+                .map(|id| {
+                    if interner.function_meta(&id).attributes == Some(Attribute::Test(true)) {
+                        (id, true)
+                    } else {
+                        (id, false)
+                    }
+                })
         })
     }
 

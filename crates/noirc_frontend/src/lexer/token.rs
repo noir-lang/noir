@@ -325,7 +325,8 @@ pub enum Attribute {
     Builtin(String),
     Oracle(String),
     Deprecated(Option<String>),
-    Test,
+    // Boolean flag if the test should fail
+    Test(bool),
     Custom(String),
 }
 
@@ -335,7 +336,8 @@ impl fmt::Display for Attribute {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
-            Attribute::Test => write!(f, "#[test]"),
+            Attribute::Test(false) => write!(f, "#[test]"),
+            Attribute::Test(true) => write!(f, "#[test(should_fail)]"),
             Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
             Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
             Attribute::Custom(ref k) => write!(f, "#[{k}]"),
@@ -391,7 +393,17 @@ impl Attribute {
 
                 Attribute::Deprecated(name.trim_matches('"').to_string().into())
             }
-            ["test"] => Attribute::Test,
+            ["test"] => Attribute::Test(false),
+            ["test", name] => {
+                if name != &"should_fail" {
+                    return Err(LexerErrorKind::MalformedFuncAttribute {
+                        span,
+                        found: word.to_owned(),
+                    });
+                }
+
+                Attribute::Test(true)
+            }
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
                 Attribute::Custom(word.to_owned())
@@ -431,7 +443,7 @@ impl AsRef<str> for Attribute {
             Attribute::Builtin(string) => string,
             Attribute::Oracle(string) => string,
             Attribute::Deprecated(Some(string)) => string,
-            Attribute::Test | Attribute::Deprecated(None) => "",
+            Attribute::Test(_) | Attribute::Deprecated(None) => "",
             Attribute::Custom(string) => string,
         }
     }

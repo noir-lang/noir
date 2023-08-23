@@ -107,22 +107,21 @@ impl Context {
         &self,
         crate_id: &CrateId,
         pattern: FunctionNameMatch,
-    ) -> Vec<(String, FuncId)> {
+    ) -> Vec<(String, FuncId, bool)> {
         let interner = &self.def_interner;
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
 
         def_map
             .get_all_test_functions(interner)
-            .filter_map(|id| {
+            .filter_map(|(id, not_fail)| {
                 let fully_qualified_name = self.fully_qualified_function_name(crate_id, &id);
                 match &pattern {
-                    FunctionNameMatch::Anything => Some((fully_qualified_name, id)),
-                    FunctionNameMatch::Exact(pattern) => {
-                        (&fully_qualified_name == pattern).then_some((fully_qualified_name, id))
-                    }
-                    FunctionNameMatch::Contains(pattern) => {
-                        fully_qualified_name.contains(pattern).then_some((fully_qualified_name, id))
-                    }
+                    FunctionNameMatch::Anything => Some((fully_qualified_name, id, not_fail)),
+                    FunctionNameMatch::Exact(pattern) => (&fully_qualified_name == pattern)
+                        .then_some((fully_qualified_name, id, not_fail)),
+                    FunctionNameMatch::Contains(pattern) => fully_qualified_name
+                        .contains(pattern)
+                        .then_some((fully_qualified_name, id, not_fail)),
                 }
             })
             .collect()
