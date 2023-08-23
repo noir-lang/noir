@@ -1,3 +1,5 @@
+import { inflate } from 'pako';
+
 /**
  * A named type.
  */
@@ -202,9 +204,9 @@ export type DebugFileMap = Record<
  */
 export interface DebugMetadata {
   /**
-   * The debug information for each function.
+   * The DebugInfo object, deflated as JSON, compressed using gzip and serialized with base64.
    */
-  debugSymbols: DebugInfo[];
+  debugSymbols: string[];
   /**
    * The map of file ID to the source code and path of the file.
    */
@@ -254,7 +256,9 @@ export interface FunctionDebugMetadata {
 export function getFunctionDebugMetadata(abi: ContractAbi, functionName: string): FunctionDebugMetadata | undefined {
   const functionIndex = abi.functions.findIndex(f => f.name === functionName);
   if (abi.debug && functionIndex !== -1) {
-    const debugSymbols = abi.debug.debugSymbols[functionIndex];
+    const debugSymbols = JSON.parse(
+      inflate(Buffer.from(abi.debug.debugSymbols[functionIndex], 'base64'), { to: 'string' }),
+    );
     const files = abi.debug.fileMap;
     return {
       debugSymbols,

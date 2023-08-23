@@ -47,6 +47,7 @@
     "lodash.compact": "^3.0.1",
     "lodash.times": "^4.3.2",
     "lodash.upperfirst": "^4.3.1",
+    "pako": "^2.1.0",
     "toml": "^3.0.0",
     "tslib": "^2.4.0"
   },
@@ -61,6 +62,7 @@
     "@types/lodash.times": "^4.3.7",
     "@types/lodash.upperfirst": "^4.3.7",
     "@types/node": "^18.7.23",
+    "@types/pako": "^2.0.0",
     "jest": "^29.5.0",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",

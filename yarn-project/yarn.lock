@@ -438,6 +438,7 @@ __metadata:
     "@types/lodash.clonedeepwith": ^4.5.7
     "@types/memdown": ^3.0.1
     "@types/node": ^18.7.23
+    "@types/pako": ^2.0.0
     "@types/supertest": ^2.0.12
     "@typescript-eslint/eslint-plugin": ^6.2.1
     "@typescript-eslint/parser": ^6.2.1
@@ -458,6 +459,7 @@ __metadata:
     levelup: ^5.1.1
     lodash.clonedeepwith: ^4.5.0
     memdown: ^6.1.1
+    pako: ^2.1.0
     prettier: ^2.7.1
     sha3: ^2.1.4
     supertest: ^6.3.3
@@ -537,6 +539,7 @@ __metadata:
     "@types/lodash.times": ^4.3.7
     "@types/lodash.upperfirst": ^4.3.7
     "@types/node": ^18.7.23
+    "@types/pako": ^2.0.0
     base64-js: ^1.5.1
     commander: ^9.0.0
     fs-extra: ^11.1.1
@@ -546,6 +549,7 @@ __metadata:
     lodash.compact: ^3.0.1
     lodash.times: ^4.3.2
     lodash.upperfirst: ^4.3.1
+    pako: ^2.1.0
     toml: ^3.0.0
     ts-jest: ^29.1.0
     ts-node: ^10.9.1
@@ -3437,6 +3441,13 @@ __metadata:
   version: 2.4.1
   resolution: "@types/normalize-package-data@npm:2.4.1"
   checksum: e87bccbf11f95035c89a132b52b79ce69a1e3652fe55962363063c9c0dae0fe2477ebc585e03a9652adc6f381d24ba5589cc5e51849df4ced3d3e004a7d40ed5
+  languageName: node
+  linkType: hard
+
+"@types/pako@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@types/pako@npm:2.0.0"
+  checksum: 50240a036b5e6acabbf36ac4dca93ec9e619241f0404da8d401cdb427bec3029833324b8a04c4b1ae2ecbc33422fdec31dbf9f43653d9d07cafb82ace78dfccd
   languageName: node
   linkType: hard
 
@@ -9860,6 +9871,13 @@ __metadata:
     ip: ^1.1.8
     netmask: ^2.0.2
   checksum: fa3a898c09848e93e35f5e23443fea36ddb393a851c76a23664a5bf3fcbe58ff77a0bcdae1e4f01b9ea87ea493c52e14d97a0fe39f92474d14cd45559c6e3cde
+  languageName: node
+  linkType: hard
+
+"pako@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "pako@npm:2.1.0"
+  checksum: 71666548644c9a4d056bcaba849ca6fd7242c6cf1af0646d3346f3079a1c7f4a66ffec6f7369ee0dc88f61926c10d6ab05da3e1fca44b83551839e89edd75a3e
   languageName: node
   linkType: hard
 

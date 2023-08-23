@@ -67,6 +67,7 @@
     "levelup": "^5.1.1",
     "lodash.clonedeepwith": "^4.5.0",
     "memdown": "^6.1.1",
+    "pako": "^2.1.0",
     "sha3": "^2.1.4"
   },
   "devDependencies": {
@@ -86,6 +87,7 @@
     "@types/lodash.clonedeepwith": "^4.5.7",
     "@types/memdown": "^3.0.1",
     "@types/node": "^18.7.23",
+    "@types/pako": "^2.0.0",
     "@types/supertest": "^2.0.12",
     "@typescript-eslint/eslint-plugin": "^6.2.1",
     "@typescript-eslint/parser": "^6.2.1",

@@ -1,5 +1,7 @@
 import { ContractAbi, DebugMetadata, FunctionAbi, FunctionType } from '@aztec/foundation/abi';
 
+import { deflate } from 'pako';
+
 import { mockVerificationKey } from '../mocked_keys.js';
 import { NoirCompilationArtifacts, NoirFunctionEntry } from '../noir_artifact.js';
 
@@ -45,7 +47,7 @@ export function generateAztecAbi({ contract, debug }: NoirCompilationArtifacts):
     parsedDebug = {
       debugSymbols: sortedFunctions.map(fn => {
         const originalIndex = originalFunctions.indexOf(fn);
-        return debug.debug_symbols[originalIndex];
+        return Buffer.from(deflate(JSON.stringify(debug.debug_symbols[originalIndex]))).toString('base64');
       }),
       fileMap: debug.file_map,
     };
