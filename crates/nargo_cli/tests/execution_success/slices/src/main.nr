@@ -76,9 +76,10 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
         slice = slice.push_back(i);
     }
     assert(slice.len() == 5);
-    dynamic_slice_index_set_if(slice, x, y);
-    dynamic_slice_index_set_if(slice, x, y);
+    // dynamic_slice_index_set_if(slice, x, y);
     // dynamic_slice_index_set_else(slice, x, y);
+    // dynamic_slice_index_set_nested(slice, x, y);
+    dynamic_slice_index_get(slice, x, y);
 }
 
 fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
@@ -88,10 +89,13 @@ fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
     assert(slice[x] == 4);
     assert(slice[1] == 0);
     if x as u32 < 10 {
-      slice[x] = slice[x] - 2;
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+        slice[x - 1] = slice[x];
     } else {
-      slice[x] = 0;
+        slice[x] = 0;
     }
+    assert(slice[3] == 2);
     assert(slice[4] == 2);
 }
 
@@ -102,18 +106,42 @@ fn dynamic_slice_index_set_else(mut slice: [Field], x: Field, y: Field) {
     assert(slice[x] == 4);
     assert(slice[1] == 0);
     if x as u32 > 10 {
-      slice[x] = slice[x] - 2;
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+        slice[x - 1] = slice[x];
     } else {
-      slice[x] = 0;
+        slice[x] = 0;
     }
     assert(slice[4] == 0);
 }
 
-// fn dynamic_slice_index_get(mut slice: [Field], x: Field, y: Field) {
-//     if x as u32 < 10 {
+fn dynamic_slice_index_set_nested(mut slice: [Field], x: Field, y: Field) {
+    assert(slice[x] == 4);
+    assert(slice[y] == 1);
+    slice[y] = 0;
+    assert(slice[x] == 4);
+    assert(slice[1] == 0);
+    if x as u32 > 10 {
+        slice[x] = slice[x] - 2;
+        // TODO: this panics as we have a load for the slice in flattening
+        if y == 1 {
+            slice[x] = slice[x] + 20;
+        }
+    } else {
+        slice[x] = 0;
+    }
+    assert(slice[4] == 0);
+}
 
-//     }
-// }
+fn dynamic_slice_index_get(mut slice: [Field], x: Field, y: Field) {
+    if x as u32 < 10 {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+    } else {
+        assert(slice[x] == 0);
+    }
+    assert(slice[4] == 2);
+}
 
 // Ensure that slices of struct/tuple values work.
 fn regression_2083() {
