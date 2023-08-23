@@ -69,10 +69,10 @@ export function appFactory(node: AztecNode, prefix: string) {
     ctx.status = 200;
   });
 
-  router.get('/get-block-height', async (ctx: Koa.Context) => {
+  router.get('/get-block-number', async (ctx: Koa.Context) => {
     ctx.set('content-type', 'application/json');
     ctx.body = {
-      blockHeight: await node.getBlockHeight(),
+      blockNumber: await node.getBlockNumber(),
     };
     ctx.status = 200;
   });

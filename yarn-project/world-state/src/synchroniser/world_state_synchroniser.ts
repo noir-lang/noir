@@ -46,11 +46,11 @@ export interface WorldStateSynchroniser {
   stop(): Promise<void>;
 
   /**
-   * Forces an immediate sync to an optionally provided minimum block height
-   * @param blockHeight - The minimum block height that we must sync to
+   * Forces an immediate sync to an optionally provided minimum block number
+   * @param minBlockNumber - The minimum block number that we must sync to
    * @returns A promise that resolves once the sync has completed.
    */
-  syncImmediate(blockHeight?: number): Promise<void>;
+  syncImmediate(minBlockNumber?: number): Promise<void>;
 
   /**
    * Returns an instance of MerkleTreeOperations that will include uncommitted data.

@@ -79,8 +79,8 @@ export abstract class BaseWallet implements Wallet {
   getUnencryptedLogs(from: number, limit: number): Promise<L2BlockL2Logs[]> {
     return this.rpc.getUnencryptedLogs(from, limit);
   }
-  getBlockNum(): Promise<number> {
-    return this.rpc.getBlockNum();
+  getBlockNumber(): Promise<number> {
+    return this.rpc.getBlockNumber();
   }
   getNodeInfo(): Promise<NodeInfo> {
     return this.rpc.getNodeInfo();

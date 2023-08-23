@@ -30,7 +30,7 @@ describe('e2e_pending_commitments_contract', () => {
   });
 
   const expectCommitmentsSquashedExcept = async (exceptFirstFew: number) => {
-    const blockNum = await aztecNode!.getBlockHeight();
+    const blockNum = await aztecNode!.getBlockNumber();
     const block = (await aztecNode!.getBlocks(blockNum, 1))[0];
 
     // all new commitments should be zero (should be squashed)
@@ -44,7 +44,7 @@ describe('e2e_pending_commitments_contract', () => {
   };
 
   const expectNullifiersSquashedExcept = async (exceptFirstFew: number) => {
-    const blockNum = await aztecNode!.getBlockHeight();
+    const blockNum = await aztecNode!.getBlockNumber();
     const block = (await aztecNode!.getBlocks(blockNum, 1))[0];
 
     // 0th nullifier should be nonzero (txHash), all others should be zero (should be squashed)

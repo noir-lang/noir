@@ -19,7 +19,7 @@ export class Synchroniser {
   private noteProcessors: NoteProcessor[] = [];
   private interruptableSleep = new InterruptableSleep();
   private running = false;
-  private initialSyncBlockHeight = 0;
+  private initialSyncBlockNumber = 0;
   private synchedToBlock = 0;
   private log: DebugLogger;
   private noteProcessorsToCatchUp: NoteProcessor[] = [];
@@ -68,11 +68,11 @@ export class Synchroniser {
 
   protected async initialSync() {
     const [blockNumber, historicBlockData] = await Promise.all([
-      this.node.getBlockHeight(),
+      this.node.getBlockNumber(),
       this.node.getHistoricBlockData(),
     ]);
-    this.initialSyncBlockHeight = blockNumber;
-    this.synchedToBlock = this.initialSyncBlockHeight;
+    this.initialSyncBlockNumber = blockNumber;
+    this.synchedToBlock = this.initialSyncBlockNumber;
     await this.db.setHistoricBlockData(historicBlockData);
   }
 
@@ -193,7 +193,7 @@ export class Synchroniser {
 
   private async setBlockDataFromBlock(latestBlock: L2BlockContext) {
     const { block } = latestBlock;
-    if (block.number < this.initialSyncBlockHeight) return;
+    if (block.number < this.initialSyncBlockNumber) return;
 
     const wasm = await CircuitsWasm.get();
     const globalsHash = computeGlobalsHash(wasm, latestBlock.block.globalVariables);
@@ -266,10 +266,10 @@ export class Synchroniser {
    * Checks whether all the blocks were processed (tree roots updated, txs updated with block info, etc.).
    * @returns True if there are no outstanding blocks to be synched.
    * @remarks This indicates that blocks and transactions are synched even if notes are not.
-   * @remarks Compares local block height with the block height from aztec node.
+   * @remarks Compares local block number with the block number from aztec node.
    */
   public async isGlobalStateSynchronised() {
-    const latest = await this.node.getBlockHeight();
+    const latest = await this.node.getBlockNumber();
     return latest <= this.synchedToBlock;
   }
 

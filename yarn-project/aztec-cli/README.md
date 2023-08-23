@@ -409,7 +409,7 @@ Example usage:
 aztec-cli get-logs 1000 10
 ```
 
-### block-num
+### block-number
 
 Gets the current Aztec L2 block number.
 

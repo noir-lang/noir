@@ -107,8 +107,8 @@ const createSynchroniser = (merkleTreeDb: any, rollupSource: any, blockCheckInte
 const log = createDebugLogger('aztec:server_world_state_synchroniser_test');
 
 describe('server_world_state_synchroniser', () => {
-  const rollupSource: Mockify<Pick<L2BlockSource, 'getBlockHeight' | 'getL2Blocks'>> = {
-    getBlockHeight: jest.fn().mockImplementation(getLatestBlockNumber),
+  const rollupSource: Mockify<Pick<L2BlockSource, 'getBlockNumber' | 'getL2Blocks'>> = {
+    getBlockNumber: jest.fn().mockImplementation(getLatestBlockNumber),
     getL2Blocks: jest.fn().mockImplementation(consumeNextBlocks),
   };
 
@@ -265,7 +265,7 @@ describe('server_world_state_synchroniser', () => {
 
   it('immediately syncs if no new blocks', async () => {
     const server = createSynchroniser(merkleTreeDb, rollupSource);
-    rollupSource.getBlockHeight.mockImplementationOnce(() => {
+    rollupSource.getBlockNumber.mockImplementationOnce(() => {
       return Promise.resolve(0);
     });
 
@@ -283,7 +283,7 @@ describe('server_world_state_synchroniser', () => {
 
   it("can't be started if already stopped", async () => {
     const server = createSynchroniser(merkleTreeDb, rollupSource);
-    rollupSource.getBlockHeight.mockImplementationOnce(() => {
+    rollupSource.getBlockNumber.mockImplementationOnce(() => {
       return Promise.resolve(0);
     });
 
@@ -395,7 +395,7 @@ describe('server_world_state_synchroniser', () => {
       .fill(0)
       .map((_, index: number) => getMockBlock(index + 1 + LATEST_BLOCK_NUMBER));
     await expect(server.syncImmediate(LATEST_BLOCK_NUMBER + 5)).rejects.toThrow(
-      `Unable to sync to block height ${LATEST_BLOCK_NUMBER + 5}, currently synced to block ${LATEST_BLOCK_NUMBER + 2}`,
+      `Unable to sync to block number ${LATEST_BLOCK_NUMBER + 5}, currently synced to block ${LATEST_BLOCK_NUMBER + 2}`,
     );
 
     let status = await server.status();

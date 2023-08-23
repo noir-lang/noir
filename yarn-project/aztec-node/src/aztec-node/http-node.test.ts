@@ -109,14 +109,14 @@ describe('HttpNode', () => {
     });
   });
 
-  describe('getBlockHeight', () => {
-    it('should fetch and return the block height', async () => {
-      const response = { blockHeight: 100 };
+  describe('getBlockNumber', () => {
+    it('should fetch and return current block number', async () => {
+      const response = { blockNumber: 100 };
       setFetchMock(response);
 
-      const result = await httpNode.getBlockHeight();
+      const result = await httpNode.getBlockNumber();
 
-      expect(fetch).toHaveBeenCalledWith(`${TEST_URL}get-block-height`);
+      expect(fetch).toHaveBeenCalledWith(`${TEST_URL}get-block-number`);
       expect(result).toBe(100);
     });
   });

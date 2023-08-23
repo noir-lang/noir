@@ -464,7 +464,7 @@ export function getProgram(log: LogFn, debugLogger: DebugLogger): Command {
     .option('-u, --rpcUrl <string>', 'URL of the Aztec RPC', AZTEC_RPC_HOST || 'http://localhost:8080')
     .action(async (options: any) => {
       const client = createClient(options.rpcUrl);
-      const num = await client.getBlockNum();
+      const num = await client.getBlockNumber();
       log(`${num}\n`);
     });
 

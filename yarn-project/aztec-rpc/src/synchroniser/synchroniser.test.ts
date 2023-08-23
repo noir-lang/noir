@@ -33,7 +33,7 @@ describe('Synchroniser', () => {
   });
 
   it('sets tree roots from aztec node on initial sync', async () => {
-    aztecNode.getBlockHeight.mockResolvedValue(3);
+    aztecNode.getBlockNumber.mockResolvedValue(3);
     aztecNode.getHistoricBlockData.mockResolvedValue(blockData);
 
     await synchroniser.initialSync();
@@ -52,9 +52,9 @@ describe('Synchroniser', () => {
     expect(roots[MerkleTreeId.CONTRACT_TREE]).toEqual(block.endContractTreeSnapshot.root);
   });
 
-  it('overrides tree roots from initial sync once block height is larger', async () => {
+  it('overrides tree roots from initial sync once current block number is larger', async () => {
     // Initial sync is done on block with height 3
-    aztecNode.getBlockHeight.mockResolvedValue(3);
+    aztecNode.getBlockNumber.mockResolvedValue(3);
     aztecNode.getHistoricBlockData.mockResolvedValue(blockData);
 
     await synchroniser.initialSync();
@@ -99,7 +99,7 @@ describe('Synchroniser', () => {
     await synchroniser.work();
 
     // Used in synchroniser.isAccountStateSynchronised
-    aztecNode.getBlockHeight.mockResolvedValueOnce(1);
+    aztecNode.getBlockNumber.mockResolvedValueOnce(1);
 
     // Manually adding account to database so that we can call synchroniser.isAccountStateSynchronised
     const keyStore = new TestKeyStore(await Grumpkin.new());

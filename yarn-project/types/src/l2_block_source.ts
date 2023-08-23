@@ -16,7 +16,7 @@ export interface L2BlockSource {
    * Gets the number of the latest L2 block processed by the block source implementation.
    * @returns The number of the latest L2 block processed by the block source implementation.
    */
-  getBlockHeight(): Promise<number>;
+  getBlockNumber(): Promise<number>;
 
   /**
    * Gets an l2 block. If a negative number is passed, the block returned is the most recent.

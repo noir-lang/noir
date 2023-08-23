@@ -203,10 +203,10 @@ export interface AztecRPC {
   getUnencryptedLogs(from: number, limit: number): Promise<L2BlockL2Logs[]>;
 
   /**
-   * Get latest L2 block number.
-   * @returns The latest block number.
+   * Fetches the current block number.
+   * @returns The block number.
    */
-  getBlockNum(): Promise<number>;
+  getBlockNumber(): Promise<number>;
 
   /**
    * Returns the information about the server's node
@@ -218,7 +218,7 @@ export interface AztecRPC {
    * Checks whether all the blocks were processed (tree roots updated, txs updated with block info, etc.).
    * @returns True if there are no outstanding blocks to be synched.
    * @remarks This indicates that blocks and transactions are synched even if notes are not.
-   * @remarks Compares local block height with the block height from aztec node.
+   * @remarks Compares local block number with the block number from aztec node.
    */
   isGlobalStateSynchronised(): Promise<boolean>;
 

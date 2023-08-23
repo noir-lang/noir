@@ -140,7 +140,7 @@ export class Sequencer {
       this.log(`Processing ${validTxs.length} txs...`);
       this.state = SequencerState.CREATING_BLOCK;
 
-      const blockNumber = (await this.l2BlockSource.getBlockHeight()) + 1;
+      const blockNumber = (await this.l2BlockSource.getBlockNumber()) + 1;
       const newGlobalVariables = await this.globalsBuilder.buildGlobalVariables(new Fr(blockNumber));
       const prevGlobalVariables = (await this.l2BlockSource.getL2Block(-1))?.globalVariables ?? GlobalVariables.empty();
 

@@ -120,7 +120,7 @@ export const aztecRpcTestSuite = (testName: string, aztecRpcSetup: () => Promise
     //       functions only call AztecNode and these methods are frequently used by the e2e tests.
 
     it('successfully gets a block number', async () => {
-      const blockNum = await rpc.getBlockNum();
+      const blockNum = await rpc.getBlockNumber();
       expect(blockNum).toBeGreaterThanOrEqual(INITIAL_L2_BLOCK_NUM);
     });
 

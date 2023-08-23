@@ -42,7 +42,7 @@ describe('Archiver', () => {
       1000,
     );
 
-    let latestBlockNum = await archiver.getBlockHeight();
+    let latestBlockNum = await archiver.getBlockNumber();
     expect(latestBlockNum).toEqual(0);
 
     const blocks = blockNums.map(x => L2Block.random(x, 4, x, x + 1, x * 2, x * 3));
@@ -95,11 +95,11 @@ describe('Archiver', () => {
     await archiver.start(false);
 
     // Wait until block 3 is processed. If this won't happen the test will fail with timeout.
-    while ((await archiver.getBlockHeight()) !== 3) {
+    while ((await archiver.getBlockNumber()) !== 3) {
       await sleep(100);
     }
 
-    latestBlockNum = await archiver.getBlockHeight();
+    latestBlockNum = await archiver.getBlockNumber();
     expect(latestBlockNum).toEqual(3);
 
     // Check that only 2 messages (l1ToL2MessageAddedEvents[3][2] and l1ToL2MessageAddedEvents[3][3]) are pending.

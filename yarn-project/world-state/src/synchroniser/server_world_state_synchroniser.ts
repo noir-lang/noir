@@ -54,7 +54,7 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
     }
 
     // get the current latest block number
-    this.latestBlockNumberAtStart = await this.l2BlockSource.getBlockHeight();
+    this.latestBlockNumberAtStart = await this.l2BlockSource.getBlockNumber();
 
     const blockToDownloadFrom = this.currentL2BlockNum + 1;
 
@@ -105,25 +105,25 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
 
   /**
    * Forces an immediate sync
-   * @param blockHeight - The minimum block height that we must sync to
+   * @param minBlockNumber - The minimum block number that we must sync to
    * @returns A promise that resolves once the sync has completed.
    */
-  public async syncImmediate(blockHeight?: number): Promise<void> {
+  public async syncImmediate(minBlockNumber?: number): Promise<void> {
     if (this.currentState !== WorldStateRunningState.RUNNING) {
       throw new Error(`World State is not running, unable to perform sync`);
     }
-    // If we have been given a block height to sync to and we have reached that height
+    // If we have been given a block number to sync to and we have reached that number
     // then return.
-    if (blockHeight !== undefined && blockHeight <= this.currentL2BlockNum) {
+    if (minBlockNumber !== undefined && minBlockNumber <= this.currentL2BlockNum) {
       return;
     }
-    const blockToSyncTo = blockHeight === undefined ? 'latest' : `${blockHeight}`;
+    const blockToSyncTo = minBlockNumber === undefined ? 'latest' : `${minBlockNumber}`;
     this.log(`World State at block ${this.currentL2BlockNum}, told to sync to block ${blockToSyncTo}...`);
     // ensure any outstanding block updates are completed first.
     await this.jobQueue.syncPoint();
     while (true) {
-      // Check the block height again
-      if (blockHeight !== undefined && blockHeight <= this.currentL2BlockNum) {
+      // Check the block number again
+      if (minBlockNumber !== undefined && minBlockNumber <= this.currentL2BlockNum) {
         return;
       }
       // Poll for more blocks
@@ -134,10 +134,10 @@ export class ServerWorldStateSynchroniser implements WorldStateSynchroniser {
         await this.jobQueue.put(() => this.collectAndProcessBlocks());
         continue;
       }
-      // No blocks are available, if we have been given a block height then we can't achieve it
-      if (blockHeight !== undefined) {
+      // No blocks are available, if we have been given a block number then we can't achieve it
+      if (minBlockNumber !== undefined) {
         throw new Error(
-          `Unable to sync to block height ${blockHeight}, currently synced to block ${this.currentL2BlockNum}`,
+          `Unable to sync to block number ${minBlockNumber}, currently synced to block ${this.currentL2BlockNum}`,
         );
       }
       return;

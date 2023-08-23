@@ -79,14 +79,14 @@ export class HttpNode implements AztecNode {
   }
 
   /**
-   * Method to fetch the current block height.
-   * @returns The block height as a number.
+   * Method to fetch the current block number.
+   * @returns The current block number.
    */
-  async getBlockHeight(): Promise<number> {
-    const url = new URL(`${this.baseUrl}/get-block-height`);
+  async getBlockNumber(): Promise<number> {
+    const url = new URL(`${this.baseUrl}/get-block-number`);
     const response = await fetch(url.toString());
     const respJson = await response.json();
-    return respJson.blockHeight;
+    return respJson.blockNumber;
   }
 
   /**

@@ -127,7 +127,7 @@ export interface ArchiverDataStore {
    * Gets the number of the latest L2 block processed.
    * @returns The number of the latest L2 block processed.
    */
-  getBlockHeight(): Promise<number>;
+  getBlockNumber(): Promise<number>;
 
   /**
    * Gets the length of L2 blocks in store.
@@ -382,7 +382,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    * Gets the number of the latest L2 block processed.
    * @returns The number of the latest L2 block processed.
    */
-  public getBlockHeight(): Promise<number> {
+  public getBlockNumber(): Promise<number> {
     if (this.l2Blocks.length === 0) return Promise.resolve(INITIAL_L2_BLOCK_NUM - 1);
     return Promise.resolve(this.l2Blocks[this.l2Blocks.length - 1].number);
   }

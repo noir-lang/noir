@@ -49,15 +49,15 @@ export class NoteProcessor {
   ) {}
 
   /**
-   * Check if the NoteProcessor is synchronised with the remote block height.
-   * The function queries the remote block height from the AztecNode and compares it with the syncedToBlock value in the NoteProcessor.
+   * Check if the NoteProcessor is synchronised with the remote block number.
+   * The function queries the remote block number from the AztecNode and compares it with the syncedToBlock value in the NoteProcessor.
    * If the values are equal, then the NoteProcessor is considered to be synchronised, otherwise not.
    *
-   * @returns A boolean indicating whether the NoteProcessor is synchronised with the remote block height or not.
+   * @returns A boolean indicating whether the NoteProcessor is synchronised with the remote block number or not.
    */
   public async isSynchronised() {
-    const remoteBlockHeight = await this.node.getBlockHeight();
-    return this.syncedToBlock === remoteBlockHeight;
+    const remoteBlockNumber = await this.node.getBlockNumber();
+    return this.syncedToBlock === remoteBlockNumber;
   }
 
   /**

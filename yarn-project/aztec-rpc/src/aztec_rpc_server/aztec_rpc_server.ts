@@ -155,9 +155,9 @@ export class AztecRPCServer implements AztecRPC {
   }
 
   public async getBlock(blockNumber: number): Promise<L2Block | undefined> {
-    // If a negative block number is provided the current block height is fetched.
+    // If a negative block number is provided the current block number is fetched.
     if (blockNumber < 0) {
-      blockNumber = await this.node.getBlockHeight();
+      blockNumber = await this.node.getBlockNumber();
     }
     return await this.node.getBlock(blockNumber);
   }
@@ -241,8 +241,8 @@ export class AztecRPCServer implements AztecRPC {
     return partialReceipt;
   }
 
-  async getBlockNum(): Promise<number> {
-    return await this.node.getBlockHeight();
+  async getBlockNumber(): Promise<number> {
+    return await this.node.getBlockNumber();
   }
 
   public async getContractDataAndBytecode(contractAddress: AztecAddress): Promise<ContractDataAndBytecode | undefined> {

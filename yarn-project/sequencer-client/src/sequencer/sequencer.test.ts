@@ -65,7 +65,7 @@ describe('sequencer', () => {
     });
 
     l2BlockSource = mock<L2BlockSource>({
-      getBlockHeight: () => Promise.resolve(lastBlockNumber),
+      getBlockNumber: () => Promise.resolve(lastBlockNumber),
     });
 
     l1ToL2MessageSource = mock<L1ToL2MessageSource>({

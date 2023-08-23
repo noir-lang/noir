@@ -142,7 +142,7 @@ export class P2PClient implements P2P {
     }
 
     // get the current latest block number
-    this.latestBlockNumberAtStart = await this.l2BlockSource.getBlockHeight();
+    this.latestBlockNumberAtStart = await this.l2BlockSource.getBlockNumber();
 
     const blockToDownloadFrom = this.currentL2BlockNum + 1;
 

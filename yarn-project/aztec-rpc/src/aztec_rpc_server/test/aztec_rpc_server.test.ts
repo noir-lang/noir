@@ -18,7 +18,7 @@ async function createAztecRpcServer(): Promise<AztecRPC> {
   };
 
   // Setup the relevant mocks
-  node.getBlockHeight.mockResolvedValue(2);
+  node.getBlockNumber.mockResolvedValue(2);
   node.getVersion.mockResolvedValue(1);
   node.getChainId.mockResolvedValue(1);
   node.getRollupAddress.mockResolvedValue(EthAddress.random());

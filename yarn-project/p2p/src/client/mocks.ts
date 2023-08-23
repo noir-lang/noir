@@ -26,7 +26,7 @@ export class MockBlockSource implements L2BlockSource {
    * Gets the number of the latest L2 block processed by the block source implementation.
    * @returns In this mock instance, returns the number of L2 blocks that we've mocked.
    */
-  public getBlockHeight() {
+  public getBlockNumber() {
     return Promise.resolve(this.l2Blocks.length - 1);
   }
 

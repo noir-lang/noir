@@ -353,8 +353,8 @@ export class Archiver implements L2BlockSource, L2LogsSource, ContractDataSource
    * Gets the number of the latest L2 block processed by the block source implementation.
    * @returns The number of the latest L2 block processed by the block source implementation.
    */
-  public getBlockHeight(): Promise<number> {
-    return this.store.getBlockHeight();
+  public getBlockNumber(): Promise<number> {
+    return this.store.getBlockNumber();
   }
 
   /**

@@ -43,10 +43,10 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
   getBlocks(from: number, limit: number): Promise<L2Block[]>;
 
   /**
-   * Method to fetch the current block height.
-   * @returns The block height as a number.
+   * Fetches the current block number.
+   * @returns The block number.
    */
-  getBlockHeight(): Promise<number>;
+  getBlockNumber(): Promise<number>;
 
   /**
    * Method to fetch the version of the rollup the node is connected to.

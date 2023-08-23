@@ -17,7 +17,7 @@ describe('e2e_ordering', () => {
   let wallet: Wallet;
 
   const expectLogsFromLastBlockToBe = async (logMessages: bigint[]) => {
-    const l2BlockNum = await aztecRpcServer.getBlockNum();
+    const l2BlockNum = await aztecRpcServer.getBlockNumber();
     const unencryptedLogs = await aztecRpcServer.getUnencryptedLogs(l2BlockNum, 1);
     const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs);
     const bigintLogs = unrolledLogs.map((log: Buffer) => toBigIntBE(log));
