@@ -13,7 +13,7 @@ pub(crate) enum BrilligParameter {
 
 /// The result of compiling and linking brillig artifacts.
 /// This is ready to run bytecode with attached metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct GeneratedBrillig {
     pub(crate) byte_code: Vec<BrilligOpcode>,
     pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
