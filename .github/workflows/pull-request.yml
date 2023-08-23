@@ -28,7 +28,4 @@ jobs:
             chore
             refactor
             docs
-            ci
-            build
-            perf
             test
