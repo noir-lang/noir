@@ -67,7 +67,7 @@ impl<'a> Lexer<'a> {
         if self.peek_char_is('&') {
             // When we issue this error the first '&' will already be consumed
             // and the next token issued will be the next '&'.
-            let span = Span::new(self.position..self.position + 1);
+            let span = Span::inclusive(self.position, self.position + 1);
             Err(LexerErrorKind::LogicalAnd { span })
         } else {
             self.single_char_token(Token::Ampersand)
@@ -102,7 +102,7 @@ impl<'a> Lexer<'a> {
             Some('}') => self.single_char_token(Token::RightBrace),
             Some('[') => self.single_char_token(Token::LeftBracket),
             Some(']') => self.single_char_token(Token::RightBracket),
-            Some('"') => Ok(self.eat_string_literal(false)),
+            Some('"') => self.eat_string_literal(),
             Some('f') => self.eat_format_string_or_alpha_numeric(),
             Some('#') => self.eat_attribute(),
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
@@ -195,9 +195,7 @@ impl<'a> Lexer<'a> {
         &mut self,
         initial_char: Option<char>,
         predicate: F,
-    ) -> (String, Position, Position) {
-        let start = self.position;
-
+    ) -> String {
         // This function is only called when we want to continue consuming a character of the same type.
         // For example, we see a digit and we want to consume the whole integer
         // Therefore, the current character which triggered this function will need to be appended
@@ -212,7 +210,7 @@ impl<'a> Lexer<'a> {
             // If not, return word. The next character will be analyzed on the next iteration of next_token,
             // Which will increment the cursor
             if !predicate(peek_char) {
-                return (word, start, self.position);
+                return word;
             }
             word.push(peek_char);
 
@@ -220,7 +218,7 @@ impl<'a> Lexer<'a> {
             self.next_char();
         }
 
-        (word, start, self.position)
+        word
     }
 
     fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
@@ -236,6 +234,8 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_attribute(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+
         if !self.peek_char_is('[') {
             return Err(LexerErrorKind::UnexpectedCharacter {
                 span: Span::single_char(self.position),
@@ -245,7 +245,7 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let (word, start, end) = self.eat_while(None, |ch| ch != ']');
+        let word = self.eat_while(None, |ch| ch != ']');
 
         if !self.peek_char_is(']') {
             return Err(LexerErrorKind::UnexpectedCharacter {
@@ -256,19 +256,23 @@ impl<'a> Lexer<'a> {
         }
         self.next_char();
 
-        let attribute = Attribute::lookup_attribute(&word, Span::exclusive(start, end))?;
+        let end = self.position;
 
-        // Move start position backwards to cover the left bracket
-        // Move end position forwards to cover the right bracket
-        Ok(attribute.into_span(start - 1, end + 1))
+        let attribute = Attribute::lookup_attribute(&word, Span::inclusive(start, end))?;
+
+        Ok(attribute.into_span(start, end))
     }
 
     //XXX(low): Can increase performance if we use iterator semantic and utilize some of the methods on String. See below
     // https://doc.rust-lang.org/stable/std/primitive.str.html#method.rsplit
     fn eat_word(&mut self, initial_char: char) -> SpannedTokenResult {
-        let (word, start, end) = self.eat_while(Some(initial_char), |ch| {
+        let start = self.position;
+
+        let word = self.eat_while(Some(initial_char), |ch| {
             ch.is_ascii_alphabetic() || ch.is_numeric() || ch == '_'
         });
+
+        let end = self.position;
 
         // Check if word either an identifier or a keyword
         if let Some(keyword_token) = Keyword::lookup_keyword(&word) {
@@ -277,7 +281,7 @@ impl<'a> Lexer<'a> {
 
         // Check if word an int type
         // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word, Span::exclusive(start, end))?;
+        let parsed_token = IntType::lookup_int_type(&word, Span::inclusive(start, end))?;
 
         // Check if it is an int type
         if let Some(int_type_token) = parsed_token {
@@ -290,14 +294,18 @@ impl<'a> Lexer<'a> {
     }
 
     fn eat_digit(&mut self, initial_char: char) -> SpannedTokenResult {
-        let (integer_str, start, end) = self.eat_while(Some(initial_char), |ch| {
+        let start = self.position;
+
+        let integer_str = self.eat_while(Some(initial_char), |ch| {
             ch.is_ascii_digit() | ch.is_ascii_hexdigit() | (ch == 'x')
         });
+
+        let end = self.position;
 
         let integer = match FieldElement::try_from_str(&integer_str) {
             None => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
-                    span: Span::exclusive(start, end),
+                    span: Span::inclusive(start, end),
                     found: integer_str,
                 })
             }
@@ -308,18 +316,38 @@ impl<'a> Lexer<'a> {
         Ok(integer_token.into_span(start, end))
     }
 
-    fn eat_string_literal(&mut self, is_format_string: bool) -> SpannedToken {
-        let (str_literal, start_span, end_span) = self.eat_while(None, |ch| ch != '"');
-        let str_literal_token =
-            if is_format_string { Token::FmtStr(str_literal) } else { Token::Str(str_literal) };
+    fn eat_string_literal(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+
+        let str_literal = self.eat_while(None, |ch| ch != '"');
+
+        let str_literal_token = Token::Str(str_literal);
+
         self.next_char(); // Advance past the closing quote
-        str_literal_token.into_span(start_span, end_span)
+
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
+    }
+
+    // This differs from `eat_string_literal` in that we want the leading `f` to be captured in the Span
+    fn eat_fmt_string(&mut self) -> SpannedTokenResult {
+        let start = self.position;
+
+        self.next_char();
+
+        let str_literal = self.eat_while(None, |ch| ch != '"');
+
+        let str_literal_token = Token::FmtStr(str_literal);
+
+        self.next_char(); // Advance past the closing quote
+
+        let end = self.position;
+        Ok(str_literal_token.into_span(start, end))
     }
 
     fn eat_format_string_or_alpha_numeric(&mut self) -> SpannedTokenResult {
         if self.peek_char_is('"') {
-            self.next_char();
-            Ok(self.eat_string_literal(true))
+            self.eat_fmt_string()
         } else {
             self.eat_alpha_numeric('f')
         }
@@ -331,7 +359,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn parse_block_comment(&mut self) -> SpannedTokenResult {
-        let span = Span::new(self.position..self.position + 1);
+        let start = self.position;
         let mut depth = 1usize;
 
         while let Some(ch) = self.next_char() {
@@ -358,6 +386,7 @@ impl<'a> Lexer<'a> {
         if depth == 0 {
             self.next_token()
         } else {
+            let span = Span::inclusive(start, self.position);
             Err(LexerErrorKind::UnterminatedBlockComment { span })
         }
     }
