@@ -636,12 +636,20 @@ impl Display for FunctionDefinition {
             format!("{name}: {visibility} {type}")
         });
 
+        let where_clause = vecmap(&self.where_clause, ToString::to_string);
+        let where_clause_str = if where_clause.len() > 0 {
+            format!("where {}", where_clause.join(", "))
+        } else {
+            "".to_string()
+        };
+
         write!(
             f,
-            "fn {}({}) -> {} {}",
+            "fn {}({}) -> {} {} {}",
             self.name,
             parameters.join(", "),
             self.return_type,
+            where_clause_str,
             self.body
         )
     }
