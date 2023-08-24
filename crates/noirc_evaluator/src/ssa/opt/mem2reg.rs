@@ -1,6 +1,66 @@
-//! mem2reg implements a pass for promoting values stored in memory to values in registers where
-//! possible. This is particularly important for converting our memory-based representation of
-//! mutable variables into values that are easier to manipulate.
+//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+//! addresses with the value stored at that address, if it is also known. This pass will also remove
+//! any `Store` instructions within a block that are no longer needed because no more loads occur in
+//! between the Store in question and the next Store.
+//!
+//! The pass works as follows:
+//! - Each block in each function is iterated in forward-order.
+//! - The starting value of each reference in the block is the unification of the same references
+//!   at the end of each direct predecessor block to the current block.
+//! - At each step, the value of each reference is either Known(ValueId) or Unknown.
+//! - Two reference values unify to each other if they are exactly equal, or to Unknown otherwise.
+//! - If a block has no predecessors, the starting value of each reference is Unknown.
+//! - Throughout this pass, aliases of each reference are also tracked.
+//!   - References typically have 1 alias - themselves.
+//!   - A reference with multiple aliases means we will not be able to optimize out loads if the
+//!     reference is stored to. Note that this means we can still optimize out loads if these
+//!     aliased references are never stored to, or the store occurs after a load.
+//!   - A reference with 0 aliases means we were unable to find which reference this reference
+//!     refers to. If such a reference is stored to, we must conservatively invalidate every
+//!     reference in the current block.
+//!
+//! From there, to figure out the value of each reference at the end of block, iterate each instruction:
+//! - On `Instruction::Allocate`:
+//!   - Register a new reference was made with itself as its only alias
+//! - On `Instruction::Load { address }`:
+//!   - If `address` is known to only have a single alias (including itself) and if the value of
+//!     that alias is known, replace the value of the load with the known value.
+//!   - Furthermore, if the result of the load is a reference, mark that reference as an alias
+//!     of the reference it dereferences to (if known).
+//!     - If which reference it dereferences to is not known, this load result has no aliases.
+//! - On `Instruction::Store { address, value }`:
+//!   - If the address of the store is known:
+//!     - If the address has exactly 1 alias:
+//!       - Set the value of the address to `Known(value)`.
+//!     - If the address has more than 1 alias:
+//!       - Set the value of every possible alias to `Unknown`.
+//!     - If the address has 0 aliases:
+//!       - Conservatively mark every alias in the block to `Unknown`.
+//!   - If the address of the store is not known:
+//!     - Conservatively mark every alias in the block to `Unknown`.
+//!   - Additionally, if there were no Loads to any alias of the address between this Store and
+//!     the previous Store to the same address, the previous store can be removed.
+//! - On `Instruction::Call { arguments }`:
+//!   - If any argument of the call is a reference, set the value of each alias of that
+//!     reference to `Unknown`
+//!   - Any builtin functions that may return aliases if their input also contains a
+//!     reference should be tracked. Examples: `slice_push_back`, `slice_insert`, `slice_remove`, etc.
+//!
+//! On a terminator instruction:
+//! - If the terminator is a `Jmp`:
+//!   - For each reference argument of the jmp, mark the corresponding block parameter it is passed
+//!     to as an alias for the jmp argument.
+//!
+//! Finally, if this is the only block in the function, we can remove any Stores that were not
+//! referenced by the terminator instruction.
+//!
+//! Repeating this algorithm for each block in the function in program order should result in
+//! optimizing out most known loads. However, identifying all aliases correctly has been proven 
+//! undecidable in general (Landi, 1992). So this pass will not always optimize out all loads
+//! that could theoretically be optimized out. This pass can be performed at any time in the
+//! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
+//! This pass is currently performed several times to enable other passes - most notably being
+//! performed before loop unrolling to try to allow for mutable variables used for for loop indices. 
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ssa::{
@@ -9,7 +69,7 @@ use crate::ssa::{
         cfg::ControlFlowGraph,
         dom::DominatorTree,
         function::Function,
-        instruction::{Instruction, InstructionId},
+        instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
         value::ValueId,
@@ -20,7 +80,6 @@ use crate::ssa::{
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
     /// scope, and attempts to remove stores that are subsequently redundant.
-    /// As long as they are not stores on memory used inside of loops
     pub(crate) fn mem2reg(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             let mut context = PerFunctionContext::new(function);
@@ -47,25 +106,33 @@ struct PerFunctionContext {
 
 #[derive(Debug, Default, Clone)]
 struct Block {
+    /// Maps a ValueId to the Expression it represents.
+    /// Multiple ValueIds can map to the same Expression, e.g.
+    /// dereferences to the same allocation.
     expressions: BTreeMap<ValueId, Expression>,
 
+    /// Each expression is tracked as to how many aliases it
+    /// may have. If there is only 1, we can attempt to optimize
+    /// out any known loads to that alias. Note that "alias" here
+    /// includes the original reference as well.
     aliases: BTreeMap<Expression, BTreeSet<ValueId>>,
 
-    alias_sets: BTreeMap<ValueId, Reference>,
+    /// Each allocate instruction result (and some reference block parameters)
+    /// will map to a Reference value which tracks whether the last value stored
+    /// to the reference is known.
+    references: BTreeMap<ValueId, ReferenceValue>,
 }
 
+/// An `Expression` here is used to represent a canonical key
+/// into the aliases map since otherwise two dereferences of the
+/// same address will be given different ValueIds.
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 enum Expression {
     Dereference(Box<Expression>),
     Other(ValueId),
 }
 
-#[derive(Debug, Clone)]
-struct Reference {
-    aliases: BTreeSet<ValueId>,
-    value: ReferenceValue,
-}
-
+/// Every reference's value is either Known and can be optimized away, or Unknown.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum ReferenceValue {
     Unknown,
@@ -106,10 +173,6 @@ impl PerFunctionContext {
     /// of the value of the same reference at the end of its predecessor blocks.
     fn find_starting_references(&mut self, block: BasicBlockId) -> Block {
         let mut predecessors = self.cfg.predecessors(block);
-        println!(
-            "find_starting_references block {block} with {} predecessor(s)",
-            predecessors.len()
-        );
 
         if let Some(first_predecessor) = predecessors.next() {
             let first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
@@ -137,7 +200,6 @@ impl PerFunctionContext {
         block: BasicBlockId,
         mut references: Block,
     ) {
-        // TODO: Can we avoid cloning here?
         let instructions = function.dfg[block].instructions().to_vec();
         let mut last_stores = BTreeMap::new();
 
@@ -145,8 +207,7 @@ impl PerFunctionContext {
             self.analyze_instruction(function, &mut references, instruction, &mut last_stores);
         }
 
-        let terminator_arguments = function.dfg[block].terminator_arguments();
-        self.mark_all_unknown(terminator_arguments, function, &mut references, &mut last_stores);
+        self.handle_terminator(function, block, &mut references, &mut last_stores);
 
         // If there's only 1 block in the function total, we can remove any remaining last stores
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
@@ -194,7 +255,7 @@ impl PerFunctionContext {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                references.set_known_value(address, value);
+                references.set_known_value(address, value, last_stores);
                 last_stores.insert(address, instruction);
             }
             Instruction::Call { arguments, .. } => {
@@ -209,10 +270,6 @@ impl PerFunctionContext {
                 aliases.insert(result);
                 references.aliases.insert(Expression::Other(result), aliases);
             }
-
-            // TODO: Track aliases here
-            // Instruction::ArrayGet { array, index } => todo!(),
-            // Instruction::ArraySet { array, index, value } => todo!(),
             _ => (),
         }
     }
@@ -227,7 +284,7 @@ impl PerFunctionContext {
         for value in values {
             if function.dfg.type_of_value(*value) == Type::Reference {
                 let value = function.dfg.resolve(*value);
-                references.set_unknown(value);
+                references.set_unknown(value, last_stores);
                 last_stores.remove(&value);
             }
         }
@@ -244,6 +301,42 @@ impl PerFunctionContext {
                 .retain(|instruction| !self.instructions_to_remove.contains(instruction));
         }
     }
+
+    fn handle_terminator(
+        &self,
+        function: &mut Function,
+        block: BasicBlockId,
+        references: &mut Block,
+        last_stores: &mut BTreeMap<ValueId, InstructionId>,
+    ) {
+        match function.dfg[block].unwrap_terminator() {
+            TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
+            TerminatorInstruction::Jmp { destination, arguments, .. } => {
+                let destination_parameters = function.dfg[*destination].parameters();
+                assert_eq!(destination_parameters.len(), arguments.len());
+
+                // Add an alias for each reference parameter
+                for (parameter, argument) in destination_parameters.iter().zip(arguments) {
+                    if function.dfg.type_of_value(*parameter) == Type::Reference {
+                        let argument = function.dfg.resolve(*argument);
+
+                        if let Some(expression) = references.expressions.get(&argument) {
+                            if let Some(aliases) = references.aliases.get_mut(expression) {
+                                // The argument reference is possibly aliased by this block parameter
+                                aliases.insert(*parameter);
+                            }
+                        }
+                    }
+                }
+            }
+            TerminatorInstruction::Return { return_values } => {
+                // Removing all `last_stores` for each returned reference is more important here
+                // than setting them all to ReferenceValue::Unknown since no other block should
+                // have a block with a Return terminator as a predecessor anyway.
+                self.mark_all_unknown(return_values, function, references, last_stores);
+            }
+        }
+    }
 }
 
 impl Block {
@@ -256,81 +349,70 @@ impl Block {
                 if aliases.len() == 1 {
                     let alias = aliases.first().expect("There should be exactly 1 alias");
 
-                    if let Some(reference) = self.alias_sets.get(alias) {
-                        if let ReferenceValue::Known(value) = reference.value {
-                            println!("get_known_value: returning {value} for alias {alias}");
-                            return Some(value);
-                        } else {
-                            println!("get_known_value: ReferenceValue::Unknown for alias {alias}");
-                        }
-                    } else {
-                        println!("get_known_value: No alias_set for alias {alias}");
+                    if let Some(ReferenceValue::Known(value)) = self.references.get(alias) {
+                        return Some(*value);
                     }
-                } else {
-                    println!("get_known_value: {} aliases for address {address}", aliases.len());
                 }
-            } else {
-                println!("get_known_value: No known aliases for address {address}");
             }
-        } else {
-            println!("get_known_value: No expression for address {address}");
         }
         None
     }
 
     /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
-    fn set_known_value(&mut self, address: ValueId, value: ValueId) {
-        self.set_value(address, ReferenceValue::Known(value));
+    fn set_known_value(
+        &mut self,
+        address: ValueId,
+        value: ValueId,
+        last_stores: &mut BTreeMap<ValueId, InstructionId>,
+    ) {
+        self.set_value(address, ReferenceValue::Known(value), last_stores);
     }
 
-    fn set_unknown(&mut self, address: ValueId) {
-        self.set_value(address, ReferenceValue::Unknown);
+    fn set_unknown(
+        &mut self,
+        address: ValueId,
+        last_stores: &mut BTreeMap<ValueId, InstructionId>,
+    ) {
+        self.set_value(address, ReferenceValue::Unknown, last_stores);
     }
 
-    fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
-        // TODO: Verify this does not fail in the case of reference parameters
+    fn set_value(
+        &mut self,
+        address: ValueId,
+        value: ReferenceValue,
+        last_stores: &mut BTreeMap<ValueId, InstructionId>,
+    ) {
         if let Some(expression) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expression) {
                 if aliases.is_empty() {
                     // uh-oh, we don't know at all what this reference refers to, could be anything.
                     // Now we have to invalidate every reference we know of
-                    todo!("empty alias set");
+                    self.invalidate_all_references(last_stores);
                 } else if aliases.len() == 1 {
                     let alias = aliases.first().expect("There should be exactly 1 alias");
-
-                    if let Some(reference) = self.alias_sets.get_mut(alias) {
-                        println!("set_known_value: Set value to {value:?} for alias {alias}");
-                        reference.value = value;
-                    } else {
-                        let reference = Reference { value, aliases: BTreeSet::new() };
-                        self.alias_sets.insert(*alias, reference);
-                        println!("set_known_value: Created new alias set for alias {alias}, with value {value:?}");
-                    }
+                    self.references.insert(*alias, value);
                 } else {
-                    println!("set_known_value: {} aliases for expression {expression:?}, marking all unknown", aliases.len());
                     // More than one alias. We're not sure which it refers to so we have to
                     // conservatively invalidate all references it may refer to.
                     for alias in aliases.iter() {
-                        if let Some(reference) = self.alias_sets.get_mut(alias) {
-                            println!("  Marking {alias} unknown");
-                            reference.value = ReferenceValue::Unknown;
-                        } else {
-                            println!("  {alias} already unknown");
+                        if let Some(reference_value) = self.references.get_mut(alias) {
+                            *reference_value = ReferenceValue::Unknown;
                         }
                     }
                 }
-            } else {
-                println!("set_known_value: ReferenceValue::Unknown for expression {expression:?}");
             }
-        } else {
-            println!("\n\n!! set_known_value: Creating fresh expression for {address} in set_value... aliases will be empty\n\n");
-            self.expressions.insert(address, Expression::Other(address));
         }
     }
 
-    fn unify(mut self, other: &Self) -> Self {
-        println!("unify:\n  {self:?}\n  {other:?}");
+    fn invalidate_all_references(&mut self, last_stores: &mut BTreeMap<ValueId, InstructionId>) {
+        for reference_value in self.references.values_mut() {
+            *reference_value = ReferenceValue::Unknown;
+        }
 
+        last_stores.clear();
+    }
+
+    fn unify(mut self, other: &Self) -> Self {
         for (value_id, expression) in &other.expressions {
             if let Some(existing) = self.expressions.get(value_id) {
                 assert_eq!(existing, expression, "Expected expressions for {value_id} to be equal");
@@ -354,14 +436,13 @@ impl Block {
 
         // Keep only the references present in both maps.
         let mut intersection = BTreeMap::new();
-        for (value_id, reference) in &other.alias_sets {
-            if let Some(existing) = self.alias_sets.get(value_id) {
-                intersection.insert(*value_id, existing.unify(reference));
+        for (value_id, reference) in &other.references {
+            if let Some(existing) = self.references.get(value_id) {
+                intersection.insert(*value_id, existing.unify(*reference));
             }
         }
-        self.alias_sets = intersection;
+        self.references = intersection;
 
-        println!("unify result:\n  {self:?}");
         self
     }
 
@@ -379,14 +460,6 @@ impl Block {
                 // known references if this reference is ever stored to.
             }
         }
-    }
-}
-
-impl Reference {
-    fn unify(&self, other: &Self) -> Self {
-        let value = self.value.unify(other.value);
-        let aliases = self.aliases.union(&other.aliases).copied().collect();
-        Self { value, aliases }
     }
 }
 
@@ -593,13 +666,10 @@ mod tests {
         //     store Field 6 at v0
         //     return v3, Field 5, Field 6 // Optimized to constants 5 and 6
         // }
-        println!("{ssa}");
         let ssa = ssa.mem2reg();
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);
-
-        println!("{ssa}");
 
         // The loads should be removed
         assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
@@ -686,9 +756,7 @@ mod tests {
         //     v8 = eq Field 1, Field 2
         //     return
         // }
-        println!("{ssa}");
         let ssa = ssa.mem2reg();
-        println!("{ssa}");
 
         let main = ssa.main();
         assert_eq!(main.reachable_blocks().len(), 2);

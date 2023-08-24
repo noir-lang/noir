@@ -20,12 +20,13 @@ use super::{
     },
     ssa_gen::Ssa,
 };
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, RuntimeError};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
-    acir::{brillig::Opcode, circuit::opcodes::BlockId, native_types::Expression},
+    acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
 use im::Vector;
@@ -444,7 +445,7 @@ impl Context {
         &self,
         func: &Function,
         brillig: &Brillig,
-    ) -> Result<Vec<Opcode>, InternalError> {
+    ) -> Result<GeneratedBrillig, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             BrilligFunctionContext::parameters(func),

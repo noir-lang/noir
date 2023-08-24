@@ -14,7 +14,6 @@ mod type_alias;
 pub use expression::*;
 pub use function::*;
 
-use noirc_abi::AbiVisibility;
 use noirc_errors::Span;
 pub use statement::*;
 pub use structure::*;
@@ -244,26 +243,6 @@ impl std::fmt::Display for Visibility {
         match self {
             Self::Public => write!(f, "pub"),
             Self::Private => write!(f, "priv"),
-        }
-    }
-}
-
-// TODO: Move this into noirc_abi when it depends upon noirc_frontend (instead of other way around)
-impl From<Visibility> for AbiVisibility {
-    fn from(value: Visibility) -> Self {
-        match value {
-            Visibility::Public => AbiVisibility::Public,
-            Visibility::Private => AbiVisibility::Private,
-        }
-    }
-}
-
-// TODO: Move this into noirc_abi when it depends upon noirc_frontend (instead of other way around)
-impl From<&Visibility> for AbiVisibility {
-    fn from(value: &Visibility) -> Self {
-        match value {
-            Visibility::Public => AbiVisibility::Public,
-            Visibility::Private => AbiVisibility::Private,
         }
     }
 }

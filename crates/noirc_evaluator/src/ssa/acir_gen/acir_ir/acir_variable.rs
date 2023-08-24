@@ -1,5 +1,6 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
@@ -910,7 +911,7 @@ impl AcirContext {
     pub(crate) fn brillig(
         &mut self,
         predicate: AcirVar,
-        code: Vec<BrilligOpcode>,
+        generated_brillig: GeneratedBrillig,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
     ) -> Result<Vec<AcirValue>, InternalError> {
@@ -932,7 +933,9 @@ impl AcirContext {
 
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
         // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
-        if let Some(brillig_outputs) = self.execute_brillig(code.clone(), &b_inputs, &outputs) {
+        if let Some(brillig_outputs) =
+            self.execute_brillig(generated_brillig.byte_code.clone(), &b_inputs, &outputs)
+        {
             return Ok(brillig_outputs);
         }
 
@@ -953,7 +956,7 @@ impl AcirContext {
             }
         });
         let predicate = self.var_to_expression(predicate)?;
-        self.acir_ir.brillig(Some(predicate), code, b_inputs, b_outputs);
+        self.acir_ir.brillig(Some(predicate), generated_brillig, b_inputs, b_outputs);
 
         Ok(outputs_var)
     }
