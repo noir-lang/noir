@@ -104,26 +104,13 @@ fn check_trait_method_implementation_return_type(
     impl_method: &NoirFunction,
     trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
-    match expected_return_type {
-        FunctionReturnType::Default(_span) => match &impl_method.def.return_type {
-            FunctionReturnType::Default(_span) => Ok(()),
-            FunctionReturnType::Ty(_found_type, _span) => {
-                Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
-                    trait_name: trait_name.to_owned(),
-                    impl_ident: impl_method.name_ident().clone(),
-                })
-            }
-        },
-        FunctionReturnType::Ty(expected_type, _span) => {
-            if expected_type != &impl_method.return_type() {
-                Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
-                    trait_name: trait_name.to_owned(),
-                    impl_ident: impl_method.name_ident().clone(),
-                })
-            } else {
-                Ok(())
-            }
-        }
+    if expected_return_type.is_equivelent(&impl_method.def.return_type) {
+        Ok(())
+    } else {
+        Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
+            trait_name: trait_name.to_owned(),
+            impl_ident: impl_method.name_ident().clone(),
+        })
     }
 }
 

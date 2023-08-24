@@ -415,6 +415,7 @@ fn resolve_trait_constants(
     // TODO
     vec![]
 }
+
 fn resolve_trait_methods(
     context: &mut Context,
     crate_id: CrateId,
@@ -443,10 +444,6 @@ fn resolve_trait_methods(
         } = item
         {
             let mut resolver = Resolver::new(interner, &path_resolver, def_maps, file);
-
-            //let self_type = resolver.resolve_type(unresolved_trait.clone());
-            //resolver.set_self_type(self_type.clone());
-
             let arguments = vecmap(parameters, |param| resolver.resolve_type(param.1.clone()));
             let resolved_return_type = match return_type {
                 FunctionReturnType::Default(_) => None,
@@ -466,22 +463,25 @@ fn resolve_trait_methods(
                 span,
             };
             res.push(f);
-            // TODO, this is HACK and it should be removed when we implement a resolution of Self type in trait
-            let new_errors: Vec<ResolverError> = resolver
-                .take_errors()
-                .iter()
-                .cloned()
-                .filter(|resolution_error| match resolution_error {
-                    ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident)) => {
-                        &ident.0.contents != "Self"
-                    }
-                    _ => true,
-                })
-                .collect();
+            let new_errors = take_errors_filter_self_not_resolved(resolver);
             extend_errors(errors, file, new_errors);
         }
     }
     res
+}
+
+fn take_errors_filter_self_not_resolved(resolver: Resolver<'_>) -> Vec<ResolverError> {
+    resolver
+        .take_errors()
+        .iter()
+        .cloned()
+        .filter(|resolution_error| match resolution_error {
+            ResolverError::PathResolutionError(PathResolutionError::Unresolved(ident)) => {
+                &ident.0.contents != "Self"
+            }
+            _ => true,
+        })
+        .collect()
 }
 
 /// Create the mappings from TypeId -> TraitType

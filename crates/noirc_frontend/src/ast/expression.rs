@@ -663,3 +663,18 @@ impl Display for FunctionReturnType {
         }
     }
 }
+
+impl FunctionReturnType {
+    pub fn is_equivelent(&self, other: &FunctionReturnType) -> bool {
+        match self {
+            FunctionReturnType::Default(_span) => match other {
+                FunctionReturnType::Default(_span) => true,
+                FunctionReturnType::Ty(_found_type, _span) => false,
+            },
+            FunctionReturnType::Ty(lhs_type, _span) => match other {
+                FunctionReturnType::Default(_span) => false,
+                FunctionReturnType::Ty(rhs_type, _span) => lhs_type == rhs_type,
+            },
+        }
+    }
+}
