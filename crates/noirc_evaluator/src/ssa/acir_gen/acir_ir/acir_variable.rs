@@ -475,6 +475,9 @@ impl AcirContext {
         let lhs_data = self.vars[&lhs].clone();
         let rhs_data = self.vars[&rhs].clone();
         let result = match (lhs_data, rhs_data) {
+            (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
+                self.add_data(AcirVarData::Const(lhs_constant * rhs_constant))
+            }
             (AcirVarData::Witness(witness), AcirVarData::Const(constant))
             | (AcirVarData::Const(constant), AcirVarData::Witness(witness)) => {
                 let mut expr = Expression::default();
@@ -489,9 +492,6 @@ impl AcirContext {
                 let mut expr = Expression::default();
                 expr.push_multiplication_term(FieldElement::one(), lhs_witness, rhs_witness);
                 self.add_data(AcirVarData::Expr(expr))
-            }
-            (AcirVarData::Const(lhs_constant), AcirVarData::Const(rhs_constant)) => {
-                self.add_data(AcirVarData::Const(lhs_constant * rhs_constant))
             }
             (
                 AcirVarData::Expr(_) | AcirVarData::Witness(_),
