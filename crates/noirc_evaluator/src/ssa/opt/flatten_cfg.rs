@@ -143,7 +143,7 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction, Intrinsic},
         types::Type,
         value::{Value, ValueId},
     },
@@ -177,6 +177,12 @@ struct Context<'f> {
     /// Maps an address to the old and new value of the element at that address
     store_values: HashMap<ValueId, Store>,
 
+    /// Maps an address to the old and new value of the element at that address
+    /// The difference between this map and store_values is that this stores
+    /// the old and new value of an element from the preceding block
+    // outer_block_stores: HashMap<(ValueId, BasicBlockId), Store>,
+    outer_block_stores: HashMap<ValueId, Store>,
+
     /// Stores all allocations local to the current branch.
     /// Since these branches are local to the current branch (ie. only defined within one branch of
     /// an if expression), they should not be merged with their previous value or stored value in
@@ -193,6 +199,7 @@ struct Context<'f> {
     conditions: Vec<(BasicBlockId, ValueId)>,
 }
 
+#[derive(Debug, Clone)]
 struct Store {
     old_value: ValueId,
     new_value: ValueId,
@@ -225,6 +232,7 @@ fn flatten_function_cfg(function: &mut Function) {
         local_allocations: HashSet::new(),
         branch_ends,
         conditions: Vec::new(),
+        outer_block_stores: HashMap::new(),
     };
     context.flatten();
 }
@@ -233,7 +241,7 @@ impl<'f> Context<'f> {
     fn flatten(&mut self) {
         // Start with following the terminator of the entry block since we don't
         // need to flatten the entry block into itself.
-        self.handle_terminator(self.inserter.function.entry_block());
+        self.handle_terminator(self.inserter.function.entry_block(), HashMap::new());
     }
 
     /// Check the terminator of the given block and recursively inline any blocks reachable from
@@ -246,7 +254,36 @@ impl<'f> Context<'f> {
     ///
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
-    fn handle_terminator(&mut self, block: BasicBlockId) -> BasicBlockId {
+    fn handle_terminator(&mut self, block: BasicBlockId, mut outer_block_stores: HashMap<ValueId, Store>,) -> BasicBlockId {
+        // let mut outer_block_stores = HashMap::new();
+        let instructions = self.inserter.function.dfg[block].instructions().to_vec();
+        // let entry_block = self.inserter.function.entry_block();
+        println!("inline_block destination: {block}");
+        for instruction in instructions {
+            // self.push_instruction(instruction);
+            let (instruction, _) = self.inserter.map_instruction(instruction);
+            match instruction {
+                Instruction::Store { address, value } => {
+                    println!("remember STORE address: {address}");
+                    let load = Instruction::Load { address };
+                    let load_type = Some(vec![self.inserter.function.dfg.type_of_value(value)]);
+                    let old_value = self.insert_instruction_with_typevars(load, load_type).first();
+                    println!("remember old_value: {old_value}");
+                    println!("remember new_value: {value}");
+                    dbg!(&self.inserter.function.dfg[value]);
+                    outer_block_stores.insert(address, Store { old_value, new_value: value });
+                    // self.outer_block_stores.insert((address, block), Store { old_value, new_value: value });
+                    self.outer_block_stores.insert(address, Store { old_value, new_value: value });
+
+                }
+                _ => {
+                    // DO nothing
+                    // println!("Not a store instruction")
+                }
+            }
+        }
+        dbg!(outer_block_stores.clone());
+
         match self.inserter.function.dfg[block].unwrap_terminator() {
             TerminatorInstruction::JmpIf { condition, then_destination, else_destination } => {
                 let old_condition = *condition;
@@ -255,8 +292,12 @@ impl<'f> Context<'f> {
                 let then_condition = self.inserter.resolve(old_condition);
 
                 let one = FieldElement::one();
+                println!("block: {block}");
+                println!("then_block: {then_block}");
+                dbg!(self.store_values.clone());
                 let then_branch =
-                    self.inline_branch(block, then_block, old_condition, then_condition, one);
+                    self.inline_branch(block, then_block, old_condition, then_condition, one, outer_block_stores.clone());
+                // dbg!(self.store_values.clone());
 
                 let else_condition =
                     self.insert_instruction(Instruction::Not(then_condition), CallStack::new());
@@ -265,9 +306,11 @@ impl<'f> Context<'f> {
                 // Make sure the else branch sees the previous values of each store
                 // rather than any values created in the 'then' branch.
                 self.undo_stores_in_then_branch(&then_branch);
-
+                println!("else_block: {else_block}");
+                // dbg!(self.store_values.clone());
                 let else_branch =
-                    self.inline_branch(block, else_block, old_condition, else_condition, zero);
+                    self.inline_branch(block, else_block, old_condition, else_condition, zero, outer_block_stores.clone());
+                // dbg!(self.store_values.clone());
 
                 // We must remember to reset whether side effects are enabled when both branches
                 // end, in addition to resetting the value of old_condition since it is set to
@@ -282,7 +325,8 @@ impl<'f> Context<'f> {
                 // until it is popped. This ensures we inline the full then and else branches
                 // before continuing from the end of the conditional here where they can be merged properly.
                 let end = self.branch_ends[&block];
-                self.inline_branch_end(end, then_branch, else_branch)
+                println!("end: {end}");
+                self.inline_branch_end(end, then_branch, else_branch, outer_block_stores)
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if let Some((end_block, _)) = self.conditions.last() {
@@ -292,7 +336,7 @@ impl<'f> Context<'f> {
                 }
                 let destination = *destination;
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
-                self.inline_block(destination, &arguments)
+                self.inline_block(destination, &arguments, outer_block_stores)
             }
             TerminatorInstruction::Return { return_values } => {
                 let return_values =
@@ -383,6 +427,7 @@ impl<'f> Context<'f> {
         else_condition: ValueId,
         then_value: ValueId,
         else_value: ValueId,
+        outer_block_stores: HashMap<ValueId, Store>,
     ) -> ValueId {
         match self.inserter.function.dfg.type_of_value(then_value) {
             Type::Numeric(_) => {
@@ -395,7 +440,7 @@ impl<'f> Context<'f> {
             }
             typ @ Type::Slice(_) => {
                 dbg!("merging slice values");
-                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
+                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value, outer_block_stores)
             }
             Type::Reference => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
@@ -409,6 +454,7 @@ impl<'f> Context<'f> {
         else_condition: ValueId,
         then_value_id: ValueId,
         else_value_id: ValueId,
+        outer_block_stores: HashMap<ValueId, Store>,
     ) -> ValueId {
         let mut merged = im::Vector::new();
 
@@ -419,84 +465,12 @@ impl<'f> Context<'f> {
 
         let then_value = self.inserter.function.dfg[then_value_id].clone();
         let else_value = self.inserter.function.dfg[else_value_id].clone();
-        dbg!(then_value.clone());
-        dbg!(else_value.clone());
+        // dbg!(then_value.clone());
+        // dbg!(else_value.clone());
 
-        let len = match then_value {
-            Value::Array { array, .. } => array.len(),
-            Value::Instruction { instruction, .. } => {
-                match self.inserter.function.dfg[instruction] {
-                    Instruction::ArraySet { array: _, index: _, value: _, length } => {
-                        dbg!("got array set then");
-
-                        let length = length.expect("ICE: array set on a slice must have a length");
-
-                        let length = match &self.inserter.function.dfg[length] {
-                            Value::Instruction { instruction, .. } => {
-                                let length_instr = &self.inserter.function.dfg[*instruction];
-                                let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
-                                dbg!(&self.inserter.function.dfg[x]);
-                                x
-                            }
-                            _ => length,
-                        };
-                        let len = match &self.inserter.function.dfg[length] {
-                            Value::NumericConstant { constant, .. } => {
-                                constant.to_u128() as usize
-                            }
-                            _ => unreachable!("ahh expected numeric constants but got {:?}", &self.inserter.function.dfg[length]),
-                        };
-                        len
-                    }
-                    _ => unreachable!("ahh expected array set but got {:?}", self.inserter.function.dfg[instruction]),
-                }
-            }
-            _ => panic!("Expected array value"),
-        };
+        let len = self.get_slice_length(&then_value);
+        let else_len = self.get_slice_length(&else_value);
         dbg!(len);
-
-        let else_len = match else_value {
-            Value::Array { array, .. } => array.len(),
-            Value::Instruction { instruction, .. } => {
-                match self.inserter.function.dfg[instruction] {
-                    Instruction::ArraySet { array: _, index: _, value: _, length } => {
-                        dbg!("got array set else");
-                        let length = length.expect("ICE: array set on a slice must have a length");
-                        dbg!(&self.inserter.function.dfg[length]);
-
-                        let length = match &self.inserter.function.dfg[length] {
-                            Value::Instruction { instruction, .. } => {
-                                let length_instr = &self.inserter.function.dfg[*instruction];
-                                let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
-                                dbg!(&self.inserter.function.dfg[x]);
-                                x
-                            }
-                            _ => length,
-                        };
-                        let len = &self.inserter.function.dfg.get_numeric_constant(length).expect("ICE: length should be numeric constant at this point");
-                        len.to_u128() as usize
-                    }
-                    Instruction::Load { address } => {
-                        // This match is all for debugging
-                        println!("LOAD address: {address}");
-                        let resolved_address = self.inserter.function.dfg.resolve(address);
-                        println!("resolved address: {resolved_address}");
-                        dbg!(&self.inserter.function.dfg[address]);
-                        match &self.inserter.function.dfg[address] {
-                            Value::Instruction { instruction, .. } => {
-                                dbg!(&self.inserter.function.dfg[*instruction]);
-                            }
-                            _ => panic!("ahh expected instr"),
-                        }
-                        let res = self.inserter.function.dfg.instruction_results(instruction).first().expect("expected a result");
-                        dbg!(&self.inserter.function.dfg[*res]);
-                        panic!("ahhh got load")
-                    }
-                    _ => unreachable!("ahh expected array set but got {:?}", self.inserter.function.dfg[instruction]),
-                }
-            }
-            _ => panic!("Expected array value"),
-        };
         dbg!(else_len);
 
         let len = len.max(else_len);
@@ -528,11 +502,120 @@ impl<'f> Context<'f> {
                     else_condition,
                     then_element,
                     else_element,
+                    outer_block_stores.clone(),
                 ));
             }
         }
 
         self.inserter.function.dfg.make_array(merged, typ)
+    }
+
+    fn get_slice_length(
+        &mut self,
+        slice: &Value,
+    ) -> usize {
+        let len = match slice {
+            Value::Array { array, .. } => array.len(),
+            Value::Instruction { instruction, .. } => {
+                match &self.inserter.function.dfg[*instruction] {
+                    Instruction::ArraySet { array: _, index: _, value: _, length } => {
+                        dbg!("got array set else");
+                        let length = length.expect("ICE: array set on a slice must have a length");
+                        dbg!(&self.inserter.function.dfg[length]);
+
+                        let length = match &self.inserter.function.dfg[length] {
+                            Value::Instruction { instruction, .. } => {
+                                let length_instr = &self.inserter.function.dfg[*instruction];
+                                let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
+                                dbg!(&self.inserter.function.dfg[x]);
+                                x
+                            }
+                            _ => length,
+                        };
+                        let len = &self.inserter.function.dfg.get_numeric_constant(length).expect("ICE: length should be numeric constant at this point");
+                        len.to_u128() as usize
+                    }
+                    Instruction::Load { address } => {
+                        println!("LOAD address: {address}");
+                        dbg!(&self.inserter.function.dfg[*address]);
+                        match &self.inserter.function.dfg[*address] {
+                            Value::Instruction { instruction, .. } => {
+                                dbg!(&self.inserter.function.dfg[*instruction]);
+                            }
+                            _ => panic!("ahh expected instr"),
+                        }
+                        // dbg!(outer_block_stores.clone());
+                        dbg!(self.outer_block_stores.clone());
+
+                        let context_store = self.outer_block_stores.get(&address).expect("ICE: load in merger should have store from outer block");
+
+                        let len = match &self.inserter.function.dfg[context_store.new_value] {
+                            Value::Array { array, .. } => array.len(),
+                            Value::Instruction { instruction, .. } => {
+                                dbg!(&self.inserter.function.dfg[*instruction]);
+                                dbg!("got array set else");
+                                match &self.inserter.function.dfg[*instruction] {
+                                    Instruction::ArraySet { array: _, index: _, value: _, length } => {
+                                        dbg!("got array set else");
+                                        let length = length.expect("ICE: array set on a slice must have a length");
+                                        dbg!(&self.inserter.function.dfg[length]);
+                
+                                        let length = match &self.inserter.function.dfg[length] {
+                                            Value::Instruction { instruction, .. } => {
+                                                let length_instr = &self.inserter.function.dfg[*instruction];
+                                                let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
+                                                dbg!(&self.inserter.function.dfg[x]);
+                                                x
+                                            }
+                                            _ => length,
+                                        };
+                                        let len = &self.inserter.function.dfg.get_numeric_constant(length).expect("ICE: length should be numeric constant at this point");
+                                        len.to_u128() as usize
+                                    }
+                                    Instruction::Call { func, arguments } => {
+                                        match &self.inserter.function.dfg[*func] {
+                                            Value::Intrinsic(intrinsic) => {
+                                                match intrinsic {
+                                                    Intrinsic::SlicePushBack => {
+                                                        let len = &self.inserter.function.dfg.get_numeric_constant(arguments[0]).expect("ICE: length should be numeric constant at this point");
+                                                        dbg!(len);
+                                                        len.to_u128() as usize + 1
+                                                    }
+                                                    _ => todo!("have to check other intrinsics"),
+                                                }
+                                            }
+                                            _ => todo!(),
+                                        }
+                                    }
+                                    _ => panic!("ahhh got {:?}", &self.inserter.function.dfg[*instruction]),
+                                }
+                            }
+                            _ => unreachable!("expected array but got {:?}", &self.inserter.function.dfg[context_store.new_value]),
+                        };
+                        dbg!(len);
+                        len
+                    }
+                    Instruction::Call { func, arguments } => {
+                        match &self.inserter.function.dfg[*func] {
+                            Value::Intrinsic(intrinsic) => {
+                                match intrinsic {
+                                    Intrinsic::SlicePushBack => {
+                                        let len = &self.inserter.function.dfg.get_numeric_constant(arguments[0]).expect("ICE: length should be numeric constant at this point");
+                                        dbg!(len);
+                                        len.to_u128() as usize + 1
+                                    }
+                                    _ => todo!("have to check other intrinsics"),
+                                }
+                            }
+                            _ => todo!(),
+                        }
+                    }
+                    _ => unreachable!("ahh expected array set but got {:?}", self.inserter.function.dfg[*instruction]),
+                }
+            }
+            _ => panic!("Expected array value"),
+        };
+        len
     }
 
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
@@ -573,6 +656,7 @@ impl<'f> Context<'f> {
                     else_condition,
                     then_element,
                     else_element,
+                    HashMap::new(),
                 ));
             }
         }
@@ -652,6 +736,7 @@ impl<'f> Context<'f> {
         old_condition: ValueId,
         new_condition: ValueId,
         condition_value: FieldElement,
+        outer_block_stores: HashMap<ValueId, Store>,
     ) -> Branch {
         if destination == self.branch_ends[&jmpif_block] {
             // If the branch destination is the same as the end of the branch, this must be the
@@ -682,13 +767,14 @@ impl<'f> Context<'f> {
                 self.inserter.map_value(old_condition, known_value);
             }
 
-            let final_block = self.inline_block(destination, &[]);
+            let final_block = self.inline_block(destination, &[], outer_block_stores);
 
             self.conditions.pop();
 
+            // dbg!(self.store_values.clone());
             let stores_in_branch = std::mem::replace(&mut self.store_values, old_stores);
             let local_allocations = std::mem::replace(&mut self.local_allocations, old_allocations);
-
+            // dbg!(stores_in_branch.clone());
             Branch {
                 condition: new_condition,
                 last_block: final_block,
@@ -712,6 +798,7 @@ impl<'f> Context<'f> {
         destination: BasicBlockId,
         then_branch: Branch,
         else_branch: Branch,
+        outer_block_stores: HashMap<ValueId, Store>,
     ) -> BasicBlockId {
         assert_eq!(self.cfg.predecessors(destination).len(), 2);
 
@@ -730,13 +817,17 @@ impl<'f> Context<'f> {
 
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args = vecmap(args, |(then_arg, else_arg)| {
-            self.merge_values(then_branch.condition, else_branch.condition, then_arg, else_arg)
+            dbg!(&self.inserter.function.dfg[then_arg]);
+            dbg!(&self.inserter.function.dfg[else_arg]);
+            self.merge_values(then_branch.condition, else_branch.condition, then_arg, else_arg, outer_block_stores.clone())
         });
+        println!("then_branch.last_block: {}", then_branch.last_block);
+        println!("else_branch.last_block: {}", else_branch.last_block);
 
-        self.merge_stores(then_branch, else_branch);
-
+        self.merge_stores(then_branch, else_branch, outer_block_stores.clone());
+        dbg!(destination);
         // insert merge instruction
-        self.inline_block(destination, &args)
+        self.inline_block(destination, &args, outer_block_stores)
     }
 
     /// Merge any store instructions found in each branch.
@@ -744,27 +835,42 @@ impl<'f> Context<'f> {
     /// This function relies on the 'then' branch being merged before the 'else' branch of a jmpif
     /// instruction. If this ordering is changed, the ordering that store values are merged within
     /// this function also needs to be changed to reflect that.
-    fn merge_stores(&mut self, then_branch: Branch, else_branch: Branch) {
+    fn merge_stores(
+        &mut self, 
+        then_branch: Branch, 
+        else_branch: Branch, 
+        outer_block_stores: HashMap<ValueId, Store>,
+    ) {
         // Address -> (then_value, else_value, value_before_the_if)
         let mut new_map = BTreeMap::new();
 
+        dbg!(then_branch.store_values.clone());
         for (address, store) in then_branch.store_values {
             new_map.insert(address, (store.new_value, store.old_value, store.old_value));
         }
 
+        dbg!(else_branch.store_values.clone());
         for (address, store) in else_branch.store_values {
             if let Some(entry) = new_map.get_mut(&address) {
+                let n = store.new_value;
+                println!("store.new_value: {n}");
                 entry.1 = store.new_value;
             } else {
                 new_map.insert(address, (store.old_value, store.new_value, store.old_value));
             }
         }
 
+        // for (address, store) in outer_block_stores {
+
+        // }
+
         let then_condition = then_branch.condition;
         let else_condition = else_branch.condition;
 
         for (address, (then_case, else_case, old_value)) in new_map {
-            let value = self.merge_values(then_condition, else_condition, then_case, else_case);
+            // dbg!(&self.inserter.function.dfg[then_case]);
+            // dbg!(&self.inserter.function.dfg[else_case]);
+            let value = self.merge_values(then_condition, else_condition, then_case, else_case, outer_block_stores.clone());
             self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
 
             if let Some(store) = self.store_values.get_mut(&address) {
@@ -780,9 +886,12 @@ impl<'f> Context<'f> {
             if let Some(store_value) = self.store_values.get_mut(&address) {
                 store_value.new_value = new_value;
             } else {
+                // println!("remember STORE address: {address}");
                 let load = Instruction::Load { address };
                 let load_type = Some(vec![self.inserter.function.dfg.type_of_value(new_value)]);
                 let old_value = self.insert_instruction_with_typevars(load, load_type).first();
+                // println!("remember old_value: {old_value}");
+                // println!("remember new_value: {new_value}");
 
                 self.store_values.insert(address, Store { old_value, new_value });
             }
@@ -797,18 +906,18 @@ impl<'f> Context<'f> {
     /// Expects that the `arguments` given are already translated via self.inserter.resolve.
     /// If they are not, it is possible some values which no longer exist, such as block
     /// parameters, will be kept in the program.
-    fn inline_block(&mut self, destination: BasicBlockId, arguments: &[ValueId]) -> BasicBlockId {
+    fn inline_block(&mut self, destination: BasicBlockId, arguments: &[ValueId], outer_block_stores: HashMap<ValueId, Store>,) -> BasicBlockId {
         self.inserter.remember_block_params(destination, arguments);
 
         // If this is not a separate variable, clippy gets confused and says the to_vec is
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[destination].instructions().to_vec();
-
+        println!("inline_block destination: {destination}");
         for instruction in instructions {
             self.push_instruction(instruction);
         }
 
-        self.handle_terminator(destination)
+        self.handle_terminator(destination, outer_block_stores)
     }
 
     /// Push the given instruction to the end of the entry block of the current function.
@@ -853,6 +962,7 @@ impl<'f> Context<'f> {
                     Instruction::Constrain(eq)
                 }
                 Instruction::Store { address, value } => {
+                    println!("STORE: {address}");
                     self.remember_store(address, value);
                     Instruction::Store { address, value }
                 }

@@ -76,10 +76,16 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
         slice = slice.push_back(i);
     }
     assert(slice.len() == 5);
-    // dynamic_slice_index_set_if(slice, x, y);
-    // dynamic_slice_index_set_else(slice, x, y);
-    // dynamic_slice_index_set_nested(slice, x, y);
-    dynamic_slice_index_get(slice, x, y);
+    
+    dynamic_slice_index_set_if(slice, x, y);
+    dynamic_slice_index_set_else(slice, x, y);
+    dynamic_slice_index_set_nested_if_else_else(slice, x, y);
+    dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
+    dynamic_slice_index_if(slice, x, y);
+    dynamic_slice_index_else(slice, x, y);
+
+    // dynamic_slice_merge_if(slice, x, y);
+    // dynamic_slice_merge_else(slice, x, y);
 }
 
 fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
@@ -115,25 +121,9 @@ fn dynamic_slice_index_set_else(mut slice: [Field], x: Field, y: Field) {
     assert(slice[4] == 0);
 }
 
-fn dynamic_slice_index_set_nested(mut slice: [Field], x: Field, y: Field) {
-    assert(slice[x] == 4);
-    assert(slice[y] == 1);
-    slice[y] = 0;
-    assert(slice[x] == 4);
-    assert(slice[1] == 0);
-    if x as u32 > 10 {
-        slice[x] = slice[x] - 2;
-        // TODO: this panics as we have a load for the slice in flattening
-        if y == 1 {
-            slice[x] = slice[x] + 20;
-        }
-    } else {
-        slice[x] = 0;
-    }
-    assert(slice[4] == 0);
-}
-
-fn dynamic_slice_index_get(mut slice: [Field], x: Field, y: Field) {
+// This tests the case of missing a store instruction in the else branch
+// of merging slices
+fn dynamic_slice_index_if(mut slice: [Field], x: Field, y: Field) {
     if x as u32 < 10 {
         assert(slice[x] == 4);
         slice[x] = slice[x] - 2;
@@ -141,6 +131,98 @@ fn dynamic_slice_index_get(mut slice: [Field], x: Field, y: Field) {
         assert(slice[x] == 0);
     }
     assert(slice[4] == 2);
+}
+
+// This tests the case of missing a store instruction in the then branch
+// of merging slices
+fn dynamic_slice_index_else(mut slice: [Field], x: Field, y: Field) {
+    if x as u32 > 10 {
+        assert(slice[x] == 0);
+    } else {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+    }
+    assert(slice[4] == 2);
+}
+
+// TODO: This is still broken. Need to verify whether attaching 
+// predicates to memory ops in ACIR solves the issue (PR #2400), but I am pretty
+// sure that it is the cause. 
+fn dynamic_slice_merge_if(mut slice: [Field], x: Field, y: Field) {
+    if x as u32 < 10 {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+        slice = slice.push_back(10);
+    } else {
+        assert(slice[x] == 0);
+    }
+
+    assert(slice[4] == 2);
+    assert(slice[slice.len() - 1] == 10);
+}
+
+// TODO: This is still broken. Need to verify whether attaching 
+// predicates to memory ops in ACIR solves the issue (PR #2400), but I am pretty
+// sure that it is the cause. 
+fn dynamic_slice_merge_else(mut slice: [Field], x: Field, y: Field) {
+    if x as u32 > 10 {
+        assert(slice[x] == 0);
+    } else {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+        slice = slice.push_back(10);
+    }
+
+    assert(slice[4] == 2);
+    assert(slice[slice.len() - 1] == 10);
+}
+
+fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: Field) {
+    assert(slice[x] == 4);
+    assert(slice[y] == 1);
+    slice[y] = 0;
+    assert(slice[x] == 4);
+    assert(slice[1] == 0);
+    if x as u32 < 10 {
+        slice[x] = slice[x] - 2;
+        if y != 1 {
+            slice[x] = slice[x] + 20;
+        } else {
+            if x == 5 {
+                // We should not hit this case
+                assert(slice[x] == 22);
+            } else {
+                slice[x] = 10;
+            }
+            assert(slice[4] == 10);
+        }
+    } else {
+        slice[x] = 0;
+    }
+    assert(slice[4] == 10);
+}
+
+fn dynamic_slice_index_set_nested_if_else_if(mut slice: [Field], x: Field, y: Field) {
+    assert(slice[x] == 4);
+    assert(slice[y] == 2);
+    slice[y] = 0;
+    assert(slice[x] == 4);
+    assert(slice[2] == 0);
+    if x as u32 < 10 {
+        slice[x] = slice[x] - 2;
+        // TODO: this panics as we have a load for the slice in flattening
+        if y == 1 {
+            slice[x] = slice[x] + 20;
+        } else {
+            if x == 4 {
+                slice[x] = 5;
+            }
+            assert(slice[4] == 5);
+        }
+    } else {
+        slice[x] = 0;
+    }
+    assert(slice[4] == 5);
 }
 
 // Ensure that slices of struct/tuple values work.

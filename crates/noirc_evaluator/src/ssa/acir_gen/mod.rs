@@ -28,6 +28,7 @@ use acvm::{
     acir::{brillig::Opcode, circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
+use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Distinctness;
 
@@ -322,6 +323,8 @@ impl Context {
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
+        // println!("instruction: {instruction_id}");
+        // dbg!(instruction.clone());
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
@@ -337,6 +340,8 @@ impl Context {
             }
             Instruction::Call { func, arguments } => {
                 let result_ids = dfg.instruction_results(instruction_id);
+                let resolved_result_ids = vecmap(result_ids, |id| dfg.resolve(*id));
+                dbg!(resolved_result_ids.clone());
                 match &dfg[*func] {
                     Value::Function(id) => {
                         let func = &ssa.functions[id];
@@ -371,6 +376,8 @@ impl Context {
                         // assert_eq!(result_ids.len(), outputs.len());
 
                         for (result, output) in result_ids.iter().zip(outputs) {
+                            dbg!(result);
+                            dbg!(output.clone());
                             self.ssa_values.insert(*result, output);
                         }
                     }
@@ -478,62 +485,77 @@ impl Context {
     ) -> Result<(), RuntimeError> {
         let index_const = dfg.get_numeric_constant(index);
 
-        match self.convert_value(array, dfg) {
-            AcirValue::Var(acir_var, _) => {
-                return Err(RuntimeError::InternalError(InternalError::UnExpected {
-                    expected: "an array value".to_string(),
-                    found: format!("{acir_var:?}"),
-                    call_stack: self.acir_context.get_call_stack(),
-                }))
-            }
-            AcirValue::Array(array) => {
-                if let Some(index_const) = index_const {
-                    let array_size = array.len();
-                    let index = match index_const.try_to_u64() {
-                        Some(index_const) => index_const as usize,
-                        None => {
-                            let call_stack = self.acir_context.get_call_stack();
-                            return Err(RuntimeError::TypeConversion {
-                                from: "array index".to_string(),
-                                into: "u64".to_string(),
-                                call_stack,
-                            });
-                        }
-                    };
-                    if index >= array_size {
-                        // Ignore the error if side effects are disabled.
-                        if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
-                        {
-                            let call_stack = self.acir_context.get_call_stack();
-                            return Err(RuntimeError::IndexOutOfBounds {
-                                index,
-                                array_size,
-                                call_stack,
-                            });
-                        }
-                        let result_type =
-                            dfg.type_of_value(dfg.instruction_results(instruction)[0]);
-                        let value = self.create_default_value(&result_type)?;
-                        self.define_result(dfg, instruction, value);
-                        return Ok(());
+        match dfg.type_of_value(array) {
+            Type::Array(_, _) => {
+                match self.convert_value(array, dfg) {
+                    AcirValue::Var(acir_var, _) => {
+                        return Err(RuntimeError::InternalError(InternalError::UnExpected {
+                            expected: "an array value".to_string(),
+                            found: format!("{acir_var:?}"),
+                            call_stack: self.acir_context.get_call_stack(),
+                        }))
                     }
-
-                    let value = match store_value {
-                        Some(store_value) => {
-                            let store_value = self.convert_value(store_value, dfg);
-                            AcirValue::Array(array.update(index, store_value))
+                    AcirValue::Array(array) => {
+                        dbg!("got here");
+                        if let Some(index_const) = index_const {
+                            dbg!(index_const);
+                            let array_size = array.len();
+                            let index = match index_const.try_to_u64() {
+                                Some(index_const) => index_const as usize,
+                                None => {
+                                    let call_stack = self.acir_context.get_call_stack();
+                                    return Err(RuntimeError::TypeConversion {
+                                        from: "array index".to_string(),
+                                        into: "u64".to_string(),
+                                        call_stack,
+                                    });
+                                }
+                            };
+                            if index >= array_size {
+                                // Ignore the error if side effects are disabled.
+                                if self.acir_context.is_constant_one(&self.current_side_effects_enabled_var)
+                                {
+                                    dbg!("array out of bounds");
+                                    let call_stack = self.acir_context.get_call_stack();
+                                    return Err(RuntimeError::IndexOutOfBounds {
+                                        index,
+                                        array_size,
+                                        call_stack,
+                                    });
+                                }
+                                let result_type =
+                                    dfg.type_of_value(dfg.instruction_results(instruction)[0]);
+                                dbg!("about to create default value");
+                                let value = self.create_default_value(&result_type)?;
+                                self.define_result(dfg, instruction, value);
+                                return Ok(());
+                            }
+        
+                            let value = match store_value {
+                                Some(store_value) => {
+                                    let store_value = self.convert_value(store_value, dfg);
+                                    AcirValue::Array(array.update(index, store_value))
+                                }
+                                None => array[index].clone(),
+                            };
+        
+                            self.define_result(dfg, instruction, value);
+                            return Ok(());
                         }
-                        None => array[index].clone(),
-                    };
-
-                    self.define_result(dfg, instruction, value);
-                    return Ok(());
+                    }
+                    AcirValue::DynamicArray(_) => (),
                 }
             }
-            AcirValue::DynamicArray(_) => (),
+            Type::Slice(_) => {
+                // Do nothing we only want dynamic checks here
+            }
+            _ => unreachable!("ICE: expected array or slice type"),
         }
+
+        dbg!("got here");
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
+        dbg!(store_value.is_some());
         if let Some(store) = store_value {
             self.array_set(instruction, array, index, store, dfg, map_array, length)?;
         } else {
@@ -553,6 +575,8 @@ impl Context {
     ) -> Result<(), RuntimeError> {
         let array = dfg.resolve(array);
         let block_id = self.block_id(&array);
+        dbg!(block_id.0);
+        dbg!(self.initialized_arrays.contains(&block_id));
         if !self.initialized_arrays.contains(&block_id) {
             match &dfg[array] {
                 Value::Array { array, .. } => {
@@ -560,7 +584,23 @@ impl Context {
                         array.iter().map(|i| self.convert_value(*i, dfg)).collect();
                     self.initialize_array(block_id, array.len(), Some(&values))?;
                 }
+                Value::Instruction { instruction, .. } => {
+                    let results = dfg.instruction_results(*instruction);
+                    dbg!(results.clone());
+                    dbg!(self.convert_value(results[0], dfg));
+                    dbg!(self.convert_value(results[1], dfg));
+                    match self.convert_value(results[1], dfg) {
+                        AcirValue::Array(values) => {
+                            let values = vecmap(values, |v| v.clone());
+                            dbg!(values.len());
+                            self.initialize_array(block_id, values.len(), Some(&values))?;
+                        }
+                        // TODO: return internal error
+                        _ => unreachable!("ICE: expected array as result"),
+                    }
+                }
                 _ => {
+                    dbg!(&dfg[array]);
                     return Err(RuntimeError::UnInitialized {
                         name: "array".to_string(),
                         call_stack: self.acir_context.get_call_stack(),
@@ -568,7 +608,7 @@ impl Context {
                 }
             }
         }
-
+        dbg!(block_id.0);
         let index_var = self.convert_value(index, dfg).into_var()?;
         let read = self.acir_context.read_from_memory(block_id, &index_var)?;
         let typ = match dfg.type_of_value(array) {
@@ -620,17 +660,6 @@ impl Context {
         let len = match dfg.type_of_value(array) {
             Type::Array(_, len) => len,
             Type::Slice(_) => {
-                // let value = &dfg[array];
-                // match value {
-                //     Value::Array { array, .. } => {
-                //         dbg!(array.len());
-                //     }
-                //     Value::Instruction { instruction, position, typ } => {
-                //         let instruction = &dfg[*instruction];
-                //         dbg!(instruction.clone());
-                //     }
-                //     _ => unreachable!("ICE - expected value with slice type to be an array but got {:?}", value),
-                // }
                 let length = length.expect("ICE: array set on slice must have a length associated with the call");
                 let len = dfg.get_numeric_constant(length).expect("ICE: slice length should be fully tracked and constant by ACIR gen");
                 len.to_u128() as usize
@@ -704,6 +733,7 @@ impl Context {
         values: Option<&[AcirValue]>,
     ) -> Result<(), InternalError> {
         self.acir_context.initialize_array(array, len, values)?;
+        dbg!(array.0);
         self.initialized_arrays.insert(array);
         Ok(())
     }
@@ -1063,15 +1093,90 @@ impl Context {
                 Ok(Self::convert_vars_to_values(out_vars, dfg, result_ids))
             }
             Intrinsic::ArrayLen => {
+                dbg!("got here");
                 let len = match self.convert_value(arguments[0], dfg) {
                     AcirValue::Var(_, _) => unreachable!("Non-array passed to array.len() method"),
                     AcirValue::Array(values) => (values.len() as u128).into(),
                     AcirValue::DynamicArray(array) => (array.len as u128).into(),
                 };
+                dbg!(len);
                 Ok(vec![AcirValue::Var(self.acir_context.add_constant(len), AcirType::field())])
+            }
+            Intrinsic::SlicePushBack => {
+                dbg!(arguments.clone());
+
+                let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
+                let slice = self.convert_value(arguments[1], dfg);
+                let element = self.convert_value(arguments[2], dfg);
+
+                let one = self.acir_context.add_constant(FieldElement::one());
+                let new_slice_length = self.acir_context.add_var(slice_length, one)?;
+
+                // Classic array way
+                dbg!("making new slice");
+                let mut new_slice = Vector::new();
+                self.slice_intrinsic_input(&mut new_slice, slice)?;
+                new_slice.push_back(element);
+                dbg!("got new slice");
+
+                // TODO: this complicates things in arrayget, but is it perhaps more efficient??
+                // let result_block_id = self.block_id(&arguments[1]);
+                // let len = match slice {
+                //     AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+                //         let new_len = len + 1;
+                //         let mut init_values = try_vecmap(0..len, |i| {
+                //             let index = AcirValue::Var(
+                //                 self.acir_context.add_constant(FieldElement::from(i as u128)),
+                //                 AcirType::NumericType(NumericType::NativeField),
+                //             );
+                //             let var = index.into_var()?;
+                //             let read = self.acir_context.read_from_memory(block_id, &var)?;
+                //             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField)))
+                //         })?;
+                //         init_values.push(element);
+                //         self.initialize_array(result_block_id, new_len, Some(&init_values))?;
+                //         new_len
+                //     }
+                //     _ => unreachable!("ICE: expected a dynamic array but got {:?}", slice),
+                // };
+                // dbg!(self.initialized_arrays.contains(&result_block_id));
+                // let new_slice =
+                // AcirValue::DynamicArray(AcirDynamicArray { block_id: result_block_id, len });
+                // Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), new_slice])
+
+                Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), AcirValue::Array(new_slice.into())])
             }
             _ => todo!("expected a black box function"),
         }
+    }
+
+    fn slice_intrinsic_input(
+        &mut self,
+        old_slice: &mut Vector<AcirValue>,
+        input: AcirValue,
+    ) -> Result<(), RuntimeError> {
+        match input {
+            AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
+                for i in 0..len {
+                    // We generate witnesses corresponding to the array values
+                    let index = AcirValue::Var(
+                        self.acir_context.add_constant(FieldElement::from(i as u128)),
+                        AcirType::NumericType(NumericType::NativeField),
+                    );
+
+                    let index_var = index.into_var()?;
+                    let value_read_var = self.acir_context.read_from_memory(block_id, &index_var)?;
+                    let value_read = AcirValue::Var(
+                        value_read_var,
+                        AcirType::NumericType(NumericType::NativeField),
+                    );
+
+                    old_slice.push_back(value_read);
+                }
+            }
+            _ => unreachable!("ICE: expected a dynamic array but got {:?}", input),
+        }
+        Ok(())
     }
 
     /// Given an array value, return the numerical type of its element.
