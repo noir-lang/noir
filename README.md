@@ -30,6 +30,9 @@ All packages need to be included in the [build manifest](`build_manifest.json`),
 
 Logging goes through the [`info` and `debug`](circuits/cpp/barretenberg/cpp/src/barretenberg/common/log.hpp) functions in C++, and through the [DebugLogger](yarn-project/foundation/src/log/debug.ts) module in Typescript. To see the log output, set a `DEBUG` environment variable to the name of the module you want to debug, to `aztec:*`, or to `*` to see all logs.
 
+## Releases
+
+Releases are driven by [release-please](https://github.com/googleapis/release-please), which maintains a 'Release PR' containing an updated CHANGELOG.md since the last release. Triggering a new release is simply a case of merging this PR to master. A [github workflow](./.github/workflows/release_please.yml) will create the tagged release triggering CircleCI to build and deploy the version at that tag.
 
 ## Contribute
 
