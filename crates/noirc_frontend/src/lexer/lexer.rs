@@ -1,5 +1,3 @@
-use crate::token::TestScope;
-
 use super::{
     errors::LexerErrorKind,
     token::{Attribute, IntType, Keyword, SpannedToken, Token, Tokens},
@@ -466,6 +464,8 @@ fn custom_attribute() {
 
 #[test]
 fn test_attribute() {
+    use crate::token::TestScope;
+
     let input = r#"#[test]"#;
     let mut lexer = Lexer::new(input);
 
@@ -474,6 +474,8 @@ fn test_attribute() {
 }
 #[test]
 fn test_attribute_with_valid_scope() {
+    use crate::token::TestScope;
+
     let input = r#"#[test(should_fail)]"#;
     let mut lexer = Lexer::new(input);
 
