@@ -11,7 +11,7 @@ use def_map::{Contract, CrateDefMap};
 use fm::FileManager;
 use std::collections::HashMap;
 
-use self::def_map::TestFunc;
+use self::def_map::TestFunction;
 
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
@@ -109,7 +109,7 @@ impl Context {
         &self,
         crate_id: &CrateId,
         pattern: FunctionNameMatch,
-    ) -> Vec<(String, TestFunc)> {
+    ) -> Vec<(String, TestFunction)> {
         let interner = &self.def_interner;
         let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
 

@@ -129,7 +129,7 @@ impl CrateDefMap {
     pub fn get_all_test_functions<'a>(
         &'a self,
         interner: &'a NodeInterner,
-    ) -> impl Iterator<Item = TestFunc> + 'a {
+    ) -> impl Iterator<Item = TestFunction> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
             module
                 .value_definitions()
@@ -141,9 +141,9 @@ impl CrateDefMap {
                     if interner.function_meta(&id).attributes
                         == Some(Attribute::Test { expect_failure: true })
                     {
-                        TestFunc::new(id, true)
+                        TestFunction::new(id, true)
                     } else {
-                        TestFunc::new(id, false)
+                        TestFunction::new(id, false)
                     }
                 })
         })
@@ -233,14 +233,14 @@ impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
     }
 }
 
-pub struct TestFunc {
+pub struct TestFunction {
     id: FuncId,
     expect_failure: bool,
 }
 
-impl TestFunc {
+impl TestFunction {
     fn new(id: FuncId, expect_failure: bool) -> Self {
-        TestFunc { id, expect_failure }
+        TestFunction { id, expect_failure }
     }
 
     pub fn get_id(&self) -> FuncId {
