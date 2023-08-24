@@ -130,18 +130,13 @@ impl CrateDefMap {
         &'a self,
         interner: &'a NodeInterner,
     ) -> impl Iterator<Item = TestFunction> + 'a {
-        self.modules.iter().flat_map(|(_, module)| {
-            module.value_definitions().filter_map(|id| {
-                if let Some(func_id) = id.as_function() {
-                    match interner.function_meta(&func_id).attributes {
-                        Some(Attribute::Test(scope)) => Some(TestFunction::new(func_id, scope)),
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
+        self.modules
+            .iter()
+            .flat_map(|(_, module)| module.value_definitions().filter_map(|id| id.as_function()))
+            .filter_map(|func_id| match interner.function_meta(&func_id).attributes {
+                Some(Attribute::Test(scope)) => Some(TestFunction::new(func_id, scope)),
+                _ => None,
             })
-        })
     }
 
     /// Go through all modules in this crate, find all `contract ... { ... }` declarations,
@@ -228,6 +223,7 @@ impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
     }
 }
 
+/// Struct that represents a test function and all of the metadata associated with it
 pub struct TestFunction {
     id: FuncId,
     scope: TestScope,
@@ -238,11 +234,14 @@ impl TestFunction {
         TestFunction { id, scope }
     }
 
+    /// Returns the function id of the test function
     pub fn get_id(&self) -> FuncId {
         self.id
     }
 
-    pub fn get_expect_failure_flag(&self) -> bool {
+    /// Returns true if the test function has been specified to fail
+    /// This is done by annotating the function with `#[test(should_fail)]`
+    pub fn should_fail(&self) -> bool {
         match self.scope {
             TestScope::ShouldFail => true,
             TestScope::None => false,
