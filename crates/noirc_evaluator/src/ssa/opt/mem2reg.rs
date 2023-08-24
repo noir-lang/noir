@@ -126,9 +126,6 @@ struct Block {
 /// An `Expression` here is used to represent a canonical key
 /// into the aliases map since otherwise two dereferences of the
 /// same address will be given different ValueIds.
-///
-/// TODO: This should be expanded to any other value that can
-/// hold a reference, such as arrays.
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 enum Expression {
     Dereference(Box<Expression>),
@@ -203,7 +200,6 @@ impl PerFunctionContext {
         block: BasicBlockId,
         mut references: Block,
     ) {
-        // TODO: Can we avoid cloning here?
         let instructions = function.dfg[block].instructions().to_vec();
         let mut last_stores = BTreeMap::new();
 
@@ -274,10 +270,6 @@ impl PerFunctionContext {
                 aliases.insert(result);
                 references.aliases.insert(Expression::Other(result), aliases);
             }
-
-            // TODO: Track aliases here
-            // Instruction::ArrayGet { array, index } => todo!(),
-            // Instruction::ArraySet { array, index, value } => todo!(),
             _ => (),
         }
     }
@@ -332,9 +324,6 @@ impl PerFunctionContext {
                             if let Some(aliases) = references.aliases.get_mut(expression) {
                                 // The argument reference is possibly aliased by this block parameter
                                 aliases.insert(*parameter);
-
-                                // TODO: Should we also insert an expression/alias for the reverse,
-                                // argument -> parameter?
                             }
                         }
                     }
