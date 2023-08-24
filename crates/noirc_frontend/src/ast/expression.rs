@@ -637,7 +637,7 @@ impl Display for FunctionDefinition {
         });
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
-        let where_clause_str = if where_clause.len() > 0 {
+        let where_clause_str = if !where_clause.is_empty() {
             format!("where {}", where_clause.join(", "))
         } else {
             "".to_string()
