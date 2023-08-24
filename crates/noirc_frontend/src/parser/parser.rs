@@ -539,13 +539,13 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
 }
 
 fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
-    where_trait_bound()
+    trait_bound()
         .separated_by(just(Token::Plus))
         .at_least(1)
         .allow_trailing()
 }
 
-fn where_trait_bound() -> impl NoirParser<TraitBound> {
+fn trait_bound() -> impl NoirParser<TraitBound> {
     ident()
         .then(generic_type_args(parse_type()))
         .map(|(trait_name, trait_generics)| TraitBound { trait_name, trait_generics })
