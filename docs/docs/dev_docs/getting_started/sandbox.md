@@ -197,7 +197,7 @@ Great!. The Sandbox is running and we are able to interact with it.
 
 The next step is to create some accounts. An in-depth explaining about accounts on aztec can be found [here](../../concepts/foundation/accounts/main.md). But creating an account on the Sandbox does 2 things:
 
-1. Deploys an account contract reprepresenting you allowing you to perform actions on the network (deploy contracts, call functions etc).
+1. Deploys an account contract -- representing you -- allowing you to perform actions on the network (deploy contracts, call functions etc).
 2. Adds your encryption keys to the RPC Server allowing it to decrypt and manage your private state.
 
 Continue with adding the following to the `index.ts` file in our example:

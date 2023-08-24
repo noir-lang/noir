@@ -222,7 +222,7 @@ View result:  [
 Finally, we can use the CLI's `get-logs` command to retrieve unencrypted logs emitted by the contract:
 
 ```
-% aztec-cli get-logs 5 1
+% aztec-cli get-logs --from 5 --limit 1
 Logs found:
 
 Coins transferred

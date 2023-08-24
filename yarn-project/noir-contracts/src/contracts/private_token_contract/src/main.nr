@@ -15,7 +15,12 @@ contract PrivateToken {
         note_header::NoteHeader,
         utils as note_utils,
     };
+
+    // docs:start:unencrypted_import
+
     use dep::aztec::log::emit_unencrypted_log;
+
+    // docs:end:unencrypted_import
 
     // docs:start:storage-import
     use crate::storage::Storage;
@@ -62,7 +67,12 @@ contract PrivateToken {
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
         send_note(&mut context, owner_balance, amount, owner);
+
+        // docs:start:unencrypted
+
         emit_unencrypted_log(&mut context, "Coins minted");
+
+        // docs:end:unencrypted
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
@@ -116,8 +126,10 @@ contract PrivateToken {
     // Computes note hash and nullifier.
     // Note 1: Needs to be defined by every contract producing logs.
     // Note 2: Having it in all the contracts gives us the ability to compute the note hash and nullifier differently for different kind of notes.
+    // docs:start:compute_note_hash_and_nullifier
     unconstrained fn compute_note_hash_and_nullifier(contract_address: Field, nonce: Field, storage_slot: Field, preimage: [Field; VALUE_NOTE_LEN]) -> [Field; 4] {
         let note_header = NoteHeader { contract_address, nonce, storage_slot };
         note_utils::compute_note_hash_and_nullifier(ValueNoteMethods, note_header, preimage)
     }
+    // docs:end:compute_note_hash_and_nullifier
 }

@@ -1,5 +1,9 @@
 use dep::aztec::context::PrivateContext;
+// docs:start:encrypted_import
+
 use dep::aztec::log::emit_encrypted_log;
+
+// docs:end:encrypted_import
 use dep::aztec::note::note_getter_options::NoteGetterOptions;
 use dep::aztec::oracle::get_public_key::get_public_key;
 use dep::aztec::state_vars::set::Set;
