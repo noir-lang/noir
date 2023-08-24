@@ -435,6 +435,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "barretenberg_black_box_solver"
+version = "0.10.3"
+dependencies = [
+ "acvm",
+ "barretenberg-sys",
+ "build-target",
+ "getrandom",
+ "pkg-config",
+ "rust-embed",
+ "thiserror",
+ "wasmer",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -577,6 +591,12 @@ dependencies = [
  "safe-lock",
  "safe-regex",
 ]
+
+[[package]]
+name = "build-target"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "832133bbabbbaa9fbdba793456a2827627a7d2b8fb96032fa1e7666d7895832b"
 
 [[package]]
 name = "bumpalo"
@@ -2249,6 +2269,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "async-lsp",
+ "barretenberg_black_box_solver",
  "build-data",
  "clap",
  "color-eyre",

@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "crates/barretenberg_black_box_solver",
     "crates/noirc_evaluator",
     "crates/noirc_frontend",
     "crates/noirc_errors",
@@ -28,6 +29,7 @@ rust-version = "1.66"
 [workspace.dependencies]
 acvm = "0.22.0"
 arena = { path = "crates/arena" }
+barretenberg_black_box_solver = { path = "crates/barretenberg_black_box_solver" }
 fm = { path = "crates/fm" }
 iter-extended = { path = "crates/iter-extended" }
 nargo = { path = "crates/nargo" }

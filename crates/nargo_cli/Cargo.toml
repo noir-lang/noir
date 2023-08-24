@@ -21,6 +21,7 @@ toml.workspace = true
 clap.workspace = true
 dirs.workspace = true
 iter-extended.workspace = true
+barretenberg_black_box_solver.workspace = true
 nargo.workspace = true
 nargo_toml.workspace = true
 noir_lsp.workspace = true
@@ -77,5 +78,5 @@ harness = false
 [features]
 default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
-plonk_bn254 = ["acvm-backend-barretenberg/native"]
-plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]
+plonk_bn254 = ["acvm-backend-barretenberg/native", "barretenberg_black_box_solver/native"]
+plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm", "barretenberg_black_box_solver/wasm"]
