@@ -463,6 +463,56 @@ fn custom_attribute() {
 }
 
 #[test]
+fn test_attribute() {
+    let input = r#"#[test]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(
+        token.token(),
+        &Token::Attribute(Attribute::Test { scope: crate::token::TestScope::None })
+    );
+}
+#[test]
+fn test_attribute_with_valid_scope() {
+    let input = r#"#[test(should_fail)]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap().unwrap();
+    assert_eq!(
+        token.token(),
+        &Token::Attribute(Attribute::Test { scope: crate::token::TestScope::ShouldFail })
+    );
+
+    println!(
+        "token: {}",
+        Token::Attribute(Attribute::Test { scope: crate::token::TestScope::ShouldFail })
+    );
+
+    panic!("")
+}
+
+#[test]
+fn test_attribute_with_invalid_scope() {
+    let input = r#"#[test(invalid_scope)]"#;
+    let mut lexer = Lexer::new(input);
+
+    let token = lexer.next().unwrap();
+    let err = match token {
+        Ok(_) => panic!("test has an invalid scope, so expected an error"),
+        Err(err) => err,
+    };
+
+    // Check if error is MalformedFuncAttribute and found is "foo"
+    let sub_string = match err {
+        LexerErrorKind::MalformedFuncAttribute { found, .. } => found,
+        _ => panic!("expected malformed func attribute error"),
+    };
+
+    assert_eq!(sub_string, "test(invalid_scope)");
+}
+
+#[test]
 fn test_custom_gate_syntax() {
     let input = "#[foreign(sha256)]#[foreign(blake2s)]#[builtin(sum)]";
 
