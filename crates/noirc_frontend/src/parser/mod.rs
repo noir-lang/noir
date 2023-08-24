@@ -364,7 +364,7 @@ impl Precedence {
     }
 }
 
-enum ForRange {
+pub enum ForRange {
     Range(/*start:*/ Expression, /*end:*/ Expression),
     Array(Expression),
 }
@@ -380,7 +380,7 @@ impl ForRange {
     ///         ...
     ///     }
     /// }
-    fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> ExpressionKind {
+    pub fn into_for(self, identifier: Ident, block: Expression, for_loop_span: Span) -> ExpressionKind {
         match self {
             ForRange::Range(start_range, end_range) => {
                 ExpressionKind::For(Box::new(ForExpression {

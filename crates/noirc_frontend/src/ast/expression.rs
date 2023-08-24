@@ -1,9 +1,10 @@
 use std::fmt::Display;
 
+use crate::parser::ForRange;
 use crate::token::{Attribute, Token};
 use crate::{
-    Distinctness, Ident, Path, Pattern, Recoverable, Statement, TraitConstraint, UnresolvedType,
-    Visibility,
+    AssignStatement, Distinctness, Ident, LetStatement, Path, Pattern, Recoverable, Statement,
+    TraitConstraint, UnresolvedType, Visibility,
 };
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -57,10 +58,61 @@ impl ExpressionKind {
     }
 
     pub fn repeated_array(repeated_element: Expression, length: Expression) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
-            repeated_element: Box::new(repeated_element),
-            length: Box::new(length),
-        }))
+        let span = repeated_element.span;
+        let start_range = ExpressionKind::integer(FieldElement::zero());
+        let start_range = Expression::new(start_range, repeated_element.span);
+
+        let slice_ident = Ident::new("slice".into(), span);
+
+        let define_slice = Statement::Let(LetStatement {
+            pattern: Pattern::Mutable(Pattern::Identifier(slice_ident.clone()).into(), span),
+            r#type: UnresolvedType::Unspecified,
+            expression: Expression::new(
+                ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(vec![]))),
+                span,
+            ),
+        });
+
+        let block = Expression::new(
+            ExpressionKind::Block(BlockExpression(vec![Statement::Assign(AssignStatement {
+                lvalue: crate::LValue::Ident(slice_ident.clone()),
+                expression: Expression::new(
+                    ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                        object: Expression::new(
+                            ExpressionKind::Variable(Path::from_ident(slice_ident.clone())),
+                            span,
+                        ),
+                        method_name: Ident::new("push_back".into(), span),
+                        arguments: vec![repeated_element],
+                    })),
+                    span,
+                ),
+            })])),
+            span,
+        );
+
+        let build_slice = Statement::Semi(Expression::new(
+            ForRange::Range(start_range, length).into_for(
+                Ident::new("_".into(), span),
+                block,
+                span,
+            ),
+            span,
+        ));
+
+        let as_array = Statement::Expression(Expression::new(
+            ExpressionKind::MethodCall(Box::new(MethodCallExpression {
+                object: Expression::new(
+                    ExpressionKind::Variable(Path::from_ident(slice_ident)),
+                    span,
+                ),
+                method_name: Ident::new("as_array".into(), span),
+                arguments: vec![],
+            })),
+            span,
+        ));
+
+        ExpressionKind::Block(BlockExpression(vec![define_slice, build_slice, as_array]))
     }
 
     pub fn integer(contents: FieldElement) -> ExpressionKind {
