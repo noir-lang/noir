@@ -165,16 +165,27 @@ fn run_test<B: Backend>(
                 }
             }
         }
+        // Test function failed to compile
+        //
+        // Note: This could be because the compiler was able to deduce
+        // that a constraint was never satisfiable.
+        // An example of this is the program `assert(false)`
+        //  In that case, we check if the test function should fail, and if so, we return Ok.
         Err(err) => {
-            if test_function.should_fail() {
-                if !err.diagnostic.message.contains("Failed constraint") {
-                    report_error(err)
-                } else {
-                    Ok(())
-                }
-            } else {
-                report_error(err)
+            // The test has failed compilation, but it should never fail. Report error.
+            if !test_function.should_fail() {
+                return report_error(err);
             }
+
+            // The test has failed compilation, check if it is because the program is never satisfiable.
+            // If it is never satisfiable, then this is the expected behavior.
+            let program_is_never_satisfiable = err.diagnostic.message.contains("Failed constraint");
+            if program_is_never_satisfiable {
+                return Ok(());
+            }
+
+            // The test has failed compilation, but its a compilation error. Report error
+            report_error(err)
         }
     }
 }
