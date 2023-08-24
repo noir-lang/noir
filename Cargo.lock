@@ -50,7 +50,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?branch=kw/dyn-backends#72ac103bc47a187d4e0d7c506fe7870171f58fb6"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?branch=kw/dyn-backends#c2f420456bb408f419aea06b947fb95e8aec1915"
 dependencies = [
  "acvm",
  "barretenberg-sys",
