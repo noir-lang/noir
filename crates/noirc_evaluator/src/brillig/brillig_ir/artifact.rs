@@ -1,5 +1,7 @@
 use acvm::acir::brillig::Opcode as BrilligOpcode;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+
+use crate::ssa::ir::dfg::CallStack;
 
 /// Represents a parameter or a return value of a function.
 #[derive(Debug, Clone)]
@@ -9,11 +11,19 @@ pub(crate) enum BrilligParameter {
     Slice(Vec<BrilligParameter>),
 }
 
+/// The result of compiling and linking brillig artifacts.
+/// This is ready to run bytecode with attached metadata.
+#[derive(Debug)]
+pub(crate) struct GeneratedBrillig {
+    pub(crate) byte_code: Vec<BrilligOpcode>,
+    pub(crate) locations: BTreeMap<OpcodeLocation, CallStack>,
+}
+
 #[derive(Default, Debug, Clone)]
 /// Artifacts resulting from the compilation of a function into brillig byte code.
 /// Currently it is just the brillig bytecode of the function.
 pub(crate) struct BrilligArtifact {
-    pub(crate) byte_code: Vec<BrilligOpcode>,
+    byte_code: Vec<BrilligOpcode>,
     /// The set of jumps that need to have their locations
     /// resolved.
     unresolved_jumps: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
@@ -26,6 +36,10 @@ pub(crate) struct BrilligArtifact {
     /// TODO: perhaps we should combine this with the `unresolved_jumps` field
     /// TODO: and have an enum which indicates whether the jump is internal or external
     unresolved_external_call_labels: Vec<(JumpInstructionPosition, UnresolvedJumpLocation)>,
+    /// Maps the opcodes that are associated with a callstack to it.
+    locations: BTreeMap<OpcodeLocation, CallStack>,
+    /// The current call stack. All opcodes that are pushed will be associated with this call stack.
+    call_stack: CallStack,
 }
 
 /// A pointer to a location in the opcode.
@@ -52,9 +66,9 @@ pub(crate) type UnresolvedJumpLocation = Label;
 
 impl BrilligArtifact {
     /// Resolves all jumps and generates the final bytecode
-    pub(crate) fn finish(mut self) -> Vec<BrilligOpcode> {
+    pub(crate) fn finish(mut self) -> GeneratedBrillig {
         self.resolve_jumps();
-        self.byte_code
+        GeneratedBrillig { byte_code: self.byte_code, locations: self.locations }
     }
 
     /// Gets the first unresolved function call of this artifact.
@@ -116,10 +130,17 @@ impl BrilligArtifact {
             self.unresolved_external_call_labels
                 .push((position_in_bytecode + offset, label_id.clone()));
         }
+
+        for (position_in_bytecode, call_stack) in obj.locations.iter() {
+            self.locations.insert(position_in_bytecode + offset, call_stack.clone());
+        }
     }
 
     /// Adds a brillig instruction to the brillig byte code
     pub(crate) fn push_opcode(&mut self, opcode: BrilligOpcode) {
+        if !self.call_stack.is_empty() {
+            self.locations.insert(self.index_of_next_opcode(), self.call_stack.clone());
+        }
         self.byte_code.push(opcode);
     }
 
@@ -216,5 +237,9 @@ impl BrilligArtifact {
                 ),
             }
         }
+    }
+
+    pub(crate) fn set_call_stack(&mut self, call_stack: CallStack) {
+        self.call_stack = call_stack;
     }
 }
