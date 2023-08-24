@@ -20,12 +20,13 @@ use super::{
     },
     ssa_gen::Ssa,
 };
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::brillig::brillig_ir::BrilligContext;
 use crate::brillig::{brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext, Brillig};
 use crate::errors::{InternalError, RuntimeError};
 pub(crate) use acir_ir::generated_acir::GeneratedAcir;
 use acvm::{
-    acir::{brillig::Opcode, circuit::opcodes::BlockId, native_types::Expression},
+    acir::{circuit::opcodes::BlockId, native_types::Expression},
     FieldElement,
 };
 use iter_extended::{try_vecmap, vecmap};
@@ -435,7 +436,7 @@ impl Context {
         &self,
         func: &Function,
         brillig: &Brillig,
-    ) -> Result<Vec<Opcode>, InternalError> {
+    ) -> Result<GeneratedBrillig, InternalError> {
         // Create the entry point artifact
         let mut entry_point = BrilligContext::new_entry_point_artifact(
             BrilligFunctionContext::parameters(func),
@@ -1171,11 +1172,11 @@ mod tests {
         let ssa = builder.finish();
 
         let context = Context::new();
-        let acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
+        let mut acir = context.convert_ssa(ssa, Brillig::default(), &HashMap::new()).unwrap();
 
         let expected_opcodes =
             vec![Opcode::Arithmetic(&Expression::one() - &Expression::from(Witness(1)))];
-        assert_eq!(acir.opcodes, expected_opcodes);
+        assert_eq!(acir.take_opcodes(), expected_opcodes);
         assert_eq!(acir.return_witnesses, vec![Witness(1)]);
     }
 }

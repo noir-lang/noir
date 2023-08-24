@@ -1,5 +1,6 @@
 use super::generated_acir::GeneratedAcir;
 use crate::brillig::brillig_gen::brillig_directive;
+use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::acir_gen::{AcirDynamicArray, AcirValue};
 use crate::ssa::ir::dfg::CallStack;
@@ -151,6 +152,65 @@ impl AcirContext {
         let var_data = AcirVarData::Witness(var_index);
 
         self.add_data(var_data)
+    }
+
+    fn mark_variables_equivalent(
+        &mut self,
+        lhs: AcirVar,
+        rhs: AcirVar,
+    ) -> Result<(), InternalError> {
+        if lhs == rhs {
+            return Ok(());
+        }
+
+        let lhs_data = self.vars.remove(&lhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
+            call_stack: self.get_call_stack(),
+        })?;
+        let rhs_data = self.vars.remove(&rhs).ok_or_else(|| InternalError::UndeclaredAcirVar {
+            call_stack: self.get_call_stack(),
+        })?;
+
+        let (new_lhs_data, new_rhs_data) = match (lhs_data, rhs_data) {
+            // Always prefer a constant variable.
+            (constant @ AcirVarData::Const(_), _) | (_, constant @ AcirVarData::Const(_)) => {
+                (constant.clone(), constant)
+            }
+
+            // Replace any expressions with witnesses.
+            (witness @ AcirVarData::Witness(_), AcirVarData::Expr(_))
+            | (AcirVarData::Expr(_), witness @ AcirVarData::Witness(_)) => {
+                (witness.clone(), witness)
+            }
+
+            // If both variables are witnesses then use the smaller of the two in future.
+            (AcirVarData::Witness(lhs_witness), AcirVarData::Witness(rhs_witness)) => {
+                let witness = AcirVarData::Witness(std::cmp::min(lhs_witness, rhs_witness));
+                (witness.clone(), witness)
+            }
+
+            (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr)) => {
+                if lhs_expr.is_linear() && rhs_expr.is_linear() {
+                    // If both expressions are linear, choose the one with the fewest terms.
+                    let expr = if lhs_expr.linear_combinations.len()
+                        <= rhs_expr.linear_combinations.len()
+                    {
+                        lhs_expr
+                    } else {
+                        rhs_expr
+                    };
+
+                    let expr = AcirVarData::Expr(expr);
+                    (expr.clone(), expr)
+                } else {
+                    (AcirVarData::Expr(lhs_expr), AcirVarData::Expr(rhs_expr))
+                }
+            }
+        };
+
+        self.vars.insert(lhs, new_lhs_data);
+        self.vars.insert(rhs, new_rhs_data);
+
+        Ok(())
     }
 
     pub(crate) fn get_call_stack(&self) -> CallStack {
@@ -345,6 +405,7 @@ impl AcirContext {
         if diff_expr.is_const() {
             if diff_expr.is_zero() {
                 // Constraint is always true - assertion is unnecessary.
+                self.mark_variables_equivalent(lhs, rhs)?;
                 return Ok(());
             } else {
                 // Constraint is always false - this program is unprovable.
@@ -357,6 +418,8 @@ impl AcirContext {
         }
 
         self.acir_ir.assert_is_zero(diff_expr);
+        self.mark_variables_equivalent(lhs, rhs)?;
+
         Ok(())
     }
 
@@ -848,7 +911,7 @@ impl AcirContext {
     pub(crate) fn brillig(
         &mut self,
         predicate: AcirVar,
-        code: Vec<BrilligOpcode>,
+        generated_brillig: GeneratedBrillig,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
     ) -> Result<Vec<AcirValue>, InternalError> {
@@ -870,7 +933,9 @@ impl AcirContext {
 
         // Optimistically try executing the brillig now, if we can complete execution they just return the results.
         // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
-        if let Some(brillig_outputs) = self.execute_brillig(code.clone(), &b_inputs, &outputs) {
+        if let Some(brillig_outputs) =
+            self.execute_brillig(generated_brillig.byte_code.clone(), &b_inputs, &outputs)
+        {
             return Ok(brillig_outputs);
         }
 
@@ -891,7 +956,7 @@ impl AcirContext {
             }
         });
         let predicate = self.var_to_expression(predicate)?;
-        self.acir_ir.brillig(Some(predicate), code, b_inputs, b_outputs);
+        self.acir_ir.brillig(Some(predicate), generated_brillig, b_inputs, b_outputs);
 
         Ok(outputs_var)
     }
@@ -1082,7 +1147,7 @@ impl AcirContext {
 
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
-        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
     }
@@ -1103,7 +1168,8 @@ impl AcirContext {
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
-        self.acir_ir.opcodes.push(Opcode::MemoryOp { block_id, op });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+
         Ok(())
     }
 
@@ -1129,7 +1195,7 @@ impl AcirContext {
             })?,
         };
 
-        self.acir_ir.opcodes.push(Opcode::MemoryInit { block_id, init: initialized_values });
+        self.acir_ir.push_opcode(Opcode::MemoryInit { block_id, init: initialized_values });
         Ok(())
     }
 }
