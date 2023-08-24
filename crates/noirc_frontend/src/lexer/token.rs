@@ -316,6 +316,36 @@ impl IntType {
     }
 }
 
+/// TestScope is used to specify additional annotations for test functions
+#[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
+pub enum TestScope {
+    /// If a test has a scope of ShouldFail, then it is expected to fail
+    ShouldFail,
+    /// No scope is applied and so the test must pass
+    None,
+}
+
+impl TestScope {
+    fn from_str(string: &str) -> Option<TestScope> {
+        match string {
+            "should_fail" => Some(TestScope::ShouldFail),
+            _ => None,
+        }
+    }
+    fn as_str(&self) -> &'static str {
+        match self {
+            TestScope::ShouldFail => "should_fail",
+            TestScope::None => "",
+        }
+    }
+}
+
+impl fmt::Display for TestScope {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({})", self.as_str())
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 // Attributes are special language markers in the target language
 // An example of one is `#[SHA256]` . Currently only Foreign attributes are supported
@@ -325,23 +355,17 @@ pub enum Attribute {
     Builtin(String),
     Oracle(String),
     Deprecated(Option<String>),
-    Test { expect_failure: bool },
+    Test { scope: TestScope },
     Custom(String),
 }
 
 impl fmt::Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
+        match self {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
-            Attribute::Test { expect_failure } => {
-                if !expect_failure {
-                    write!(f, "#[test]")
-                } else {
-                    write!(f, "#[test(should_fail)]")
-                }
-            }
+            Attribute::Test { scope } => write!(f, "#[test{}]", scope),
             Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
             Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
             Attribute::Custom(ref k) => write!(f, "#[{k}]"),
@@ -397,16 +421,15 @@ impl Attribute {
 
                 Attribute::Deprecated(name.trim_matches('"').to_string().into())
             }
-            ["test"] => Attribute::Test { expect_failure: false },
+            ["test"] => Attribute::Test { scope: TestScope::None },
             ["test", name] => {
-                if name != &"should_fail" {
-                    return Err(LexerErrorKind::MalformedFuncAttribute {
-                        span,
-                        found: word.to_owned(),
-                    });
+                validate(name)?;
+                let malformed_scope =
+                    LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() };
+                match TestScope::from_str(name) {
+                    Some(scope) => Attribute::Test { scope },
+                    None => return Err(malformed_scope),
                 }
-
-                Attribute::Test { expect_failure: true }
             }
             tokens => {
                 tokens.iter().try_for_each(|token| validate(token))?;
