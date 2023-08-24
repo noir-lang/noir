@@ -137,7 +137,6 @@ impl CrateDefMap {
                         Some(Attribute::Test { expect_failure }) => {
                             Some(TestFunction::new(func_id, expect_failure))
                         }
-                        None => None,
                         _ => None,
                     }
                 } else {
