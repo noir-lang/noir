@@ -65,7 +65,7 @@ impl std::fmt::Display for Intrinsic {
             Intrinsic::ToRadix(Endian::Big) => write!(f, "to_be_radix"),
             Intrinsic::ToRadix(Endian::Little) => write!(f, "to_le_radix"),
             Intrinsic::BlackBox(function) => write!(f, "{function}"),
-            Intrinsic::SliceAsArray => write!(f, "unsafe_slice_as_array"),
+            Intrinsic::SliceAsArray => write!(f, "slice_as_array"),
         }
     }
 }
@@ -109,7 +109,7 @@ impl Intrinsic {
             "slice_pop_front" => Some(Intrinsic::SlicePopFront),
             "slice_insert" => Some(Intrinsic::SliceInsert),
             "slice_remove" => Some(Intrinsic::SliceRemove),
-            "unsafe_slice_as_array" => Some(Intrinsic::SliceAsArray),
+            "slice_as_array" => Some(Intrinsic::SliceAsArray),
             "str_as_bytes" => Some(Intrinsic::StrAsBytes),
             "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
             "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),

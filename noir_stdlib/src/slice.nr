@@ -2,7 +2,7 @@
 impl<T> [T] {
     fn as_array<N>(self) -> [T; N] {
         assert(self.len() == N);
-        unsafe_slice_as_array(self)
+        unsafe::slice_as_array(self)
     }
 
     /// Push a new element to the end of the slice, returning a
@@ -48,5 +48,7 @@ impl<T> [T] {
     }
 }
 
-#[builtin(unsafe_slice_as_array)]
-fn unsafe_slice_as_array<T, N>(_slice: [T]) -> [T; N] {}
+mod unsafe {
+    #[builtin(slice_as_array)]
+    fn slice_as_array<T, N>(_slice: [T]) -> [T; N] {}
+}
