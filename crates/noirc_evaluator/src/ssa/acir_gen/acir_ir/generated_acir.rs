@@ -3,13 +3,12 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    brillig::brillig_gen::brillig_directive,
+    brillig::{brillig_gen::brillig_directive, brillig_ir::artifact::GeneratedBrillig},
     errors::{InternalError, RuntimeError},
     ssa::ir::dfg::CallStack,
 };
 
 use acvm::acir::{
-    brillig::Opcode as BrilligOpcode,
     circuit::{
         brillig::{Brillig as AcvmBrillig, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, Opcode as AcirOpcode},
@@ -34,7 +33,7 @@ pub(crate) struct GeneratedAcir {
     pub(crate) current_witness_index: u32,
 
     /// The opcodes of which the compiled ACIR will comprise.
-    pub(crate) opcodes: Vec<AcirOpcode>,
+    opcodes: Vec<AcirOpcode>,
 
     /// All witness indices that comprise the final return value of the program
     ///
@@ -60,12 +59,16 @@ impl GeneratedAcir {
     }
 
     /// Adds a new opcode into ACIR.
-    fn push_opcode(&mut self, opcode: AcirOpcode) {
+    pub(crate) fn push_opcode(&mut self, opcode: AcirOpcode) {
         self.opcodes.push(opcode);
         if !self.call_stack.is_empty() {
             self.locations
                 .insert(OpcodeLocation::Acir(self.opcodes.len() - 1), self.call_stack.clone());
         }
+    }
+
+    pub(crate) fn take_opcodes(&mut self) -> Vec<AcirOpcode> {
+        std::mem::take(&mut self.opcodes)
     }
 
     /// Updates the witness index counter and returns
@@ -228,7 +231,7 @@ impl GeneratedAcir {
             }
         };
 
-        self.opcodes.push(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
+        self.push_opcode(AcirOpcode::BlackBoxFuncCall(black_box_func_call));
 
         Ok(outputs_clone)
     }
@@ -784,7 +787,7 @@ impl GeneratedAcir {
     pub(crate) fn brillig(
         &mut self,
         predicate: Option<Expression>,
-        code: Vec<BrilligOpcode>,
+        generated_brillig: GeneratedBrillig,
         inputs: Vec<BrilligInputs>,
         outputs: Vec<BrilligOutputs>,
     ) {
@@ -792,10 +795,16 @@ impl GeneratedAcir {
             inputs,
             outputs,
             foreign_call_results: Vec::new(),
-            bytecode: code,
+            bytecode: generated_brillig.byte_code,
             predicate,
         });
         self.push_opcode(opcode);
+        for (brillig_index, call_stack) in generated_brillig.locations {
+            self.locations.insert(
+                OpcodeLocation::Brillig { acir_index: self.opcodes.len() - 1, brillig_index },
+                call_stack,
+            );
+        }
     }
 
     /// Generate gates and control bits witnesses which ensure that out_expr is a permutation of in_expr

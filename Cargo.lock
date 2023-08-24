@@ -2234,10 +2234,9 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_frontend",
- "regex",
+ "noirc_printable_type",
  "rustc_version",
  "serde",
- "serde_json",
  "thiserror",
 ]
 
@@ -2354,6 +2353,7 @@ version = "0.10.3"
 dependencies = [
  "acvm",
  "iter-extended",
+ "noirc_frontend",
  "serde",
  "serde_json",
  "strum",
@@ -2413,8 +2413,8 @@ dependencies = [
  "chumsky",
  "fm",
  "iter-extended",
- "noirc_abi",
  "noirc_errors",
+ "noirc_printable_type",
  "regex",
  "rustc-hash",
  "serde_json",
@@ -2422,6 +2422,18 @@ dependencies = [
  "smol_str",
  "strum",
  "strum_macros",
+ "thiserror",
+]
+
+[[package]]
+name = "noirc_printable_type"
+version = "0.10.3"
+dependencies = [
+ "acvm",
+ "iter-extended",
+ "regex",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -3203,9 +3215,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.101.1"
+version = "0.101.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15f36a6828982f422756984e47912a7a51dcbc2a197aa791158f8ca61cd8204e"
+checksum = "7d93931baf2d282fff8d3a532bbfd7653f734643161b87e3e01e59a04439bf0d"
 dependencies = [
  "ring",
  "untrusted",

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use acvm::acir::native_types::Witness;
 use iter_extended::{btree_map, vecmap};
-use noirc_abi::{Abi, AbiParameter};
+use noirc_abi::{Abi, AbiParameter, AbiType};
 use noirc_frontend::{
     hir_def::{
         function::{FunctionSignature, Param},
@@ -27,7 +27,7 @@ pub fn into_abi_params(params: Vec<Param>, interner: &NodeInterner) -> Vec<AbiPa
         let param_name = get_param_name(&pattern, interner)
             .expect("Abi for tuple and struct parameters is unimplemented")
             .to_owned();
-        let as_abi = typ.as_abi_type();
+        let as_abi = AbiType::from_type(&typ);
         AbiParameter { name: param_name, typ: as_abi, visibility: vis.into() }
     })
 }
@@ -42,7 +42,7 @@ pub(crate) fn gen_abi(
 ) -> Abi {
     let (parameters, return_type) = func_sig;
     let parameters = into_abi_params(parameters, interner);
-    let return_type = return_type.map(|typ| typ.as_abi_type());
+    let return_type = return_type.map(|typ| AbiType::from_type(&typ));
     let param_witnesses = param_witnesses_from_abi_param(&parameters, input_witnesses);
     Abi { parameters, return_type, param_witnesses, return_witnesses }
 }
