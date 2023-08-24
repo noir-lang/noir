@@ -113,6 +113,12 @@
         # Need libiconv and apple Security on Darwin. See https://github.com/ipetkov/crane/issues/156
         pkgs.libiconv
         pkgs.darwin.apple_sdk.frameworks.Security
+      ] ++ [
+        # Need to install various packages used by the `bb` binary.
+        pkgs.curl
+        stdenv.cc.cc.lib
+        pkgs.gcc.cc.lib
+        pkgs.gzip
       ];
 
       sharedArgs = {
@@ -144,6 +150,9 @@
           pkgs.pkg-config
           # This provides the `lld` linker to cargo
           pkgs.llvmPackages.bintools
+        ] ++ pkgs.lib.optionals stdenv.isLinux [
+          # This is linux specific and used to patch the rpath and interpreter of the bb binary
+          pkgs.patchelf
         ];
 
         buildInputs = [
@@ -175,11 +184,35 @@
         doCheck = false;
       };
 
+      # Conditionally download the binary based on whether it is linux or mac
+      bb_binary = let
+        platformSpecificUrl = if stdenv.hostPlatform.isLinux then
+          "https://github.com/AztecProtocol/barretenberg/releases/download/barretenberg-v0.4.3/bb-ubuntu.tar.gz"
+        else if stdenv.hostPlatform.isDarwin then
+          "https://github.com/AztecProtocol/barretenberg/releases/download/barretenberg-v0.4.3/barretenberg-x86_64-apple-darwin.tar.gz"
+        else
+          throw "Unsupported platform";
+
+        platformSpecificHash = if stdenv.hostPlatform.isLinux then
+          "sha256:0rcsjws87f4v28cw9734c10pg7c49apigf4lg3m0ji5vbhhmfnhr"
+        else if stdenv.hostPlatform.isDarwin then
+          "sha256:0pnsd56z0vkai7m0advawfgcvq9jbnpqm7lk98n5flqj583x3w35"
+        else
+          throw "Unsupported platform";
+      in builtins.fetchurl {
+        url = platformSpecificUrl;
+        sha256 = platformSpecificHash;
+      };
+
       # The `port` is parameterized to support parallel test runs without colliding static servers
       testArgs = port: testEnvironment // {
+        BB_BINARY_PATH = "/tmp/backend_binary";
+
+        BB_BINARY_URL = "http://0.0.0.0:${toString port}/${builtins.baseNameOf bb_binary}";
+
         # We provide `barretenberg-transcript00` from the overlay to the tests as a URL hosted via a static server
         # This is necessary because the Nix sandbox has no network access and downloading during tests would fail
-        TRANSCRIPT_URL = "http://0.0.0.0:${toString port}/${builtins.baseNameOf pkgs.barretenberg-transcript00}";
+        BARRETENBERG_TRANSCRIPT_URL = "http://0.0.0.0:${toString port}/${builtins.baseNameOf pkgs.barretenberg-transcript00}";
 
         # This copies the `barretenberg-transcript00` from the Nix store into this sandbox
         # which avoids exposing the entire Nix store to the static server it starts
@@ -188,6 +221,24 @@
         # We also set the NARGO_BACKEND_CACHE_DIR environment variable to the $TMP directory so we can successfully cache
         # the transcript; which isn't possible with the default path because the Nix sandbox disabled $HOME
         preCheck = ''
+          echo "Extracting bb binary"
+          mkdir extracted
+          tar -xf ${bb_binary} -C extracted
+
+          # Conditionally patch the binary for Linux
+          ${if stdenv.hostPlatform.isLinux then ''
+
+            cp extracted/cpp/build/bin/bb /tmp/backend_binary
+          
+            echo "Patching bb binary for Linux"
+            patchelf --set-rpath "${stdenv.cc.cc.lib}/lib:${pkgs.gcc.cc.lib}/lib" /tmp/backend_binary
+            patchelf --set-interpreter ${stdenv.cc.libc}/lib/ld-linux-x86-64.so.2 /tmp/backend_binary
+          '' else if stdenv.hostPlatform.isDarwin then ''
+            cp extracted/bb /tmp/backend_binary
+          '' else
+            throw "Unsupported platform"
+          }
+
           export NARGO_BACKEND_CACHE_DIR=$TMP
           cp ${pkgs.barretenberg-transcript00} .
           echo "Starting simple static server"
@@ -267,6 +318,8 @@
         inputsFrom = builtins.attrValues checks;
 
         nativeBuildInputs = with pkgs; [
+          curl
+          gzip
           which
           starship
           git
