@@ -34,6 +34,8 @@ function writeToProject(abi: any) {
       const toWrite = {
         ...abi,
         functions: abi.functions.map((f: any) => omit(f, projectContract.exclude)),
+        // If we maintain debug symbols they will get commited to git.
+        debug: undefined,
       };
       const targetFilename = pathJoin(projectContract.target, `${snakeCase(abi.name)}_contract.json`);
       writeFileSync(targetFilename, JSON.stringify(toWrite, null, 2) + '\n');

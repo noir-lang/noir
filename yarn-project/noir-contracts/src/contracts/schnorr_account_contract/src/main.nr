@@ -49,7 +49,12 @@ contract SchnorrAccount {
         // Verify payload signature
         let payload_fields: [Field; entrypoint::ENTRYPOINT_PAYLOAD_SIZE] = payload.serialize();
         let message_field: Field = std::hash::pedersen_with_separator(payload_fields, GENERATOR_INDEX__SIGNATURE_PAYLOAD)[0];
-        let message_bytes = message_field.to_be_bytes(32);
+        // TODO workaround for https://github.com/noir-lang/noir/issues/2421
+        let message_bytes_slice = message_field.to_be_bytes(32);
+        let mut message_bytes: [u8; 32] = [0; 32];
+        for i in 0..32 {
+          message_bytes[i] = message_bytes_slice[i];
+        }
 
         // Verify signature of the payload bytes
         let verification = std::schnorr::verify_signature(public_key.x, public_key.y, signature, message_bytes);

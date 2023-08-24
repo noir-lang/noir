@@ -61,7 +61,9 @@ function itShouldBehaveLikeAnAccountContract(getAccountContract: (encryptionKey:
         accountAddress,
       ).getWallet();
       const childWithInvalidWallet = await ChildContract.at(child.address, invalidWallet);
-      await expect(childWithInvalidWallet.methods.value(42).simulate()).rejects.toThrowError(/Assertion failed: '.*'/);
+      await expect(childWithInvalidWallet.methods.value(42).simulate()).rejects.toThrowError(
+        /Cannot satisfy constraint.*/,
+      );
     });
   });
 }
