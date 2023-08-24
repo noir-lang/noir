@@ -326,7 +326,7 @@ pub enum TestScope {
 }
 
 impl TestScope {
-    fn from_str(string: &str) -> Option<TestScope> {
+    fn lookup_str(string: &str) -> Option<TestScope> {
         match string {
             "should_fail" => Some(TestScope::ShouldFail),
             _ => None,
@@ -355,7 +355,7 @@ pub enum Attribute {
     Builtin(String),
     Oracle(String),
     Deprecated(Option<String>),
-    Test { scope: TestScope },
+    Test(TestScope),
     Custom(String),
 }
 
@@ -365,7 +365,7 @@ impl fmt::Display for Attribute {
             Attribute::Foreign(ref k) => write!(f, "#[foreign({k})]"),
             Attribute::Builtin(ref k) => write!(f, "#[builtin({k})]"),
             Attribute::Oracle(ref k) => write!(f, "#[oracle({k})]"),
-            Attribute::Test { scope } => write!(f, "#[test{}]", scope),
+            Attribute::Test(scope) => write!(f, "#[test{}]", scope),
             Attribute::Deprecated(None) => write!(f, "#[deprecated]"),
             Attribute::Deprecated(Some(ref note)) => write!(f, r#"#[deprecated("{note}")]"#),
             Attribute::Custom(ref k) => write!(f, "#[{k}]"),
@@ -421,13 +421,13 @@ impl Attribute {
 
                 Attribute::Deprecated(name.trim_matches('"').to_string().into())
             }
-            ["test"] => Attribute::Test { scope: TestScope::None },
+            ["test"] => Attribute::Test(TestScope::None),
             ["test", name] => {
                 validate(name)?;
                 let malformed_scope =
                     LexerErrorKind::MalformedFuncAttribute { span, found: word.to_owned() };
-                match TestScope::from_str(name) {
-                    Some(scope) => Attribute::Test { scope },
+                match TestScope::lookup_str(name) {
+                    Some(scope) => Attribute::Test(scope),
                     None => return Err(malformed_scope),
                 }
             }

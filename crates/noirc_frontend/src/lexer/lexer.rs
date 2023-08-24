@@ -1,3 +1,5 @@
+use crate::token::TestScope;
+
 use super::{
     errors::LexerErrorKind,
     token::{Attribute, IntType, Keyword, SpannedToken, Token, Tokens},
@@ -468,10 +470,7 @@ fn test_attribute() {
     let mut lexer = Lexer::new(input);
 
     let token = lexer.next().unwrap().unwrap();
-    assert_eq!(
-        token.token(),
-        &Token::Attribute(Attribute::Test { scope: crate::token::TestScope::None })
-    );
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Test(TestScope::None)));
 }
 #[test]
 fn test_attribute_with_valid_scope() {
@@ -479,17 +478,7 @@ fn test_attribute_with_valid_scope() {
     let mut lexer = Lexer::new(input);
 
     let token = lexer.next().unwrap().unwrap();
-    assert_eq!(
-        token.token(),
-        &Token::Attribute(Attribute::Test { scope: crate::token::TestScope::ShouldFail })
-    );
-
-    println!(
-        "token: {}",
-        Token::Attribute(Attribute::Test { scope: crate::token::TestScope::ShouldFail })
-    );
-
-    panic!("")
+    assert_eq!(token.token(), &Token::Attribute(Attribute::Test(TestScope::ShouldFail)));
 }
 
 #[test]
