@@ -5,6 +5,7 @@ set -eu
 
 export WASI_VERSION=20
 
+# Navigate to script folder
 cd "$(dirname "$0")"
 
 # Update the submodule
