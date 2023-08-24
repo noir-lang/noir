@@ -62,7 +62,7 @@ export class CircuitsWasm implements IWasmModule {
    * @param loggerName - The logger name.
    * @returns The wrapper.
    */
-  private static async new(initial = 30, maximum = 8192, loggerName = 'wasm'): Promise<CircuitsWasm> {
+  private static async new(initial = 30, maximum = 8192, loggerName = 'aztec:wasm'): Promise<CircuitsWasm> {
     const wasm = new WasmModule(
       await fetchBinary(CODE_PATH),
       module => ({

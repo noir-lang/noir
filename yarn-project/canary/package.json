@@ -10,7 +10,7 @@
     "clean": "rm -rf ./dest .tsbuildinfo",
     "formatting": "run -T prettier --check ./src && run -T eslint ./src",
     "formatting:fix": "run -T prettier -w ./src",
-    "test": "DEBUG='aztec:*,wasm' NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand --passWithNoTests --testTimeout=15000"
+    "test": "DEBUG='aztec:*' NODE_NO_WARNINGS=1 node --experimental-vm-modules $(yarn bin jest) --runInBand --passWithNoTests --testTimeout=15000"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",

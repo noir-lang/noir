@@ -97,9 +97,10 @@ export class AztecRPCServer implements AztecRPC {
     if (wasAdded) {
       const pubKey = this.keyStore.addAccount(privKey);
       this.synchroniser.addAccount(pubKey, this.keyStore);
-      this.log.info(`Added account: ${completeAddress.toReadableString()}`);
+      this.log.info(`Registered account ${completeAddress.address.toString()}`);
+      this.log.debug(`Registered ${completeAddress.toReadableString()}`);
     } else {
-      this.log.info(`Account "${completeAddress.toReadableString()}" already registered.`);
+      this.log.info(`Account "${completeAddress.address.toString()}" already registered.`);
     }
   }
 

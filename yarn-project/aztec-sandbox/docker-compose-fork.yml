@@ -11,7 +11,7 @@ services:
     ports:
       - '8080:8080'
     environment:
-      DEBUG: 'aztec:*,wasm'
+      DEBUG: 'aztec:*'
       ETHEREUM_HOST: http://fork:8545
       CHAIN_ID: 31337
       ARCHIVER_POLLING_INTERVAL_MS: 50
