@@ -131,6 +131,14 @@ fn run_test<B: Backend>(
         noirc_errors::reporter::report_all(&context.file_manager, &[err], config.deny_warnings);
         Err(CliError::Generic(format!("Test '{test_name}' failed to compile")))
     };
+    let write_error = |err| {
+        let writer = StandardStream::stderr(ColorChoice::Always);
+        let mut writer = writer.lock();
+        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
+        writeln!(writer, "failed").ok();
+        writer.reset().ok();
+        Err(err)
+    };
 
     let program = compile_no_check(context, config, test_function.get_id());
     match program {
@@ -145,20 +153,15 @@ fn run_test<B: Backend>(
 
             if test_function.should_fail() {
                 match circuit_execution {
-                    Ok(_) => Err(CliError::Generic(format!("Test '{test_name}' should fail"))),
+                    Ok(_) => {
+                        write_error(CliError::Generic(format!("Test '{test_name}' should fail")))
+                    }
                     Err(_) => Ok(()),
                 }
             } else {
                 match circuit_execution {
                     Ok(_) => Ok(()),
-                    Err(error) => {
-                        let writer = StandardStream::stderr(ColorChoice::Always);
-                        let mut writer = writer.lock();
-                        writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).ok();
-                        writeln!(writer, "failed").ok();
-                        writer.reset().ok();
-                        Err(error.into())
-                    }
+                    Err(error) => write_error(error.into()),
                 }
             }
         }
