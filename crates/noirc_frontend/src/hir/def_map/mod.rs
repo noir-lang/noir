@@ -137,14 +137,12 @@ impl CrateDefMap {
                 .filter(|id| {
                     matches!(interner.function_meta(id).attributes, Some(Attribute::Test { .. }))
                 })
-                .map(|id| {
-                    if interner.function_meta(&id).attributes
-                        == Some(Attribute::Test { expect_failure: true })
-                    {
-                        TestFunction::new(id, true)
-                    } else {
-                        TestFunction::new(id, false)
+                .map(|id| match interner.function_meta(&id).attributes {
+                    Some(Attribute::Test { expect_failure }) => {
+                        TestFunction::new(id, expect_failure)
                     }
+                    None => unreachable!(),
+                    _ => unreachable!(),
                 })
         })
     }
