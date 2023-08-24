@@ -7,7 +7,7 @@ import { yamux } from '@chainsafe/libp2p-yamux';
 import { bootstrap } from '@libp2p/bootstrap';
 import type { ServiceMap } from '@libp2p/interface-libp2p';
 import { PeerId } from '@libp2p/interface-peer-id';
-import { IncomingStreamData } from '@libp2p/interface-registrar';
+import { IncomingStreamData } from '@libp2p/interface/stream-handler';
 import { DualKadDHT, kadDHT } from '@libp2p/kad-dht';
 import { mplex } from '@libp2p/mplex';
 import { createEd25519PeerId, createFromProtobuf, exportToProtobuf } from '@libp2p/peer-id-factory';
@@ -230,7 +230,7 @@ export class LibP2PService implements P2PService {
         buffer = Buffer.concat([buffer, Buffer.from(payload)]);
       }
     });
-    incomingStreamData.stream.close();
+    await incomingStreamData.stream.close();
     return { message: buffer, peer: incomingStreamData.connection.remotePeer };
   }
 
@@ -374,7 +374,7 @@ export class LibP2PService implements P2PService {
   private async sendRawMessageToPeer(message: Uint8Array, peer: PeerId) {
     const stream = await this.node.dialProtocol(peer, this.protocolId);
     await pipe([message], stream);
-    stream.close();
+    await stream.close();
   }
 
   private getTxPeers() {
