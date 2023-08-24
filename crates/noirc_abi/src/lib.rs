@@ -12,6 +12,7 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap, vecmap};
+use noirc_frontend::{Signedness, Type, TypeBinding, TypeVariableKind, Visibility};
 use serde::{Deserialize, Serialize};
 // This is the ABI used to bridge the different TOML formats for the initial
 // witness, the partial witness generator and the interpreter.
@@ -24,9 +25,6 @@ mod serialization;
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
-
-/// A tuple of the arguments to a function along with its return value.
-pub type FunctionSignature = (Vec<AbiParameter>, Option<AbiType>);
 
 pub const MAIN_RETURN_NAME: &str = "return";
 
@@ -77,6 +75,24 @@ pub enum AbiVisibility {
     Private,
 }
 
+impl From<Visibility> for AbiVisibility {
+    fn from(value: Visibility) -> Self {
+        match value {
+            Visibility::Public => AbiVisibility::Public,
+            Visibility::Private => AbiVisibility::Private,
+        }
+    }
+}
+
+impl From<&Visibility> for AbiVisibility {
+    fn from(value: &Visibility) -> Self {
+        match value {
+            Visibility::Public => AbiVisibility::Public,
+            Visibility::Private => AbiVisibility::Private,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Represents whether the return value should compromise of unique witness indices such that no
@@ -100,6 +116,60 @@ pub enum Sign {
 }
 
 impl AbiType {
+    // TODO: Add `Context` argument for resolving fully qualified struct paths
+    pub fn from_type(typ: &Type) -> Self {
+        // Note; use strict_eq instead of partial_eq when comparing field types
+        // in this method, you most likely want to distinguish between public and private
+        match typ {
+            Type::FieldElement => Self::Field,
+            Type::Array(size, typ) => {
+                let length = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized arrays as a parameter to main");
+                let typ = typ.as_ref();
+                Self::Array { length, typ: Box::new(Self::from_type(typ)) }
+            }
+            Type::Integer(sign, bit_width) => {
+                let sign = match sign {
+                    Signedness::Unsigned => Sign::Unsigned,
+                    Signedness::Signed => Sign::Signed,
+                };
+
+                Self::Integer { sign, width: *bit_width }
+            }
+            Type::TypeVariable(binding, TypeVariableKind::IntegerOrField) => {
+                match &*binding.borrow() {
+                    TypeBinding::Bound(typ) => Self::from_type(typ),
+                    TypeBinding::Unbound(_) => Self::from_type(&Type::default_int_type()),
+                }
+            }
+            Type::Bool => Self::Boolean,
+            Type::String(size) => {
+                let size = size
+                    .evaluate_to_u64()
+                    .expect("Cannot have variable sized strings as a parameter to main");
+                Self::String { length: size }
+            }
+            Type::FmtString(_, _) => unreachable!("format strings cannot be used in the abi"),
+            Type::Error => unreachable!(),
+            Type::Unit => unreachable!(),
+            Type::Constant(_) => unreachable!(),
+            Type::Struct(def, ref args) => {
+                let struct_type = def.borrow();
+                let fields = struct_type.get_fields(args);
+                let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(&typ)));
+                Self::Struct { fields, name: struct_type.name.to_string() }
+            }
+            Type::Tuple(_) => todo!("AbiType::from_type not yet implemented for tuple types"),
+            Type::TypeVariable(_, _) => unreachable!(),
+            Type::NamedGeneric(..) => unreachable!(),
+            Type::Forall(..) => unreachable!(),
+            Type::Function(_, _, _) => unreachable!(),
+            Type::MutableReference(_) => unreachable!("&mut cannot be used in the abi"),
+            Type::NotConstant => unreachable!(),
+        }
+    }
+
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self) -> u32 {
         match self {
@@ -393,7 +463,7 @@ fn decode_value(
     Ok(value)
 }
 
-pub fn decode_string_value(field_elements: &[FieldElement]) -> String {
+fn decode_string_value(field_elements: &[FieldElement]) -> String {
     let string_as_slice = vecmap(field_elements, |e| {
         let mut field_as_bytes = e.to_be_bytes();
         let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element

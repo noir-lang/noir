@@ -46,7 +46,7 @@ use crate::hir::scope::{
     Scope as GenericScope, ScopeForest as GenericScopeForest, ScopeTree as GenericScopeTree,
 };
 use crate::hir_def::{
-    function::{FuncMeta, HirFunction, Param},
+    function::{FuncMeta, HirFunction},
     stmt::{HirConstrainStatement, HirLetStatement, HirStatement},
 };
 
@@ -671,7 +671,7 @@ impl<'a> Resolver<'a> {
             let pattern = self.resolve_pattern(pattern, DefinitionKind::Local(None));
             let typ = self.resolve_type_inner(typ, &mut generics);
 
-            parameters.push(Param(pattern, typ.clone(), visibility));
+            parameters.push((pattern, typ.clone(), visibility));
             parameter_types.push(typ);
         }
 

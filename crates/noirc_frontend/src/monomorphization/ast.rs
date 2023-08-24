@@ -1,9 +1,8 @@
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_abi::FunctionSignature;
 use noirc_errors::Location;
 
-use crate::{BinaryOpKind, Distinctness, Signedness};
+use crate::{hir_def::function::FunctionSignature, BinaryOpKind, Distinctness, Signedness};
 
 /// The monomorphized AST is expression-based, all statements are also
 /// folded into this expression enum. Compared to the HIR, the monomorphized
