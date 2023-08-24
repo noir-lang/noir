@@ -8,7 +8,11 @@ contract PublicToken {
         PrivateContext,
         PublicContext
     };
+
+    // docs:start:unencrypted_import
     use dep::aztec::oracle::logs::emit_unencrypted_log;
+    // docs:end:unencrypted_import
+
     use crate::storage::Storage;
 
     // Constructs the contract.
@@ -30,8 +34,10 @@ contract PublicToken {
         let storage = Storage::init();
         let recipient_balance = storage.balances.at(recipient);
         let new_amount = recipient_balance.read() + amount;
+        // docs:start:unencrypted_log
         // TODO: Remove return value.
         let _hash = emit_unencrypted_log("Coins minted");
+        // docs:end:unencrypted_log
         recipient_balance.write(new_amount);
 
         context.return_values.push(new_amount);

@@ -6,11 +6,7 @@ import { DebugLogger } from '@aztec/foundation/log';
 import { PrivateTokenContract } from '@aztec/noir-contracts/types';
 import { AztecRPC, TxStatus } from '@aztec/types';
 
-import {
-  expectUnencryptedLogsFromLastBlockToBe,
-  expectsNumOfEncryptedLogsInTheLastBlockToBe,
-  setup,
-} from './fixtures/utils.js';
+import { expectsNumOfEncryptedLogsInTheLastBlockToBe, setup } from './fixtures/utils.js';
 
 describe('e2e_multiple_accounts_1_enc_key', () => {
   let aztecNode: AztecNodeService | undefined;
@@ -96,7 +92,6 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
     }
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 2);
-    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Coins transferred']);
 
     logger(`Transfer ${transferAmount} from ${sender} to ${receiver} successful`);
   };

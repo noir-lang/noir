@@ -61,6 +61,14 @@ Emitting unencrypted events from private function is a significant privacy leak 
 
 :::
 
+To emit unencrypted logs first import the `emit_unencrypted_log` utility function inside your contract:
+
+#include_code unencrypted_import /yarn-project/noir-contracts/src/contracts/public_token_contract/src/main.nr rust
+
+Then you can call the function:
+
+#include_code unencrypted_log /yarn-project/noir-contracts/src/contracts/public_token_contract/src/main.nr rust
+
 Once emitted, unencrypted events are stored in AztecNode and can be queried by anyone:
 <Tabs groupId="events">
 <TabItem value="cli" label="Aztec CLI">
@@ -72,18 +80,10 @@ aztec-cli get-logs --from 5 --limit 1
 </TabItem>
 <TabItem value="js" label="Aztec.js">
 
-#include_code logs /yarn-project/end-to-end/src/e2e_public_token_contract.test.ts typescript
+#include_code get_logs /yarn-project/end-to-end/src/fixtures/utils.ts typescript
 
 </TabItem>
 </Tabs>
-
-To emit unencrypted logs first import the `emit_unencrypted_log` utility function inside your contract:
-
-#include_code unencrypted_import /yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr rust
-
-Then you can call the function:
-
-#include_code unencrypted /yarn-project/noir-contracts/src/contracts/private_token_contract/src/main.nr rust
 
 ### Costs
 

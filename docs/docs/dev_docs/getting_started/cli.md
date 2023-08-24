@@ -216,16 +216,3 @@ View result:  [
   "{\"type\":\"bigint\",\"data\":\"543\"}"
 ]
 ```
-
-## Logs
-
-Finally, we can use the CLI's `get-logs` command to retrieve unencrypted logs emitted by the contract:
-
-```
-% aztec-cli get-logs --from 5 --limit 1
-Logs found:
-
-Coins transferred
-```
-
-Here we asked for the logs from block 5 (the block in which our call to `transfer` was mined) and to include a total of 1 block's worth of logs. The text `Coins Transferred` is emitted during the execution of the `transfer` function on the contract.

@@ -8,7 +8,6 @@ contract ExamplePublicStateIncrement {
         PrivateContext,
         PublicContext,
     };
-    use dep::aztec::oracle::logs::emit_unencrypted_log;
     use dep::aztec::types::point::Point;
     use crate::storage::Storage;
     use dep::aztec::state_vars::{

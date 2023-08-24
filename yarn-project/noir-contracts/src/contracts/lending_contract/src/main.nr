@@ -21,7 +21,6 @@ contract Lending {
         PrivateContext,
         PublicContext
     };
-    use dep::aztec::oracle::{logs::emit_unencrypted_log};
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
     use crate::storage::{Storage, Asset};
     use crate::safe_math::SafeU120;

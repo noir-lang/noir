@@ -430,8 +430,12 @@ export const expectsNumOfEncryptedLogsInTheLastBlockToBe = async (
  * @param logMessages - The set of expected log messages.
  */
 export const expectUnencryptedLogsFromLastBlockToBe = async (rpc: AztecRPC, logMessages: string[]) => {
+  // docs:start:get_logs
+  // Get the latest block number to retrieve logs from
   const l2BlockNum = await rpc.getBlockNumber();
+  // Get the unencrypted logs from the last block
   const unencryptedLogs = await rpc.getUnencryptedLogs(l2BlockNum, 1);
+  // docs:end:get_logs
   const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs);
   const asciiLogs = unrolledLogs.map(log => log.toString('ascii'));
 

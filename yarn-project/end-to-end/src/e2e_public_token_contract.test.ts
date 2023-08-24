@@ -3,11 +3,11 @@ import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, Wallet } from '@aztec/aztec.js';
 import { DebugLogger } from '@aztec/foundation/log';
 import { PublicTokenContract } from '@aztec/noir-contracts/types';
-import { AztecRPC, CompleteAddress, L2BlockL2Logs, TxStatus } from '@aztec/types';
+import { AztecRPC, CompleteAddress, TxStatus } from '@aztec/types';
 
 import times from 'lodash.times';
 
-import { setup } from './fixtures/utils.js';
+import { expectUnencryptedLogsFromLastBlockToBe, setup } from './fixtures/utils.js';
 
 describe('e2e_public_token_contract', () => {
   let aztecNode: AztecNodeService | undefined;
@@ -24,19 +24,6 @@ describe('e2e_public_token_contract', () => {
     contract = txReceipt.contract;
     logger(`L2 contract deployed at ${txReceipt.contractAddress}`);
     return { contract, txReceipt };
-  };
-
-  const expectLogsFromLastBlockToBe = async (logMessages: string[]) => {
-    // docs:start:logs
-
-    const l2BlockNum = await aztecRpcServer.getBlockNumber();
-    const unencryptedLogs = await aztecRpcServer.getUnencryptedLogs(l2BlockNum, 1);
-
-    // docs:end:logs
-    const unrolledLogs = L2BlockL2Logs.unrollLogs(unencryptedLogs);
-    const asciiLogs = unrolledLogs.map(log => log.toString('ascii'));
-
-    expect(asciiLogs).toStrictEqual(logMessages);
   };
 
   beforeEach(async () => {
@@ -72,7 +59,7 @@ describe('e2e_public_token_contract', () => {
     const balance = await contract.methods.publicBalanceOf(recipient.toField()).view({ from: recipient });
     expect(balance).toBe(mintAmount);
 
-    await expectLogsFromLastBlockToBe(['Coins minted']);
+    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Coins minted']);
   }, 45_000);
 
   // Regression for https://github.com/AztecProtocol/aztec-packages/issues/640
@@ -95,6 +82,6 @@ describe('e2e_public_token_contract', () => {
     const balance = await contract.methods.publicBalanceOf(recipient.toField()).view({ from: recipient });
     expect(balance).toBe(mintAmount * 3n);
 
-    await expectLogsFromLastBlockToBe(['Coins minted', 'Coins minted', 'Coins minted']);
+    await expectUnencryptedLogsFromLastBlockToBe(aztecRpcServer, ['Coins minted', 'Coins minted', 'Coins minted']);
   }, 60_000);
 });

@@ -14,7 +14,6 @@ contract EasyPrivateToken {
         abi,
         abi::PrivateContextInputs,
         context::PrivateContext,
-        log::emit_unencrypted_log,
         note::{
             note_header::NoteHeader,
             utils as note_utils,
@@ -39,8 +38,6 @@ contract EasyPrivateToken {
 
         balances.at(owner).add(&mut context, initial_supply, owner);
 
-        emit_unencrypted_log(&mut context, "Balance set in constructor");
-
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
     }
@@ -59,8 +56,6 @@ contract EasyPrivateToken {
         let balances = storage.balances;
 
         balances.at(owner).add(&mut context, amount, owner);
-
-        emit_unencrypted_log(&mut context, "Coins minted");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
@@ -83,8 +78,6 @@ contract EasyPrivateToken {
         balances.at(sender).sub(&mut context, amount, sender);
 
         balances.at(recipient).add(&mut context, amount, recipient);
-        
-        emit_unencrypted_log(&mut context, "Coins transferred");
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
