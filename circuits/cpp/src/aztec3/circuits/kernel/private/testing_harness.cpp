@@ -156,7 +156,10 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     const Point<NT> msg_sender_pub_key = { .x = 123456789, .y = 123456789 };
 
     FunctionData<NT> const function_data{
-        .function_selector = 1,  // TODO(suyash): deduce this from the contract, somehow.
+        .function_selector =
+            FunctionSelector<NT>{
+                .value = 1,  // TODO: deduce this from the contract, somehow.
+            },
         .is_private = true,
         .is_constructor = is_constructor,
     };

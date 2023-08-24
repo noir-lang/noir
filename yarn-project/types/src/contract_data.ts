@@ -1,4 +1,4 @@
-import { FUNCTION_SELECTOR_NUM_BYTES } from '@aztec/circuits.js';
+import { FUNCTION_SELECTOR_NUM_BYTES, FunctionSelector } from '@aztec/circuits.js';
 import { BufferReader, serializeToBuffer } from '@aztec/circuits.js/utils';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { randomBytes } from '@aztec/foundation/crypto';
@@ -45,10 +45,10 @@ export interface ContractDataSource {
   /**
    * Returns a contract's encoded public function, given its function selector.
    * @param address - The contract aztec address.
-   * @param functionSelector - The function's selector.
+   * @param selector - The function's selector.
    * @returns The function's data.
    */
-  getPublicFunction(address: AztecAddress, functionSelector: Buffer): Promise<EncodedContractFunction | undefined>;
+  getPublicFunction(address: AztecAddress, selector: FunctionSelector): Promise<EncodedContractFunction | undefined>;
 }
 
 /**
@@ -59,7 +59,7 @@ export class EncodedContractFunction {
     /**
      * The function selector.
      */
-    public functionSelector: Buffer,
+    public selector: FunctionSelector,
     /**
      * Whether the function is internal.
      */
@@ -76,7 +76,7 @@ export class EncodedContractFunction {
    */
   toBuffer(): Buffer {
     const bytecodeBuf = Buffer.concat([numToInt32BE(this.bytecode.length), this.bytecode]);
-    return serializeToBuffer(this.functionSelector, this.isInternal, bytecodeBuf);
+    return serializeToBuffer(this.selector, this.isInternal, bytecodeBuf);
   }
 
   /**
@@ -86,7 +86,7 @@ export class EncodedContractFunction {
    */
   static fromBuffer(buffer: Buffer | BufferReader): EncodedContractFunction {
     const reader = BufferReader.asReader(buffer);
-    const fnSelector = reader.readBytes(FUNCTION_SELECTOR_NUM_BYTES);
+    const fnSelector = FunctionSelector.fromBuffer(reader.readBytes(FUNCTION_SELECTOR_NUM_BYTES));
     const isInternal = reader.readBoolean();
     return new EncodedContractFunction(fnSelector, isInternal, reader.readBuffer());
   }
@@ -96,7 +96,7 @@ export class EncodedContractFunction {
    * @returns A random contract function.
    */
   static random(): EncodedContractFunction {
-    return new EncodedContractFunction(randomBytes(4), false, randomBytes(64));
+    return new EncodedContractFunction(FunctionSelector.fromBuffer(randomBytes(4)), false, randomBytes(64));
   }
 }
 
@@ -128,11 +128,11 @@ export class ContractDataAndBytecode {
 
   /**
    * Gets the public function data or undefined.
-   * @param functionSelector - The function selector of the function to fetch.
+   * @param selector - The function selector of the function to fetch.
    * @returns The public function data (if found).
    */
-  public getPublicFunction(functionSelector: Buffer): EncodedContractFunction | undefined {
-    return this.publicFunctions.find(fn => fn.functionSelector.equals(functionSelector));
+  public getPublicFunction(selector: FunctionSelector): EncodedContractFunction | undefined {
+    return this.publicFunctions.find(fn => fn.selector.equals(selector));
   }
 
   /**

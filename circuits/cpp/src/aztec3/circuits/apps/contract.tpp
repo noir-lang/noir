@@ -13,6 +13,7 @@ namespace aztec3::circuits::apps {
 
 using NT = aztec3::utils::types::NativeTypes;
 using aztec3::circuits::abis::FunctionData;
+using aztec3::circuits::abis::FunctionSelector;
 
 template <typename NCT> void Contract<NCT>::set_functions(std::vector<FunctionDeclaration<NCT>> const& functions)
 {
@@ -22,7 +23,10 @@ template <typename NCT> void Contract<NCT>::set_functions(std::vector<FunctionDe
             throw_or_abort("Name already exists");
         }
         function_datas[function.name] = FunctionData<NCT>{
-            .function_selector = static_cast<uint32>(i),
+            .function_selector =
+                FunctionSelector<NT>{
+                    .value = static_cast<uint32>(i),
+                },
             .is_private = function.is_private,
             .is_constructor = function.is_constructor,
         };

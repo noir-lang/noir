@@ -1,5 +1,5 @@
 import { CompleteAddress, HistoricBlockData, PrivateKey, PublicKey } from '@aztec/circuits.js';
-import { FunctionAbi, FunctionDebugMetadata } from '@aztec/foundation/abi';
+import { FunctionAbi, FunctionDebugMetadata, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -116,10 +116,10 @@ export interface DBOracle extends CommitmentsDB {
    * The function is identified by its selector, which is a unique identifier generated from the function signature.
    *
    * @param contractAddress - The contract address.
-   * @param functionSelector - The Buffer containing the function selector bytes.
+   * @param selector - The corresponding function selector.
    * @returns A Promise that resolves to a FunctionAbi object containing the ABI information of the target function.
    */
-  getFunctionABI(contractAddress: AztecAddress, functionSelector: Buffer): Promise<FunctionAbiWithDebugMetadata>;
+  getFunctionABI(contractAddress: AztecAddress, selector: FunctionSelector): Promise<FunctionAbiWithDebugMetadata>;
 
   /**
    * Retrieves the portal contract address associated with the given contract address.

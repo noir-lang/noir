@@ -22,7 +22,7 @@ import {
   computeVarArgsHash,
   hashConstructor,
 } from '@aztec/circuits.js/abis';
-import { ContractAbi, generateFunctionSelector } from '@aztec/foundation/abi';
+import { ContractAbi, FunctionSelector } from '@aztec/foundation/abi';
 import { assertLength } from '@aztec/foundation/serialize';
 import { AztecNode, ContractCommitmentProvider, ContractDao, PublicKey } from '@aztec/types';
 
@@ -85,7 +85,7 @@ export class ContractTree {
 
     const functions = abi.functions.map(f => ({
       ...f,
-      selector: generateFunctionSelector(f.name, f.parameters),
+      selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
     }));
     const leaves = generateFunctionLeaves(functions, wasm);
     const root = computeFunctionTreeRoot(wasm, leaves);
@@ -112,17 +112,15 @@ export class ContractTree {
    * The function is identified by its selector, which represents a unique identifier for the function's signature.
    * Throws an error if the function with the provided selector is not found in the contract.
    *
-   * @param functionSelector - The Buffer containing the unique identifier for the function's signature.
+   * @param selector - The function selector.
    * @returns The ABI object containing relevant information about the targeted function.
    */
-  public getFunctionAbi(functionSelector: Buffer) {
-    const abi = this.contract.functions.find(f => f.selector.equals(functionSelector));
+  public getFunctionAbi(selector: FunctionSelector) {
+    const abi = this.contract.functions.find(f => f.selector.equals(selector));
     if (!abi) {
       throw new Error(
-        `Unknown function. Selector ${functionSelector.toString(
-          'hex',
-        )} not found in the ABI of contract ${this.contract.address.toString()}. Expected one of: ${this.contract.functions
-          .map(f => f.selector.toString('hex'))
+        `Unknown function. Selector ${selector.toString()} not found in the ABI of contract ${this.contract.address.toString()}. Expected one of: ${this.contract.functions
+          .map(f => f.selector.toString())
           .join(', ')}`,
       );
     }
@@ -134,11 +132,11 @@ export class ContractTree {
    * The function selector is a unique identifier for each function in a contract.
    * Throws an error if the function with the given selector is not found in the contract.
    *
-   * @param functionSelector - The Buffer representing the function selector.
+   * @param selector - The selector of a function to get bytecode for.
    * @returns The bytecode of the function as a string.
    */
-  public getBytecode(functionSelector: Buffer) {
-    return this.getFunctionAbi(functionSelector).bytecode;
+  public getBytecode(selector: FunctionSelector) {
+    return this.getFunctionAbi(selector).bytecode;
   }
 
   /**
@@ -195,14 +193,14 @@ export class ContractTree {
    * in the Merkle tree of constrained functions. It is required to prove the existence of the
    * function within the contract during execution.
    *
-   * @param functionSelector - The Buffer containing the function selector (signature).
+   * @param selector - The function selector.
    * @returns A MembershipWitness instance representing the position and authentication path of the function in the function tree.
    */
   public getFunctionMembershipWitness(
-    functionSelector: Buffer,
+    selector: FunctionSelector,
   ): Promise<MembershipWitness<typeof FUNCTION_TREE_HEIGHT>> {
     const targetFunctions = this.contract.functions.filter(isConstrained);
-    const functionIndex = targetFunctions.findIndex(f => f.selector.equals(functionSelector));
+    const functionIndex = targetFunctions.findIndex(f => f.selector.equals(selector));
     if (functionIndex < 0) {
       return Promise.resolve(MembershipWitness.empty(FUNCTION_TREE_HEIGHT, 0n));
     }

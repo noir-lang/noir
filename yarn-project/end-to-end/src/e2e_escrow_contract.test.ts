@@ -1,8 +1,7 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { AztecAddress, BatchCall, Wallet, generatePublicKey } from '@aztec/aztec.js';
-import { CompleteAddress, Fr, PrivateKey, getContractDeploymentInfo } from '@aztec/circuits.js';
-import { generateFunctionSelector } from '@aztec/foundation/abi';
+import { CompleteAddress, Fr, FunctionSelector, PrivateKey, getContractDeploymentInfo } from '@aztec/circuits.js';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
 import { DebugLogger } from '@aztec/foundation/log';
 import { EscrowContractAbi, PrivateTokenContractAbi } from '@aztec/noir-contracts/artifacts';
@@ -29,8 +28,8 @@ describe('e2e_escrow_contract', () => {
   beforeAll(() => {
     // Validate transfer selector. If this fails, then make sure to change it in the escrow contract.
     const transferAbi = PrivateTokenContractAbi.functions.find(f => f.name === 'transfer')!;
-    const transferSelector = generateFunctionSelector(transferAbi.name, transferAbi.parameters);
-    expect(transferSelector).toEqual(toBufferBE(0xdcd4c318n, 4));
+    const transferSelector = FunctionSelector.fromNameAndParameters(transferAbi.name, transferAbi.parameters);
+    expect(transferSelector.toBuffer()).toEqual(toBufferBE(0xdcd4c318n, 4));
   });
 
   beforeEach(async () => {

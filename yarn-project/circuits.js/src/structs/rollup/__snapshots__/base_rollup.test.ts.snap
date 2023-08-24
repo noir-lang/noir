@@ -96,7 +96,9 @@ portal_contract_address: 0x101010101010101010101010101010101010101
 function_tree_root: 0xc02
  ]
 optionally_revealed_data: [ call_stack_item_hash: 0xd00
-function_data: function_selector: d01
+function_data: function_selector:
+value: d01
+
 is_internal: 0
 is_private: 1
 is_constructor: 1
@@ -108,7 +110,9 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xd01
-function_data: function_selector: d02
+function_data: function_selector:
+value: d02
+
 is_internal: 0
 is_private: 1
 is_constructor: 1
@@ -120,7 +124,9 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xd02
-function_data: function_selector: d03
+function_data: function_selector:
+value: d03
+
 is_internal: 0
 is_private: 1
 is_constructor: 1
@@ -132,7 +138,9 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xd03
-function_data: function_selector: d04
+function_data: function_selector:
+value: d04
+
 is_internal: 0
 is_private: 1
 is_constructor: 1
@@ -364,7 +372,9 @@ portal_contract_address: 0x101010101010101010101010101010101010101
 function_tree_root: 0xd02
  ]
 optionally_revealed_data: [ call_stack_item_hash: 0xe00
-function_data: function_selector: e01
+function_data: function_selector:
+value: e01
+
 is_internal: 0
 is_private: 1
 is_constructor: 1
@@ -376,7 +386,9 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xe01
-function_data: function_selector: e02
+function_data: function_selector:
+value: e02
+
 is_internal: 0
 is_private: 1
 is_constructor: 1
@@ -388,7 +400,9 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xe02
-function_data: function_selector: e03
+function_data: function_selector:
+value: e03
+
 is_internal: 0
 is_private: 1
 is_constructor: 1
@@ -400,7 +414,9 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xe03
-function_data: function_selector: e04
+function_data: function_selector:
+value: e04
+
 is_internal: 0
 is_private: 1
 is_constructor: 1

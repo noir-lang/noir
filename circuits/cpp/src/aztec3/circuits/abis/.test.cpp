@@ -51,7 +51,10 @@ TEST(abi_tests, native_read_write_call_context)
 TEST(abi_tests, native_read_write_function_data)
 {
     FunctionData<NT> const function_data = {
-        .function_selector = 11,
+        .function_selector =
+            FunctionSelector<NT>{
+                .value = 11,
+            },
         .is_private = false,
         .is_constructor = false,
     };
@@ -67,7 +70,10 @@ TEST(abi_tests, native_read_write_function_data)
 TEST(abi_tests, native_to_circuit_function_data)
 {
     FunctionData<NT> const native_function_data = {
-        .function_selector = 11,
+        .function_selector =
+            FunctionSelector<NT>{
+                .value = 11,
+            },
         .is_private = false,
         .is_constructor = false,
     };

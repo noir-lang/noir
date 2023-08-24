@@ -107,7 +107,10 @@ PublicCallStackItem generate_call_stack_item(NT::fr contract_address,
 {
     NT::uint32 count = seed + 1;
     FunctionData<NT> const function_data{
-        .function_selector = count,
+        .function_selector =
+            FunctionSelector<NT>{
+                .value = count,
+            },
         .is_private = false,
         .is_constructor = false,
     };
@@ -264,7 +267,10 @@ PublicKernelInputs<NT> get_kernel_inputs_with_previous_kernel(NT::boolean privat
     const NT::address msg_sender = NT::fr(1);
 
     FunctionData<NT> const function_data{
-        .function_selector = 1,
+        .function_selector =
+            FunctionSelector<NT>{
+                .value = 1,
+            },
         .is_private = false,
         .is_constructor = false,
     };
@@ -640,7 +646,9 @@ TEST(public_kernel_tests, function_selector_must_be_valid)
     DummyBuilder dummyBuilder = DummyBuilder("public_kernel_tests__function_selector_must_be_valid");
     PublicKernelInputs<NT> inputs = get_kernel_inputs_with_previous_kernel(true);
 
-    inputs.public_call.call_stack_item.function_data.function_selector = 0;
+    inputs.public_call.call_stack_item.function_data.function_selector = FunctionSelector<NT>{
+        .value = 0,
+    };
     auto public_inputs = native_public_kernel_circuit_private_previous_kernel(dummyBuilder, inputs);
     ASSERT_TRUE(dummyBuilder.failed());
     ASSERT_EQ(dummyBuilder.get_first_failure().code, CircuitErrorCode::PUBLIC_KERNEL__FUNCTION_SIGNATURE_INVALID);

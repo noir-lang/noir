@@ -2,7 +2,7 @@
 import { AztecNodeService } from '@aztec/aztec-node';
 import { AztecRPCServer } from '@aztec/aztec-rpc';
 import { Wallet } from '@aztec/aztec.js';
-import { Fr } from '@aztec/circuits.js';
+import { Fr, FunctionSelector } from '@aztec/circuits.js';
 import { toBigIntBE } from '@aztec/foundation/bigint-buffer';
 import { toBigInt } from '@aztec/foundation/serialize';
 import { ChildContract, ParentContract } from '@aztec/noir-contracts/types';
@@ -39,7 +39,7 @@ describe('e2e_ordering', () => {
   describe('with parent and child contract', () => {
     let parent: ParentContract;
     let child: ChildContract;
-    let pubSetValueSelector: Buffer;
+    let pubSetValueSelector: FunctionSelector;
 
     beforeEach(async () => {
       parent = await ParentContract.deploy(wallet).send().deployed();

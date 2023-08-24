@@ -23,7 +23,7 @@ import {
 } from '@aztec/circuits.js/abis';
 import { pedersenPlookupCommitInputs } from '@aztec/circuits.js/barretenberg';
 import { makeContractDeploymentData } from '@aztec/circuits.js/factories';
-import { FunctionAbi, encodeArguments, generateFunctionSelector } from '@aztec/foundation/abi';
+import { FunctionAbi, FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { asyncMap } from '@aztec/foundation/async-map';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { toBufferBE } from '@aztec/foundation/bigint-buffer';
@@ -211,7 +211,7 @@ describe('Private Execution test suite', () => {
       oracle.getFunctionABI.mockImplementation((_, selector) =>
         Promise.resolve(
           PrivateTokenAirdropContractAbi.functions.find(f =>
-            selector.equals(generateFunctionSelector(f.name, f.parameters)),
+            selector.equals(FunctionSelector.fromNameAndParameters(f.name, f.parameters)),
           )!,
         ),
       );
@@ -440,7 +440,9 @@ describe('Private Execution test suite', () => {
 
       oracle.getFunctionABI.mockImplementation((_, selector) =>
         Promise.resolve(
-          PrivateTokenContractAbi.functions.find(f => selector.equals(generateFunctionSelector(f.name, f.parameters)))!,
+          PrivateTokenContractAbi.functions.find(f =>
+            selector.equals(FunctionSelector.fromNameAndParameters(f.name, f.parameters)),
+          )!,
         ),
       );
     });
@@ -602,15 +604,15 @@ describe('Private Execution test suite', () => {
       const parentAbi = getFunctionAbi(ParentContractAbi, 'entryPoint');
       const parentAddress = AztecAddress.random();
       const childAddress = AztecAddress.random();
-      const childSelector = generateFunctionSelector(childAbi.name, childAbi.parameters);
+      const childSelector = FunctionSelector.fromNameAndParameters(childAbi.name, childAbi.parameters);
 
       oracle.getFunctionABI.mockImplementation(() => Promise.resolve(childAbi));
       oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(EthAddress.ZERO));
 
       logger(`Parent deployed at ${parentAddress.toShortString()}`);
-      logger(`Calling child function ${childSelector.toString('hex')} at ${childAddress.toShortString()}`);
+      logger(`Calling child function ${childSelector.toString()} at ${childAddress.toShortString()}`);
 
-      const args = [Fr.fromBuffer(childAddress.toBuffer()), Fr.fromBuffer(childSelector)];
+      const args = [Fr.fromBuffer(childAddress.toBuffer()), Fr.fromBuffer(childSelector.toBuffer())];
       const result = await runSimulator({ args, abi: parentAbi, origin: parentAddress });
 
       expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(privateIncrement));
@@ -652,7 +654,10 @@ describe('Private Execution test suite', () => {
       const importerAddress = AztecAddress.random();
       const testAddress = AztecAddress.random();
       const parentAbi = ImportTestContractAbi.functions.find(f => f.name === 'main')!;
-      const testCodeGenSelector = generateFunctionSelector(testCodeGenAbi.name, testCodeGenAbi.parameters);
+      const testCodeGenSelector = FunctionSelector.fromNameAndParameters(
+        testCodeGenAbi.name,
+        testCodeGenAbi.parameters,
+      );
 
       oracle.getFunctionABI.mockResolvedValue(testCodeGenAbi);
       oracle.getPortalContractAddress.mockResolvedValue(EthAddress.ZERO);
@@ -768,13 +773,13 @@ describe('Private Execution test suite', () => {
       const childContractAbi = ParentContractAbi.functions[0];
       const childAddress = AztecAddress.random();
       const childPortalContractAddress = EthAddress.random();
-      const childSelector = generateFunctionSelector(childContractAbi.name, childContractAbi.parameters);
+      const childSelector = FunctionSelector.fromNameAndParameters(childContractAbi.name, childContractAbi.parameters);
       const parentAddress = AztecAddress.random();
 
       oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(childPortalContractAddress));
       oracle.getFunctionABI.mockImplementation(() => Promise.resolve({ ...childContractAbi, isInternal }));
 
-      const args = [Fr.fromBuffer(childAddress.toBuffer()), Fr.fromBuffer(childSelector), 42n];
+      const args = [Fr.fromBuffer(childAddress.toBuffer()), childSelector.toField(), 42n];
       const result = await runSimulator({
         origin: parentAddress,
         contractAddress: parentAddress,
@@ -830,7 +835,7 @@ describe('Private Execution test suite', () => {
       oracle.getFunctionABI.mockImplementation((_, selector) =>
         Promise.resolve(
           PendingCommitmentsContractAbi.functions.find(f =>
-            selector.equals(generateFunctionSelector(f.name, f.parameters)),
+            selector.equals(FunctionSelector.fromNameAndParameters(f.name, f.parameters)),
           )!,
         ),
       );
@@ -894,18 +899,21 @@ describe('Private Execution test suite', () => {
       const getThenNullifyAbi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'get_then_nullify_note')!;
       const getZeroAbi = PendingCommitmentsContractAbi.functions.find(f => f.name === 'get_note_zero_balance')!;
 
-      const insertFnSelector = generateFunctionSelector(insertAbi.name, insertAbi.parameters);
-      const getThenNullifyFnSelector = generateFunctionSelector(getThenNullifyAbi.name, getThenNullifyAbi.parameters);
-      const getZeroFnSelector = generateFunctionSelector(getZeroAbi.name, getZeroAbi.parameters);
+      const insertFnSelector = FunctionSelector.fromNameAndParameters(insertAbi.name, insertAbi.parameters);
+      const getThenNullifyFnSelector = FunctionSelector.fromNameAndParameters(
+        getThenNullifyAbi.name,
+        getThenNullifyAbi.parameters,
+      );
+      const getZeroFnSelector = FunctionSelector.fromNameAndParameters(getZeroAbi.name, getZeroAbi.parameters);
 
       oracle.getPortalContractAddress.mockImplementation(() => Promise.resolve(EthAddress.ZERO));
 
       const args = [
         amountToTransfer,
         owner,
-        Fr.fromBuffer(insertFnSelector),
-        Fr.fromBuffer(getThenNullifyFnSelector),
-        Fr.fromBuffer(getZeroFnSelector),
+        insertFnSelector.toField(),
+        getThenNullifyFnSelector.toField(),
+        getZeroFnSelector.toField(),
       ];
       const result = await runSimulator({
         args: args,

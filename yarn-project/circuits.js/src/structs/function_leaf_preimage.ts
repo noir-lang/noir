@@ -1,3 +1,4 @@
+import { FunctionSelector } from '@aztec/foundation/abi';
 import { Fr } from '@aztec/foundation/fields';
 import { BufferReader } from '@aztec/foundation/serialize';
 
@@ -8,13 +9,11 @@ import { serializeToBuffer } from '../utils/serialize.js';
  * @see abis/function_leaf_preimage.hpp
  */
 export class FunctionLeafPreimage {
-  readonly FUNCTION_SELECTOR_LENGTH = 4;
-
   constructor(
     /**
-     * Function selector `FUNCTION_SELECTOR_LENGTH` bytes long.
+     * Function selector.
      */
-    public functionSelector: Buffer,
+    public functionSelector: FunctionSelector,
     /**
      * Indicates whether the function is only callable by self or not.
      */
@@ -31,29 +30,13 @@ export class FunctionLeafPreimage {
      * Hash of the ACIR of the function.
      */
     public acirHash: Fr,
-  ) {
-    this.assertFunctionSelectorLength(functionSelector);
-  }
-
-  /**
-   * Assert the function selector buffer length matches `FUNCTION_SELECTOR_LENGTH`.
-   * @param functionSelector - The buffer containing the function selector.
-   * @throws If the function selector buffer length does not match `FUNCTION_SELECTOR_LENGTH`.
-   */
-  private assertFunctionSelectorLength(functionSelector: Buffer) {
-    if (functionSelector.byteLength !== this.FUNCTION_SELECTOR_LENGTH) {
-      throw new Error(
-        `Function selector must be ${this.FUNCTION_SELECTOR_LENGTH} bytes long, got ${functionSelector.byteLength} bytes.`,
-      );
-    }
-  }
+  ) {}
 
   /**
    * Serialize this as a buffer.
    * @returns The buffer.
    */
   toBuffer(): Buffer {
-    this.assertFunctionSelectorLength(this.functionSelector);
     return serializeToBuffer(this.functionSelector, this.isInternal, this.isPrivate, this.vkHash, this.acirHash);
   }
 
@@ -65,7 +48,7 @@ export class FunctionLeafPreimage {
   static fromBuffer(buffer: Buffer | BufferReader): FunctionLeafPreimage {
     const reader = BufferReader.asReader(buffer);
     return new FunctionLeafPreimage(
-      reader.readBytes(4),
+      reader.readObject(FunctionSelector),
       reader.readBoolean(),
       reader.readBoolean(),
       reader.readFr(),

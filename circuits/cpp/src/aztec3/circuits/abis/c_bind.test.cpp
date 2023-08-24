@@ -191,7 +191,10 @@ TEST(abi_tests, compute_function_leaf)
 {
     // Construct FunctionLeafPreimage with some randomized fields
     auto const preimage = FunctionLeafPreimage<NT>{
-        .function_selector = engine.get_random_uint32(),
+        .function_selector =
+            FunctionSelector<NT>{
+                .value = engine.get_random_uint32(),
+            },
         .is_private = static_cast<bool>(engine.get_random_uint8() & 1),
         .vk_hash = NT::fr::random_element(),
         .acir_hash = NT::fr::random_element(),
@@ -279,7 +282,12 @@ TEST(abi_tests, compute_function_tree)
 TEST(abi_tests, hash_constructor)
 {
     // Randomize required values
-    auto const func_data = FunctionData<NT>{ .function_selector = 10, .is_private = true, .is_constructor = false };
+    auto const func_data = FunctionData<NT>{ .function_selector =
+                                                 FunctionSelector<NT>{
+                                                     .value = 10,
+                                                 },
+                                             .is_private = true,
+                                             .is_constructor = false };
 
     NT::fr const args_hash = NT::fr::random_element();
     NT::fr const constructor_vk_hash = NT::fr::random_element();

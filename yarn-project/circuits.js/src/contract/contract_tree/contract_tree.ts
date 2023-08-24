@@ -1,6 +1,6 @@
 import { CircuitsWasm, ContractFunctionDao, Fr, FunctionData, FunctionLeafPreimage } from '@aztec/circuits.js';
 import { computeFunctionLeaf, hashVK } from '@aztec/circuits.js/abis';
-import { FunctionType, generateFunctionSelector } from '@aztec/foundation/abi';
+import { FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 
 /**
  * Computes the hash of a hex-encoded string representation of a verification key (vk).
@@ -69,7 +69,7 @@ export function generateFunctionLeaves(functions: ContractFunctionDao[], wasm: C
   const result: Fr[] = [];
   for (let i = 0; i < targetFunctions.length; i++) {
     const f = targetFunctions[i];
-    const selector = generateFunctionSelector(f.name, f.parameters);
+    const selector = FunctionSelector.fromNameAndParameters(f.name, f.parameters);
     const isInternal = f.isInternal;
     const isPrivate = f.functionType === FunctionType.SECRET;
     // All non-unconstrained functions have vks

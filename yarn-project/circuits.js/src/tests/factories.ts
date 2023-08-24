@@ -24,6 +24,7 @@ import {
   Fq,
   Fr,
   FunctionData,
+  FunctionSelector,
   G1AffineElement,
   HISTORIC_BLOCKS_TREE_HEIGHT,
   HistoricBlockData,
@@ -134,10 +135,8 @@ export function makeConstantData(seed = 1): CombinedConstantData {
  * @param seed - The seed to use for generating the selector.
  * @returns A selector.
  */
-export function makeSelector(seed: number): Buffer {
-  const buffer = Buffer.alloc(4);
-  buffer.writeUInt32BE(seed, 0);
-  return buffer;
+export function makeSelector(seed: number): FunctionSelector {
+  return new FunctionSelector(seed);
 }
 
 /**

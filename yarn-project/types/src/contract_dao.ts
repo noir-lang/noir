@@ -1,5 +1,5 @@
 import { ContractFunctionDao } from '@aztec/circuits.js';
-import { ContractAbi, FunctionType, generateFunctionSelector } from '@aztec/foundation/abi';
+import { ContractAbi, FunctionSelector, FunctionType } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 
@@ -37,7 +37,7 @@ export interface ContractDao extends ContractAbi {
 export function toContractDao(abi: ContractAbi, address: AztecAddress, portalContract: EthAddress): ContractDao {
   const functions = abi.functions.map(f => ({
     ...f,
-    selector: generateFunctionSelector(f.name, f.parameters),
+    selector: FunctionSelector.fromNameAndParameters(f.name, f.parameters),
   }));
   return {
     ...abi,
@@ -58,7 +58,7 @@ export function getNewContractPublicFunctions(newContract: ContractDao) {
     .map(
       fn =>
         new EncodedContractFunction(
-          generateFunctionSelector(fn.name, fn.parameters),
+          FunctionSelector.fromNameAndParameters(fn.name, fn.parameters),
           fn.isInternal ?? false,
           Buffer.from(fn.bytecode, 'base64'),
         ),

@@ -6,14 +6,14 @@ import {
   PublicCallRequest,
 } from '@aztec/circuits.js';
 import { Grumpkin } from '@aztec/circuits.js/barretenberg';
-import { decodeReturnValues } from '@aztec/foundation/abi';
+import { FunctionSelector, decodeReturnValues } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr, Point } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { to2Fields } from '@aztec/foundation/serialize';
 import { FunctionL2Logs, NotePreimage, NoteSpendingInfo } from '@aztec/types';
 
-import { extractPrivateCircuitPublicInputs, frToAztecAddress, frToSelector } from '../acvm/deserialize.js';
+import { extractPrivateCircuitPublicInputs, frToAztecAddress } from '../acvm/deserialize.js';
 import {
   ZERO_ACVM_FIELD,
   acvm,
@@ -55,7 +55,7 @@ export class PrivateFunctionExecution {
    * @returns The execution result.
    */
   public async run(): Promise<ExecutionResult> {
-    const selector = this.functionData.functionSelectorBuffer.toString('hex');
+    const selector = this.functionData.selector.toString();
     this.log(`Executing external function ${this.contractAddress.toString()}:${selector}`);
 
     const acir = Buffer.from(this.abi.bytecode, 'base64');
@@ -132,7 +132,7 @@ export class PrivateFunctionExecution {
 
           const childExecutionResult = await this.callPrivateFunction(
             frToAztecAddress(contractAddress),
-            frToSelector(functionSelector),
+            FunctionSelector.fromField(functionSelector),
             fromACVMField(acvmArgsHash),
             this.callContext,
             this.curve,
@@ -157,7 +157,7 @@ export class PrivateFunctionExecution {
         enqueuePublicFunctionCall: async ([acvmContractAddress], [acvmFunctionSelector], [acvmArgsHash]) => {
           const enqueuedRequest = await this.enqueuePublicFunctionCall(
             frToAztecAddress(fromACVMField(acvmContractAddress)),
-            frToSelector(fromACVMField(acvmFunctionSelector)),
+            FunctionSelector.fromField(fromACVMField(acvmFunctionSelector)),
             this.context.packedArgsCache.unpack(fromACVMField(acvmArgsHash)),
             this.callContext,
           );
@@ -280,7 +280,7 @@ export class PrivateFunctionExecution {
    */
   private async callPrivateFunction(
     targetContractAddress: AztecAddress,
-    targetFunctionSelector: Buffer,
+    targetFunctionSelector: FunctionSelector,
     targetArgsHash: Fr,
     callerContext: CallContext,
     curve: Grumpkin,
@@ -317,7 +317,7 @@ export class PrivateFunctionExecution {
    */
   private async enqueuePublicFunctionCall(
     targetContractAddress: AztecAddress,
-    targetFunctionSelector: Buffer,
+    targetFunctionSelector: FunctionSelector,
     targetArgs: Fr[],
     callerContext: CallContext,
   ): Promise<PublicCallRequest> {
@@ -335,7 +335,7 @@ export class PrivateFunctionExecution {
     // TODO($846): if enqueued public calls are associated with global
     // side-effect counter, that will leak info about how many other private
     // side-effects occurred in the TX. Ultimately the private kernel should
-    // just outut everything in the proper order without any counters.
+    // just output everything in the proper order without any counters.
   }
 
   /**

@@ -34,9 +34,7 @@ export class UnconstrainedFunctionExecution {
    */
   public async run(aztecNode?: AztecNode): Promise<DecodedReturn> {
     this.log(
-      `Executing unconstrained function ${this.contractAddress.toShortString()}:${this.functionData.functionSelectorBuffer.toString(
-        'hex',
-      )}`,
+      `Executing unconstrained function ${this.contractAddress.toShortString()}:${this.functionData.selector.toString()}`,
     );
 
     const acir = Buffer.from(this.abi.bytecode, 'base64');

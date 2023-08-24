@@ -62,7 +62,7 @@ describe('e2e_nested_contract', () => {
      */
     it('performs nested calls', async () => {
       const tx = parentContract.methods
-        .entryPoint(childContract.address, Fr.fromBuffer(childContract.methods.value.selector))
+        .entryPoint(childContract.address, childContract.methods.value.selector.toField())
         .send({ origin: sender });
 
       await tx.isMined({ interval: 0.1 });
@@ -73,7 +73,7 @@ describe('e2e_nested_contract', () => {
 
     it('performs public nested calls', async () => {
       const tx = parentContract.methods
-        .pubEntryPoint(childContract.address, Fr.fromBuffer(childContract.methods.pubGetValue.selector), 42n)
+        .pubEntryPoint(childContract.address, childContract.methods.pubGetValue.selector.toField(), 42n)
         .send({ origin: sender });
 
       await tx.isMined({ interval: 0.1 });
@@ -84,7 +84,7 @@ describe('e2e_nested_contract', () => {
 
     it('enqueues a single public call', async () => {
       const tx = parentContract.methods
-        .enqueueCallToChild(childContract.address, Fr.fromBuffer(childContract.methods.pubIncValue.selector), 42n)
+        .enqueueCallToChild(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
         .send({ origin: sender });
 
       await tx.isMined({ interval: 0.1 });
@@ -101,7 +101,7 @@ describe('e2e_nested_contract', () => {
       const tx = parentContract.methods
         .enqueueCallToChildTwice(
           addressToField(childContract.address),
-          Fr.fromBuffer(childContract.methods.pubIncValue.selector).value,
+          childContract.methods.pubIncValue.selector.value,
           42n,
         )
         .send({ origin: sender });
@@ -115,11 +115,7 @@ describe('e2e_nested_contract', () => {
 
     it('enqueues a public call with nested public calls', async () => {
       const tx = parentContract.methods
-        .enqueueCallToPubEntryPoint(
-          childContract.address,
-          Fr.fromBuffer(childContract.methods.pubIncValue.selector),
-          42n,
-        )
+        .enqueueCallToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
         .send({ origin: sender });
 
       await tx.isMined({ interval: 0.1 });
@@ -134,11 +130,7 @@ describe('e2e_nested_contract', () => {
     // Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1587
     it.skip('enqueues multiple public calls with nested public calls', async () => {
       const tx = parentContract.methods
-        .enqueueCallsToPubEntryPoint(
-          childContract.address,
-          Fr.fromBuffer(childContract.methods.pubIncValue.selector),
-          42n,
-        )
+        .enqueueCallsToPubEntryPoint(childContract.address, childContract.methods.pubIncValue.selector.toField(), 42n)
         .send({ origin: sender });
 
       await tx.isMined({ interval: 0.1 });
@@ -156,7 +148,7 @@ describe('e2e_nested_contract', () => {
       const tx = parentContract.methods
         .pubEntryPointTwice(
           addressToField(childContract.address),
-          Fr.fromBuffer(childContract.methods.pubIncValue.selector).value,
+          childContract.methods.pubIncValue.selector.value,
           42n,
         )
         .send({ origin: sender });

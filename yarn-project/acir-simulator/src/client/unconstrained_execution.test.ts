@@ -1,5 +1,5 @@
 import { CompleteAddress, FunctionData, HistoricBlockData, PrivateKey } from '@aztec/circuits.js';
-import { encodeArguments } from '@aztec/foundation/abi';
+import { FunctionSelector, encodeArguments } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { Fr } from '@aztec/foundation/fields';
@@ -60,7 +60,7 @@ describe('Unconstrained Execution test suite', () => {
 
       const execRequest: FunctionCall = {
         to: contractAddress,
-        functionData: new FunctionData(Buffer.alloc(4), false, true, true),
+        functionData: new FunctionData(FunctionSelector.empty(), false, true, true),
         args: encodeArguments(abi, [owner]),
       };
 

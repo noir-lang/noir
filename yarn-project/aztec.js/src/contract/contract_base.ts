@@ -1,4 +1,4 @@
-import { ContractAbi, FunctionAbi, generateFunctionSelector } from '@aztec/foundation/abi';
+import { ContractAbi, FunctionAbi, FunctionSelector } from '@aztec/foundation/abi';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { EthAddress } from '@aztec/foundation/eth-address';
 import { DeployedContract } from '@aztec/types';
@@ -14,7 +14,7 @@ export type ContractMethod = ((...args: any[]) => ContractFunctionInteraction) &
   /**
    * The unique identifier for a contract function in bytecode.
    */
-  readonly selector: Buffer;
+  readonly selector: FunctionSelector;
 };
 
 /**
@@ -51,7 +51,7 @@ export abstract class ContractBase {
          * @returns Selector of the function.
          */
         get selector() {
-          return generateFunctionSelector(f.name, f.parameters);
+          return FunctionSelector.fromNameAndParameters(f.name, f.parameters);
         },
       });
     });

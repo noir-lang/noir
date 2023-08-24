@@ -189,7 +189,7 @@ describe('uniswap_trade_on_l1_from_l2', () => {
 
     // 4. Send L2 to L1 message to withdraw funds and another message to swap assets.
     logger('Send L2 tx to withdraw WETH to uniswap portal and send message to swap assets on L1');
-    const selector = Fr.fromBuffer(wethCrossChainHarness.l2Contract.methods.withdraw.selector);
+    const selector = wethCrossChainHarness.l2Contract.methods.withdraw.selector.toField();
     const minimumOutputAmount = 0;
 
     const withdrawTx = uniswapL2Contract.methods

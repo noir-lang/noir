@@ -193,7 +193,9 @@ TEST_F(native_private_kernel_init_tests, contract_deployment_function_data_misma
     auto private_inputs = do_private_call_get_kernel_inputs_init(true, constructor, standard_test_args());
 
     // Modify the function selector in function data.
-    private_inputs.tx_request.function_data.function_selector = numeric::random::get_engine().get_random_uint32();
+    private_inputs.tx_request.function_data.function_selector = FunctionSelector<NT>{
+        .value = numeric::random::get_engine().get_random_uint32(),
+    };
 
     // Invoke the native private kernel circuit
     DummyBuilder builder = DummyBuilder("private_kernel_tests__contract_deployment_function_data_mismatch_fails");

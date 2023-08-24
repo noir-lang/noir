@@ -93,9 +93,9 @@ describe('e2e_pending_commitments_contract', () => {
       .test_insert_then_get_then_nullify_all_in_nested_calls(
         mintAmount,
         owner,
-        Fr.fromBuffer(deployedContract.methods.insert_note.selector),
-        Fr.fromBuffer(deployedContract.methods.get_then_nullify_note.selector),
-        Fr.fromBuffer(deployedContract.methods.get_note_zero_balance.selector),
+        deployedContract.methods.insert_note.selector.toField(),
+        deployedContract.methods.get_then_nullify_note.selector.toField(),
+        deployedContract.methods.get_note_zero_balance.selector.toField(),
       )
       .send({ origin: owner });
 
@@ -118,8 +118,8 @@ describe('e2e_pending_commitments_contract', () => {
       .test_insert2_then_get2_then_nullify2_all_in_nested_calls(
         mintAmount,
         owner,
-        Fr.fromBuffer(deployedContract.methods.insert_note.selector),
-        Fr.fromBuffer(deployedContract.methods.get_then_nullify_note.selector),
+        deployedContract.methods.insert_note.selector.toField(),
+        deployedContract.methods.get_then_nullify_note.selector.toField(),
       )
       .send({ origin: owner });
 
@@ -143,8 +143,8 @@ describe('e2e_pending_commitments_contract', () => {
       .test_insert2_then_get2_then_nullify1_all_in_nested_calls(
         mintAmount,
         owner,
-        Fr.fromBuffer(deployedContract.methods.insert_note.selector),
-        Fr.fromBuffer(deployedContract.methods.get_then_nullify_note.selector),
+        deployedContract.methods.insert_note.selector.toField(),
+        deployedContract.methods.get_then_nullify_note.selector.toField(),
       )
       .send({ origin: owner });
 
@@ -181,9 +181,9 @@ describe('e2e_pending_commitments_contract', () => {
       .test_insert1_then_get2_then_nullify2_all_in_nested_calls(
         mintAmount,
         owner,
-        Fr.fromBuffer(deployedContract.methods.insert_note.selector),
-        Fr.fromBuffer(deployedContract.methods.get_then_nullify_note.selector),
-        Fr.fromBuffer(deployedContract.methods.get_note_zero_balance.selector),
+        deployedContract.methods.insert_note.selector.toField(),
+        deployedContract.methods.get_then_nullify_note.selector.toField(),
+        deployedContract.methods.get_note_zero_balance.selector.toField(),
       )
       .send({ origin: owner });
 
@@ -220,9 +220,9 @@ describe('e2e_pending_commitments_contract', () => {
       .test_insert_then_get_then_nullify_all_in_nested_calls(
         mintAmount,
         owner,
-        Fr.fromBuffer(deployedContract.methods.dummy.selector),
-        Fr.fromBuffer(deployedContract.methods.get_then_nullify_note.selector),
-        Fr.fromBuffer(deployedContract.methods.get_note_zero_balance.selector),
+        deployedContract.methods.dummy.selector.toField(),
+        deployedContract.methods.get_then_nullify_note.selector.toField(),
+        deployedContract.methods.get_note_zero_balance.selector.toField(),
       )
       .send({ origin: owner });
 

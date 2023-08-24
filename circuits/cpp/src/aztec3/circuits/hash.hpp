@@ -2,6 +2,7 @@
 
 #include "aztec3/circuits/abis/function_data.hpp"
 #include "aztec3/circuits/abis/function_leaf_preimage.hpp"
+#include "aztec3/circuits/abis/function_selector.hpp"
 #include "aztec3/circuits/abis/global_variables.hpp"
 #include "aztec3/circuits/abis/new_contract_data.hpp"
 #include "aztec3/circuits/abis/point.hpp"
@@ -16,6 +17,7 @@
 namespace aztec3::circuits {
 
 using abis::FunctionData;
+using abis::FunctionSelector;
 using abis::Point;
 using aztec3::circuits::abis::ContractLeafPreimage;
 using aztec3::circuits::abis::FunctionLeafPreimage;
@@ -303,7 +305,7 @@ void check_membership(Builder& builder,
  * @return NCT::fr
  */
 template <typename NCT> typename NCT::fr function_tree_root_from_siblings(
-    typename NCT::uint32 const& function_selector,
+    FunctionSelector<NCT> const& function_selector,
     typename NCT::boolean const& is_internal,
     typename NCT::boolean const& is_private,
     typename NCT::fr const& vk_hash,

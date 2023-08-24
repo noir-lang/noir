@@ -1,7 +1,9 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`basic FunctionLeafPreimage serialization serializes a trivial Function Leaf Preimage and prints it 1`] = `
-"function_selector: 123
+"function_selector:
+value: 8972
+
 is_internal: 0
 is_private: 1
 vk_hash: 0x0

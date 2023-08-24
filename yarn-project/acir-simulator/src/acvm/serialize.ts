@@ -22,7 +22,7 @@ import { ACVMField, toACVMField } from './acvm.js';
  */
 export function toACVMFunctionData(functionData: FunctionData): ACVMField[] {
   return [
-    toACVMField(functionData.functionSelector),
+    toACVMField(functionData.selector.toBuffer()),
     toACVMField(functionData.isInternal),
     toACVMField(functionData.isPrivate),
     toACVMField(functionData.isConstructor),

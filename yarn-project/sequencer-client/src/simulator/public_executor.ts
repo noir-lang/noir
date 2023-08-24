@@ -6,7 +6,7 @@ import {
   PublicExecutor,
   PublicStateDB,
 } from '@aztec/acir-simulator';
-import { AztecAddress, CircuitsWasm, EthAddress, Fr, HistoricBlockData } from '@aztec/circuits.js';
+import { AztecAddress, CircuitsWasm, EthAddress, Fr, FunctionSelector, HistoricBlockData } from '@aztec/circuits.js';
 import { siloCommitment } from '@aztec/circuits.js/abis';
 import { ContractDataSource, L1ToL2MessageSource, MerkleTreeId } from '@aztec/types';
 import { MerkleTreeOperations, computePublicDataTreeLeafIndex } from '@aztec/world-state';
@@ -36,11 +36,11 @@ export function getPublicExecutor(
  */
 class ContractsDataSourcePublicDB implements PublicContractsDB {
   constructor(private db: ContractDataSource) {}
-  async getBytecode(address: AztecAddress, functionSelector: Buffer): Promise<Buffer | undefined> {
-    return (await this.db.getPublicFunction(address, functionSelector))?.bytecode;
+  async getBytecode(address: AztecAddress, selector: FunctionSelector): Promise<Buffer | undefined> {
+    return (await this.db.getPublicFunction(address, selector))?.bytecode;
   }
-  async getIsInternal(address: AztecAddress, functionSelector: Buffer): Promise<boolean | undefined> {
-    return (await this.db.getPublicFunction(address, functionSelector))?.isInternal;
+  async getIsInternal(address: AztecAddress, selector: FunctionSelector): Promise<boolean | undefined> {
+    return (await this.db.getPublicFunction(address, selector))?.isInternal;
   }
   async getPortalContractAddress(address: AztecAddress): Promise<EthAddress | undefined> {
     return (await this.db.getContractData(address))?.portalContractAddress;

@@ -1,3 +1,4 @@
+import { FunctionSelector } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { DebugLogger } from '@aztec/foundation/log';
 import { ContractDao, ContractDatabase } from '@aztec/types';
@@ -47,11 +48,11 @@ export class MemoryContractDatabase implements ContractDatabase {
    * then returns the corresponding bytecode. If no match is found, it returns undefined.
    *
    * @param contractAddress - The AztecAddress representing the contract address to look for.
-   * @param functionSelector - The Buffer containing the function selector to search for.
+   * @param selector - The function selector.
    * @returns A Promise that resolves to the bytecode of the matching function or undefined if not found.
    */
-  public async getCode(contractAddress: AztecAddress, functionSelector: Buffer) {
+  public async getCode(contractAddress: AztecAddress, selector: FunctionSelector) {
     const contract = await this.getContract(contractAddress);
-    return contract?.functions.find(f => f.selector.equals(functionSelector))?.bytecode;
+    return contract?.functions.find(f => f.selector.equals(selector))?.bytecode;
   }
 }

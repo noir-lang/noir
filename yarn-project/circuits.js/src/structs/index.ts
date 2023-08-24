@@ -32,3 +32,4 @@ export * from '@aztec/foundation/eth-address';
 
 export * from '@aztec/foundation/fields';
 export * from '@aztec/foundation/aztec-address';
+export { FunctionSelector } from '@aztec/foundation/abi';

@@ -170,7 +170,7 @@ export class PublicProcessor {
         const isExecutionRequest = !isPublicExecutionResult(current);
         const result = isExecutionRequest ? await this.publicExecutor.execute(current, this.globalVariables) : current;
         newUnencryptedFunctionLogs.push(result.unencryptedLogs);
-        const functionSelector = result.execution.functionData.functionSelectorBuffer.toString('hex');
+        const functionSelector = result.execution.functionData.selector.toString();
         this.log(
           `Running public kernel circuit for ${functionSelector}@${result.execution.contractAddress.toString()}`,
         );

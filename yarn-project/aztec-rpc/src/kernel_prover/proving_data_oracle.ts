@@ -2,6 +2,7 @@ import {
   CONTRACT_TREE_HEIGHT,
   FUNCTION_TREE_HEIGHT,
   Fr,
+  FunctionSelector,
   MembershipWitness,
   PRIVATE_DATA_TREE_HEIGHT,
   VK_TREE_HEIGHT,
@@ -32,12 +33,12 @@ export interface ProvingDataOracle {
    * Throws an error if the contract address or function selector is unknown.
    *
    * @param contractAddress - The contract address.
-   * @param functionSelector - The buffer containing the function selector.
+   * @param selector - The function selector.
    * @returns A promise that resolves with the MembershipWitness instance for the specified contract's function.
    */
   getFunctionMembershipWitness(
     contractAddress: AztecAddress,
-    functionSelector: Buffer,
+    selector: FunctionSelector,
   ): Promise<MembershipWitness<typeof FUNCTION_TREE_HEIGHT>>;
 
   /**

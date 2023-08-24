@@ -1,4 +1,4 @@
-import { AztecAddress, Fr, MembershipWitness, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
+import { AztecAddress, Fr, FunctionSelector, MembershipWitness, PRIVATE_DATA_TREE_HEIGHT } from '@aztec/circuits.js';
 import { Tuple } from '@aztec/foundation/serialize';
 import { AztecNode, MerkleTreeId } from '@aztec/types';
 
@@ -15,8 +15,8 @@ export class KernelOracle implements ProvingDataOracle {
     return await this.contractDataOracle.getContractMembershipWitness(contractAddress);
   }
 
-  public async getFunctionMembershipWitness(contractAddress: AztecAddress, functionSelector: Buffer) {
-    return await this.contractDataOracle.getFunctionMembershipWitness(contractAddress, functionSelector);
+  public async getFunctionMembershipWitness(contractAddress: AztecAddress, selector: FunctionSelector) {
+    return await this.contractDataOracle.getFunctionMembershipWitness(contractAddress, selector);
   }
 
   public async getVkMembershipWitness() {

@@ -3,9 +3,9 @@ import {
   ABIVariable,
   ContractAbi,
   FunctionAbi,
+  FunctionSelector,
   FunctionType,
   StructType,
-  generateFunctionSelector,
 } from '@aztec/foundation/abi';
 
 import camelCase from 'lodash.camelcase';
@@ -28,10 +28,10 @@ function isPrivateCall(functionType: FunctionType) {
  * @param functionType - Type of the function.
  * @returns A code string.
  */
-function generateCallStatement(selector: string, functionType: FunctionType) {
+function generateCallStatement(selector: FunctionSelector, functionType: FunctionType) {
   const callMethod = isPrivateCall(functionType) ? 'call_private_function' : 'call_public_function';
   return `
-    context.${callMethod}(self.address, ${selector}, serialised_args)`;
+    context.${callMethod}(self.address, 0x${selector.toString()}, serialised_args)`;
 }
 
 /**
@@ -91,7 +91,7 @@ function generateParameter(param: ABIParameter, functionData: FunctionAbi) {
 
 /**
  * Collects all parameters for a given function and flattens them according to how they should be serialised.
- * @param parameters - Paramters for a function.
+ * @param parameters - Parameters for a function.
  * @returns List of parameters flattened to basic data types.
  */
 function collectParametersForSerialisation(parameters: ABIVariable[]) {
@@ -139,7 +139,7 @@ function generateSerialisation(parameters: ABIParameter[]) {
  */
 function generateFunctionInterface(functionData: FunctionAbi) {
   const { name, parameters } = functionData;
-  const selector = '0x' + generateFunctionSelector(name, parameters).toString('hex');
+  const selector = FunctionSelector.fromNameAndParameters(name, parameters);
   const serialisation = generateSerialisation(parameters);
   const callStatement = generateCallStatement(selector, functionData.functionType);
   const allParams = [
@@ -160,7 +160,7 @@ ${callStatement}
 }
 
 /**
- * Generates static impots.
+ * Generates static imports.
  * @returns A string of code which will be needed in every contract interface, regardless of the contract.
  */
 function generateStaticImports() {

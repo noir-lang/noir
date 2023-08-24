@@ -4,6 +4,7 @@ import {
   EthAddress,
   Fr,
   FunctionData,
+  FunctionSelector,
   GlobalVariables,
   HistoricBlockData,
 } from '@aztec/circuits.js';
@@ -17,7 +18,6 @@ import {
   convertACVMFieldToBuffer,
   extractPublicCircuitPublicInputs,
   frToAztecAddress,
-  frToSelector,
   fromACVMField,
   toACVMField,
   toACVMWitness,
@@ -54,12 +54,11 @@ export class PublicExecutor {
    * @returns The result of the run plus all nested runs.
    */
   public async execute(execution: PublicExecution, globalVariables: GlobalVariables): Promise<PublicExecutionResult> {
-    const selectorHex = execution.functionData.functionSelectorBuffer.toString('hex');
-    this.log(`Executing public external function ${execution.contractAddress.toString()}:${selectorHex}`);
+    const selector = execution.functionData.selector;
+    this.log(`Executing public external function ${execution.contractAddress.toString()}:${selector}`);
 
-    const selector = execution.functionData.functionSelectorBuffer;
     const acir = await this.contractsDb.getBytecode(execution.contractAddress, selector);
-    if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress.toString()}:${selectorHex}`);
+    if (!acir) throw new Error(`Bytecode not found for ${execution.contractAddress.toString()}:${selector}`);
 
     const initialWitness = getInitialWitness(execution.args, execution.callContext, this.blockData, globalVariables);
     const storageActions = new ContractStorageActionsCollector(this.stateDb, execution.contractAddress);
@@ -118,7 +117,7 @@ export class PublicExecutor {
         this.log(`Public function call: addr=${address} selector=${functionSelector} args=${args.join(',')}`);
         const childExecutionResult = await this.callPublicFunction(
           frToAztecAddress(fromACVMField(address)),
-          frToSelector(fromACVMField(functionSelector)),
+          FunctionSelector.fromField(fromACVMField(functionSelector)),
           args,
           execution.callContext,
           globalVariables,
@@ -176,7 +175,7 @@ export class PublicExecutor {
 
   private async callPublicFunction(
     targetContractAddress: AztecAddress,
-    targetFunctionSelector: Buffer,
+    targetFunctionSelector: FunctionSelector,
     targetArgs: Fr[],
     callerContext: CallContext,
     globalVariables: GlobalVariables,
@@ -185,9 +184,7 @@ export class PublicExecutor {
     const isInternal = await this.contractsDb.getIsInternal(targetContractAddress, targetFunctionSelector);
     if (isInternal === undefined) {
       throw new Error(
-        `ERR: ContractsDb don't contain isInternal for ${targetContractAddress.toString()}:${targetFunctionSelector.toString(
-          'hex',
-        )}. Defaulting to false.`,
+        `ERR: ContractsDb don't contain isInternal for ${targetContractAddress.toString()}:${targetFunctionSelector.toString()}. Defaulting to false.`,
       );
     }
 
