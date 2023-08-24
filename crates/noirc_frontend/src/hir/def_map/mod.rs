@@ -3,7 +3,7 @@ use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::Context;
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::parser::{parse_program, ParsedModule};
-use crate::token::Attribute;
+use crate::token::{Attribute, TestScope};
 use arena::{Arena, Index};
 use fm::{FileId, FileManager};
 use noirc_errors::{FileDiagnostic, Location};
@@ -134,9 +134,7 @@ impl CrateDefMap {
             module.value_definitions().filter_map(|id| {
                 if let Some(func_id) = id.as_function() {
                     match interner.function_meta(&func_id).attributes {
-                        Some(Attribute::Test { expect_failure }) => {
-                            Some(TestFunction::new(func_id, expect_failure))
-                        }
+                        Some(Attribute::Test(scope)) => Some(TestFunction::new(func_id, scope)),
                         _ => None,
                     }
                 } else {
@@ -232,12 +230,12 @@ impl std::ops::IndexMut<LocalModuleId> for CrateDefMap {
 
 pub struct TestFunction {
     id: FuncId,
-    expect_failure: bool,
+    scope: TestScope,
 }
 
 impl TestFunction {
-    fn new(id: FuncId, expect_failure: bool) -> Self {
-        TestFunction { id, expect_failure }
+    fn new(id: FuncId, scope: TestScope) -> Self {
+        TestFunction { id, scope }
     }
 
     pub fn get_id(&self) -> FuncId {
@@ -245,6 +243,9 @@ impl TestFunction {
     }
 
     pub fn get_expect_failure_flag(&self) -> bool {
-        self.expect_failure
+        match self.scope {
+            TestScope::ShouldFail => true,
+            TestScope::None => false,
+        }
     }
 }
