@@ -159,7 +159,7 @@ impl AbiType {
                 let fields = vecmap(fields, |(name, typ)| (name, Self::from_type(context, &typ)));
                 // For the ABI, we always want to resolve the struct paths from the root crate
                 let path =
-                    context.fully_qualified_struct_name(context.root_crate_id(), struct_type.id);
+                    context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
                 Self::Struct { fields, path }
             }
             Type::Tuple(_) => todo!("AbiType::from_type not yet implemented for tuple types"),

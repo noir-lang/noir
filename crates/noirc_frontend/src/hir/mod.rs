@@ -86,7 +86,12 @@ impl Context {
         }
     }
 
-    pub fn fully_qualified_struct_name(&self, crate_id: &CrateId, id: StructId) -> String {
+    /// Returns a fully-qualified path to the given [StructId] from the given [CrateId]. This function also
+    /// account for the crate names of dependencies.
+    ///
+    /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
+    /// `bar_struct_id` where the `Bar` struct is inside `foo.nr`, this function would return `foo::Bar` as a [String].
+    pub fn fully_qualified_struct_path(&self, crate_id: &CrateId, id: StructId) -> String {
         let module_id = id.0;
         let child_id = module_id.local_id.0;
         let def_map =
