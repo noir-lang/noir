@@ -7,8 +7,8 @@ on:
       tag:
         description: The tag to build Nargo from (leave empty to build a nightly release from master)
         required: false
-      features:
-        description: The feature flags to release with
+      extra-args:
+        description: Extra cargo cli arguments to release with
         required: false
       publish:
         description: Whether to publish the build artifacts
@@ -109,7 +109,7 @@ jobs:
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
-          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm ${{ inputs.features }}
+          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm ${{ inputs.extra-args }}
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
@@ -201,7 +201,7 @@ jobs:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
           cargo install cross --force --git https://github.com/cross-rs/cross
-          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm ${{ inputs.features }}
+          cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm ${{ inputs.extra-args }}
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
@@ -285,7 +285,7 @@ jobs:
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
-          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm ${{ inputs.features }}
+          cargo build --package nargo_cli --release --target ${{ matrix.target }} --no-default-features --features plonk_bn254_wasm ${{ inputs.extra-args }}
 
       - uses: actions/cache/save@v3
         # Don't create cache entries for the merge queue.
