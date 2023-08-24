@@ -133,7 +133,7 @@ impl CrateDefMap {
         self.modules.iter().flat_map(|(_, module)| {
             module.value_definitions().filter_map(|id| {
                 if id.as_function().is_none() {
-                    return None;
+                    None
                 } else {
                     match interner.function_meta(&id.as_function().unwrap()).attributes {
                         Some(Attribute::Test { expect_failure }) => {
