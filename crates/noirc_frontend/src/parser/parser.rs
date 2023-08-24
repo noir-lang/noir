@@ -526,7 +526,7 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
 fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
     let constraints = ident()
         .then_ignore(just(Token::Colon))
-        .then(where_trait_bounds())
+        .then(trait_bounds())
         .validate(|(generic_type_name, trait_bounds), span, emit| {
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
             TraitConstraint { generic_type_name, trait_bounds }
@@ -538,7 +538,7 @@ fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
         .map(|option| option.unwrap_or_default())
 }
 
-fn where_trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
+fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
     where_trait_bound()
         .separated_by(just(Token::Plus))
         .at_least(1)
