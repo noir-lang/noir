@@ -163,7 +163,7 @@ fn run_test<B: Backend>(
             }
         }
         Err(err) => {
-            if test_function.get_expect_failure_flag() {
+            if test_function.should_fail() {
                 if !err.diagnostic.message.contains("Failed constraint") {
                     report_error(err)
                 } else {

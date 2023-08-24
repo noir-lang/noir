@@ -242,7 +242,7 @@ impl TestFunction {
         self.id
     }
 
-    pub fn get_expect_failure_flag(&self) -> bool {
+    pub fn should_fail(&self) -> bool {
         match self.scope {
             TestScope::ShouldFail => true,
             TestScope::None => false,
