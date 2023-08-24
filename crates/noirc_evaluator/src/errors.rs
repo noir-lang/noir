@@ -94,11 +94,11 @@ impl From<RuntimeError> for FileDiagnostic {
 impl RuntimeError {
     fn into_diagnostic(self) -> Diagnostic {
         match self {
-            RuntimeError::InternalError(_) => {
+            RuntimeError::InternalError(cause) => {
                 Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n
                     This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
-                    "".to_string(),
+                    cause.to_string(),
                     noirc_errors::Span::inclusive(0, 0)
                 )
             }
