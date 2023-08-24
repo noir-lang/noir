@@ -199,8 +199,8 @@ fn on_code_lens_request(
         let tests = context
             .get_all_test_functions_in_crate_matching(&crate_id, FunctionNameMatch::Anything);
 
-        for (func_name, func_id) in tests {
-            let location = context.function_meta(&func_id).name.location;
+        for (func_name, test_function) in tests {
+            let location = context.function_meta(&test_function.get_id()).name.location;
             let file_id = location.file;
 
             // Ignore diagnostics for any file that wasn't the file we saved
