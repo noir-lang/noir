@@ -143,7 +143,7 @@ fn run_test<B: Backend>(
             let circuit_execution =
                 execute_circuit(backend, program.circuit, WitnessMap::new(), show_output);
 
-            if test_function.get_expect_failure_flag() {
+            if test_function.should_fail() {
                 match circuit_execution {
                     Ok(_) => Err(CliError::Generic(format!("Test '{test_name}' should fail"))),
                     Err(_) => Ok(()),
