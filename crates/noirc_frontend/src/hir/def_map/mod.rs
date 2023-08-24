@@ -131,21 +131,19 @@ impl CrateDefMap {
         interner: &'a NodeInterner,
     ) -> impl Iterator<Item = TestFunction> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
-            module
-                .value_definitions()
-                .filter_map(|id| id.as_function())
-                .filter(|id| {
-                    matches!(interner.function_meta(id).attributes, Some(Attribute::Test { .. }))
-                })
-                .map(|id| {
-                    if interner.function_meta(&id).attributes
-                        == Some(Attribute::Test { scope: TestScope::ShouldFail })
-                    {
-                        TestFunction::new(id, TestScope::ShouldFail)
-                    } else {
-                        TestFunction::new(id, TestScope::None)
+            module.value_definitions().filter_map(|id| {
+                if id.as_function().is_none() {
+                    return None;
+                } else {
+                    match interner.function_meta(&id.as_function().unwrap()).attributes {
+                        Some(Attribute::Test { scope }) => {
+                            Some(TestFunction::new(id.as_function().unwrap(), scope))
+                        }
+                        None => None,
+                        _ => None,
                     }
-                })
+                }
+            })
         })
     }
 
