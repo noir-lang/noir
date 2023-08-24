@@ -132,16 +132,16 @@ impl CrateDefMap {
     ) -> impl Iterator<Item = TestFunction> + 'a {
         self.modules.iter().flat_map(|(_, module)| {
             module.value_definitions().filter_map(|id| {
-                if id.as_function().is_none() {
-                    None
-                } else {
-                    match interner.function_meta(&id.as_function().unwrap()).attributes {
+                if let Some(func_id) = id.as_function() {
+                    match interner.function_meta(&func_id).attributes {
                         Some(Attribute::Test { expect_failure }) => {
-                            Some(TestFunction::new(id.as_function().unwrap(), expect_failure))
+                            Some(TestFunction::new(func_id, expect_failure))
                         }
                         None => None,
                         _ => None,
                     }
+                } else {
+                    None
                 }
             })
         })
