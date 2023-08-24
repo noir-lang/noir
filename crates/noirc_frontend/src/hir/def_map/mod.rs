@@ -238,10 +238,13 @@ impl TestFunction {
         TestFunction { id, scope }
     }
 
+    /// Returns the function id of the test function
     pub fn get_id(&self) -> FuncId {
         self.id
     }
 
+    /// Returns true if the test function has been specified to fail
+    /// This is done by annotating the function with `#[test(should_fail)]`
     pub fn should_fail(&self) -> bool {
         match self.scope {
             TestScope::ShouldFail => true,
