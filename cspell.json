@@ -8,6 +8,7 @@
         "arithmetization",
         "arity",
         "barretenberg",
+        "bindir",
         "blackbox",
         "brillig",
         "codegen",
