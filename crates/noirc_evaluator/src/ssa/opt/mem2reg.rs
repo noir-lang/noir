@@ -398,18 +398,14 @@ impl Block {
                 if aliases.is_empty() {
                     // uh-oh, we don't know at all what this reference refers to, could be anything.
                     // Now we have to invalidate every reference we know of
-                    println!("Invalidating all references for address {address}");
                     self.invalidate_all_references(last_stores);
                 } else if aliases.len() == 1 {
                     let alias = aliases.first().expect("There should be exactly 1 alias");
-                    println!("set_known_value: Setting {} value to {:?}", alias, value);
                     self.references.insert(*alias, value);
                 } else {
-                    println!("set_known_value: {} aliases for expression {expression:?}, marking all unknown", aliases.len());
                     // More than one alias. We're not sure which it refers to so we have to
                     // conservatively invalidate all references it may refer to.
                     for alias in aliases.iter() {
-                        println!("  Marking {alias} unknown");
                         if let Some(reference_value) = self.references.get_mut(alias) {
                             *reference_value = ReferenceValue::Unknown;
                         }
