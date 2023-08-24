@@ -1,6 +1,66 @@
-//! mem2reg implements a pass for promoting values stored in memory to values in registers where
-//! possible. This is particularly important for converting our memory-based representation of
-//! mutable variables into values that are easier to manipulate.
+//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+//! addresses with the value stored at that address, if it is also known. This pass will also remove
+//! any `Store` instructions within a block that are no longer needed because no more loads occur in
+//! between the Store in question and the next Store.
+//!
+//! The pass works as follows:
+//! - Each block in each function is iterated in forward-order.
+//! - The starting value of each reference in the block is the unification of the same references
+//!   at the end of each direct predecessor block to the current block.
+//! - At each step, the value of each reference is either Known(ValueId) or Unknown.
+//! - Two reference values unify to each other if they are exactly equal, or to Unknown otherwise.
+//! - If a block has no predecessors, the starting value of each reference is Unknown.
+//! - Throughout this pass, aliases of each reference are also tracked.
+//!   - References typically have 1 alias - themselves.
+//!   - A reference with multiple aliases means we will not be able to optimize out loads if the
+//!     reference is stored to. Note that this means we can still optimize out loads if these
+//!     aliased references are never stored to, or the store occurs after a load.
+//!   - A reference with 0 aliases means we were unable to find which reference this reference
+//!     refers to. If such a reference is stored to, we must conservatively invalidate every
+//!     reference in the current block.
+//!
+//! From there, to figure out the value of each reference at the end of block, iterate each instruction:
+//! - On `Instruction::Allocate`:
+//!   - Register a new reference was made with itself as its only alias
+//! - On `Instruction::Load { address }`:
+//!   - If `address` is known to only have a single alias (including itself) and if the value of
+//!     that alias is known, replace the value of the load with the known value.
+//!   - Furthermore, if the result of the load is a reference, mark that reference as an alias
+//!     of the reference it dereferences to (if known).
+//!     - If which reference it dereferences to is not known, this load result has no aliases.
+//! - On `Instruction::Store { address, value }`:
+//!   - If the address of the store is known:
+//!     - If the address has exactly 1 alias:
+//!       - Set the value of the address to `Known(value)`.
+//!     - If the address has more than 1 alias:
+//!       - Set the value of every possible alias to `Unknown`.
+//!     - If the address has 0 aliases:
+//!       - Conservatively mark every alias in the block to `Unknown`.
+//!   - If the address of the store is not known:
+//!     - Conservatively mark every alias in the block to `Unknown`.
+//!   - Additionally, if there were no Loads to any alias of the address between this Store and
+//!     the previous Store to the same address, the previous store can be removed.
+//! - On `Instruction::Call { arguments }`:
+//!   - If any argument of the call is a reference, set the value of each alias of that
+//!     reference to `Unknown`
+//!   - Any builtin functions that may return aliases if their input also contains a
+//!     reference should be tracked. Examples: `slice_push_back`, `slice_insert`, `slice_remove`, etc.
+//!
+//! On a terminator instruction:
+//! - If the terminator is a `Jmp`:
+//!   - For each reference argument of the jmp, mark the corresponding block parameter it is passed
+//!     to as an alias for the jmp argument.
+//!
+//! Finally, if this is the only block in the function, we can remove any Stores that were not
+//! referenced by the terminator instruction.
+//!
+//! Repeating this algorithm for each block in the function in program order should result in
+//! optimizing out most known loads. However, identifying all aliases correctly has been proven 
+//! undecidable in general (Landi, 1992). So this pass will not always optimize out all loads
+//! that could theoretically be optimized out. This pass can be performed at any time in the
+//! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
+//! This pass is currently performed several times to enable other passes - most notably being
+//! performed before loop unrolling to try to allow for mutable variables used for for loop indices. 
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ssa::{
@@ -75,6 +135,7 @@ enum Expression {
     Other(ValueId),
 }
 
+/// Every reference's value is either Known and can be optimized away, or Unknown.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum ReferenceValue {
     Unknown,
