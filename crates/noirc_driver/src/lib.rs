@@ -113,9 +113,6 @@ pub fn check_crate(
     // You can add any crate type to the crate graph
     // but you cannot depend on Binaries
     let std_crate = context.crate_graph.add_stdlib(root_file_id);
-
-    // Maybe this is a nice solution eventually
-    // let aztec_crate = context.crate_graph.add_stdlib(root_file_id);
     propagate_dep(context, std_crate, &std_crate_name.parse().unwrap());
 
     let mut errors = vec![];

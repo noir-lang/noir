@@ -6,26 +6,24 @@ use crate::{
     UnresolvedType, Visibility,
 };
 
-pub(crate) fn aztec_contracts_macros(ast: &mut ParsedModule) {
+pub(crate) fn aztec_contracts_macros(mut ast: ParsedModule) -> ParsedModule {
     // Usage -> mut ast -> AztecLib.transform(&mut ast)
 
-    // TODO: rm
-    // loop over all of the functions and print their attributes, to check what attributes look like and if they
-    // can be added at will
-    // NOTE: only one attribute can be applied per function at the moment
-
-    // This should cover all functions in the ast
+    let ast_copy = ast.clone();
+    // Covers all functions in the ast
     for func in ast.functions.iter_mut() {
-        transform_function(func);
+        transform_function(&ast_copy, func);
     }
     for submodule in ast.submodules.iter_mut() {
         for func in submodule.contents.functions.iter_mut() {
-            transform_function(func);
+            transform_function(&ast_copy, func);
         }
     }
+    ast
 }
 
-fn transform_function(func: &mut NoirFunction) {
+// TODO: might be worth making this a struct to prevent passing the ast around
+fn transform_function(ast: &ParsedModule, func: &mut NoirFunction) {
     if let Some(Attribute::Custom(custom_attribute)) = func.def.attribute.as_ref() {
         // TODO: this can just become the one function!!!
         // match based on the custom attribute
@@ -33,17 +31,16 @@ fn transform_function(func: &mut NoirFunction) {
             "aztec(private)" => {
                 // Edit the ast to inject the private context into the function
                 // Create the context using the current params
-                let create_context = create_context("PrivateContext", &func.def.parameters);
+                let create_context = create_context(ast, "PrivateContext", &func.def.parameters);
                 // Insert the context creation as the first action
                 func.def.body.0.insert(0, create_context);
 
                 // Add the inputs to the params
-                let private_input = create_inputs("PrivateContextInputs");
-                func.def.parameters.insert(0, private_input);
+                let input = create_inputs("PrivateContextInputs");
+                func.def.parameters.insert(0, input);
 
                 // Push the finish method call to the end of the function
                 let finish_def = create_context_finish();
-                // dbg!(&finish_def);
                 func.def.body.0.push(finish_def);
 
                 let return_type = create_return_type("PrivateCircuitPublicInputs");
@@ -52,17 +49,16 @@ fn transform_function(func: &mut NoirFunction) {
                 func.def.return_distinctness = Distinctness::Distinct;
             }
             "aztec(public)" => {
-                let create_context = create_context("PublicContext", &func.def.parameters);
+                let create_context = create_context(ast, "PublicContext", &func.def.parameters);
                 // Insert the context creation as the first action
                 func.def.body.0.insert(0, create_context);
 
                 // Add the inputs to the params
-                let private_input = create_inputs("PublicContextInputs");
-                func.def.parameters.insert(0, private_input);
+                let input = create_inputs("PublicContextInputs");
+                func.def.parameters.insert(0, input);
 
                 // Push the finish method call to the end of the function
                 let finish_def = create_context_finish();
-                // dbg!(&finish_def);
                 func.def.body.0.push(finish_def);
 
                 let return_type = create_return_type("PublicCircuitPublicInputs");
@@ -72,7 +68,7 @@ fn transform_function(func: &mut NoirFunction) {
             }
             _ => return,
         }
-        dbg!(&func);
+        // dbg!(&func);
     }
 }
 
@@ -80,23 +76,24 @@ fn transform_function(func: &mut NoirFunction) {
 /// This should make it available to be consumed within aztec private annotated functions.
 pub(crate) fn create_inputs(ty: &str) -> (Pattern, UnresolvedType, Visibility) {
     let context_ident = Ident::new("inputs".to_string(), Span::default());
-    let context_patt = Pattern::Identifier(context_ident);
+    let context_pattern = Pattern::Identifier(context_ident);
     let context_type_ident = Ident::new(ty.to_string(), Span::default());
     let context_type = UnresolvedType::Named(crate::Path::from_ident(context_type_ident), vec![]);
     let visibility = Visibility::Private;
 
-    (context_patt, context_type, visibility)
+    (context_pattern, context_type, visibility)
 }
 
 pub(crate) fn create_context(
+    ast: &ParsedModule,
     ty: &str, // type
     params: &Vec<(Pattern, UnresolvedType, Visibility)>,
 ) -> Statement {
-    let hash_args = create_hash_args(params);
+    let hash_args = create_hash_args(ast, params);
 
     let context_ident = Ident::new("context".to_string(), Span::default());
-    let context_patt = Pattern::Identifier(context_ident);
-    let context_mut = Pattern::Mutable(Box::new(context_patt.clone()), Span::default());
+    let context_pattern = Pattern::Identifier(context_ident);
+    let context_mut = Pattern::Mutable(Box::new(context_pattern.clone()), Span::default());
     let context_type_ident = Ident::new(ty.to_string(), Span::default());
     let mut context_path = crate::Path::from_ident(context_type_ident);
     let context_type = UnresolvedType::Named(context_path.clone(), vec![]);
@@ -132,16 +129,49 @@ pub(crate) fn create_context(
 
 /// Creates the private context object to be accessed within the function, the parameters need to be extracted to be
 /// appended into the args hash object
-fn create_hash_args(params: &Vec<(Pattern, UnresolvedType, Visibility)>) -> CallExpression {
+fn create_hash_args(
+    ast: &ParsedModule,
+    params: &Vec<(Pattern, UnresolvedType, Visibility)>,
+) -> CallExpression {
+    dbg!(&ast.types);
     let mut hash_path = crate::Path::from_ident(Ident::new("abi".to_string(), Span::default()));
     hash_path.segments.push(Ident::new("hash_args".to_string(), Span::default()));
 
     let param_expressions = params
         .iter()
-        .map(|param| {
-            let param_pattern = &param.0;
-            match param_pattern {
+        .map(|(pattern, ty, _vis)| {
+            match pattern {
                 Pattern::Identifier(ident) => {
+                    dbg!(ident);
+                    dbg!(ty);
+
+                    // Match the type to determine the padding to do
+                    match ty {
+                        UnresolvedType::Named(path, unresolved_type) => {
+                            // Find the type definition in the ast
+                            // TODO: look for methods where the type is resolved elsewhere
+
+                            let last_index = path.segments.len() - 1;
+                            let last_item = path.segments[last_index].0.contents.clone();
+                            let type_def = ast
+                                .types
+                                .iter()
+                                .find(|type_def| type_def.name.0.contents == last_item);
+                            let type_def_2 = ast.submodules.iter().map(|submodule| {
+                                submodule
+                                    .contents
+                                    .types
+                                    .iter()
+                                    .find(|type_def| type_def.name.0.contents == last_item)
+                            });
+                            dbg!(type_def);
+                            dbg!(type_def_2);
+                            // dbg!(path);
+                            // dbg!(unresolved_type);
+                        }
+                        _ => println!("todo"),
+                    }
+
                     // Converts each type to a Field Element before hashing
                     let variable = Expression::new(
                         ExpressionKind::Variable(crate::Path::from_ident(ident.clone())),

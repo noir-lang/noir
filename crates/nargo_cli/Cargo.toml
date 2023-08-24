@@ -79,4 +79,3 @@ default = ["plonk_bn254"]
 # The plonk backend can only use bn254, so we do not specify the field
 plonk_bn254 = ["acvm-backend-barretenberg/native"]
 plonk_bn254_wasm = ["acvm-backend-barretenberg/wasm"]
-aztec = []
