@@ -524,12 +524,12 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
 }
 
 fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
-    let constraints = ident()
+    let constraints = parse_type()
         .then_ignore(just(Token::Colon))
         .then(trait_bounds())
-        .validate(|(generic_type_name, trait_bounds), span, emit| {
+        .validate(|(typ, trait_bounds), span, emit| {
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
-            TraitConstraint { generic_type_name, trait_bounds }
+            TraitConstraint { typ, trait_bounds }
         });
 
     keyword(Keyword::Where)
@@ -1856,6 +1856,10 @@ mod test {
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait<A, B> + SomeTrait2<C> {}",
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> {}",
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait + SomeTrait2<C> + TraitY {}",
+                "fn func_name<T>(f: Field, y : T, z : U) where SomeStruct<T>: SomeTrait<U> {}",
+                // 'where u32: SomeTrait' is allowed in Rust.
+                // It will result in compiler error in case SomeTrait isn't implemented for u32.
+                "fn func_name<T>(f: Field, y : T) where u32: SomeTrait {}",
                 // A trailing plus is allowed by Rust, so we support it as well.
                 "fn func_name<T>(f: Field, y : T) where T: SomeTrait + {}",
                 // The following should produce compile error on later stage. From the parser's perspective it's fine
@@ -1874,7 +1878,6 @@ mod test {
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) where SomeTrait {}",
                 "fn func_name<T>(f: Field, y : pub Field, z : pub [u8;5],) SomeTrait {}",
                 "fn func_name(f: Field, y : pub Field, z : pub [u8;5],) where T: SomeTrait {}",
-                "fn func_name<T>(f: Field, y : T) where u32: SomeTrait {}",
                 // A leading plus is not allowed.
                 "fn func_name<T>(f: Field, y : T) where T: + SomeTrait {}",
                 "fn func_name<T>(f: Field, y : T) where T: TraitX + <Y> {}",

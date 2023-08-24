@@ -71,7 +71,7 @@ pub struct TraitImpl {
 /// Represents a trait constraint such as `where Foo: Display + TraitX + TraitY<U, V>`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitConstraint {
-    pub generic_type_name: Ident,
+    pub typ: UnresolvedType,
     pub trait_bounds: Vec<TraitBound>,
 }
 
@@ -166,7 +166,7 @@ impl Display for TraitItem {
 impl Display for TraitConstraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let bounds = vecmap(&self.trait_bounds, |bound| bound.to_string());
-        write!(f, "{}: {}", self.generic_type_name, bounds.join(" + "))
+        write!(f, "{}: {}", self.typ, bounds.join(" + "))
     }
 }
 
