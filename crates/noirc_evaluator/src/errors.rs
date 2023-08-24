@@ -96,10 +96,10 @@ impl RuntimeError {
         match self {
             RuntimeError::InternalError(_) => {
                 Diagnostic::simple_error(
-                    "Internal Consistency Evaluators Errors: \n 
+                    "Internal Consistency Evaluators Errors: \n
                     This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
                     "".to_string(),
-                    noirc_errors::Span::new(0..0)
+                    noirc_errors::Span::inclusive(0, 0)
                 )
             }
             _ => {
