@@ -173,7 +173,11 @@ impl Display for TraitConstraint {
 impl Display for TraitBound {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.trait_generics, |generic| generic.to_string());
-        write!(f, "{}<{}>", self.trait_name, generics.join(", "))
+        if generics.len() > 0 {
+            write!(f, "{}<{}>", self.trait_name, generics.join(", "))
+        } else {
+            write!(f, "{}", self.trait_name)
+        }
     }
 }
 
