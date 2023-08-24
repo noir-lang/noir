@@ -33,6 +33,7 @@ impl PublicKeyNote {
     fn compute_nullifier(self) -> Field {
         let unique_siloed_note_hash = compute_unique_siloed_note_hash(PublicKeyNoteMethods, self);
         let secret = get_secret_key(self.owner);
+        // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
             unique_siloed_note_hash,
             secret,
@@ -58,6 +59,7 @@ fn serialise(note: PublicKeyNote) -> [Field; PUBLIC_KEY_NOTE_LEN] {
 }
 
 fn compute_note_hash(note: PublicKeyNote) -> Field {
+    // TODO(#1205) Should use a non-zero generator index.
     dep::std::hash::pedersen(note.serialise())[0]
 }
 

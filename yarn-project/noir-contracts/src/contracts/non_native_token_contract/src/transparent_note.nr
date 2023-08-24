@@ -60,6 +60,7 @@ impl TransparentNote {
     }
 
     fn compute_note_hash(self) -> Field {
+        // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
             self.amount,
             self.secret_hash,
@@ -70,6 +71,7 @@ impl TransparentNote {
         // TODO(https://github.com/AztecProtocol/aztec-packages/issues/1386): should use
         // `compute_note_hash_for_read_or_nullify` once public functions inject nonce!
         let siloed_note_hash = compute_siloed_note_hash(TransparentNoteMethods, self);
+        // TODO(#1205) Should use a non-zero generator index.
         pedersen([self.secret, siloed_note_hash])[0]
     }
 

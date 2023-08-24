@@ -54,6 +54,7 @@ impl EcdsaPublicKeyNote {
     fn compute_nullifier(self) -> Field {
         let unique_siloed_note_hash = compute_unique_siloed_note_hash(EcdsaPublicKeyNoteInterface, self);
         let secret = get_secret_key(self.owner);
+        // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
             unique_siloed_note_hash,
             secret,
@@ -90,6 +91,7 @@ fn serialise(note: EcdsaPublicKeyNote) -> [Field; ECDSA_PUBLIC_KEY_NOTE_LEN] {
 }
 
 fn compute_note_hash(note: EcdsaPublicKeyNote) -> Field {
+    // TODO(#1205) Should use a non-zero generator index.
     dep::std::hash::pedersen(note.serialise())[0]
 }
 

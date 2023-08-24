@@ -72,7 +72,7 @@ fn destroy_note<Note, N>(
     // commitment) in which case `nullified_commitment` is not used since the kernel
     // just siloes and forwards the nullier to its output.
     if (header.nonce == 0) {
-        // TODO(suyash): Can we reuse the note commitment computed in `compute_nullifier`?
+        // TODO(1718): Can we reuse the note commitment computed in `compute_nullifier`?
         nullified_commitment = compute_inner_note_hash(note_interface, note);
     }
     assert(notify_nullified_note(storage_slot, nullifier, preimage, nullified_commitment) == 0);

@@ -29,6 +29,7 @@ impl AddressNote {
     fn compute_nullifier(self) -> Field {
         let siloed_note_hash = compute_siloed_note_hash(AddressNoteMethods, self);
         let secret = get_secret_key(self.owner);
+        // TODO(#1205) Should use a non-zero generator index.
         dep::std::hash::pedersen([
             siloed_note_hash,
             secret,
@@ -53,6 +54,7 @@ fn serialise(note: AddressNote) -> [Field; ADDRESS_NOTE_LEN]{
 }
 
 fn compute_note_hash(note: AddressNote) -> Field {
+    // TODO(#1205) Should use a non-zero generator index.
     dep::std::hash::pedersen(note.serialise())[0]
 }
 
