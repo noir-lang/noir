@@ -197,7 +197,7 @@ jobs:
         env:
           BARRETENBERG_BIN_DIR: ${{ github.workspace }}/libbarretenberg-wasm32/bin
         run: |
-          cargo install cross --force --git https://github.com/cross-rs/cross
+          cargo install cross --version 0.2.5 --force 
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features plonk_bn254_wasm
 
       - uses: actions/cache/save@v3
