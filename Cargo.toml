@@ -59,4 +59,5 @@ wasm-bindgen-test = "0.3.33"
 base64 = "0.21.2"
 
 [patch.crates-io]
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", branch = "kw/dyn-backends-wasm" }
+# branch = "kw/dyn-backends-wasm"
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "9963db4d04b8f2fc4731d71190ed341845eecf25" }
