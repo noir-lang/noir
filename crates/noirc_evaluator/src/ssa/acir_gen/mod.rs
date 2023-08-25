@@ -362,14 +362,11 @@ impl Context {
                                 ..
                             }),
                         ) => {
-                            let mut var_equality_assertions = Vec::with_capacity(len);
-                            for i in 0..len {
+                            Ok(try_vecmap(0..len, |i| {
                                 let lhs_var = read_from_index(lhs_block_id, i)?;
                                 let rhs_var = read_from_index(rhs_block_id, i)?;
-
-                                var_equality_assertions.push((lhs_var, rhs_var));
-                            }
-                            Ok(var_equality_assertions)
+                                ((lhs_var, rhs_var))
+                            })?)
                         }
                         _ => unreachable!("ICE: lhs and rhs should be of the same type"),
                     }
