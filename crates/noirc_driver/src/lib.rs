@@ -5,9 +5,9 @@
 
 use clap::Args;
 use fm::FileId;
-use noirc_abi::FunctionSignature;
+use noirc_abi::{AbiParameter, AbiType};
 use noirc_errors::{CustomDiagnostic, FileDiagnostic};
-use noirc_evaluator::create_circuit;
+use noirc_evaluator::{create_circuit, into_abi_params};
 use noirc_frontend::graph::{CrateId, CrateName};
 use noirc_frontend::hir::def_map::{Contract, CrateDefMap};
 use noirc_frontend::hir::Context;
@@ -56,11 +56,18 @@ pub fn compile_file(
     compile_main(context, crate_id, &CompileOptions::default())
 }
 
-/// Adds the file from the file system at `Path` to the crate graph
+/// Adds the file from the file system at `Path` to the crate graph as a root file
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let root_file_id = context.file_manager.add_file(file_name).unwrap();
 
     context.crate_graph.add_crate_root(root_file_id)
+}
+
+// Adds the file from the file system at `Path` to the crate graph
+pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
+    let root_file_id = context.file_manager.add_file(file_name).unwrap();
+
+    context.crate_graph.add_crate(root_file_id)
 }
 
 /// Adds a edge in the crate graph for two crates
@@ -125,15 +132,18 @@ pub fn check_crate(
     }
 }
 
-pub fn compute_function_signature(
+pub fn compute_function_abi(
     context: &Context,
     crate_id: &CrateId,
-) -> Option<FunctionSignature> {
+) -> Option<(Vec<AbiParameter>, Option<AbiType>)> {
     let main_function = context.get_main_function(crate_id)?;
 
     let func_meta = context.def_interner.function_meta(&main_function);
 
-    Some(func_meta.into_function_signature(&context.def_interner))
+    let (parameters, return_type) = func_meta.into_function_signature();
+    let parameters = into_abi_params(parameters, &context.def_interner);
+    let return_type = return_type.map(|typ| AbiType::from_type(&typ));
+    Some((parameters, return_type))
 }
 
 /// Run the frontend to check the crate for errors then compile the main function if there were none
@@ -270,7 +280,8 @@ pub fn compile_no_check(
 ) -> Result<CompiledProgram, FileDiagnostic> {
     let program = monomorphize(main_function, &context.def_interner);
 
-    let (circuit, debug, abi) = create_circuit(program, options.show_ssa, options.show_brillig)?;
+    let (circuit, debug, abi) =
+        create_circuit(context, program, options.show_ssa, options.show_brillig)?;
 
     Ok(CompiledProgram { circuit, debug, abi })
 }

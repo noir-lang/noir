@@ -17,7 +17,7 @@ pub mod workspace;
 use std::collections::BTreeMap;
 
 use fm::FileManager;
-use noirc_driver::{add_dep, prepare_crate};
+use noirc_driver::{add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateGraph, CrateId, CrateName},
     hir::Context,
@@ -34,7 +34,7 @@ pub fn prepare_dependencies(
     for (dep_name, dep) in dependencies.iter() {
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
-                let crate_id = prepare_crate(context, &package.entry_path);
+                let crate_id = prepare_dependency(context, &package.entry_path);
                 add_dep(context, parent_crate, crate_id, dep_name.clone());
                 prepare_dependencies(context, crate_id, &package.dependencies);
             }

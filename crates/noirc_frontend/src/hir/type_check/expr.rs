@@ -686,8 +686,8 @@ impl<'interner> TypeChecker<'interner> {
                     Ok(Bool)
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
-                        rhs: lhs_type.clone(),
-                        lhs: rhs_type.clone(),
+                        expected: lhs_type.clone(),
+                        actual: rhs_type.clone(),
                         span,
                         source: Source::Binary,
                     })
@@ -732,15 +732,15 @@ impl<'interner> TypeChecker<'interner> {
                 if matches!(op.kind, Equal | NotEqual) =>
             {
                 self.unify(x_type, y_type, || TypeCheckError::TypeMismatchWithSource {
-                    rhs: lhs_type.clone(),
-                    lhs: rhs_type.clone(),
+                    expected: lhs_type.clone(),
+                    actual: rhs_type.clone(),
                     source: Source::ArrayElements,
                     span: op.location.span,
                 });
 
                 self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    rhs: lhs_type.clone(),
-                    lhs: rhs_type.clone(),
+                    expected: lhs_type.clone(),
+                    actual: rhs_type.clone(),
                     source: Source::ArrayLen,
                     span: op.location.span,
                 });
@@ -752,16 +752,16 @@ impl<'interner> TypeChecker<'interner> {
                     return Ok(Bool);
                 }
                 Err(TypeCheckError::TypeMismatchWithSource {
-                    rhs: lhs.clone(),
-                    lhs: rhs.clone(),
+                    expected: lhs.clone(),
+                    actual: rhs.clone(),
                     source: Source::Comparison,
                     span,
                 })
             }
             (String(x_size), String(y_size)) => {
                 self.unify(x_size, y_size, || TypeCheckError::TypeMismatchWithSource {
-                    rhs: *x_size.clone(),
-                    lhs: *y_size.clone(),
+                    expected: *x_size.clone(),
+                    actual: *y_size.clone(),
                     span: op.location.span,
                     source: Source::StringLen,
                 });
@@ -769,8 +769,8 @@ impl<'interner> TypeChecker<'interner> {
                 Ok(Bool)
             }
             (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
-                rhs: lhs.clone(),
-                lhs: rhs.clone(),
+                expected: lhs.clone(),
+                actual: rhs.clone(),
                 source: Source::Comparison,
                 span,
             }),
@@ -934,8 +934,8 @@ impl<'interner> TypeChecker<'interner> {
                     Ok(other.clone())
                 } else {
                     Err(TypeCheckError::TypeMismatchWithSource {
-                        rhs: lhs_type.clone(),
-                        lhs: rhs_type.clone(),
+                        expected: lhs_type.clone(),
+                        actual: rhs_type.clone(),
                         source: Source::Binary,
                         span,
                     })
@@ -994,8 +994,8 @@ impl<'interner> TypeChecker<'interner> {
             (Bool, Bool) => Ok(Bool),
 
             (lhs, rhs) => Err(TypeCheckError::TypeMismatchWithSource {
-                rhs: lhs.clone(),
-                lhs: rhs.clone(),
+                expected: lhs.clone(),
+                actual: rhs.clone(),
                 source: Source::BinOp,
                 span,
             }),
