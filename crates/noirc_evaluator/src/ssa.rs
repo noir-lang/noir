@@ -44,6 +44,7 @@ pub(crate) fn optimize_into_acir(
         .run_pass(Ssa::inline_functions, "After Inlining:")
         // Run mem2reg with the CFG separated into blocks
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .try_run_pass(Ssa::evaluate_assert_constant, "After Assert Constant:")?
         .try_run_pass(Ssa::unroll_loops, "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying:")
@@ -52,6 +53,7 @@ pub(crate) fn optimize_into_acir(
         // If there are slice mergers uncovered by loop unrolling
         // and this pass is missed, slice merging will fail inside of flattening.
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
+        .run_pass(Ssa::fold_constants, "After Constant Folding:")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")

@@ -106,7 +106,7 @@ impl DataFlowGraph {
         let parameters = self.blocks[block].parameters();
 
         let parameters = vecmap(parameters.iter().enumerate(), |(position, param)| {
-            let typ = self.values[*param].get_type();
+            let typ = self.values[*param].get_type().clone();
             self.values.insert(Value::Param { block: new_block, position, typ })
         });
 
@@ -314,7 +314,13 @@ impl DataFlowGraph {
 
     /// Returns the type of a given value
     pub(crate) fn type_of_value(&self, value: ValueId) -> Type {
-        self.values[value].get_type()
+        self.values[value].get_type().clone()
+    }
+
+    /// True if the type of this value is Type::Reference.
+    /// Using this method over type_of_value avoids cloning the value's type.
+    pub(crate) fn value_is_reference(&self, value: ValueId) -> bool {
+        matches!(self.values[value].get_type(), Type::Reference)
     }
 
     /// Appends a result type to the instruction.
