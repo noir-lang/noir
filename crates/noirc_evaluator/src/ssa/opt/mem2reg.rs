@@ -60,7 +60,7 @@
 //! that could theoretically be optimized out. This pass can be performed at any time in the
 //! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
 //! This pass is currently performed several times to enable other passes - most notably being
-//! performed before loop unrolling to try to allow for mutable variables used for for loop indices.
+//! performed before loop unrolling to try to allow for mutable variables used for loop indices.
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ssa::{
