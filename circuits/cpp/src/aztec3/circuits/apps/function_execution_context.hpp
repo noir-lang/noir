@@ -178,8 +178,8 @@ template <typename Builder> class FunctionExecutionContext {
 
         const FunctionData<CT> f_function_data_ct{
             // Note: we MUST
-            .function_selector =
-                FunctionSelector<CT>{
+            .selector =
+                {
                     .value = f_encoding_ct,
                 },
             .is_private = true,

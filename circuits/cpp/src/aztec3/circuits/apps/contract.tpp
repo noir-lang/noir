@@ -23,8 +23,8 @@ template <typename NCT> void Contract<NCT>::set_functions(std::vector<FunctionDe
             throw_or_abort("Name already exists");
         }
         function_datas[function.name] = FunctionData<NCT>{
-            .function_selector =
-                FunctionSelector<NT>{
+            .selector =
+                {
                     .value = static_cast<uint32>(i),
                 },
             .is_private = function.is_private,

@@ -22,8 +22,8 @@ TEST(private_to_private_function_call_tests, circuit_private_to_private_function
         uint256_t(0x01071e9a23e0f7edULL, 0x5d77b35d1830fa3eULL, 0xc6ba3660bb1f0c0bULL, 0x2ef9f7f09867fd6eULL);
 
     const FunctionData<NT> function_data{
-        .function_selector =
-            FunctionSelector<NT>{
+        .selector =
+            {
                 .value = 1,  // TODO: deduce this from the contract, somehow.
             },
         .is_private = true,

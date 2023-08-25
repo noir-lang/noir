@@ -295,7 +295,7 @@ void check_membership(Builder& builder,
  * @brief Calculate the function tree root from the sibling path and leaf preimage.
  *
  * @tparam NCT (native or circuit)
- * @param function_selector in leaf preimage
+ * @param selector in leaf preimage
  * @param is_internal in leaf preimage
  * @param is_private in leaf preimage
  * @param vk_hash in leaf preimage
@@ -305,7 +305,7 @@ void check_membership(Builder& builder,
  * @return NCT::fr
  */
 template <typename NCT> typename NCT::fr function_tree_root_from_siblings(
-    FunctionSelector<NCT> const& function_selector,
+    FunctionSelector<NCT> const& selector,
     typename NCT::boolean const& is_internal,
     typename NCT::boolean const& is_private,
     typename NCT::fr const& vk_hash,
@@ -314,7 +314,7 @@ template <typename NCT> typename NCT::fr function_tree_root_from_siblings(
     std::array<typename NCT::fr, FUNCTION_TREE_HEIGHT> const& function_leaf_sibling_path)
 {
     const auto function_leaf_preimage = FunctionLeafPreimage<NCT>{
-        .function_selector = function_selector,
+        .selector = selector,
         .is_internal = is_internal,
         .is_private = is_private,
         .vk_hash = vk_hash,

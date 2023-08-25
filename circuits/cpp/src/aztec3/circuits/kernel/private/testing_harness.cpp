@@ -156,8 +156,8 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
     const Point<NT> msg_sender_pub_key = { .x = 123456789, .y = 123456789 };
 
     FunctionData<NT> const function_data{
-        .function_selector =
-            FunctionSelector<NT>{
+        .selector =
+            {
                 .value = 1,  // TODO: deduce this from the contract, somehow.
             },
         .is_private = true,
@@ -203,7 +203,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
         // push to array/vector
         // use variation of `compute_root_partial_left_tree` to compute the root from leaves
         // const auto& function_leaf_preimage = FunctionLeafPreimage<NT>{
-        //    .function_selector = function_data.function_selector,
+        //    .selector = function_data.selector,
         //    .is_private = function_data.is_private,
         //    .vk_hash = private_circuit_vk_hash,
         //    .acir_hash = acir_hash,
@@ -230,7 +230,7 @@ std::pair<PrivateCallData<NT>, ContractDeploymentData<NT>> create_private_call_d
         // update the contract address in the call context now that it is known
         call_context.storage_contract_address = contract_address;
     } else {
-        const NT::fr& function_tree_root = function_tree_root_from_siblings<NT>(function_data.function_selector,
+        const NT::fr& function_tree_root = function_tree_root_from_siblings<NT>(function_data.selector,
                                                                                 function_data.is_internal,
                                                                                 function_data.is_private,
                                                                                 private_circuit_vk_hash,

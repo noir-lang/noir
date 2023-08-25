@@ -18,17 +18,17 @@ template <typename NCT> struct FunctionData {
     using boolean = typename NCT::boolean;
     using fr = typename NCT::fr;
 
-    FunctionSelector<NCT> function_selector;
+    FunctionSelector<NCT> selector;
     boolean is_internal = false;
     boolean is_private = false;
     boolean is_constructor = false;
 
-    MSGPACK_FIELDS(function_selector, is_internal, is_private, is_constructor);
+    MSGPACK_FIELDS(selector, is_internal, is_private, is_constructor);
 
     boolean operator==(FunctionData<NCT> const& other) const
     {
-        return function_selector == other.function_selector && is_internal == other.is_internal &&
-               is_private == other.is_private && is_constructor == other.is_constructor;
+        return selector == other.selector && is_internal == other.is_internal && is_private == other.is_private &&
+               is_constructor == other.is_constructor;
     };
 
     template <typename Builder> FunctionData<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
@@ -39,7 +39,7 @@ template <typename NCT> struct FunctionData {
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
         FunctionData<CircuitTypes<Builder>> function_data = {
-            function_selector.to_circuit_type(builder),
+            selector.to_circuit_type(builder),
             to_ct(is_internal),
             to_ct(is_private),
             to_ct(is_constructor),
@@ -55,7 +55,7 @@ template <typename NCT> struct FunctionData {
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
         FunctionData<NativeTypes> function_data = {
-            to_native_type(function_selector),
+            to_native_type(selector),
             to_nt(is_internal),
             to_nt(is_private),
             to_nt(is_constructor),
@@ -68,7 +68,7 @@ template <typename NCT> struct FunctionData {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        function_selector.set_public();
+        selector.set_public();
         fr(is_internal).set_public();
         fr(is_private).set_public();
         fr(is_constructor).set_public();
@@ -78,7 +78,7 @@ template <typename NCT> struct FunctionData {
     fr hash() const
     {
         std::vector<fr> const inputs = {
-            fr(function_selector.value),
+            fr(selector.value),
             fr(is_internal),
             fr(is_private),
             fr(is_constructor),

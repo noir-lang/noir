@@ -17,7 +17,7 @@ using std::is_same;
  * Templated on NativeTypes/CircuitTypes.
  *
  * @details A FunctionLeafPreimage contains:
- * - `function_selector` keccak hash of function signature truncated to NUM_FUNCTION_SELECTOR_BYTES
+ * - `selector` keccak hash of function signature truncated to NUM_FUNCTION_SELECTOR_BYTES
  * - `is_private` boolean flag
  * - `vk_hash` pedersen hash of the function verification key
  * - `acir_hash` hash of the function's acir bytecode
@@ -32,19 +32,19 @@ template <typename NCT> struct FunctionLeafPreimage {
     using fr = typename NCT::fr;
     using uint32 = typename NCT::uint32;
 
-    FunctionSelector<NCT> function_selector = {};
+    FunctionSelector<NCT> selector = {};
     boolean is_internal = false;
     boolean is_private = false;
     fr vk_hash = 0;
     fr acir_hash = 0;
 
     // For serialization, update with new fields
-    MSGPACK_FIELDS(function_selector, is_internal, is_private, vk_hash, acir_hash);
+    MSGPACK_FIELDS(selector, is_internal, is_private, vk_hash, acir_hash);
 
     boolean operator==(FunctionLeafPreimage<NCT> const& other) const
     {
-        return function_selector == other.function_selector && is_internal == other.is_internal &&
-               is_private == other.is_private && vk_hash == other.vk_hash && acir_hash == other.acir_hash;
+        return selector == other.selector && is_internal == other.is_internal && is_private == other.is_private &&
+               vk_hash == other.vk_hash && acir_hash == other.acir_hash;
     };
 
     template <typename Builder> FunctionLeafPreimage<CircuitTypes<Builder>> to_circuit_type(Builder& builder) const
@@ -55,11 +55,7 @@ template <typename NCT> struct FunctionLeafPreimage {
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
         FunctionLeafPreimage<CircuitTypes<Builder>> preimage = {
-            function_selector.to_circuit_type(builder),
-            to_ct(is_internal),
-            to_ct(is_private),
-            to_ct(vk_hash),
-            to_ct(acir_hash),
+            selector.to_circuit_type(builder), to_ct(is_internal), to_ct(is_private), to_ct(vk_hash), to_ct(acir_hash),
         };
 
         return preimage;
@@ -72,7 +68,7 @@ template <typename NCT> struct FunctionLeafPreimage {
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
         FunctionLeafPreimage<NativeTypes> preimage = {
-            to_native_type(function_selector), to_nt(is_internal), to_nt(is_private), to_nt(vk_hash), to_nt(acir_hash),
+            to_native_type(selector), to_nt(is_internal), to_nt(is_private), to_nt(vk_hash), to_nt(acir_hash),
         };
 
         return preimage;
@@ -82,7 +78,7 @@ template <typename NCT> struct FunctionLeafPreimage {
     {
         static_assert(!(std::is_same<NativeTypes, NCT>::value));
 
-        function_selector.set_public();
+        selector.set_public();
         fr(is_internal).set_public();
         fr(is_private).set_public();
         vk_hash.set_public();
@@ -92,7 +88,7 @@ template <typename NCT> struct FunctionLeafPreimage {
     fr hash() const
     {
         std::vector<fr> const inputs = {
-            function_selector.value, fr(is_internal), fr(is_private), vk_hash, acir_hash,
+            selector.value, fr(is_internal), fr(is_private), vk_hash, acir_hash,
         };
         return NCT::compress(inputs, GeneratorIndex::FUNCTION_LEAF);
     }

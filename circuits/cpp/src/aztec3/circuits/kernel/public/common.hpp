@@ -180,7 +180,7 @@ void common_validate_inputs(DummyBuilder& builder, KernelInput const& public_ker
     builder.do_assert(this_call_stack_item.contract_address != 0,
                       "Contract address must be non-zero",
                       CircuitErrorCode::PUBLIC_KERNEL__CONTRACT_ADDRESS_INVALID);
-    builder.do_assert(this_call_stack_item.function_data.function_selector.value != 0,
+    builder.do_assert(this_call_stack_item.function_data.selector.value != 0,
                       "Function signature must be non-zero",
                       CircuitErrorCode::PUBLIC_KERNEL__FUNCTION_SIGNATURE_INVALID);
     builder.do_assert(this_call_stack_item.function_data.is_constructor == false,

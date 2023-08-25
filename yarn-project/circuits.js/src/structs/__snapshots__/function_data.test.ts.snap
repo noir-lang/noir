@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`basic FunctionData serialization serializes a trivial FunctionData and prints it 1`] = `
-"function_selector:
+"selector:
 value: 123
 
 is_internal: 0

@@ -288,15 +288,15 @@ export function fromFunctionSelector(o: FunctionSelector): MsgpackFunctionSelect
 }
 
 interface MsgpackFunctionData {
-  function_selector: MsgpackFunctionSelector;
+  selector: MsgpackFunctionSelector;
   is_internal: boolean;
   is_private: boolean;
   is_constructor: boolean;
 }
 
 export function toFunctionData(o: MsgpackFunctionData): FunctionData {
-  if (o.function_selector === undefined) {
-    throw new Error('Expected function_selector in FunctionData deserialization');
+  if (o.selector === undefined) {
+    throw new Error('Expected selector in FunctionData deserialization');
   }
   if (o.is_internal === undefined) {
     throw new Error('Expected is_internal in FunctionData deserialization');
@@ -307,12 +307,12 @@ export function toFunctionData(o: MsgpackFunctionData): FunctionData {
   if (o.is_constructor === undefined) {
     throw new Error('Expected is_constructor in FunctionData deserialization');
   }
-  return new FunctionData(toFunctionSelector(o.function_selector), o.is_internal, o.is_private, o.is_constructor);
+  return new FunctionData(toFunctionSelector(o.selector), o.is_internal, o.is_private, o.is_constructor);
 }
 
 export function fromFunctionData(o: FunctionData): MsgpackFunctionData {
   if (o.selector === undefined) {
-    throw new Error('Expected functionSelector in FunctionData serialization');
+    throw new Error('Expected selector in FunctionData serialization');
   }
   if (o.isInternal === undefined) {
     throw new Error('Expected isInternal in FunctionData serialization');
@@ -324,7 +324,7 @@ export function fromFunctionData(o: FunctionData): MsgpackFunctionData {
     throw new Error('Expected isConstructor in FunctionData serialization');
   }
   return {
-    function_selector: fromFunctionSelector(o.selector),
+    selector: fromFunctionSelector(o.selector),
     is_internal: o.isInternal,
     is_private: o.isPrivate,
     is_constructor: o.isConstructor,

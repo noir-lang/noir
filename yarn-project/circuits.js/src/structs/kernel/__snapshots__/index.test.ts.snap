@@ -94,7 +94,7 @@ portal_contract_address: 0x202020202020202020202020202020202020202
 function_tree_root: 0xb03
  ]
 optionally_revealed_data: [ call_stack_item_hash: 0xc01
-function_data: function_selector:
+function_data: selector:
 value: c02
 
 is_internal: 0
@@ -108,7 +108,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc02
-function_data: function_selector:
+function_data: selector:
 value: c03
 
 is_internal: 0
@@ -122,7 +122,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc03
-function_data: function_selector:
+function_data: selector:
 value: c04
 
 is_internal: 0
@@ -136,7 +136,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc04
-function_data: function_selector:
+function_data: selector:
 value: c05
 
 is_internal: 0
@@ -333,7 +333,7 @@ portal_contract_address: 0x202020202020202020202020202020202020202
 function_tree_root: 0xb03
  ]
 optionally_revealed_data: [ call_stack_item_hash: 0xc01
-function_data: function_selector:
+function_data: selector:
 value: c02
 
 is_internal: 0
@@ -347,7 +347,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc02
-function_data: function_selector:
+function_data: selector:
 value: c03
 
 is_internal: 0
@@ -361,7 +361,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc03
-function_data: function_selector:
+function_data: selector:
 value: c04
 
 is_internal: 0
@@ -375,7 +375,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc04
-function_data: function_selector:
+function_data: selector:
 value: c05
 
 is_internal: 0
@@ -520,7 +520,7 @@ vk_path: [ 0x1000 0x1001 0x1002 ]
 exports[`structs/kernel serializes and prints private_kernel_inputs_init 1`] = `
 "tx_request:
 origin: 0x1
-function_data: function_selector:
+function_data: selector:
 value: 257
 
 is_internal: 0
@@ -548,7 +548,7 @@ version: 0x0
 private_call:
 call_stack_item:
 contract_address: 0x1001
-function_data: function_selector:
+function_data: selector:
 value: 4098
 
 is_internal: 0
@@ -600,7 +600,7 @@ version: 0x2511
 is_execution_request: 0
 
 private_call_stack_preimages: [ contract_address: 0x1011
-function_data: function_selector:
+function_data: selector:
 value: 1012
 
 is_internal: 0
@@ -651,7 +651,7 @@ version: 0x2521
 
 is_execution_request: 0
  contract_address: 0x1012
-function_data: function_selector:
+function_data: selector:
 value: 1013
 
 is_internal: 0
@@ -702,7 +702,7 @@ version: 0x2522
 
 is_execution_request: 0
  contract_address: 0x1013
-function_data: function_selector:
+function_data: selector:
 value: 1014
 
 is_internal: 0
@@ -753,7 +753,7 @@ version: 0x2523
 
 is_execution_request: 0
  contract_address: 0x1014
-function_data: function_selector:
+function_data: selector:
 value: 1015
 
 is_internal: 0
@@ -940,7 +940,7 @@ portal_contract_address: 0x202020202020202020202020202020202020202
 function_tree_root: 0xb03
  ]
 optionally_revealed_data: [ call_stack_item_hash: 0xc01
-function_data: function_selector:
+function_data: selector:
 value: c02
 
 is_internal: 0
@@ -954,7 +954,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc02
-function_data: function_selector:
+function_data: selector:
 value: c03
 
 is_internal: 0
@@ -968,7 +968,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc03
-function_data: function_selector:
+function_data: selector:
 value: c04
 
 is_internal: 0
@@ -982,7 +982,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc04
-function_data: function_selector:
+function_data: selector:
 value: c05
 
 is_internal: 0
@@ -1125,7 +1125,7 @@ vk_path: [ 0x1000 0x1001 0x1002 ]
 private_call:
 call_stack_item:
 contract_address: 0x1001
-function_data: function_selector:
+function_data: selector:
 value: 4098
 
 is_internal: 0
@@ -1177,7 +1177,7 @@ version: 0x2511
 is_execution_request: 0
 
 private_call_stack_preimages: [ contract_address: 0x1011
-function_data: function_selector:
+function_data: selector:
 value: 1012
 
 is_internal: 0
@@ -1228,7 +1228,7 @@ version: 0x2521
 
 is_execution_request: 0
  contract_address: 0x1012
-function_data: function_selector:
+function_data: selector:
 value: 1013
 
 is_internal: 0
@@ -1279,7 +1279,7 @@ version: 0x2522
 
 is_execution_request: 0
  contract_address: 0x1013
-function_data: function_selector:
+function_data: selector:
 value: 1014
 
 is_internal: 0
@@ -1330,7 +1330,7 @@ version: 0x2523
 
 is_execution_request: 0
  contract_address: 0x1014
-function_data: function_selector:
+function_data: selector:
 value: 1015
 
 is_internal: 0
@@ -1515,7 +1515,7 @@ portal_contract_address: 0x202020202020202020202020202020202020202
 function_tree_root: 0xb03
  ]
 optionally_revealed_data: [ call_stack_item_hash: 0xc01
-function_data: function_selector:
+function_data: selector:
 value: c02
 
 is_internal: 0
@@ -1529,7 +1529,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc02
-function_data: function_selector:
+function_data: selector:
 value: c03
 
 is_internal: 0
@@ -1543,7 +1543,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc03
-function_data: function_selector:
+function_data: selector:
 value: c04
 
 is_internal: 0
@@ -1557,7 +1557,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc04
-function_data: function_selector:
+function_data: selector:
 value: c05
 
 is_internal: 0
@@ -1783,7 +1783,7 @@ portal_contract_address: 0x202020202020202020202020202020202020202
 function_tree_root: 0xb03
  ]
 optionally_revealed_data: [ call_stack_item_hash: 0xc01
-function_data: function_selector:
+function_data: selector:
 value: c02
 
 is_internal: 0
@@ -1797,7 +1797,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc02
-function_data: function_selector:
+function_data: selector:
 value: c03
 
 is_internal: 0
@@ -1811,7 +1811,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc03
-function_data: function_selector:
+function_data: selector:
 value: c04
 
 is_internal: 0
@@ -1825,7 +1825,7 @@ pay_fee_from_public_l2: 0
 called_from_l1: 1
 called_from_public_l2: 0
  call_stack_item_hash: 0xc04
-function_data: function_selector:
+function_data: selector:
 value: c05
 
 is_internal: 0
@@ -1968,7 +1968,7 @@ vk_path: [ 0x1000 0x1001 0x1002 ]
 public_call:
 call_stack_item:
 contract_address: 0x1001
-function_data: function_selector:
+function_data: selector:
 value: 4098
 
 is_internal: 0
@@ -2087,7 +2087,7 @@ prover_address: 0x1b12
 is_execution_request: 0
 
 public_call_stack_preimages: [ contract_address: 0x1301
-function_data: function_selector:
+function_data: selector:
 value: 1302
 
 is_internal: 0
@@ -2205,7 +2205,7 @@ prover_address: 0x1e12
 
 is_execution_request: 0
  contract_address: 0x1302
-function_data: function_selector:
+function_data: selector:
 value: 1303
 
 is_internal: 0
@@ -2323,7 +2323,7 @@ prover_address: 0x1e13
 
 is_execution_request: 0
  contract_address: 0x1303
-function_data: function_selector:
+function_data: selector:
 value: 1304
 
 is_internal: 0
@@ -2441,7 +2441,7 @@ prover_address: 0x1e14
 
 is_execution_request: 0
  contract_address: 0x1304
-function_data: function_selector:
+function_data: selector:
 value: 1305
 
 is_internal: 0

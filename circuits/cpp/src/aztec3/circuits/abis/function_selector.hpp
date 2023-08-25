@@ -29,11 +29,11 @@ template <typename NCT> struct FunctionSelector {
         // Capture the circuit builder:
         auto to_ct = [&](auto& e) { return aztec3::utils::types::to_ct(builder, e); };
 
-        FunctionSelector<CircuitTypes<Builder>> function_selector = {
+        FunctionSelector<CircuitTypes<Builder>> selector = {
             to_ct(value),
         };
 
-        return function_selector;
+        return selector;
     };
 
     template <typename Builder> FunctionSelector<NativeTypes> to_native_type() const
@@ -41,11 +41,11 @@ template <typename NCT> struct FunctionSelector {
         static_assert(std::is_same<CircuitTypes<Builder>, NCT>::value);
         auto to_nt = [&](auto& e) { return aztec3::utils::types::to_nt<Builder>(e); };
 
-        FunctionSelector<NativeTypes> function_selector = {
+        FunctionSelector<NativeTypes> selector = {
             to_nt(value),
         };
 
-        return function_selector;
+        return selector;
     };
 
     void set_public()
