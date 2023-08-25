@@ -903,8 +903,8 @@ mod test {
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
-        builder.insert_constrain(v1, b_true);
+        let v_true = builder.numeric_constant(true, Type::bool());
+        builder.insert_constrain(v1, v_true);
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
@@ -1355,15 +1355,15 @@ mod test {
 
         let b1 = builder.insert_block();
         let b2 = builder.insert_block();
-        let v_false = builder.numeric_constant(0_u128, Type::bool());
+        let v_true = builder.numeric_constant(true, Type::bool());
+        let v_false = builder.numeric_constant(false, Type::bool());
         builder.terminate_with_jmpif(v_false, b1, b2);
 
         builder.switch_to_block(b1);
         builder.terminate_with_jmp(b2, vec![]);
 
         builder.switch_to_block(b2);
-        let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
-        builder.insert_constrain(v_false, b_true); // should not be removed
+        builder.insert_constrain(v_false, v_true); // should not be removed
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
@@ -1444,9 +1444,9 @@ mod test {
         builder.terminate_with_jmp(b3, vec![]);
 
         builder.switch_to_block(b3);
-        let b_true = builder.numeric_constant(1_u128, Type::unsigned(1));
-        let v12 = builder.insert_binary(v9, BinaryOp::Eq, b_true);
-        builder.insert_constrain(v12, b_true);
+        let v_true = builder.numeric_constant(true, Type::bool());
+        let v12 = builder.insert_binary(v9, BinaryOp::Eq, v_true);
+        builder.insert_constrain(v12, v_true);
         builder.terminate_with_return(vec![]);
 
         let ssa = builder.finish().flatten_cfg();
