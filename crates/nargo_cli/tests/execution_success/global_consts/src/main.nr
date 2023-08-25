@@ -78,16 +78,16 @@ fn arrays_neq(a: [Field; M], b: [Field; M]) {
 }
 
 mod mysubmodule {
-        global N: Field = 10;
-    global L: Field = 50;
+     global N: Field = 10;
+     global L: Field = 50;
 
-    fn my_bool_or(x: u1, y: u1) {
-        assert(x | y == 1);
-    }
+     fn my_bool_or(x: u1, y: u1) {
+          assert(x | y == 1);
+     }
 
-    fn my_helper() -> Field {
-        let N: Field = 15; // Like in Rust, local variables override globals
-        let x = N;
-        x
-    }
+     fn my_helper() -> Field {
+          let N: Field = 15; // Like in Rust, local variables override globals
+          let x = N;
+          x
+     }
 }
