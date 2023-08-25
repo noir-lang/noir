@@ -439,12 +439,10 @@ impl GeneratedAcir {
         let (q_witness, r_witness) =
             self.brillig_quotient(lhs.clone(), rhs.clone(), predicate.clone(), max_bit_size + 1);
 
-        // Apply range constraints to injected witness values.
-        // Constrains `q` to be 0 <= q < 2^{q_max_bits}, etc.
+        // Constrain `q < 2^{q_max_bits}`.
         self.range_constraint(q_witness, max_q_bits)?;
-        self.range_constraint(r_witness, max_rhs_bits)?;
 
-        // Constrain r < rhs
+        // Constrain `r < rhs`.
         self.bound_constraint_with_offset(&r_witness.into(), rhs, predicate, max_rhs_bits)?;
 
         // a * predicate == (b * q + r) * predicate
