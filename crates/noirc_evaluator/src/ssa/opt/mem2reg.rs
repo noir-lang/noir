@@ -509,7 +509,6 @@ mod tests {
     use im::vector;
 
     use crate::ssa::{
-        ssa_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
@@ -518,6 +517,7 @@ mod tests {
             map::Id,
             types::Type,
         },
+        ssa_builder::FunctionBuilder,
     };
 
     #[test]
