@@ -238,15 +238,18 @@ struct PackageMetadata {
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
 enum DependencyConfig {
-    Github { git: String, tag: String },
+    Github { git: String, tag: String, directory: Option<String> },
     Path { path: String },
 }
 
 impl DependencyConfig {
     fn resolve_to_dependency(&self, pkg_root: &Path) -> Result<Dependency, ManifestError> {
         let dep = match self {
-            Self::Github { git, tag } => {
-                let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
+            Self::Github { git, tag, directory } => {
+                let mut dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
+                if let Some(directory) = directory {
+                    dir_path = dir_path.join(directory);
+                }
                 let toml_path = dir_path.join("Nargo.toml");
                 let package = resolve_package_from_toml(&toml_path)?;
                 Dependency::Remote { package }
