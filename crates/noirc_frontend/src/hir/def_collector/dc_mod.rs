@@ -104,7 +104,7 @@ fn check_trait_method_implementation_return_type(
     impl_method: &NoirFunction,
     trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
-    if expected_return_type.is_equivalent(&impl_method.def.return_type) {
+    if UnresolvedType::from(expected_return_type.clone()) == UnresolvedType::from(impl_method.def.return_type.clone()) {
         Ok(())
     } else {
         Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
@@ -337,8 +337,6 @@ impl<'a> ModCollector<'a> {
                             trait_impl_span: trait_impl.object_type_span,
                         };
                         errors.push(error.into_file_diagnostic(self.file_id));
-
-                        // Emit error that implementation of trait method is missing
                     }
                 }
             }
