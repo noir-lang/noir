@@ -717,7 +717,13 @@ where
         parenthesized(expr_parser.separated_by(just(Token::Comma)).exactly(2)),
     )
     .labelled(ParsingRuleLabel::Statement)
-    .map(|args| Statement::Constrain(ConstrainStatement(args[0].clone(), args[1].clone())))
+    .map(|exprs| {
+        if exprs.len() == 2 {
+            Statement::Constrain(ConstrainStatement(exprs[0].clone(), exprs[1].clone()))
+        } else {
+            Statement::Error
+        }
+    })
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
