@@ -44,17 +44,17 @@ fn accepts_closure3(f: fn[u32, u64]() -> u64) -> u64 {
 }
 
 fn main() {
-    assert_eq(ret_normal_lambda1()(), 10);
-    assert_eq(ret_normal_lambda2()(), 20);
-    assert_eq(ret_closure1()(), 30);
-    assert_eq(ret_closure2()(), 40);
-    assert_eq(ret_closure3()(), 40);
+    assert(ret_normal_lambda1()() == 10);
+    assert(ret_normal_lambda2()() == 20);
+    assert(ret_closure1()() == 30);
+    assert(ret_closure2()() == 40);
+    assert(ret_closure3()() == 40);
 
     let x = 50;
-    assert_eq(accepts_closure1(|| x), 50);
-    assert_eq(accepts_closure2(|| x + 10)(), 60);
+    assert(accepts_closure1(|| x) == 50);
+    assert(accepts_closure2(|| x + 10)() == 60);
 
     let y: u32 = 30;
     let z: u64 = 40;
-    assert_eq(accepts_closure3(|| y as u64 + z), 70);
+    assert(accepts_closure3(|| y as u64 + z) == 70);
 }

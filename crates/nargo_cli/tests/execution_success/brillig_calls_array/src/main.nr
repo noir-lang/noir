@@ -2,7 +2,7 @@
 // 
 // The features being tested is brillig calls passing arrays around
 fn main(x: [u32; 3])  {
-    assert_eq(entry_point(x), 9);
+    assert(entry_point(x) == 9);
     another_entry_point(x);
 }
 
@@ -22,12 +22,12 @@ unconstrained fn nested_fn_that_allocates(value: u32) -> u32 {
 }
 
 unconstrained fn another_entry_point(x: [u32; 3]) {
-    assert_eq(x[0], 1);
-    assert_eq(x[1], 2);
-    assert_eq(x[2], 3);
-    assert_eq(nested_fn_that_allocates(1), 6);
+    assert(x[0] == 1);
+    assert(x[1] == 2);
+    assert(x[2] == 3);
+    assert(nested_fn_that_allocates(1) == 6);
     // x should be unchanged
-    assert_eq(x[0], 1);
-    assert_eq(x[1], 2);
-    assert_eq(x[2], 3);
+    assert(x[0] == 1);
+    assert(x[1] == 2);
+    assert(x[2] == 3);
 }

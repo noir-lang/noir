@@ -4,5 +4,5 @@
 fn main(x : u32)  {
     let z = x >> 4;
     let t = x << 4;
-    assert_eq(z, t >> 8);
+    assert(z == t >> 8);
 }

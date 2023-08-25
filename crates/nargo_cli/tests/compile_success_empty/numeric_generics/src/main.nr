@@ -3,15 +3,15 @@ fn main() {
     let b = id([1, 2, 3]);
 
     let itWorks1 = MyStruct { data: a };
-    assert_eq(itWorks1.data[1], 2);
+    assert(itWorks1.data[1] == 2);
     let itWorks2 = MyStruct { data: b };
-    assert_eq(itWorks2.data[1], 2);
+    assert(itWorks2.data[1] == 2);
 
     let c = [1, 2];
     let itAlsoWorks = MyStruct { data: c };
-    assert_eq(itAlsoWorks.data[1], 2);
+    assert(itAlsoWorks.data[1] == 2);
 
-    assert_eq(foo(itWorks2).data[0], itWorks2.data[0] + 1);
+    assert(foo(itWorks2).data[0] == itWorks2.data[0] + 1);
 }
 
 fn id<I>(x: [Field; I]) -> [Field; I] {

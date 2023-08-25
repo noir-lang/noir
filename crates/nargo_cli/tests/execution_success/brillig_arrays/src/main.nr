@@ -8,10 +8,10 @@ fn main(x: [Field; 3])  {
 }
 
 unconstrained fn read_array(x: [Field; 3]) {
-    assert_eq(x[0], 1);
+    assert(x[0] == 1);
     let y = [1, 5, 27];
 
-    assert_eq(y[x[0]], 5);
+    assert(y[x[0]] == 5);
 }
 
 unconstrained fn read_write_array(x: [Field; 3]) {
@@ -19,11 +19,11 @@ unconstrained fn read_write_array(x: [Field; 3]) {
 
     y[0] = 5;
 
-    assert_eq(y[0], 5);
-    assert_eq(y[1], 2);
-    assert_eq(y[2], 3);
+    assert(y[0] == 5);
+    assert(y[1] == 2);
+    assert(y[2] == 3);
 
-    assert_eq(x[0], 1);
-    assert_eq(x[1], 2);
-    assert_eq(x[2], 3);
+    assert(x[0] == 1);
+    assert(x[1] == 2);
+    assert(x[2] == 3);
 }

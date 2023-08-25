@@ -10,9 +10,9 @@ fn main(mut x: Field) {
     };
 
     add1(&mut x);
-    assert_eq(x, 1);
+    assert(x == 1);
 
     add2(&mut x);
-    assert_eq(x, 3);
+    assert(x == 3);
 
 }

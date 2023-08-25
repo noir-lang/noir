@@ -3,11 +3,11 @@ fn main(x: u64) {
 	let three: u64 = 3;
 
 	// shifts on constant values
-	assert_eq(two << 2, 8);
-	assert_eq((two << 3) / 8, two);
-	assert_eq((three >> 1), 1);
+	assert(two << 2 == 8);
+	assert((two << 3) / 8 == two);
+	assert((three >> 1) == 1);
 
 	// shifts on runtime values
-	assert_eq(x << 1, 128);
-	assert_eq(x >> 2, 16);
+	assert(x << 1 == 128);
+	assert(x >> 2 == 16);
 }

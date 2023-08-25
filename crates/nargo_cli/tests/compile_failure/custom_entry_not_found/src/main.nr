@@ -1,3 +1,3 @@
 fn main(x: Field) {
-    assert_eq(x, 1);
+    assert(x == 1);
 }

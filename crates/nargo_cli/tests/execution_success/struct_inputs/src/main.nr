@@ -12,23 +12,23 @@ fn main(x : Field, y : pub myStruct, z: pub foo::bar::barStruct, a: pub foo::foo
     check_inner_struct(a, z);
 
     for i in 0 .. struct_from_bar.array.len() {
-        assert_eq(struct_from_bar.array[i], z.array[i]);
+        assert(struct_from_bar.array[i] == z.array[i]);
     }
-    assert_eq(z.val, struct_from_bar.val);
+    assert(z.val == struct_from_bar.val);
 
-    assert_eq((struct_from_bar.val * x), x);
+    assert((struct_from_bar.val * x) == x);
 
     assert(x != y.bar);
 
-    assert_eq(y.message, "hello");
-    assert_eq(a.bar_struct.message, struct_from_bar.message);
+    assert(y.message == "hello");
+    assert(a.bar_struct.message == struct_from_bar.message);
     
     a.bar_struct.array[1]
 }
 
 fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
-    assert_eq(a.bar_struct.val, z.val);
+    assert(a.bar_struct.val == z.val);
     for i in 0.. a.bar_struct.array.len() {
-        assert_eq(a.bar_struct.array[i], z.array[i]);
+        assert(a.bar_struct.array[i] == z.array[i]);
     }
 }

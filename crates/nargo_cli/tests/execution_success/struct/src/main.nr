@@ -56,22 +56,22 @@ fn main(x: Field, y: Field) {
     let first = Foo::default(x,y);
     let p = Pair { first, second: 1 };
 
-    assert_eq(p.bar(), x);
-    assert_eq(p.second, y);
+    assert(p.bar() == x);
+    assert(p.second == y);
     assert(p.first.array[0] != p.first.array[1]);
 
     // Nested structs
     let (struct_from_tuple, a_bool) = test_struct_in_tuple(true,x,y);
-    assert_eq(struct_from_tuple.my_bool, true);
-    assert_eq(a_bool, true);
-    assert_eq(struct_from_tuple.my_int, 5);
-    assert_eq(struct_from_tuple.my_nest.a, 0);
+    assert(struct_from_tuple.my_bool == true);
+    assert(a_bool == true);
+    assert(struct_from_tuple.my_int == 5);
+    assert(struct_from_tuple.my_nest.a == 0);
 
     // Regression test for issue #670
     let Animal { legs, eyes } = get_dog();
     let six = legs + eyes as Field;
 
-    assert_eq(six, 6);
+    assert(six == 6);
 
     let Animal { legs: _, eyes: _ } = get_dog();
 }

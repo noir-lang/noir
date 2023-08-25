@@ -8,5 +8,5 @@ fn main() {
         cl_inner(1) + z1
     };
     let result = cl_outer(1);
-    assert_eq(result, 3);
+    assert(result == 3);
 }

@@ -6,7 +6,7 @@ struct myStruct {
 }
 
 fn main(y : pub myStruct) {
-    assert_eq(y.foo, 5);
-    assert_eq(y.bar, 7);
+    assert(y.foo == 5);
+    assert(y.bar == 7);
 }
 
