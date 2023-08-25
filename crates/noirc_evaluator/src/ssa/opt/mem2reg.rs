@@ -55,12 +55,12 @@
 //! referenced by the terminator instruction.
 //!
 //! Repeating this algorithm for each block in the function in program order should result in
-//! optimizing out most known loads. However, identifying all aliases correctly has been proven 
+//! optimizing out most known loads. However, identifying all aliases correctly has been proven
 //! undecidable in general (Landi, 1992). So this pass will not always optimize out all loads
 //! that could theoretically be optimized out. This pass can be performed at any time in the
 //! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
 //! This pass is currently performed several times to enable other passes - most notably being
-//! performed before loop unrolling to try to allow for mutable variables used for for loop indices. 
+//! performed before loop unrolling to try to allow for mutable variables used for for loop indices.
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ssa::{
@@ -213,12 +213,32 @@ impl PerFunctionContext {
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
         if self.post_order.as_slice().len() == 1 {
-            for (_, instruction) in last_stores {
-                self.instructions_to_remove.insert(instruction);
-            }
+            self.remove_stores_that_do_not_alias_parameters(function, &references, last_stores);
         }
 
         self.blocks.insert(block, references);
+    }
+
+    /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
+    /// possibly alias any parameters of the given function.
+    fn remove_stores_that_do_not_alias_parameters(&mut self, function: &Function, references: &Block, last_stores: BTreeMap<ValueId, InstructionId>)  {
+        let reference_parameters = function
+            .parameters()
+            .iter()
+            .filter(|param| function.dfg.type_of_value(**param) == Type::Reference)
+            .collect::<BTreeSet<_>>();
+
+        for (allocation, instruction) in last_stores {
+            if let Some(expression) = references.expressions.get(&allocation) {
+                if let Some(aliases) = references.aliases.get(expression) {
+                    let allocation_aliases_parameter = !aliases.iter().any(|alias| reference_parameters.contains(alias));
+
+                    if !aliases.is_empty() && !allocation_aliases_parameter {
+                        self.instructions_to_remove.insert(instruction);
+                    }
+                }
+            }
+        }
     }
 
     fn analyze_instruction(
