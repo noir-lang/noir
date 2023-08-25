@@ -24,6 +24,9 @@ jobs:
           - os: ubuntu
             runner: ubuntu-latest
             target: x86_64-linux
+          - os: macos
+            runner: macos-latest
+            target: x86_64-darwin
 
     steps:
       - name: Checkout
