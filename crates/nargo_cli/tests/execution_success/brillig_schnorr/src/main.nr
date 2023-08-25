@@ -22,6 +22,11 @@ unconstrained fn main(message: [u8; 10], message_field: Field, pub_key_x: Field,
     }
     // Is there ever a situation where someone would want 
     // to ensure that a signature was invalid?
+    // Check that passing a slice is valid
     let valid_signature = std::schnorr::verify_signature(pub_key_x,pub_key_y,signature, message_field_bytes);
+    assert(valid_signature);
+
+    // Check that passing an array is valid
+    let valid_signature = std::schnorr::verify_signature(pub_key_x,pub_key_y,signature, message);
     assert(valid_signature);
 }
