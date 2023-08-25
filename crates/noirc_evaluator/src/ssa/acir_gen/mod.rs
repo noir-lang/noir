@@ -361,13 +361,11 @@ impl Context {
                                 block_id: rhs_block_id,
                                 ..
                             }),
-                        ) => {
-                            Ok(try_vecmap(0..len, |i| {
-                                let lhs_var = read_from_index(lhs_block_id, i)?;
-                                let rhs_var = read_from_index(rhs_block_id, i)?;
-                                ((lhs_var, rhs_var))
-                            })?)
-                        }
+                        ) => try_vecmap(0..len, |i| {
+                            let lhs_var = read_from_index(lhs_block_id, i)?;
+                            let rhs_var = read_from_index(rhs_block_id, i)?;
+                            Ok((lhs_var, rhs_var))
+                        }),
                         _ => unreachable!("ICE: lhs and rhs should be of the same type"),
                     }
                 }
