@@ -665,7 +665,7 @@ impl Display for FunctionReturnType {
 }
 
 impl FunctionReturnType {
-    pub fn is_equivelent(&self, other: &FunctionReturnType) -> bool {
+    pub fn is_equivalent(&self, other: &FunctionReturnType) -> bool {
         match self {
             FunctionReturnType::Default(_span) => match other {
                 FunctionReturnType::Default(_span) => true,

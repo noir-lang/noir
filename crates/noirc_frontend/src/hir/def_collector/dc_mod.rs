@@ -104,7 +104,7 @@ fn check_trait_method_implementation_return_type(
     impl_method: &NoirFunction,
     trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
-    if expected_return_type.is_equivelent(&impl_method.def.return_type) {
+    if expected_return_type.is_equivalent(&impl_method.def.return_type) {
         Ok(())
     } else {
         Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
