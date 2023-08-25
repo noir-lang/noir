@@ -101,8 +101,8 @@ fn count_opcodes_and_gates_in_package<B: Backend>(
     table.add_row(row![
         Fm->format!("{}", package.name),
         format!("{:?}", backend.np_language()),
-        Fc->format!("{}", num_opcodes),
-        Fc->format!("{}", exact_circuit_size),
+        Fc->format!("{num_opcodes}"),
+        Fc->format!("{exact_circuit_size}"),
     ]);
 
     Ok(())
