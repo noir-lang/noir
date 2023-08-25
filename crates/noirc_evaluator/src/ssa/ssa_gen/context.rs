@@ -291,7 +291,7 @@ impl<'a> FunctionContext<'a> {
         mut lhs: ValueId,
         operator: noirc_frontend::BinaryOpKind,
         mut rhs: ValueId,
-        location: Option<Location>,
+        location: Location,
     ) -> Values {
         let mut result = match operator {
             BinaryOpKind::ShiftLeft => self.insert_shift_left(lhs, rhs),
@@ -299,7 +299,7 @@ impl<'a> FunctionContext<'a> {
             BinaryOpKind::Equal | BinaryOpKind::NotEqual
                 if matches!(self.builder.type_of_value(lhs), Type::Array(..)) =>
             {
-                return self.insert_array_equality(lhs, operator, rhs, location.unwrap())
+                return self.insert_array_equality(lhs, operator, rhs, location)
             }
             _ => {
                 let op = convert_operator(operator);
@@ -307,10 +307,7 @@ impl<'a> FunctionContext<'a> {
                     std::mem::swap(&mut lhs, &mut rhs);
                 }
 
-                if let Some(location) = location {
-                    self.builder.set_location(location);
-                }
-                self.builder.insert_binary(lhs, op, rhs)
+                self.builder.set_location(location).insert_binary(lhs, op, rhs)
             }
         };
 
