@@ -19,6 +19,7 @@ export {
   PackedArguments,
   PublicKey,
   PrivateKey,
+  SyncStatus,
   Tx,
   TxExecutionRequest,
   TxHash,
