@@ -139,7 +139,7 @@ pub(crate) enum Instruction {
     /// Truncates `value` to `bit_size`
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
-    /// Constrains a value to be equal to true
+    /// Constrains two values to be equal to one another.
     Constrain(ValueId, ValueId),
 
     /// Performs a function call with a list of its arguments.
