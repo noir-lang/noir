@@ -1,5 +1,3 @@
-use dep::std;
-
 fn main(mut x: Field) {
     let one = 1;
     let add1 = |z| {

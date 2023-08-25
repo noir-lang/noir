@@ -1,5 +1,3 @@
-use dep::std;
-
 fn f(x: Field) -> Field {
     x + 1
 }
