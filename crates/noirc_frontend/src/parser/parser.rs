@@ -705,21 +705,20 @@ fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
 where
     P: ExprParser + 'a,
 {
-    ignore_then_commit(
-        keyword(Keyword::AssertEq),
-        parenthesized(expr_parser.separated_by(just(Token::Comma)).exactly(2)),
-    )
-    .labelled(ParsingRuleLabel::Statement)
-    .validate(|exprs: Vec<Expression>, span, _| {
-        Statement::Constrain(ConstrainStatement(Expression::new(
-            ExpressionKind::Infix(Box::new(InfixExpression {
-                lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
-                rhs: exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
-                operator: Spanned::from(span, BinaryOpKind::Equal),
-            })),
-            span,
-        )))
-    })
+    let argument_parser = expr_parser.separated_by(just(Token::Comma)).allow_trailing().exactly(2);
+
+    ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
+        .labelled(ParsingRuleLabel::Statement)
+        .validate(|exprs: Vec<Expression>, span, _| {
+            Statement::Constrain(ConstrainStatement(Expression::new(
+                ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
+                    rhs: exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
+                    operator: Spanned::from(span, BinaryOpKind::Equal),
+                })),
+                span,
+            )))
+        })
 }
 
 fn declaration<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
