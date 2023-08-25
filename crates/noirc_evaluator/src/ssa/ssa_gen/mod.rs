@@ -207,7 +207,7 @@ impl<'a> FunctionContext<'a> {
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
-                self.builder.insert_binary(zero, BinaryOp::Sub, rhs).into()
+                self.insert_binary(zero, noirc_frontend::BinaryOpKind::Subtract, rhs, unary.location)
             }
             noirc_frontend::UnaryOp::MutableReference => {
                 self.codegen_reference(&unary.rhs).map(|rhs| {

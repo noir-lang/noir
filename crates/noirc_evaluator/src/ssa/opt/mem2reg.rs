@@ -25,11 +25,11 @@
 //! - On `Instruction::Load { address }`:
 //!   - If `address` is known to only have a single alias (including itself) and if the value of
 //!     that alias is known, replace the value of the load with the known value.
-//!   - Furthermore, if the result of the load is a reference, mark that reference as an alias
+//!   - Furthermore, if the result of the load is a reference, mark the result as an alias
 //!     of the reference it dereferences to (if known).
 //!     - If which reference it dereferences to is not known, this load result has no aliases.
 //! - On `Instruction::Store { address, value }`:
-//!   - If the address of the store is known:
+//!   - If the address of the store is `Known(value)`:
 //!     - If the address has exactly 1 alias:
 //!       - Set the value of the address to `Known(value)`.
 //!     - If the address has more than 1 alias:
@@ -60,7 +60,7 @@
 //! that could theoretically be optimized out. This pass can be performed at any time in the
 //! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
 //! This pass is currently performed several times to enable other passes - most notably being
-//! performed before loop unrolling to try to allow for mutable variables used for for loop indices.
+//! performed before loop unrolling to try to allow for mutable variables used for loop indices.
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ssa::{
@@ -213,12 +213,40 @@ impl PerFunctionContext {
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
         if self.post_order.as_slice().len() == 1 {
-            for (_, instruction) in last_stores {
-                self.instructions_to_remove.insert(instruction);
-            }
+            self.remove_stores_that_do_not_alias_parameters(function, &references, last_stores);
         }
 
         self.blocks.insert(block, references);
+    }
+
+    /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
+    /// possibly alias any parameters of the given function.
+    fn remove_stores_that_do_not_alias_parameters(
+        &mut self,
+        function: &Function,
+        references: &Block,
+        last_stores: BTreeMap<ValueId, InstructionId>,
+    ) {
+        let reference_parameters = function
+            .parameters()
+            .iter()
+            .filter(|param| function.dfg.type_of_value(**param) == Type::Reference)
+            .collect::<BTreeSet<_>>();
+
+        for (allocation, instruction) in last_stores {
+            if let Some(expression) = references.expressions.get(&allocation) {
+                if let Some(aliases) = references.aliases.get(expression) {
+                    let allocation_aliases_parameter =
+                        aliases.iter().any(|alias| reference_parameters.contains(alias));
+
+                    if !aliases.is_empty() && !allocation_aliases_parameter {
+                        self.instructions_to_remove.insert(instruction);
+                    }
+                }
+            } else {
+                self.instructions_to_remove.insert(instruction);
+            }
+        }
     }
 
     fn analyze_instruction(

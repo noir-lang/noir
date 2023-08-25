@@ -306,6 +306,7 @@ impl<'a> FunctionContext<'a> {
                 if operator_requires_swapped_operands(operator) {
                     std::mem::swap(&mut lhs, &mut rhs);
                 }
+
                 self.builder.set_location(location).insert_binary(lhs, op, rhs)
             }
         };
