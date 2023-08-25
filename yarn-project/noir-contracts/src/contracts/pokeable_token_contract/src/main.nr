@@ -5,7 +5,7 @@ contract PokeableToken {
     // Libs
     use dep::value_note::{
         balance_utils,
-        utils::{send_note, spend_notes},
+        utils::increment,
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods, ValueNote},
     };
     use dep::aztec::abi;
@@ -43,7 +43,7 @@ contract PokeableToken {
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let sender_balance = storage.balances.at(sender);
-        send_note(&mut context, sender_balance, initial_supply, sender);
+        increment(&mut context, sender_balance, initial_supply, sender);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -90,7 +90,7 @@ contract PokeableToken {
 
         // Create new note for the recipient.
         let recipient_balance = storage.balances.at(recipient);
-        send_note(&mut context, recipient_balance, note_sum, recipient);
+        increment(&mut context, recipient_balance, note_sum, recipient);
         
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()

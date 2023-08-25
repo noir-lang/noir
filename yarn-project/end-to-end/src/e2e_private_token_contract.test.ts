@@ -92,7 +92,7 @@ describe('e2e_private_token_contract', () => {
 
     await expectsNumOfEncryptedLogsInTheLastBlockToBe(aztecNode, 1);
 
-    const tx = contract.methods.transfer(transferAmount, owner, receiver).send({ origin: owner });
+    const tx = contract.methods.transfer(transferAmount, receiver).send({ origin: owner });
 
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();

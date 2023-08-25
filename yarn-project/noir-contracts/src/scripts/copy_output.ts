@@ -22,7 +22,7 @@ const PROJECT_CONTRACTS = [
   { name: 'EcdsaAccount', target: '../aztec.js/src/abis/', exclude: [] },
 ];
 
-const INTERFACE_CONTRACTS = ['test'];
+const INTERFACE_CONTRACTS = ['private_token', 'private_token_airdrop', 'test'];
 
 /**
  * Writes the contract to a specific project folder, if needed.
@@ -90,7 +90,7 @@ const main = () => {
 
   // Write a .nr contract interface, for consumption by other Noir Contracts
   if (INTERFACE_CONTRACTS.includes(name)) {
-    const noirInterfaceDestFilePath = `${projectDirPath}/src/${projectName}_interface.nr`;
+    const noirInterfaceDestFilePath = `${projectDirPath}/src/interface.nr`;
     try {
       writeFileSync(noirInterfaceDestFilePath, generateNoirContractInterface(artifactJson));
       log(`Written ${noirInterfaceDestFilePath}`);

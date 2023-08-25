@@ -66,9 +66,7 @@ async function main() {
 
   // Perform a transfer
   logger(`Transferring ${SECONDARY_AMOUNT} tokens from owner to another account.`);
-  const transferTx = zkContract.methods
-    .transfer(SECONDARY_AMOUNT, owner.address, account2.address)
-    .send({ origin: owner.address });
+  const transferTx = zkContract.methods.transfer(SECONDARY_AMOUNT, account2.address).send({ origin: owner.address });
   await transferTx.isMined({ interval: 0.5 });
   const balanceAfterTransfer = await getBalance(zkContract, owner.address);
   const receiverBalance = await getBalance(zkContract, account2.address);

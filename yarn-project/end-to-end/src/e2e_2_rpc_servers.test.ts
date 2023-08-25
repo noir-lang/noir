@@ -110,9 +110,7 @@ describe('e2e_2_rpc_servers', () => {
 
     // Transfer funds from A to B via RPC server A
     const contractWithWalletA = await PrivateTokenContract.at(tokenAddress, walletA);
-    const txAToB = contractWithWalletA.methods
-      .transfer(transferAmount1, userA.address, userB.address)
-      .send({ origin: userA.address });
+    const txAToB = contractWithWalletA.methods.transfer(transferAmount1, userB.address).send({ origin: userA.address });
 
     await txAToB.isMined({ interval: 0.1 });
     const receiptAToB = await txAToB.getReceipt();
@@ -126,9 +124,7 @@ describe('e2e_2_rpc_servers', () => {
 
     // Transfer funds from B to A via RPC server B
     const contractWithWalletB = await PrivateTokenContract.at(tokenAddress, walletB);
-    const txBToA = contractWithWalletB.methods
-      .transfer(transferAmount2, userB.address, userA.address)
-      .send({ origin: userB.address });
+    const txBToA = contractWithWalletB.methods.transfer(transferAmount2, userA.address).send({ origin: userB.address });
 
     await txBToA.isMined({ interval: 0.1 });
     const receiptBToA = await txBToA.getReceipt();

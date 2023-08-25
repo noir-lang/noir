@@ -81,7 +81,7 @@ describe('e2e_multiple_accounts_1_enc_key', () => {
 
     const contractWithWallet = await PrivateTokenContract.at(privateTokenAddress, wallets[senderIndex]);
 
-    const tx = contractWithWallet.methods.transfer(transferAmount, sender, receiver).send({ origin: sender });
+    const tx = contractWithWallet.methods.transfer(transferAmount, receiver).send({ origin: sender });
     await tx.isMined({ interval: 0.1 });
     const receipt = await tx.getReceipt();
 

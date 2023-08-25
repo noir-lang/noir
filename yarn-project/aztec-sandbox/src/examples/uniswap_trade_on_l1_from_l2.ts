@@ -153,9 +153,7 @@ const transferWethOnL2 = async (
   receiver: AztecAddress,
   transferAmount: bigint,
 ) => {
-  const transferTx = wethL2Contract.methods
-    .transfer(transferAmount, ownerAddress, receiver)
-    .send({ origin: ownerAddress });
+  const transferTx = wethL2Contract.methods.transfer(transferAmount, receiver).send({ origin: ownerAddress });
   await transferTx.isMined({ interval: 0.5 });
   const transferReceipt = await transferTx.getReceipt();
   // expect(transferReceipt.status).toBe(TxStatus.MINED);

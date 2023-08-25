@@ -4,7 +4,7 @@ contract PrivateToken {
     // Libs
     use dep::value_note::{
         balance_utils,
-        utils::{send_note, spend_notes},
+        utils::{increment, decrement},
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods},
     };
 
@@ -36,7 +36,7 @@ contract PrivateToken {
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
         if (initial_supply != 0) {
-            send_note(&mut context, owner_balance, initial_supply, owner);
+            increment(&mut context, owner_balance, initial_supply, owner);
         }
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
@@ -59,7 +59,7 @@ contract PrivateToken {
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
-        send_note(&mut context, owner_balance, amount, owner);
+        increment(&mut context, owner_balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
@@ -67,27 +67,27 @@ contract PrivateToken {
     // docs:end:mint
 
     // docs:start:transfer
-    // Transfers `amount` of tokens from `sender` to a `recipient`.
+    // Transfers `amount` of tokens from msg_sender to a `recipient`.
     fn transfer(
         //*********************************/
         // Should eventually be hidden:
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field, 
-        sender: Field, 
         recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, sender, recipient]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, recipient]));
+        let sender = context.msg_sender();
 
         // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender);
-        spend_notes(&mut context, sender_balance, amount, sender);
+        decrement(&mut context, sender_balance, amount, sender);
 
         // Creates new note for the recipient.
         let recipient_balance = storage.balances.at(recipient);
-        send_note(&mut context, recipient_balance, amount, recipient);
-
+        increment(&mut context, recipient_balance, amount, recipient);
+        
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
     }

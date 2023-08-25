@@ -1,1 +1,1 @@
-../../test_contract/src/test_contract_interface.nr
+../../test_contract/src/interface.nr

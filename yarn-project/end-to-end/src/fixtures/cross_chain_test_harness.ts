@@ -157,8 +157,8 @@ export class CrossChainTestHarness {
   async performL2Transfer(transferAmount: bigint) {
     // send a transfer tx to force through rollup with the message included
     const transferTx = this.l2Contract.methods
-      .transfer(transferAmount, this.ownerAddress, this.receiver)
-      .send({ origin: this.accounts[0].address });
+      .transfer(transferAmount, this.receiver)
+      .send({ origin: this.ownerAddress });
 
     await transferTx.isMined({ interval: 0.1 });
     const transferReceipt = await transferTx.getReceipt();
@@ -270,7 +270,7 @@ export class CrossChainTestHarness {
   async unshieldTokensOnL2(unshieldAmount: bigint) {
     this.logger('Unshielding tokens');
     const unshieldTx = this.l2Contract.methods
-      .unshieldTokens(unshieldAmount, this.ownerAddress, this.ownerAddress)
+      .unshieldTokens(unshieldAmount, this.ownerAddress)
       .send({ origin: this.ownerAddress });
     await unshieldTx.isMined();
     const unshieldReceipt = await unshieldTx.getReceipt();

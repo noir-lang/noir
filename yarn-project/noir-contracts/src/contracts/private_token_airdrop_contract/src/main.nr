@@ -1,11 +1,12 @@
 mod claim_note;
+mod interface;
 mod storage;
 
 contract PrivateTokenAirdrop {
     // Libs
     use dep::value_note::{
         balance_utils,
-        utils::{send_note, spend_notes, send_notes, spend_one_note},
+        utils::{increment, decrement, decrement_by_at_most},
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods},
     };
 
@@ -13,6 +14,7 @@ contract PrivateTokenAirdrop {
     use dep::aztec::abi::PrivateContextInputs;
     use dep::aztec::context::PrivateContext;
     use dep::aztec::note::{
+        note_getter_options::NoteGetterOptions,
         note_header::NoteHeader,
         utils as note_utils,
     };
@@ -20,6 +22,7 @@ contract PrivateTokenAirdrop {
 
     use crate::storage::Storage;
     use crate::claim_note::{ClaimNote, ClaimNoteMethods};
+    use crate::interface::PrivateTokenAirdropContractInterface;
 
 
     // Constructs the contract and sets `initial_supply` which is fully owned by `owner`.
@@ -37,7 +40,7 @@ contract PrivateTokenAirdrop {
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
         if (initial_supply != 0) {
-            send_note(&mut context, owner_balance, initial_supply, owner);
+            increment(&mut context, owner_balance, initial_supply, owner);
         }
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
@@ -58,8 +61,46 @@ contract PrivateTokenAirdrop {
 
         // Insert new note to a set of user notes and emit the newly created encrypted note preimage via oracle call.
         let owner_balance = storage.balances.at(owner);
-        send_note(&mut context, owner_balance, amount, owner);
+        increment(&mut context, owner_balance, amount, owner);
 
+        // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
+        context.finish()
+    }
+
+    // Burn `amount` of tokens from `owner`'s balance.
+    // This is an example of a recursive function. It calls itself until enough notes have been burned to burn the `amount`.
+    fn burn(
+        //*********************************/
+        // Should eventually be hidden:
+        inputs: PrivateContextInputs,
+        //*********************************/
+        amount: Field,
+        owner: Field,
+    ) -> distinct pub abi::PrivateCircuitPublicInputs {
+        let storage = Storage::init();
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, owner]));
+
+        let msg_sender = context.msg_sender();
+        let this_address = context.this_address();
+
+        // If this function is not called by another function in the same contract, the owner must be msg_sender.
+        if msg_sender != this_address {
+            assert(owner == msg_sender);
+        }
+
+        let balance = storage.balances.at(owner);
+        let sum = decrement_by_at_most(&mut context, balance, amount, owner);
+
+        // If sum is 0, there are no notes to be burned.
+        assert(sum != 0);
+
+        if sum != amount {
+            // The destroyed notes' sum is not enough. Keep burning.
+            let amount_to_burn = amount - sum;
+            let this = PrivateTokenAirdropContractInterface::at(this_address);
+            let _res = this.burn(&mut context, amount_to_burn, owner);
+        }
+        
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
     }
@@ -71,20 +112,33 @@ contract PrivateTokenAirdrop {
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field, 
-        sender: Field, 
         recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, sender, recipient]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, recipient]));
 
-        // Pick from the set of sender's notes to spend amount.
+        let sender = context.msg_sender();
         let sender_balance = storage.balances.at(sender);
-        spend_notes(&mut context, sender_balance, amount, sender);
 
-        // Creates new note for the recipient.
+        let sum = decrement_by_at_most(&mut context, sender_balance, amount, sender);
+
+        // If sum is 0, there are no notes to be used.
+        assert(sum != 0);
+
+        if sum != amount {
+            // The destroyed notes' sum is not enough for the transfer.
+            // Burn the remaining amount.
+            // We only call burn() when decrement_by_at_most() didn't destroy enough notes.
+            let amount_to_burn = amount - sum;
+            let this_address = context.this_address();
+            let this = PrivateTokenAirdropContractInterface::at(this_address);
+            let _res = this.burn(&mut context, amount_to_burn, sender);
+        }
+
+        // Create a new note for the recipient.
         let recipient_balance = storage.balances.at(recipient);
-        send_note(&mut context, recipient_balance, amount, recipient);
-
+        increment(&mut context, recipient_balance, amount, recipient);
+        
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
     }
@@ -96,15 +150,15 @@ contract PrivateTokenAirdrop {
         //*********************************/
         amounts: [Field; 2], 
         secrets: [Field; 2], 
-        sender: Field
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = PrivateContext::new(inputs, abi::hash_args([amounts[0], amounts[1], secrets[0], secrets[1], sender]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amounts[0], amounts[1], secrets[0], secrets[1]]));
+        let sender = context.msg_sender();
 
         // Pick from the set of sender's notes to spend amount.
         let sender_balance = storage.balances.at(sender);
         let total = amounts[0] + amounts[1];
-        spend_notes(&mut context, sender_balance, total, sender);
+        decrement(&mut context, sender_balance, total, sender);
 
         // Create claim notes.
         let claims = storage.claims;
@@ -137,7 +191,7 @@ contract PrivateTokenAirdrop {
 
         // Send the value note.
         let balance = storage.balances.at(owner);
-        send_note(&mut context, balance, amount, owner);
+        increment(&mut context, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel..
         context.finish()
@@ -172,14 +226,29 @@ contract PrivateTokenAirdrop {
         // Spends the first of those 4 notes.
         let sender_balance = storage.balances.at(sender);
         let total = amounts[0] + amounts[1] + amounts[2];
-        spend_one_note(&mut context, sender_balance, total, sender, spend_note_offset);
+
+        let options = NoteGetterOptions::new().set_limit(1).set_offset(spend_note_offset);
+        let opt_notes = sender_balance.get_notes(&mut context, options);
+
+        // The note should always exist.
+        let note = opt_notes[0].unwrap_unchecked();
+
+        assert(note.owner == sender);
+
+        sender_balance.remove(&mut context, note);
+        
+        // Assert that the note chosen to spend has enough funds.
+        assert(note.value as u64 >= total as u64);
+
+        // Add the change value back to the owner's balance.
+        let change_value = note.value - total;
+        increment(&mut context, sender_balance, change_value, sender);
 
         // Creates new note for the recipient.
-        let recipient1_balance = storage.balances.at(recipients[0]);
-        let recipient2_balance = storage.balances.at(recipients[1]);
-        let recipient3_balance = storage.balances.at(recipients[2]);
-
-        send_notes(&mut context, [recipient1_balance, recipient2_balance, recipient3_balance], amounts, recipients);
+        for i in 0..3 {
+            let recipient_balance = storage.balances.at(recipients[i]);
+            increment(&mut context, recipient_balance, amounts[i], recipients[i]);
+        }
 
         // Also emit an unencrypted log, eg. "Coins transferred"
         // In this example, we emit the first output note's commitment to ensure that the unencrypted log

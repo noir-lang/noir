@@ -33,7 +33,7 @@ impl EasyPrivateUint {
         }
     }
 
-    // Very similar to `send_note`.
+    // Very similar to `value_note::utils::increment`.
     fn add(
         self,
         context: &mut PrivateContext,
@@ -57,7 +57,7 @@ impl EasyPrivateUint {
         );
     }
 
-    // Very similar to `spend_note`.
+    // Very similar to `value_note::utils::decrement`.
     fn sub(
         self,
         context: &mut PrivateContext,

@@ -86,13 +86,13 @@ describe('Private Execution test suite', () => {
   const runSimulator = async ({
     abi,
     args = [],
-    origin = AztecAddress.random(),
+    msgSender = AztecAddress.ZERO,
     contractAddress = defaultContractAddress,
     portalContractAddress = EthAddress.ZERO,
     txContext = {},
   }: {
     abi: FunctionAbi;
-    origin?: AztecAddress;
+    msgSender?: AztecAddress;
     contractAddress?: AztecAddress;
     portalContractAddress?: EthAddress;
     args?: any[];
@@ -101,7 +101,7 @@ describe('Private Execution test suite', () => {
     const packedArguments = await PackedArguments.fromArgs(encodeArguments(abi, args), circuitsWasm);
     const functionData = FunctionData.fromAbi(abi);
     const txRequest = TxExecutionRequest.from({
-      origin,
+      origin: contractAddress,
       argsHash: packedArguments.hash,
       functionData,
       txContext: TxContext.from({ ...txContextFields, ...txContext }),
@@ -113,6 +113,7 @@ describe('Private Execution test suite', () => {
       abi,
       functionData.isConstructor ? AztecAddress.ZERO : contractAddress,
       portalContractAddress,
+      msgSender,
     );
   };
 
@@ -301,12 +302,13 @@ describe('Private Execution test suite', () => {
       );
       await insertLeaves(consumedNotes.map(n => n.siloedNoteHash));
 
-      const args = [amountToTransfer, owner, recipient];
-      const result = await runSimulator({ args, abi });
+      const args = [amountToTransfer, recipient];
+      const result = await runSimulator({ args, abi, msgSender: owner });
 
       // The two notes were nullified
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
-      expect(newNullifiers).toEqual(consumedNotes.map(n => n.innerNullifier));
+      expect(newNullifiers).toHaveLength(consumedNotes.length);
+      expect(newNullifiers).toEqual(expect.arrayContaining(consumedNotes.map(n => n.innerNullifier)));
 
       expect(result.preimages.newNotes).toHaveLength(2);
       const [changeNote, recipientNote] = result.preimages.newNotes;
@@ -327,7 +329,8 @@ describe('Private Execution test suite', () => {
       expect(changeNote.preimage[0]).toEqual(new Fr(40n));
 
       const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
-      expect(readRequests).toEqual(consumedNotes.map(n => n.uniqueSiloedNoteHash));
+      expect(readRequests).toHaveLength(consumedNotes.length);
+      expect(readRequests).toEqual(expect.arrayContaining(consumedNotes.map(n => n.uniqueSiloedNoteHash)));
     });
 
     it('should be able to transfer with dummy notes', async () => {
@@ -345,8 +348,8 @@ describe('Private Execution test suite', () => {
       );
       await insertLeaves(consumedNotes.map(n => n.siloedNoteHash));
 
-      const args = [amountToTransfer, owner, recipient];
-      const result = await runSimulator({ args, abi });
+      const args = [amountToTransfer, recipient];
+      const result = await runSimulator({ args, abi, msgSender: owner });
 
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
       expect(newNullifiers).toEqual(consumedNotes.map(n => n.innerNullifier));
@@ -531,12 +534,13 @@ describe('Private Execution test suite', () => {
       );
       await insertLeaves(consumedNotes.map(n => n.siloedNoteHash));
 
-      const args = [amountToTransfer, owner, recipient];
-      const result = await runSimulator({ args, abi });
+      const args = [amountToTransfer, recipient];
+      const result = await runSimulator({ args, abi, msgSender: owner });
 
       // The two notes were nullified
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
-      expect(newNullifiers).toEqual(consumedNotes.map(n => n.innerNullifier));
+      expect(newNullifiers).toHaveLength(consumedNotes.length);
+      expect(newNullifiers).toEqual(expect.arrayContaining(consumedNotes.map(n => n.innerNullifier)));
 
       expect(result.preimages.newNotes).toHaveLength(2);
       const [changeNote, recipientNote] = result.preimages.newNotes;
@@ -557,7 +561,8 @@ describe('Private Execution test suite', () => {
       expect(changeNote.preimage[0]).toEqual(new Fr(40n));
 
       const readRequests = result.callStackItem.publicInputs.readRequests.filter(field => !field.equals(Fr.ZERO));
-      expect(readRequests).toEqual(consumedNotes.map(n => n.uniqueSiloedNoteHash));
+      expect(readRequests).toHaveLength(consumedNotes.length);
+      expect(readRequests).toEqual(expect.arrayContaining(consumedNotes.map(n => n.uniqueSiloedNoteHash)));
     });
 
     it('should be able to transfer with dummy notes', async () => {
@@ -575,8 +580,8 @@ describe('Private Execution test suite', () => {
       );
       await insertLeaves(consumedNotes.map(n => n.siloedNoteHash));
 
-      const args = [amountToTransfer, owner, recipient];
-      const result = await runSimulator({ args, abi });
+      const args = [amountToTransfer, recipient];
+      const result = await runSimulator({ args, abi, msgSender: owner });
 
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
       expect(newNullifiers).toEqual(consumedNotes.map(n => n.innerNullifier));
@@ -613,7 +618,7 @@ describe('Private Execution test suite', () => {
       logger(`Calling child function ${childSelector.toString()} at ${childAddress.toShortString()}`);
 
       const args = [Fr.fromBuffer(childAddress.toBuffer()), Fr.fromBuffer(childSelector.toBuffer())];
-      const result = await runSimulator({ args, abi: parentAbi, origin: parentAddress });
+      const result = await runSimulator({ args, abi: parentAbi });
 
       expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(new Fr(privateIncrement));
       expect(oracle.getFunctionABI.mock.calls[0]).toEqual([childAddress, childSelector]);
@@ -651,7 +656,6 @@ describe('Private Execution test suite', () => {
     });
 
     it('test function should be callable through autogenerated interface', async () => {
-      const importerAddress = AztecAddress.random();
       const testAddress = AztecAddress.random();
       const parentAbi = ImportTestContractAbi.functions.find(f => f.name === 'main')!;
       const testCodeGenSelector = FunctionSelector.fromNameAndParameters(
@@ -664,7 +668,7 @@ describe('Private Execution test suite', () => {
 
       logger(`Calling importer main function`);
       const args = [testAddress];
-      const result = await runSimulator({ args, abi: parentAbi, origin: importerAddress });
+      const result = await runSimulator({ args, abi: parentAbi });
 
       expect(result.callStackItem.publicInputs.returnValues[0]).toEqual(argsHash);
       expect(oracle.getFunctionABI.mock.calls[0]).toEqual([testAddress, testCodeGenSelector]);
@@ -716,7 +720,7 @@ describe('Private Execution test suite', () => {
       });
 
       const args = [bridgedAmount, recipient, messageKey, secret, canceller.toField()];
-      const result = await runSimulator({ origin: contractAddress, contractAddress, abi, args });
+      const result = await runSimulator({ contractAddress, abi, args });
 
       // Check a nullifier has been inserted
       const newNullifiers = result.callStackItem.publicInputs.newNullifiers.filter(field => !field.equals(Fr.ZERO));
@@ -751,7 +755,6 @@ describe('Private Execution test suite', () => {
       });
 
       const result = await runSimulator({
-        origin: contractAddress,
         abi,
         args: [amount, secret, recipient],
       });
@@ -781,7 +784,7 @@ describe('Private Execution test suite', () => {
 
       const args = [Fr.fromBuffer(childAddress.toBuffer()), childSelector.toField(), 42n];
       const result = await runSimulator({
-        origin: parentAddress,
+        msgSender: parentAddress,
         contractAddress: parentAddress,
         abi: parentAbi,
         args,
@@ -855,8 +858,7 @@ describe('Private Execution test suite', () => {
       const result = await runSimulator({
         args: args,
         abi: abi,
-        origin: contractAddress,
-        contractAddress: contractAddress,
+        contractAddress,
       });
 
       expect(result.preimages.newNotes).toHaveLength(1);
@@ -918,7 +920,6 @@ describe('Private Execution test suite', () => {
       const result = await runSimulator({
         args: args,
         abi: abi,
-        origin: contractAddress,
         contractAddress: contractAddress,
       });
 
@@ -972,8 +973,7 @@ describe('Private Execution test suite', () => {
       const result = await runSimulator({
         args: args,
         abi: abi,
-        origin: contractAddress,
-        contractAddress: contractAddress,
+        contractAddress,
       });
 
       expect(result.preimages.newNotes).toHaveLength(1);
@@ -1015,7 +1015,7 @@ describe('Private Execution test suite', () => {
       const pubKey = completeAddress.publicKey;
 
       oracle.getCompleteAddress.mockResolvedValue(completeAddress);
-      const result = await runSimulator({ origin: AztecAddress.random(), abi, args });
+      const result = await runSimulator({ abi, args });
       expect(result.returnValues).toEqual([pubKey.x.value, pubKey.y.value]);
     });
   });
@@ -1033,7 +1033,7 @@ describe('Private Execution test suite', () => {
 
       // Overwrite the oracle return value
       oracle.getPortalContractAddress.mockResolvedValue(portalContractAddress);
-      const result = await runSimulator({ origin: AztecAddress.random(), abi, args });
+      const result = await runSimulator({ abi, args });
       expect(result.returnValues).toEqual(portalContractAddress.toField().value);
     });
 
@@ -1045,7 +1045,7 @@ describe('Private Execution test suite', () => {
       abi.returnTypes = [{ kind: 'field' }];
 
       // Overwrite the oracle return value
-      const result = await runSimulator({ origin: AztecAddress.random(), abi, args: [], contractAddress });
+      const result = await runSimulator({ abi, args: [], contractAddress });
       expect(result.returnValues).toEqual(contractAddress.toField().value);
     });
 
@@ -1057,7 +1057,7 @@ describe('Private Execution test suite', () => {
       abi.returnTypes = [{ kind: 'field' }];
 
       // Overwrite the oracle return value
-      const result = await runSimulator({ origin: AztecAddress.random(), abi, args: [], portalContractAddress });
+      const result = await runSimulator({ abi, args: [], portalContractAddress });
       expect(result.returnValues).toEqual(portalContractAddress.toField().value);
     });
   });

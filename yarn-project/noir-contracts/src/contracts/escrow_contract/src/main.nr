@@ -1,5 +1,6 @@
 mod address_note;
 mod storage;
+mod private_token_contract_interface;
 
 // Sample escrow contract that stores a balance of a private token on behalf of an owner.
 contract Escrow {
@@ -25,6 +26,8 @@ contract Escrow {
     };
 
     use crate::storage::Storage;
+
+    use crate::private_token_contract_interface::PrivateTokenContractInterface;
 
     // Creates a new instance
     fn constructor(
@@ -69,8 +72,7 @@ contract Escrow {
         assert(note.owner == this);
 
         // TODO: Can we dynamically get this selector?
-        let transfer_selector = 0xdcd4c318;
-        let _callStackItem = context.call_private_function(token, transfer_selector, [amount, this, recipient]);
+        let _callStackItem = PrivateTokenContractInterface::at(token).transfer(&mut context, amount, recipient);
 
         context.finish()
     }

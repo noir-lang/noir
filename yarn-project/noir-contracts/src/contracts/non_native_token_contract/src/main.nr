@@ -20,7 +20,7 @@ contract NonNativeToken {
     // Libs
     use dep::value_note::{
         balance_utils,
-        utils::{send_note, spend_notes},
+        utils::{increment, decrement},
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods},
     };
 
@@ -65,7 +65,7 @@ contract NonNativeToken {
         let mut context = PrivateContext::new(inputs, abi::hash_args([initial_supply, owner]));
 
         let balance = storage.balances.at(owner);
-        send_note(&mut context, balance, initial_supply, owner);
+        increment(&mut context, balance, initial_supply, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -98,7 +98,7 @@ contract NonNativeToken {
         context.consume_l1_to_l2_message(inputs, msg_key, content_hash, secret);
 
         let balance = storage.balances.at(owner);
-        send_note(&mut context, balance, amount, owner);
+        increment(&mut context, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -113,7 +113,7 @@ contract NonNativeToken {
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field,
-        sender: Field,
+        sender: Field, // TODO: Should verify sender.
         recipient: Field, // ethereum address in the field
         callerOnL1: Field, // ethereum address that can call this function on the L1 portal (0x0 if anyone can call)
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
@@ -123,7 +123,7 @@ contract NonNativeToken {
         ]));
 
         let sender_balance = storage.balances.at(sender);
-        spend_notes(&mut context, sender_balance, amount, sender);
+        decrement(&mut context, sender_balance, amount, sender);
 
         let content = get_withdraw_content_hash(amount, recipient, callerOnL1);
         context.message_portal(content);
@@ -212,20 +212,18 @@ contract NonNativeToken {
         inputs: PrivateContextInputs,
         //*********************************/
         amount: Field,
-        sender: Field,
         recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = PrivateContext::new(inputs, abi::hash_args([
-            amount, sender, recipient
-        ]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, recipient]));
+        let sender = context.msg_sender();
 
         // Gets the set of sender's notes and picks 2 of those.
         let sender_balance = storage.balances.at(sender);
-        spend_notes(&mut context, sender_balance, amount, sender);
+        decrement(&mut context, sender_balance, amount, sender);
 
         let balance = storage.balances.at(recipient);
-        send_note(&mut context, balance, amount, recipient);
+        increment(&mut context, balance, amount, recipient);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -284,7 +282,7 @@ contract NonNativeToken {
 
         // Mint the tokens
         let balance = storage.balances.at(owner);
-        send_note(&mut context, balance, amount, owner);
+        increment(&mut context, balance, amount, owner);
 
         context.finish()
     }
@@ -292,17 +290,15 @@ contract NonNativeToken {
     fn unshieldTokens(
         inputs: PrivateContextInputs,
         amount: Field,
-        owner: Field,
         recipient: Field,
     ) -> distinct pub abi::PrivateCircuitPublicInputs {
         let storage = Storage::init();
-        let mut context = PrivateContext::new(inputs, abi::hash_args([
-            amount, owner, recipient
-        ]));
+        let mut context = PrivateContext::new(inputs, abi::hash_args([amount, recipient]));
+        let owner = context.msg_sender();
 
         // Remove user balance
         let sender_balance = storage.balances.at(owner);
-        spend_notes(&mut context, sender_balance, amount, owner);
+        decrement(&mut context, sender_balance, amount, owner);
 
         // enqueue a public function to perform the public state update.
         let thisAddress = context.this_address();

@@ -9,7 +9,7 @@ contract NativeToken {
     // Libs
     use dep::value_note::{
         balance_utils,
-        utils::{send_note, spend_notes},
+        utils::{increment, decrement},
         value_note::{VALUE_NOTE_LEN, ValueNoteMethods},
     };
 
@@ -55,7 +55,7 @@ contract NativeToken {
         let mut context = PrivateContext::new(inputs, abi::hash_args([initial_supply, owner]));
 
         let balance = storage.balances.at(owner);
-        send_note(&mut context, balance, initial_supply, owner);
+        increment(&mut context, balance, initial_supply, owner);
 
         context.finish()
     }
@@ -123,7 +123,7 @@ contract NativeToken {
         context.consume_l1_to_l2_message(inputs, msg_key, content_hash, secret);
 
         let balance = storage.balances.at(owner);
-        send_note(&mut context, balance, amount, owner);
+        increment(&mut context, balance, amount, owner);
 
         // Return private circuit public inputs. All private functions need to return this as it is part of the input of the private kernel.
         context.finish()
@@ -149,7 +149,7 @@ contract NativeToken {
         ]));
 
         let sender_balance = storage.balances.at(sender);
-        spend_notes(&mut context, sender_balance, amount, sender);
+        decrement(&mut context, sender_balance, amount, sender);
 
         let content = get_withdraw_content_hash(amount, recipient, callerOnL1);
         context.message_portal(content);
@@ -329,10 +329,10 @@ contract NativeToken {
 
         // Gets the set of sender's notes and picks 2 of those.
         let sender_balance = storage.balances.at(from);
-        spend_notes(&mut context, sender_balance, amount, from);
+        decrement(&mut context, sender_balance, amount, from);
 
         let balance = storage.balances.at(to);
-        send_note(&mut context, balance, amount, to);
+        increment(&mut context, balance, amount, to);
 
         context.finish()
     }
@@ -392,7 +392,7 @@ contract NativeToken {
 
         // Mint the tokens
         let balance = storage.balances.at(owner);
-        send_note(&mut context, balance, amount, owner);
+        increment(&mut context, balance, amount, owner);
 
         context.finish()
     }
@@ -411,7 +411,7 @@ contract NativeToken {
 
         // Remove user balance
         let sender_balance = storage.balances.at(from);
-        spend_notes(&mut context, sender_balance, amount, from);
+        decrement(&mut context, sender_balance, amount, from);
 
         // enqueue a public function to perform the public state update.
         let thisAddress = context.this_address();
