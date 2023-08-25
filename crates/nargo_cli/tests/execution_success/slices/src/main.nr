@@ -2,269 +2,54 @@ use dep::std::slice;
 use dep::std;
 
 fn main(x : Field, y : pub Field) {
-    // Dynamic indexing works on slice with constant length
-    // let mut slice = [0, 1, 2, 3, 4];
+    let mut slice = [0; 2];
+    assert(slice[0] == 0);
+    assert(slice[0] != 1);
+    slice[0] = x;
+    assert(slice[0] == x);
 
-    // Need to implement flattening on a dynamic length
-    // let mut slice = [];
-    // for i in 0..5 {
-    //     slice = slice.push_back(i);
-    // }
-    // let mut slice = [0, 1];
-    // if x != y {
-    //     slice = slice.push_back(y);
-    // } else {
-    //     slice = slice.push_back(x);
-    // }
-    // assert(slice.len() == 3);
-    // assert(slice[2] == 10);
+    let slice_plus_10 = slice.push_back(y);
+    assert(slice_plus_10[2] == 10);
+    assert(slice_plus_10[2] != 8);
+    assert(slice_plus_10.len() == 3);
 
-
-    // let mut slice = [0; 2];
-    // assert(slice[0] == 0);
-    // assert(slice[0] != 1);
-    // slice[0] = x;
-    // assert(slice[0] == x);
-
-    // let slice_plus_10 = slice.push_back(y);
-    // assert(slice_plus_10[2] == 10);
-    // assert(slice_plus_10[2] != 8);
-    // assert(slice_plus_10.len() == 3);
-
-    // let mut new_slice = [];
-    // for i in 0..5 {
-    //     new_slice = new_slice.push_back(i);
-    // }
-    // assert(new_slice.len() == 5);
-
-    // new_slice = new_slice.push_front(20);
-    // assert(new_slice[0] == 20);
-    // assert(new_slice.len() == 6);
-
-    // let (popped_slice, last_elem) = new_slice.pop_back();
-    // assert(last_elem == 4);
-    // assert(popped_slice.len() == 5);
-
-    // let (first_elem, rest_of_slice) = popped_slice.pop_front();
-    // assert(first_elem == 20);
-    // assert(rest_of_slice.len() == 4);
-
-    // new_slice = rest_of_slice.insert(2, 100);
-    // assert(new_slice[2] == 100);
-    // assert(new_slice[4] == 3);
-    // assert(new_slice.len() == 5);
-
-    // let (remove_slice, removed_elem) = new_slice.remove(3);
-    // assert(removed_elem == 2);
-    // assert(remove_slice[3] == 3);
-    // assert(remove_slice.len() == 4);
-
-    // let append = [1, 2].append([3, 4, 5]);
-    // assert(append.len() == 5);
-    // assert(append[0] == 1);
-    // assert(append[4] == 5);
-
-    // regression_2083();
-    // // The parameters to this function must come from witness values (inputs to main)
-    // regression_merge_slices(x, y);
-    regression_dynamic_slice_index(x - 1, x - 4);
-}
-
-fn regression_dynamic_slice_index(x: Field, y: Field) {
-    let mut slice = [];
+    let mut new_slice = [];
     for i in 0..5 {
-        slice = slice.push_back(i);
+        new_slice = new_slice.push_back(i);
     }
-    assert(slice.len() == 5);
-    
-    dynamic_slice_index_set_if(slice, x, y);
-    dynamic_slice_index_set_else(slice, x, y);
-    dynamic_slice_index_set_nested_if_else_else(slice, x, y);
-    dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
-    dynamic_slice_index_if(slice, x, y);
-    dynamic_slice_index_else(slice, x, y);
+    assert(new_slice.len() == 5);
 
-    dynamic_slice_merge_if(slice, x, y);
-    dynamic_slice_merge_else(slice, x, y);
-}
+    new_slice = new_slice.push_front(20);
+    assert(new_slice[0] == 20);
+    assert(new_slice.len() == 6);
 
-fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
-    assert(slice[x] == 4);
-    assert(slice[y] == 1);
-    slice[y] = 0;
-    assert(slice[x] == 4);
-    assert(slice[1] == 0);
-    if x as u32 < 10 {
-        assert(slice[x] == 4);
-        slice[x] = slice[x] - 2;
-        slice[x - 1] = slice[x];
-    } else {
-        slice[x] = 0;
-    }
-    assert(slice[3] == 2);
-    assert(slice[4] == 2);
-}
+    let (popped_slice, last_elem) = new_slice.pop_back();
+    assert(last_elem == 4);
+    assert(popped_slice.len() == 5);
 
-fn dynamic_slice_index_set_else(mut slice: [Field], x: Field, y: Field) {
-    assert(slice[x] == 4);
-    assert(slice[y] == 1);
-    slice[y] = 0;
-    assert(slice[x] == 4);
-    assert(slice[1] == 0);
-    if x as u32 > 10 {
-        assert(slice[x] == 4);
-        slice[x] = slice[x] - 2;
-        slice[x - 1] = slice[x];
-    } else {
-        slice[x] = 0;
-    }
-    assert(slice[4] == 0);
-}
+    let (first_elem, rest_of_slice) = popped_slice.pop_front();
+    assert(first_elem == 20);
+    assert(rest_of_slice.len() == 4);
 
-// This tests the case of missing a store instruction in the else branch
-// of merging slices
-fn dynamic_slice_index_if(mut slice: [Field], x: Field, y: Field) {
-    if x as u32 < 10 {
-        assert(slice[x] == 4);
-        slice[x] = slice[x] - 2;
-    } else {
-        assert(slice[x] == 0);
-    }
-    assert(slice[4] == 2);
-}
+    new_slice = rest_of_slice.insert(2, 100);
+    assert(new_slice[2] == 100);
+    assert(new_slice[4] == 3);
+    assert(new_slice.len() == 5);
 
-// This tests the case of missing a store instruction in the then branch
-// of merging slices
-fn dynamic_slice_index_else(mut slice: [Field], x: Field, y: Field) {
-    if x as u32 > 10 {
-        assert(slice[x] == 0);
-    } else {
-        assert(slice[x] == 4);
-        slice[x] = slice[x] - 2;
-    }
-    assert(slice[4] == 2);
-}
+    let (remove_slice, removed_elem) = new_slice.remove(3);
+    assert(removed_elem == 2);
+    assert(remove_slice[3] == 3);
+    assert(remove_slice.len() == 4);
 
+    let append = [1, 2].append([3, 4, 5]);
+    assert(append.len() == 5);
+    assert(append[0] == 1);
+    assert(append[4] == 5);
 
-fn dynamic_slice_merge_if(mut slice: [Field], x: Field, y: Field) {
-    if x as u32 < 10 {
-        assert(slice[x] == 4);
-        slice[x] = slice[x] - 2;
-
-        slice = slice.push_back(10);
-        // Having an array set here checks whether we appropriately
-        // handle a slice length that is not yet resolving to a constant
-        // during flattening
-        slice[x] = 10;
-        assert(slice[slice.len() - 1] == 10);
-        assert(slice.len() == 6);
-
-        slice = slice.push_back(10);
-        // TODO: test this currently broken
-        slice[x] = 20;
-        slice[x] = slice[x] + 10;
-        assert(slice[slice.len() - 1] == 10);
-        assert(slice.len() == 7);
-
-        slice = slice.push_back(10);
-        assert(slice[slice.len() - 1] == 10);
-        assert(slice.len() == 8);
-
-        slice = slice.push_front(11);
-        assert(slice[0] == 11);
-        assert(slice.len() == 9);
-        assert(slice[5] == 30);
-
-        slice = slice.push_front(12);
-        assert(slice[0] == 12);
-        assert(slice.len() == 10);
-        assert(slice[6] == 30);
-
-        let (popped_slice, last_elem) = slice.pop_back();
-        assert(last_elem == 10);
-        assert(popped_slice.len() == 9);
-
-        let (first_elem, rest_of_slice) = popped_slice.pop_front();
-        assert(first_elem == 12);
-        assert(rest_of_slice.len() == 8);
-
-        // TODO: SliceInsert is not implemented in ACIR gen
-        // slice = slice.insert(x, 20);
-        // let (remove_slice, removed_elem) = new_slice.remove(3);
-    } else {
-        assert(slice[x] == 0);
-        slice = slice.push_back(20);
-    }
-    assert(slice.len() == 10);
-
-    // TODO: This is still broken. Need to verify whether attaching 
-    // predicates to memory ops in ACIR solves the issue (PR #2400)
-    // We are able to print the slice.len() and return the correct value but
-    // we still get an index out of bounds error
-    // assert(slice[slice.len() - 1] == 10);
-}
-
-fn dynamic_slice_merge_else(mut slice: [Field], x: Field, y: Field) {
-    if x as u32 > 10 {
-        assert(slice[x] == 0);
-    } else {
-        assert(slice[x] == 4);
-        slice[x] = slice[x] - 2;
-        slice = slice.push_back(10);
-    }
-
-    assert(slice[4] == 2);
-    // TODO: This is still broken. Need to verify whether attaching 
-    // predicates to memory ops in ACIR solves the issue (PR #2400)
-    // assert(slice[slice.len() - 1] == 10);
-}
-
-fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: Field) {
-    assert(slice[x] == 4);
-    assert(slice[y] == 1);
-    slice[y] = 0;
-    assert(slice[x] == 4);
-    assert(slice[1] == 0);
-    if x as u32 < 10 {
-        slice[x] = slice[x] - 2;
-        if y != 1 {
-            slice[x] = slice[x] + 20;
-        } else {
-            if x == 5 {
-                // We should not hit this case
-                assert(slice[x] == 22);
-            } else {
-                slice[x] = 10;
-            }
-            assert(slice[4] == 10);
-        }
-    } else {
-        slice[x] = 0;
-    }
-    assert(slice[4] == 10);
-}
-
-fn dynamic_slice_index_set_nested_if_else_if(mut slice: [Field], x: Field, y: Field) {
-    assert(slice[x] == 4);
-    assert(slice[y] == 2);
-    slice[y] = 0;
-    assert(slice[x] == 4);
-    assert(slice[2] == 0);
-    if x as u32 < 10 {
-        slice[x] = slice[x] - 2;
-        // TODO: this panics as we have a load for the slice in flattening
-        if y == 1 {
-            slice[x] = slice[x] + 20;
-        } else {
-            if x == 4 {
-                slice[x] = 5;
-            }
-            assert(slice[4] == 5);
-        }
-    } else {
-        slice[x] = 0;
-    }
-    assert(slice[4] == 5);
+    regression_2083();
+    // The parameters to this function must come from witness values (inputs to main)
+    regression_merge_slices(x, y);
+    regression_dynamic_slice_index(x - 1, x - 4);
 }
 
 // Ensure that slices of struct/tuple values work.
@@ -372,4 +157,194 @@ fn merge_slices_mutate_in_loop(x: Field, y: Field) -> [Field] {
         slice = slice.push_back(x);
     }
     slice
+}
+
+
+fn regression_dynamic_slice_index(x: Field, y: Field) {
+    let mut slice = [];
+    for i in 0..5 {
+        slice = slice.push_back(i);
+    }
+    assert(slice.len() == 5);
+    
+    dynamic_slice_index_set_if(slice, x, y);
+    dynamic_slice_index_set_else(slice, x, y);
+    dynamic_slice_index_set_nested_if_else_else(slice, x, y);
+    dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
+    dynamic_slice_index_if(slice, x);
+    dynamic_slice_index_else(slice, x);
+
+    dynamic_slice_merge_if(slice, x);
+    dynamic_slice_merge_else(slice, x);
+}
+
+fn dynamic_slice_index_set_if(mut slice: [Field], x: Field, y: Field) {
+    assert(slice[x] == 4);
+    assert(slice[y] == 1);
+    slice[y] = 0;
+    assert(slice[x] == 4);
+    assert(slice[1] == 0);
+    if x as u32 < 10 {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+        slice[x - 1] = slice[x];
+    } else {
+        slice[x] = 0;
+    }
+    assert(slice[3] == 2);
+    assert(slice[4] == 2);
+}
+
+fn dynamic_slice_index_set_else(mut slice: [Field], x: Field, y: Field) {
+    assert(slice[x] == 4);
+    assert(slice[y] == 1);
+    slice[y] = 0;
+    assert(slice[x] == 4);
+    assert(slice[1] == 0);
+    if x as u32 > 10 {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+        slice[x - 1] = slice[x];
+    } else {
+        slice[x] = 0;
+    }
+    assert(slice[4] == 0);
+}
+
+// This tests the case of missing a store instruction in the else branch
+// of merging slices
+fn dynamic_slice_index_if(mut slice: [Field], x: Field) {
+    if x as u32 < 10 {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+    } else {
+        assert(slice[x] == 0);
+    }
+    assert(slice[4] == 2);
+}
+
+// This tests the case of missing a store instruction in the then branch
+// of merging slices
+fn dynamic_slice_index_else(mut slice: [Field], x: Field) {
+    if x as u32 > 10 {
+        assert(slice[x] == 0);
+    } else {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+    }
+    assert(slice[4] == 2);
+}
+
+
+fn dynamic_slice_merge_if(mut slice: [Field], x: Field) {
+    if x as u32 < 10 {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+
+        slice = slice.push_back(10);
+        // Having an array set here checks whether we appropriately
+        // handle a slice length that is not yet resolving to a constant
+        // during flattening
+        slice[x] = 10;
+        assert(slice[slice.len() - 1] == 10);
+        assert(slice.len() == 6);
+
+        slice[x] = 20;
+        slice[x] = slice[x] + 10;
+
+        slice = slice.push_front(11);
+        assert(slice[0] == 11);
+        assert(slice.len() == 7);
+        assert(slice[5] == 30);
+
+        slice = slice.push_front(12);
+        assert(slice[0] == 12);
+        assert(slice.len() == 8);
+        assert(slice[6] == 30);
+
+        let (popped_slice, last_elem) = slice.pop_back();
+        assert(last_elem == 10);
+        assert(popped_slice.len() == 7);
+
+        let (first_elem, rest_of_slice) = popped_slice.pop_front();
+        assert(first_elem == 12);
+        assert(rest_of_slice.len() == 6);
+
+        // TODO: SliceInsert and SliceRemove with a dynamic index are not yet implemented in ACIR gen
+        // slice = slice.insert(x, 20);
+        // let (remove_slice, removed_elem) = new_slice.remove(3);
+    } else {
+        assert(slice[x] == 0);
+        slice = slice.push_back(20);
+    }
+    assert(slice.len() == 8);
+
+    // TODO: This is still broken. Need to verify whether attaching 
+    // predicates to memory ops in ACIR solves the issue (PR #2400)
+    // We are able to print the slice.len() and return the correct value but
+    // we still get an index out of bounds error
+    // assert(slice[slice.len() - 1] == 10);
+}
+
+fn dynamic_slice_merge_else(mut slice: [Field], x: Field) {
+    if x as u32 > 10 {
+        assert(slice[x] == 0);
+    } else {
+        assert(slice[x] == 4);
+        slice[x] = slice[x] - 2;
+        slice = slice.push_back(10);
+    }
+
+    assert(slice[4] == 2);
+    // TODO: This is still broken. Need to verify whether attaching 
+    // predicates to memory ops in ACIR solves the issue (PR #2400)
+    // assert(slice[slice.len() - 1] == 10);
+}
+
+fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: Field) {
+    assert(slice[x] == 4);
+    assert(slice[y] == 1);
+    slice[y] = 0;
+    assert(slice[x] == 4);
+    assert(slice[1] == 0);
+    if x as u32 < 10 {
+        slice[x] = slice[x] - 2;
+        if y != 1 {
+            slice[x] = slice[x] + 20;
+        } else {
+            if x == 5 {
+                // We should not hit this case
+                assert(slice[x] == 22);
+            } else {
+                slice[x] = 10;
+            }
+            assert(slice[4] == 10);
+        }
+    } else {
+        slice[x] = 0;
+    }
+    assert(slice[4] == 10);
+}
+
+fn dynamic_slice_index_set_nested_if_else_if(mut slice: [Field], x: Field, y: Field) {
+    assert(slice[x] == 4);
+    assert(slice[y] == 2);
+    slice[y] = 0;
+    assert(slice[x] == 4);
+    assert(slice[2] == 0);
+    if x as u32 < 10 {
+        slice[x] = slice[x] - 2;
+        // TODO: this panics as we have a load for the slice in flattening
+        if y == 1 {
+            slice[x] = slice[x] + 20;
+        } else {
+            if x == 4 {
+                slice[x] = 5;
+            }
+            assert(slice[4] == 5);
+        }
+    } else {
+        slice[x] = 0;
+    }
+    assert(slice[4] == 5);
 }
