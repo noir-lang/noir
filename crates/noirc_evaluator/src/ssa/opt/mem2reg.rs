@@ -25,11 +25,11 @@
 //! - On `Instruction::Load { address }`:
 //!   - If `address` is known to only have a single alias (including itself) and if the value of
 //!     that alias is known, replace the value of the load with the known value.
-//!   - Furthermore, if the result of the load is a reference, mark that reference as an alias
+//!   - Furthermore, if the result of the load is a reference, mark the result as an alias
 //!     of the reference it dereferences to (if known).
 //!     - If which reference it dereferences to is not known, this load result has no aliases.
 //! - On `Instruction::Store { address, value }`:
-//!   - If the address of the store is known:
+//!   - If the address of the store is `Known(value)`:
 //!     - If the address has exactly 1 alias:
 //!       - Set the value of the address to `Known(value)`.
 //!     - If the address has more than 1 alias:
