@@ -324,8 +324,6 @@ impl Context {
     ) -> Result<(), RuntimeError> {
         let instruction = &dfg[instruction_id];
         self.acir_context.set_call_stack(dfg.get_call_stack(instruction_id));
-        // println!("instruction: {instruction_id}");
-        // dbg!(instruction.clone());
         match instruction {
             Instruction::Binary(binary) => {
                 let result_acir_var = self.convert_ssa_binary(binary, dfg)?;
@@ -341,8 +339,6 @@ impl Context {
             }
             Instruction::Call { func, arguments } => {
                 let result_ids = dfg.instruction_results(instruction_id);
-                let resolved_result_ids = vecmap(result_ids, |id| dfg.resolve(*id));
-                dbg!(resolved_result_ids.clone());
                 match &dfg[*func] {
                     Value::Function(id) => {
                         let func = &ssa.functions[id];
@@ -377,17 +373,19 @@ impl Context {
                         // assert_eq!(result_ids.len(), outputs.len());
 
                         for (result, output) in result_ids.iter().zip(outputs) {
-                            dbg!(result);
-                            dbg!(output.clone());
-                            match output.clone() {
+                            match &output {
+                                // We need to make sure we initialize arrays returned from intrinsic calls
+                                // or else they will fail if accessed with a dynamic index
                                 AcirValue::Array(values) => {
                                     let block_id = self.block_id(result);
-                                    dbg!(block_id.0);
                                     let values = vecmap(values, |v| v.clone());
 
                                     self.initialize_array(block_id, values.len(), Some(&values))?;
                                 }
-                                _ => {
+                                AcirValue::DynamicArray(_) => {
+                                    unreachable!("The output from an intrinsic call is expected to be a single value or an array but got {output:?}");
+                                }
+                                AcirValue::Var(_, _) => {
                                     // Do nothing
                                 }
                             }
@@ -669,7 +667,7 @@ impl Context {
 
         // Use the SSA ID to get or create its block ID
         let block_id = self.block_id(&array);
-        dbg!(block_id.0);
+
         // Every array has a length in its type, so we fetch that from
         // the SSA IR.
         let len = match dfg.type_of_value(array) {
@@ -678,12 +676,9 @@ impl Context {
                 let length = length
                     .expect("ICE: array set on slice must have a length associated with the call");
                 let length_acir_value = self.convert_value(length, dfg);
-                dbg!(length_acir_value.clone());
-                let x = self.acir_context.get_constant(&length_acir_value.into_var()?);
-                dbg!(x);
+                let len = self.acir_context.get_constant(&length_acir_value.into_var()?);
                 let len =
-                    x.expect("ICE: slice length should be fully tracked and constant by ACIR gen");
-                // let len = dfg.get_numeric_constant(length).expect("ICE: slice length should be fully tracked and constant by ACIR gen");
+                    len.expect("ICE: slice length should be fully tracked and constant by ACIR gen");
                 len.to_u128() as usize
             }
             _ => unreachable!("ICE - expected an array"),

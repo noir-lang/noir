@@ -65,8 +65,6 @@ pub(crate) fn optimize_into_acir(
             .print(print_ssa_passes, "After Mem2Reg:")
             .fold_constants()
             .print(print_ssa_passes, "After Constant Folding:")
-            .fold_constants()
-            .print(print_ssa_passes, "After Constant Folding:")
             .flatten_cfg()
             .print(print_ssa_passes, "After Flattening:")
             // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores

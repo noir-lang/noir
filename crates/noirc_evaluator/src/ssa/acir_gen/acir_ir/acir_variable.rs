@@ -249,7 +249,6 @@ impl AcirContext {
     // Return Some(constant) if the given AcirVar refers to a constant value,
     // otherwise return None
     pub(crate) fn get_constant(&self, var: &AcirVar) -> Option<FieldElement> {
-        dbg!(self.vars[var].clone());
         match self.vars[var] {
             AcirVarData::Const(field) => Some(field),
             _ => None,
