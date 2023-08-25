@@ -48,7 +48,9 @@ pub(crate) fn optimize_into_acir(
         .try_run_pass(Ssa::unroll_loops, "After Unrolling:")?
         .run_pass(Ssa::simplify_cfg, "After Simplifying:")
         // Run mem2reg before flattening to handle any promotion
-        // of values that can be accessed after loop unrolling
+        // of values that can be accessed after loop unrolling.
+        // If there are slice mergers uncovered by loop unrolling
+        // and this pass is missed, slice merging will fail inside of flattening.
         .run_pass(Ssa::mem2reg, "After Mem2Reg:")
         .run_pass(Ssa::flatten_cfg, "After Flattening:")
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
