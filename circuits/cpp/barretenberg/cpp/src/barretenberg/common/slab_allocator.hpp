@@ -58,14 +58,21 @@ template <typename T> class ContainerSlabAllocator {
     pointer allocate(size_type n)
     {
         // info("ContainerSlabAllocator allocating: ", n * sizeof(T));
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         return reinterpret_cast<pointer>(get_mem_slab_raw(n * sizeof(T)));
     }
 
     void deallocate(pointer p, size_type /*unused*/) { free_mem_slab_raw(p); }
 
-    friend bool operator==(const ContainerSlabAllocator<T>&, const ContainerSlabAllocator<T>&) { return true; }
+    friend bool operator==(const ContainerSlabAllocator<T>& /*unused*/, const ContainerSlabAllocator<T>& /*unused*/)
+    {
+        return true;
+    }
 
-    friend bool operator!=(const ContainerSlabAllocator<T>&, const ContainerSlabAllocator<T>&) { return false; }
+    friend bool operator!=(const ContainerSlabAllocator<T>& /*unused*/, const ContainerSlabAllocator<T>& /*unused*/)
+    {
+        return false;
+    }
 };
 
 } // namespace barretenberg

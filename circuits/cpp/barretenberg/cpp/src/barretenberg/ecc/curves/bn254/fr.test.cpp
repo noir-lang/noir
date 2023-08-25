@@ -4,13 +4,13 @@
 
 using namespace barretenberg;
 
-TEST(fr, msgpack)
+TEST(fr, Msgpack)
 {
-    auto [actual, expected] = msgpack_roundtrip(barretenberg::fr{ 1ull, 2ull, 3ull, 4ull });
+    auto [actual, expected] = msgpack_roundtrip(barretenberg::fr{ 1ULL, 2ULL, 3ULL, 4ULL });
     EXPECT_EQ(actual, expected);
 }
 
-TEST(fr, eq)
+TEST(fr, Eq)
 {
     fr a{ 0x01, 0x02, 0x03, 0x04 };
     fr b{ 0x01, 0x02, 0x03, 0x04 };
@@ -25,7 +25,7 @@ TEST(fr, eq)
     EXPECT_EQ((a == f), false);
 }
 
-TEST(fr, is_zero)
+TEST(fr, IsZero)
 {
     fr a = fr::zero();
     fr b = fr::zero();
@@ -44,7 +44,7 @@ TEST(fr, is_zero)
     EXPECT_EQ(e.is_zero(), false);
 }
 
-TEST(fr, random_element)
+TEST(fr, RandomElement)
 {
     fr a = fr::random_element();
     fr b = fr::random_element();
@@ -54,7 +54,7 @@ TEST(fr, random_element)
     EXPECT_EQ(b.is_zero(), false);
 }
 
-TEST(fr, mul)
+TEST(fr, Mul)
 {
     fr a{ 0x192f9ddc938ea63, 0x1db93d61007ec4fe, 0xc89284ec31fa49c0, 0x2478d0ff12b04f0f };
     fr b{ 0x7aade4892631231c, 0x8e7515681fe70144, 0x98edb76e689b6fd8, 0x5d0886b15fc835fa };
@@ -64,7 +64,7 @@ TEST(fr, mul)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fr, sqr)
+TEST(fr, Sqr)
 {
     fr a{ 0x95f946723a1fc34f, 0x641ec0482fc40bb9, 0xb8d645bc49dd513d, 0x1c1bffd317599dbc };
     fr expected{ 0xc787f7d9e2c72714, 0xcf21cf53d8f65f67, 0x8db109903dac0008, 0x26ab4dd65f46be5f };
@@ -73,7 +73,7 @@ TEST(fr, sqr)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fr, add)
+TEST(fr, Add)
 {
     fr a{ 0x20565a572c565a66, 0x7bccd0f01f5f7bff, 0x63ec2beaad64711f, 0x624953caaf44a814 };
     fr b{ 0xa17307a2108adeea, 0x74629976c14c5e2b, 0x9ce6f072ab1740ee, 0x398c753702b2bef0 };
@@ -83,7 +83,7 @@ TEST(fr, add)
     EXPECT_EQ(result, expected.reduce_once());
 }
 
-TEST(fr, sub)
+TEST(fr, Sub)
 {
     fr a{ 0xcfbcfcf457cf2d38, 0x7b27af26ce62aa61, 0xf0378e90d48f2b92, 0x4734b22cb21ded };
     fr b{ 0x569fdb1db5198770, 0x446ddccef8347d52, 0xef215227182d22a, 0x8281b4fb109306 };
@@ -93,7 +93,7 @@ TEST(fr, sub)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fr, plus_equals)
+TEST(fr, PlusEquals)
 {
     fr a{ 0x5def, 0x00, 0x00, 0x00 };
     fr a_copy = a;
@@ -106,14 +106,14 @@ TEST(fr, plus_equals)
     EXPECT_EQ((a == expected), true);
 }
 
-TEST(fr, prefix_increment)
+TEST(fr, PrefixIncrement)
 {
     fr a{ 0x5def, 0x00, 0x00, 0x00 };
     fr b = ++a;
     EXPECT_EQ(b, a);
 }
 
-TEST(fr, postfix_increment)
+TEST(fr, PostfixIncrement)
 {
     fr a{ 0x5def, 0x00, 0x00, 0x00 };
     fr a_old = a;
@@ -122,7 +122,7 @@ TEST(fr, postfix_increment)
     EXPECT_EQ(a, a_old + 1);
 }
 
-TEST(fr, to_montgomery_form)
+TEST(fr, ToMontgomeryForm)
 {
     fr result{ 0x01, 0x00, 0x00, 0x00 };
     fr expected = fr::one();
@@ -130,7 +130,7 @@ TEST(fr, to_montgomery_form)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fr, from_montgomery_form)
+TEST(fr, FromMontgomeryForm)
 {
     fr result = fr::one();
     fr expected{ 0x01, 0x00, 0x00, 0x00 };
@@ -138,7 +138,7 @@ TEST(fr, from_montgomery_form)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fr, montgomery_consistency_check)
+TEST(fr, MontgomeryConsistencyCheck)
 {
     fr a = fr::random_element();
     fr b = fr::random_element();
@@ -170,7 +170,7 @@ TEST(fr, montgomery_consistency_check)
     EXPECT_EQ((result_a == result_d), true);
 }
 
-TEST(fr, add_mul_consistency)
+TEST(fr, AddMulConsistency)
 {
     fr multiplicand = { 0x09, 0, 0, 0 };
     multiplicand.self_to_montgomery_form();
@@ -188,7 +188,7 @@ TEST(fr, add_mul_consistency)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fr, sub_mul_consistency)
+TEST(fr, SubMulConsistency)
 {
     fr multiplicand = { 0x05, 0, 0, 0 };
     multiplicand.self_to_montgomery_form();
@@ -208,7 +208,7 @@ TEST(fr, sub_mul_consistency)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fr, lambda)
+TEST(fr, Lambda)
 {
     fr x = fr::random_element();
 
@@ -229,7 +229,7 @@ TEST(fr, lambda)
     EXPECT_EQ((x_cubed == lambda_x_cubed), true);
 }
 
-TEST(fr, invert)
+TEST(fr, Invert)
 {
     fr input = fr::random_element();
     fr inverse = input.invert();
@@ -238,14 +238,14 @@ TEST(fr, invert)
     EXPECT_EQ((result == fr::one()), true);
 }
 
-TEST(fr, invert_one_is_one)
+TEST(fr, InvertOneIsOne)
 {
     fr result = fr::one();
     result = result.invert();
     EXPECT_EQ((result == fr::one()), true);
 }
 
-TEST(fr, sqrt)
+TEST(fr, Sqrt)
 {
     fr input = fr::one();
     auto [is_sqr, root] = input.sqrt();
@@ -253,7 +253,7 @@ TEST(fr, sqrt)
     EXPECT_EQ(result, input);
 }
 
-TEST(fr, sqrt_random)
+TEST(fr, SqrtRandom)
 {
     size_t n = 1;
     for (size_t i = 0; i < n; ++i) {
@@ -264,14 +264,14 @@ TEST(fr, sqrt_random)
     }
 }
 
-TEST(fr, one_and_zero)
+TEST(fr, OneAndZero)
 {
     fr result;
     result = fr::one() - fr::one();
     EXPECT_EQ((result == fr::zero()), true);
 }
 
-TEST(fr, copy)
+TEST(fr, Copy)
 {
     fr result = fr::random_element();
     fr expected;
@@ -279,7 +279,7 @@ TEST(fr, copy)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fr, neg)
+TEST(fr, Neg)
 {
     fr a = fr::random_element();
     fr b;
@@ -289,7 +289,7 @@ TEST(fr, neg)
     EXPECT_EQ((result == fr::zero()), true);
 }
 
-TEST(fr, split_into_endomorphism_scalars)
+TEST(fr, SplitIntoEndomorphismScalars)
 {
     fr k = fr::random_element();
     fr k1 = { 0, 0, 0, 0 };
@@ -310,7 +310,7 @@ TEST(fr, split_into_endomorphism_scalars)
     EXPECT_EQ(result, k);
 }
 
-TEST(fr, split_into_endomorphism_scalars_simple)
+TEST(fr, SplitIntoEndomorphismScalarsSimple)
 {
 
     fr input = { 1, 0, 0, 0 };
@@ -335,17 +335,17 @@ TEST(fr, split_into_endomorphism_scalars_simple)
     }
 }
 
-TEST(fr, batch_invert)
+TEST(fr, BatchInvert)
 {
     size_t n = 10;
-    fr coeffs[n];
-    fr inverses[n];
+    std::vector<fr> coeffs(n);
+    std::vector<fr> inverses(n);
     fr one = fr::one();
     for (size_t i = 0; i < n; ++i) {
         coeffs[i] = fr::random_element();
         fr::__copy(coeffs[i], inverses[i]);
     }
-    fr::batch_invert(inverses, n);
+    fr::batch_invert(&inverses[0], n);
 
     for (size_t i = 0; i < n; ++i) {
         coeffs[i] *= inverses[i];
@@ -360,12 +360,12 @@ TEST(fr, batch_invert)
     }
 }
 
-TEST(fr, multiplicative_generator)
+TEST(fr, MultiplicativeGenerator)
 {
     EXPECT_EQ(fr::multiplicative_generator(), fr(5));
 }
 
-TEST(fr, uint256_conversions)
+TEST(fr, Uint256Conversions)
 {
     constexpr uint256_t a{ 0x1111, 0x2222, 0x3333, 0x4444 };
 

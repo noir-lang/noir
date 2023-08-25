@@ -3,7 +3,7 @@
 
 using namespace barretenberg;
 
-TEST(pairing, reduced_ate_pairing_check_against_constants)
+TEST(pairing, ReducedAtePairingCheckAgainstConstants)
 {
     constexpr g1::affine_element P = {
         uint256_t(0x956e256b9db00c13, 0x66d29ac18e1b2bff, 0x5d6f055e34402f6e, 0x5bfcbaaff0feb62),
@@ -43,10 +43,10 @@ TEST(pairing, reduced_ate_pairing_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(pairing, reduced_ate_pairing_consistency_check)
+TEST(pairing, ReducedAtePairingConsistencyCheck)
 {
-    g1::affine_element P = g1::affine_element(g1::element::random_element());
-    g2::affine_element Q = g2::affine_element(g2::element::random_element());
+    g1::affine_element P = g1::element::random_element();
+    g2::affine_element Q = g2::element::random_element();
 
     fr scalar = fr::random_element();
 
@@ -59,22 +59,20 @@ TEST(pairing, reduced_ate_pairing_consistency_check)
     EXPECT_EQ(result, expected);
 }
 
-TEST(pairing, reduced_ate_pairing_consistency_check_batch)
+TEST(pairing, ReducedAtePairingConsistencyCheckBatch)
 {
     size_t num_points = 10;
 
-    g1::affine_element P_a[num_points];
-    g2::affine_element Q_a[num_points];
-
-    g1::affine_element P_b[num_points];
-    g2::affine_element Q_b[num_points];
-
-    fr scalars[num_points + num_points];
+    std::vector<g1::affine_element> P_a(num_points);
+    std::vector<g2::affine_element> Q_a(num_points);
+    std::vector<g1::affine_element> P_b(num_points);
+    std::vector<g2::affine_element> Q_b(num_points);
+    std::vector<fr> scalars(num_points + num_points);
     for (size_t i = 0; i < 10; ++i) {
         scalars[i] = fr::random_element();
         scalars[i + num_points] = fr::random_element();
-        g1::affine_element P = g1::affine_element(g1::element::random_element());
-        g2::affine_element Q = g2::affine_element(g2::element::random_element());
+        g1::affine_element P = g1::element::random_element();
+        g2::affine_element Q = g2::element::random_element();
         P_a[i] = P;
         Q_a[i] = Q;
         P_b[i] = P;
@@ -94,20 +92,20 @@ TEST(pairing, reduced_ate_pairing_consistency_check_batch)
     EXPECT_EQ(result, expected);
 }
 
-TEST(pairing, reduced_ate_pairing_precompute_consistency_check_batch)
+TEST(pairing, ReducedAtePairingPrecomputeConsistencyCheckBatch)
 {
     size_t num_points = 10;
-    g1::affine_element P_a[num_points];
-    g2::affine_element Q_a[num_points];
-    g1::affine_element P_b[num_points];
-    g2::affine_element Q_b[num_points];
-    pairing::miller_lines precompute_miller_lines[num_points];
-    fr scalars[num_points + num_points];
+    std::vector<g1::affine_element> P_a(num_points);
+    std::vector<g2::affine_element> Q_a(num_points);
+    std::vector<g1::affine_element> P_b(num_points);
+    std::vector<g2::affine_element> Q_b(num_points);
+    std::vector<pairing::miller_lines> precompute_miller_lines(num_points);
+    std::vector<fr> scalars(num_points + num_points);
     for (size_t i = 0; i < 10; ++i) {
         scalars[i] = fr::random_element();
         scalars[i + num_points] = fr::random_element();
-        g1::affine_element P = g1::affine_element(g1::element::random_element());
-        g2::affine_element Q = g2::affine_element(g2::element::random_element());
+        g1::affine_element P = g1::element::random_element();
+        g2::affine_element Q = g2::element::random_element();
         P_a[i] = P;
         Q_a[i] = Q;
         P_b[i] = P;

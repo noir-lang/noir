@@ -1,13 +1,17 @@
 #pragma once
 
+#include <array>
+#include <cstdint>
+
+#include "./field_impl.hpp"
 namespace barretenberg {
 
-template <class T>
-constexpr std::pair<uint64_t, uint64_t> field<T>::mul_wide(const uint64_t a, const uint64_t b) noexcept
+// NOLINTBEGIN(readability-implicit-bool-conversion)
+template <class T> constexpr std::pair<uint64_t, uint64_t> field<T>::mul_wide(uint64_t a, uint64_t b) noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
-    const uint128_t res = ((uint128_t)a * (uint128_t)b);
-    return { (uint64_t)(res), (uint64_t)(res >> 64) };
+    const uint128_t res = (static_cast<uint128_t>(a) * static_cast<uint128_t>(b));
+    return { static_cast<uint64_t>(res), static_cast<uint64_t>(res >> 64) };
 #else
     const uint64_t product = a * b;
     return { product & 0xffffffffULL, product >> 32 };
@@ -19,9 +23,10 @@ constexpr uint64_t field<T>::mac(
     const uint64_t a, const uint64_t b, const uint64_t c, const uint64_t carry_in, uint64_t& carry_out) noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
-    const uint128_t res = (uint128_t)a + ((uint128_t)b * (uint128_t)c) + (uint128_t)carry_in;
-    carry_out = (uint64_t)(res >> 64);
-    return (uint64_t)res;
+    const uint128_t res = static_cast<uint128_t>(a) + (static_cast<uint128_t>(b) * static_cast<uint128_t>(c)) +
+                          static_cast<uint128_t>(carry_in);
+    carry_out = static_cast<uint64_t>(res >> 64);
+    return static_cast<uint64_t>(res);
 #else
     const uint64_t product = b * c + a + carry_in;
     carry_out = product >> 32;
@@ -38,9 +43,10 @@ constexpr void field<T>::mac(const uint64_t a,
                              uint64_t& carry_out) noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
-    const uint128_t res = (uint128_t)a + ((uint128_t)b * (uint128_t)c) + (uint128_t)carry_in;
-    out = (uint64_t)(res);
-    carry_out = (uint64_t)(res >> 64);
+    const uint128_t res = static_cast<uint128_t>(a) + (static_cast<uint128_t>(b) * static_cast<uint128_t>(c)) +
+                          static_cast<uint128_t>(carry_in);
+    out = static_cast<uint64_t>(res);
+    carry_out = static_cast<uint64_t>(res >> 64);
 #else
     const uint64_t product = b * c + a + carry_in;
     carry_out = product >> 32;
@@ -55,9 +61,9 @@ constexpr uint64_t field<T>::mac_mini(const uint64_t a,
                                       uint64_t& carry_out) noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
-    const uint128_t res = (uint128_t)a + ((uint128_t)b * (uint128_t)c);
-    carry_out = (uint64_t)(res >> 64);
-    return (uint64_t)(res);
+    const uint128_t res = static_cast<uint128_t>(a) + (static_cast<uint128_t>(b) * static_cast<uint128_t>(c));
+    carry_out = static_cast<uint64_t>(res >> 64);
+    return static_cast<uint64_t>(res);
 #else
     const uint64_t product = b * c + a;
     carry_out = product >> 32;
@@ -70,9 +76,9 @@ constexpr void field<T>::mac_mini(
     const uint64_t a, const uint64_t b, const uint64_t c, uint64_t& out, uint64_t& carry_out) noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
-    const uint128_t res = (uint128_t)a + ((uint128_t)b * (uint128_t)c);
-    out = (uint64_t)(res);
-    carry_out = (uint64_t)(res >> 64);
+    const uint128_t res = static_cast<uint128_t>(a) + (static_cast<uint128_t>(b) * static_cast<uint128_t>(c));
+    out = static_cast<uint64_t>(res);
+    carry_out = static_cast<uint64_t>(res >> 64);
 #else
     const uint64_t result = b * c + a;
     carry_out = result >> 32;
@@ -84,8 +90,8 @@ template <class T>
 constexpr uint64_t field<T>::mac_discard_lo(const uint64_t a, const uint64_t b, const uint64_t c) noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
-    const uint128_t res = (uint128_t)a + ((uint128_t)b * (uint128_t)c);
-    return (uint64_t)(res >> 64);
+    const uint128_t res = static_cast<uint128_t>(a) + (static_cast<uint128_t>(b) * static_cast<uint128_t>(c));
+    return static_cast<uint64_t>(res >> 64);
 #else
     return (b * c + a) >> 32;
 #endif
@@ -98,9 +104,9 @@ constexpr uint64_t field<T>::addc(const uint64_t a,
                                   uint64_t& carry_out) noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
-    uint128_t res = (uint128_t)a + (uint128_t)b + (uint128_t)carry_in;
-    carry_out = (uint64_t)(res >> 64);
-    return (uint64_t)res;
+    uint128_t res = static_cast<uint128_t>(a) + static_cast<uint128_t>(b) + static_cast<uint128_t>(carry_in);
+    carry_out = static_cast<uint64_t>(res >> 64);
+    return static_cast<uint64_t>(res);
 #else
     uint64_t r = a + b;
     const uint64_t carry_temp = r < a;
@@ -117,9 +123,9 @@ constexpr uint64_t field<T>::sbb(const uint64_t a,
                                  uint64_t& borrow_out) noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
-    uint128_t res = (uint128_t)a - ((uint128_t)b + (uint128_t)(borrow_in >> 63));
-    borrow_out = (uint64_t)(res >> 64);
-    return (uint64_t)res;
+    uint128_t res = static_cast<uint128_t>(a) - (static_cast<uint128_t>(b) + static_cast<uint128_t>(borrow_in >> 63));
+    borrow_out = static_cast<uint64_t>(res >> 64);
+    return static_cast<uint64_t>(res);
 #else
     uint64_t t_1 = a - (borrow_in >> 63ULL);
     uint64_t borrow_temp_1 = t_1 > a;
@@ -140,9 +146,9 @@ constexpr uint64_t field<T>::square_accumulate(const uint64_t a,
                                                uint64_t& carry_hi) noexcept
 {
 #if defined(__SIZEOF_INT128__) && !defined(__wasm__)
-    const uint128_t product = (uint128_t)b * (uint128_t)c;
-    const uint64_t r0 = (uint64_t)product;
-    const uint64_t r1 = (uint64_t)(product >> 64);
+    const uint128_t product = static_cast<uint128_t>(b) * static_cast<uint128_t>(c);
+    const auto r0 = static_cast<uint64_t>(product);
+    const auto r1 = static_cast<uint64_t>(product >> 64);
     uint64_t out = r0 + r0;
     carry_lo = (out < r0);
     out += a;
@@ -297,12 +303,12 @@ template <class T> constexpr field<T> field<T>::montgomery_mul_big(const field& 
     uint64_t t4 = 0;
     uint64_t t5 = 0;
     uint64_t k = 0;
-    for (size_t i = 0; i < 4; ++i) {
+    for (const auto& element : data) {
         c = 0;
-        mac(t0, data[i], other.data[0], c, t0, c);
-        mac(t1, data[i], other.data[1], c, t1, c);
-        mac(t2, data[i], other.data[2], c, t2, c);
-        mac(t3, data[i], other.data[3], c, t3, c);
+        mac(t0, element, other.data[0], c, t0, c);
+        mac(t1, element, other.data[1], c, t1, c);
+        mac(t2, element, other.data[2], c, t2, c);
+        mac(t3, element, other.data[3], c, t3, c);
         t4 = addc(t4, c, 0, t5);
 
         c = 0;
@@ -807,4 +813,5 @@ template <class T> constexpr struct field<T>::wide_array field<T>::mul_512(const
 #endif
 }
 
+// NOLINTEND(readability-implicit-bool-conversion)
 } // namespace barretenberg

@@ -14,42 +14,36 @@ template <typename T> constexpr inline size_t count_leading_zeros(T const& u);
 
 template <> constexpr inline size_t count_leading_zeros<uint32_t>(uint32_t const& u)
 {
-    return (size_t)__builtin_clz(u);
+    return static_cast<size_t>(__builtin_clz(u));
 }
 
-template <> constexpr inline size_t count_leading_zeros<unsigned long>(unsigned long const& u)
+template <> constexpr inline size_t count_leading_zeros<uint64_t>(uint64_t const& u)
 {
-    return (size_t)__builtin_clzl(u);
-}
-
-template <> constexpr inline size_t count_leading_zeros<unsigned long long>(unsigned long long const& u)
-{
-    return (size_t)__builtin_clzll(u);
+    return static_cast<size_t>(__builtin_clzll(u));
 }
 
 template <> constexpr inline size_t count_leading_zeros<uint128_t>(uint128_t const& u)
 {
-    uint64_t hi = static_cast<uint64_t>(u >> 64);
-    if (hi) {
-        return (size_t)__builtin_clzll(hi);
-    } else {
-        uint64_t lo = static_cast<uint64_t>(u);
-        return (size_t)__builtin_clzll(lo) + 64;
+    auto hi = static_cast<uint64_t>(u >> 64);
+    if (hi != 0U) {
+        return static_cast<size_t>(__builtin_clzll(hi));
     }
+    auto lo = static_cast<uint64_t>(u);
+    return static_cast<size_t>(__builtin_clzll(lo)) + 64;
 }
 
 template <> constexpr inline size_t count_leading_zeros<uint256_t>(uint256_t const& u)
 {
-    if (u.data[3]) {
+    if (u.data[3] != 0U) {
         return count_leading_zeros(u.data[3]);
     }
-    if (u.data[2]) {
+    if (u.data[2] != 0U) {
         return count_leading_zeros(u.data[2]) + 64;
     }
-    if (u.data[1]) {
+    if (u.data[1] != 0U) {
         return count_leading_zeros(u.data[1]) + 128;
     }
-    if (u.data[0]) {
+    if (u.data[0] != 0U) {
         return count_leading_zeros(u.data[0]) + 192;
     }
     return 256;

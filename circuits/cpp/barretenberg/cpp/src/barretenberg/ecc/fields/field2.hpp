@@ -1,147 +1,197 @@
 #pragma once
-#include "barretenberg/numeric/random/engine.hpp"
 
+#include "./field2_declarations.hpp"
+
+/**
+ * @brief Note, this file contains the definitions. of `field2` class.
+ *        Declarations are in `field2_declarations.hpp`.
+ *        Include ordering ensures linter/language server has knowledge of declarations when parsing definitions
+ *
+ */
 namespace barretenberg {
-template <class base_field, class Params> struct alignas(32) field2 {
-  public:
-    constexpr field2(const base_field& a = base_field::zero(), const base_field& b = base_field::zero())
-        : c0(a)
-        , c1(b)
-    {}
+template <class base, class T> constexpr field2<base, T> field2<base, T>::operator*(const field2& other) const noexcept
+{
+    // no funny primes please! we assume -1 is not a quadratic residue
+    static_assert((base::modulus.data[0] & 0x3UL) == 0x3UL);
+    base t1 = c0 * other.c0;
+    base t2 = c1 * other.c1;
+    base t3 = c0 + c1;
+    base t4 = other.c0 + other.c1;
 
-    constexpr field2(const field2& other)
-        : c0(other.c0)
-        , c1(other.c1)
-    {}
-    constexpr field2(field2&& other)
-        : c0(other.c0)
-        , c1(other.c1)
-    {}
+    return { t1 - t2, t3 * t4 - (t1 + t2) };
+}
 
-    constexpr field2& operator=(const field2& other)
-    {
-        c0 = other.c0;
-        c1 = other.c1;
-        return *this;
+template <class base, class T> constexpr field2<base, T> field2<base, T>::operator+(const field2& other) const noexcept
+{
+    return { c0 + other.c0, c1 + other.c1 };
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::operator-(const field2& other) const noexcept
+{
+    return { c0 - other.c0, c1 - other.c1 };
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::operator-() const noexcept
+{
+    return { -c0, -c1 };
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::operator/(const field2& other) const noexcept
+{
+    return operator*(other.invert());
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::operator*=(const field2& other) noexcept
+{
+    *this = operator*(other);
+    return *this;
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::operator+=(const field2& other) noexcept
+{
+    *this = operator+(other);
+    return *this;
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::operator-=(const field2& other) noexcept
+{
+    *this = operator-(other);
+    return *this;
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::operator/=(const field2& other) noexcept
+{
+    *this = operator/(other);
+    return *this;
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::sqr() const noexcept
+{
+    base t1 = (c0 * c1);
+    return { (c0 + c1) * (c0 - c1), t1 + t1 };
+}
+
+template <class base, class T> constexpr void field2<base, T>::self_sqr() noexcept
+{
+    *this = sqr();
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::to_montgomery_form() const noexcept
+{
+    return { c0.to_montgomery_form(), c1.to_montgomery_form() };
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::from_montgomery_form() const noexcept
+{
+    return { c0.from_montgomery_form(), c1.from_montgomery_form() };
+}
+
+template <class base, class T> constexpr void field2<base, T>::self_to_montgomery_form() noexcept
+{
+    c0.self_to_montgomery_form();
+    c1.self_to_montgomery_form();
+}
+
+template <class base, class T> constexpr void field2<base, T>::self_from_montgomery_form() noexcept
+{
+    c0.self_from_montgomery_form();
+    c1.self_from_montgomery_form();
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::reduce_once() const noexcept
+{
+    return *this;
+    // return { c0.reduce_once(), c1.reduce_once() };
+}
+
+template <class base, class T> constexpr void field2<base, T>::self_reduce_once() noexcept
+{
+    // c0.self_reduce_once();
+    // c1.self_reduce_once();
+}
+
+template <class base, class T> constexpr void field2<base, T>::self_neg() noexcept
+{
+    c0.self_neg();
+    c1.self_neg();
+}
+
+template <class base, class T> constexpr field2<base, T> field2<base, T>::pow(const uint256_t& exponent) const noexcept
+{
+
+    field2 accumulator = *this;
+    field2 to_mul = *this;
+    const uint64_t maximum_set_bit = exponent.get_msb();
+
+    for (int i = static_cast<int>(maximum_set_bit) - 1; i >= 0; --i) {
+        accumulator.self_sqr();
+        if (exponent.get_bit(static_cast<uint64_t>(i))) {
+            accumulator *= to_mul;
+        }
     }
 
-    constexpr field2& operator=(field2&& other)
-    {
-        c0 = other.c0;
-        c1 = other.c1;
-        return *this;
+    if (*this == zero()) {
+        accumulator = zero();
+    } else if (exponent == uint256_t(0)) {
+        accumulator = one();
     }
+    return accumulator;
+}
 
-    base_field c0;
-    base_field c1;
+template <class base, class T> constexpr field2<base, T> field2<base, T>::pow(const uint64_t exponent) const noexcept
+{
+    return pow({ exponent, 0, 0, 0 });
+}
 
-    static constexpr uint256_t modulus = base_field::modulus;
+template <class base, class T> constexpr field2<base, T> field2<base, T>::invert() const noexcept
+{
+    base t3 = (c0.sqr() + c1.sqr()).invert();
+    return { c0 * t3, -(c1 * t3) };
+}
 
-    static constexpr field2 zero() { return field2{ base_field::zero(), base_field::zero() }; }
-    static constexpr field2 one() { return field2{ base_field::one(), base_field::zero() }; }
-    static constexpr field2 twist_coeff_b() { return field2{ Params::twist_coeff_b_0, Params::twist_coeff_b_1 }; }
-    static constexpr field2 twist_mul_by_q_x()
-    {
-        return field2{ Params::twist_mul_by_q_x_0, Params::twist_mul_by_q_x_1 };
-    }
-    static constexpr field2 twist_mul_by_q_y()
-    {
-        return field2{ Params::twist_mul_by_q_y_0, Params::twist_mul_by_q_y_1 };
-    }
-    static constexpr field2 cube_root_of_unity()
-    {
-        return field2{ Params::twist_cube_root_0, Params::twist_cube_root_1 };
-    }
+template <class base, class T>
+constexpr void field2<base, T>::self_conditional_negate(const uint64_t predicate) noexcept
+{
+    *this = predicate != 0U ? -(*this) : *this;
+}
 
-    constexpr field2 operator*(const field2& other) const noexcept;
-    constexpr field2 operator+(const field2& other) const noexcept;
-    constexpr field2 operator-(const field2& other) const noexcept;
-    constexpr field2 operator-() const noexcept;
-    constexpr field2 operator/(const field2& other) const noexcept;
+template <class base, class T> constexpr void field2<base, T>::self_set_msb() noexcept
+{
+    c0.data[3] = 0ULL | (1ULL << 63ULL);
+}
 
-    constexpr field2 operator*=(const field2& other) noexcept;
-    constexpr field2 operator+=(const field2& other) noexcept;
-    constexpr field2 operator-=(const field2& other) noexcept;
-    constexpr field2 operator/=(const field2& other) noexcept;
+template <class base, class T> constexpr bool field2<base, T>::is_msb_set() const noexcept
+{
+    return (c0.data[3] >> 63ULL) == 1ULL;
+}
 
-    constexpr field2 mul_by_fq(const base_field& a) const noexcept
-    {
-        field2 r{ a * c0, a * c1 };
-        return r;
-    }
+template <class base, class T> constexpr uint64_t field2<base, T>::is_msb_set_word() const noexcept
+{
+    return (c0.data[3] >> 63ULL);
+}
 
-    // constexpr bool operator>(const field& other) const noexcept;
-    // constexpr bool operator<(const field& other) const noexcept;
-    constexpr bool operator==(const field2& other) const noexcept;
-    constexpr bool operator!=(const field2& other) const noexcept { return !(*this == other); }
-    constexpr field2 sqr() const noexcept;
-    constexpr void self_sqr() noexcept;
+template <class base, class T> constexpr bool field2<base, T>::is_zero() const noexcept
+{
+    return (c0.is_zero() && c1.is_zero());
+}
 
-    constexpr field2 pow(const uint256_t& exponent) const noexcept;
-    constexpr field2 pow(const uint64_t exponent) const noexcept;
+template <class base, class T> constexpr bool field2<base, T>::operator==(const field2& other) const noexcept
+{
+    return (c0 == other.c0) && (c1 == other.c1);
+}
 
-    constexpr field2 invert() const noexcept;
+template <class base, class T> constexpr field2<base, T> field2<base, T>::frobenius_map() const noexcept
+{
+    return { c0, -c1 };
+}
 
-    constexpr void self_neg() noexcept;
-    constexpr field2 to_montgomery_form() const noexcept;
-    constexpr field2 from_montgomery_form() const noexcept;
+template <class base, class T> constexpr void field2<base, T>::self_frobenius_map() noexcept
+{
+    c1.self_neg();
+}
 
-    constexpr void self_to_montgomery_form() noexcept;
-    constexpr void self_from_montgomery_form() noexcept;
-
-    constexpr void self_conditional_negate(const uint64_t predicate) noexcept;
-
-    constexpr field2 reduce_once() const noexcept;
-    constexpr void self_reduce_once() noexcept;
-
-    constexpr void self_set_msb() noexcept;
-    constexpr bool is_msb_set() const noexcept;
-    constexpr uint64_t is_msb_set_word() const noexcept;
-
-    constexpr bool is_zero() const noexcept;
-
-    constexpr field2 frobenius_map() const noexcept;
-    constexpr void self_frobenius_map() noexcept;
-
-    static field2 random_element(numeric::random::Engine* engine = nullptr);
-    static void serialize_to_buffer(const field2& value, uint8_t* buffer)
-    {
-        base_field::serialize_to_buffer(value.c0, buffer);
-        base_field::serialize_to_buffer(value.c1, buffer + sizeof(base_field));
-    }
-
-    static field2 serialize_from_buffer(uint8_t* buffer)
-    {
-        field2 result{ base_field::zero(), base_field::zero() };
-        result.c0 = base_field::serialize_from_buffer(buffer);
-        result.c1 = base_field::serialize_from_buffer(buffer + sizeof(base_field));
-
-        return result;
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const field2& a)
-    {
-        os << a.c0 << " , " << a.c1;
-        return os;
-    }
-};
-
-// template <typename B, typename BaseField, typename Params> void read(B& it, field2<BaseField, Params>& value)
-// {
-//     using serialize::read;
-//     field2<BaseField, Params> result;
-//     read(it, result.c0);
-//     read(it, result.c1);
-//     value = result.to_montgomery_form();
-// }
-// template <typename B, typename BaseField, typename Params> void write(B& buf, field2<BaseField, Params> const& value)
-// {
-//     using serialize::write;
-//     const auto input = value.from_montgomery_form();
-//     write(buf, input.c0);
-//     write(buf, input.c1);
-// }
-
+template <class base, class T> field2<base, T> field2<base, T>::random_element(numeric::random::Engine* engine)
+{
+    return { base::random_element(engine), base::random_element(engine) };
+}
 } // namespace barretenberg
-
-#include "field2_impl.hpp"

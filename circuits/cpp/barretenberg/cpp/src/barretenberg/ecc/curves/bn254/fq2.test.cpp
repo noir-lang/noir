@@ -27,7 +27,7 @@ TEST(fq2, eq)
     EXPECT_EQ(a == j, false);
 }
 
-TEST(fq2, is_zero)
+TEST(fq2, IsZero)
 {
     fq2 a = fq2::zero();
     fq2 b = fq2::zero();
@@ -39,7 +39,7 @@ TEST(fq2, is_zero)
     EXPECT_EQ(c.is_zero(), false);
 }
 
-TEST(fq2, random_element)
+TEST(fq2, RandomElement)
 {
     fq2 a = fq2::random_element();
     fq2 b = fq2::random_element();
@@ -49,7 +49,7 @@ TEST(fq2, random_element)
     EXPECT_EQ(b.is_zero(), false);
 }
 
-TEST(fq2, mul_check_against_constants)
+TEST(fq2, MulCheckAgainstConstants)
 {
     fq2 a = { { 0xd673ba38b8c4bc86, 0x860cd1cb9e2f0c85, 0x3185f9f9166177b7, 0xd043f963ced2529 },
               { 0xd4d2fad9a3de5d98, 0x260f72ca434ef415, 0xca5c20c435accb2d, 0x122a54f828a07ffe } };
@@ -61,7 +61,7 @@ TEST(fq2, mul_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq2, sqr_check_against_constants)
+TEST(fq2, SqrCheckAgainstConstants)
 {
     fq2 a = { { 0x26402fd760069ee8, 0x17828cf3bf7dd3e3, 0x4e7449f7b1149987, 0x102f6467805d7298 },
               { 0xa2a31bf895eaf6f8, 0xf0c88d415c372b16, 0xa65ccca8b7806691, 0x1b51e4526673451f } };
@@ -71,7 +71,7 @@ TEST(fq2, sqr_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq2, add_check_against_constants)
+TEST(fq2, AddCheckAgainstConstants)
 {
     fq2 a = { { 0x517c157ce1664f30, 0x114ba401b0996437, 0x11b9ae2d856012e8, 0xcc19341ea7cf685 },
               { 0x17c6020dde15fdc0, 0x310bc25961b2f002, 0xa766e7e94a865c0d, 0x20176bc8e6b82863 } };
@@ -83,7 +83,7 @@ TEST(fq2, add_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq2, sub_check_against_constants)
+TEST(fq2, SubCheckAgainstConstants)
 {
     fq2 a = { { 0x3212c3a7d7886da5, 0xcea893f4addae4aa, 0x5c8bfca7a7ed01be, 0x1a8e9dfecd598ef1 },
               { 0x4a8d9e6443fda462, 0x93248a3fde6374e7, 0xf4a6c52f75c0fc2e, 0x270aaabb4ae43370 } };
@@ -95,7 +95,7 @@ TEST(fq2, sub_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq2, to_montgomery_form)
+TEST(fq2, ToMontgomeryForm)
 {
     fq2 result = fq2::zero();
     result.c0.data[0] = 1;
@@ -104,7 +104,7 @@ TEST(fq2, to_montgomery_form)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq2, from_montgomery_form)
+TEST(fq2, FromMontgomeryForm)
 {
     fq2 result = fq2::one();
     fq2 expected = fq2::zero();
@@ -113,7 +113,7 @@ TEST(fq2, from_montgomery_form)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq2, mul_sqr_consistency)
+TEST(fq2, MulSqrConsistency)
 {
     fq2 a = fq2::random_element();
     fq2 b = fq2::random_element();
@@ -130,7 +130,7 @@ TEST(fq2, mul_sqr_consistency)
     EXPECT_EQ(mul_result, sqr_result);
 }
 
-TEST(fq2, add_mul_consistency)
+TEST(fq2, AddMulConsistency)
 {
     fq2 multiplicand = { { 0x09, 0x00, 0x00, 0x00 }, { 0x00, 0x00, 0x00, 0x00 } };
     multiplicand = multiplicand.to_montgomery_form();
@@ -146,7 +146,7 @@ TEST(fq2, add_mul_consistency)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq2, sub_mul_consistency)
+TEST(fq2, SubMulConsistency)
 {
     fq2 multiplicand = { { 0x05, 0, 0, 0 }, { 0x00, 0x00, 0x00, 0x00 } };
     multiplicand = multiplicand.to_montgomery_form();
@@ -164,7 +164,7 @@ TEST(fq2, sub_mul_consistency)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq2, invert)
+TEST(fq2, Invert)
 {
     fq2 input = fq2::random_element();
     fq2 inverse = input.invert();
@@ -172,9 +172,9 @@ TEST(fq2, invert)
     EXPECT_EQ(result, fq2::one());
 }
 
-TEST(fq2, serialize)
+TEST(fq2, Serialize)
 {
-    uint8_t buffer[64];
+    std::array<uint8_t, 64> buffer;
     fq expected_c0 = { 0x1234567876543210, 0x2345678987654321, 0x3456789a98765432, 0x006789abcba98765 };
     fq expected_c1 = { 0x12a4e67f76b43210, 0x23e56f898a65cc21, 0x005678add98e5432, 0x1f6789a2cba98700 };
     fq2 expected{ expected_c0, expected_c1 };

@@ -3,10 +3,9 @@
 #include "./fq12.hpp"
 #include "./g1.hpp"
 #include "./g2.hpp"
+#include "barretenberg/ecc/curves/bn254/pairing.hpp"
 
-namespace barretenberg {
-namespace pairing {
-namespace {
+namespace barretenberg::pairing {
 constexpr fq two_inv = fq(2).invert();
 inline constexpr g2::element mul_by_q(const g2::element& a)
 {
@@ -19,7 +18,6 @@ inline constexpr g2::element mul_by_q(const g2::element& a)
         a.z.frobenius_map(),
     };
 }
-} // namespace
 constexpr void doubling_step_for_flipped_miller_loop(g2::element& current, fq12::ell_coeffs& ell)
 {
     fq2 a = current.x.mul_by_fq(two_inv);
@@ -102,13 +100,13 @@ constexpr void precompute_miller_lines(const g2::element& Q, miller_lines& lines
     g2::element work_point = Q;
 
     size_t it = 0;
-    for (size_t i = 0; i < loop_length; ++i) {
+    for (unsigned char loop_bit : loop_bits) {
         doubling_step_for_flipped_miller_loop(work_point, lines.lines[it]);
         ++it;
-        if (loop_bits[i] == 1) {
+        if (loop_bit == 1) {
             mixed_addition_step_for_flipped_miller_loop(Q, work_point, lines.lines[it]);
             ++it;
-        } else if (loop_bits[i] == 3) {
+        } else if (loop_bit == 3) {
             mixed_addition_step_for_flipped_miller_loop(Q_neg, work_point, lines.lines[it]);
             ++it;
         }
@@ -129,7 +127,7 @@ constexpr fq12 miller_loop(g1::element& P, miller_lines& lines)
     size_t it = 0;
     fq12::ell_coeffs work_line;
 
-    for (size_t i = 0; i < loop_length; ++i) {
+    for (unsigned char loop_bit : loop_bits) {
         work_scalar = work_scalar.sqr();
 
         work_line.o = lines.lines[it].o;
@@ -138,7 +136,7 @@ constexpr fq12 miller_loop(g1::element& P, miller_lines& lines)
         work_scalar.self_sparse_mul(work_line);
         ++it;
 
-        if (loop_bits[i] != 0) {
+        if (loop_bit != 0) {
             work_line.o = lines.lines[it].o;
             work_line.vw = lines.lines[it].vw.mul_by_fq(P.y);
             work_line.vv = lines.lines[it].vv.mul_by_fq(P.x);
@@ -167,7 +165,7 @@ constexpr fq12 miller_loop_batch(const g1::element* points, const miller_lines* 
     size_t it = 0;
     fq12::ell_coeffs work_line;
 
-    for (size_t i = 0; i < loop_length; ++i) {
+    for (unsigned char loop_bit : loop_bits) {
         work_scalar = work_scalar.sqr();
         for (size_t j = 0; j < num_pairs; ++j) {
             work_line.o = lines[j].lines[it].o;
@@ -176,7 +174,7 @@ constexpr fq12 miller_loop_batch(const g1::element* points, const miller_lines* 
             work_scalar.self_sparse_mul(work_line);
         }
         ++it;
-        if (loop_bits[i] != 0) {
+        if (loop_bit != 0) {
             for (size_t j = 0; j < num_pairs; ++j) {
                 work_line.o = lines[j].lines[it].o;
                 work_line.vw = lines[j].lines[it].vw.mul_by_fq(points[j].y);
@@ -213,13 +211,12 @@ constexpr fq12 final_exponentiation_easy_part(const fq12& elt)
 
 constexpr fq12 final_exponentiation_exp_by_neg_z(const fq12& elt)
 {
-    fq12 scalar{ elt };
     fq12 r = elt;
 
-    for (size_t i = 0; i < neg_z_loop_length; ++i) {
+    for (bool neg_z_loop_bit : neg_z_loop_bits) {
         r = r.cyclotomic_squared();
-        if (neg_z_loop_bits[i]) {
-            r *= scalar;
+        if (neg_z_loop_bit) {
+            r *= elt;
         }
     }
     return r.unitary_inverse();
@@ -270,14 +267,13 @@ fq12 reduced_ate_pairing_batch_precomputed(const g1::affine_element* P_affines,
                                            const miller_lines* lines,
                                            const size_t num_points)
 {
-    g1::element* P = new g1::element[num_points];
+    std::vector<g1::element> P(num_points);
     for (size_t i = 0; i < num_points; ++i) {
         P[i] = g1::element(P_affines[i]);
     }
     fq12 result = miller_loop_batch(&P[0], &lines[0], num_points);
     result = final_exponentiation_easy_part(result);
     result = final_exponentiation_tricky_part(result);
-    delete[] P;
     return result;
 }
 
@@ -285,9 +281,10 @@ fq12 reduced_ate_pairing_batch(const g1::affine_element* P_affines,
                                const g2::affine_element* Q_affines,
                                const size_t num_points)
 {
-    g1::element* P = new g1::element[num_points];
-    g2::element* Q = new g2::element[num_points];
-    miller_lines* lines = new miller_lines[num_points];
+    std::vector<g1::element> P(num_points);
+    std::vector<g2::element> Q(num_points);
+    std::vector<miller_lines> lines(num_points);
+
     for (size_t i = 0; i < num_points; ++i) {
         P[i] = g1::element(P_affines[i]);
         Q[i] = g2::element(Q_affines[i]);
@@ -298,11 +295,7 @@ fq12 reduced_ate_pairing_batch(const g1::affine_element* P_affines,
     fq12 result = miller_loop_batch(&P[0], &lines[0], num_points);
     result = final_exponentiation_easy_part(result);
     result = final_exponentiation_tricky_part(result);
-    delete[] P;
-    delete[] Q;
-    delete[] lines;
     return result;
 }
 
-} // namespace pairing
-} // namespace barretenberg
+} // namespace barretenberg::pairing

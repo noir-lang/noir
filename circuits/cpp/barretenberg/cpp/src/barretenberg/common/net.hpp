@@ -10,5 +10,6 @@
 inline bool is_little_endian()
 {
     constexpr int num = 42;
+    // NOLINTNEXTLINE Nope. nope nope nope nope nope.
     return (*(char*)&num == 42);
 }

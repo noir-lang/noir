@@ -4,10 +4,9 @@
 #include "barretenberg/ecc/curves/grumpkin/grumpkin.hpp"
 #include "barretenberg/ecc/groups/wnaf.hpp"
 
-namespace barretenberg {
+namespace barretenberg::scalar_multiplication {
 // simple helper functions to retrieve pointers to pre-allocated memory for the scalar multiplication algorithm.
 // This is to eliminate page faults when allocating (and writing) to large tranches of memory.
-namespace scalar_multiplication {
 constexpr size_t get_optimal_bucket_width(const size_t num_points)
 {
     if (num_points >= 14617149) {
@@ -78,6 +77,15 @@ template <typename Curve> struct affine_product_runtime_state {
 };
 
 template <typename Curve> struct pippenger_runtime_state {
+    using Fq = typename Curve::BaseField;
+    using AffineElement = typename Curve::AffineElement;
+
+    static constexpr size_t MAX_NUM_ROUNDS = 256;
+    uint64_t num_points;
+    size_t num_buckets;
+    size_t num_rounds;
+    size_t num_threads;
+    size_t prefetch_overflow;
     std::shared_ptr<void> point_schedule_ptr;
     std::shared_ptr<void> point_pairs_1_ptr;
     std::shared_ptr<void> point_pairs_2_ptr;
@@ -92,20 +100,22 @@ template <typename Curve> struct pippenger_runtime_state {
     uint32_t* bit_counts;
     bool* bucket_empty_status;
     uint64_t* round_counts;
-    uint64_t num_points;
 
-    pippenger_runtime_state(const size_t num_initial_points);
-    pippenger_runtime_state(pippenger_runtime_state&& other);
-    pippenger_runtime_state& operator=(pippenger_runtime_state&& other);
-    ~pippenger_runtime_state();
+    pippenger_runtime_state(size_t num_initial_points) noexcept;
+    pippenger_runtime_state(pippenger_runtime_state&& other) noexcept;
+    pippenger_runtime_state& operator=(pippenger_runtime_state&& other) noexcept;
+    ~pippenger_runtime_state() noexcept;
 
-    affine_product_runtime_state<Curve> get_affine_product_runtime_state(const size_t num_threads,
-                                                                         const size_t thread_index);
+    // explicitly delete copy constructor and copy assignment operator.
+    // This is an expensive, large data structure. No copy! Bad!
+    pippenger_runtime_state& operator=(pippenger_runtime_state& other) = delete;
+    pippenger_runtime_state(pippenger_runtime_state& other) = delete;
+
+    affine_product_runtime_state<Curve> get_affine_product_runtime_state(size_t num_threads, size_t thread_index);
 };
 
 extern template struct affine_product_runtime_state<curve::BN254>;
 extern template struct affine_product_runtime_state<curve::Grumpkin>;
 extern template struct pippenger_runtime_state<curve::BN254>;
 extern template struct pippenger_runtime_state<curve::Grumpkin>;
-} // namespace scalar_multiplication
-} // namespace barretenberg
+} // namespace barretenberg::scalar_multiplication

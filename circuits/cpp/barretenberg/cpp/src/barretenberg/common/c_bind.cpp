@@ -22,13 +22,13 @@ void thread_test_entry_point(test_threads_data* v)
         // Do some meaningless work.
         std::for_each(data.begin(), data.end(), [](auto& i) { i = i & 0x80; });
         std::for_each(data.begin(), data.end(), [](auto& i) { i = i | 0x01; });
-        std::for_each(data.begin(), data.end(), [](auto& i) { i = (uint8_t)(i << 3); });
+        std::for_each(data.begin(), data.end(), [](auto& i) { i = static_cast<uint8_t>(i << 3); });
         (v->counter)++;
     }
     // info("thread end with counter at: ", static_cast<size_t>(v->counter), " ", t.seconds(), "s");
 }
 
-void thread_test_abort_entry_point(void*)
+void thread_test_abort_entry_point(void* /*unused*/)
 {
     info("thread_test_abort aborting");
     std::abort();
@@ -58,7 +58,7 @@ WASM_EXPORT void test_threads(uint32_t const* thread_num, uint32_t const* iterat
 
 WASM_EXPORT void test_thread_abort()
 {
-    std::thread thread(thread_test_abort_entry_point, (void*)0);
+    std::thread thread(thread_test_abort_entry_point, (void*)nullptr);
     thread.join();
 }
 
@@ -72,9 +72,12 @@ WASM_EXPORT void test_abort()
 
 WASM_EXPORT void test_stdout_stderr()
 {
-    fprintf(stdout, "c: hello stdout!");
-    fflush(stdout);
-    fprintf(stderr, "c: hello stderr!");
+    // refactoring our file access methods to fix this warning is not worth it!
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg)
+    static_cast<void>(fprintf(stdout, "c: hello stdout!"));
+    static_cast<void>(fflush(stdout));
+    static_cast<void>(fprintf(stderr, "c: hello stderr!"));
+    // NOLINTEND(cppcoreguidelines-pro-type-vararg)
     std::cout << "c++: hello stdout!" << std::flush;
     std::cerr << "c++: hello stderr!";
 }

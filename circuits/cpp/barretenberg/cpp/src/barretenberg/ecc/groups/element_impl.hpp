@@ -1,7 +1,8 @@
 #pragma once
+#include "barretenberg/ecc/groups/element.hpp"
 
-namespace barretenberg {
-namespace group_elements {
+// NOLINTBEGIN(readability-implicit-bool-conversion, cppcoreguidelines-avoid-c-arrays)
+namespace barretenberg::group_elements {
 template <class Fq, class Fr, class T>
 constexpr element<Fq, Fr, T>::element(const Fq& a, const Fq& b, const Fq& c) noexcept
     : x(a)
@@ -33,6 +34,9 @@ constexpr element<Fq, Fr, T>::element(const affine_element<Fq, Fr, T>& other) no
 template <class Fq, class Fr, class T>
 constexpr element<Fq, Fr, T>& element<Fq, Fr, T>::operator=(const element& other) noexcept
 {
+    if (this == &other) {
+        return *this;
+    }
     x = other.x;
     y = other.y;
     z = other.z;
@@ -149,7 +153,7 @@ constexpr void element<Fq, Fr, T>::self_mixed_add_or_sub(const affine_element<Fq
 {
     if constexpr (Fq::modulus.data[3] >= 0x4000000000000000ULL) {
         if (is_point_at_infinity()) {
-            conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate);
+            conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate); // NOLINT
             z = Fq::one();
             return;
         }
@@ -157,7 +161,7 @@ constexpr void element<Fq, Fr, T>::self_mixed_add_or_sub(const affine_element<Fq
         const bool edge_case_trigger = x.is_msb_set() || other.x.is_msb_set();
         if (edge_case_trigger) {
             if (x.is_msb_set()) {
-                conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate);
+                conditional_negate_affine(other, *(affine_element<Fq, Fr, T>*)this, predicate); // NOLINT
                 z = Fq::one();
             }
             return;
@@ -183,10 +187,9 @@ constexpr void element<Fq, Fr, T>::self_mixed_add_or_sub(const affine_element<Fq
             // y2 equals y1, x2 equals x1, double x1
             self_dbl();
             return;
-        } else {
-            self_set_infinity();
-            return;
         }
+        self_set_infinity();
+        return;
     }
 
     // T2 = 2T2 = 2(y2.z1.z1.z1 - y1) = R
@@ -272,10 +275,9 @@ constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+=(const affine_element
         if (T2.is_zero()) {
             self_dbl();
             return *this;
-        } else {
-            self_set_infinity();
-            return *this;
         }
+        self_set_infinity();
+        return *this;
     }
 
     // T2 = 2T2 = 2(y2.z1.z1.z1 - y1) = R
@@ -397,10 +399,9 @@ constexpr element<Fq, Fr, T> element<Fq, Fr, T>::operator+=(const element& other
         if (F.is_zero()) {
             self_dbl();
             return *this;
-        } else {
-            self_set_infinity();
-            return *this;
         }
+        self_set_infinity();
+        return *this;
     }
 
     F += F;
@@ -636,7 +637,7 @@ element<Fq, Fr, T> element<Fq, Fr, T>::mul_with_endomorphism(const Fr& exponent)
 
     uint64_t wnaf_table[num_rounds * 2];
     Fr endo_scalar;
-    Fr::split_into_endomorphism_scalars(converted_scalar, endo_scalar, *(Fr*)&endo_scalar.data[2]);
+    Fr::split_into_endomorphism_scalars(converted_scalar, endo_scalar, *(Fr*)&endo_scalar.data[2]); // NOLINT
 
     bool skew = false;
     bool endo_skew = false;
@@ -647,9 +648,9 @@ element<Fq, Fr, T> element<Fq, Fr, T>::mul_with_endomorphism(const Fr& exponent)
     element work_element{ T::one_x, T::one_y, Fq::one() };
     work_element.self_set_infinity();
 
-    uint64_t wnaf_entry;
-    uint64_t index;
-    bool sign;
+    uint64_t wnaf_entry = 0;
+    uint64_t index = 0;
+    bool sign = false;
     Fq beta = Fq::cube_root_of_unity();
 
     for (size_t i = 0; i < num_rounds * 2; ++i) {
@@ -782,7 +783,7 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
 
     uint64_t wnaf_table[num_rounds * 2];
     Fr endo_scalar;
-    Fr::split_into_endomorphism_scalars(converted_scalar, endo_scalar, *(Fr*)&endo_scalar.data[2]);
+    Fr::split_into_endomorphism_scalars(converted_scalar, endo_scalar, *(Fr*)&endo_scalar.data[2]); // NOLINT
 
     bool skew = false;
     bool endo_skew = false;
@@ -792,9 +793,9 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
 
     std::vector<affine_element> work_elements(num_points);
 
-    uint64_t wnaf_entry;
-    uint64_t index;
-    bool sign;
+    uint64_t wnaf_entry = 0;
+    uint64_t index = 0;
+    bool sign = 0;
     Fq beta = Fq::cube_root_of_unity();
 
     for (size_t i = 0; i < 2; ++i) {
@@ -857,11 +858,11 @@ std::vector<affine_element<Fq, Fr, T>> element<Fq, Fr, T>::batch_mul_with_endomo
 }
 
 template <typename Fq, typename Fr, typename T>
-void element<Fq, Fr, T>::conditional_negate_affine(const affine_element<Fq, Fr, T>& src,
-                                                   affine_element<Fq, Fr, T>& dest,
+void element<Fq, Fr, T>::conditional_negate_affine(const affine_element<Fq, Fr, T>& in,
+                                                   affine_element<Fq, Fr, T>& out,
                                                    const uint64_t predicate) noexcept
 {
-    dest = { src.x, predicate ? -src.y : src.y };
+    out = { in.x, predicate ? -in.y : in.y };
 }
 
 template <typename Fq, typename Fr, typename T>
@@ -938,5 +939,5 @@ element<Fq, Fr, T> element<Fq, Fr, T>::random_coordinates_on_curve(numeric::rand
     return { x, y, Fq::one() };
 }
 
-} // namespace group_elements
-} // namespace barretenberg
+} // namespace barretenberg::group_elements
+// NOLINTEND(readability-implicit-bool-conversion, cppcoreguidelines-avoid-c-arrays)

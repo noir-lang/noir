@@ -4,6 +4,7 @@
 #include "../../groups/group.hpp"
 #include "../types.hpp"
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
 namespace secp256k1 {
 
 struct Secp256k1FqParams {
@@ -99,8 +100,8 @@ struct Secp256k1FrParams {
     static constexpr uint64_t primitive_root_3 = 0UL;
 };
 
-typedef barretenberg::field<Secp256k1FqParams> fq;
-typedef barretenberg::field<Secp256k1FrParams> fr;
+using fq = barretenberg::field<Secp256k1FqParams>;
+using fr = barretenberg::field<Secp256k1FrParams>;
 
 struct Secp256k1G1Params {
     static constexpr bool USE_ENDOMORPHISM = false;
@@ -117,10 +118,9 @@ struct Secp256k1G1Params {
         fq(0x9C47D08FFB10D4B8UL, 0xFD17B448A6855419UL, 0x5DA4FBFC0E1108A8UL, 0x483ADA7726A3C465UL).to_montgomery_form();
 };
 
-typedef barretenberg::
-    group<barretenberg::field<Secp256k1FqParams>, barretenberg::field<Secp256k1FrParams>, Secp256k1G1Params>
-        g1;
-g1::affine_element get_generator(const size_t generator_index);
+using g1 = barretenberg::
+    group<barretenberg::field<Secp256k1FqParams>, barretenberg::field<Secp256k1FrParams>, Secp256k1G1Params>;
+g1::affine_element get_generator(size_t generator_index);
 } // namespace secp256k1
 
 namespace curve {
@@ -133,3 +133,5 @@ class SECP256K1 {
     using AffineElement = typename Group::affine_element;
 };
 } // namespace curve
+
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays)

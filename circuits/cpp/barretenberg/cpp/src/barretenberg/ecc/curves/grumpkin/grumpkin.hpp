@@ -8,8 +8,8 @@ namespace grumpkin {
 
 constexpr size_t MAX_NO_WRAP_INTEGER_BIT_LENGTH = 252;
 
-typedef barretenberg::fr fq;
-typedef barretenberg::fq fr;
+using fq = barretenberg::fr;
+using fr = barretenberg::fq;
 
 struct GrumpkinG1Params {
     static constexpr bool USE_ENDOMORPHISM = true;
@@ -28,9 +28,9 @@ struct GrumpkinG1Params {
         0x11b2dff1448c41d8UL, 0x23d3446f21c77dc3UL, 0xaa7b8cf435dfafbbUL, 0x14b34cf69dc25d68UL
     };
 };
-typedef barretenberg::group<barretenberg::fr, barretenberg::fq, GrumpkinG1Params> g1;
+using g1 = barretenberg::group<barretenberg::fr, barretenberg::fq, GrumpkinG1Params>;
 
-g1::affine_element get_generator(const size_t generator_index);
+g1::affine_element get_generator(size_t generator_index);
 
 }; // namespace grumpkin
 

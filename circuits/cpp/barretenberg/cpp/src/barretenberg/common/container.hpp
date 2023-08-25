@@ -1,6 +1,6 @@
 #pragma once
 #include <algorithm>
-#include <stddef.h>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -53,7 +53,7 @@ InnerCont flatten(Cont<InnerCont, Args...> const& in)
 
 // Return the first index at which a given item can be found in the vector.
 // Only safe for vectors with length less than the size_t overflow size.
-template <typename T> long index_of(std::vector<T> const& vec, T const& item)
+template <typename T> int64_t index_of(std::vector<T> const& vec, T const& item)
 {
     auto const& begin = vec.begin();
     auto const& end = vec.end();

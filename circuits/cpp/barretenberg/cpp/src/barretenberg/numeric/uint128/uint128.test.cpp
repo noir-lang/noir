@@ -8,7 +8,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 using namespace numeric;
 
-TEST(uint128, get_bit)
+TEST(uint128, GetBit)
 {
     constexpr uint128_t a{ 0b0110011001110010011001100,
                            0b1001011101101010101010100,
@@ -23,7 +23,7 @@ TEST(uint128, get_bit)
     EXPECT_EQ(a, res);
 }
 
-TEST(uint128, add)
+TEST(uint128, Add)
 {
     constexpr uint128_t a{ 1, 2, 3, 4 };
     constexpr uint128_t b{ 5, 6, 7, 8 };
@@ -41,7 +41,7 @@ TEST(uint128, add)
     EXPECT_EQ(d.data[3], 12ULL);
 }
 
-TEST(uint128, get_msb)
+TEST(uint128, GetMsb)
 {
     uint128_t a{ 0, 0, 1, 1 };
     uint128_t b{ 1, 0, 1, 0 };
@@ -54,7 +54,7 @@ TEST(uint128, get_msb)
     EXPECT_EQ(d.get_msb(), 0ULL);
 }
 
-TEST(uint128, mul)
+TEST(uint128, Mul)
 {
     uint128_t a = engine.get_random_uint128();
     uint128_t b = engine.get_random_uint128();
@@ -67,7 +67,7 @@ TEST(uint128, mul)
     EXPECT_EQ(c.data[3], d.data[3]);
 }
 
-TEST(uint128, div_and_mod)
+TEST(uint128, DivAndMod)
 {
     for (size_t i = 0; i < 128; ++i) {
         uint128_t a = engine.get_random_uint128();
@@ -103,7 +103,7 @@ TEST(uint128, div_and_mod)
     EXPECT_EQ(r, uint128_t(0));
 }
 
-TEST(uint128, sub)
+TEST(uint128, Sub)
 {
     uint128_t a = engine.get_random_uint128();
     uint128_t b = engine.get_random_uint128();
@@ -125,7 +125,7 @@ TEST(uint128, sub)
     EXPECT_EQ(e.data[3], UINT32_MAX);
 }
 
-TEST(uint128, right_shift)
+TEST(uint128, RightShift)
 {
     constexpr uint128_t a{ 0xaaaaaaaa, 0xbbbbbbbb, 0xcccccccc, 0xdddddddd };
 
@@ -143,7 +143,7 @@ TEST(uint128, right_shift)
     EXPECT_EQ(f, uint128_t(0, 0xb8000000, 0xcccccccc, 0xdddddddd));
 }
 
-TEST(uint128, left_shift)
+TEST(uint128, LeftShift)
 {
     uint128_t a{ 0xaaaaaaaa, 0xbbbbbbbb, 0xcccccccc, 0xdddddddd };
 
@@ -165,7 +165,7 @@ TEST(uint128, left_shift)
     EXPECT_EQ(f, uint128_t(0));
 }
 
-TEST(uint128, and)
+TEST(uint128, And)
 {
     uint128_t a = engine.get_random_uint128();
     uint128_t b = engine.get_random_uint128();
@@ -178,7 +178,7 @@ TEST(uint128, and)
     EXPECT_EQ(c.data[3], a.data[3] & b.data[3]);
 }
 
-TEST(uint128, or)
+TEST(uint128, Or)
 {
     uint128_t a = engine.get_random_uint128();
     uint128_t b = engine.get_random_uint128();
@@ -191,7 +191,7 @@ TEST(uint128, or)
     EXPECT_EQ(c.data[3], a.data[3] | b.data[3]);
 }
 
-TEST(uint128, xor)
+TEST(uint128, Xor)
 {
     uint128_t a = engine.get_random_uint128();
     uint128_t b = engine.get_random_uint128();
@@ -204,7 +204,7 @@ TEST(uint128, xor)
     EXPECT_EQ(c.data[3], a.data[3] ^ b.data[3]);
 }
 
-TEST(uint128, bit_not)
+TEST(uint128, BitNot)
 {
     uint128_t a = engine.get_random_uint128();
 
@@ -216,7 +216,7 @@ TEST(uint128, bit_not)
     EXPECT_EQ(c.data[3], ~a.data[3]);
 }
 
-TEST(uint128, logic_not)
+TEST(uint128, LogicNot)
 {
     uint128_t a{ 1, 0, 0, 0 };
 
@@ -229,7 +229,7 @@ TEST(uint128, logic_not)
     EXPECT_EQ(!c, true);
 }
 
-TEST(uint128, equality)
+TEST(uint128, Equality)
 {
     uint128_t a{ 1, 0, 0, 0 };
     uint128_t b{ 1, 0, 0, 0 };
@@ -249,7 +249,7 @@ TEST(uint128, equality)
     EXPECT_EQ(a == b, false);
 }
 
-TEST(uint128, not_equal)
+TEST(uint128, NotEqual)
 {
     uint128_t a{ 1, 0, 0, 0 };
     uint128_t b{ 1, 0, 0, 0 };
@@ -269,7 +269,7 @@ TEST(uint128, not_equal)
     EXPECT_EQ(a != b, true);
 }
 
-TEST(uint128, greater_than)
+TEST(uint128, GreaterThan)
 {
     constexpr uint128_t a{ UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX };
     constexpr uint128_t b{ UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX };
@@ -288,7 +288,7 @@ TEST(uint128, greater_than)
     EXPECT_EQ(a > f, true);
 }
 
-TEST(uint128, greater_than_or_equal)
+TEST(uint128, GeaterThanOrEqual)
 {
     uint128_t a{ UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX - 1 };
     uint128_t b{ UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX };
@@ -308,11 +308,11 @@ TEST(uint128, greater_than_or_equal)
     EXPECT_EQ(a >= b, false);
 }
 
-TEST(uint128, to_from_buffer)
+TEST(uint128, ToFromBuffer)
 {
     uint128_t a{ 1, 2, 3, 4 };
     auto buf = to_buffer(a);
-    uint128_t b = from_buffer<uint128_t>(buf);
+    auto b = from_buffer<uint128_t>(buf);
     EXPECT_EQ(a, b);
 }
 #endif

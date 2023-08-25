@@ -14,6 +14,8 @@
 #include "barretenberg/ecc/groups/wnaf.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays, google-readability-casting)
+
 #define BBERG_SCALAR_MULTIPLICATION_FETCH_BLOCK                                                                        \
     __builtin_prefetch(state.points + (state.point_schedule[schedule_it + 16] >> 32ULL));                              \
     __builtin_prefetch(state.points + (state.point_schedule[schedule_it + 17] >> 32ULL));                              \
@@ -91,8 +93,7 @@
     current_offset += 16;                                                                                              \
     schedule_it += 16;
 
-namespace barretenberg {
-namespace scalar_multiplication {
+namespace barretenberg::scalar_multiplication {
 
 /**
  * The pippppenger point table computes for each point P = (x,y), a point P' = (\beta * x, -y) which enables us
@@ -490,7 +491,7 @@ typename Curve::AffineElement* reduce_buckets(affine_product_runtime_state<Curve
     // We want to compute these 'point schedule' uints for our reduced points, so that we can recurse back into
     // `reduce_buckets`
     uint32_t start = 0;
-    const uint32_t end = static_cast<uint32_t>(state.num_points);
+    const auto end = static_cast<uint32_t>(state.num_points);
     // The output of `evaluate_addition_chains` has a bit of an odd structure, should probably refactor.
     // Effectively, we used to have one big 1d array, and the act of computing these pair-wise point additions
     // has chopped it up into sequences of smaller 1d arrays, with gaps in between
@@ -545,9 +546,9 @@ uint32_t construct_addition_chains(affine_product_runtime_state<Curve>& state, b
     // if this is the first call to `construct_addition_chains`, we need to count up our buckets
     if (empty_bucket_counts) {
         memset((void*)state.bucket_counts, 0x00, sizeof(uint32_t) * state.num_buckets);
-        const uint32_t first_bucket = static_cast<uint32_t>(state.point_schedule[0] & 0x7fffffffUL);
+        const auto first_bucket = static_cast<uint32_t>(state.point_schedule[0] & 0x7fffffffUL);
         for (size_t i = 0; i < state.num_points; ++i) {
-            size_t bucket_index = static_cast<size_t>(state.point_schedule[i] & 0x7fffffffUL);
+            const auto bucket_index = static_cast<size_t>(state.point_schedule[i] & 0x7fffffffUL);
             ++state.bucket_counts[bucket_index - first_bucket];
         }
         for (size_t i = 0; i < state.num_buckets; ++i) {
@@ -596,7 +597,7 @@ uint32_t construct_addition_chains(affine_product_runtime_state<Curve>& state, b
             // In the absence of a more elegant solution, we use ugly macro hacks to try and
             // unroll loops, and prefetch memory a few cycles before we need it
             switch (k_end) {
-            case 64: {
+            case 64: { // NOLINT(bugprone-branch-clone)
                 [[fallthrough]];
             }
             case 32: {
@@ -803,7 +804,7 @@ typename Curve::Element evaluate_pippenger_rounds(pippenger_runtime_state<Curve>
                 // e.g. if first bucket is 0, no scaling
                 // if first bucket is 1, we need to add (2 * running_sum)
                 if (first_bucket > 0) {
-                    uint32_t multiplier = static_cast<uint32_t>(first_bucket << 1UL);
+                    auto multiplier = static_cast<uint32_t>(first_bucket << 1UL);
                     size_t shift = numeric::get_msb(multiplier);
                     Element rolling_accumulator = Curve::Group::point_at_infinity;
                     bool init = false;
@@ -903,8 +904,8 @@ typename Curve::Element pippenger(typename Curve::ScalarField* scalars,
         return exponentiation_results[0];
     }
 
-    const size_t slice_bits = static_cast<size_t>(numeric::get_msb(static_cast<uint64_t>(num_initial_points)));
-    const size_t num_slice_points = static_cast<size_t>(1ULL << slice_bits);
+    const auto slice_bits = static_cast<size_t>(numeric::get_msb(static_cast<uint64_t>(num_initial_points)));
+    const auto num_slice_points = static_cast<size_t>(1ULL << slice_bits);
 
     Element result = pippenger_internal(points, scalars, num_slice_points, state, handle_edge_cases);
 
@@ -915,9 +916,8 @@ typename Curve::Element pippenger(typename Curve::ScalarField* scalars,
                                   static_cast<size_t>(leftover_points),
                                   state,
                                   handle_edge_cases);
-    } else {
-        return result;
     }
+    return result;
 }
 
 /**
@@ -1058,5 +1058,6 @@ template curve::Grumpkin::Element pippenger_without_endomorphism_basis_points<cu
     const size_t num_initial_points,
     pippenger_runtime_state<curve::Grumpkin>& state);
 
-} // namespace scalar_multiplication
-} // namespace barretenberg
+} // namespace barretenberg::scalar_multiplication
+
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays, google-readability-casting)

@@ -2,11 +2,10 @@
 #include "../uint128/uint128.hpp"
 #include "../uint256/uint256.hpp"
 #include "../uintx/uintx.hpp"
-#include "stdint.h"
 #include "unistd.h"
+#include <cstdint>
 
-namespace numeric {
-namespace random {
+namespace numeric::random {
 
 class Engine {
   public:
@@ -22,12 +21,19 @@ class Engine {
 
     virtual uint256_t get_random_uint256() = 0;
 
+    virtual ~Engine() = default;
+    Engine() noexcept = default;
+    Engine(const Engine& other) = default;
+    Engine(Engine&& other) = default;
+    Engine& operator=(const Engine& other) = default;
+    Engine& operator=(Engine&& other) = default;
+
     uint512_t get_random_uint512()
     {
         // Do not inline in constructor call. Evaluation order is important for cross-compiler consistency.
         auto lo = get_random_uint256();
         auto hi = get_random_uint256();
-        return uint512_t(lo, hi);
+        return { lo, hi };
     }
 
     uint1024_t get_random_uint1024()
@@ -35,12 +41,11 @@ class Engine {
         // Do not inline in constructor call. Evaluation order is important for cross-compiler consistency.
         auto lo = get_random_uint512();
         auto hi = get_random_uint512();
-        return uint1024_t(lo, hi);
+        return { lo, hi };
     }
 };
 
 Engine& get_debug_engine(bool reset = false);
 Engine& get_engine();
 
-} // namespace random
-} // namespace numeric
+} // namespace numeric::random

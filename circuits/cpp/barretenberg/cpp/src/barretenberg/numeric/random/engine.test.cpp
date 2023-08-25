@@ -3,7 +3,7 @@
 #include "engine.hpp"
 #include <gtest/gtest.h>
 
-TEST(engine, get_random_uint64)
+TEST(engine, GetRandomUint64)
 {
     auto& engine = numeric::random::get_engine();
     auto a = engine.get_random_uint64();
@@ -13,7 +13,7 @@ TEST(engine, get_random_uint64)
     EXPECT_NE(a, b);
 }
 
-TEST(engine, reset_debug_engine)
+TEST(engine, ResetDebugEngine)
 {
     auto& debug_engine = numeric::random::get_debug_engine();
 
@@ -31,7 +31,7 @@ TEST(engine, reset_debug_engine)
     EXPECT_NE(a, e);
 }
 
-TEST(engine, get_expected_debug_value)
+TEST(engine, GetExpectedDebugValue)
 {
     auto& debug_engine = numeric::random::get_debug_engine(true);
     auto a = debug_engine.get_random_uint1024();

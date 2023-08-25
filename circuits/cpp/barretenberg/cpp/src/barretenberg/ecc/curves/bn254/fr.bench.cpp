@@ -115,9 +115,10 @@ uint64_t rdtsc()
     __asm__ __volatile__("mrs %0, pmccntr_el0" : "=r"(pmccntr));
     return pmccntr;
 #elif __x86_64__
-    unsigned int lo, hi;
+    unsigned int lo = 0;
+    unsigned int hi = 0;
     __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
-    return ((uint64_t)hi << 32) | lo;
+    return (static_cast<uint64_t>(hi) << 32) | lo;
 #else
     return 0;
 #endif
@@ -167,7 +168,7 @@ void sqr_assign_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "sqr_assign clocks per operation = " << average << std::endl;
 }
 BENCHMARK(sqr_assign_bench);
@@ -190,7 +191,7 @@ void sqr_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "sqr clocks per operation = " << average << std::endl;
 }
 BENCHMARK(sqr_bench);
@@ -213,7 +214,7 @@ void unary_minus_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "unary minus clocks per operation = " << average << std::endl;
 }
 BENCHMARK(unary_minus_bench);
@@ -236,7 +237,7 @@ void mul_assign_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "mul assign clocks per operation = " << average << std::endl;
 }
 BENCHMARK(mul_assign_bench);
@@ -260,7 +261,7 @@ void mul_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "mul clocks per operation = " << average << std::endl;
 }
 BENCHMARK(mul_bench);
@@ -284,7 +285,7 @@ void self_add_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "self add clocks per operation = " << average << std::endl;
 }
 BENCHMARK(self_add_bench);
@@ -308,7 +309,7 @@ void add_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "add clocks per operation = " << average << std::endl;
 }
 BENCHMARK(add_bench);
@@ -332,7 +333,7 @@ void sub_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "sub clocks per operation = " << average << std::endl;
 }
 BENCHMARK(sub_bench);
@@ -358,7 +359,7 @@ void addaddmul_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "field clocks per call = " << average << std::endl;
 }
 BENCHMARK(addaddmul_bench);
@@ -384,7 +385,7 @@ void subaddmul_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "field clocks per call = " << average << std::endl;
 }
 BENCHMARK(subaddmul_bench);
@@ -405,7 +406,7 @@ void field_bench(State& state) noexcept
         clocks += (rdtsc() - before);
         ++count;
     }
-    double average = static_cast<double>(clocks) / (static_cast<double>(count) * double(NUM_POINTS));
+    double average = static_cast<double>(clocks) / (static_cast<double>(count) * static_cast<double>(NUM_POINTS));
     std::cout << "field clocks per call = " << average << std::endl;
 }
 BENCHMARK(field_bench);
@@ -435,4 +436,5 @@ void pow_bench(State& state) noexcept
 }
 BENCHMARK(pow_bench);
 
+// NOLINTNEXTLINE macro invokation triggers style guideline errors from googletest code
 BENCHMARK_MAIN();

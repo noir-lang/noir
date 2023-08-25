@@ -16,13 +16,13 @@ struct Bn254G1Params {
     static constexpr fq b{ 0x7a17caa950ad28d7UL, 0x1f6ac17ae15521b9UL, 0x334bea4e696bd284UL, 0x2a1f6744ce179d8eUL };
 };
 
-typedef group<fq, fr, Bn254G1Params> g1;
+using g1 = group<fq, fr, Bn254G1Params>;
 
 } // namespace barretenberg
 
 // specialize the name in msgpack schema generation
 // consumed by the typescript schema compiler, helps disambiguate templates
-inline std::string msgpack_schema_name(barretenberg::g1::affine_element const&)
+inline std::string msgpack_schema_name(barretenberg::g1::affine_element const& /*unused*/)
 {
     return "G1AffineElement";
 }

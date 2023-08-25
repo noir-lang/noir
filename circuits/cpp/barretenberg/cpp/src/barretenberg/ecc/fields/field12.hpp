@@ -14,24 +14,29 @@ template <typename quadratic_field, typename base_field, typename Fq12Params> cl
         , c1(other.c1)
     {}
 
-    constexpr field12(field12&& other)
+    constexpr field12(field12&& other) noexcept
         : c0(other.c0)
         , c1(other.c1)
     {}
 
-    constexpr field12& operator=(const field12& other)
+    constexpr field12& operator=(const field12& other) noexcept
+    {
+        if (this == &other) {
+            return *this;
+        }
+        c0 = other.c0;
+        c1 = other.c1;
+        return *this;
+    }
+
+    constexpr field12& operator=(field12&& other) noexcept
     {
         c0 = other.c0;
         c1 = other.c1;
         return *this;
     }
 
-    constexpr field12& operator=(field12&& other)
-    {
-        c0 = other.c0;
-        c1 = other.c1;
-        return *this;
-    }
+    constexpr ~field12() noexcept = default;
 
     base_field c0;
     base_field c1;
@@ -257,7 +262,7 @@ template <typename quadratic_field, typename base_field, typename Fq12Params> cl
         };
     }
 
-    constexpr bool is_zero() const { return c0.is_zero() && c1.is_zero(); }
+    [[nodiscard]] constexpr bool is_zero() const { return c0.is_zero() && c1.is_zero(); }
 
     constexpr bool operator==(const field12& other) const { return c0 == other.c0 && c1 == other.c1; }
 };

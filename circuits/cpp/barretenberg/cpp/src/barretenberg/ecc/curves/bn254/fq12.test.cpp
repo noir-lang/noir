@@ -3,7 +3,7 @@
 
 using namespace barretenberg;
 
-TEST(fq12, eq)
+TEST(fq12, Eq)
 {
     fq12 a = { { { { 0x01, 0x02, 0x03, 0x04 }, { 0x06, 0x07, 0x08, 0x09 } },
                  { { 0x01, 0x02, 0x03, 0x04 }, { 0x06, 0x07, 0x08, 0x09 } },
@@ -77,7 +77,7 @@ TEST(fq12, eq)
     EXPECT_EQ((a == j), false);
 }
 
-TEST(fq12, is_zero)
+TEST(fq12, IsZero)
 {
     fq12 a = fq12::zero();
     fq12 b = fq12::zero();
@@ -89,7 +89,7 @@ TEST(fq12, is_zero)
     EXPECT_EQ(c.is_zero(), false);
 }
 
-TEST(fq12, random_element)
+TEST(fq12, RandomElement)
 {
     fq12 a = fq12::random_element();
     fq12 b = fq12::random_element();
@@ -99,7 +99,7 @@ TEST(fq12, random_element)
     EXPECT_EQ(a.is_zero(), false);
 }
 
-TEST(fq12, add_check_against_constants)
+TEST(fq12, AddCheckAgainstConstants)
 {
     fq12 a = { { { { 0xe5090b4f4ae647a8, 0xf5d4801f152fdf6c, 0xcdb69d33dba7f562, 0x228f26abab7d6687 },
                    { 0xc27a82b14db8404f, 0xcbf9354b3655de9b, 0xa57fd51d8df378ad, 0x2e3fc75bde967502 } },
@@ -141,7 +141,7 @@ TEST(fq12, add_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, sub_check_against_constants)
+TEST(fq12, SubCheckAgainstConstants)
 {
     fq12 a = { { { { 0xf828470cae144505, 0xe05f8f664caae877, 0x27b46814f04c96a3, 0x49d8f97c040a1a2 },
                    { 0x3651629333fd6d1, 0xf7c08d56035cb892, 0x7fd937c7d75b567f, 0x11aac5d9567d8c7e } },
@@ -183,7 +183,7 @@ TEST(fq12, sub_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, mul_check_against_constants)
+TEST(fq12, MulCheckAgainstConstants)
 {
     fq12 a = { { { { 0xd43e9f8be859502b, 0x26a42a1a95cee1ef, 0x3d63c085c1892b32, 0x2e5beaf431211a76 },
                    { 0x5f32ad7cee215ff5, 0xce967fda9424120e, 0x10ea4e52628bac33, 0x51b85ee9671b7f3 } },
@@ -225,7 +225,7 @@ TEST(fq12, mul_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, sparse_mul_check_against_constants)
+TEST(fq12, SparseMulCheckAgainstConstants)
 {
     fq12 a = { { { { 0x8860ba0c4eea41a8, 0x71b65207984d47d2, 0x67e55696f8982ba9, 0x18236f03bcec9b00 },
                    { 0xa69e0f0ce60f64fd, 0x1cf52f3b2335b9b3, 0x45e8ec475fcb1d71, 0x1627ac08d10cebd9 } },
@@ -263,7 +263,7 @@ TEST(fq12, sparse_mul_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, sqr_check_against_constants)
+TEST(fq12, SqrCheckAgainstConstants)
 {
     fq12 a = { { { { 0xef9d68a7df0715fd, 0xfda8aff4030523cf, 0xd09b1482069c0972, 0x252195422f351b07 },
                    { 0x3192057a31dec453, 0xe1c2dd8879191e47, 0xe90a8a00c9b29c5b, 0x1db75f06dff5dd5e } },
@@ -293,14 +293,14 @@ TEST(fq12, sqr_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, inverse)
+TEST(fq12, Inverse)
 {
     fq12 input = fq12::random_element();
     fq12 result = input.invert() * input;
     EXPECT_EQ(result, fq12::one());
 }
 
-TEST(fq12, unitary_inverse)
+TEST(fq12, UnitaryInverse)
 {
     fq12 input = fq12::random_element();
     fq12 result = input.unitary_inverse();
@@ -309,7 +309,7 @@ TEST(fq12, unitary_inverse)
     EXPECT_EQ(result.c1, fq6::zero());
 }
 
-TEST(fq12, frobenius_map_three)
+TEST(fq12, FrobeniusMapThree)
 {
     fq12 a = { { { { 0x9a56f1e63b1f0db8, 0xd629a6c847f6cedd, 0x4a179c053a91458b, 0xa84c02b0b6d7470 },
                    { 0xffa3e17eab3609a1, 0x6a97b9cf5c3fe152, 0x8996248da177be9f, 0x113bd2d7f24591d } },
@@ -339,7 +339,7 @@ TEST(fq12, frobenius_map_three)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, frobenius_map_two)
+TEST(fq12, FrobeniusMapTwo)
 {
     fq12 a = { { { { 0x52c2cc6e77bfe9bb, 0xd03d98cc3fd6d95, 0xfaeb6d6577aa9a30, 0x1ea38b81330e34df },
                    { 0x1f55d493000a14f3, 0x1db7ec50e2f5a356, 0xf3cfcc74b91481ae, 0x256fe76342b33dbb } },
@@ -369,7 +369,7 @@ TEST(fq12, frobenius_map_two)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, frobenius_map_one)
+TEST(fq12, FrobeniusMapOne)
 {
     fq12 a = { { { { 0x6c9edca7f0d6f6e, 0x7bb482de96b01e0, 0xb04fc4b2b2ea7e6, 0x4d9efc00ceb8323 },
                    { 0xb55c2222935ee583, 0x9c114ab89499b4da, 0x771cb5cabe1f458a, 0x1c3f0ac5303a5935 } },
@@ -399,7 +399,7 @@ TEST(fq12, frobenius_map_one)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, to_montgomery_form)
+TEST(fq12, ToMontgomeryForm)
 {
     fq12 result = fq12::zero();
     result.c0.c0.c0.data[0] = 1;
@@ -408,7 +408,7 @@ TEST(fq12, to_montgomery_form)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, from_montgomery_form)
+TEST(fq12, FromMontgomeryForm)
 {
     fq12 result = fq12::one();
     fq12 expected = fq12::zero();
@@ -417,7 +417,7 @@ TEST(fq12, from_montgomery_form)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, mul_sqr_consistency)
+TEST(fq12, MulSqrConsistency)
 {
     fq12 a = fq12::random_element();
     fq12 b = fq12::random_element();
@@ -428,7 +428,7 @@ TEST(fq12, mul_sqr_consistency)
     EXPECT_EQ(mul_result, sqr_result);
 }
 
-TEST(fq12, add_mul_consistency)
+TEST(fq12, AddMulConsistency)
 {
     fq12 multiplicand = fq12::zero();
     multiplicand.c0.c0.c0.data[0] = 9;
@@ -445,7 +445,7 @@ TEST(fq12, add_mul_consistency)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq12, sub_mul_consistency)
+TEST(fq12, SubMulConsistency)
 {
     fq12 multiplicand = fq12::zero();
     multiplicand.c0.c0.c0.data[0] = 5;

@@ -3,11 +3,11 @@
 #include <cstdint>
 #include <iostream>
 
-namespace barretenberg {
-namespace wnaf {
+// NOLINTBEGIN(readability-implicit-bool-conversion)
+namespace barretenberg::wnaf {
 constexpr size_t SCALAR_BITS = 127;
 
-#define WNAF_SIZE(x) ((barretenberg::wnaf::SCALAR_BITS + x - 1) / (x))
+#define WNAF_SIZE(x) ((barretenberg::wnaf::SCALAR_BITS + (x)-1) / (x)) // NOLINT(cppcoreguidelines-macro-usage)
 
 constexpr size_t get_optimal_bucket_width(const size_t num_points)
 {
@@ -119,8 +119,8 @@ inline uint64_t get_wnaf_bits(const uint64_t* scalar, const uint64_t bits, const
      * get high limb and shift left by (64 - (bit_position & 63))
      *
      */
-    const size_t lo_limb_idx = static_cast<size_t>(bit_position >> 6);
-    const size_t hi_limb_idx = static_cast<size_t>((bit_position + bits - 1) >> 6);
+    const auto lo_limb_idx = static_cast<size_t>(bit_position >> 6);
+    const auto hi_limb_idx = static_cast<size_t>((bit_position + bits - 1) >> 6);
     const uint64_t lo_shift = bit_position & 63UL;
     const uint64_t bit_mask = (1UL << static_cast<uint64_t>(bits)) - 1UL;
 
@@ -136,7 +136,7 @@ inline void fixed_wnaf_packed(
     const uint64_t* scalar, uint64_t* wnaf, bool& skew_map, const uint64_t point_index, const size_t wnaf_bits) noexcept
 {
     skew_map = ((scalar[0] & 1) == 0);
-    uint64_t previous = get_wnaf_bits(scalar, wnaf_bits, 0) + (uint64_t)skew_map;
+    uint64_t previous = get_wnaf_bits(scalar, wnaf_bits, 0) + static_cast<uint64_t>(skew_map);
     const size_t wnaf_entries = (SCALAR_BITS + wnaf_bits - 1) / wnaf_bits;
 
     for (size_t round_i = 1; round_i < wnaf_entries - 1; ++round_i) {
@@ -164,7 +164,7 @@ inline void fixed_wnaf(const uint64_t* scalar,
                        const size_t wnaf_bits) noexcept
 {
     skew_map = ((scalar[0] & 1) == 0);
-    uint64_t previous = get_wnaf_bits(scalar, wnaf_bits, 0) + (uint64_t)skew_map;
+    uint64_t previous = get_wnaf_bits(scalar, wnaf_bits, 0) + static_cast<uint64_t>(skew_map);
     const size_t wnaf_entries = (SCALAR_BITS + wnaf_bits - 1) / wnaf_bits;
 
     for (size_t round_i = 1; round_i < wnaf_entries - 1; ++round_i) {
@@ -268,10 +268,10 @@ inline void fixed_wnaf_with_counts(const uint64_t* scalar,
         }
         return;
     }
-    const size_t current_scalar_bits = static_cast<size_t>(get_num_scalar_bits(scalar) + 1);
+    const auto current_scalar_bits = static_cast<size_t>(get_num_scalar_bits(scalar) + 1);
     skew_map = ((scalar[0] & 1) == 0);
-    uint64_t previous = get_wnaf_bits(scalar, wnaf_bits, 0) + (uint64_t)skew_map;
-    const size_t wnaf_entries = static_cast<size_t>((current_scalar_bits + wnaf_bits - 1) / wnaf_bits);
+    uint64_t previous = get_wnaf_bits(scalar, wnaf_bits, 0) + static_cast<uint64_t>(skew_map);
+    const auto wnaf_entries = static_cast<size_t>((current_scalar_bits + wnaf_bits - 1) / wnaf_bits);
 
     if (wnaf_entries == 1) {
         wnaf[(max_wnaf_entries - 1) * num_points] = (previous >> 1UL) | (point_index);
@@ -306,7 +306,7 @@ inline void fixed_wnaf_with_counts(const uint64_t* scalar,
         previous = slice + predicate;
     }
     // The final iteration for top bits
-    size_t final_bits = static_cast<size_t>(current_scalar_bits - (wnaf_bits * (wnaf_entries - 1)));
+    auto final_bits = static_cast<size_t>(current_scalar_bits - (wnaf_bits * (wnaf_entries - 1)));
     uint64_t slice = get_wnaf_bits(scalar, final_bits, (wnaf_entries - 1) * wnaf_bits);
     uint64_t predicate = ((slice & 1UL) == 0UL);
 
@@ -329,7 +329,7 @@ template <size_t num_points, size_t wnaf_bits, size_t round_i>
 inline void wnaf_round(uint64_t* scalar, uint64_t* wnaf, const uint64_t point_index, const uint64_t previous) noexcept
 {
     constexpr size_t wnaf_entries = (SCALAR_BITS + wnaf_bits - 1) / wnaf_bits;
-    constexpr size_t log2_num_points = static_cast<uint64_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
+    constexpr auto log2_num_points = static_cast<size_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
 
     if constexpr (round_i < wnaf_entries - 1) {
         uint64_t slice = get_wnaf_bits(scalar, wnaf_bits, round_i * wnaf_bits);
@@ -354,7 +354,7 @@ template <size_t scalar_bits, size_t num_points, size_t wnaf_bits, size_t round_
 inline void wnaf_round(uint64_t* scalar, uint64_t* wnaf, const uint64_t point_index, const uint64_t previous) noexcept
 {
     constexpr size_t wnaf_entries = (scalar_bits + wnaf_bits - 1) / wnaf_bits;
-    constexpr size_t log2_num_points = static_cast<uint64_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
+    constexpr auto log2_num_points = static_cast<uint64_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
 
     if constexpr (round_i < wnaf_entries - 1) {
         uint64_t slice = get_wnaf_bits_const<wnaf_bits, round_i * wnaf_bits>(scalar);
@@ -409,7 +409,7 @@ template <size_t num_points, size_t wnaf_bits>
 inline void fixed_wnaf(uint64_t* scalar, uint64_t* wnaf, bool& skew_map, const size_t point_index) noexcept
 {
     skew_map = ((scalar[0] & 1) == 0);
-    uint64_t previous = get_wnaf_bits_const<wnaf_bits, 0>(scalar) + (uint64_t)skew_map;
+    uint64_t previous = get_wnaf_bits_const<wnaf_bits, 0>(scalar) + static_cast<uint64_t>(skew_map);
     wnaf_round<num_points, wnaf_bits, 1UL>(scalar, wnaf, point_index, previous);
 }
 
@@ -417,7 +417,7 @@ template <size_t num_bits, size_t num_points, size_t wnaf_bits>
 inline void fixed_wnaf(uint64_t* scalar, uint64_t* wnaf, bool& skew_map, const size_t point_index) noexcept
 {
     skew_map = ((scalar[0] & 1) == 0);
-    uint64_t previous = get_wnaf_bits_const<wnaf_bits, 0>(scalar) + (uint64_t)skew_map;
+    uint64_t previous = get_wnaf_bits_const<wnaf_bits, 0>(scalar) + static_cast<uint64_t>(skew_map);
     wnaf_round<num_bits, num_points, wnaf_bits, 1UL>(scalar, wnaf, point_index, previous);
 }
 
@@ -428,7 +428,7 @@ inline void wnaf_round_with_restricted_first_slice(uint64_t* scalar,
                                                    const uint64_t previous) noexcept
 {
     constexpr size_t wnaf_entries = (scalar_bits + wnaf_bits - 1) / wnaf_bits;
-    constexpr size_t log2_num_points = static_cast<uint64_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
+    constexpr auto log2_num_points = static_cast<uint64_t>(numeric::get_msb(static_cast<uint32_t>(num_points)));
     constexpr size_t bits_in_first_slice = scalar_bits % wnaf_bits;
     if constexpr (round_i == 1) {
         uint64_t slice = get_wnaf_bits_const<wnaf_bits, (round_i - 1) * wnaf_bits + bits_in_first_slice>(scalar);
@@ -472,7 +472,7 @@ inline void fixed_wnaf_with_restricted_first_slice(uint64_t* scalar,
     constexpr size_t bits_in_first_slice = num_bits % wnaf_bits;
     std::cerr << "bits in first slice = " << bits_in_first_slice << std::endl;
     skew_map = ((scalar[0] & 1) == 0);
-    uint64_t previous = get_wnaf_bits_const<bits_in_first_slice, 0>(scalar) + (uint64_t)skew_map;
+    uint64_t previous = get_wnaf_bits_const<bits_in_first_slice, 0>(scalar) + static_cast<uint64_t>(skew_map);
     std::cerr << "previous = " << previous << std::endl;
     wnaf_round_with_restricted_first_slice<num_bits, num_points, wnaf_bits, 1UL>(scalar, wnaf, point_index, previous);
 }
@@ -495,5 +495,6 @@ inline void fixed_wnaf_with_restricted_first_slice(uint64_t* scalar,
 //     uint64_t previous = get_wnaf_bits_const<wnaf_bits, 0>(scalar) + (uint64_t)skew_map;
 //     std::array<uint32_t, WNAF_SIZE(wnaf_bits)> result;
 // }
-} // namespace wnaf
-} // namespace barretenberg
+} // namespace barretenberg::wnaf
+
+// NOLINTEND(readability-implicit-bool-conversion)

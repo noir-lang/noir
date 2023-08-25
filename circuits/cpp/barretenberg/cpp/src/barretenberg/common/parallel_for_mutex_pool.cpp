@@ -13,7 +13,12 @@ namespace {
 class ThreadPool {
   public:
     ThreadPool(size_t num_threads);
+    ThreadPool(const ThreadPool& other) = delete;
+    ThreadPool(ThreadPool&& other) = delete;
     ~ThreadPool();
+
+    ThreadPool& operator=(const ThreadPool& other) = delete;
+    ThreadPool& operator=(ThreadPool&& other) = delete;
 
     void start_tasks(size_t num_iterations, const std::function<void(size_t)>& func)
     {
@@ -38,19 +43,19 @@ class ThreadPool {
     std::vector<std::thread> workers;
     std::mutex tasks_mutex;
     std::function<void(size_t)> task_;
-    size_t num_iterations_;
-    size_t iteration_;
-    size_t complete_;
+    size_t num_iterations_ = 0;
+    size_t iteration_ = 0;
+    size_t complete_ = 0;
     std::condition_variable condition;
     std::condition_variable complete_condition_;
-    bool stop;
+    bool stop = false;
 
     void worker_loop(size_t thread_index);
 
     void do_iterations()
     {
         while (true) {
-            size_t iteration;
+            size_t iteration = 0;
             {
                 std::unique_lock<std::mutex> lock(tasks_mutex);
                 if (iteration_ == num_iterations_) {
@@ -71,10 +76,6 @@ class ThreadPool {
 };
 
 ThreadPool::ThreadPool(size_t num_threads)
-    : num_iterations_(0)
-    , iteration_(0)
-    , complete_(0)
-    , stop(false)
 {
     workers.reserve(num_threads);
     for (size_t i = 0; i < num_threads; ++i) {
@@ -94,7 +95,7 @@ ThreadPool::~ThreadPool()
     }
 }
 
-void ThreadPool::worker_loop(size_t)
+void ThreadPool::worker_loop(size_t /*unused*/)
 {
     // info("created worker ", worker_num);
     while (true) {

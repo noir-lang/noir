@@ -26,11 +26,11 @@ struct basis_vectors {
 
     bool real = false;
 };
-static basis_vectors get_endomorphism_basis_vectors(const secp256k1::fr& lambda)
+[[maybe_unused]] static basis_vectors get_endomorphism_basis_vectors(const secp256k1::fr& lambda)
 {
     uint512_t approximate_square_root;
     uint512_t z = (uint512_t(secp256k1::fr::modulus) + uint512_t(2)) >> 1;
-    uint512_t y = uint512_t(secp256k1::fr::modulus);
+    auto y = uint512_t(secp256k1::fr::modulus);
     while (z < y) {
         y = z;
         z = (uint512_t(secp256k1::fr::modulus) / z + z) >> 1;
@@ -128,7 +128,7 @@ static basis_vectors get_endomorphism_basis_vectors(const secp256k1::fr& lambda)
     return result;
 }
 
-static std::pair<secp256k1::fq, secp256k1::fr> get_endomorphism_scalars()
+[[maybe_unused]] static std::pair<secp256k1::fq, secp256k1::fr> get_endomorphism_scalars()
 {
     // find beta \in secp256k1::fq and lambda \in secp256k1::fr such that:
 

@@ -11,7 +11,12 @@
 class ThreadPool {
   public:
     ThreadPool(size_t num_threads);
+    ThreadPool(const ThreadPool& other) = delete;
+    ThreadPool(ThreadPool&& other) = delete;
     ~ThreadPool();
+
+    ThreadPool& operator=(const ThreadPool& other) = delete;
+    ThreadPool& operator=(ThreadPool&& other) = delete;
 
     void enqueue(const std::function<void()>& task);
     void wait();
@@ -23,13 +28,12 @@ class ThreadPool {
     std::condition_variable condition;
     std::condition_variable finished_condition;
     std::atomic<size_t> tasks_running;
-    bool stop;
+    bool stop = false;
 
     void worker_loop(size_t thread_index);
 };
 
 ThreadPool::ThreadPool(size_t num_threads)
-    : stop(false)
 {
     workers.reserve(num_threads);
     for (size_t i = 0; i < num_threads; ++i) {
@@ -64,7 +68,7 @@ void ThreadPool::wait()
     finished_condition.wait(lock, [this] { return tasks.empty() && tasks_running == 0; });
 }
 
-void ThreadPool::worker_loop(size_t)
+void ThreadPool::worker_loop(size_t /*unused*/)
 {
     // info("created worker ", worker_num);
     while (true) {

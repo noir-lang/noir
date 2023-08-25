@@ -8,7 +8,8 @@ constexpr uint64_t pow64(const uint64_t input, const uint64_t exponent)
 {
     if (input == 0) {
         return 0;
-    } else if (exponent == 0) {
+    }
+    if (exponent == 0) {
         return 1;
     }
 
@@ -18,7 +19,7 @@ constexpr uint64_t pow64(const uint64_t input, const uint64_t exponent)
 
     for (int i = static_cast<int>(maximum_set_bit) - 1; i >= 0; --i) {
         accumulator *= accumulator;
-        if ((exponent >> i) & 1) {
+        if (((exponent >> i) & 1) != 0U) {
             accumulator *= to_mul;
         }
     }
@@ -27,7 +28,7 @@ constexpr uint64_t pow64(const uint64_t input, const uint64_t exponent)
 
 constexpr bool is_power_of_two(uint64_t x)
 {
-    return x && !(x & (x - 1));
+    return (x != 0U) && ((x & (x - 1)) == 0U);
 }
 
 } // namespace numeric

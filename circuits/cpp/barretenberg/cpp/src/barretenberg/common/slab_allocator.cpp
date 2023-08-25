@@ -2,6 +2,7 @@
 #include <barretenberg/common/assert.hpp>
 #include <barretenberg/common/log.hpp>
 #include <barretenberg/common/mem.hpp>
+#include <cstddef>
 #include <numeric>
 #include <unordered_map>
 
@@ -15,9 +16,11 @@
  * (Irony of global slab allocator noted).
  */
 namespace {
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 bool allocator_destroyed = false;
 
 // Slabs that are being manually managed by the user.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::unordered_map<void*, std::shared_ptr<void>> manual_slabs;
 
 template <typename... Args> inline void dbg_info(Args... args)
@@ -47,6 +50,11 @@ class SlabAllocator {
 
   public:
     ~SlabAllocator();
+    SlabAllocator() = default;
+    SlabAllocator(const SlabAllocator& other) = delete;
+    SlabAllocator(SlabAllocator&& other) = delete;
+    SlabAllocator& operator=(const SlabAllocator& other) = delete;
+    SlabAllocator& operator=(SlabAllocator&& other) = delete;
 
     void init(size_t circuit_size_hint);
 
@@ -136,7 +144,7 @@ std::shared_ptr<void> SlabAllocator::get(size_t req_size)
     // Can use a preallocated slab that is less than 2 times the requested size.
     if (it != memory_store.end() && it->first < req_size * 2) {
         size_t size = it->first;
-        auto ptr = it->second.back();
+        auto* ptr = it->second.back();
         it->second.pop_back();
 
         if (it->second.empty()) {
@@ -154,23 +162,23 @@ std::shared_ptr<void> SlabAllocator::get(size_t req_size)
             dbg_info("Reusing memory slab of size: ", size, " for requested ", req_size, " total: ", get_total_size());
         }
 
-        return std::shared_ptr<void>(ptr, [this, size](void* p) {
-            if (allocator_destroyed) {
-                aligned_free(p);
-                return;
-            }
-            this->release(p, size);
-        });
+        return { ptr, [this, size](void* p) {
+                    if (allocator_destroyed) {
+                        aligned_free(p);
+                        return;
+                    }
+                    this->release(p, size);
+                } };
     }
 
-    if (req_size > 1024 * 1024) {
+    if (req_size > static_cast<size_t>(1024 * 1024)) {
         dbg_info("WARNING: Allocating unmanaged memory slab of size: ", req_size);
     }
     if (req_size % 32 == 0) {
-        return std::shared_ptr<void>(aligned_alloc(32, req_size), aligned_free);
-    } else {
-        return std::shared_ptr<void>(malloc(req_size), free);
+        return { aligned_alloc(32, req_size), aligned_free };
     }
+    // NOLINTNEXTLINE(cppcoreguidelines-no-malloc)
+    return { malloc(req_size), free };
 }
 
 size_t SlabAllocator::get_total_size()
@@ -188,7 +196,7 @@ void SlabAllocator::release(void* ptr, size_t size)
     memory_store[size].push_back(ptr);
     // dbg_info("Pooled poly memory of size: ", size, " total: ", get_total_size());
 }
-
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 SlabAllocator allocator;
 } // namespace
 

@@ -1,9 +1,9 @@
 #pragma once
 #include "./element.hpp"
 #include "barretenberg/crypto/keccak/keccak.hpp"
+#include "barretenberg/crypto/sha256/sha256.hpp"
 
-namespace barretenberg {
-namespace group_elements {
+namespace barretenberg::group_elements {
 template <class Fq, class Fr, class T>
 constexpr affine_element<Fq, Fr, T>::affine_element(const Fq& a, const Fq& b) noexcept
     : x(a)
@@ -83,6 +83,9 @@ constexpr affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::operator+(
 template <class Fq, class Fr, class T>
 constexpr affine_element<Fq, Fr, T>& affine_element<Fq, Fr, T>::operator=(const affine_element& other) noexcept
 {
+    if (this == &other) {
+        return *this;
+    }
     x = other.x;
     y = other.y;
     return *this;
@@ -183,25 +186,28 @@ constexpr bool affine_element<Fq, Fr, T>::operator>(const affine_element& other)
     // We are setting point at infinity to always be the lowest element
     if (is_point_at_infinity()) {
         return false;
-    } else if (other.is_point_at_infinity()) {
+    }
+    if (other.is_point_at_infinity()) {
         return true;
     }
 
     if (x > other.x) {
         return true;
-    } else if (x == other.x && y > other.y) {
+    }
+    if (x == other.x && y > other.y) {
         return true;
     }
     return false;
 }
 
 template <class Fq, class Fr, class T>
-affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::hash_to_curve(const uint64_t seed) noexcept
+template <typename>
+affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::hash_to_curve(uint64_t seed) noexcept
 {
-    static_assert(T::can_hash_to_curve == true);
+    static_assert(static_cast<bool>(T::can_hash_to_curve));
 
     Fq input(seed, 0, 0, 0);
-    keccak256 c = hash_field_element((uint64_t*)&input.data[0]);
+    keccak256 c = hash_field_element(&input.data[0]);
     uint256_t hash{ c.word64s[0], c.word64s[1], c.word64s[2], c.word64s[3] };
 
     uint256_t x_coordinate = hash;
@@ -252,7 +258,7 @@ affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::random_element(numeric::ran
         y = y1;
 
         // Negate the y-coordinate based on a randomly sampled bit.
-        bool random_bit = (engine->get_random_uint8() & 1);
+        bool random_bit = (engine->get_random_uint8() & 1) != 0;
         if (random_bit) {
             y = -y;
         }
@@ -262,5 +268,4 @@ affine_element<Fq, Fr, T> affine_element<Fq, Fr, T>::random_element(numeric::ran
     return affine_element<Fq, Fr, T>(x, y);
 }
 
-} // namespace group_elements
-} // namespace barretenberg
+} // namespace barretenberg::group_elements

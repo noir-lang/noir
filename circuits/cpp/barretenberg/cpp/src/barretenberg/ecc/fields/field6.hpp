@@ -18,13 +18,24 @@ template <typename base_field, typename Fq6Params> class field6 {
         , c2(other.c2)
     {}
 
-    constexpr field6(field6&& other)
+    constexpr field6(field6&& other) noexcept
         : c0(other.c0)
         , c1(other.c1)
         , c2(other.c2)
     {}
 
-    constexpr field6& operator=(const field6& other)
+    constexpr field6& operator=(const field6& other) noexcept
+    {
+        if (this == &other) {
+            return *this;
+        }
+        c0 = other.c0;
+        c1 = other.c1;
+        c2 = other.c2;
+        return *this;
+    }
+
+    constexpr field6& operator=(field6&& other) noexcept
     {
         c0 = other.c0;
         c1 = other.c1;
@@ -32,13 +43,7 @@ template <typename base_field, typename Fq6Params> class field6 {
         return *this;
     }
 
-    constexpr field6& operator=(field6&& other)
-    {
-        c0 = other.c0;
-        c1 = other.c1;
-        c2 = other.c2;
-        return *this;
-    }
+    constexpr ~field6() noexcept = default;
 
     base_field c0;
     base_field c1;
@@ -212,7 +217,7 @@ template <typename base_field, typename Fq6Params> class field6 {
         };
     }
 
-    constexpr bool is_zero() const { return c0.is_zero() && c1.is_zero() && c2.is_zero(); }
+    [[nodiscard]] constexpr bool is_zero() const { return c0.is_zero() && c1.is_zero() && c2.is_zero(); }
 
     constexpr bool operator==(const field6& other) const { return c0 == other.c0 && c1 == other.c1 && c2 == other.c2; }
 };

@@ -1,5 +1,8 @@
 #pragma once
 
+#ifndef DISABLE_SHENANIGANS
+
+#include "barretenberg/ecc/groups/group.hpp"
 #include <cstdint>
 
 namespace barretenberg {
@@ -145,7 +148,7 @@ inline void group<coordinate_field, subgroup_field, GroupParams>::conditional_ne
                              : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", "memory", "cc");
 #endif
     } else {
-        if (predicate) {
+        if (predicate) { // NOLINT
             coordinate_field::__copy(src->x, dest->x);
             dest->y = -src->y;
         } else {
@@ -155,3 +158,5 @@ inline void group<coordinate_field, subgroup_field, GroupParams>::conditional_ne
 }
 
 } // namespace barretenberg
+
+#endif

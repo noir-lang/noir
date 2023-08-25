@@ -1,10 +1,10 @@
 #pragma once
 #include "../bitop/get_msb.hpp"
+#include "./uint256.hpp"
 #include "barretenberg/common/assert.hpp"
-
 namespace numeric {
 
-constexpr std::pair<uint64_t, uint64_t> uint256_t::mul_wide(const uint64_t a, const uint64_t b) const
+constexpr std::pair<uint64_t, uint64_t> uint256_t::mul_wide(const uint64_t a, const uint64_t b)
 {
     const uint64_t a_lo = a & 0xffffffffULL;
     const uint64_t a_hi = a >> 32ULL;
@@ -22,35 +22,31 @@ constexpr std::pair<uint64_t, uint64_t> uint256_t::mul_wide(const uint64_t a, co
 }
 
 // compute a + b + carry, returning the carry
-constexpr std::pair<uint64_t, uint64_t> uint256_t::addc(const uint64_t a,
-                                                        const uint64_t b,
-                                                        const uint64_t carry_in) const
+constexpr std::pair<uint64_t, uint64_t> uint256_t::addc(const uint64_t a, const uint64_t b, const uint64_t carry_in)
 {
     const uint64_t sum = a + b;
-    const uint64_t carry_temp = sum < a;
+    const auto carry_temp = static_cast<uint64_t>(sum < a);
     const uint64_t r = sum + carry_in;
-    const uint64_t carry_out = carry_temp + (r < carry_in);
+    const uint64_t carry_out = carry_temp + static_cast<uint64_t>(r < carry_in);
     return { r, carry_out };
 }
 
-constexpr uint64_t uint256_t::addc_discard_hi(const uint64_t a, const uint64_t b, const uint64_t carry_in) const
+constexpr uint64_t uint256_t::addc_discard_hi(const uint64_t a, const uint64_t b, const uint64_t carry_in)
 {
     return a + b + carry_in;
 }
 
-constexpr std::pair<uint64_t, uint64_t> uint256_t::sbb(const uint64_t a,
-                                                       const uint64_t b,
-                                                       const uint64_t borrow_in) const
+constexpr std::pair<uint64_t, uint64_t> uint256_t::sbb(const uint64_t a, const uint64_t b, const uint64_t borrow_in)
 {
     const uint64_t t_1 = a - (borrow_in >> 63ULL);
-    const uint64_t borrow_temp_1 = t_1 > a;
+    const auto borrow_temp_1 = static_cast<uint64_t>(t_1 > a);
     const uint64_t t_2 = t_1 - b;
-    const uint64_t borrow_temp_2 = t_2 > t_1;
+    const auto borrow_temp_2 = static_cast<uint64_t>(t_2 > t_1);
 
     return { t_2, 0ULL - (borrow_temp_1 | borrow_temp_2) };
 }
 
-constexpr uint64_t uint256_t::sbb_discard_hi(const uint64_t a, const uint64_t b, const uint64_t borrow_in) const
+constexpr uint64_t uint256_t::sbb_discard_hi(const uint64_t a, const uint64_t b, const uint64_t borrow_in)
 {
     return a - b - (borrow_in >> 63ULL);
 }
@@ -59,13 +55,13 @@ constexpr uint64_t uint256_t::sbb_discard_hi(const uint64_t a, const uint64_t b,
 constexpr std::pair<uint64_t, uint64_t> uint256_t::mac(const uint64_t a,
                                                        const uint64_t b,
                                                        const uint64_t c,
-                                                       const uint64_t carry_in) const
+                                                       const uint64_t carry_in)
 {
     std::pair<uint64_t, uint64_t> result = mul_wide(b, c);
     result.first += a;
-    const uint64_t overflow_c = (result.first < a);
+    const auto overflow_c = static_cast<uint64_t>(result.first < a);
     result.first += carry_in;
-    const uint64_t overflow_carry = (result.first < carry_in);
+    const auto overflow_carry = static_cast<uint64_t>(result.first < carry_in);
     result.second += (overflow_c + overflow_carry);
     return result;
 }
@@ -73,7 +69,7 @@ constexpr std::pair<uint64_t, uint64_t> uint256_t::mac(const uint64_t a,
 constexpr uint64_t uint256_t::mac_discard_hi(const uint64_t a,
                                              const uint64_t b,
                                              const uint64_t c,
-                                             const uint64_t carry_in) const
+                                             const uint64_t carry_in)
 {
     return (b * c + a + carry_in);
 }
@@ -82,11 +78,14 @@ constexpr std::pair<uint256_t, uint256_t> uint256_t::divmod(const uint256_t& b) 
 {
     if (*this == 0 || b == 0) {
         return { 0, 0 };
-    } else if (b == 1) {
+    }
+    if (b == 1) {
         return { *this, 0 };
-    } else if (*this == b) {
+    }
+    if (*this == b) {
         return { 1, 0 };
-    } else if (b > *this) {
+    }
+    if (b > *this) {
         return { 0, *this };
     }
 
@@ -186,11 +185,11 @@ constexpr bool uint256_t::get_bit(const uint64_t bit_index) const
 {
     ASSERT(bit_index < 256);
     if (bit_index > 255) {
-        return bool(0);
+        return static_cast<bool>(0);
     }
-    const size_t idx = static_cast<size_t>(bit_index >> 6);
+    const auto idx = static_cast<size_t>(bit_index >> 6);
     const size_t shift = bit_index & 63;
-    return bool((data[idx] >> shift) & 1);
+    return static_cast<bool>((data[idx] >> shift) & 1);
 }
 
 constexpr uint64_t uint256_t::get_msb() const
@@ -319,7 +318,7 @@ constexpr uint256_t uint256_t::operator>>(const uint256_t& other) const
 {
     uint64_t total_shift = other.data[0];
 
-    if (total_shift >= 256 || other.data[1] || other.data[2] || other.data[3]) {
+    if (total_shift >= 256 || (other.data[1] != 0U) || (other.data[2] != 0U) || (other.data[3] != 0U)) {
         return 0;
     }
 
@@ -330,7 +329,7 @@ constexpr uint256_t uint256_t::operator>>(const uint256_t& other) const
     uint64_t num_shifted_limbs = total_shift >> 6ULL;
     uint64_t limb_shift = total_shift & 63ULL;
 
-    uint64_t shifted_limbs[4] = { 0 };
+    std::array<uint64_t, 4> shifted_limbs = { 0, 0, 0, 0 };
 
     if (limb_shift == 0) {
         shifted_limbs[0] = data[0];
@@ -356,8 +355,8 @@ constexpr uint256_t uint256_t::operator>>(const uint256_t& other) const
     }
     uint256_t result(0);
 
-    for (uint64_t i = 0; i < 4 - num_shifted_limbs; ++i) {
-        result.data[i] = shifted_limbs[i + num_shifted_limbs];
+    for (size_t i = 0; i < 4 - num_shifted_limbs; ++i) {
+        result.data[i] = shifted_limbs[static_cast<size_t>(i + num_shifted_limbs)];
     }
 
     return result;
@@ -367,7 +366,7 @@ constexpr uint256_t uint256_t::operator<<(const uint256_t& other) const
 {
     uint64_t total_shift = other.data[0];
 
-    if (total_shift >= 256 || other.data[1] || other.data[2] || other.data[3]) {
+    if (total_shift >= 256 || (other.data[1] != 0U) || (other.data[2] != 0U) || (other.data[3] != 0U)) {
         return 0;
     }
 
@@ -377,7 +376,7 @@ constexpr uint256_t uint256_t::operator<<(const uint256_t& other) const
     uint64_t num_shifted_limbs = total_shift >> 6ULL;
     uint64_t limb_shift = total_shift & 63ULL;
 
-    uint64_t shifted_limbs[4]{ 0 };
+    std::array<uint64_t, 4> shifted_limbs = { 0, 0, 0, 0 };
 
     if (limb_shift == 0) {
         shifted_limbs[0] = data[0];
@@ -403,8 +402,8 @@ constexpr uint256_t uint256_t::operator<<(const uint256_t& other) const
     }
     uint256_t result(0);
 
-    for (uint64_t i = 0; i < 4 - num_shifted_limbs; ++i) {
-        result.data[i + num_shifted_limbs] = shifted_limbs[i];
+    for (size_t i = 0; i < 4 - num_shifted_limbs; ++i) {
+        result.data[static_cast<size_t>(i + num_shifted_limbs)] = shifted_limbs[i];
     }
 
     return result;

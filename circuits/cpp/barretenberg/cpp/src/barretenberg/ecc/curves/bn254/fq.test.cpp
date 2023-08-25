@@ -1,17 +1,26 @@
 #include "barretenberg/serialize/test_helper.hpp"
 #include "fq.hpp"
-#include "pseudorandom.hpp"
 #include <gtest/gtest.h>
 
 using namespace barretenberg;
 
-TEST(fq, msgpack)
+// Used to ensure variables are evaluated at runtime and not compile time.
+// If EXPECT_EQ macro params are evaluated at compile-time, compiler can optimise them away.
+// This triggers compiler errors due to the gtest suite expecting at least one test statement in a TEST macro
+void shallow_copy(const fq& in, fq& out)
 {
-    auto [actual, expected] = msgpack_roundtrip(barretenberg::fq{ 1ull, 2ull, 3ull, 4ull });
+    out.data[0] = in.data[0];
+    out.data[1] = in.data[1];
+    out.data[2] = in.data[2];
+    out.data[3] = in.data[3];
+};
+TEST(fq, Msgpack)
+{
+    auto [actual, expected] = msgpack_roundtrip(barretenberg::fq{ 1ULL, 2ULL, 3ULL, 4ULL });
     EXPECT_EQ(actual, expected);
 }
 
-TEST(fq, eq)
+TEST(fq, Eq)
 {
     constexpr fq a{ 0x01, 0x02, 0x03, 0x04 };
     constexpr fq b{ 0x01, 0x02, 0x03, 0x04 };
@@ -31,12 +40,13 @@ TEST(fq, eq)
     fq d_var;
     fq e_var;
     fq f_var;
-    memcpy((void*)a_var.data, (void*)a.data, 32);
-    memcpy((void*)b_var.data, (void*)b.data, 32);
-    memcpy((void*)c_var.data, (void*)c.data, 32);
-    memcpy((void*)d_var.data, (void*)d.data, 32);
-    memcpy((void*)e_var.data, (void*)e.data, 32);
-    memcpy((void*)f_var.data, (void*)f.data, 32);
+
+    shallow_copy(a, a_var);
+    shallow_copy(b, b_var);
+    shallow_copy(c, c_var);
+    shallow_copy(d, d_var);
+    shallow_copy(e, e_var);
+    shallow_copy(f, f_var);
 
     EXPECT_EQ(a_var == a_var, true);
     EXPECT_EQ(a_var == b_var, true);
@@ -46,7 +56,7 @@ TEST(fq, eq)
     EXPECT_EQ(a_var == f_var, false);
 }
 
-TEST(fq, is_zero)
+TEST(fq, IsZero)
 {
     fq a = fq::zero();
     fq b = fq::zero();
@@ -65,7 +75,7 @@ TEST(fq, is_zero)
     EXPECT_EQ(e.is_zero(), false);
 }
 
-TEST(fq, random_element)
+TEST(fq, RandomElement)
 {
     fq a = fq::random_element();
     fq b = fq::random_element();
@@ -75,7 +85,7 @@ TEST(fq, random_element)
     EXPECT_EQ(a.is_zero(), false);
 }
 
-TEST(fq, mul_check_against_constants)
+TEST(fq, MulCheckAgainstConstants)
 {
     // test against some randomly generated test data
     constexpr fq a{ 0x2523b6fa3956f038, 0x158aa08ecdd9ec1d, 0xf48216a4c74738d4, 0x2514cc93d6f0a1bf };
@@ -91,13 +101,13 @@ TEST(fq, mul_check_against_constants)
 
     fq c;
     fq d;
-    memcpy((void*)c.data, (void*)a.data, 32);
-    memcpy((void*)d.data, (void*)b.data, 32);
+    shallow_copy(a, c);
+    shallow_copy(b, d);
     EXPECT_EQ(c * d, const_expected);
 }
 
 // validate that zero-value limbs don't cause any problems
-TEST(fq, mul_short_integers)
+TEST(fq, MulShortIntegers)
 {
     constexpr fq a{ 0xa, 0, 0, 0 };
     constexpr fq b{ 0xb, 0, 0, 0 };
@@ -107,12 +117,12 @@ TEST(fq, mul_short_integers)
 
     fq c;
     fq d;
-    memcpy((void*)c.data, (void*)a.data, 32);
-    memcpy((void*)d.data, (void*)b.data, 32);
+    shallow_copy(a, c);
+    shallow_copy(b, d);
     EXPECT_EQ(c * d, const_expected);
 }
 
-TEST(fq, mul_sqr_consistency)
+TEST(fq, MulSqrConsistency)
 {
     fq a = fq::random_element();
     fq b = fq::random_element();
@@ -129,7 +139,7 @@ TEST(fq, mul_sqr_consistency)
     EXPECT_EQ(mul_result, sqr_result);
 }
 
-TEST(fq, sqr_check_against_constants)
+TEST(fq, SqrCheckAgainstConstants)
 {
     constexpr fq a{ 0x329596aa978981e8, 0x8542e6e254c2a5d0, 0xc5b687d82eadb178, 0x2d242aaf48f56b8a };
     constexpr fq expected{ 0xbf4fb34e120b8b12, 0xf64d70efbf848328, 0xefbb6a533f2e7d89, 0x1de50f941425e4aa };
@@ -137,12 +147,13 @@ TEST(fq, sqr_check_against_constants)
     static_assert(result == expected);
 
     fq b;
-    memcpy((void*)b.data, (void*)a.data, 32);
+    shallow_copy(a, b);
+
     fq c = b.sqr();
     EXPECT_EQ(result, c);
 }
 
-TEST(fq, add_check_against_constants)
+TEST(fq, AddCheckAgainstConstants)
 {
     constexpr fq a{ 0x7d2e20e82f73d3e8, 0x8e50616a7a9d419d, 0xcdc833531508914b, 0xd510253a2ce62c };
     constexpr fq b{ 0x2829438b071fd14e, 0xb03ef3f9ff9274e, 0x605b671f6dc7b209, 0x8701f9d971fbc9 };
@@ -152,12 +163,12 @@ TEST(fq, add_check_against_constants)
 
     fq c;
     fq d;
-    memcpy((void*)c.data, (void*)a.data, 32);
-    memcpy((void*)d.data, (void*)b.data, 32);
+    shallow_copy(a, c);
+    shallow_copy(b, d);
     EXPECT_EQ(c + d, const_expected);
 }
 
-TEST(fq, sub_check_against_constants)
+TEST(fq, SubCheckAgainstConstants)
 {
     constexpr fq a{ 0xd68d01812313fb7c, 0x2965d7ae7c6070a5, 0x08ef9af6d6ba9a48, 0x0cb8fe2108914f53 };
     constexpr fq b{ 0x2cd2a2a37e9bf14a, 0xebc86ef589c530f6, 0x75124885b362b8fe, 0x1394324205c7a41d };
@@ -167,15 +178,15 @@ TEST(fq, sub_check_against_constants)
 
     fq c;
     fq d;
-    memcpy((void*)c.data, (void*)a.data, 32);
-    memcpy((void*)d.data, (void*)b.data, 32);
+    shallow_copy(a, c);
+    shallow_copy(b, d);
     EXPECT_EQ(c - d, const_expected);
 }
 
-TEST(fq, coarse_equivalence_checks)
+TEST(fq, CoarseEquivalenceChecks)
 {
-    fq a = get_pseudorandom_fq();
-    fq b = get_pseudorandom_fq();
+    fq a = fq::random_element();
+    fq b = fq::random_element();
 
     fq c = (a * b) + a - b;
 
@@ -184,14 +195,14 @@ TEST(fq, coarse_equivalence_checks)
     EXPECT_EQ(c, d);
 }
 
-TEST(fq, to_montgomery_form)
+TEST(fq, toMontgomeryForm)
 {
     fq result = fq{ 0x01, 0x00, 0x00, 0x00 }.to_montgomery_form();
     fq expected = fq::one();
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq, from_montgomery_form)
+TEST(fq, FromMontgomeryForm)
 {
     constexpr fq t0 = fq::one();
     constexpr fq result = t0.from_montgomery_form();
@@ -199,7 +210,7 @@ TEST(fq, from_montgomery_form)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq, montgomery_consistency_check)
+TEST(fq, MontgomeryConsistencyCheck)
 {
     fq a = fq::random_element();
     fq b = fq::random_element();
@@ -231,7 +242,7 @@ TEST(fq, montgomery_consistency_check)
     EXPECT_EQ((result_a == result_d), true);
 }
 
-TEST(fq, add_mul_consistency)
+TEST(fq, AddMulConsistency)
 {
     fq multiplicand = { 0x09, 0, 0, 0 };
     multiplicand.self_to_montgomery_form();
@@ -249,7 +260,7 @@ TEST(fq, add_mul_consistency)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fq, sub_mul_consistency)
+TEST(fq, SubMulConsistency)
 {
     fq multiplicand = { 0x05, 0, 0, 0 };
     multiplicand.self_to_montgomery_form();
@@ -290,7 +301,7 @@ TEST(fq, beta)
     EXPECT_EQ((x_cubed == beta_x_cubed), true);
 }
 
-TEST(fq, invert)
+TEST(fq, Invert)
 {
     fq input = fq::random_element();
     fq inverse = input.invert();
@@ -300,14 +311,14 @@ TEST(fq, invert)
     EXPECT_EQ(result, fq::one());
 }
 
-TEST(fq, invert_one_is_one)
+TEST(fq, InvertOneIsOne)
 {
     fq result = fq::one();
     result = result.invert();
     EXPECT_EQ((result == fq::one()), true);
 }
 
-TEST(fq, sqrt)
+TEST(fq, Sqrt)
 {
     fq input = fq::one();
     auto [is_sqr, root] = input.sqrt();
@@ -315,7 +326,7 @@ TEST(fq, sqrt)
     EXPECT_EQ(result, input);
 }
 
-TEST(fq, sqrt_random)
+TEST(fq, SqrtRandom)
 {
     for (size_t i = 0; i < 1; ++i) {
         fq input = fq::random_element().sqr();
@@ -325,14 +336,14 @@ TEST(fq, sqrt_random)
     }
 }
 
-TEST(fq, one_and_zero)
+TEST(fq, OneAndZero)
 {
     fq result;
     result = fq::one() - fq::one();
     EXPECT_EQ((result == fq::zero()), true);
 }
 
-TEST(fq, copy)
+TEST(fq, Copy)
 {
     fq result = fq::random_element();
     fq expected;
@@ -340,7 +351,7 @@ TEST(fq, copy)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fq, neg)
+TEST(fq, Neg)
 {
     fq a = fq::random_element();
     fq b;
@@ -350,7 +361,7 @@ TEST(fq, neg)
     EXPECT_EQ((result == fq::zero()), true);
 }
 
-TEST(fq, split_into_endomorphism_scalars)
+TEST(fq, SplitIntoEndomorphismScalars)
 {
     fq k = fq::random_element();
     fq k1 = 0;
@@ -371,7 +382,7 @@ TEST(fq, split_into_endomorphism_scalars)
     EXPECT_EQ(result, k);
 }
 
-TEST(fq, split_into_endomorphism_scalars_simple)
+TEST(fq, SplitIntoEndomorphismScalarsSimple)
 {
 
     fq input = { 1, 0, 0, 0 };
@@ -396,9 +407,9 @@ TEST(fq, split_into_endomorphism_scalars_simple)
     }
 }
 
-TEST(fq, serialize_to_buffer)
+TEST(fq, SerializeToBuffer)
 {
-    uint8_t buffer[32];
+    std::array<uint8_t, 32> buffer;
     fq a = { 0x1234567876543210, 0x2345678987654321, 0x3456789a98765432, 0x006789abcba98765 };
     a = a.to_montgomery_form();
 
@@ -441,9 +452,9 @@ TEST(fq, serialize_to_buffer)
     EXPECT_EQ(buffer[0], 0x00);
 }
 
-TEST(fq, serialize_from_buffer)
+TEST(fq, SerializeFromBuffer)
 {
-    uint8_t buffer[32];
+    std::array<uint8_t, 32> buffer;
     fq expected = { 0x1234567876543210, 0x2345678987654321, 0x3456789a98765432, 0x006789abcba98765 };
 
     fq::serialize_to_buffer(expected, &buffer[0]);
@@ -453,12 +464,12 @@ TEST(fq, serialize_from_buffer)
     EXPECT_EQ((result == expected), true);
 }
 
-TEST(fq, multiplicative_generator)
+TEST(fq, MultiplicativeGenerator)
 {
     EXPECT_EQ(fq::multiplicative_generator(), fq(3));
 }
 
-TEST(fq, r_inv)
+TEST(fq, RInv)
 {
     uint256_t prime_256{
         Bn254FqParams::modulus_0, Bn254FqParams::modulus_1, Bn254FqParams::modulus_2, Bn254FqParams::modulus_3
@@ -473,7 +484,7 @@ TEST(fq, r_inv)
 }
 
 // TEST to check we don't have 0^0=0
-TEST(fq, pow_regression_check)
+TEST(fq, PowRegressionCheck)
 {
     fq zero = fq::zero();
     fq one = fq::one();
@@ -481,22 +492,24 @@ TEST(fq, pow_regression_check)
 }
 //   438268ca91d42ad f1e7025a7b654e1f f8d9d72e0438b995 8c422ec208ac8a6e
 
-TEST(fq, sqr_regression)
+TEST(fq, SqrRegression)
 {
-    uint256_t values[] = { uint256_t(0xbdf876654b0ade1b, 0x2c3a66c64569f338, 0x2cd8bf2ec1fe55a3, 0x11c0ea9ee5693ede),
-                           uint256_t(0x551b14ec34f2151c, 0x62e472ed83a2891e, 0xf208d5e5c9b5b3fb, 0x14315aeaf6027d8c),
-                           uint256_t(0xad39959ae8013750, 0x7f1d2c709ab84cbb, 0x408028b80a60c2f1, 0x1dcd116fc26f856e),
-                           uint256_t(0x95e967d30dcce9ce, 0x56139274241d2ea1, 0x85b19c1c616ec456, 0x1f1780cf9bf045b4),
-                           uint256_t(0xbe841c861d8eb80e, 0xc5980d67a21386c0, 0x5fd1f1afecddeeb5, 0x24dbb8c1baea0250),
-                           uint256_t(0x3ae4b3a27f05d6e3, 0xc5f6785b12df8d29, 0xc3a6c5f095103046, 0xd6b94cb2cc1fd4b),
-                           uint256_t(0xc003c71932a6ced5, 0x6302a413f68e26e9, 0x2ed4a9b64d69fad, 0xfe61ffab1ae227d) };
+    std::array<uint256_t, 7> values = {
+        uint256_t(0xbdf876654b0ade1b, 0x2c3a66c64569f338, 0x2cd8bf2ec1fe55a3, 0x11c0ea9ee5693ede),
+        uint256_t(0x551b14ec34f2151c, 0x62e472ed83a2891e, 0xf208d5e5c9b5b3fb, 0x14315aeaf6027d8c),
+        uint256_t(0xad39959ae8013750, 0x7f1d2c709ab84cbb, 0x408028b80a60c2f1, 0x1dcd116fc26f856e),
+        uint256_t(0x95e967d30dcce9ce, 0x56139274241d2ea1, 0x85b19c1c616ec456, 0x1f1780cf9bf045b4),
+        uint256_t(0xbe841c861d8eb80e, 0xc5980d67a21386c0, 0x5fd1f1afecddeeb5, 0x24dbb8c1baea0250),
+        uint256_t(0x3ae4b3a27f05d6e3, 0xc5f6785b12df8d29, 0xc3a6c5f095103046, 0xd6b94cb2cc1fd4b),
+        uint256_t(0xc003c71932a6ced5, 0x6302a413f68e26e9, 0x2ed4a9b64d69fad, 0xfe61ffab1ae227d)
+    };
     for (auto& value : values) {
         fq element(value);
         EXPECT_EQ(element.sqr(), element * element);
     }
 }
 
-TEST(fq, neg_and_self_neg_0_cmp_regression)
+TEST(fq, NegAndSelfNeg0CmpRegression)
 {
     fq a = 0;
     fq a_neg = -a;

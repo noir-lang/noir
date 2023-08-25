@@ -42,9 +42,13 @@ template <class base_uint> class uintx {
         , hi(other.hi)
     {}
 
+    constexpr uintx(uintx&& other) noexcept = default;
+
     static constexpr size_t length() { return 2 * base_uint::length(); }
     constexpr uintx& operator=(const uintx& other) = default;
+    constexpr uintx& operator=(uintx&& other) noexcept = default;
 
+    constexpr ~uintx() = default;
     explicit constexpr operator bool() const { return static_cast<bool>(lo.data[0]); };
     explicit constexpr operator uint8_t() const { return static_cast<uint8_t>(lo.data[0]); };
     explicit constexpr operator uint16_t() const { return static_cast<uint16_t>(lo.data[0]); };
@@ -53,9 +57,9 @@ template <class base_uint> class uintx {
 
     explicit constexpr operator base_uint() const { return lo; }
 
-    constexpr bool get_bit(const uint64_t bit_index) const;
-    constexpr uint64_t get_msb() const;
-    constexpr uintx slice(const uint64_t start, const uint64_t end) const;
+    [[nodiscard]] constexpr bool get_bit(uint64_t bit_index) const;
+    [[nodiscard]] constexpr uint64_t get_msb() const;
+    constexpr uintx slice(uint64_t start, uint64_t end) const;
 
     constexpr uintx operator+(const uintx& other) const;
     constexpr uintx operator-(const uintx& other) const;
@@ -67,8 +71,8 @@ template <class base_uint> class uintx {
 
     constexpr std::pair<uintx, uintx> mul_extended(const uintx& other) const;
 
-    constexpr uintx operator>>(const uint64_t other) const;
-    constexpr uintx operator<<(const uint64_t other) const;
+    constexpr uintx operator>>(uint64_t other) const;
+    constexpr uintx operator<<(uint64_t other) const;
 
     constexpr uintx operator&(const uintx& other) const;
     constexpr uintx operator^(const uintx& other) const;
@@ -174,18 +178,18 @@ template <typename B, typename Params> inline void write(B& it, uintx<Params> co
     write(it, value.lo);
 }
 
-#include "./uintx_impl.hpp"
-
 template <class base_uint> inline std::ostream& operator<<(std::ostream& os, uintx<base_uint> const& a)
 {
     os << a.lo << ", " << a.hi << std::endl;
     return os;
 }
 
-typedef uintx<uint256_t> uint512_t;
-typedef uintx<uint512_t> uint1024_t;
+using uint512_t = uintx<numeric::uint256_t>;
+using uint1024_t = uintx<uint512_t>;
 
 } // namespace numeric
 
-using numeric::uint1024_t;
-using numeric::uint512_t;
+#include "./uintx_impl.hpp"
+
+using numeric::uint1024_t; // NOLINT
+using numeric::uint512_t;  // NOLINT

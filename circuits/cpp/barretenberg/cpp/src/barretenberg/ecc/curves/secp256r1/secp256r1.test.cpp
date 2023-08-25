@@ -22,7 +22,7 @@ uint256_t get_fq_element()
     return res;
 }
 
-TEST(secp256r1, test_add)
+TEST(secp256r1, TestAdd)
 {
     const size_t n = 100;
     for (size_t i = 0; i < n; ++i) {
@@ -43,7 +43,7 @@ TEST(secp256r1, test_add)
     }
 }
 
-TEST(secp256r1, test_sub)
+TEST(secp256r1, TestSub)
 {
     const size_t n = 100;
     for (size_t i = 0; i < n; ++i) {
@@ -64,7 +64,7 @@ TEST(secp256r1, test_sub)
     }
 }
 
-TEST(secp256r1, test_to_montgomery_form)
+TEST(secp256r1, TestToMontgomeryForm)
 {
     const size_t n = 10;
     for (size_t i = 0; i < n; ++i) {
@@ -82,7 +82,7 @@ TEST(secp256r1, test_to_montgomery_form)
     }
 }
 
-TEST(secp256r1, test_from_montgomery_form)
+TEST(secp256r1, TestFromMontgomeryForm)
 {
     const size_t n = 100;
     for (size_t i = 0; i < n; ++i) {
@@ -93,7 +93,7 @@ TEST(secp256r1, test_from_montgomery_form)
     }
 }
 
-TEST(secp256r1, test_mul)
+TEST(secp256r1, TestMul)
 {
     const size_t n = 10;
     for (size_t i = 0; i < n; ++i) {
@@ -104,8 +104,8 @@ TEST(secp256r1, test_mul)
         secp256r1::fq b(b_raw);
         secp256r1::fq c = (a * b);
 
-        uint1024_t a_1024 = uint1024_t(uint512_t(a_raw));
-        uint1024_t b_1024 = uint1024_t(uint512_t(b_raw));
+        uint1024_t a_1024((uint512_t(a_raw)));
+        uint1024_t b_1024((uint512_t(b_raw)));
         uint1024_t c_1024 = a_1024 * b_1024;
         uint1024_t cmod = c_1024 % uint1024_t(uint512_t(test_fq_mod));
         uint256_t expected = cmod.lo.lo;
@@ -114,7 +114,7 @@ TEST(secp256r1, test_mul)
     }
 }
 
-TEST(secp256r1, test_sqr)
+TEST(secp256r1, TestSqr)
 {
     const size_t n = 10;
     for (size_t i = 0; i < n; ++i) {
@@ -131,7 +131,7 @@ TEST(secp256r1, test_sqr)
     }
 }
 
-TEST(secp256r1, test_arithmetic)
+TEST(secp256r1, TestArithmetic)
 {
     secp256r1::fq a = secp256r1::fq::random_element();
     secp256r1::fq b = secp256r1::fq::random_element();
@@ -141,25 +141,25 @@ TEST(secp256r1, test_arithmetic)
     EXPECT_EQ(c, d);
 }
 
-TEST(secp256r1, generator_on_curve)
+TEST(secp256r1, GeneratorOnCurve)
 {
     secp256r1::g1::element result = secp256r1::g1::one;
     EXPECT_EQ(result.on_curve(), true);
 }
 
-TEST(secp256r1, random_element)
+TEST(secp256r1, RandomElement)
 {
     secp256r1::g1::element result = secp256r1::g1::element::random_element();
     EXPECT_EQ(result.on_curve(), true);
 }
 
-TEST(secp256r1, random_affine_element)
+TEST(secp256r1, RandomAffineElement)
 {
-    secp256r1::g1::affine_element result = secp256r1::g1::affine_element(secp256r1::g1::element::random_element());
+    secp256r1::g1::affine_element result = secp256r1::g1::element::random_element();
     EXPECT_EQ(result.on_curve(), true);
 }
 
-TEST(secp256r1, eq)
+TEST(secp256r1, Eq)
 {
     secp256r1::g1::element a = secp256r1::g1::element::random_element();
     secp256r1::g1::element b = a.normalize();
@@ -179,7 +179,7 @@ TEST(secp256r1, eq)
     EXPECT_EQ(a == b, true);
 }
 
-TEST(secp256r1, check_group_modulus)
+TEST(secp256r1, CheckGroupModulus)
 {
     // secp256r1::g1::affine_element expected = secp256r1::g1::affine_one;
     secp256r1::fr exponent = -secp256r1::fr(1);
@@ -190,7 +190,7 @@ TEST(secp256r1, check_group_modulus)
     EXPECT_EQ(result == secp256r1::g1::one, true);
 }
 
-TEST(secp256r1, add_exception_test_infinity)
+TEST(secp256r1, AddExceptionTestInfinity)
 {
     secp256r1::g1::element lhs = secp256r1::g1::element::random_element();
     secp256r1::g1::element rhs;
@@ -216,7 +216,7 @@ TEST(secp256r1, add_exception_test_infinity)
     EXPECT_EQ(rhs == result, true);
 }
 
-TEST(secp256r1, add_exception_test_dbl)
+TEST(secp256r1, AddExceptionTestDbl)
 {
     secp256r1::g1::element lhs = secp256r1::g1::element::random_element();
     secp256r1::g1::element rhs;
@@ -231,7 +231,7 @@ TEST(secp256r1, add_exception_test_dbl)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(secp256r1, add_dbl_consistency)
+TEST(secp256r1, AddDblConsistency)
 {
     secp256r1::g1::element a = secp256r1::g1::one; // P
     secp256r1::g1::element b = a.dbl();            // 2P
@@ -245,25 +245,9 @@ TEST(secp256r1, add_dbl_consistency)
     d = d + a;                        // 7P
     d = d + a;                        // 8P
     EXPECT_EQ(c, d);
-    // secp256r1::g1::element a = secp256r1::g1::element::random_element();
-    // secp256r1::g1::element b = secp256r1::g1::element::random_element();
-
-    // secp256r1::g1::element c;
-    // secp256r1::g1::element d;
-    // secp256r1::g1::element add_result;
-    // secp256r1::g1::element dbl_result;
-
-    // c = a + b;
-    // b = -b;
-    // d = a + b;
-
-    // add_result = c + d;
-    // dbl_result = a.dbl();
-
-    // EXPECT_EQ(add_result == dbl_result, true);
 }
 
-TEST(secp256r1, add_dbl_consistency_repeated)
+TEST(secp256r1, AddDblConsistencyRepeated)
 {
     secp256r1::g1::element a = secp256r1::g1::element::random_element();
     secp256r1::g1::element b;
@@ -286,10 +270,10 @@ TEST(secp256r1, add_dbl_consistency_repeated)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(secp256r1, mixed_add_exception_test_infinity)
+TEST(secp256r1, MixedAddExceptionTestInfinity)
 {
     secp256r1::g1::element lhs = secp256r1::g1::one;
-    secp256r1::g1::affine_element rhs = secp256r1::g1::affine_element(secp256r1::g1::element::random_element());
+    secp256r1::g1::affine_element rhs = secp256r1::g1::element::random_element();
     secp256r1::fq::__copy(rhs.x, lhs.x);
     lhs.y = -rhs.y;
 
@@ -306,9 +290,9 @@ TEST(secp256r1, mixed_add_exception_test_infinity)
     EXPECT_EQ(rhs_c == result, true);
 }
 
-TEST(secp256r1, mixed_add_exception_test_dbl)
+TEST(secp256r1, MixedAddExceptionTestDbl)
 {
-    secp256r1::g1::affine_element rhs = secp256r1::g1::affine_element(secp256r1::g1::element::random_element());
+    secp256r1::g1::affine_element rhs = secp256r1::g1::element::random_element();
     secp256r1::g1::element lhs;
     lhs = secp256r1::g1::element(rhs);
 
@@ -321,9 +305,9 @@ TEST(secp256r1, mixed_add_exception_test_dbl)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(secp256r1, add_mixed_add_consistency_check)
+TEST(secp256r1, AddMixedAddConsistencyCheck)
 {
-    secp256r1::g1::affine_element rhs = secp256r1::g1::affine_element(secp256r1::g1::element::random_element());
+    secp256r1::g1::affine_element rhs = secp256r1::g1::element::random_element();
     secp256r1::g1::element lhs = secp256r1::g1::element::random_element();
     secp256r1::g1::element rhs_b;
     rhs_b = secp256r1::g1::element(rhs);
@@ -336,28 +320,27 @@ TEST(secp256r1, add_mixed_add_consistency_check)
     EXPECT_EQ(add_result == mixed_add_result, true);
 }
 
-TEST(secp256r1, on_curve)
+TEST(secp256r1, OnCurve)
 {
     for (size_t i = 0; i < 100; ++i) {
         secp256r1::g1::element test = secp256r1::g1::element::random_element();
         EXPECT_EQ(test.on_curve(), true);
-        secp256r1::g1::affine_element affine_test =
-            secp256r1::g1::affine_element(secp256r1::g1::element::random_element());
+        secp256r1::g1::affine_element affine_test = secp256r1::g1::element::random_element();
         EXPECT_EQ(affine_test.on_curve(), true);
     }
 }
-TEST(secp256r1, batch_normalize)
+TEST(secp256r1, BatchNormalize)
 {
     size_t num_points = 2;
-    secp256r1::g1::element points[num_points];
-    secp256r1::g1::element normalized[num_points];
+    std::vector<secp256r1::g1::element> points(num_points);
+    std::vector<secp256r1::g1::element> normalized(num_points);
     for (size_t i = 0; i < num_points; ++i) {
         secp256r1::g1::element a = secp256r1::g1::element::random_element();
         secp256r1::g1::element b = secp256r1::g1::element::random_element();
         points[i] = a + b;
         normalized[i] = points[i];
     }
-    secp256r1::g1::element::batch_normalize(normalized, num_points);
+    secp256r1::g1::element::batch_normalize(&normalized[0], num_points);
 
     for (size_t i = 0; i < num_points; ++i) {
         secp256r1::fq zz;
@@ -374,7 +357,7 @@ TEST(secp256r1, batch_normalize)
     }
 }
 
-TEST(secp256r1, group_exponentiation_zero_and_one)
+TEST(secp256r1, GroupExponentiationZeroAndOne)
 {
     secp256r1::g1::affine_element result = secp256r1::g1::one * secp256r1::fr::zero();
 
@@ -389,7 +372,7 @@ TEST(secp256r1, group_exponentiation_zero_and_one)
     EXPECT_EQ(result == secp256r1::g1::affine_one, true);
 }
 
-TEST(secp256r1, group_exponentiation_consistency_check)
+TEST(secp256r1, GroupExponentiationConsistencyCheck)
 {
     secp256r1::fr a = secp256r1::fr::random_element();
     secp256r1::fr b = secp256r1::fr::random_element();
@@ -405,29 +388,13 @@ TEST(secp256r1, group_exponentiation_consistency_check)
 
     EXPECT_EQ(result == expected, true);
 }
-// TODO: Remove in 2023
-// This test ensures that we haven't regressed to using a buggy implementation of method get_msb (now deleted) from
-// field class instead of uint256_t's get_msb in element class's mul_without_endomorphism method.
-TEST(secp256r1, msb_bug_regression_check)
-{
-    uint256_t start = (uint256_t(1) << 64);
-    uint64_t test_vector_x[4] = { 0x90e75cb48e14db63, 0x29493baaad651f7e, 0x8492592e326e25de, 0xfa822bc2811aaa5 };
-    uint64_t test_vector_y[4] = { 0xe41124545f462ee7, 0x34b1a65050fe82f5, 0x6f4ad4bcb3df188b, 0xbff44ae8f5dba80d };
-    secp256r1::g1::affine_element expected_result = secp256r1::g1::affine_element(
-        secp256r1::fq(uint256_t(test_vector_x[0], test_vector_x[1], test_vector_x[2], test_vector_x[3])),
-        secp256r1::fq(uint256_t(test_vector_y[0], test_vector_y[1], test_vector_y[2], test_vector_y[3])));
-    secp256r1::fr a = secp256r1::fr(start);
-    secp256r1::g1::affine_element input = secp256r1::g1::affine_one;
-    secp256r1::g1::affine_element result = input * a;
-    EXPECT_EQ(result, expected_result);
-}
 
 /**
  * @brief We had an issue where we added field elements and subtracted a prime depending on the 2²⁵⁶ overflow. This
  * was incorrect. Sometimes we need to subtract the prime twice. The same is true for subtractions
  *
  */
-TEST(secp256r1, addition_subtraction_regression_check)
+TEST(secp256r1, AdditionSubtractionRegressionCheck)
 {
     secp256r1::fq fq1(uint256_t{ 0xfffffe0000000200, 0x200fffff9ff, 0xfffffbfffffffe00, 0xfffffbff00000400 });
     secp256r1::fq fq2(uint256_t{ 0xfffffe0000000200, 0x200fffff9ff, 0xfffffbfffffffe00, 0xfffffbff00000400 });
@@ -468,7 +435,7 @@ TEST(secp256r1, check_compression_constructor)
     std::cout << "Affine element: " << el << std::endl;
 }**/
 
-TEST(secp256r1, montgomery_mul_big_bug)
+TEST(secp256r1, MontgomeryMulBigBug)
 {
     secp256r1::fr a;
     a.data[0] = 0xC5BF4F6AFF993D09;

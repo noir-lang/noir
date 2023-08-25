@@ -3,8 +3,8 @@
 #include "barretenberg/serialize/test_helper.hpp"
 #include <gtest/gtest.h>
 
-TEST(msgpack_tests, msgpack_field)
+TEST(MsgpackTests, MsgpackField)
 {
-    auto [actual, expected] = msgpack_roundtrip(barretenberg::fr{ 1ull, 2ull, 3ull, 4ull });
+    auto [actual, expected] = msgpack_roundtrip(barretenberg::fr{ 1ULL, 2ULL, 3ULL, 4ULL });
     EXPECT_EQ(actual, expected);
 }

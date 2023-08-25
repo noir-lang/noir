@@ -10,8 +10,7 @@
 #include <random>
 #include <vector>
 
-namespace barretenberg {
-namespace group_elements {
+namespace barretenberg::group_elements {
 
 /**
  * @brief element class. Implements ecc group arithmetic using Jacobian coordinates
@@ -29,12 +28,13 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
   public:
     static constexpr Fq curve_b = Params::b;
 
-    element() noexcept {}
+    element() noexcept = default;
 
     constexpr element(const Fq& a, const Fq& b, const Fq& c) noexcept;
     constexpr element(const element& other) noexcept;
     constexpr element(element&& other) noexcept;
     constexpr element(const affine_element<Fq, Fr, Params>& other) noexcept;
+    constexpr ~element() noexcept = default;
 
     static constexpr element one() noexcept { return { Params::one_x, Params::one_y, Fq::one() }; };
     static constexpr element zero() noexcept
@@ -53,8 +53,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
 
     constexpr element dbl() const noexcept;
     constexpr void self_dbl() noexcept;
-    constexpr void self_mixed_add_or_sub(const affine_element<Fq, Fr, Params>& other,
-                                         const uint64_t predicate) noexcept;
+    constexpr void self_mixed_add_or_sub(const affine_element<Fq, Fr, Params>& other, uint64_t predicate) noexcept;
 
     constexpr element operator+(const element& other) const noexcept;
     constexpr element operator+(const affine_element<Fq, Fr, Params>& other) const noexcept;
@@ -76,8 +75,8 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
         return -right + left;
     }
 
-    element operator*(const Fr& other) const noexcept;
-    element operator*=(const Fr& other) noexcept;
+    element operator*(const Fr& exponent) const noexcept;
+    element operator*=(const Fr& exponent) noexcept;
 
     // If you end up implementing this, congrats, you've solved the DL problem!
     // P.S. This is a joke, don't even attempt! 😂
@@ -87,11 +86,11 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
     static element infinity();
     BBERG_INLINE constexpr element set_infinity() const noexcept;
     BBERG_INLINE constexpr void self_set_infinity() noexcept;
-    BBERG_INLINE constexpr bool is_point_at_infinity() const noexcept;
-    BBERG_INLINE constexpr bool on_curve() const noexcept;
+    [[nodiscard]] BBERG_INLINE constexpr bool is_point_at_infinity() const noexcept;
+    [[nodiscard]] BBERG_INLINE constexpr bool on_curve() const noexcept;
     BBERG_INLINE constexpr bool operator==(const element& other) const noexcept;
 
-    static void batch_normalize(element* elements, const size_t num_elements) noexcept;
+    static void batch_normalize(element* elements, size_t num_elements) noexcept;
     static std::vector<affine_element<Fq, Fr, Params>> batch_mul_with_endomorphism(
         const std::vector<affine_element<Fq, Fr, Params>>& points, const Fr& exponent) noexcept;
 
@@ -128,7 +127,7 @@ template <class Fq, class Fr, class Params> class alignas(32) element {
 
     static void conditional_negate_affine(const affine_element<Fq, Fr, Params>& in,
                                           affine_element<Fq, Fr, Params>& out,
-                                          const uint64_t predicate) noexcept;
+                                          uint64_t predicate) noexcept;
 
     friend std::ostream& operator<<(std::ostream& os, const element& a)
     {
@@ -145,8 +144,7 @@ template <class Fq, class Fr, class Params> std::ostream& operator<<(std::ostrea
 // constexpr element<Fq, Fr, Params>::one = element<Fq, Fr, Params>{ Params::one_x, Params::one_y, Fq::one() };
 // constexpr element<Fq, Fr, Params>::point_at_infinity = one.set_infinity();
 // constexpr element<Fq, Fr, Params>::curve_b = Params::b;
-} // namespace group_elements
-} // namespace barretenberg
+} // namespace barretenberg::group_elements
 
 #include "./element_impl.hpp"
 

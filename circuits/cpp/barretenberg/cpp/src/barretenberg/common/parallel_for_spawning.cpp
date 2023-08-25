@@ -12,7 +12,7 @@ void parallel_for_spawning(size_t num_iterations, const std::function<void(size_
 
     auto worker = [&](size_t) {
         // info("entered worker: ", thread_index);
-        size_t index;
+        size_t index = 0;
         while ((index = current_iteration.fetch_add(1, std::memory_order_seq_cst)) < num_iterations) {
             func(index);
         }
@@ -27,7 +27,7 @@ void parallel_for_spawning(size_t num_iterations, const std::function<void(size_
     // }
     // info("Starting ", num_threads, " threads to handle ", num_iterations, " iterations.");
 
-    std::thread threads[num_threads];
+    std::vector<std::thread> threads(num_threads);
 
     for (size_t i = 0; i < num_threads; ++i) {
         threads[i] = std::thread(worker, i);

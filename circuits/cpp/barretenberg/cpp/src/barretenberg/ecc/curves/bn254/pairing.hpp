@@ -8,22 +8,24 @@
 #include "./g1.hpp"
 #include "./g2.hpp"
 
-namespace barretenberg {
-namespace pairing {
+namespace barretenberg::pairing {
 constexpr size_t loop_length = 64;
 constexpr size_t neg_z_loop_length = 62;
 constexpr size_t precomputed_coefficients_length = 87;
 
-constexpr uint8_t loop_bits[loop_length]{ 1, 0, 1, 0, 0, 0, 3, 0, 3, 0, 0, 0, 3, 0, 1, 0, 3, 0, 0, 3, 0, 0,
-                                          0, 0, 0, 1, 0, 0, 3, 0, 1, 0, 0, 3, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0,
-                                          3, 0, 3, 0, 0, 1, 0, 0, 0, 3, 0, 0, 3, 0, 1, 0, 1, 0, 0, 0 };
+constexpr std::array<uint8_t, loop_length> loop_bits{ 1, 0, 1, 0, 0, 0, 3, 0, 3, 0, 0, 0, 3, 0, 1, 0, 3, 0, 0, 3, 0, 0,
+                                                      0, 0, 0, 1, 0, 0, 3, 0, 1, 0, 0, 3, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0,
+                                                      3, 0, 3, 0, 0, 1, 0, 0, 0, 3, 0, 0, 3, 0, 1, 0, 1, 0, 0, 0 };
 
-constexpr bool neg_z_loop_bits[neg_z_loop_length]{ 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1,
-                                                   0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0,
-                                                   1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1 };
+constexpr std::array<bool, neg_z_loop_length> neg_z_loop_bits{
+    false, false, false, true,  false, false, true,  true,  true, false, true,  false, false, true,  true,  false,
+    false, true,  false, false, true,  false, true,  false, true, true,  false, true,  false, false, false, true,
+    false, false, true,  false, true,  false, false, true,  true, false, true,  false, false, true,  false, false,
+    false, false, true,  false, false, true,  true,  true,  true, true,  false, false, false, true
+};
 
 struct miller_lines {
-    fq12::ell_coeffs lines[precomputed_coefficients_length];
+    std::array<fq12::ell_coeffs, precomputed_coefficients_length> lines;
 };
 
 constexpr void doubling_step_for_flipped_miller_loop(g2::element& current, fq12::ell_coeffs& ell);
@@ -54,7 +56,6 @@ inline fq12 reduced_ate_pairing_batch_precomputed(const g1::affine_element* P_af
                                                   const miller_lines* lines,
                                                   size_t num_points);
 
-} // namespace pairing
-} // namespace barretenberg
+} // namespace barretenberg::pairing
 
 #include "./pairing_impl.hpp"

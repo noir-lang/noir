@@ -2,8 +2,9 @@
 
 #include <array>
 
-namespace barretenberg {
-namespace scalar_multiplication {
+namespace barretenberg::scalar_multiplication {
+
+// NOLINTNEXTLINE(misc-no-recursion) recursion is fine here, max recursion depth is 8 (64 bit int / 8 bits per call)
 void radix_sort(uint64_t* keys, const size_t num_entries, const uint32_t shift) noexcept
 {
     constexpr size_t num_bits = 8;
@@ -60,5 +61,4 @@ void process_buckets(uint64_t* wnaf_entries, const size_t num_entries, const uin
 
     radix_sort(wnaf_entries, num_entries, shift);
 }
-} // namespace scalar_multiplication
-} // namespace barretenberg
+} // namespace barretenberg::scalar_multiplication

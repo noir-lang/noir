@@ -3,7 +3,7 @@
 
 using namespace barretenberg;
 
-TEST(fq6, eq)
+TEST(fq6, Eq)
 {
     fq6 a{ { { 0x01, 0x02, 0x03, 0x04 }, { 0x06, 0x07, 0x08, 0x09 } },
            { { 0x01, 0x02, 0x03, 0x04 }, { 0x06, 0x07, 0x08, 0x09 } },
@@ -47,7 +47,7 @@ TEST(fq6, eq)
     EXPECT_EQ((a == j), false);
 }
 
-TEST(fq6, is_zero)
+TEST(fq6, IsZero)
 {
     fq6 a = fq6::zero();
     fq6 b = fq6::zero();
@@ -62,7 +62,7 @@ TEST(fq6, is_zero)
     EXPECT_EQ(d.is_zero(), false);
 }
 
-TEST(fq6, random_element)
+TEST(fq6, RandomElement)
 {
     fq6 a = fq6::random_element();
     fq6 b = fq6::random_element();
@@ -72,7 +72,7 @@ TEST(fq6, random_element)
     EXPECT_EQ(b.is_zero(), false);
 }
 
-TEST(fq6, add_check_against_constants)
+TEST(fq6, AddCheckAgainstConstants)
 {
     fq6 a{ { { 0x68138b3c3e5e820b, 0x9bf71d36786da85f, 0x815831c12e257996, 0x2280b875a27e6d1d },
              { 0xff4b05a0ed0df393, 0x94fbe538fe78c1e7, 0xea26586b05301ac2, 0xc90d9fbd6f0360a } },
@@ -96,7 +96,7 @@ TEST(fq6, add_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq6, sub_check_against_constants)
+TEST(fq6, SubCheckAgainstConstants)
 {
     fq6 a{ { { 0xa1167f5753441035, 0xc7712ba686dd96d, 0x1da0e185b8aa61a3, 0xc875cfdb65ae0b0 },
              { 0x69f9322c2f24bd33, 0x322a253d10e59171, 0xa661cfb9aaa595e8, 0x250efd5132c6f2be } },
@@ -120,7 +120,7 @@ TEST(fq6, sub_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq6, mul_check_against_constants)
+TEST(fq6, MulCheckAgainstConstants)
 {
     fq6 a{ { { 0xa7e3494fc528b8c8, 0xc8c8906c9682e43f, 0xc6e76fc21152721c, 0x12a4c3ee3ff10dbd },
              { 0x887ce62a3ae2a578, 0x70caee28e1942bac, 0xc1a58242c34ff94f, 0x0b154d910b492542 } },
@@ -144,7 +144,7 @@ TEST(fq6, mul_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq6, sqr_check_against_constants)
+TEST(fq6, SqrCheckAgainstConstants)
 {
     fq6 a{ { { 0xe337aaa063afce6, 0xff4b5477485eb20, 0xef6dcf13b3855ef8, 0x14554c38da988ece },
              { 0x6a70e65e71431416, 0xd21f95045c45f422, 0x2a17b6c6ff517884, 0x1b01ad6487a3ff16 } },
@@ -162,7 +162,7 @@ TEST(fq6, sqr_check_against_constants)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq6, to_montgomery_form)
+TEST(fq6, ToMontgomeryForm)
 {
     fq6 result = fq6::zero();
     result.c0.c0.data[0] = 1;
@@ -171,7 +171,7 @@ TEST(fq6, to_montgomery_form)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq6, from_montgomery_form)
+TEST(fq6, FromMontgomeryForm)
 {
     fq6 result = fq6::one();
     fq6 expected = fq6::zero();
@@ -180,7 +180,7 @@ TEST(fq6, from_montgomery_form)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq6, mul_sqr_consistency)
+TEST(fq6, MulSqrConsistency)
 {
     fq6 a = fq6::random_element();
     fq6 b = fq6::random_element();
@@ -192,7 +192,7 @@ TEST(fq6, mul_sqr_consistency)
     EXPECT_EQ(mul_result, sqr_result);
 }
 
-TEST(fq6, add_mul_consistency)
+TEST(fq6, AddMulConsistency)
 {
     fq6 multiplicand = fq6::zero();
     multiplicand.c0.c0.data[0] = 9;
@@ -208,7 +208,7 @@ TEST(fq6, add_mul_consistency)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq6, sub_mul_consistency)
+TEST(fq6, SubMulConsistency)
 {
     fq6 multiplicand = fq6::zero();
     multiplicand.c0.c0.data[0] = 5;
@@ -226,7 +226,7 @@ TEST(fq6, sub_mul_consistency)
     EXPECT_EQ(result, expected);
 }
 
-TEST(fq6, invert)
+TEST(fq6, Invert)
 {
     fq6 input = fq6::random_element();
     fq6 result = input.invert();
@@ -235,9 +235,11 @@ TEST(fq6, invert)
     EXPECT_EQ(result, fq6::one());
 }
 
-TEST(fq6, copy)
+TEST(fq6, Copy)
 {
     fq6 result = fq6::random_element();
+
+    // NOLINTNEXTLINE(performance-unnecessary-copy-initialization) this is what we want to test!
     fq6 expected = result;
     EXPECT_EQ(result, expected);
 }

@@ -19,5 +19,5 @@ struct Bn254G2Params {
     static constexpr fq2 b = fq2::twist_coeff_b();
 };
 
-typedef group<fq2, fr, Bn254G2Params> g2;
+using g2 = group<fq2, fr, Bn254G2Params>;
 } // namespace barretenberg

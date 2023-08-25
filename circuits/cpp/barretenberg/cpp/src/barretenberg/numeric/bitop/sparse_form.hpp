@@ -1,15 +1,15 @@
 #pragma once
 #include "barretenberg/common/throw_or_abort.hpp"
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
-#include <stddef.h>
-#include <stdint.h>
 #include <vector>
 
 #include "../uint256/uint256.hpp"
 
 namespace numeric {
 
-inline std::vector<uint64_t> slice_input(const uint256_t input, const uint64_t base, const size_t num_slices)
+inline std::vector<uint64_t> slice_input(const uint256_t& input, const uint64_t base, const size_t num_slices)
 {
     uint256_t target = input;
     std::vector<uint64_t> slices;
@@ -27,7 +27,8 @@ inline std::vector<uint64_t> slice_input(const uint256_t input, const uint64_t b
     return slices;
 }
 
-inline std::vector<uint64_t> slice_input_using_variable_bases(const uint256_t input, const std::vector<uint64_t> bases)
+inline std::vector<uint64_t> slice_input_using_variable_bases(const uint256_t& input,
+                                                              const std::vector<uint64_t>& bases)
 {
     uint256_t target = input;
     std::vector<uint64_t> slices;
@@ -54,7 +55,7 @@ template <uint64_t base, uint64_t num_slices> constexpr std::array<uint256_t, nu
 template <uint64_t base> constexpr uint256_t map_into_sparse_form(const uint64_t input)
 {
     uint256_t out = 0UL;
-    uint64_t converted = (uint64_t)input;
+    auto converted = input;
 
     constexpr auto base_powers = get_base_powers<base, 32>();
     for (size_t i = 0; i < 32; ++i) {
@@ -66,7 +67,7 @@ template <uint64_t base> constexpr uint256_t map_into_sparse_form(const uint64_t
     return out;
 }
 
-template <uint64_t base> constexpr uint64_t map_from_sparse_form(const uint256_t input)
+template <uint64_t base> constexpr uint64_t map_from_sparse_form(const uint256_t& input)
 {
     uint256_t target = input;
     uint64_t output = 0;
@@ -105,11 +106,11 @@ template <uint64_t base, size_t num_bits> class sparse_int {
             limbs[i] = bit;
         }
     }
-    sparse_int(const sparse_int& other) = default;
-    sparse_int(sparse_int&& other) = default;
-
-    sparse_int& operator=(const sparse_int& other) = default;
-    sparse_int& operator=(sparse_int&& other) = default;
+    sparse_int(const sparse_int& other) noexcept = default;
+    sparse_int(sparse_int&& other) noexcept = default;
+    sparse_int& operator=(const sparse_int& other) noexcept = default;
+    sparse_int& operator=(sparse_int&& other) noexcept = default;
+    ~sparse_int() noexcept = default;
 
     sparse_int operator+(const sparse_int& other) const
     {
@@ -133,9 +134,9 @@ template <uint64_t base, size_t num_bits> class sparse_int {
         return *this;
     }
 
-    uint64_t get_value() const { return value; }
+    [[nodiscard]] uint64_t get_value() const { return value; }
 
-    uint64_t get_sparse_value() const
+    [[nodiscard]] uint64_t get_sparse_value() const
     {
         uint64_t result = 0;
         for (size_t i = num_bits - 1; i < num_bits; --i) {

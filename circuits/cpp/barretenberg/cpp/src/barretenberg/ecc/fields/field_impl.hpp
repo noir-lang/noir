@@ -3,31 +3,21 @@
 #include "barretenberg/common/throw_or_abort.hpp"
 #include "barretenberg/numeric/bitop/get_msb.hpp"
 #include "barretenberg/numeric/random/engine.hpp"
-#include "field_impl_generic.hpp"
 #include <memory>
 #include <span>
 #include <type_traits>
 #include <vector>
 
-#if (BBERG_NO_ASM == 0)
-#include "field_impl_x64.hpp"
-#endif
+#include "./field_declarations.hpp"
 
-#include "field_impl_generic.hpp"
 namespace barretenberg {
 
-// template <class T> constexpr void field<T>::butterfly(field& left, field& right) noexcept
-// {
-// if constexpr(BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) || (T::modulus_1 == 0 && T::modulus_2 == 0 &&
-// T::modulus_3 == 0)) {
-
-// } else {
-//     if (std::is_constant_evaluated()) {
-//     }
-//     return asm_butterfly(left, right);
-// }
-// }
-
+// clang-format off
+// disable the following style guides:
+// cppcoreguidelines-avoid-c-arrays : we make heavy use of c-style arrays here to prevent default-initialization of memory when constructing `field` objects.
+//                                    The intention is for field to act like a primitive numeric type with the performance/complexity trade-offs expected from this.
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
+// clang-format on
 /**
  *
  * Mutiplication
@@ -47,7 +37,7 @@ template <class T> constexpr field<T> field<T>::operator*(const field& other) co
     }
 }
 
-template <class T> constexpr field<T> field<T>::operator*=(const field& other) noexcept
+template <class T> constexpr field<T>& field<T>::operator*=(const field& other) noexcept
 {
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
@@ -76,9 +66,8 @@ template <class T> constexpr field<T> field<T>::sqr() const noexcept
     } else {
         if (std::is_constant_evaluated()) {
             return montgomery_square();
-        } else {
-            return asm_sqr_with_coarse_reduction(*this); // asm_sqr(*this);
         }
+        return asm_sqr_with_coarse_reduction(*this); // asm_sqr(*this);
     }
 }
 
@@ -109,13 +98,12 @@ template <class T> constexpr field<T> field<T>::operator+(const field& other) co
     } else {
         if (std::is_constant_evaluated()) {
             return add(other);
-        } else {
-            return asm_add_with_coarse_reduction(*this, other); // asm_add_without_reduction(*this, other);
         }
+        return asm_add_with_coarse_reduction(*this, other); // asm_add_without_reduction(*this, other);
     }
 }
 
-template <class T> constexpr field<T> field<T>::operator+=(const field& other) noexcept
+template <class T> constexpr field<T>& field<T>::operator+=(const field& other) noexcept
 {
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
@@ -135,6 +123,7 @@ template <class T> constexpr field<T> field<T>::operator++() noexcept
     return *this += 1;
 }
 
+// NOLINTNEXTLINE(cert-dcl21-cpp) circular linting errors. If const is added, linter suggests removing
 template <class T> constexpr field<T> field<T>::operator++(int) noexcept
 {
     field<T> value_before_incrementing = *this;
@@ -155,9 +144,8 @@ template <class T> constexpr field<T> field<T>::operator-(const field& other) co
     } else {
         if (std::is_constant_evaluated()) {
             return subtract_coarse(other); // subtract(other);
-        } else {
-            return asm_sub_with_coarse_reduction(*this, other); // asm_sub(*this, other);
         }
+        return asm_sub_with_coarse_reduction(*this, other); // asm_sub(*this, other);
     }
 }
 
@@ -169,7 +157,7 @@ template <class T> constexpr field<T> field<T>::operator-() const noexcept
         return p - *this; // modulus - *this;
     }
 
-    // TODO: there are 3 ways we can make this more efficient
+    // TODO(@zac-williamson): there are 3 ways we can make this more efficient
     // 1: we subtract `p` from `*this` instead of `2p`
     // 2: instead of `p - *this`, we use an asm block that does `p - *this` without the assembly reduction step
     // 3: we replace `(p - *this).reduce_once()` with an assembly block that is equivalent to `p - *this`,
@@ -189,7 +177,7 @@ template <class T> constexpr field<T> field<T>::operator-() const noexcept
     return (p - *this).reduce_once(); // modulus - *this;
 }
 
-template <class T> constexpr field<T> field<T>::operator-=(const field& other) noexcept
+template <class T> constexpr field<T>& field<T>::operator-=(const field& other) noexcept
 {
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
@@ -220,10 +208,10 @@ template <class T> constexpr void field<T>::self_conditional_negate(const uint64
 {
     if constexpr (BBERG_NO_ASM || (T::modulus_3 >= 0x4000000000000000ULL) ||
                   (T::modulus_1 == 0 && T::modulus_2 == 0 && T::modulus_3 == 0)) {
-        *this = predicate ? -(*this) : *this;
+        *this = predicate ? -(*this) : *this; // NOLINT
     } else {
         if (std::is_constant_evaluated()) {
-            *this = predicate ? -(*this) : *this;
+            *this = predicate ? -(*this) : *this; // NOLINT
         } else {
             asm_conditional_negate(*this, predicate);
         }
@@ -231,8 +219,16 @@ template <class T> constexpr void field<T>::self_conditional_negate(const uint64
 }
 
 /**
- * Comparison operators
- **/
+ * @brief Greater-than operator
+ * @details comparison operators exist so that `field` is comparible with stl methods that require them.
+ *          (e.g. std::sort)
+ *          Finite fields do not have an explicit ordering, these should *NEVER* be used in algebraic algorithms.
+ *
+ * @tparam T
+ * @param other
+ * @return true
+ * @return false
+ */
 template <class T> constexpr bool field<T>::operator>(const field& other) const noexcept
 {
     const field left = reduce_once();
@@ -246,6 +242,17 @@ template <class T> constexpr bool field<T>::operator>(const field& other) const 
     return (t0 || t1 || t2 || t3);
 }
 
+/**
+ * @brief Less-than operator
+ * @details comparison operators exist so that `field` is comparible with stl methods that require them.
+ *          (e.g. std::sort)
+ *          Finite fields do not have an explicit ordering, these should *NEVER* be used in algebraic algorithms.
+ *
+ * @tparam T
+ * @param other
+ * @return true
+ * @return false
+ */
 template <class T> constexpr bool field<T>::operator<(const field& other) const noexcept
 {
     return (other > *this);
@@ -269,7 +276,7 @@ template <class T> constexpr field<T> field<T>::to_montgomery_form() const noexc
     constexpr field r_squared{ T::r_squared_0, T::r_squared_1, T::r_squared_2, T::r_squared_3 };
 
     field result = *this;
-    // TODO: are these reductions needed?
+    // TODO(@zac-williamson): are these reductions needed?
     // Rationale: We want to take any 256-bit input and be able to convert into montgomery form.
     // A basic heuristic we use is that any input into the `*` operator must be between [0, 2p - 1]
     // to prevent overflows in the asm algorithm.
@@ -312,9 +319,8 @@ template <class T> constexpr field<T> field<T>::reduce_once() const noexcept
     } else {
         if (std::is_constant_evaluated()) {
             return reduce();
-        } else {
-            return asm_reduce_once(*this);
         }
+        return asm_reduce_once(*this);
     }
 }
 
@@ -378,7 +384,7 @@ template <class T> void field<T>::batch_invert(std::span<field> coeffs) noexcept
     auto temporaries_ptr = std::static_pointer_cast<field[]>(get_mem_slab(n * sizeof(field)));
     auto skipped_ptr = std::static_pointer_cast<bool[]>(get_mem_slab(n));
     auto temporaries = temporaries_ptr.get();
-    auto skipped = skipped_ptr.get();
+    auto* skipped = skipped_ptr.get();
 
     field accumulator = one();
     for (size_t i = 0; i < n; ++i) {
@@ -509,9 +515,8 @@ template <class T> constexpr std::pair<bool, field<T>> field<T>::sqrt() const no
     }
     if ((root * root) == (*this)) {
         return std::pair<bool, field>(true, root);
-    } else {
-        return std::pair<bool, field>(false, field::zero());
     }
+    return std::pair<bool, field>(false, field::zero());
 
 } // namespace barretenberg
 
@@ -520,7 +525,7 @@ template <class T> constexpr field<T> field<T>::operator/(const field& other) co
     return operator*(other.invert());
 }
 
-template <class T> constexpr field<T> field<T>::operator/=(const field& other) noexcept
+template <class T> constexpr field<T>& field<T>::operator/=(const field& other) noexcept
 {
     *this = operator/(other);
     return *this;
@@ -547,7 +552,7 @@ template <class T> constexpr bool field<T>::is_zero() const noexcept
            (data[0] == T::modulus_0 && data[1] == T::modulus_1 && data[2] == T::modulus_2 && data[3] == T::modulus_3);
 }
 
-template <class T> constexpr field<T> field<T>::get_root_of_unity(const size_t subgroup_size) noexcept
+template <class T> constexpr field<T> field<T>::get_root_of_unity(size_t subgroup_size) noexcept
 {
     field r{ T::primitive_root_0, T::primitive_root_1, T::primitive_root_2, T::primitive_root_3 };
     for (size_t i = primitive_root_log_size(); i > subgroup_size; --i) {
@@ -572,7 +577,7 @@ template <class T> constexpr size_t field<T>::primitive_root_log_size() noexcept
 {
     uint256_t target = modulus - 1;
     size_t result = 0;
-    while (target.get_bit(result) == 0) {
+    while (!target.get_bit(result)) {
         ++result;
     }
     return result;
@@ -640,7 +645,7 @@ template <class Params> void field<Params>::msgpack_pack(auto& packer) const
 
     // The packer is then used to write the binary data to the buffer, just like in the old format.
     packer.pack_bin(sizeof(bin_data));
-    packer.pack_bin_body((const char*)bin_data, sizeof(bin_data));
+    packer.pack_bin_body((const char*)bin_data, sizeof(bin_data)); // NOLINT
 }
 
 // This function is used to deserialize a field. It also matches the old deserialization format by
@@ -653,7 +658,7 @@ template <class Params> void field<Params>::msgpack_unpack(auto o)
 
     // The binary data is then read as big endian uint64_t's. This is done by casting the raw data to uint64_t* and then
     // using ntohll ("network to host long long") to correct the endianness to the host's endianness.
-    uint64_t* cast_data = (uint64_t*)&raw_data[0];
+    uint64_t* cast_data = (uint64_t*)&raw_data[0]; // NOLINT
     uint64_t reversed[] = { ntohll(cast_data[3]), ntohll(cast_data[2]), ntohll(cast_data[1]), ntohll(cast_data[0]) };
 
     // The corrected data is then copied back into the field's data array.
@@ -666,3 +671,7 @@ template <class Params> void field<Params>::msgpack_unpack(auto o)
 }
 
 } // namespace barretenberg
+
+// clang-format off
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays)
+// clang-format on

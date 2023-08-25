@@ -4,8 +4,7 @@
 #include "barretenberg/ecc/curves/bn254/g1.hpp"
 #include <memory>
 
-namespace barretenberg {
-namespace scalar_multiplication {
+namespace barretenberg::scalar_multiplication {
 
 inline size_t point_table_size(size_t num_points)
 {
@@ -26,5 +25,4 @@ template <typename T> inline std::shared_ptr<T[]> point_table_alloc(size_t num_p
     return std::static_pointer_cast<T[]>(get_mem_slab(point_table_buf_size(num_points)));
 }
 
-} // namespace scalar_multiplication
-} // namespace barretenberg
+} // namespace barretenberg::scalar_multiplication

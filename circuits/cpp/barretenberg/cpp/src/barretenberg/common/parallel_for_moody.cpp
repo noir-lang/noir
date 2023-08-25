@@ -33,9 +33,16 @@ class ThreadPool {
         }
     }
 
+    ThreadPool(const ThreadPool& other) = delete;
+    ThreadPool(ThreadPool&& other) = delete;
+    ThreadPool& operator=(const ThreadPool& other) = delete;
+    ThreadPool& operator=(ThreadPool&& other) = delete;
+
     void start_tasks(const std::function<void(size_t)>& task, size_t num_iterations)
     {
         std::atomic<size_t> complete_counter;
+        //  3rd party library expects c-style array as input. Boo.
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
         std::function<void()> funcs[num_iterations];
         for (size_t i = 0; i < num_iterations; ++i) {
             funcs[i] = [&, i]() {
@@ -57,7 +64,7 @@ class ThreadPool {
             }
         }
 
-        bool complete;
+        bool complete = false;
         complete_queue_.wait_dequeue(complete);
         // info("all done!");
     }
@@ -68,7 +75,7 @@ class ThreadPool {
     moodycamel::BlockingConcurrentQueue<bool> complete_queue_;
     std::atomic<bool> stop = false;
 
-    void worker_loop(size_t)
+    void worker_loop(size_t /*unused*/)
     {
         // info("worker started");
         while (!stop) {

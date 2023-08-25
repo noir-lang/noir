@@ -1,11 +1,11 @@
 #ifdef __i386__
 #pragma once
 #include "../bitop/get_msb.hpp"
+#include "./uint128.hpp"
 #include "barretenberg/common/assert.hpp"
-
 namespace numeric {
 
-constexpr std::pair<uint32_t, uint32_t> uint128_t::mul_wide(const uint32_t a, const uint32_t b) const
+constexpr std::pair<uint32_t, uint32_t> uint128_t::mul_wide(const uint32_t a, const uint32_t b)
 {
     const uint32_t a_lo = a & 0xffffULL;
     const uint32_t a_hi = a >> 16ULL;
@@ -23,35 +23,31 @@ constexpr std::pair<uint32_t, uint32_t> uint128_t::mul_wide(const uint32_t a, co
 }
 
 // compute a + b + carry, returning the carry
-constexpr std::pair<uint32_t, uint32_t> uint128_t::addc(const uint32_t a,
-                                                        const uint32_t b,
-                                                        const uint32_t carry_in) const
+constexpr std::pair<uint32_t, uint32_t> uint128_t::addc(const uint32_t a, const uint32_t b, const uint32_t carry_in)
 {
     const uint32_t sum = a + b;
-    const uint32_t carry_temp = sum < a;
+    const auto carry_temp = static_cast<uint32_t>(sum < a);
     const uint32_t r = sum + carry_in;
-    const uint32_t carry_out = carry_temp + (r < carry_in);
+    const uint32_t carry_out = carry_temp + static_cast<unsigned int>(r < carry_in);
     return { r, carry_out };
 }
 
-constexpr uint32_t uint128_t::addc_discard_hi(const uint32_t a, const uint32_t b, const uint32_t carry_in) const
+constexpr uint32_t uint128_t::addc_discard_hi(const uint32_t a, const uint32_t b, const uint32_t carry_in)
 {
     return a + b + carry_in;
 }
 
-constexpr std::pair<uint32_t, uint32_t> uint128_t::sbb(const uint32_t a,
-                                                       const uint32_t b,
-                                                       const uint32_t borrow_in) const
+constexpr std::pair<uint32_t, uint32_t> uint128_t::sbb(const uint32_t a, const uint32_t b, const uint32_t borrow_in)
 {
     const uint32_t t_1 = a - (borrow_in >> 31ULL);
-    const uint32_t borrow_temp_1 = t_1 > a;
+    const auto borrow_temp_1 = static_cast<uint32_t>(t_1 > a);
     const uint32_t t_2 = t_1 - b;
-    const uint32_t borrow_temp_2 = t_2 > t_1;
+    const auto borrow_temp_2 = static_cast<uint32_t>(t_2 > t_1);
 
     return { t_2, 0ULL - (borrow_temp_1 | borrow_temp_2) };
 }
 
-constexpr uint32_t uint128_t::sbb_discard_hi(const uint32_t a, const uint32_t b, const uint32_t borrow_in) const
+constexpr uint32_t uint128_t::sbb_discard_hi(const uint32_t a, const uint32_t b, const uint32_t borrow_in)
 {
     return a - b - (borrow_in >> 31ULL);
 }
@@ -60,13 +56,13 @@ constexpr uint32_t uint128_t::sbb_discard_hi(const uint32_t a, const uint32_t b,
 constexpr std::pair<uint32_t, uint32_t> uint128_t::mac(const uint32_t a,
                                                        const uint32_t b,
                                                        const uint32_t c,
-                                                       const uint32_t carry_in) const
+                                                       const uint32_t carry_in)
 {
     std::pair<uint32_t, uint32_t> result = mul_wide(b, c);
     result.first += a;
-    const uint32_t overflow_c = (result.first < a);
+    const auto overflow_c = static_cast<uint32_t>(result.first < a);
     result.first += carry_in;
-    const uint32_t overflow_carry = (result.first < carry_in);
+    const auto overflow_carry = static_cast<uint32_t>(result.first < carry_in);
     result.second += (overflow_c + overflow_carry);
     return result;
 }
@@ -74,7 +70,7 @@ constexpr std::pair<uint32_t, uint32_t> uint128_t::mac(const uint32_t a,
 constexpr uint32_t uint128_t::mac_discard_hi(const uint32_t a,
                                              const uint32_t b,
                                              const uint32_t c,
-                                             const uint32_t carry_in) const
+                                             const uint32_t carry_in)
 {
     return (b * c + a + carry_in);
 }
@@ -83,11 +79,14 @@ constexpr std::pair<uint128_t, uint128_t> uint128_t::divmod(const uint128_t& b) 
 {
     if (*this == 0 || b == 0) {
         return { 0, 0 };
-    } else if (b == 1) {
+    }
+    if (b == 1) {
         return { *this, 0 };
-    } else if (*this == b) {
+    }
+    if (*this == b) {
         return { 1, 0 };
-    } else if (b > *this) {
+    }
+    if (b > *this) {
         return { 0, *this };
     }
 
@@ -187,19 +186,19 @@ constexpr bool uint128_t::get_bit(const uint64_t bit_index) const
 {
     ASSERT(bit_index < 128);
     if (bit_index > 127) {
-        return bool(0);
+        return false;
     }
-    const size_t idx = static_cast<size_t>(bit_index >> 5);
+    const auto idx = static_cast<size_t>(bit_index >> 5);
     const size_t shift = bit_index & 31;
-    return bool((data[idx] >> shift) & 1);
+    return static_cast<bool>((data[idx] >> shift) & 1);
 }
 
 constexpr uint64_t uint128_t::get_msb() const
 {
-    uint64_t idx = numeric::get_msb(data[3]);
-    idx = (idx == 0 && data[3] == 0) ? numeric::get_msb(data[2]) : idx + 32;
-    idx = (idx == 0 && data[2] == 0) ? numeric::get_msb(data[1]) : idx + 32;
-    idx = (idx == 0 && data[1] == 0) ? numeric::get_msb(data[0]) : idx + 32;
+    uint64_t idx = numeric::get_msb64(data[3]);
+    idx = (idx == 0 && data[3] == 0) ? numeric::get_msb64(data[2]) : idx + 32;
+    idx = (idx == 0 && data[2] == 0) ? numeric::get_msb64(data[1]) : idx + 32;
+    idx = (idx == 0 && data[1] == 0) ? numeric::get_msb64(data[0]) : idx + 32;
     return idx;
 }
 
@@ -320,7 +319,7 @@ constexpr uint128_t uint128_t::operator>>(const uint128_t& other) const
 {
     uint32_t total_shift = other.data[0];
 
-    if (total_shift >= 128 || other.data[1] || other.data[2] || other.data[3]) {
+    if (total_shift >= 128 || (other.data[1] != 0U) || (other.data[2] != 0U) || (other.data[3] != 0U)) {
         return 0;
     }
 
@@ -331,7 +330,7 @@ constexpr uint128_t uint128_t::operator>>(const uint128_t& other) const
     uint32_t num_shifted_limbs = total_shift >> 5ULL;
     uint32_t limb_shift = total_shift & 31ULL;
 
-    uint32_t shifted_limbs[4] = { 0 };
+    std::array<uint32_t, 4> shifted_limbs = { 0, 0, 0, 0 };
 
     if (limb_shift == 0) {
         shifted_limbs[0] = data[0];
@@ -357,8 +356,8 @@ constexpr uint128_t uint128_t::operator>>(const uint128_t& other) const
     }
     uint128_t result(0);
 
-    for (uint32_t i = 0; i < 4 - num_shifted_limbs; ++i) {
-        result.data[i] = shifted_limbs[i + num_shifted_limbs];
+    for (size_t i = 0; i < 4 - num_shifted_limbs; ++i) {
+        result.data[i] = shifted_limbs[static_cast<size_t>(i + num_shifted_limbs)];
     }
 
     return result;
@@ -368,7 +367,7 @@ constexpr uint128_t uint128_t::operator<<(const uint128_t& other) const
 {
     uint32_t total_shift = other.data[0];
 
-    if (total_shift >= 128 || other.data[1] || other.data[2] || other.data[3]) {
+    if (total_shift >= 128 || (other.data[1] != 0U) || (other.data[2] != 0U) || (other.data[3] != 0U)) {
         return 0;
     }
 
@@ -378,7 +377,7 @@ constexpr uint128_t uint128_t::operator<<(const uint128_t& other) const
     uint32_t num_shifted_limbs = total_shift >> 5ULL;
     uint32_t limb_shift = total_shift & 31ULL;
 
-    uint32_t shifted_limbs[4]{ 0 };
+    std::array<uint32_t, 4> shifted_limbs{ 0, 0, 0, 0 };
 
     if (limb_shift == 0) {
         shifted_limbs[0] = data[0];
@@ -404,8 +403,8 @@ constexpr uint128_t uint128_t::operator<<(const uint128_t& other) const
     }
     uint128_t result(0);
 
-    for (uint32_t i = 0; i < 4 - num_shifted_limbs; ++i) {
-        result.data[i + num_shifted_limbs] = shifted_limbs[i];
+    for (size_t i = 0; i < 4 - num_shifted_limbs; ++i) {
+        result.data[static_cast<size_t>(i + num_shifted_limbs)] = shifted_limbs[i];
     }
 
     return result;

@@ -1,17 +1,22 @@
 #pragma once
+#include "./uintx.hpp"
 #include "barretenberg/common/assert.hpp"
 
+namespace numeric {
 template <class base_uint>
 constexpr std::pair<uintx<base_uint>, uintx<base_uint>> uintx<base_uint>::divmod(const uintx& b) const
 {
     ASSERT(b != 0);
     if (*this == 0) {
         return { uintx(0), uintx(0) };
-    } else if (b == 1) {
+    }
+    if (b == 1) {
         return { *this, uintx(0) };
-    } else if (*this == b) {
+    }
+    if (*this == b) {
         return { uintx(1), uintx(0) };
-    } else if (b > *this) {
+    }
+    if (b > *this) {
         return { uintx(0), *this };
     }
 
@@ -135,7 +140,7 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::operator
 {
     base_uint res_lo = lo + other.lo;
     bool carry = res_lo < lo;
-    base_uint res_hi = hi + other.hi + ((carry == true) ? base_uint(1) : base_uint(0));
+    base_uint res_hi = hi + other.hi + ((carry) ? base_uint(1) : base_uint(0));
     return { res_lo, res_hi };
 };
 
@@ -143,7 +148,7 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::operator
 {
     base_uint res_lo = lo - other.lo;
     bool borrow = res_lo > lo;
-    base_uint res_hi = hi - other.hi - ((borrow == true) ? base_uint(1) : base_uint(0));
+    base_uint res_hi = hi - other.hi - ((borrow) ? base_uint(1) : base_uint(0));
     return { res_lo, res_hi };
 }
 
@@ -274,7 +279,7 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::operator
 
     const uint64_t limb_shift = total_shift & static_cast<uint64_t>(base_uint::length() - 1);
 
-    base_uint shifted_limbs[2] = { 0 };
+    std::array<base_uint, 2> shifted_limbs = { 0, 0 };
     if (limb_shift == 0) {
         shifted_limbs[0] = lo;
         shifted_limbs[1] = hi;
@@ -309,7 +314,7 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::operator
     const uint64_t num_shifted_limbs = total_shift >> (base_uint(base_uint::length()).get_msb());
     const uint64_t limb_shift = total_shift & static_cast<uint64_t>(base_uint::length() - 1);
 
-    base_uint shifted_limbs[2] = { 0 };
+    std::array<base_uint, 2> shifted_limbs = { 0, 0 };
     if (limb_shift == 0) {
         shifted_limbs[0] = lo;
         shifted_limbs[1] = hi;
@@ -331,3 +336,4 @@ template <class base_uint> constexpr uintx<base_uint> uintx<base_uint>::operator
     }
     return result;
 }
+} // namespace numeric

@@ -30,10 +30,10 @@ template <typename _coordinate_field, typename _subgroup_field, typename GroupPa
     // hoist coordinate_field, subgroup_field into the public namespace
     using coordinate_field = _coordinate_field;
     using subgroup_field = _subgroup_field;
-    typedef group_elements::element<coordinate_field, subgroup_field, GroupParams> element;
-    typedef group_elements::affine_element<coordinate_field, subgroup_field, GroupParams> affine_element;
-    typedef coordinate_field Fq;
-    typedef subgroup_field Fr;
+    using element = group_elements::element<coordinate_field, subgroup_field, GroupParams>;
+    using affine_element = group_elements::affine_element<coordinate_field, subgroup_field, GroupParams>;
+    using Fq = coordinate_field;
+    using Fr = subgroup_field;
     static constexpr bool USE_ENDOMORPHISM = GroupParams::USE_ENDOMORPHISM;
     static constexpr bool has_a = GroupParams::has_a;
 

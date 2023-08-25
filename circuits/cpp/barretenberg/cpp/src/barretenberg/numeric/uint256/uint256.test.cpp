@@ -8,7 +8,7 @@ auto& engine = numeric::random::get_debug_engine();
 
 using namespace numeric;
 
-TEST(uint256, get_bit)
+TEST(uint256, GetBit)
 {
     constexpr uint256_t a{ 0b0110011001110010011001100111001001100110011100100110011001110011,
                            0b1001011101101010101010100100101101101001001010010101110101010111,
@@ -23,7 +23,7 @@ TEST(uint256, get_bit)
     EXPECT_EQ(a, res);
 }
 
-TEST(uint256, add)
+TEST(uint256, Add)
 {
     constexpr uint256_t a{ 1, 2, 3, 4 };
     constexpr uint256_t b{ 5, 6, 7, 8 };
@@ -41,7 +41,7 @@ TEST(uint256, add)
     EXPECT_EQ(d.data[3], 12ULL);
 }
 
-TEST(uint256, get_msb)
+TEST(uint256, GetMsb)
 {
     uint256_t a{ 0, 0, 1, 1 };
     uint256_t b{ 1, 0, 1, 0 };
@@ -54,7 +54,7 @@ TEST(uint256, get_msb)
     EXPECT_EQ(d.get_msb(), 0ULL);
 }
 
-TEST(uint256, mul)
+TEST(uint256, Mul)
 {
     uint256_t a = engine.get_random_uint256();
     uint256_t b = engine.get_random_uint256();
@@ -67,7 +67,7 @@ TEST(uint256, mul)
     EXPECT_EQ(c.data[3], d.data[3]);
 }
 
-TEST(uint256, div_and_mod)
+TEST(uint256, DivAndMod)
 {
     for (size_t i = 0; i < 256; ++i) {
         uint256_t a = engine.get_random_uint256();
@@ -103,7 +103,7 @@ TEST(uint256, div_and_mod)
     EXPECT_EQ(r, uint256_t(0));
 }
 
-TEST(uint256, sub)
+TEST(uint256, Sub)
 {
     uint256_t a = engine.get_random_uint256();
     uint256_t b = engine.get_random_uint256();
@@ -125,7 +125,7 @@ TEST(uint256, sub)
     EXPECT_EQ(e.data[3], UINT64_MAX);
 }
 
-TEST(uint256, right_shift)
+TEST(uint256, RightShift)
 {
     constexpr uint256_t a{ 0xaaaaaaaaaaaaaaaa, 0xbbbbbbbbbbbbbbbb, 0xcccccccccccccccc, 0xdddddddddddddddd };
 
@@ -143,7 +143,7 @@ TEST(uint256, right_shift)
     EXPECT_EQ(f, uint256_t(0, 0xb800000000000000, 0xcccccccccccccccc, 0xdddddddddddddddd));
 }
 
-TEST(uint256, left_shift)
+TEST(uint256, LeftShift)
 {
     uint256_t a{ 0xaaaaaaaaaaaaaaaa, 0xbbbbbbbbbbbbbbbb, 0xcccccccccccccccc, 0xdddddddddddddddd };
 
@@ -165,7 +165,7 @@ TEST(uint256, left_shift)
     EXPECT_EQ(f, uint256_t(0));
 }
 
-TEST(uint256, and)
+TEST(uint256, And)
 {
     uint256_t a = engine.get_random_uint256();
     uint256_t b = engine.get_random_uint256();
@@ -178,7 +178,7 @@ TEST(uint256, and)
     EXPECT_EQ(c.data[3], a.data[3] & b.data[3]);
 }
 
-TEST(uint256, or)
+TEST(uint256, Or)
 {
     uint256_t a = engine.get_random_uint256();
     uint256_t b = engine.get_random_uint256();
@@ -191,7 +191,7 @@ TEST(uint256, or)
     EXPECT_EQ(c.data[3], a.data[3] | b.data[3]);
 }
 
-TEST(uint256, xor)
+TEST(uint256, Xor)
 {
     uint256_t a = engine.get_random_uint256();
     uint256_t b = engine.get_random_uint256();
@@ -204,7 +204,7 @@ TEST(uint256, xor)
     EXPECT_EQ(c.data[3], a.data[3] ^ b.data[3]);
 }
 
-TEST(uint256, bit_not)
+TEST(uint256, BitNot)
 {
     uint256_t a = engine.get_random_uint256();
 
@@ -216,7 +216,7 @@ TEST(uint256, bit_not)
     EXPECT_EQ(c.data[3], ~a.data[3]);
 }
 
-TEST(uint256, logic_not)
+TEST(uint256, LogicNot)
 {
     uint256_t a{ 1, 0, 0, 0 };
 
@@ -229,7 +229,7 @@ TEST(uint256, logic_not)
     EXPECT_EQ(!c, true);
 }
 
-TEST(uint256, equality)
+TEST(uint256, Equality)
 {
     uint256_t a{ 1, 0, 0, 0 };
     uint256_t b{ 1, 0, 0, 0 };
@@ -249,7 +249,7 @@ TEST(uint256, equality)
     EXPECT_EQ(a == b, false);
 }
 
-TEST(uint256, not_equal)
+TEST(uint256, NotEqual)
 {
     uint256_t a{ 1, 0, 0, 0 };
     uint256_t b{ 1, 0, 0, 0 };
@@ -269,7 +269,7 @@ TEST(uint256, not_equal)
     EXPECT_EQ(a != b, true);
 }
 
-TEST(uint256, greater_than)
+TEST(uint256, GreaterThan)
 {
     constexpr uint256_t a{ UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX };
     constexpr uint256_t b{ UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX };
@@ -288,7 +288,7 @@ TEST(uint256, greater_than)
     EXPECT_EQ(a > f, true);
 }
 
-TEST(uint256, greater_than_or_equal)
+TEST(uint256, GreaterThanOrEqual)
 {
     uint256_t a{ UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX - 1 };
     uint256_t b{ UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX };
@@ -308,10 +308,10 @@ TEST(uint256, greater_than_or_equal)
     EXPECT_EQ(a >= b, false);
 }
 
-TEST(uint256, to_from_buffer)
+TEST(uint256, ToFromBuffer)
 {
     uint256_t a{ 1, 2, 3, 4 };
     auto buf = to_buffer(a);
-    uint256_t b = from_buffer<uint256_t>(buf);
+    auto b = from_buffer<uint256_t>(buf);
     EXPECT_EQ(a, b);
 }

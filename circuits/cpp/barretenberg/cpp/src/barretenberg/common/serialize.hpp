@@ -44,6 +44,13 @@
 __extension__ using uint128_t = unsigned __int128;
 #endif
 
+// clang-format off
+// disabling the following style guides:
+// cert-dcl58-cpp , restricts modifying the standard library. We need to do this for portable serialization methods
+// cppcoreguidelines-pro-type-reinterpret-cast, we heavily use reinterpret-cast and would be difficult to refactor this out
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast, cert-dcl58-cpp)
+// clang-format on
+
 template <typename T> concept IntegralOrEnum = std::integral<T> || std::is_enum_v<T>;
 
 namespace serialize {
@@ -67,7 +74,7 @@ inline void write(uint8_t*& it, uint8_t value)
 
 inline void read(uint8_t const*& it, bool& value)
 {
-    value = *it;
+    value = (*it != 0U);
     it += 1;
 }
 
@@ -79,19 +86,19 @@ inline void write(uint8_t*& it, bool value)
 
 inline void read(uint8_t const*& it, uint16_t& value)
 {
-    value = ntohs(*reinterpret_cast<uint16_t const*>(it));
+    value = ntohs(*reinterpret_cast<uint16_t const*>(it)); // NOLINT
     it += 2;
 }
 
 inline void write(uint8_t*& it, uint16_t value)
 {
-    *reinterpret_cast<uint16_t*>(it) = htons(value);
+    *reinterpret_cast<uint16_t*>(it) = htons(value); // NOLINT
     it += 2;
 }
 
 inline void read(uint8_t const*& it, uint32_t& value)
 {
-    value = ntohl(*reinterpret_cast<uint32_t const*>(it));
+    value = ntohl(*reinterpret_cast<uint32_t const*>(it)); // NOLINT
     it += 4;
 }
 
@@ -116,15 +123,15 @@ inline void write(uint8_t*& it, uint64_t value)
 #ifndef __i386__
 inline void read(uint8_t const*& it, uint128_t& value)
 {
-    uint64_t hi, lo;
+    uint64_t hi, lo; // NOLINT
     read(it, hi);
     read(it, lo);
     value = (static_cast<uint128_t>(hi) << 64) | lo;
 }
 inline void write(uint8_t*& it, uint128_t value)
 {
-    uint64_t hi = static_cast<uint64_t>(value >> 64);
-    uint64_t lo = static_cast<uint64_t>(value);
+    auto hi = static_cast<uint64_t>(value >> 64);
+    auto lo = static_cast<uint64_t>(value);
     write(it, hi);
     write(it, lo);
 }
@@ -133,7 +140,7 @@ inline void write(uint8_t*& it, uint128_t value)
 // Reading / writing integer types to / from vectors.
 void read(std::vector<uint8_t> const& buf, std::integral auto& value)
 {
-    auto ptr = &buf[0];
+    const auto* ptr = &buf[0];
     read(ptr, value);
 }
 
@@ -148,7 +155,7 @@ void write(std::vector<uint8_t>& buf, const std::integral auto& value)
 void read(std::istream& is, std::integral auto& value)
 {
     std::array<uint8_t, sizeof(value)> buf;
-    is.read((char*)buf.data(), sizeof(value));
+    is.read(reinterpret_cast<char*>(buf.data()), sizeof(value));
     uint8_t const* ptr = &buf[0];
     read(ptr, value);
 }
@@ -158,7 +165,7 @@ void write(std::ostream& os, const std::integral auto& value)
     std::array<uint8_t, sizeof(value)> buf;
     uint8_t* ptr = &buf[0];
     write(ptr, value);
-    os.write((char*)buf.data(), sizeof(value));
+    os.write(reinterpret_cast<char*>(buf.data()), sizeof(value));
 }
 } // namespace serialize
 
@@ -190,7 +197,7 @@ template <size_t N> inline void write(uint8_t*& buf, std::array<uint8_t, N> cons
 // Optimised specialisation for reading vectors of bytes from a raw buffer.
 inline void read(uint8_t const*& it, std::vector<uint8_t>& value)
 {
-    uint32_t size;
+    uint32_t size = 0;
     read(it, size);
     value.resize(size);
     std::copy(it, it + size, value.data());
@@ -208,31 +215,31 @@ inline void write(uint8_t*& buf, std::vector<uint8_t> const& value)
 // Optimised specialisation for reading vectors of bytes from an input stream.
 inline void read(std::istream& is, std::vector<uint8_t>& value)
 {
-    uint32_t size;
+    uint32_t size = 0;
     read(is, size);
     value.resize(size);
-    is.read((char*)value.data(), (std::streamsize)size);
+    is.read(reinterpret_cast<char*>(value.data()), static_cast<std::streamsize>(size));
 }
 
 // Optimised specialisation for writing vectors of bytes to an output stream.
 inline void write(std::ostream& os, std::vector<uint8_t> const& value)
 {
     write(os, static_cast<uint32_t>(value.size()));
-    os.write((char*)value.data(), (std::streamsize)value.size());
+    os.write(reinterpret_cast<const char*>(value.data()), static_cast<std::streamsize>(value.size()));
 }
 
 // Optimised specialisation for writing arrays of bytes to a vector.
 template <size_t N> inline void write(std::vector<uint8_t>& buf, std::array<uint8_t, N> const& value)
 {
     buf.resize(buf.size() + N);
-    auto ptr = &*buf.end() - N;
+    auto* ptr = &*buf.end() - N;
     write(ptr, value);
 }
 
 // Optimised specialisation for writing arrays of bytes to an output stream.
 template <size_t N> inline void write(std::ostream& os, std::array<uint8_t, N> const& value)
 {
-    os.write((char*)value.data(), value.size());
+    os.write(reinterpret_cast<char*>(value.data()), value.size());
 }
 
 // Generic read of array of types from supported buffer types.
@@ -257,7 +264,7 @@ template <typename B, typename T, size_t N> inline void write(B& buf, std::array
 template <typename B, typename T, typename A> inline void read(B& it, std::vector<T, A>& value)
 {
     using serialize::read;
-    uint32_t size;
+    uint32_t size = 0;
     read(it, size);
     value.resize(size);
     for (size_t i = 0; i < size; ++i) {
@@ -328,7 +335,7 @@ template <typename B, typename T, typename U> inline void read(B& it, std::map<T
 {
     using serialize::read;
     value.clear();
-    uint32_t size;
+    uint32_t size = 0;
     read(it, size);
     for (size_t i = 0; i < size; ++i) {
         std::pair<T, U> v;
@@ -351,7 +358,7 @@ template <typename B, typename T, typename U> inline void write(B& buf, std::map
 template <typename B, typename T> inline void read(B& it, std::optional<T>& opt_value)
 {
     using serialize::read;
-    bool is_nullopt;
+    bool is_nullopt = false;
     read(it, is_nullopt);
     if (is_nullopt) {
         opt_value = std::nullopt;
@@ -383,7 +390,7 @@ template <typename T, typename B> T from_buffer(B const& buffer, size_t offset =
 {
     using serialize::read;
     T result;
-    auto ptr = (uint8_t const*)&buffer[offset];
+    const auto* ptr = reinterpret_cast<uint8_t const*>(&buffer[offset]);
     read(ptr, result);
     return result;
 }
@@ -401,7 +408,7 @@ template <typename T> uint8_t* to_heap_buffer(T const& value)
     using serialize::write;
     std::vector<uint8_t> buf;
     write(buf, value);
-    auto* ptr = (uint8_t*)aligned_alloc(64, buf.size());
+    auto* ptr = (uint8_t*)aligned_alloc(64, buf.size()); // NOLINT
     std::copy(buf.begin(), buf.end(), ptr);
     return ptr;
 }
@@ -494,3 +501,6 @@ inline void write(auto& buf, const msgpack_concepts::HasMsgPack auto& obj)
     });
 }
 } // namespace serialize
+// clang-format off
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast, cert-dcl58-cpp)
+// clang-format on

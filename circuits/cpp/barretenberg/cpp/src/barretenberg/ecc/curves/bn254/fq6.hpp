@@ -57,5 +57,5 @@ struct Bn254Fq6Params {
     }
 };
 
-typedef field6<fq2, Bn254Fq6Params> fq6;
+using fq6 = field6<fq2, Bn254Fq6Params>;
 } // namespace barretenberg

@@ -6,6 +6,8 @@
 
 #include "../../fields/field.hpp"
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays)
+
 namespace barretenberg {
 class Bn254FrParams {
   public:
@@ -66,6 +68,8 @@ class Bn254FrParams {
     static constexpr bool has_high_2adicity = true;
 };
 
-typedef field<Bn254FrParams> fr;
+using fr = field<Bn254FrParams>;
 
 } // namespace barretenberg
+
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays)

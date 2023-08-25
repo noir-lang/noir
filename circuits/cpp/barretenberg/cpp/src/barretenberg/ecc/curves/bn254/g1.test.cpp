@@ -4,19 +4,19 @@
 using namespace barretenberg;
 
 namespace test_g1 {
-TEST(g1, random_element)
+TEST(g1, RandomElement)
 {
     g1::element result = g1::element::random_element();
     EXPECT_EQ(result.on_curve(), true);
 }
 
-TEST(g1, random_affine_element)
+TEST(g1, RandomAffineElement)
 {
-    g1::affine_element result = g1::affine_element(g1::element::random_element());
+    g1::affine_element result = g1::element::random_element();
     EXPECT_EQ(result.on_curve(), true);
 }
 
-TEST(g1, eq)
+TEST(g1, Eq)
 {
     g1::element a = g1::element::random_element();
     g1::element b = a.normalize();
@@ -36,7 +36,7 @@ TEST(g1, eq)
     EXPECT_EQ(a == b, true);
 }
 
-TEST(g1, mixed_add_check_against_constants)
+TEST(g1, MixedAddCheckAgainstConstants)
 {
     fq a_x{ 0x92716caa6cac6d26, 0x1e6e234136736544, 0x1bb04588cde00af0, 0x9a2ac922d97e6f5 };
     fq a_y{ 0x9e693aeb52d79d2d, 0xf0c1895a61e5e975, 0x18cd7f5310ced70f, 0xac67920a22939ad };
@@ -63,7 +63,7 @@ TEST(g1, mixed_add_check_against_constants)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(g1, dbl_check_against_constants)
+TEST(g1, DblCheckAgainstConstants)
 {
     fq a_x{ 0x8d1703aa518d827f, 0xd19cc40779f54f63, 0xabc11ce30d02728c, 0x10938940de3cbeec };
     fq a_y{ 0xcf1798994f1258b4, 0x36307a354ad90a25, 0xcd84adb348c63007, 0x6266b85241aff3f };
@@ -88,7 +88,7 @@ TEST(g1, dbl_check_against_constants)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(g1, add_check_against_constants)
+TEST(g1, AddCheckAgainstConstants)
 {
     fq a_x{ 0x184b38afc6e2e09a, 0x4965cd1c3687f635, 0x334da8e7539e71c4, 0xf708d16cfe6e14 };
     fq a_y{ 0x2a6ff6ffc739b3b6, 0x70761d618b513b9, 0xbf1645401de26ba1, 0x114a1616c164b980 };
@@ -119,7 +119,7 @@ TEST(g1, add_check_against_constants)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(g1, add_exception_test_infinity)
+TEST(g1, AddExceptionTestInfinity)
 {
     g1::element lhs = g1::element::random_element();
     g1::element rhs;
@@ -145,7 +145,7 @@ TEST(g1, add_exception_test_infinity)
     EXPECT_EQ(rhs == result, true);
 }
 
-TEST(g1, test_infinity)
+TEST(g1, TestInfinity)
 {
     g1::affine_element inf_affine = g1::affine_element::infinity();
     EXPECT_EQ(inf_affine.is_point_at_infinity(), true);
@@ -154,7 +154,7 @@ TEST(g1, test_infinity)
     EXPECT_EQ(inf_element.is_point_at_infinity(), true);
 }
 
-TEST(g1, add_exception_test_dbl)
+TEST(g1, AddExceptionTestDbl)
 {
     g1::element lhs = g1::element::random_element();
     g1::element rhs;
@@ -169,20 +169,20 @@ TEST(g1, add_exception_test_dbl)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(g1, add_affine_test)
+TEST(g1, AddAffineTest)
 {
     g1::element lhs = g1::element::random_element();
-    g1::affine_element lhs_affine = g1::affine_element(lhs);
+    g1::affine_element lhs_affine(lhs);
 
     g1::element rhs = g1::element::random_element();
-    g1::affine_element rhs_affine = g1::affine_element(rhs);
+    g1::affine_element rhs_affine(rhs);
 
     g1::element expected = lhs + rhs;
     g1::affine_element result = lhs_affine + rhs_affine;
     EXPECT_EQ(g1::element(result) == expected, true);
 }
 
-TEST(g1, add_dbl_consistency)
+TEST(g1, AddDblConsistency)
 {
     g1::element a = g1::element::random_element();
     g1::element b = g1::element::random_element();
@@ -202,7 +202,7 @@ TEST(g1, add_dbl_consistency)
     EXPECT_EQ(add_result == dbl_result, true);
 }
 
-TEST(g1, add_dbl_consistency_repeated)
+TEST(g1, AddDblConsistencyRepeated)
 {
     g1::element a = g1::element::random_element();
     g1::element b;
@@ -225,10 +225,10 @@ TEST(g1, add_dbl_consistency_repeated)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(g1, mixed_add_exception_test_infinity)
+TEST(g1, MixedAddExceptionTestInfinity)
 {
     g1::element lhs = g1::one;
-    g1::affine_element rhs = g1::affine_element(g1::element::random_element());
+    g1::affine_element rhs = g1::element::random_element();
     fq::__copy(rhs.x, lhs.x);
     lhs.y = -rhs.y;
 
@@ -245,9 +245,9 @@ TEST(g1, mixed_add_exception_test_infinity)
     EXPECT_EQ(rhs_c == result, true);
 }
 
-TEST(g1, mixed_add_exception_test_dbl)
+TEST(g1, MixedAddExceptionTestDbl)
 {
-    g1::affine_element rhs = g1::affine_element(g1::element::random_element());
+    g1::affine_element rhs = g1::element::random_element();
     g1::element lhs;
     lhs = g1::element(rhs);
 
@@ -260,9 +260,9 @@ TEST(g1, mixed_add_exception_test_dbl)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(g1, add_mixed_add_consistency_check)
+TEST(g1, AddMixedAddConsistencyCheck)
 {
-    g1::affine_element rhs = g1::affine_element(g1::element::random_element());
+    g1::affine_element rhs = g1::element::random_element();
     g1::element lhs = g1::element::random_element();
     g1::element rhs_b;
     rhs_b = g1::element(rhs);
@@ -275,18 +275,18 @@ TEST(g1, add_mixed_add_consistency_check)
     EXPECT_EQ(add_result == mixed_add_result, true);
 }
 
-TEST(g1, batch_normalize)
+TEST(g1, BatchNormalize)
 {
     size_t num_points = 2;
-    g1::element points[num_points];
-    g1::element normalized[num_points];
+    std::vector<g1::element> points(num_points);
+    std::vector<g1::element> normalized(num_points);
     for (size_t i = 0; i < num_points; ++i) {
         g1::element a = g1::element::random_element();
         g1::element b = g1::element::random_element();
         points[i] = a + b;
         normalized[i] = points[i];
     }
-    g1::element::batch_normalize(normalized, num_points);
+    g1::element::batch_normalize(&normalized[0], num_points);
 
     for (size_t i = 0; i < num_points; ++i) {
         fq zz;
@@ -303,7 +303,7 @@ TEST(g1, batch_normalize)
     }
 }
 
-TEST(g1, group_exponentiation_check_against_constants)
+TEST(g1, GroupExponentiationCheckAgainstConstants)
 {
     fr a{ 0xb67299b792199cf0, 0xc1da7df1e7e12768, 0x692e427911532edf, 0x13dd85e87dc89978 };
     a.self_to_montgomery_form();
@@ -320,7 +320,7 @@ TEST(g1, group_exponentiation_check_against_constants)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(g1, operator_ordering)
+TEST(g1, OperatorOrdering)
 {
     // fq a_x{ 0x92716caa6cac6d26, 0x1e6e234136736544, 0x1bb04588cde00af0, 0x9a2ac922d97e6f5 };
     // fq a_y{ 0x9e693aeb52d79d2d, 0xf0c1895a61e5e975, 0x18cd7f5310ced70f, 0xac67920a22939ad };
@@ -345,18 +345,18 @@ TEST(g1, operator_ordering)
     EXPECT_EQ(g, h);
 }
 
-TEST(g1, group_exponentiation_zero_and_one)
+TEST(g1, GroupExponentiationZeroAndOne)
 {
     g1::affine_element result(g1::one * fr::zero());
 
     EXPECT_EQ(result.is_point_at_infinity(), true);
 
-    result = g1::affine_element(g1::one * fr::one());
+    result = g1::one * fr::one();
 
     EXPECT_EQ(result == g1::affine_one, true);
 }
 
-TEST(g1, group_exponentiation_consistency_check)
+TEST(g1, GroupExponentiationConsistencyCheck)
 {
     fr a = fr::random_element();
     fr b = fr::random_element();
@@ -373,7 +373,7 @@ TEST(g1, group_exponentiation_consistency_check)
     EXPECT_EQ(result == expected, true);
 }
 
-TEST(g1, derive_generators)
+TEST(g1, DeriveGenerators)
 {
     constexpr size_t num_generators = 128;
     auto result = g1::derive_generators<num_generators>();
@@ -393,28 +393,29 @@ TEST(g1, derive_generators)
     }
 }
 
-TEST(g1, serialize)
+TEST(g1, Serialize)
 {
-    g1::affine_element expected = g1::affine_element(g1::element::random_element());
+    g1::affine_element expected = g1::element::random_element();
 
-    uint8_t buffer[sizeof(g1::affine_element)];
+    std::vector<uint8_t> buffer(sizeof(g1::affine_element));
 
-    g1::affine_element::serialize_to_buffer(expected, buffer);
+    g1::affine_element::serialize_to_buffer(expected, &buffer[0]);
 
-    g1::affine_element result = g1::affine_element::serialize_from_buffer(buffer);
+    g1::affine_element result = g1::affine_element::serialize_from_buffer(&buffer[0]);
 
     EXPECT_EQ(result == expected, true);
 }
 template <class T> void write(const T t)
 {
     FILE* fp = fopen("/dev/null", "wb");
-    fwrite(&t, sizeof(t), 1, fp);
-    fclose(fp);
+    static_cast<void>(fwrite(&t, sizeof(t), 1, fp));
+    static_cast<void>(fclose(fp));
 }
 
 #if !defined(__wasm__)
-TEST(g1, initialization_check)
+TEST(g1, InitializationCheck)
 {
+    // NOLINTNEXTLINE not our fault googletest uses `goto`!
     EXPECT_NO_THROW(write<barretenberg::g1::affine_element>({}));
 }
 #endif

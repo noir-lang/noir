@@ -13,4 +13,5 @@ void count_leading_zeros(State& state) noexcept
 }
 BENCHMARK(count_leading_zeros);
 
+// NOLINTNEXTLINE macro invokation triggers style errors from googletest code
 BENCHMARK_MAIN();

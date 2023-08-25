@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stddef.h>
+#include <cstddef>
 #include <tuple>
 #include <utility>
 
@@ -165,7 +165,7 @@ constexpr auto concatenate_arrays(const std::array<Type, sizes>&... arrays)
  * cannot be constexpr)
  */
 template <typename T, std::size_t... Is>
-constexpr std::array<T, sizeof...(Is)> create_array(T value, std::index_sequence<Is...>)
+constexpr std::array<T, sizeof...(Is)> create_array(T value, std::index_sequence<Is...> /*unused*/)
 {
     // cast Is to void to remove the warning: unused value
     std::array<T, sizeof...(Is)> result = { { (static_cast<void>(Is), value)... } };
