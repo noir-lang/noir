@@ -176,7 +176,7 @@ pub(crate) fn convert_black_box_call(
                 // Slices are represented as a tuple of (length, slice contents).
                 // We must check the number of inputs to differentiate between arrays and slices
                 // and make sure that we pass the correct inputs to the function call.
-                let message = if function_arguments.len() > 1 {
+                let message = if function_arguments.len() > 2 {
                     &function_arguments[1]
                 } else {
                     &function_arguments[0]
