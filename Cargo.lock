@@ -50,7 +50,7 @@ dependencies = [
 [[package]]
 name = "acvm-backend-barretenberg"
 version = "0.11.0"
-source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=9963db4d04b8f2fc4731d71190ed341845eecf25#9963db4d04b8f2fc4731d71190ed341845eecf25"
+source = "git+https://github.com/noir-lang/acvm-backend-barretenberg?rev=10935a2da09724486553aff423e07e6486af77b8#10935a2da09724486553aff423e07e6486af77b8"
 dependencies = [
  "acvm",
  "barretenberg-sys",
@@ -60,7 +60,6 @@ dependencies = [
  "dirs 5.0.1",
  "flate2",
  "getrandom",
- "lazy_static",
  "pkg-config",
  "reqwest",
  "rust-embed",
@@ -68,7 +67,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "wasmer",
- "wasmer-cache",
 ]
 
 [[package]]
@@ -337,12 +335,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arrayref"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b4930d2cb77ce62f89ee5d5289b4ac049559b1c45539271f5ed4fdc7db34545"
-
-[[package]]
 name = "arrayvec"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -532,20 +524,6 @@ version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
 dependencies = [
- "digest",
-]
-
-[[package]]
-name = "blake3"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "199c42ab6972d92c9f8995f086273d25c42fc0f7b2a1fcefba465c1352d25ba5"
-dependencies = [
- "arrayref",
- "arrayvec",
- "cc",
- "cfg-if",
- "constant_time_eq",
  "digest",
 ]
 
@@ -885,12 +863,6 @@ dependencies = [
  "quote",
  "unicode-xid",
 ]
-
-[[package]]
-name = "constant_time_eq"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7144d30dcf0fafbce74250a3963025d8d52177934239851c917d29f1df280c2"
 
 [[package]]
 name = "core-foundation-sys"
@@ -1314,6 +1286,32 @@ name = "doc-comment"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
+
+[[package]]
+name = "dynasm"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "add9a102807b524ec050363f09e06f1504214b0e1c7797f64261c891022dce8b"
+dependencies = [
+ "bitflags 1.3.2",
+ "byteorder",
+ "lazy_static",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "dynasmrt"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64fba5a42bd76a17cad4bfa00de168ee1cbfa06a5e8ce992ae880218c05641a9"
+dependencies = [
+ "byteorder",
+ "dynasm",
+ "memmap2",
+]
 
 [[package]]
 name = "ecdsa"
@@ -4344,23 +4342,12 @@ dependencies = [
  "wasm-bindgen-downcast",
  "wasmer-compiler",
  "wasmer-compiler-cranelift",
+ "wasmer-compiler-singlepass",
  "wasmer-derive",
  "wasmer-types",
  "wasmer-vm",
  "wat",
  "winapi",
-]
-
-[[package]]
-name = "wasmer-cache"
-version = "4.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b9b5feba7946b7f65f2335a96b6bd68e4dab03f147be1b680486fd769728497"
-dependencies = [
- "blake3",
- "hex",
- "thiserror",
- "wasmer",
 ]
 
 [[package]]
@@ -4401,6 +4388,25 @@ dependencies = [
  "smallvec",
  "target-lexicon",
  "tracing",
+ "wasmer-compiler",
+ "wasmer-types",
+]
+
+[[package]]
+name = "wasmer-compiler-singlepass"
+version = "4.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebfd019aa98b19fea0fb1d8db9b539145c9416d183ce4cda4e8e024b2c890aac"
+dependencies = [
+ "byteorder",
+ "dynasm",
+ "dynasmrt",
+ "enumset",
+ "gimli 0.26.2",
+ "lazy_static",
+ "more-asserts",
+ "rayon",
+ "smallvec",
  "wasmer-compiler",
  "wasmer-types",
 ]
