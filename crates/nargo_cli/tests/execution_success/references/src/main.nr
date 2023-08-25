@@ -37,10 +37,10 @@ fn main(mut x: Field) {
     regression_2255();
 
     assert(x == 3);
-    regression_2218_if_inner_if(x == 10);
-    regression_2218_if_inner_else(20 == x);
-    regression_2218_else(x == 3);
-    regression_2218_loop(x == 10);
+    regression_2218_if_inner_if(x, 10);
+    regression_2218_if_inner_else(20, x);
+    regression_2218_else(x, 3);
+    regression_2218_loop(x, 10);
 }
 
 fn add1(x: &mut Field) {
@@ -145,17 +145,17 @@ fn regression_2218(x: Field, y: Field) -> Field {
 }
 
 fn regression_2218_if_inner_if(x: Field, y: Field) {
-    let value = regression_2218(x == y);
+    let value = regression_2218(x, y);
     assert(value == 2);
 }
 
 fn regression_2218_if_inner_else(x: Field, y: Field) {
-    let value = regression_2218(x == y);
+    let value = regression_2218(x, y);
     assert(value == 15);
 }
 
 fn regression_2218_else(x: Field, y: Field) {
-    let value = regression_2218(x == y);
+    let value = regression_2218(x, y);
     assert(value == 20);  
 }
 
