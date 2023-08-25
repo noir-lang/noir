@@ -3,6 +3,8 @@ set -e
 
 excluded_dirs=("workspace" "workspace_default_member")
 
+cd ./execution_success
+
 # Loop over every directory
 for dir in ./*; do
   if [[ ! -d $dir ]]; then
