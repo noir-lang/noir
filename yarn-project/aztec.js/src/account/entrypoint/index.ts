@@ -11,6 +11,7 @@ export type CreateTxRequestOpts = {
   origin?: AztecAddress;
 };
 
+// docs:start:entrypoint-interface
 /**
  * Represents a transaction entrypoint in an account contract.
  * Knows how to assemble a transaction execution request given a set of function calls.
@@ -24,3 +25,4 @@ export interface Entrypoint {
    */
   createTxExecutionRequest(executions: FunctionCall[], opts?: CreateTxRequestOpts): Promise<TxExecutionRequest>;
 }
+// docs:end:entrypoint-interface

@@ -62,9 +62,9 @@ def entryPoint(payload):
 
 Read more about how to write an account contract [here](../../../dev_docs/wallets/writing_an_account_contract.md).
 
-### Accounts and wallets
+### Account contracts and wallets
 
-Account contracts are tightly coupled to the wallet software that users use to interact with the protocol. Dapps submit to the wallet software an execution request (eg "call swap in X contract"), and the wallet encodes and authenticates the request as a valid payload for the user's account contract. The account contract then validates the request encoded by the wallet, and executes the actions requested by the dapp.
+Account contracts are tightly coupled to the wallet software that users use to interact with the protocol. Dapps submit to the wallet software one or more function calls to be executed (eg "call swap in X contract"), and the wallet encodes and authenticates the request as a valid payload for the user's account contract. The account contract then validates the request encoded and authenticated by the wallet, and executes the function calls requested by the dapp.
 
 ### Execution requests
 

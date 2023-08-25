@@ -56,6 +56,7 @@ export type SyncStatus = {
   notes: Record<string, number>;
 };
 
+// docs:start:rpc-interface
 /**
  * Represents an Aztec RPC implementation.
  * Provides functionality for all the operations needed to interact with the Aztec network,
@@ -236,3 +237,4 @@ export interface AztecRPC {
    */
   getSyncStatus(): Promise<SyncStatus>;
 }
+// docs:end:rpc-interface

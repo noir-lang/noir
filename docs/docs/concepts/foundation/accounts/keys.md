@@ -55,7 +55,7 @@ partial_address := hash(salt, contract_code, constructor_hash)
 address := hash(public_key, partial_address)
 ```
 
-This public key corresponds to the privacy master key of the account. In order to manage private state, such as receiving an encrypted note, an account needs to share its partial address and public key, along with its address. This allows anyone to verify that the public key corresponds to the intended address.
+This public key corresponds to the privacy master key of the account. In order to manage private state, such as receiving an encrypted note, an account needs to share its partial address and public key, along with its address. This allows anyone to verify that the public key corresponds to the intended address. We call the address, partial address, and public key of a user their **complete address**.
 
 Contracts that are not meant to represent a user who handles private state, usually non-account contracts such as applications, do not need to provide a valid public key, and can instead just use zero to denote that they are not expected to receive private notes.
 
