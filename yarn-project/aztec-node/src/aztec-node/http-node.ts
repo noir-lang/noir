@@ -16,6 +16,7 @@ import {
   L1ToL2MessageAndIndex,
   L2Block,
   L2BlockL2Logs,
+  L2Tx,
   LogType,
   MerkleTreeId,
   SiblingPath,
@@ -188,6 +189,24 @@ export class HttpNode implements AztecNode {
   }
 
   /**
+   * Gets an l2 tx.
+   * @param txHash - The txHash of the l2 tx.
+   * @returns The requested L2 tx.
+   */
+  async getTx(txHash: TxHash): Promise<L2Tx | undefined> {
+    const url = new URL(`${this.baseUrl}/get-tx`);
+    url.searchParams.append('hash', txHash.toString());
+    const response = await fetch(url.toString());
+    if (response.status === 404) {
+      this.log.info(`Tx ${txHash.toString()} not found`);
+      return undefined;
+    }
+    const txBuffer = Buffer.from(await response.arrayBuffer());
+    const tx = L2Tx.fromBuffer(txBuffer);
+    return Promise.resolve(tx);
+  }
+
+  /**
    * Method to retrieve pending txs.
    * @returns - The pending txs.
    */
@@ -208,7 +227,7 @@ export class HttpNode implements AztecNode {
       this.log.info(`Tx ${txHash.toString()} not found`);
       return undefined;
     }
-    const txBuffer = Buffer.from(await (await fetch(url.toString())).arrayBuffer());
+    const txBuffer = Buffer.from(await response.arrayBuffer());
     const tx = Tx.fromBuffer(txBuffer);
     return Promise.resolve(tx);
   }

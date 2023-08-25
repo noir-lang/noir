@@ -1,16 +1,18 @@
 import { EthAddress } from '@aztec/circuits.js';
-import { L2Block, L2BlockSource } from '@aztec/types';
+import { L2Block, L2BlockSource, L2Tx, TxHash } from '@aztec/types';
 
 /**
  * A mocked implementation of L2BlockSource to be used in p2p tests.
  */
 export class MockBlockSource implements L2BlockSource {
-  private l2Blocks: L2Block[];
+  private l2Blocks: L2Block[] = [];
+  private l2Txs: L2Tx[] = [];
 
   constructor(private numBlocks = 100) {
-    this.l2Blocks = [];
     for (let i = 0; i < this.numBlocks; i++) {
-      this.l2Blocks.push(L2Block.random(i));
+      const block = L2Block.random(i);
+      this.l2Blocks.push(block);
+      this.l2Txs.push(...block.getTxs());
     }
   }
 
@@ -47,6 +49,16 @@ export class MockBlockSource implements L2BlockSource {
    */
   public getL2Blocks(from: number, limit: number) {
     return Promise.resolve(this.l2Blocks.slice(from, from + limit));
+  }
+
+  /**
+   * Gets an l2 tx.
+   * @param txHash - The txHash of the l2 tx.
+   * @returns The requested L2 tx.
+   */
+  getL2Tx(txHash: TxHash) {
+    const l2Tx = this.l2Txs.find(tx => tx.txHash.equals(txHash));
+    return Promise.resolve(l2Tx);
   }
 
   /**

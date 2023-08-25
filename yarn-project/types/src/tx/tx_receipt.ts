@@ -37,10 +37,6 @@ export class TxReceipt {
      */
     public blockNumber?: number,
     /**
-     * The sender's address.
-     */
-    public origin?: AztecAddress,
-    /**
      * The deployed contract's address.
      */
     public contractAddress?: AztecAddress,
@@ -57,7 +53,6 @@ export class TxReceipt {
       error: this.error,
       blockHash: this.blockHash?.toString('hex'),
       blockNumber: this.blockNumber,
-      origin: this.origin?.toString(),
       contractAddress: this.contractAddress?.toString(),
     };
   }
@@ -73,8 +68,7 @@ export class TxReceipt {
     const error = obj.error;
     const blockHash = obj.blockHash ? Buffer.from(obj.blockHash, 'hex') : undefined;
     const blockNumber = obj.blockNumber ? Number(obj.blockNumber) : undefined;
-    const origin = obj.origin ? AztecAddress.fromString(obj.origin) : undefined;
     const contractAddress = obj.contractAddress ? AztecAddress.fromString(obj.contractAddress) : undefined;
-    return new TxReceipt(txHash, status, error, blockHash, blockNumber, origin, contractAddress);
+    return new TxReceipt(txHash, status, error, blockHash, blockNumber, contractAddress);
   }
 }

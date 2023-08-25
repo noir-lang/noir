@@ -7,7 +7,9 @@ import {
   L1ToL2Message,
   L2Block,
   L2BlockL2Logs,
+  L2Tx,
   LogType,
+  TxHash,
 } from '@aztec/types';
 
 import { L1ToL2MessageStore, PendingL1ToL2MessageStore } from './l1_to_l2_message_store.js';
@@ -31,6 +33,13 @@ export interface ArchiverDataStore {
    * @returns The requested L2 blocks.
    */
   getL2Blocks(from: number, limit: number): Promise<L2Block[]>;
+
+  /**
+   * Gets an l2 tx.
+   * @param txHash - The txHash of the l2 tx.
+   * @returns The requested L2 tx.
+   */
+  getL2Tx(txHash: TxHash): Promise<L2Tx | undefined>;
 
   /**
    * Append new logs to the store's list.
@@ -146,6 +155,11 @@ export class MemoryArchiverStore implements ArchiverDataStore {
   private l2Blocks: L2Block[] = [];
 
   /**
+   * An array containing all the L2 Txs in the L2 blocks that have been fetched so far.
+   */
+  private l2Txs: L2Tx[] = [];
+
+  /**
    * An array containing all the encrypted logs that have been fetched so far.
    * Note: Index in the "outer" array equals to (corresponding L2 block's number - INITIAL_L2_BLOCK_NUM).
    */
@@ -187,6 +201,7 @@ export class MemoryArchiverStore implements ArchiverDataStore {
    */
   public addL2Blocks(blocks: L2Block[]): Promise<boolean> {
     this.l2Blocks.push(...blocks);
+    this.l2Txs.push(...blocks.flatMap(b => b.getTxs()));
     return Promise.resolve(true);
   }
 
@@ -278,6 +293,16 @@ export class MemoryArchiverStore implements ArchiverDataStore {
     const startIndex = from - INITIAL_L2_BLOCK_NUM;
     const endIndex = startIndex + limit;
     return Promise.resolve(this.l2Blocks.slice(startIndex, endIndex));
+  }
+
+  /**
+   * Gets an l2 tx.
+   * @param txHash - The txHash of the l2 tx.
+   * @returns The requested L2 tx.
+   */
+  public getL2Tx(txHash: TxHash): Promise<L2Tx | undefined> {
+    const l2Tx = this.l2Txs.find(tx => tx.txHash.equals(txHash));
+    return Promise.resolve(l2Tx);
   }
 
   /**

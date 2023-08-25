@@ -46,6 +46,19 @@ export function appFactory(node: AztecNode, prefix: string) {
     ctx.status = 200;
   });
 
+  router.get('/get-tx', async (ctx: Koa.Context) => {
+    const hash = ctx.query.hash!;
+    const txHash = new TxHash(Buffer.from(hash as string, 'hex'));
+    const tx = await node.getTx(txHash);
+    ctx.set('content-type', 'application/octet-stream');
+    if (tx == undefined) {
+      ctx.status = 404;
+    } else {
+      ctx.status = 200;
+      ctx.body = tx.toBuffer();
+    }
+  });
+
   router.get('/get-block', async (ctx: Koa.Context) => {
     const number = +ctx.query.number!;
     const block = await node.getBlock(number);

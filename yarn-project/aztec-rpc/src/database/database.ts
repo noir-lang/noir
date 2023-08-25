@@ -1,46 +1,15 @@
 import { CompleteAddress, HistoricBlockData } from '@aztec/circuits.js';
 import { AztecAddress } from '@aztec/foundation/aztec-address';
 import { Fr } from '@aztec/foundation/fields';
-import { ContractDatabase, MerkleTreeId, PublicKey, TxHash } from '@aztec/types';
+import { ContractDatabase, MerkleTreeId, PublicKey } from '@aztec/types';
 
 import { NoteSpendingInfoDao } from './note_spending_info_dao.js';
-import { TxDao } from './tx_dao.js';
 
 /**
  * A database interface that provides methods for retrieving, adding, and removing transactional data related to Aztec
  * addresses, storage slots, and nullifiers.
  */
 export interface Database extends ContractDatabase {
-  /**
-   * Retrieve a transaction from the MemoryDB using its transaction hash.
-   * The function searches for the transaction with the given hash in the txTable and returns it as a Promise.
-   * Returns 'undefined' if the transaction is not found in the database.
-   *
-   * @param txHash - The TxHash of the transaction to be retrieved.
-   * @returns A Promise that resolves to the found TxDao instance, or undefined if not found.
-   */
-  getTx(txHash: TxHash): Promise<TxDao | undefined>;
-
-  /**
-   * Adds a TxDao instance to the transaction table.
-   * If a transaction with the same hash already exists in the table, it replaces the existing one.
-   * Otherwise, it pushes the new transaction to the table.
-   *
-   * @param tx - The TxDao instance representing the transaction to be added.
-   * @returns A Promise that resolves when the transaction is successfully added/updated in the table.
-   */
-  addTx(tx: TxDao): Promise<void>;
-
-  /**
-   * Add an array of transaction data objects.
-   * If a transaction with the same hash already exists in the database, it will be updated
-   * with the new transaction data. Otherwise, the new transaction will be added to the database.
-   *
-   * @param txs - An array of TxDao instances representing the transactions to be added to the database.
-   * @returns A Promise that resolves when all the transactions have been added or updated.
-   */
-  addTxs(txs: TxDao[]): Promise<void>;
-
   /**
    * Get auxiliary transaction data based on contract address and storage slot.
    * It searches for matching NoteSpendingInfoDao objects in the MemoryDB's noteSpendingInfoTable

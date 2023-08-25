@@ -74,10 +74,9 @@ describe('e2e_2_rpc_servers', () => {
   const deployPrivateTokenContract = async (initialBalance: bigint, owner: AztecAddress) => {
     logger(`Deploying PrivateToken contract...`);
     const tx = PrivateTokenContract.deploy(aztecRpcServerA, initialBalance, owner).send();
-    const receipt = await tx.getReceipt();
     await tx.isMined({ interval: 0.1 });
-    const minedReceipt = await tx.getReceipt();
-    expect(minedReceipt.status).toEqual(TxStatus.MINED);
+    const receipt = await tx.getReceipt();
+    expect(receipt.status).toEqual(TxStatus.MINED);
     logger('L2 contract deployed');
 
     return receipt.contractAddress!;
@@ -145,10 +144,9 @@ describe('e2e_2_rpc_servers', () => {
   const deployChildContractViaServerA = async () => {
     logger(`Deploying Child contract...`);
     const tx = ChildContract.deploy(aztecRpcServerA).send();
-    const receipt = await tx.getReceipt();
     await tx.isMined({ interval: 0.1 });
-    const minedReceipt = await tx.getReceipt();
-    expect(minedReceipt.status).toEqual(TxStatus.MINED);
+    const receipt = await tx.getReceipt();
+    expect(receipt.status).toEqual(TxStatus.MINED);
     logger('Child contract deployed');
 
     return receipt.contractAddress!;

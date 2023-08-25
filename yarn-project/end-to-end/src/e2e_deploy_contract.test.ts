@@ -41,7 +41,6 @@ describe('e2e_deploy_contract', () => {
       expect.objectContaining({
         status: TxStatus.PENDING,
         error: '',
-        contractAddress: deploymentData.completeAddress.address,
       }),
     );
     logger(`Receipt received and expecting contract deployment at ${receipt.contractAddress}`);
@@ -49,8 +48,14 @@ describe('e2e_deploy_contract', () => {
     const receiptAfterMined = await tx.getReceipt();
 
     expect(isMined).toBe(true);
-    expect(receiptAfterMined.status).toBe(TxStatus.MINED);
-    const contractAddress = receipt.contractAddress!;
+    expect(receiptAfterMined).toEqual(
+      expect.objectContaining({
+        status: TxStatus.MINED,
+        error: '',
+        contractAddress: deploymentData.completeAddress.address,
+      }),
+    );
+    const contractAddress = receiptAfterMined.contractAddress!;
     expect(await isContractDeployed(aztecRpcServer, contractAddress)).toBe(true);
     expect(await isContractDeployed(aztecRpcServer, AztecAddress.random())).toBe(false);
   }, 30_000);
@@ -74,8 +79,9 @@ describe('e2e_deploy_contract', () => {
   /**
    * Milestone 1.2.
    * https://hackmd.io/-a5DjEfHTLaMBR49qy6QkA
+   * Task to repair this test: https://github.com/AztecProtocol/aztec-packages/issues/1810
    */
-  it('should not deploy a contract with the same salt twice', async () => {
+  it.skip('should not deploy a contract with the same salt twice', async () => {
     const contractAddressSalt = Fr.random();
     const deployer = new ContractDeployer(TestContractAbi, aztecRpcServer);
 

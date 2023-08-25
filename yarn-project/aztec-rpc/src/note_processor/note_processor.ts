@@ -5,7 +5,7 @@ import { Fr } from '@aztec/foundation/fields';
 import { createDebugLogger } from '@aztec/foundation/log';
 import { AztecNode, KeyStore, L2BlockContext, L2BlockL2Logs, NoteSpendingInfo, PublicKey } from '@aztec/types';
 
-import { Database, NoteSpendingInfoDao, TxDao } from '../database/index.js';
+import { Database, NoteSpendingInfoDao } from '../database/index.js';
 import { getAcirSimulator } from '../simulator/index.js';
 
 /**
@@ -16,10 +16,6 @@ interface ProcessedData {
    * Holds L2 block data and associated context.
    */
   blockContext: L2BlockContext;
-  /**
-   * Indices of transactions in the block that emitted encrypted log which the user could decrypt.
-   */
-  userPertainingTxIndices: number[];
   /**
    * A collection of data access objects for note spending info.
    */
@@ -88,6 +84,7 @@ export class NoteProcessor {
     }
 
     const blocksAndNoteSpendingInfo: ProcessedData[] = [];
+    const curve = await Grumpkin.new();
 
     // Iterate over both blocks and encrypted logs.
     for (let blockIndex = 0; blockIndex < encryptedL2BlockLogs.length; ++blockIndex) {
@@ -97,10 +94,8 @@ export class NoteProcessor {
 
       // We are using set for `userPertainingTxIndices` to avoid duplicates. This would happen in case there were
       // multiple encrypted logs in a tx pertaining to a user.
-      const userPertainingTxIndices: Set<number> = new Set();
       const noteSpendingInfoDaos: NoteSpendingInfoDao[] = [];
       const privateKey = await this.keyStore.getAccountPrivateKey(this.publicKey);
-      const curve = await Grumpkin.new();
 
       // Iterate over all the encrypted logs and try decrypting them. If successful, store the note spending info.
       for (let indexOfTxInABlock = 0; indexOfTxInABlock < txLogs.length; ++indexOfTxInABlock) {
@@ -135,7 +130,6 @@ export class NoteProcessor {
                   index,
                   publicKey: this.publicKey,
                 });
-                userPertainingTxIndices.add(indexOfTxInABlock);
               } catch (e) {
                 this.log.warn(`Could not process note because of "${e}". Skipping note...`);
               }
@@ -146,7 +140,6 @@ export class NoteProcessor {
 
       blocksAndNoteSpendingInfo.push({
         blockContext: l2BlockContexts[blockIndex],
-        userPertainingTxIndices: [...userPertainingTxIndices], // Convert set to array.
         noteSpendingInfoDaos,
       });
     }
@@ -250,34 +243,7 @@ https://github.com/AztecProtocol/aztec-packages/issues/1641`;
    * @param blocksAndNoteSpendingInfo - Array of objects containing L2BlockContexts, user-pertaining transaction indices, and NoteSpendingInfoDaos.
    */
   private async processBlocksAndNoteSpendingInfo(blocksAndNoteSpendingInfo: ProcessedData[]) {
-    const noteSpendingInfoDaosBatch: NoteSpendingInfoDao[] = [];
-    const txDaos: TxDao[] = [];
-    let newNullifiers: Fr[] = [];
-
-    for (let i = 0; i < blocksAndNoteSpendingInfo.length; ++i) {
-      const { blockContext, userPertainingTxIndices, noteSpendingInfoDaos } = blocksAndNoteSpendingInfo[i];
-
-      // Process all the user pertaining txs.
-      userPertainingTxIndices.map((txIndex, j) => {
-        const txHash = blockContext.getTxHash(txIndex);
-        this.log(`Processing tx ${txHash!.toString()} from block ${blockContext.block.number}`);
-        const { newContractData } = blockContext.block.getTx(txIndex);
-        const isContractDeployment = !newContractData[0].contractAddress.isZero();
-        const noteSpendingInfo = noteSpendingInfoDaos[j];
-        const contractAddress = isContractDeployment ? noteSpendingInfo.contractAddress : undefined;
-        txDaos.push({
-          txHash,
-          blockHash: blockContext.getBlockHash(),
-          blockNumber: blockContext.block.number,
-          origin: undefined,
-          contractAddress,
-          error: '',
-        });
-      });
-      noteSpendingInfoDaosBatch.push(...noteSpendingInfoDaos);
-
-      newNullifiers = newNullifiers.concat(blockContext.block.newNullifiers);
-    }
+    const noteSpendingInfoDaosBatch = blocksAndNoteSpendingInfo.flatMap(b => b.noteSpendingInfoDaos);
     if (noteSpendingInfoDaosBatch.length) {
       await this.db.addNoteSpendingInfoBatch(noteSpendingInfoDaosBatch);
       noteSpendingInfoDaosBatch.forEach(noteSpendingInfo => {
@@ -288,7 +254,8 @@ https://github.com/AztecProtocol/aztec-packages/issues/1641`;
         );
       });
     }
-    if (txDaos.length) await this.db.addTxs(txDaos);
+
+    const newNullifiers: Fr[] = blocksAndNoteSpendingInfo.flatMap(b => b.blockContext.block.newNullifiers);
     const removedNoteSpendingInfo = await this.db.removeNullifiedNoteSpendingInfo(newNullifiers, this.publicKey);
     removedNoteSpendingInfo.forEach(noteSpendingInfo => {
       this.log(

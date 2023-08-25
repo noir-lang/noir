@@ -23,6 +23,7 @@ import {
   L2BlockL2Logs,
   L2BlockSource,
   L2LogsSource,
+  L2Tx,
   LogType,
   MerkleTreeId,
   SiblingPath,
@@ -208,6 +209,10 @@ export class AztecNodeService implements AztecNode {
   public async sendTx(tx: Tx) {
     this.log.info(`Received tx ${await tx.getTxHash()}`);
     await this.p2pClient!.sendTx(tx);
+  }
+
+  public getTx(txHash: TxHash): Promise<L2Tx | undefined> {
+    return this.blockSource.getL2Tx(txHash);
   }
 
   /**

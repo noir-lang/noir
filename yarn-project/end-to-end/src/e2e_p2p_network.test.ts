@@ -143,10 +143,9 @@ describe('e2e_p2p_network', () => {
         expect.objectContaining({
           status: TxStatus.PENDING,
           error: '',
-          contractAddress: origin,
         }),
       );
-      logger(`Receipt received and expecting contract deployment at ${receipt.contractAddress}`);
+      logger(`Receipt received and expecting contract deployment at ${origin}`);
       txs.push(tx);
     }
     return txs;

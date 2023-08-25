@@ -10,6 +10,7 @@ import {
   L1ToL2MessageProvider,
   L2Block,
   L2BlockL2Logs,
+  L2Tx,
   LogType,
   MerkleTreeId,
   Tx,
@@ -97,6 +98,13 @@ export interface AztecNode extends DataCommitmentProvider, L1ToL2MessageProvider
    * @returns Nothing.
    */
   sendTx(tx: Tx): Promise<void>;
+
+  /**
+   * Get a settled tx.
+   * @param txHash - The txHash being requested.
+   * @returns The tx requested.
+   */
+  getTx(txHash: TxHash): Promise<L2Tx | undefined>;
 
   /**
    * Method to retrieve pending txs.
