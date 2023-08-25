@@ -237,12 +237,14 @@ impl PerFunctionContext {
             if let Some(expression) = references.expressions.get(&allocation) {
                 if let Some(aliases) = references.aliases.get(expression) {
                     let allocation_aliases_parameter =
-                        !aliases.iter().any(|alias| reference_parameters.contains(alias));
+                        aliases.iter().any(|alias| reference_parameters.contains(alias));
 
                     if !aliases.is_empty() && !allocation_aliases_parameter {
                         self.instructions_to_remove.insert(instruction);
                     }
                 }
+            } else {
+                self.instructions_to_remove.insert(instruction);
             }
         }
     }
@@ -507,7 +509,7 @@ mod tests {
     use im::vector;
 
     use crate::ssa::{
-        function_builder::FunctionBuilder,
+        ssa_builder::FunctionBuilder,
         ir::{
             basic_block::BasicBlockId,
             dfg::DataFlowGraph,
