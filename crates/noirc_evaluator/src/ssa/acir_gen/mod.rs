@@ -553,10 +553,10 @@ impl Context {
             _ => unreachable!("ICE: expected array or slice type"),
         }
 
-        dbg!("got here");
+        // dbg!("got here");
         let resolved_array = dfg.resolve(array);
         let map_array = last_array_uses.get(&resolved_array) == Some(&instruction);
-        dbg!(store_value.is_some());
+        // dbg!(store_value.is_some());
         if let Some(store) = store_value {
             self.array_set(instruction, array, index, store, dfg, map_array, length)?;
         } else {
@@ -576,8 +576,8 @@ impl Context {
     ) -> Result<(), RuntimeError> {
         let array = dfg.resolve(array);
         let block_id = self.block_id(&array);
-        dbg!(block_id.0);
-        dbg!(self.initialized_arrays.contains(&block_id));
+        // dbg!(block_id.0);
+        // dbg!(self.initialized_arrays.contains(&block_id));
         if !self.initialized_arrays.contains(&block_id) {
             match &dfg[array] {
                 Value::Array { array, .. } => {
@@ -609,7 +609,7 @@ impl Context {
                 }
             }
         }
-        dbg!(block_id.0);
+        // dbg!(block_id.0);
         let index_var = self.convert_value(index, dfg).into_var()?;
         let read = self.acir_context.read_from_memory(block_id, &index_var)?;
         let typ = match dfg.type_of_value(array) {
@@ -667,7 +667,7 @@ impl Context {
             }
             _ => unreachable!("ICE - expected an array"),
         };
-        dbg!(len);
+        // dbg!(len);
 
         // Check if the array has already been initialized in ACIR gen
         // if not, we initialize it using the values from SSA
@@ -734,7 +734,7 @@ impl Context {
         values: Option<&[AcirValue]>,
     ) -> Result<(), InternalError> {
         self.acir_context.initialize_array(array, len, values)?;
-        dbg!(array.0);
+        // dbg!(array.0);
         self.initialized_arrays.insert(array);
         Ok(())
     }

@@ -92,6 +92,9 @@ pub(super) fn simplify_call(
 
                 let new_slice = dfg.make_array(slice, element_type);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
+            } else if let Some(slice_length) = dfg.get_numeric_constant(arguments[0]) {
+                // SimplifyResult::SimplifiedToMultiple()
+                SimplifyResult::None
             } else {
                 SimplifyResult::None
             }

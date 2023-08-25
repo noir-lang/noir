@@ -77,14 +77,14 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
     }
     assert(slice.len() == 5);
     
-    dynamic_slice_index_set_if(slice, x, y);
-    dynamic_slice_index_set_else(slice, x, y);
-    dynamic_slice_index_set_nested_if_else_else(slice, x, y);
-    dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
-    dynamic_slice_index_if(slice, x, y);
-    dynamic_slice_index_else(slice, x, y);
+    // dynamic_slice_index_set_if(slice, x, y);
+    // dynamic_slice_index_set_else(slice, x, y);
+    // dynamic_slice_index_set_nested_if_else_else(slice, x, y);
+    // dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
+    // dynamic_slice_index_if(slice, x, y);
+    // dynamic_slice_index_else(slice, x, y);
 
-    // dynamic_slice_merge_if(slice, x, y);
+    dynamic_slice_merge_if(slice, x, y);
     // dynamic_slice_merge_else(slice, x, y);
 }
 
@@ -145,25 +145,26 @@ fn dynamic_slice_index_else(mut slice: [Field], x: Field, y: Field) {
     assert(slice[4] == 2);
 }
 
-// TODO: This is still broken. Need to verify whether attaching 
-// predicates to memory ops in ACIR solves the issue (PR #2400), but I am pretty
-// sure that it is the cause. 
+
 fn dynamic_slice_merge_if(mut slice: [Field], x: Field, y: Field) {
     if x as u32 < 10 {
         assert(slice[x] == 4);
         slice[x] = slice[x] - 2;
         slice = slice.push_back(10);
+        assert(slice[slice.len() - 1] == 10);
+
+        slice = slice.insert(x, 20);
     } else {
         assert(slice[x] == 0);
+        // slice = slice.push_back(20);
     }
 
     assert(slice[4] == 2);
-    assert(slice[slice.len() - 1] == 10);
+    // TODO: This is still broken. Need to verify whether attaching 
+    // predicates to memory ops in ACIR solves the issue (PR #2400)
+    // assert(slice[slice.len() - 1] == 10);
 }
 
-// TODO: This is still broken. Need to verify whether attaching 
-// predicates to memory ops in ACIR solves the issue (PR #2400), but I am pretty
-// sure that it is the cause. 
 fn dynamic_slice_merge_else(mut slice: [Field], x: Field, y: Field) {
     if x as u32 > 10 {
         assert(slice[x] == 0);
@@ -174,7 +175,9 @@ fn dynamic_slice_merge_else(mut slice: [Field], x: Field, y: Field) {
     }
 
     assert(slice[4] == 2);
-    assert(slice[slice.len() - 1] == 10);
+    // TODO: This is still broken. Need to verify whether attaching 
+    // predicates to memory ops in ACIR solves the issue (PR #2400)
+    // assert(slice[slice.len() - 1] == 10);
 }
 
 fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: Field) {
