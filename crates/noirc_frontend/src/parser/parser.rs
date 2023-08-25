@@ -717,12 +717,11 @@ where
         parenthesized(expr_parser.separated_by(just(Token::Comma)).exactly(2)),
     )
     .labelled(ParsingRuleLabel::Statement)
-    .map(|exprs| {
-        if exprs.len() == 2 {
-            Statement::Constrain(ConstrainStatement(exprs[0].clone(), exprs[1].clone()))
-        } else {
-            Statement::Error
-        }
+    .validate(|exprs: Vec<Expression>, span, _| {
+        Statement::Constrain(ConstrainStatement(
+            exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
+            exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
+        ))
     })
 }
 
@@ -2170,8 +2169,8 @@ mod test {
             ("assert", 1, "constrain Error == true"),
             ("constrain x ==", 2, "constrain (plain::x == Error) == true"),
             ("assert(x ==)", 1, "constrain (plain::x == Error) == true"),
-            ("assert_eq(x,)", 1, "Error"),
-            ("assert_eq(x, x, x)", 1, "Error"),
+            ("assert_eq(x,)", 1, "constrain Error == Error"),
+            ("assert_eq(x, x, x)", 1, "constrain Error == Error"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");
