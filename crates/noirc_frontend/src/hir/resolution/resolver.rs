@@ -700,8 +700,7 @@ impl<'a> Resolver<'a> {
             self.push_err(ResolverError::DistinctNotAllowed { ident: func.name_ident().clone() });
         }
 
-        if matches!(attributes, Some(Attribute::Test { .. })) && !parameters.is_empty()
-        {
+        if matches!(attributes, Some(Attribute::Test { .. })) && !parameters.is_empty() {
             self.push_err(ResolverError::TestFunctionHasParameters {
                 span: func.name_ident().span(),
             });
@@ -897,10 +896,9 @@ impl<'a> Resolver<'a> {
                 })
             }
             Statement::Constrain(constrain_stmt) => {
-                let lhs_id = self.resolve_expression(constrain_stmt.0);
-                let rhs_id = self.resolve_expression(constrain_stmt.1);
+                let expr_id = self.resolve_expression(constrain_stmt.0);
 
-                HirStatement::Constrain(HirConstrainStatement(lhs_id, rhs_id, self.file))
+                HirStatement::Constrain(HirConstrainStatement(expr_id, self.file))
             }
             Statement::Expression(expr) => HirStatement::Expression(self.resolve_expression(expr)),
             Statement::Semi(expr) => HirStatement::Semi(self.resolve_expression(expr)),

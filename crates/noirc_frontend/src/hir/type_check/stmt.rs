@@ -235,16 +235,13 @@ impl<'interner> TypeChecker<'interner> {
     }
 
     fn check_constrain_stmt(&mut self, stmt: HirConstrainStatement) {
-        let lhs_type = self.check_expression(&stmt.0);
-        let lhs_span = self.interner.expr_span(&stmt.0);
+        let expr_type = self.check_expression(&stmt.0);
+        let expr_span = self.interner.expr_span(&stmt.0);
 
-        let rhs_type = self.check_expression(&stmt.1);
-        let rhs_span = self.interner.expr_span(&stmt.1);
-
-        self.unify(&lhs_type, &rhs_type, || TypeCheckError::TypeMismatch {
-            expr_typ: lhs_type.to_string(),
-            expected_typ: rhs_type.to_string(),
-            expr_span: lhs_span.merge(rhs_span),
+        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
+            expr_typ: expr_type.to_string(),
+            expected_typ: Type::Bool.to_string(),
+            expr_span,
         });
     }
 

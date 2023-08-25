@@ -413,10 +413,9 @@ impl<'interner> Monomorphizer<'interner> {
         match self.interner.statement(&id) {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
             HirStatement::Constrain(constrain) => {
-                let lhs = self.expr(constrain.0);
-                let rhs = self.expr(constrain.1);
+                let expr = self.expr(constrain.0);
                 let location = self.interner.expr_location(&constrain.0);
-                ast::Expression::Constrain(Box::new(lhs), Box::new(rhs), location)
+                ast::Expression::Constrain(Box::new(expr), location)
             }
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::Expression(expr) => self.expr(expr),
@@ -1188,7 +1187,11 @@ impl<'interner> Monomorphizer<'interner> {
     /// Implements std::unsafe::zeroed by returning an appropriate zeroed
     /// ast literal or collection node for the given type. Note that for functions
     /// there is no obvious zeroed value so this should be considered unsafe to use.
-    fn zeroed_value_of_type(&mut self, typ: &ast::Type, location: noirc_errors::Location) -> ast::Expression {
+    fn zeroed_value_of_type(
+        &mut self,
+        typ: &ast::Type,
+        location: noirc_errors::Location,
+    ) -> ast::Expression {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
                 ast::Expression::Literal(ast::Literal::Integer(0_u128.into(), typ.clone()))
@@ -1219,9 +1222,9 @@ impl<'interner> Monomorphizer<'interner> {
                     Box::new(zeroed_tuple),
                 ))
             }
-            ast::Type::Tuple(fields) => {
-                ast::Expression::Tuple(vecmap(fields, |field| self.zeroed_value_of_type(field, location)))
-            }
+            ast::Type::Tuple(fields) => ast::Expression::Tuple(vecmap(fields, |field| {
+                self.zeroed_value_of_type(field, location)
+            })),
             ast::Type::Function(parameter_types, ret_type, env) => {
                 self.create_zeroed_function(parameter_types, ret_type, env, location)
             }
@@ -1235,7 +1238,12 @@ impl<'interner> Monomorphizer<'interner> {
                 use crate::UnaryOp::MutableReference;
                 let rhs = Box::new(self.zeroed_value_of_type(element, location));
                 let result_type = typ.clone();
-                ast::Expression::Unary(ast::Unary { rhs, result_type, operator: MutableReference, location })
+                ast::Expression::Unary(ast::Unary {
+                    rhs,
+                    result_type,
+                    operator: MutableReference,
+                    location,
+                })
             }
         }
     }

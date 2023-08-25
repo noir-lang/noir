@@ -8,7 +8,10 @@ pub(crate) use program::Ssa;
 use context::SharedContext;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_frontend::monomorphization::ast::{self, Expression, Program};
+use noirc_frontend::{
+    monomorphization::ast::{self, Binary, Expression, Program},
+    BinaryOpKind,
+};
 
 use crate::ssa::ir::types::NumericType;
 
@@ -78,9 +81,7 @@ impl<'a> FunctionContext<'a> {
             }
             Expression::Call(call) => self.codegen_call(call),
             Expression::Let(let_expr) => self.codegen_let(let_expr),
-            Expression::Constrain(lhs, rhs, location) => {
-                self.codegen_constrain(lhs, rhs, *location)
-            }
+            Expression::Constrain(expr, location) => self.codegen_constrain(expr, *location),
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
         }
@@ -208,7 +209,12 @@ impl<'a> FunctionContext<'a> {
                 let rhs = rhs.into_leaf().eval(self);
                 let typ = self.builder.type_of_value(rhs);
                 let zero = self.builder.numeric_constant(0u128, typ);
-                self.insert_binary(zero, noirc_frontend::BinaryOpKind::Subtract, rhs, unary.location)
+                self.insert_binary(
+                    zero,
+                    noirc_frontend::BinaryOpKind::Subtract,
+                    rhs,
+                    unary.location,
+                )
             }
             noirc_frontend::UnaryOp::MutableReference => {
                 self.codegen_reference(&unary.rhs).map(|rhs| {
@@ -512,15 +518,23 @@ impl<'a> FunctionContext<'a> {
         Self::unit_value()
     }
 
-    fn codegen_constrain(
-        &mut self,
-        lhs: &Expression,
-        rhs: &Expression,
-        location: Location,
-    ) -> Values {
-        let lhs = self.codegen_non_tuple_expression(lhs);
-        let rhs = self.codegen_non_tuple_expression(rhs);
-        self.builder.set_location(location).insert_constrain(lhs, rhs);
+    fn codegen_constrain(&mut self, expr: &Expression, location: Location) -> Values {
+        match expr {
+            // If we're constraining an equality to be true then constrain the two sides directly.
+            Expression::Binary(Binary { lhs, operator, rhs, .. })
+                if operator == &BinaryOpKind::Equal =>
+            {
+                let lhs = self.codegen_non_tuple_expression(lhs);
+                let rhs = self.codegen_non_tuple_expression(rhs);
+                self.builder.set_location(location).insert_constrain(lhs, rhs);
+            }
+
+            _ => {
+                let expr = self.codegen_non_tuple_expression(expr);
+                let true_literal = self.builder.numeric_constant(true, Type::bool());
+                self.builder.set_location(location).insert_constrain(expr, true_literal);
+            }
+        }
         Self::unit_value()
     }
 

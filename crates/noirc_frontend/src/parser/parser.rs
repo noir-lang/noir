@@ -685,10 +685,7 @@ where
         keyword(Keyword::Constrain).labelled(ParsingRuleLabel::Statement),
         expr_parser,
     )
-    .map(|expr| {
-        let true_literal = Expression::new(ExpressionKind::Literal(Literal::Bool(true)), expr.span);
-        Statement::Constrain(ConstrainStatement(expr, true_literal))
-    })
+    .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
     .validate(|expr, span, emit| {
         emit(ParserError::with_reason(ParserErrorReason::ConstrainDeprecated, span));
         expr
@@ -701,11 +698,7 @@ where
 {
     ignore_then_commit(keyword(Keyword::Assert), parenthesized(expr_parser))
         .labelled(ParsingRuleLabel::Statement)
-        .map(|expr| {
-            let true_literal =
-                Expression::new(ExpressionKind::Literal(Literal::Bool(true)), expr.span);
-            Statement::Constrain(ConstrainStatement(expr, true_literal))
-        })
+        .map(|expr| Statement::Constrain(ConstrainStatement(expr)))
 }
 
 fn assertion_eq<'a, P>(expr_parser: P) -> impl NoirParser<Statement> + 'a
@@ -718,10 +711,14 @@ where
     )
     .labelled(ParsingRuleLabel::Statement)
     .validate(|exprs: Vec<Expression>, span, _| {
-        Statement::Constrain(ConstrainStatement(
-            exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
-            exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
-        ))
+        Statement::Constrain(ConstrainStatement(Expression::new(
+            ExpressionKind::Infix(Box::new(InfixExpression {
+                lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
+                rhs: exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
+                operator: Spanned::from(span, BinaryOpKind::Equal),
+            })),
+            span,
+        )))
     })
 }
 
@@ -2165,12 +2162,12 @@ mod test {
             ("let = ", 2, "let $error: unspecified = Error"),
             ("let", 3, "let $error: unspecified = Error"),
             ("foo = one two three", 1, "foo = plain::one"),
-            ("constrain", 2, "constrain Error == true"),
-            ("assert", 1, "constrain Error == true"),
-            ("constrain x ==", 2, "constrain (plain::x == Error) == true"),
-            ("assert(x ==)", 1, "constrain (plain::x == Error) == true"),
-            ("assert_eq(x,)", 1, "constrain Error == Error"),
-            ("assert_eq(x, x, x)", 1, "constrain Error == Error"),
+            ("constrain", 2, "constrain Error"),
+            ("assert", 1, "constrain Error"),
+            ("constrain x ==", 2, "constrain (plain::x == Error)"),
+            ("assert(x ==)", 1, "constrain (plain::x == Error)"),
+            ("assert_eq(x,)", 1, "constrain (Error == Error)"),
+            ("assert_eq(x, x, x)", 1, "constrain (Error == Error)"),
         ];
 
         let show_errors = |v| vecmap(v, ToString::to_string).join("\n");

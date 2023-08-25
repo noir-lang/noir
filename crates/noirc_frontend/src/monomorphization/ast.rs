@@ -29,7 +29,7 @@ pub enum Expression {
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
     Let(Let),
-    Constrain(Box<Expression>, Box<Expression>, Location),
+    Constrain(Box<Expression>, Location),
     Assign(Assign),
     Semi(Box<Expression>),
 }
