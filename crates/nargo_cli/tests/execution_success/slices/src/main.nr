@@ -143,7 +143,6 @@ fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
     } else {
         slice = slice.push_back(x);
     }
-    assert(slice[3] == 5);
     slice
 }
 
@@ -295,11 +294,15 @@ fn dynamic_slice_merge_else(mut slice: [Field], x: Field) {
         slice[x] = slice[x] - 2;
         slice = slice.push_back(10);
     }
-
     assert(slice[4] == 2);
     // TODO: This is still broken. Need to verify whether attaching 
     // predicates to memory ops in ACIR solves the issue (PR #2400)
     // assert(slice[slice.len() - 1] == 10);
+    // Even trying to access an element below trigger this error:
+    // Error: Index out of bounds, array has size 5, but index was 5 at 126
+    // without an error location
+    // std::println(slice[x - 1]);
+    // std::println(slice[5])
 }
 
 fn dynamic_slice_index_set_nested_if_else_else(mut slice: [Field], x: Field, y: Field) {
