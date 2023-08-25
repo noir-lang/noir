@@ -150,18 +150,57 @@ fn dynamic_slice_merge_if(mut slice: [Field], x: Field, y: Field) {
     if x as u32 < 10 {
         assert(slice[x] == 4);
         slice[x] = slice[x] - 2;
+
+        slice = slice.push_back(10);
+        // Having an array set here checks whether we appropriately
+        // handle a slice length that is not yet resolving to a constant
+        // during flattening
+        slice[x] = 10;
+        assert(slice[slice.len() - 1] == 10);
+        assert(slice.len() == 6);
+
+        slice = slice.push_back(10);
+        // TODO: test this currently broken
+        slice[x] = 20;
+        slice[x] = slice[x] + 10;
+        assert(slice[slice.len() - 1] == 10);
+        assert(slice.len() == 7);
+
         slice = slice.push_back(10);
         assert(slice[slice.len() - 1] == 10);
+        assert(slice.len() == 8);
 
-        slice = slice.insert(x, 20);
+        slice = slice.push_front(11);
+        assert(slice[0] == 11);
+        assert(slice.len() == 9);
+        assert(slice[5] == 30);
+
+        slice = slice.push_front(12);
+        assert(slice[0] == 12);
+        assert(slice.len() == 10);
+        assert(slice[6] == 30);
+
+        let (popped_slice, last_elem) = slice.pop_back();
+        assert(last_elem == 10);
+        assert(popped_slice.len() == 9);
+
+        let (first_elem, rest_of_slice) = popped_slice.pop_front();
+        assert(first_elem == 12);
+        assert(rest_of_slice.len() == 8);
+
+        // TODO: SliceInsert is not implemented in ACIR gen
+        // slice = slice.insert(x, 20);
+        // let (remove_slice, removed_elem) = new_slice.remove(3);
     } else {
         assert(slice[x] == 0);
-        // slice = slice.push_back(20);
+        slice = slice.push_back(20);
     }
+    assert(slice.len() == 10);
 
-    assert(slice[4] == 2);
     // TODO: This is still broken. Need to verify whether attaching 
     // predicates to memory ops in ACIR solves the issue (PR #2400)
+    // We are able to print the slice.len() and return the correct value but
+    // we still get an index out of bounds error
     // assert(slice[slice.len() - 1] == 10);
 }
 

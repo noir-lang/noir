@@ -143,7 +143,7 @@ use crate::ssa::{
         dfg::{CallStack, InsertInstructionResult},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{BinaryOp, Instruction, InstructionId, TerminatorInstruction, Intrinsic},
+        instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         types::Type,
         value::{Value, ValueId},
     },
@@ -254,7 +254,11 @@ impl<'f> Context<'f> {
     ///
     /// Returns the last block to be inlined. This is either the return block of the function or,
     /// if self.conditions is not empty, the end block of the most recent condition.
-    fn handle_terminator(&mut self, block: BasicBlockId, mut outer_block_stores: HashMap<ValueId, Store>,) -> BasicBlockId {
+    fn handle_terminator(
+        &mut self,
+        block: BasicBlockId,
+        mut outer_block_stores: HashMap<ValueId, Store>,
+    ) -> BasicBlockId {
         // let mut outer_block_stores = HashMap::new();
         let instructions = self.inserter.function.dfg[block].instructions().to_vec();
         // let entry_block = self.inserter.function.entry_block();
@@ -270,11 +274,10 @@ impl<'f> Context<'f> {
                     let old_value = self.insert_instruction_with_typevars(load, load_type).first();
                     println!("remember old_value: {old_value}");
                     println!("remember new_value: {value}");
-                    dbg!(&self.inserter.function.dfg[value]);
+                    // dbg!(&self.inserter.function.dfg[value]);
                     outer_block_stores.insert(address, Store { old_value, new_value: value });
                     // self.outer_block_stores.insert((address, block), Store { old_value, new_value: value });
                     self.outer_block_stores.insert(address, Store { old_value, new_value: value });
-
                 }
                 _ => {
                     // DO nothing
@@ -295,8 +298,14 @@ impl<'f> Context<'f> {
                 println!("block: {block}");
                 println!("then_block: {then_block}");
                 dbg!(self.store_values.clone());
-                let then_branch =
-                    self.inline_branch(block, then_block, old_condition, then_condition, one, outer_block_stores.clone());
+                let then_branch = self.inline_branch(
+                    block,
+                    then_block,
+                    old_condition,
+                    then_condition,
+                    one,
+                    outer_block_stores.clone(),
+                );
                 // dbg!(self.store_values.clone());
 
                 let else_condition =
@@ -308,8 +317,14 @@ impl<'f> Context<'f> {
                 self.undo_stores_in_then_branch(&then_branch);
                 println!("else_block: {else_block}");
                 // dbg!(self.store_values.clone());
-                let else_branch =
-                    self.inline_branch(block, else_block, old_condition, else_condition, zero, outer_block_stores.clone());
+                let else_branch = self.inline_branch(
+                    block,
+                    else_block,
+                    old_condition,
+                    else_condition,
+                    zero,
+                    outer_block_stores.clone(),
+                );
                 // dbg!(self.store_values.clone());
 
                 // We must remember to reset whether side effects are enabled when both branches
@@ -440,7 +455,14 @@ impl<'f> Context<'f> {
             }
             typ @ Type::Slice(_) => {
                 dbg!("merging slice values");
-                self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value, outer_block_stores)
+                self.merge_slice_values(
+                    typ,
+                    then_condition,
+                    else_condition,
+                    then_value,
+                    else_value,
+                    outer_block_stores,
+                )
             }
             Type::Reference => panic!("Cannot return references from an if expression"),
             Type::Function => panic!("Cannot return functions from an if expression"),
@@ -465,12 +487,15 @@ impl<'f> Context<'f> {
 
         let then_value = self.inserter.function.dfg[then_value_id].clone();
         let else_value = self.inserter.function.dfg[else_value_id].clone();
-        
+
         dbg!(then_value.clone());
-        let len = self.get_slice_length(&then_value);
+        // let len = self.get_slice_length(&then_value);
+        let len = self.get_slice_length_from_value(then_value_id);
 
         dbg!(else_value.clone());
-        let else_len = self.get_slice_length(&else_value);
+        // let else_len = self.get_slice_length(&else_value);
+        let else_len = self.get_slice_length_from_value(else_value_id);
+
         dbg!(len);
         dbg!(else_len);
 
@@ -511,10 +536,7 @@ impl<'f> Context<'f> {
         self.inserter.function.dfg.make_array(merged, typ)
     }
 
-    fn get_slice_length(
-        &mut self,
-        slice: &Value,
-    ) -> usize {
+    fn get_slice_length(&mut self, slice: &Value) -> usize {
         let len = match slice {
             Value::Array { array, .. } => array.len(),
             Value::Instruction { instruction, .. } => {
@@ -527,15 +549,26 @@ impl<'f> Context<'f> {
                         let length = match &self.inserter.function.dfg[length] {
                             Value::Instruction { instruction, .. } => {
                                 let length_instr = &self.inserter.function.dfg[*instruction];
-                                let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
+                                let x = self
+                                    .insert_instruction_with_typevars(
+                                        length_instr.clone(),
+                                        Some(vec![Type::field()]),
+                                    )
+                                    .first();
                                 dbg!(&self.inserter.function.dfg[x]);
                                 x
                             }
                             _ => length,
                         };
-                        let len = &self.inserter.function.dfg.get_numeric_constant(length).expect("ICE: length should be numeric constant at this point");
+                        let len = &self
+                            .inserter
+                            .function
+                            .dfg
+                            .get_numeric_constant(length)
+                            .expect("ICE: length should be numeric constant at this point");
                         len.to_u128() as usize
                     }
+
                     Instruction::Load { address } => {
                         println!("LOAD address: {address}");
                         dbg!(&self.inserter.function.dfg[*address]);
@@ -548,7 +581,10 @@ impl<'f> Context<'f> {
                         // dbg!(outer_block_stores.clone());
                         // dbg!(self.outer_block_stores.clone());
 
-                        let context_store = self.outer_block_stores.get(&address).expect("ICE: load in merger should have store from outer block");
+                        let context_store = self
+                            .outer_block_stores
+                            .get(&address)
+                            .expect("ICE: load in merger should have store from outer block");
                         dbg!(context_store.clone());
                         let len = match &self.inserter.function.dfg[context_store.new_value] {
                             Value::Array { array, .. } => array.len(),
@@ -556,15 +592,27 @@ impl<'f> Context<'f> {
                                 dbg!(&self.inserter.function.dfg[*instruction]);
                                 dbg!("got array set else");
                                 match &self.inserter.function.dfg[*instruction] {
-                                    Instruction::ArraySet { array: _, index: _, value: _, length } => {
+                                    Instruction::ArraySet {
+                                        array: _,
+                                        index: _,
+                                        value: _,
+                                        length,
+                                    } => {
                                         dbg!("got array set else");
-                                        let length = length.expect("ICE: array set on a slice must have a length");
+                                        let length = length
+                                            .expect("ICE: array set on a slice must have a length");
                                         dbg!(&self.inserter.function.dfg[length]);
-                
+
                                         let length = match &self.inserter.function.dfg[length] {
                                             Value::Instruction { instruction, .. } => {
-                                                let length_instr = &self.inserter.function.dfg[*instruction];
-                                                let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
+                                                let length_instr =
+                                                    &self.inserter.function.dfg[*instruction];
+                                                let x = self
+                                                    .insert_instruction_with_typevars(
+                                                        length_instr.clone(),
+                                                        Some(vec![Type::field()]),
+                                                    )
+                                                    .first();
                                                 dbg!(&self.inserter.function.dfg[x]);
                                                 x
                                             }
@@ -578,27 +626,34 @@ impl<'f> Context<'f> {
                                             Value::Intrinsic(intrinsic) => {
                                                 match intrinsic {
                                                     Intrinsic::SlicePushBack => {
-                                                        let len = &self.inserter.function.dfg.get_numeric_constant(arguments[0]).expect("ICE: length should be numeric constant at this point");
-                                                        dbg!(len);
-                                                        len.to_u128() as usize + 1
-                                                    }
-                                                    Intrinsic::SliceInsert => {
                                                         // let len = &self.inserter.function.dfg.get_numeric_constant(arguments[0]).expect("ICE: length should be numeric constant at this point");
                                                         // dbg!(len);
                                                         // len.to_u128() as usize + 1
                                                         let length = arguments[0];
-                                                        let length = match &self.inserter.function.dfg[length] {
-                                                            Value::Instruction { instruction, .. } => {
-                                                                dbg!(&self.inserter.function.dfg[*instruction]);
-                                                                match &self.inserter.function.dfg[*instruction] {
-                                                                    Instruction::Call { func, arguments } => {
+                                                        let length = match &self
+                                                            .inserter
+                                                            .function
+                                                            .dfg[length]
+                                                        {
+                                                            Value::Instruction {
+                                                                instruction,
+                                                                ..
+                                                            } => {
+                                                                dbg!(
+                                                                    &self.inserter.function.dfg
+                                                                        [*instruction]
+                                                                );
+                                                                match &self.inserter.function.dfg
+                                                                    [*instruction]
+                                                                {
+                                                                    Instruction::Call {
+                                                                        func,
+                                                                        arguments,
+                                                                    } => {
                                                                         match &self.inserter.function.dfg[*func] {
                                                                             Value::Intrinsic(intrinsic) => {
                                                                                 match intrinsic {
                                                                                     Intrinsic::SlicePushBack => {
-                                                                                        // let len = &self.inserter.function.dfg.get_numeric_constant(arguments[0]).expect("ICE: length should be numeric constant at this point");
-                                                                                        // dbg!(len);
-                                                                                        // len.to_u128() as usize + 1
                                                                                         arguments[0]
                                                                                     }
                                                                                     _ => todo!("have to check other intrinsics"),
@@ -609,10 +664,49 @@ impl<'f> Context<'f> {
                                                                     }
                                                                     _ => todo!(),
                                                                 }
-                                                                // let length_instr = &self.inserter.function.dfg[*instruction];
-                                                                // let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
-                                                                // dbg!(&self.inserter.function.dfg[x]);
-                                                                // x
+                                                            }
+                                                            _ => length,
+                                                        };
+                                                        let len = &self.inserter.function.dfg.get_numeric_constant(length).expect("ICE: length should be numeric constant at this point");
+                                                        dbg!(len);
+                                                        len.to_u128() as usize + 1
+                                                    }
+                                                    Intrinsic::SliceInsert => {
+                                                        let length = arguments[0];
+                                                        let length = match &self
+                                                            .inserter
+                                                            .function
+                                                            .dfg[length]
+                                                        {
+                                                            Value::Instruction {
+                                                                instruction,
+                                                                ..
+                                                            } => {
+                                                                dbg!(
+                                                                    &self.inserter.function.dfg
+                                                                        [*instruction]
+                                                                );
+                                                                match &self.inserter.function.dfg
+                                                                    [*instruction]
+                                                                {
+                                                                    Instruction::Call {
+                                                                        func,
+                                                                        arguments,
+                                                                    } => {
+                                                                        match &self.inserter.function.dfg[*func] {
+                                                                            Value::Intrinsic(intrinsic) => {
+                                                                                match intrinsic {
+                                                                                    Intrinsic::SlicePushBack => {
+                                                                                        arguments[0]
+                                                                                    }
+                                                                                    _ => todo!("have to check other intrinsics"),
+                                                                                }
+                                                                            }
+                                                                            _ => todo!(),
+                                                                        }
+                                                                    }
+                                                                    _ => todo!(),
+                                                                }
                                                             }
                                                             _ => length,
                                                         };
@@ -626,27 +720,26 @@ impl<'f> Context<'f> {
                                             _ => todo!(),
                                         }
                                     }
-                                    _ => panic!("ahhh got {:?}", &self.inserter.function.dfg[*instruction]),
+                                    _ => panic!(
+                                        "ahhh got {:?}",
+                                        &self.inserter.function.dfg[*instruction]
+                                    ),
                                 }
                             }
-                            _ => unreachable!("expected array but got {:?}", &self.inserter.function.dfg[context_store.new_value]),
+                            _ => unreachable!(
+                                "expected array but got {:?}",
+                                &self.inserter.function.dfg[context_store.new_value]
+                            ),
                         };
                         dbg!(len);
                         len
                     }
+
                     Instruction::Call { func, arguments } => {
                         match &self.inserter.function.dfg[*func] {
                             Value::Intrinsic(intrinsic) => {
                                 match intrinsic {
                                     Intrinsic::SlicePushBack => {
-                                        let len = &self.inserter.function.dfg.get_numeric_constant(arguments[0]).expect("ICE: length should be numeric constant at this point");
-                                        dbg!(len);
-                                        len.to_u128() as usize + 1
-                                    }
-                                    Intrinsic::SliceInsert => {
-                                        // let len = &self.inserter.function.dfg.get_numeric_constant(arguments[0]).expect("ICE: length should be numeric constant at this point");
-                                        // dbg!(len);
-                                        // len.to_u128() as usize + 1
                                         let length = arguments[0];
                                         let length = match &self.inserter.function.dfg[length] {
                                             Value::Instruction { instruction, .. } => {
@@ -656,6 +749,64 @@ impl<'f> Context<'f> {
                                                         match &self.inserter.function.dfg[*func] {
                                                             Value::Intrinsic(intrinsic) => {
                                                                 match intrinsic {
+                                                                    Intrinsic::SlicePushBack => {
+                                                                        arguments[0]
+                                                                    }
+                                                                    _ => todo!("have to check other intrinsics"),
+                                                                }
+                                                            }
+                                                            _ => todo!(),
+                                                        }
+                                                    }
+                                                    _ => todo!(),
+                                                }
+                                            }
+                                            _ => length,
+                                        };
+                                        let len = &self.inserter.function.dfg.get_numeric_constant(length).expect("ICE: length should be numeric constant at this point");
+                                        dbg!(len);
+                                        len.to_u128() as usize + 1
+                                    }
+                                    Intrinsic::SlicePushFront => {
+                                        let length = arguments[0];
+                                        let length = match &self.inserter.function.dfg[length] {
+                                            Value::Instruction { instruction, .. } => {
+                                                dbg!(&self.inserter.function.dfg[*instruction]);
+                                                match &self.inserter.function.dfg[*instruction] {
+                                                    Instruction::Call { func, arguments } => {
+                                                        match &self.inserter.function.dfg[*func] {
+                                                            Value::Intrinsic(intrinsic) => {
+                                                                match intrinsic {
+                                                                    Intrinsic::SlicePushFront => {
+                                                                        arguments[0]
+                                                                    }
+                                                                    _ => todo!("have to check other intrinsics"),
+                                                                }
+                                                            }
+                                                            _ => todo!(),
+                                                        }
+                                                    }
+                                                    _ => todo!(),
+                                                }
+                                            }
+                                            _ => length,
+                                        };
+                                        let len = &self.inserter.function.dfg.get_numeric_constant(length).expect("ICE: length should be numeric constant at this point");
+                                        dbg!(len);
+                                        len.to_u128() as usize + 1
+                                    }
+                                    Intrinsic::SliceInsert => {
+                                        let length = arguments[0];
+                                        let length = match &self.inserter.function.dfg[length] {
+                                            Value::Instruction { instruction, .. } => {
+                                                dbg!(&self.inserter.function.dfg[*instruction]);
+                                                match &self.inserter.function.dfg[*instruction] {
+                                                    Instruction::Call { func, arguments } => {
+                                                        match &self.inserter.function.dfg[*func] {
+                                                            Value::Intrinsic(intrinsic) => {
+                                                                match intrinsic {
+                                                                    // TODO: we need to make this generializable to multiple slice intrinsics being intertwined
+                                                                    // we probably 
                                                                     Intrinsic::SlicePushBack => {
                                                                         // let len = &self.inserter.function.dfg.get_numeric_constant(arguments[0]).expect("ICE: length should be numeric constant at this point");
                                                                         // dbg!(len);
@@ -687,10 +838,82 @@ impl<'f> Context<'f> {
                             _ => todo!(),
                         }
                     }
-                    _ => unreachable!("ahh expected array set but got {:?}", self.inserter.function.dfg[*instruction]),
+
+                    _ => unreachable!(
+                        "ahh expected array set but got {:?}",
+                        self.inserter.function.dfg[*instruction]
+                    ),
                 }
             }
             _ => panic!("Expected array value"),
+        };
+        len
+    }
+
+    fn get_slice_length_from_value(&mut self, value_id: ValueId) -> usize {
+        let len = match &self.inserter.function.dfg[value_id] {
+            Value::Array { array, .. } => array.len(),
+            Value::NumericConstant { constant, .. } => constant.to_u128() as usize,
+            Value::Instruction { instruction, .. } => {
+                match &self.inserter.function.dfg[*instruction] {
+                    Instruction::ArraySet { array: _, index: _, value: _, length } => {
+                        let length = length.expect("ICE: array set on a slice must have a length");
+                        // TODO: for some reason I had to fetch the insert the length instruction previously but now everything is
+                        // is working without. Need to test more
+                        // We are chilling it looks like with this case.
+                        // It was occuring when we had an array set immediately following the first slice intrinsic
+                        // But with the recursive call it looks to all work
+                        // let length = match &self.inserter.function.dfg[length] {
+                        //     Value::Instruction { instruction, .. } => {
+                        //         let length_instr = &self.inserter.function.dfg[*instruction];
+                        //         let x = self.insert_instruction_with_typevars(length_instr.clone(), Some(vec![Type::field()])).first();
+                        //         dbg!(&self.inserter.function.dfg[x]);
+                        //         x
+                        //     }
+                        //     _ => length,
+                        // };
+                        let len = self.get_slice_length_from_value(length);
+                        dbg!(len);
+                        len
+                    }
+                    Instruction::Load { address } => {
+                        println!("LOAD address: {address}");
+                        let context_store = self
+                            .outer_block_stores
+                            .get(&address)
+                            .expect("ICE: load in merger should have store from outer block");
+                        dbg!(context_store.clone());
+                        // let new_value = &self.inserter.function.dfg[context_store.new_value];
+                        let len = self.get_slice_length_from_value(context_store.new_value);
+                        dbg!(len);
+                        len
+                    }
+                    Instruction::Call { func, arguments } => {
+                        match &self.inserter.function.dfg[*func] {
+                            Value::Intrinsic(intrinsic) => match intrinsic {
+                                Intrinsic::SlicePushBack
+                                | Intrinsic::SlicePushFront
+                                | Intrinsic::SlicePopBack
+                                | Intrinsic::SlicePopFront
+                                | Intrinsic::SliceInsert
+                                | Intrinsic::SliceRemove => {
+                                    let length = arguments[0];
+                                    let len = self.get_slice_length_from_value(length);
+                                    dbg!(len);
+                                    len
+                                }
+                                _ => todo!("have to check other intrinsics"),
+                            },
+                            _ => todo!(),
+                        }
+                    }
+                    _ => unreachable!(
+                        "ahh expected array set but got {:?}",
+                        self.inserter.function.dfg[*instruction]
+                    ),
+                }
+            }
+            _ => panic!("Expected array value, but got {:?}", value_id),
         };
         len
     }
@@ -896,7 +1119,13 @@ impl<'f> Context<'f> {
         let args = vecmap(args, |(then_arg, else_arg)| {
             dbg!(&self.inserter.function.dfg[then_arg]);
             dbg!(&self.inserter.function.dfg[else_arg]);
-            self.merge_values(then_branch.condition, else_branch.condition, then_arg, else_arg, outer_block_stores.clone())
+            self.merge_values(
+                then_branch.condition,
+                else_branch.condition,
+                then_arg,
+                else_arg,
+                outer_block_stores.clone(),
+            )
         });
         println!("then_branch.last_block: {}", then_branch.last_block);
         println!("else_branch.last_block: {}", else_branch.last_block);
@@ -913,9 +1142,9 @@ impl<'f> Context<'f> {
     /// instruction. If this ordering is changed, the ordering that store values are merged within
     /// this function also needs to be changed to reflect that.
     fn merge_stores(
-        &mut self, 
-        then_branch: Branch, 
-        else_branch: Branch, 
+        &mut self,
+        then_branch: Branch,
+        else_branch: Branch,
         outer_block_stores: HashMap<ValueId, Store>,
     ) {
         // Address -> (then_value, else_value, value_before_the_if)
@@ -947,7 +1176,13 @@ impl<'f> Context<'f> {
         for (address, (then_case, else_case, old_value)) in new_map {
             // dbg!(&self.inserter.function.dfg[then_case]);
             // dbg!(&self.inserter.function.dfg[else_case]);
-            let value = self.merge_values(then_condition, else_condition, then_case, else_case, outer_block_stores.clone());
+            let value = self.merge_values(
+                then_condition,
+                else_condition,
+                then_case,
+                else_case,
+                outer_block_stores.clone(),
+            );
             self.insert_instruction_with_typevars(Instruction::Store { address, value }, None);
 
             if let Some(store) = self.store_values.get_mut(&address) {
@@ -983,7 +1218,12 @@ impl<'f> Context<'f> {
     /// Expects that the `arguments` given are already translated via self.inserter.resolve.
     /// If they are not, it is possible some values which no longer exist, such as block
     /// parameters, will be kept in the program.
-    fn inline_block(&mut self, destination: BasicBlockId, arguments: &[ValueId], outer_block_stores: HashMap<ValueId, Store>,) -> BasicBlockId {
+    fn inline_block(
+        &mut self,
+        destination: BasicBlockId,
+        arguments: &[ValueId],
+        outer_block_stores: HashMap<ValueId, Store>,
+    ) -> BasicBlockId {
         self.inserter.remember_block_params(destination, arguments);
 
         // If this is not a separate variable, clippy gets confused and says the to_vec is

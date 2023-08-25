@@ -94,7 +94,16 @@ impl From<RuntimeError> for FileDiagnostic {
 impl RuntimeError {
     fn into_diagnostic(self) -> Diagnostic {
         match self {
-            RuntimeError::InternalError(_) => {
+            RuntimeError::InternalError(error) => {
+                match error {
+                    InternalError::General { message, call_stack } => {
+                        dbg!(message);
+                        panic!("ahhh");
+                    }
+                    _ => {
+                        dbg!(error.clone());
+                    }
+                }
                 Diagnostic::simple_error(
                     "Internal Consistency Evaluators Errors: \n
                     This is likely a bug. Consider Opening an issue at https://github.com/noir-lang/noir/issues".to_owned(),
@@ -104,7 +113,8 @@ impl RuntimeError {
             }
             _ => {
                 let message = self.to_string();
-                let location = self.call_stack().back().expect("Expected RuntimeError to have a location");
+                let location =
+                    self.call_stack().back().expect("Expected RuntimeError to have a location");
 
                 Diagnostic::simple_error(message, String::new(), location.span)
             }

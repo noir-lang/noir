@@ -664,8 +664,13 @@ impl<'a> FunctionContext<'a> {
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
 
-                slice_values[1] =
-                    self.assign_lvalue_index(new_value, slice_values[1], index, Some(slice_values[0]), location);
+                slice_values[1] = self.assign_lvalue_index(
+                    new_value,
+                    slice_values[1],
+                    index,
+                    Some(slice_values[0]),
+                    location,
+                );
 
                 // The size of the slice does not change in a slice index assignment so we can reuse the same length value
                 let new_slice = Tree::Branch(vec![slice_values[0].into(), slice_values[1].into()]);

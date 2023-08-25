@@ -55,12 +55,12 @@
 //! referenced by the terminator instruction.
 //!
 //! Repeating this algorithm for each block in the function in program order should result in
-//! optimizing out most known loads. However, identifying all aliases correctly has been proven 
+//! optimizing out most known loads. However, identifying all aliases correctly has been proven
 //! undecidable in general (Landi, 1992). So this pass will not always optimize out all loads
 //! that could theoretically be optimized out. This pass can be performed at any time in the
 //! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
 //! This pass is currently performed several times to enable other passes - most notably being
-//! performed before loop unrolling to try to allow for mutable variables used for for loop indices. 
+//! performed before loop unrolling to try to allow for mutable variables used for for loop indices.
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ssa::{

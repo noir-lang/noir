@@ -181,7 +181,6 @@ pub(crate) fn display_instruction(
                     show(*value)
                 )
             }
-
         }
     }
 }
