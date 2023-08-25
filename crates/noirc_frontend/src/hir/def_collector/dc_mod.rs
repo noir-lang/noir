@@ -7,7 +7,7 @@ use crate::{
     node_interner::{StructId, TraitId},
     parser::SubModule,
     FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
-    ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnresolvedType,
+    ParsedModule, Pattern, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnresolvedType,
 };
 
 use super::{
@@ -214,13 +214,32 @@ impl<'a> ModCollector<'a> {
             let trait_name = trait_impl.trait_name.clone();
             let module = &self.def_collector.def_map.modules[self.module_id.0];
             match module.find_name(&trait_name).types {
-                Some((module_def_id, _visibility)) => self.collect_trait_from_module(
-                    context,
-                    module_def_id,
-                    trait_impl,
-                    errors,
-                    &trait_name,
-                ),
+                Some((module_def_id, _visibility)) => {
+                    if let Some(collected_trait) = self.get_unresolved_trait(module_def_id) {
+                        let trait_def = collected_trait.trait_def.clone();
+                        let collected_implementations = self.collect_trait_implementations(
+                            context,
+                            &trait_impl,
+                            &trait_def,
+                            errors,
+                        );
+
+                        let impl_type_span = trait_impl.object_type_span;
+                        let impl_generics = trait_impl.impl_generics.clone();
+                        let impl_object_type = trait_impl.object_type.clone();
+                        let key = (impl_object_type, self.module_id);
+                        self.def_collector.collected_traits_impls.entry(key).or_default().push((
+                            impl_generics,
+                            impl_type_span,
+                            collected_implementations,
+                        ));
+                    } else {
+                        let error = DefCollectorErrorKind::NotATrait {
+                            not_a_trait_name: trait_name.clone(),
+                        };
+                        errors.push(error.into_file_diagnostic(self.file_id));
+                    }
+                }
                 None => {
                     let error = DefCollectorErrorKind::TraitNotFound {
                         trait_name: trait_name.to_string(),
@@ -239,33 +258,6 @@ impl<'a> ModCollector<'a> {
         }
     }
 
-    fn collect_trait_from_module(
-        &mut self,
-        context: &mut Context,
-        module_def_id: ModuleDefId,
-        trait_impl: TraitImpl,
-        errors: &mut Vec<FileDiagnostic>,
-        trait_name: &Ident,
-    ) {
-        if let Some(collected_trait) = self.get_unresolved_trait(module_def_id) {
-            let trait_def = collected_trait.trait_def.clone();
-            let impl_type_span = trait_impl.object_type_span;
-            let impl_generics = trait_impl.impl_generics.clone();
-            let impl_object_type = trait_impl.object_type.clone();
-            let collected_implementations =
-                self.collect_trait_implementations(context, &trait_impl, &trait_def, errors);
-            let key = (impl_object_type, self.module_id);
-            self.def_collector.collected_traits_impls.entry(key).or_default().push((
-                impl_generics,
-                impl_type_span,
-                collected_implementations,
-            ));
-        } else {
-            let error = DefCollectorErrorKind::NotATrait { not_a_trait_name: trait_name.clone() };
-            errors.push(error.into_file_diagnostic(self.file_id));
-        }
-    }
-
     fn collect_trait_implementations(
         &mut self,
         context: &mut Context,
@@ -275,6 +267,7 @@ impl<'a> ModCollector<'a> {
     ) -> UnresolvedFunctions {
         let mut unresolved_functions =
             UnresolvedFunctions { file_id: self.file_id, functions: Vec::new() };
+
         for item in &trait_impl.items {
             if let TraitImplItem::Function(impl_method) = item {
                 match check_trait_method_implementation(trait_def, impl_method) {
@@ -291,6 +284,66 @@ impl<'a> ModCollector<'a> {
                 }
             }
         }
+
+        for item in &trait_def.items {
+            if let TraitItem::Function {
+                name,
+                generics,
+                parameters,
+                return_type,
+                where_clause,
+                body,
+            } = item
+            {
+                let is_implemented = unresolved_functions
+                    .functions
+                    .iter()
+                    .any(|(_, _, func_impl)| func_impl.name() == name.0.contents);
+                if !is_implemented {
+                    if body.is_some() {
+                        let method_name = name.0.contents.clone();
+                        let func_id = context.def_interner.push_empty_fn();
+                        context.def_interner.push_function_definition(method_name, func_id);
+                        let p = parameters
+                            .iter()
+                            .map(|(ident, unresolved_type)| {
+                                (
+                                    Pattern::Identifier(ident.clone()),
+                                    unresolved_type.clone(),
+                                    noirc_abi::AbiVisibility::Private,
+                                )
+                            })
+                            .collect();
+                        let impl_method = NoirFunction::normal(crate::FunctionDefinition {
+                            name: name.clone(),
+                            attribute: None,
+                            is_open: false,
+                            is_internal: false,
+                            is_unconstrained: false,
+                            generics: generics.clone(),
+                            parameters: p,
+                            body: body.as_ref().unwrap().clone(),
+                            span: name.span(),
+                            where_clause: where_clause.clone(),
+                            return_type: return_type.clone(),
+                            return_visibility: noirc_abi::AbiVisibility::Private,
+                            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
+                        });
+                        unresolved_functions.push_fn(self.module_id, func_id, impl_method);
+                    } else {
+                        let error = DefCollectorErrorKind::TraitMissedMethodImplementation {
+                            trait_name: trait_def.name.clone(),
+                            method_name: name.clone(),
+                            trait_impl_span: trait_impl.object_type_span,
+                        };
+                        errors.push(error.into_file_diagnostic(self.file_id));
+
+                        // Emit error that implementation of trait method is missing
+                    }
+                }
+            }
+        }
+
         unresolved_functions
     }
 

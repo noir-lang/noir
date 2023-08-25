@@ -53,6 +53,8 @@ pub enum DefCollectorErrorKind {
     NotATrait { not_a_trait_name: Ident },
     #[error("Trait not found")]
     TraitNotFound { trait_name: String, span: Span },
+    #[error("Missing Trait method implementation")]
+    TraitMissedMethodImplementation { trait_name: Ident, method_name: Ident, trait_impl_span: Span },
 }
 
 impl DefCollectorErrorKind {
@@ -163,6 +165,22 @@ impl From<DefCollectorErrorKind> for Diagnostic {
                 let impl_method_name = impl_method.0.contents;
                 let primary_message = format!("method with name {impl_method_name} is not part of trait {trait_name}, therefore it can't be implemented");
                 Diagnostic::simple_error(primary_message, "".to_owned(), impl_method_span)
+            }
+            DefCollectorErrorKind::TraitMissedMethodImplementation {
+                trait_name,
+                method_name,
+                trait_impl_span,
+            } => {
+                let trait_name = trait_name.0.contents;
+                let impl_method_name = method_name.0.contents;
+                let primary_message = format!(
+                    "method `{impl_method_name}` from trait `{trait_name}` is not implemented"
+                );
+                Diagnostic::simple_error(
+                    primary_message,
+                    format!("Please implement {impl_method_name} here"),
+                    trait_impl_span,
+                )
             }
             DefCollectorErrorKind::NotATrait { not_a_trait_name } => {
                 let span = not_a_trait_name.0.span();
