@@ -242,10 +242,13 @@ impl GeneratedAcir {
                         });
                     }
                 };
+
                 // Slices are represented as a tuple of (length, slice contents).
                 // We must check the number of inputs to differentiate between arrays and slices
                 // and make sure that we pass the correct inputs to the function call.
-                let inputs = if inputs.len() > 1 { inputs[1].clone() } else { inputs[0].clone() };
+                // `inputs` is cloned into a vector before being popped to find the `var_message_size`
+                // so we still check `inputs` against its original size passed into `call_black_box`
+                let inputs = if inputs.len() > 2 { inputs[1].clone() } else { inputs[0].clone() };
                 BlackBoxFuncCall::Keccak256VariableLength { inputs, var_message_size, outputs }
             }
             BlackBoxFunc::RecursiveAggregation => {
