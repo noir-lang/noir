@@ -143,6 +143,7 @@ fn merge_slices_mutate(x: Field, y: Field) -> [Field] {
     } else {
         slice = slice.push_back(x);
     }
+    assert(slice[3] == 5);
     slice
 }
 
@@ -167,14 +168,14 @@ fn regression_dynamic_slice_index(x: Field, y: Field) {
     }
     assert(slice.len() == 5);
     
-    // dynamic_slice_index_set_if(slice, x, y);
-    // dynamic_slice_index_set_else(slice, x, y);
-    // dynamic_slice_index_set_nested_if_else_else(slice, x, y);
-    // dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
-    // dynamic_slice_index_if(slice, x);
-    // dynamic_slice_index_else(slice, x);
+    dynamic_slice_index_set_if(slice, x, y);
+    dynamic_slice_index_set_else(slice, x, y);
+    dynamic_slice_index_set_nested_if_else_else(slice, x, y);
+    dynamic_slice_index_set_nested_if_else_if(slice, x, y + 1);
+    dynamic_slice_index_if(slice, x);
+    dynamic_slice_index_else(slice, x);
 
-    // dynamic_slice_merge_if(slice, x);
+    dynamic_slice_merge_if(slice, x);
     dynamic_slice_merge_else(slice, x);
 }
 
