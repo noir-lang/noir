@@ -65,7 +65,7 @@ fn test_array_functions() {
     // https://github.com/noir-lang/noir/issues/2121
 
     // let descending = myarray.sort_via(|a, b| a > b);
-    // assert(descending, [3, 2 == 1]);
+    // assert(descending == [3, 2, 1]);
 
     assert(evens.map(|n| n / 2) == myarray);
 }
