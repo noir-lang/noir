@@ -249,8 +249,7 @@ fn create_apply_functions(
     for (signature, variants) in variants_map.into_iter() {
         assert!(
             !variants.is_empty(),
-            "ICE: at least one variant should exist for a dynamic call {:?}",
-            signature
+            "ICE: at least one variant should exist for a dynamic call {signature:?}"
         );
         let dispatches_to_multiple_functions = variants.len() > 1;
 

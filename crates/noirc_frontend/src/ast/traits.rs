@@ -133,21 +133,20 @@ impl Display for TraitItem {
 
                 write!(
                     f,
-                    "fn {name}<{}>({}) -> {} where {}",
-                    generics, parameters, return_type, where_clause
+                    "fn {name}<{generics}>({parameters}) -> {return_type} where {where_clause}",
                 )?;
 
                 if let Some(body) = body {
-                    write!(f, "{}", body)
+                    write!(f, "{body}")
                 } else {
                     write!(f, ";")
                 }
             }
             TraitItem::Constant { name, typ, default_value } => {
-                write!(f, "let {}: {}", name, typ)?;
+                write!(f, "let {name}: {typ}")?;
 
                 if let Some(default_value) = default_value {
-                    write!(f, "{};", default_value)
+                    write!(f, "{default_value};")
                 } else {
                     write!(f, ";")
                 }
@@ -188,7 +187,7 @@ impl Display for TraitImplItem {
             TraitImplItem::Function(function) => function.fmt(f),
             TraitImplItem::Type { name, alias } => write!(f, "type {name} = {alias};"),
             TraitImplItem::Constant(name, typ, value) => {
-                write!(f, "let {}: {} = {};", name, typ, value)
+                write!(f, "let {name}: {typ} = {value};")
             }
         }
     }

@@ -99,7 +99,7 @@ impl DebugToString for BrilligBinaryOp {
                 if *bit_size >= BRILLIG_MEMORY_ADDRESSING_BIT_SIZE {
                     op.into()
                 } else {
-                    format!("{}:{}", op, bit_size)
+                    format!("{op}:{bit_size}")
                 }
             }
         }
