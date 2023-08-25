@@ -1,5 +1,4 @@
-mod safe_math;
-use crate::safe_math::SafeU120;
+use dep::safe_math::SafeU120;
 
 // Binomial approximation of exponential
 // using lower than decired precisions for everything due to u120 limit

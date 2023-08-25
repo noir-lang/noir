@@ -1,8 +1,7 @@
-mod safe_math;
 mod interest_math;
-use crate::safe_math::SafeU120;
 use crate::interest_math::compute_multiplier;
 use dep::std::hash::pedersen;
+use dep::safe_math::SafeU120;
 
 
 // Utility used to easily get a "id" for a private user that sits in the same

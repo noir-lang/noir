@@ -1,0 +1,7 @@
+[package]
+name = "safe_math"
+authors = [""]
+compiler_version = "0.1"
+type = "lib"
+
+[dependencies]

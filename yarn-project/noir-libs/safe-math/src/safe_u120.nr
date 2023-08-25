@@ -1,4 +1,3 @@
-
 struct SafeU120 {
     value: u120,
 }
@@ -36,8 +35,9 @@ impl SafeU120 {
         b: SafeU120,
     ) -> SafeU120 {
         let c: u120 = self.value * b.value;
-        // checking for overflows. If both self.value and b are not 0, then c must be greater than or equal self.value.
-        assert((self.value == 0) | (b.value == 0) | (c >= self.value));
+        if b.value > 0 {
+            assert(c / b.value == self.value);
+        }
         SafeU120 {
             value: c
         }
@@ -53,8 +53,6 @@ impl SafeU120 {
         }
     }
 
-    // todo: Implement a version that avoids shadow-overflows
-    // (i.e., overflows by self*b where c would not overflow)
     fn mul_div(
         self: Self,
         b: SafeU120,
@@ -80,3 +78,5 @@ impl SafeU120 {
 
     // todo: implement mul_div with 240 bit intermediate values.
 }
+
+// Adding test in here is pretty useless as long as noir don't support failings tests.

@@ -1,5 +1,4 @@
 mod storage;
-mod safe_math;
 mod interest_math;
 mod helpers;
 mod interfaces;
@@ -23,7 +22,7 @@ contract Lending {
     };
     use dep::aztec::public_call_stack_item::PublicCallStackItem;
     use crate::storage::{Storage, Asset};
-    use crate::safe_math::SafeU120;
+    use dep::safe_math::SafeU120;
     use crate::interest_math::compute_multiplier;
     use crate::helpers::{covered_by_collateral, DebtReturn, debt_updates, debt_value, compute_identifier};
     use crate::interfaces::{Token, Lending, PriceFeed};
