@@ -20,6 +20,18 @@ export interface L1GlobalReader {
    * @returns The chain id.
    */
   getChainId(): Promise<bigint>;
+
+  /**
+   * Gets the current L1 time.
+   * @returns The current L1 time.
+   */
+  getL1CurrentTime(): Promise<bigint>;
+
+  /**
+   * Gets the last time L2 was warped as tracked by the rollup contract.
+   * @returns The warped time.
+   */
+  getLastWarpedBlockTs(): Promise<bigint>;
 }
 
 /**
@@ -35,10 +47,11 @@ export interface GlobalVariableBuilder {
 }
 
 /**
- * Simple implementation of a builder that uses the minimum time possible for the global variables.
+ * Simple test implementation of a builder that uses the minimum time possible for the global variables.
+ * Also uses a "hack" to make use of the warp cheatcode that manipulates time on Aztec.
  */
-export class SimpleGlobalVariableBuilder implements GlobalVariableBuilder {
-  private log = createDebugLogger('aztec:sequencer:simple_global_variable_builder');
+export class SimpleTestGlobalVariableBuilder implements GlobalVariableBuilder {
+  private log = createDebugLogger('aztec:sequencer:simple_test_global_variable_builder');
   constructor(private readonly reader: L1GlobalReader) {}
 
   /**
@@ -47,9 +60,22 @@ export class SimpleGlobalVariableBuilder implements GlobalVariableBuilder {
    * @returns The global variables for the given block number.
    */
   public async buildGlobalVariables(blockNumber: Fr): Promise<GlobalVariables> {
-    const lastTimestamp = new Fr(await this.reader.getLastTimestamp());
+    let lastTimestamp = new Fr(await this.reader.getLastTimestamp());
     const version = new Fr(await this.reader.getVersion());
     const chainId = new Fr(await this.reader.getChainId());
+
+    // TODO(rahul) - fix #1614. By using the cheatcode warp to modify L2 time,
+    // txs in the next rollup would have same time as the txs in the current rollup (i.e. the rollup that was warped).
+    // So, for now you check if L2 time was warped and if so, serve warpedTime + 1 to txs in the new rollup.
+    // Check if L2 time was warped in the last rollup by checking if current L1 time is same as the warpedTime (stored on the rollup contract).
+    // more details at https://github.com/AztecProtocol/aztec-packages/issues/1614
+
+    const currTimestamp = await this.reader.getL1CurrentTime();
+    const rollupWarpTime = await this.reader.getLastWarpedBlockTs();
+    const isLastBlockWarped = rollupWarpTime === currTimestamp;
+    if (isLastBlockWarped) {
+      lastTimestamp = new Fr(lastTimestamp.value + 1n);
+    }
 
     this.log(
       `Built global variables for block ${blockNumber}: (${chainId}, ${version}, ${blockNumber}, ${lastTimestamp})`,

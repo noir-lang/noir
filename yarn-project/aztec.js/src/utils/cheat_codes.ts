@@ -266,6 +266,8 @@ export class AztecCheatCodes {
     // also store this time on the rollup contract (slot 1 tracks `lastBlockTs`).
     // This is because when the sequencer executes public functions, it uses the timestamp stored in the rollup contract.
     await this.eth.store(rollupContract, 1n, BigInt(to));
+    // also store this on slot 2 of the rollup contract (`lastWarpedBlockTs`) which tracks the last time warp was used.
+    await this.eth.store(rollupContract, 2n, BigInt(to));
   }
 
   /**

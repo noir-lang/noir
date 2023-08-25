@@ -50,4 +50,12 @@ export class ViemReader implements L1GlobalReader {
   public async getChainId(): Promise<bigint> {
     return await Promise.resolve(BigInt(this.publicClient.chain.id));
   }
+
+  public async getL1CurrentTime(): Promise<bigint> {
+    return await Promise.resolve((await this.publicClient.getBlock()).timestamp);
+  }
+
+  public async getLastWarpedBlockTs(): Promise<bigint> {
+    return BigInt(await this.rollupContract.read.lastWarpedBlockTs());
+  }
 }

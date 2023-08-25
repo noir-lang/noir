@@ -28,6 +28,9 @@ contract Rollup is IRollup {
 
   bytes32 public rollupStateHash;
   uint256 public lastBlockTs;
+  // Tracks the last time time was warped on L2 ("warp" is the testing cheatocde).
+  // See https://github.com/AztecProtocol/aztec-packages/issues/1614
+  uint256 public lastWarpedBlockTs;
 
   constructor(IRegistry _registry) {
     VERIFIER = new MockVerifier();

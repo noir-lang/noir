@@ -156,16 +156,19 @@ describe('e2e_cheat_codes', () => {
       // ensure rollup contract is correctly updated
       const rollup = getContract({ address: getAddress(rollupAddress.toString()), abi: RollupAbi, publicClient });
       expect(Number(await rollup.read.lastBlockTs())).toEqual(newTimestamp);
+      expect(Number(await rollup.read.lastWarpedBlockTs())).toEqual(newTimestamp);
 
       const txIsTimeEqual = contract.methods.isTimeEqual(newTimestamp).send({ origin: recipient });
-      await txIsTimeEqual.isMined({ interval: 0.1 });
-      const isTimeEqualReceipt = await txIsTimeEqual.getReceipt();
+      const isTimeEqualReceipt = await txIsTimeEqual.wait({ interval: 0.1 });
       expect(isTimeEqualReceipt.status).toBe(TxStatus.MINED);
 
-      const txTimeNotEqual = contract.methods.isTimeEqual(0).send({ origin: recipient });
-      await txTimeNotEqual.isMined({ interval: 0.1 });
-      const isTimeNotEqualReceipt = await txTimeNotEqual.getReceipt();
-      expect(isTimeNotEqualReceipt.status).toBe(TxStatus.DROPPED);
+      // Since last rollup block was warped, txs for this rollup will have time incremented by 1
+      // See https://github.com/AztecProtocol/aztec-packages/issues/1614 for details
+      const txTimeNotEqual = contract.methods.isTimeEqual(newTimestamp + 1).send({ origin: recipient });
+      const isTimeNotEqualReceipt = await txTimeNotEqual.wait({ interval: 0.1 });
+      expect(isTimeNotEqualReceipt.status).toBe(TxStatus.MINED);
+      // block is published at t >= newTimestamp + 1.
+      expect(Number(await rollup.read.lastBlockTs())).toBeGreaterThanOrEqual(newTimestamp + 1);
     }, 50_000);
 
     it('should throw if setting L2 block time to a past timestamp', async () => {
