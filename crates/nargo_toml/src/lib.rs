@@ -249,10 +249,12 @@ impl DependencyConfig {
                 let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
                 let project_path = if let Some(directory) = directory {
                     let internal_path = dir_path.join(directory).normalize();
-                    assert!(
-                        internal_path.starts_with(&dir_path),
-                        "Directory must point to a subdirectory of the git dependency"
-                    );
+                    if !internal_path.starts_with(&dir_path) {
+                        return Err(ManifestError::InvalidDirectory {
+                            toml: pkg_root.join("Nargo.toml"),
+                            directory: directory.into(),
+                        });
+                    }
                     internal_path
                 } else {
                     dir_path
