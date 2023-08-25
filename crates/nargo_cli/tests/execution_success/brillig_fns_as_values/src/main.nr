@@ -29,8 +29,6 @@ unconstrained fn wrapper_with_struct(my_struct: MyStruct, param: u32) -> u32 {
     func(param)
 }
 
-
-
 fn increment_acir(x: u32) -> u32 {
     x + 1
 }
