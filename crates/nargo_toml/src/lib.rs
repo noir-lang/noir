@@ -246,11 +246,18 @@ impl DependencyConfig {
     fn resolve_to_dependency(&self, pkg_root: &Path) -> Result<Dependency, ManifestError> {
         let dep = match self {
             Self::Github { git, tag, directory } => {
-                let mut dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
-                if let Some(directory) = directory {
-                    dir_path = dir_path.join(directory);
-                }
-                let toml_path = dir_path.join("Nargo.toml");
+                let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
+                let project_path = if let Some(directory) = directory {
+                    let internal_path = dir_path.join(directory).normalize();
+                    assert!(
+                        internal_path.starts_with(&dir_path),
+                        "Directory must point to a subdirectory of the git dependency"
+                    );
+                    internal_path
+                } else {
+                    dir_path
+                };
+                let toml_path = project_path.join("Nargo.toml");
                 let package = resolve_package_from_toml(&toml_path)?;
                 Dependency::Remote { package }
             }
