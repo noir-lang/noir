@@ -663,4 +663,3 @@ impl Display for FunctionReturnType {
         }
     }
 }
-

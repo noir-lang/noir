@@ -18,6 +18,8 @@ use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleDefId, Mo
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
 
+use noirc_abi::{AbiDistinctness, AbiVisibility};
+
 /// Given a module collect all definitions into ModuleData
 struct ModCollector<'a> {
     pub(crate) def_collector: &'a mut DefCollector,
@@ -104,7 +106,9 @@ fn check_trait_method_implementation_return_type(
     impl_method: &NoirFunction,
     trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
-    if UnresolvedType::from(expected_return_type.clone()) == UnresolvedType::from(impl_method.def.return_type.clone()) {
+    if UnresolvedType::from(expected_return_type.clone())
+        == UnresolvedType::from(impl_method.def.return_type.clone())
+    {
         Ok(())
     } else {
         Err(DefCollectorErrorKind::MismatchTraitImplementationReturnType {
@@ -310,7 +314,7 @@ impl<'a> ModCollector<'a> {
                                 (
                                     Pattern::Identifier(ident.clone()),
                                     unresolved_type.clone(),
-                                    noirc_abi::AbiVisibility::Private,
+                                    AbiVisibility::Private,
                                 )
                             })
                             .collect();
@@ -326,8 +330,8 @@ impl<'a> ModCollector<'a> {
                             span: name.span(),
                             where_clause: where_clause.clone(),
                             return_type: return_type.clone(),
-                            return_visibility: noirc_abi::AbiVisibility::Private,
-                            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
+                            return_visibility: AbiVisibility::Private,
+                            return_distinctness: AbiDistinctness::DuplicationAllowed,
                         });
                         unresolved_functions.push_fn(self.module_id, func_id, impl_method);
                     } else {
