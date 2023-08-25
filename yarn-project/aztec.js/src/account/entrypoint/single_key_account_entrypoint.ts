@@ -1,9 +1,7 @@
-import { AztecAddress, CircuitsWasm, FunctionData, PartialAddress, PrivateKey, TxContext } from '@aztec/circuits.js';
+import { AztecAddress, FunctionData, PartialAddress, PrivateKey, TxContext } from '@aztec/circuits.js';
 import { Signer } from '@aztec/circuits.js/barretenberg';
 import { ContractAbi, encodeArguments } from '@aztec/foundation/abi';
 import { FunctionCall, PackedArguments, TxExecutionRequest } from '@aztec/types';
-
-import partition from 'lodash.partition';
 
 import SchnorrSingleKeyAccountContractAbi from '../../abis/schnorr_single_key_account_contract.json' assert { type: 'json' };
 import { generatePublicKey } from '../../index.js';
@@ -34,16 +32,14 @@ export class SingleKeyAccountEntrypoint implements Entrypoint {
       throw new Error(`Sender ${opts.origin.toString()} does not match account address ${this.address.toString()}`);
     }
 
-    const [privateCalls, publicCalls] = partition(executions, exec => exec.functionData.isPrivate);
-    const wasm = await CircuitsWasm.get();
-    const { payload, packedArguments: callsPackedArguments } = await buildPayload(privateCalls, publicCalls);
-    const message = hashPayload(payload, wasm);
+    const { payload, packedArguments: callsPackedArguments } = await buildPayload(executions);
+    const message = await hashPayload(payload);
 
     const signature = this.signer.constructSignature(message, this.privateKey).toBuffer();
     const publicKey = await generatePublicKey(this.privateKey);
     const args = [payload, publicKey.toBuffer(), signature, this.partialAddress];
     const abi = this.getEntrypointAbi();
-    const packedArgs = await PackedArguments.fromArgs(encodeArguments(abi, args), wasm);
+    const packedArgs = await PackedArguments.fromArgs(encodeArguments(abi, args));
     const txRequest = TxExecutionRequest.from({
       argsHash: packedArgs.hash,
       origin: this.address,

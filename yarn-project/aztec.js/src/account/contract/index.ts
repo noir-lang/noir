@@ -7,14 +7,19 @@ export * from './ecdsa_account_contract.js';
 export * from './schnorr_account_contract.js';
 export * from './single_key_account_contract.js';
 
+// docs:start:account-contract-interface
 /**
- * An account contract instance. Knows its ABI, deployment arguments, and to create transaction execution
- * requests out of function calls through an entrypoint.
+ * An account contract instance. Knows its ABI, deployment arguments, and to create
+ * transaction execution requests out of function calls through an entrypoint.
  */
 export interface AccountContract {
-  /** Returns the ABI of this account contract. */
+  /**
+   * Returns the ABI of this account contract.
+   */
   getContractAbi(): ContractAbi;
-  /** Returns the deployment arguments for this instance. */
+  /**
+   * Returns the deployment arguments for this instance.
+   */
   getDeploymentArgs(): Promise<any[]>;
   /**
    * Creates an entrypoint for creating transaction execution requests for this account contract.
@@ -23,3 +28,4 @@ export interface AccountContract {
    */
   getEntrypoint(address: CompleteAddress, nodeInfo: NodeInfo): Promise<Entrypoint>;
 }
+// docs:end:account-contract-interface

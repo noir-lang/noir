@@ -26,13 +26,14 @@ impl FunctionCall {
 global ENTRYPOINT_PAYLOAD_SIZE: Field = 13;
 global ENTRYPOINT_PAYLOAD_SIZE_IN_BYTES: Field = 416;
 
+// docs:start:entrypoint-struct
 struct EntrypointPayload {
-  // Noir doesnt support nested arrays or structs yet so we flatten everything
   flattened_args_hashes: [Field; ACCOUNT_MAX_CALLS],
   flattened_selectors: [Field; ACCOUNT_MAX_CALLS],
   flattened_targets: [Field; ACCOUNT_MAX_CALLS],
   nonce: Field,
 }
+// docs:end:entrypoint-struct
 
 impl EntrypointPayload {
   // TODO(#1207) Do we need a generator index?
@@ -88,6 +89,7 @@ impl EntrypointPayload {
   }
 
   // Executes all private and public calls 
+  // docs:start:entrypoint-execute-calls
   fn execute_calls(self, context: &mut PrivateContext) {
     for i in 0..ACCOUNT_MAX_PRIVATE_CALLS {
         let target_address = self.flattened_targets[i];
@@ -106,4 +108,5 @@ impl EntrypointPayload {
         }
     }
   }
+  // docs:end:entrypoint-execute-calls
 }

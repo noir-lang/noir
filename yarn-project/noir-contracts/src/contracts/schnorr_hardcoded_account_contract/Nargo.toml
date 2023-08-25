@@ -1,0 +1,8 @@
+[package]
+name = "schnorr_hardcoded_account_contract"
+authors = [""]
+compiler_version = "0.1"
+type = "contract"
+
+[dependencies]
+aztec = { path = "../../../../noir-libs/noir-aztec" }

@@ -1,12 +1,13 @@
 import { CircuitsWasm, Fr, GeneratorIndex } from '@aztec/circuits.js';
 import { pedersenPlookupCompressWithHashIndex } from '@aztec/circuits.js/barretenberg';
 import { padArrayEnd } from '@aztec/foundation/collection';
-import { IWasmModule } from '@aztec/foundation/wasm';
 import { FunctionCall, PackedArguments, emptyFunctionCall } from '@aztec/types';
 
+import partition from 'lodash.partition';
+
 // These must match the values defined in yarn-project/noir-libs/noir-aztec/src/entrypoint.nr
-const ACCOUNT_MAX_PRIVATE_CALLS = 2;
-const ACCOUNT_MAX_PUBLIC_CALLS = 2;
+export const ACCOUNT_MAX_PRIVATE_CALLS = 2;
+export const ACCOUNT_MAX_PUBLIC_CALLS = 2;
 
 /** Encoded payload for the account contract entrypoint */
 export type EntrypointPayload = {
@@ -24,10 +25,7 @@ export type EntrypointPayload = {
 };
 
 /** Assembles an entrypoint payload from a set of private and public function calls */
-export async function buildPayload(
-  privateCalls: FunctionCall[],
-  publicCalls: FunctionCall[],
-): Promise<{
+export async function buildPayload(calls: FunctionCall[]): Promise<{
   /** The payload for the entrypoint function */
   payload: EntrypointPayload;
   /** The packed arguments of functions called */
@@ -35,7 +33,9 @@ export async function buildPayload(
 }> {
   const nonce = Fr.random();
 
-  const calls = [
+  const [privateCalls, publicCalls] = partition(calls, call => call.functionData.isPrivate);
+
+  const paddedCalls = [
     ...padArrayEnd(privateCalls, emptyFunctionCall(), ACCOUNT_MAX_PRIVATE_CALLS),
     ...padArrayEnd(publicCalls, emptyFunctionCall(), ACCOUNT_MAX_PUBLIC_CALLS),
   ];
@@ -43,7 +43,7 @@ export async function buildPayload(
   const packedArguments = [];
   const wasm = await CircuitsWasm.get();
 
-  for (const call of calls) {
+  for (const call of paddedCalls) {
     packedArguments.push(await PackedArguments.fromArgs(call.args, wasm));
   }
 
@@ -52,9 +52,9 @@ export async function buildPayload(
       // eslint-disable-next-line camelcase
       flattened_args_hashes: packedArguments.map(args => args.hash),
       // eslint-disable-next-line camelcase
-      flattened_selectors: calls.map(call => call.functionData.selector.toField()),
+      flattened_selectors: paddedCalls.map(call => call.functionData.selector.toField()),
       // eslint-disable-next-line camelcase
-      flattened_targets: calls.map(call => call.to.toField()),
+      flattened_targets: paddedCalls.map(call => call.to.toField()),
       nonce,
     },
     packedArguments,
@@ -62,9 +62,9 @@ export async function buildPayload(
 }
 
 /** Compresses an entrypoint payload to a 32-byte buffer (useful for signing) */
-export function hashPayload(payload: EntrypointPayload, wasm: IWasmModule) {
+export async function hashPayload(payload: EntrypointPayload) {
   return pedersenPlookupCompressWithHashIndex(
-    wasm,
+    await CircuitsWasm.get(),
     flattenPayload(payload).map(fr => fr.toBuffer()),
     GeneratorIndex.SIGNATURE_PAYLOAD,
   );
