@@ -1,0 +1,7 @@
+[package]
+name = "double_verify_proof"
+type = "bin"
+authors = [""]
+compiler_version = "0.1"
+
+[dependencies]
