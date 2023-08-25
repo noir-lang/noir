@@ -1,25 +1,25 @@
 fn main(mut x: Field) {
     add1(&mut x);
-    assert_eq(x, 3);
+    assert(x == 3);
 
     let mut s = S { y: x };
     s.add2();
-    assert_eq(s.y, 5);
+    assert(s.y == 5);
 
     // Regression for #1946: Method resolution error when calling &mut methods with a variable of type &mut T
     let s_ref = &mut s;
     s_ref.add2();
-    assert_eq(s.y, 7);
+    assert(s.y == 7);
 
     // Test that normal mutable variables are still copied
     let mut a = 0;
     mutate_copy(a);
-    assert_eq(a, 0);
+    assert(a == 0);
 
     // Test something 3 allocations deep
     let mut nested_allocations = Nested { y: &mut &mut 0 };
     add1(*nested_allocations.y);
-    assert_eq(**nested_allocations.y, 1);
+    assert(**nested_allocations.y == 1);
 
     // Test nested struct allocations with a mutable reference to an array.
     let mut c = C {
@@ -29,18 +29,18 @@ fn main(mut x: Field) {
         },
     };
     *c.bar.array = [3, 4];
-    assert_eq(*c.bar.array, [3, 4]);
+    assert(*c.bar.array == [3, 4]);
 
     regression_1887();
     regression_2054();
     regression_2030();
     regression_2255();
 
-    assert_eq(x, 3);
-    regression_2218_if_inner_if(x, 10);
-    regression_2218_if_inner_else(20, x);
-    regression_2218_else(x, 3);
-    regression_2218_loop(x, 10);
+    assert(x == 3);
+    regression_2218_if_inner_if(x == 10);
+    regression_2218_if_inner_else(20 == x);
+    regression_2218_else(x == 3);
+    regression_2218_loop(x == 10);
 }
 
 fn add1(x: &mut Field) {
@@ -75,7 +75,7 @@ fn mutate_copy(mut a: Field) {
 fn regression_1887() {
     let foo = &mut Foo { bar: Bar { x: 0 } };
     foo.bar.mutate();
-    assert_eq(foo.bar.x, 32);
+    assert(foo.bar.x == 32);
 }
 
 struct Foo { bar: Bar }
@@ -93,7 +93,7 @@ fn regression_2054() {
     let z = x;
 
     x += 1;
-    assert_eq(z, 2);
+    assert(z == 2);
 }
 
 // The compiler was still trying to convert an LValue from an array of structs to struct of arrays indexing,
@@ -111,7 +111,7 @@ fn regression_2030() {
 fn regression_2255() {
     let x = &mut 0;
     regression_2255_helper(x);
-    assert_eq(*x, 1);
+    assert(*x == 1);
 }
 
 fn regression_2255_helper(mut x: &mut Field) {
@@ -130,14 +130,14 @@ fn regression_2218(x: Field, y: Field) -> Field {
             *q1 = 10;
             *q2 = 2; // now we'd expect q1 == q2 == 2
 
-            assert_eq(*q1, 2);  
+            assert(*q1 == 2);  
         } else {
             *q2 = 15;
-            assert_eq(*q1, 15);
+            assert(*q1 == 15);
         }
     } else {
         *q2 = 20;
-        assert_eq(*q1, 20);  
+        assert(*q1 == 20);  
     }
     // Have to assign value to return it
     let value = *q1;
@@ -145,18 +145,18 @@ fn regression_2218(x: Field, y: Field) -> Field {
 }
 
 fn regression_2218_if_inner_if(x: Field, y: Field) {
-    let value = regression_2218(x, y);
-    assert_eq(value, 2);
+    let value = regression_2218(x == y);
+    assert(value == 2);
 }
 
 fn regression_2218_if_inner_else(x: Field, y: Field) {
-    let value = regression_2218(x, y);
-    assert_eq(value, 15);
+    let value = regression_2218(x == y);
+    assert(value == 15);
 }
 
 fn regression_2218_else(x: Field, y: Field) {
-    let value = regression_2218(x, y);
-    assert_eq(value, 20);  
+    let value = regression_2218(x == y);
+    assert(value == 20);  
 }
 
 fn regression_2218_loop(x: Field, y: Field) {
@@ -169,13 +169,13 @@ fn regression_2218_loop(x: Field, y: Field) {
             *q1 = 10;
             *q2 = 2; // now we'd expect q1 == q2 == 2
             
-            assert_eq(*q1, 2);
+            assert(*q1 == 2);
         } else {
             *q2 = 20;
-            assert_eq(*q1, 20);  
+            assert(*q1 == 20);  
         } 
     }
-    assert_eq(*q1, 2);
+    assert(*q1 == 2);
 
     for _ in 0..1 {
         for _ in 0..5 {
@@ -186,11 +186,11 @@ fn regression_2218_loop(x: Field, y: Field) {
                     *q1 = 10;
                     *q2 = 2; // now we'd expect q1 == q2 == 2
                     
-                    assert_eq(*q1, 2);
+                    assert(*q1 == 2);
                 }
             } else {
                 *q2 = 20;
-                assert_eq(*q1, 20);
+                assert(*q1 == 20);
             }
         }
         if x != y {
@@ -201,15 +201,15 @@ fn regression_2218_loop(x: Field, y: Field) {
                     *q1 = 10;
                     *q2 = 2; // now we'd expect q1 == q2 == 2
                     
-                    assert_eq(*q1, 2);
+                    assert(*q1 == 2);
                 }
             }
         } else {
             *q2 = 20;
-            assert_eq(*q1, 20);  
+            assert(*q1 == 20);  
         }
     }
-    assert_eq(*q1, 2);  
+    assert(*q1 == 2);  
 
     if x != y {
         for _ in 0..5 {
@@ -220,13 +220,13 @@ fn regression_2218_loop(x: Field, y: Field) {
                     *q1 = 10;
                     *q2 = 2; // now we'd expect q1 == q2 == 2
 
-                    assert_eq(*q1, 2);  
+                    assert(*q1 == 2);  
                 }
             }
         }
     } else {
         *q2 = 20;
-        assert_eq(*q1, 20);  
+        assert(*q1 == 20);  
     }
-    assert_eq(*q1, 2);  
+    assert(*q1 == 2);  
 }
