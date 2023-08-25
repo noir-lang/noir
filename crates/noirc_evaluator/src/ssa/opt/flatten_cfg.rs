@@ -445,8 +445,8 @@ impl<'f> Context<'f> {
             _ => panic!("Expected slice type"),
         };
 
-        let then_len = self.get_slice_length_from_value(then_value_id);
-        let else_len = self.get_slice_length_from_value(else_value_id);
+        let then_len = self.get_slice_length(then_value_id);
+        let else_len = self.get_slice_length(else_value_id);
 
         let len = then_len.max(else_len);
 
@@ -484,7 +484,7 @@ impl<'f> Context<'f> {
         self.inserter.function.dfg.make_array(merged, typ)
     }
 
-    fn get_slice_length_from_value(&mut self, value_id: ValueId) -> usize {
+    fn get_slice_length(&mut self, value_id: ValueId) -> usize {
         let value = &self.inserter.function.dfg[value_id];
         match value {
             Value::Array { array, .. } => array.len(),
@@ -494,7 +494,7 @@ impl<'f> Context<'f> {
                 match instruction {
                     Instruction::ArraySet { length, .. } => {
                         let length = length.expect("ICE: array set on a slice must have a length");
-                        self.get_slice_length_from_value(length)
+                        self.get_slice_length(length)
                     }
                     Instruction::Load { address } => {
                         let context_store = self
@@ -502,21 +502,19 @@ impl<'f> Context<'f> {
                             .get(address)
                             .expect("ICE: load in merger should have store from outer block");
 
-                        self.get_slice_length_from_value(context_store.new_value)
+                        self.get_slice_length(context_store.new_value)
                     }
                     Instruction::Call { func, arguments } => {
                         let func = &self.inserter.function.dfg[*func];
+                        let length = arguments[0];
                         match func {
                             Value::Intrinsic(intrinsic) => match intrinsic {
                                 Intrinsic::SlicePushBack
                                 | Intrinsic::SlicePushFront
-                                | Intrinsic::SlicePopBack
+                                | Intrinsic::SliceInsert => self.get_slice_length(length) + 1,
+                                Intrinsic::SlicePopBack
                                 | Intrinsic::SlicePopFront
-                                | Intrinsic::SliceInsert
-                                | Intrinsic::SliceRemove => {
-                                    let length = arguments[0];
-                                    self.get_slice_length_from_value(length)
-                                }
+                                | Intrinsic::SliceRemove => self.get_slice_length(length) - 1,
                                 _ => {
                                     unreachable!("ICE: Intrinsic not supported, got {intrinsic:?}")
                                 }
