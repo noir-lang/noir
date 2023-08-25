@@ -293,6 +293,8 @@
           inherit GIT_COMMIT GIT_DIRTY;
 
           cargoArtifacts = native-cargo-artifacts;
+          extraArgs = "foo";  # Added this line
+
         });
       };
 
