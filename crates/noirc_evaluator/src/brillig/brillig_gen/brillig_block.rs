@@ -1081,7 +1081,7 @@ impl<'block> BrilligBlock<'block> {
 /// Returns the type of the operation considering the types of the operands
 /// TODO: SSA issues binary operations between fields and integers.
 /// This probably should be explicitly casted in SSA to avoid having to coerce at this level.
-pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
+pub(crate) fn type_of_binary_operation(lhs_type: &Type, rhs_type: &Type) -> Type {
     match (lhs_type, rhs_type) {
         (_, Type::Function) | (Type::Function, _) => {
             unreachable!("Functions are invalid in binary operations")
@@ -1098,7 +1098,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
         // If either side is a Field constant then, we coerce into the type
         // of the other operand
         (Type::Numeric(NumericType::NativeField), typ)
-        | (typ, Type::Numeric(NumericType::NativeField)) => typ,
+        | (typ, Type::Numeric(NumericType::NativeField)) => typ.clone(),
         // If both sides are numeric type, then we expect their types to be
         // the same.
         (Type::Numeric(lhs_type), Type::Numeric(rhs_type)) => {
@@ -1106,7 +1106,7 @@ pub(crate) fn type_of_binary_operation(lhs_type: Type, rhs_type: Type) -> Type {
                 lhs_type, rhs_type,
                 "lhs and rhs types in a binary operation are always the same"
             );
-            Type::Numeric(lhs_type)
+            Type::Numeric(lhs_type.clone())
         }
     }
 }

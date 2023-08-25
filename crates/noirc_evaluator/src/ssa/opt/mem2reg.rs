@@ -129,6 +129,7 @@ struct Block {
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 enum Expression {
     Dereference(Box<Expression>),
+    ArrayElement(Box<Expression>),
     Other(ValueId),
 }
 
@@ -230,7 +231,7 @@ impl PerFunctionContext {
         let reference_parameters = function
             .parameters()
             .iter()
-            .filter(|param| function.dfg.type_of_value(**param) == Type::Reference)
+            .filter(|param| function.dfg.value_is_reference(**param))
             .collect::<BTreeSet<_>>();
 
         for (allocation, instruction) in last_stores {
@@ -243,8 +244,6 @@ impl PerFunctionContext {
                         self.instructions_to_remove.insert(instruction);
                     }
                 }
-            } else {
-                self.instructions_to_remove.insert(instruction);
             }
         }
     }
@@ -270,12 +269,14 @@ impl PerFunctionContext {
 
                     self.instructions_to_remove.insert(instruction);
                 } else {
-                    last_stores.remove(&address);
+                    references.mark_value_used(address, function, last_stores);
                 }
             }
             Instruction::Store { address, value } => {
                 let address = function.dfg.resolve(*address);
                 let value = function.dfg.resolve(*value);
+
+                self.check_array_aliasing(function, references, value);
 
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
@@ -298,7 +299,76 @@ impl PerFunctionContext {
                 aliases.insert(result);
                 references.aliases.insert(Expression::Other(result), aliases);
             }
+            Instruction::ArrayGet { array, .. } => {
+                let result = function.dfg.instruction_results(instruction)[0];
+                references.mark_value_used(*array, function, last_stores);
+
+                if function.dfg.value_is_reference(result) {
+                    let array = function.dfg.resolve(*array);
+                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+
+                    if let Some(aliases) = references.aliases.get_mut(&expression) {
+                        aliases.insert(result);
+                    }
+                }
+            }
+            Instruction::ArraySet { array, value, .. } => {
+                references.mark_value_used(*array, function, last_stores);
+
+                if function.dfg.value_is_reference(*value) {
+                    let result = function.dfg.instruction_results(instruction)[0];
+                    let array = function.dfg.resolve(*array);
+
+                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+
+                    if let Some(aliases) = references.aliases.get_mut(&expression) {
+                        aliases.insert(result);
+                    } else if let Some((elements, _)) = function.dfg.get_array_constant(array) {
+                        // TODO: This should be a unification of each alias set
+                        // If any are empty, the whole should be as well.
+                        for reference in elements {
+                            self.try_add_alias(references, reference, array);
+                        }
+                    }
+
+                    references.expressions.insert(result, expression);
+                }
+            }
             _ => (),
+        }
+    }
+
+    fn check_array_aliasing(&self, function: &Function, references: &mut Block, array: ValueId) {
+        if let Some((elements, typ)) = function.dfg.get_array_constant(array) {
+            if Self::contains_references(&typ) {
+                // TODO: Check if type directly holds references or holds arrays that hold references
+                let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                references.expressions.insert(array, expr.clone());
+                let aliases = references.aliases.entry(expr).or_default();
+
+                for element in elements {
+                    aliases.insert(element);
+                }
+            }
+        }
+    }
+
+    fn contains_references(typ: &Type) -> bool {
+        match typ {
+            Type::Numeric(_) => false,
+            Type::Function => false,
+            Type::Reference => true,
+            Type::Array(elements, _) | Type::Slice(elements) => {
+                elements.iter().any(|element| Self::contains_references(element))
+            }
+        }
+    }
+
+    fn try_add_alias(&self, references: &mut Block, reference: ValueId, alias: ValueId) {
+        if let Some(expression) = references.expressions.get(&reference) {
+            if let Some(aliases) = references.aliases.get_mut(expression) {
+                aliases.insert(alias);
+            }
         }
     }
 
@@ -310,10 +380,10 @@ impl PerFunctionContext {
         last_stores: &mut BTreeMap<ValueId, InstructionId>,
     ) {
         for value in values {
-            if function.dfg.type_of_value(*value) == Type::Reference {
+            if function.dfg.value_is_reference(*value) {
                 let value = function.dfg.resolve(*value);
                 references.set_unknown(value, last_stores);
-                last_stores.remove(&value);
+                references.mark_value_used(value, function, last_stores);
             }
         }
     }
@@ -345,7 +415,7 @@ impl PerFunctionContext {
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
-                    if function.dfg.type_of_value(*parameter) == Type::Reference {
+                    if function.dfg.value_is_reference(*parameter) {
                         let argument = function.dfg.resolve(*argument);
 
                         if let Some(expression) = references.expressions.get(&argument) {
@@ -477,7 +547,7 @@ impl Block {
     /// Remember that `result` is the result of dereferencing `address`. This is important to
     /// track aliasing when references are stored within other references.
     fn remember_dereference(&mut self, function: &Function, address: ValueId, result: ValueId) {
-        if function.dfg.type_of_value(result) == Type::Reference {
+        if function.dfg.value_is_reference(result) {
             if let Some(known_address) = self.get_known_value(address) {
                 self.expressions.insert(result, Expression::Other(known_address));
             } else {
@@ -486,6 +556,43 @@ impl Block {
                 // No known aliases to insert for this expression... can we find an alias
                 // even if we don't have a known address? If not we'll have to invalidate all
                 // known references if this reference is ever stored to.
+            }
+        }
+    }
+
+    /// Iterate through each known alias of the given address and apply the function `f` to each.
+    fn for_each_alias_of<T>(&mut self, address: ValueId, mut f: impl FnMut(ValueId) -> T) {
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr) {
+                for alias in aliases {
+                    f(*alias);
+                }
+            }
+        }
+    }
+
+    fn keep_last_stores_for(
+        &mut self,
+        address: ValueId,
+        last_stores: &mut BTreeMap<ValueId, InstructionId>,
+    ) {
+        last_stores.remove(&address);
+        self.for_each_alias_of(address, |alias| last_stores.remove(&alias));
+    }
+
+    fn mark_value_used(
+        &mut self,
+        value: ValueId,
+        function: &Function,
+        last_stores: &mut BTreeMap<ValueId, InstructionId>,
+    ) {
+        self.keep_last_stores_for(value, last_stores);
+
+        // We must do a recursive check for arrays since they're the only Values which may contain
+        // other ValueIds.
+        if let Some((array, _)) = function.dfg.get_array_constant(value) {
+            for value in array {
+                self.mark_value_used(value, function, last_stores);
             }
         }
     }
