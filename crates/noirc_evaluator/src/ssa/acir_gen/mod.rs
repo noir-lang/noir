@@ -1104,8 +1104,6 @@ impl Context {
                 Ok(vec![AcirValue::Var(self.acir_context.add_constant(len), AcirType::field())])
             }
             Intrinsic::SlicePushBack => {
-                dbg!(arguments.clone());
-
                 let slice_length = self.convert_value(arguments[0], dfg).into_var()?;
                 let slice = self.convert_value(arguments[1], dfg);
                 let element = self.convert_value(arguments[2], dfg);
@@ -1113,37 +1111,9 @@ impl Context {
                 let one = self.acir_context.add_constant(FieldElement::one());
                 let new_slice_length = self.acir_context.add_var(slice_length, one)?;
 
-                // Classic array way
-                dbg!("making new slice");
                 let mut new_slice = Vector::new();
                 self.slice_intrinsic_input(&mut new_slice, slice)?;
                 new_slice.push_back(element);
-                dbg!("got new slice");
-
-                // TODO: this complicates things in arrayget, but is it perhaps more efficient??
-                // let result_block_id = self.block_id(&arguments[1]);
-                // let len = match slice {
-                //     AcirValue::DynamicArray(AcirDynamicArray { block_id, len }) => {
-                //         let new_len = len + 1;
-                //         let mut init_values = try_vecmap(0..len, |i| {
-                //             let index = AcirValue::Var(
-                //                 self.acir_context.add_constant(FieldElement::from(i as u128)),
-                //                 AcirType::NumericType(NumericType::NativeField),
-                //             );
-                //             let var = index.into_var()?;
-                //             let read = self.acir_context.read_from_memory(block_id, &var)?;
-                //             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::NumericType(NumericType::NativeField)))
-                //         })?;
-                //         init_values.push(element);
-                //         self.initialize_array(result_block_id, new_len, Some(&init_values))?;
-                //         new_len
-                //     }
-                //     _ => unreachable!("ICE: expected a dynamic array but got {:?}", slice),
-                // };
-                // dbg!(self.initialized_arrays.contains(&result_block_id));
-                // let new_slice =
-                // AcirValue::DynamicArray(AcirDynamicArray { block_id: result_block_id, len });
-                // Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), new_slice])
 
                 Ok(vec![AcirValue::Var(new_slice_length, AcirType::field()), AcirValue::Array(new_slice.into())])
             }
