@@ -1,6 +1,4 @@
 use dep::std::slice;
-use dep::std;
-
 // Tests nested slice passing to/from functions
 unconstrained fn push_back_to_slice<T>(slice: [T], item: T) -> [T] {
     slice.push_back(item)

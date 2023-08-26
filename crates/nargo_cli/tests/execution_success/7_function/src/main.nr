@@ -1,6 +1,4 @@
 //Tests for function calling 
-use dep::std;
-
 fn f1(mut x: Field) -> Field {
     x = x + 1;
     x = f2(x);

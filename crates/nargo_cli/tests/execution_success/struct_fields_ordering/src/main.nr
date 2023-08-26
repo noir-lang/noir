@@ -1,5 +1,3 @@
-use dep::std;
-
 // Note that fields are not in alphabetical order.
 // We want to check that this ordering is maintained
 struct myStruct {
