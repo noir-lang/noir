@@ -569,6 +569,18 @@ impl AcirContext {
         let rhs_expr = self.var_to_expression(rhs)?;
         let predicate_expr = self.var_to_expression(predicate)?;
 
+        if predicate_expr == Expression::one() {
+            if let (Some(lhs), Some(rhs)) = (lhs_expr.to_const(), rhs_expr.to_const()) {
+                let quotient = lhs.to_u128() / rhs.to_u128();
+                let remainder = lhs.to_u128() - quotient * rhs.to_u128();
+
+                let quotient_var = self.add_constant(quotient.into());
+                let remainder_var = self.add_constant(remainder.into());
+
+                return Ok((quotient_var, remainder_var));
+            }
+        }
+
         let (quotient, remainder) =
             self.acir_ir.euclidean_division(&lhs_expr, &rhs_expr, bit_size, &predicate_expr)?;
 
@@ -674,19 +686,16 @@ impl AcirContext {
         rhs: u32,
         max_bit_size: u32,
     ) -> Result<AcirVar, RuntimeError> {
-        let lhs_expr = self.var_to_expression(lhs)?;
-
         // 2^{rhs}
         let divisor = FieldElement::from(2_i128).pow(&FieldElement::from(rhs as i128));
-        // Computes lhs = 2^{rhs} * q + r
-        let (_, remainder) = self.acir_ir.euclidean_division(
-            &lhs_expr,
-            &Expression::from_field(divisor),
-            max_bit_size,
-            &Expression::one(),
-        )?;
+        let divisor = self.add_constant(divisor);
 
-        Ok(self.add_data(AcirVarData::from(remainder)))
+        let predicate = self.add_constant(FieldElement::one());
+
+        // Computes lhs = 2^{rhs} * q + r
+        let (_, remainder) = self.euclidean_division_var(lhs, divisor, max_bit_size, predicate)?;
+
+        Ok(remainder)
     }
 
     /// Returns an `AcirVar` which will be `1` if lhs >= rhs
