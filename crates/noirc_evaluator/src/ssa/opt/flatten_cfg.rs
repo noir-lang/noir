@@ -899,11 +899,11 @@ mod test {
 
         let v0 = builder.add_parameter(Type::bool());
         let v1 = builder.add_parameter(Type::bool());
+        let v_true = builder.numeric_constant(true, Type::bool());
 
         builder.terminate_with_jmpif(v0, b1, b2);
 
         builder.switch_to_block(b1);
-        let v_true = builder.numeric_constant(true, Type::bool());
         builder.insert_constrain(v1, v_true);
         builder.terminate_with_jmp(b2, vec![]);
 

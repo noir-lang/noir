@@ -2,7 +2,6 @@ mod context;
 mod program;
 mod value;
 
-use acvm::FieldElement;
 pub(crate) use program::Ssa;
 
 use context::SharedContext;
@@ -344,8 +343,8 @@ impl<'a> FunctionContext<'a> {
         };
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-        let one = self.builder.numeric_constant(FieldElement::from(true), Type::bool());
-        self.builder.insert_constrain(is_offset_out_of_bounds, one);
+        let true_const = self.builder.numeric_constant(true, Type::bool());
+        self.builder.insert_constrain(is_offset_out_of_bounds, true_const);
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Values {
