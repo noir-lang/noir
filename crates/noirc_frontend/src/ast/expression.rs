@@ -641,7 +641,7 @@ impl FunctionDefinition {
                 (
                     Pattern::Identifier(ident.clone()),
                     unresolved_type.clone(),
-                    noirc_abi::AbiVisibility::Private,
+                    Visibility::Private,
                 )
             })
             .collect();
@@ -657,8 +657,8 @@ impl FunctionDefinition {
             span: name.span(),
             where_clause: where_clause.to_vec(),
             return_type: return_type.clone(),
-            return_visibility: noirc_abi::AbiVisibility::Private,
-            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
+            return_visibility: Visibility::Private,
+            return_distinctness: Distinctness::DuplicationAllowed,
         }
     }
 }
