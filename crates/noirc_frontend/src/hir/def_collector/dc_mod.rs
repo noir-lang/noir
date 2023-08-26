@@ -6,8 +6,9 @@ use crate::{
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
     node_interner::{StructId, TraitId},
     parser::SubModule,
-    FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait, NoirTypeAlias,
-    ParsedModule, Pattern, TraitImpl, TraitImplItem, TraitItem, TypeImpl, UnresolvedType,
+    FunctionDefinition, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct,
+    NoirTrait, NoirTypeAlias, ParsedModule, TraitImpl, TraitImplItem, TraitItem, TypeImpl,
+    UnresolvedType,
 };
 
 use super::{
@@ -17,8 +18,6 @@ use super::{
 use crate::hir::def_map::{parse_file, LocalModuleId, ModuleData, ModuleDefId, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
 use crate::hir::Context;
-
-use noirc_abi::{AbiDistinctness, AbiVisibility};
 
 /// Given a module collect all definitions into ModuleData
 struct ModCollector<'a> {
@@ -106,8 +105,8 @@ fn check_trait_method_implementation_return_type(
     impl_method: &NoirFunction,
     trait_name: &str,
 ) -> Result<(), DefCollectorErrorKind> {
-    if UnresolvedType::from(expected_return_type.clone())
-        == UnresolvedType::from(impl_method.def.return_type.clone())
+    if UnresolvedType::from_func_return_type(expected_return_type)
+        == UnresolvedType::from_func_return_type(&impl_method.def.return_type)
     {
         Ok(())
     } else {
@@ -304,48 +303,33 @@ impl<'a> ModCollector<'a> {
                     .iter()
                     .any(|(_, _, func_impl)| func_impl.name() == name.0.contents);
                 if !is_implemented {
-                    if body.is_some() {
-                        let method_name = name.0.contents.clone();
-                        let func_id = context.def_interner.push_empty_fn();
-                        context.def_interner.push_function_definition(method_name, func_id);
-                        let p = parameters
-                            .iter()
-                            .map(|(ident, unresolved_type)| {
-                                (
-                                    Pattern::Identifier(ident.clone()),
-                                    unresolved_type.clone(),
-                                    AbiVisibility::Private,
-                                )
-                            })
-                            .collect();
-                        let impl_method = NoirFunction::normal(crate::FunctionDefinition {
-                            name: name.clone(),
-                            attribute: None,
-                            is_open: false,
-                            is_internal: false,
-                            is_unconstrained: false,
-                            generics: generics.clone(),
-                            parameters: p,
-                            body: body.as_ref().unwrap().clone(),
-                            span: name.span(),
-                            where_clause: where_clause.clone(),
-                            return_type: return_type.clone(),
-                            return_visibility: AbiVisibility::Private,
-                            return_distinctness: AbiDistinctness::DuplicationAllowed,
-                        });
-                        unresolved_functions.push_fn(self.module_id, func_id, impl_method);
-                    } else {
-                        let error = DefCollectorErrorKind::TraitMissedMethodImplementation {
-                            trait_name: trait_def.name.clone(),
-                            method_name: name.clone(),
-                            trait_impl_span: trait_impl.object_type_span,
-                        };
-                        errors.push(error.into_file_diagnostic(self.file_id));
+                    match body {
+                        Some(body) => {
+                            let method_name = name.0.contents.clone();
+                            let func_id = context.def_interner.push_empty_fn();
+                            context.def_interner.push_function_definition(method_name, func_id);
+                            let impl_method = NoirFunction::normal(FunctionDefinition::normal(
+                                name,
+                                generics,
+                                parameters,
+                                body,
+                                where_clause,
+                                return_type,
+                            ));
+                            unresolved_functions.push_fn(self.module_id, func_id, impl_method);
+                        }
+                        None => {
+                            let error = DefCollectorErrorKind::TraitMissedMethodImplementation {
+                                trait_name: trait_def.name.clone(),
+                                method_name: name.clone(),
+                                trait_impl_span: trait_impl.object_type_span,
+                            };
+                            errors.push(error.into_file_diagnostic(self.file_id));
+                        }
                     }
                 }
             }
         }
-
         unresolved_functions
     }
 

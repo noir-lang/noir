@@ -626,6 +626,43 @@ impl Display for Lambda {
     }
 }
 
+impl FunctionDefinition {
+    pub fn normal(
+        name: &Ident,
+        generics: &UnresolvedGenerics,
+        parameters: &[(Ident, UnresolvedType)],
+        body: &BlockExpression,
+        where_clause: &[TraitConstraint],
+        return_type: &FunctionReturnType,
+    ) -> FunctionDefinition {
+        let p = parameters
+            .iter()
+            .map(|(ident, unresolved_type)| {
+                (
+                    Pattern::Identifier(ident.clone()),
+                    unresolved_type.clone(),
+                    noirc_abi::AbiVisibility::Private,
+                )
+            })
+            .collect();
+        FunctionDefinition {
+            name: name.clone(),
+            attribute: None,
+            is_open: false,
+            is_internal: false,
+            is_unconstrained: false,
+            generics: generics.clone(),
+            parameters: p,
+            body: body.clone(),
+            span: name.span(),
+            where_clause: where_clause.to_vec(),
+            return_type: return_type.clone(),
+            return_visibility: noirc_abi::AbiVisibility::Private,
+            return_distinctness: noirc_abi::AbiDistinctness::DuplicationAllowed,
+        }
+    }
+}
+
 impl Display for FunctionDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(attribute) = &self.attribute {
