@@ -68,11 +68,16 @@ pub struct TraitImpl {
     pub items: Vec<TraitImplItem>,
 }
 
-/// Represents a trait constraint such as `where Foo: Display + TraitX + TraitY<U, V>`
+/// Represents a simple trait constraint such as `where Foo: TraitY<U, V>`
+/// Complex trait constraints such as `where Foo: Display + TraitX + TraitY<U, V>` are converted
+/// in the parser to a series of simple constraints:
+///   `Foo: Display`
+///   `Foo: TraitX`
+///   `Foo: TraitY<U, V>`
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitConstraint {
     pub typ: UnresolvedType,
-    pub trait_bounds: Vec<TraitBound>,
+    pub trait_bound: TraitBound,
 }
 
 /// Represents a single trait bound, such as `TraitX` or `TraitY<U, V>`
@@ -165,8 +170,7 @@ impl Display for TraitItem {
 
 impl Display for TraitConstraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let bounds = vecmap(&self.trait_bounds, |bound| bound.to_string());
-        write!(f, "{}: {}", self.typ, bounds.join(" + "))
+        write!(f, "{}: {}", self.typ, self.trait_bound)
     }
 }
 

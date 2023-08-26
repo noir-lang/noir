@@ -524,18 +524,33 @@ fn trait_implementation_body() -> impl NoirParser<Vec<TraitImplItem>> {
 }
 
 fn where_clause() -> impl NoirParser<Vec<TraitConstraint>> {
+
+    struct MultiTraitConstraint {
+        typ: UnresolvedType,
+        trait_bounds: Vec<TraitBound>,
+    }
+
     let constraints = parse_type()
         .then_ignore(just(Token::Colon))
         .then(trait_bounds())
         .validate(|(typ, trait_bounds), span, emit| {
             emit(ParserError::with_reason(ParserErrorReason::ExperimentalFeature("Traits"), span));
-            TraitConstraint { typ, trait_bounds }
+            MultiTraitConstraint { typ, trait_bounds }
         });
 
     keyword(Keyword::Where)
         .ignore_then(constraints.separated_by(just(Token::Comma)))
         .or_not()
         .map(|option| option.unwrap_or_default())
+        .map(|x: Vec<MultiTraitConstraint>| {
+            let mut result: Vec<TraitConstraint> = Vec::new();
+            for constraint in x {
+                for bound in constraint.trait_bounds {
+                    result.push(TraitConstraint { typ:constraint.typ.clone(), trait_bound:bound } );
+                }
+            }
+            result
+        })
 }
 
 fn trait_bounds() -> impl NoirParser<Vec<TraitBound>> {
