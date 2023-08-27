@@ -710,14 +710,16 @@ where
     ignore_then_commit(keyword(Keyword::AssertEq), parenthesized(argument_parser))
         .labelled(ParsingRuleLabel::Statement)
         .validate(|exprs: Vec<Expression>, span, _| {
-            Statement::Constrain(ConstrainStatement(Expression::new(
+            let predicate = Expression::new(
                 ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: exprs.get(0).unwrap_or(&Expression::error(span)).clone(),
                     rhs: exprs.get(1).unwrap_or(&Expression::error(span)).clone(),
                     operator: Spanned::from(span, BinaryOpKind::Equal),
                 })),
                 span,
-            )))
+            );
+
+            Statement::Constrain(ConstrainStatement(predicate))
         })
 }
 
