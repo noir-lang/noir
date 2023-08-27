@@ -1,0 +1,50 @@
+name: Automatically rebuild ACIR artifacts
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  auto-pr-rebuild-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Download and install noirup
+        run: |
+          curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
+          echo "$HOME/.nargo/bin" >> $GITHUB_PATH
+          source /home/runner/.bashrc
+
+      - name: Verify noirup installation
+        run: |
+          ls -l $HOME/.nargo/bin
+
+  
+      - name: Run Noirup command to install Noir
+        run: |
+          noirup -p .
+
+      - name: Set up Git user (Github Action)
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Run rebuild script
+        working-directory: crates/nargo_cli/tests
+        run: |
+          chmod +x ./rebuild.sh
+          ./rebuild.sh
+
+      - name: Create or Update PR
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update Acir artifacts"
+          title: "Auto PR - Update ACIR artifacts"
+          body: "Automatic PR to update acir artifacts"
+          labels: "auto-pr"
+          branch: "auto-pr-rebuild-script-branch"
