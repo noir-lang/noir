@@ -1,5 +1,3 @@
-use dep::std;
-
 struct Foo {
     bar: Field,
     array: [Field; 2],
