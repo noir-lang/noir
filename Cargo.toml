@@ -60,4 +60,4 @@ base64 = "0.21.2"
 
 [patch.crates-io]
 # branch = "kw/dyn-backends-wasm"
-acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "10935a2da09724486553aff423e07e6486af77b8" }
+acvm-backend-barretenberg = { git = "https://github.com/noir-lang/acvm-backend-barretenberg", rev = "da6a1ee3b5825fc532d272b74a4836f902173d31" }
