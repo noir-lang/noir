@@ -54,7 +54,9 @@ impl<'f> FunctionInserter<'f> {
 
     /// Insert a key, value pair in the map
     pub(crate) fn map_value(&mut self, key: ValueId, value: ValueId) {
-        if key != value {
+        if key == value {
+            self.values.remove(&key);
+        } else {
             self.values.insert(key, value);
         }
     }

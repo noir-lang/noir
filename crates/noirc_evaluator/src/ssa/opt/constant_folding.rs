@@ -104,6 +104,7 @@ impl Context {
         // the same instruction appears again later in the block.
         if !instruction.has_side_effects(&function.dfg)
             && !matches!(instruction, Instruction::Allocate)
+            && !matches!(instruction, Instruction::Load { .. })
         {
             instruction_result_cache.insert(instruction, new_results.clone());
         }

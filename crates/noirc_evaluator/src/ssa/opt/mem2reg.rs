@@ -183,7 +183,8 @@ impl<'f> PerFunctionContext<'f> {
         let mut predecessors = self.cfg.predecessors(block);
 
         if let Some(first_predecessor) = predecessors.next() {
-            let first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
+            let mut first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
+            first.last_stores.clear();
 
             // Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
