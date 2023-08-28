@@ -1,4 +1,3 @@
-use dep::std;
 
 fn main() {
     let field = 1000;

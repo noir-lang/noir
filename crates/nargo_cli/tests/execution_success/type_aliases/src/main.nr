@@ -1,5 +1,3 @@
-use dep::std;
-
 type Foo<T> = [T; 2];
 
 type Bar = Field;

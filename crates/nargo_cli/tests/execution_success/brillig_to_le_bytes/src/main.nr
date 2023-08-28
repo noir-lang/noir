@@ -1,5 +1,3 @@
-use dep::std;
-
 unconstrained fn main(x : Field) -> pub [u8; 31] {
     // The result of this byte array will be little-endian
     let byte_array = x.to_le_bytes(31);
